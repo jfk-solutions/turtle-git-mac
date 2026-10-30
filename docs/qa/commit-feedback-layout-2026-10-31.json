@@ -1,0 +1,103 @@
+{
+  "date": "2026-10-31",
+  "status": "production-feedback-layout-repair-grouped-native-checkpoint",
+  "base_source_commit": "c5b71d87e9ea8bec99810da296bba104c1e25498",
+  "scope": "Commit Classic and Git Gui feedback placement; not whole Commit or port certification.",
+  "change": [
+    "Reuse the existing compact top toolbar row for a fixed24point status area; remove conditional Classic loading/operation/provider-error rows and the separate Git Gui operation row.",
+    "Keep reload phases, Amend, author/date/import, provider and file-operation feedback visible without changing form/list layout; retain full details in tooltip/status popover and keep file-operation cancellation.",
+    "Preserve operation admission, Git behavior, native report columns, selection and staging semantics."
+  ],
+  "validation": {
+    "localization": {
+      "write": "passed",
+      "check": "passed",
+      "logs": [
+        "build/qa/commit-feedback-localizations-2026-10-31.log",
+        "build/qa/commit-feedback-localizations-check-2026-10-31.log"
+      ]
+    },
+    "debug_build": {
+      "exit_code": 0,
+      "log": "build/qa/commit-feedback-debug-2026-10-31.log",
+      "limits": "Log retains CoreSimulator mismatch, Swift warnings and generic command-failed-with-exit-zero diagnostics; exit0 is not described as a warning-free build."
+    },
+    "native": [
+      {
+        "git": "/usr/bin/git",
+        "presentations": [
+          "Classic",
+          "GitGui"
+        ],
+        "result": "passed",
+        "receiver_pid": 58455,
+        "fixture_policy": "accessory; no activation observed in this completed receiver",
+        "log": "build/qa/commit-feedback-native-cancellation-ack-2026-10-31.log",
+        "observations": "build/qa/commit-feedback-observation/0-xlilc9z2"
+      },
+      {
+        "git": "build/git-runtime/Git/bin/git",
+        "presentations": [
+          "Classic",
+          "GitGui"
+        ],
+        "result": "passed",
+        "receiver_pid": 59262,
+        "fixture_policy": "final prohibited policy; never-active assertions passed",
+        "log": "build/qa/commit-feedback-native-bundled-background-2026-10-31.log",
+        "observations": "build/qa/commit-feedback-observation/0-hdiixyvm"
+      }
+    ],
+    "assertions": [
+      "Exact native window, destination-label, message-editor scroll, file-list and header rectangles remain unchanged through held Amend/status reads, author/date reads, held Export chooser, Cancel and actual native cancellation-alert OK acknowledgement.",
+      "Git Gui selection and real stage/unstage roundtrip retain exact geometry; HEAD, index content and working status remain equal after the complete workflow.",
+      "Actual offscreen toolbar bitmap text includes last commit message during held Amend; model loading/status semantic assertions also pass.",
+      "Final feedback messages/activity drain; expected cancellation diagnostic is acknowledged through the production native alert instead of clearing the model artificially."
+    ],
+    "not_rerun": [
+      "No Core suite: native layout-only production change.",
+      "Default broad typing case and unrelated native families were not repeated.",
+      "System Git was not repeated after the fixture-only prohibited-policy repair; its earlier complete pass retains accessory-policy scope."
+    ],
+    "cleanup": {
+      "all_observed_receivers_reaped": [
+        56779,
+        57172,
+        57881,
+        58455,
+        58821,
+        59262
+      ],
+      "native_runner_helper_cleanup": "passed in retained logs",
+      "successful_cases": "owned windows closed and operation counters drained; private repositories/preferences only"
+    }
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/commit-feedback-native-2026-10-31.log",
+      "cause": "Initial direct status AX assertion failed despite live model feedback."
+    },
+    {
+      "log": "build/qa/commit-feedback-native-ax-repair-2026-10-31.log",
+      "cause": "Bounded public-tree observation proved the entire NSHostingView SwiftUI accessibility tree absent: children0/navigation0. This was not established as a caption timing defect."
+    },
+    {
+      "log": "build/qa/commit-feedback-native-rendered-observer-2026-10-31.log",
+      "cause": "Rendered status and all held Classic geometry passed; final no-error assertion overlooked the intentional source cancellation alert."
+    },
+    {
+      "log": "build/qa/commit-feedback-native-cancellation-ack-2026-10-31.log",
+      "cause": "System Git passed both presentations after actual alert acknowledgement. Subsequent bundled receiver activated under accessory policy and failed its never-active assertion. Final fixture remains prohibited; only affected bundled case rerun."
+    }
+  ],
+  "limits": [
+    "Public in-process SwiftUI AX tree remained empty. The fallback checks actual rendered pixels with Vision OCR; it does not establish VoiceOver reading order or screen-reader behavior.",
+    "Status popover/tooltip implementation and import/provider captions are source-reviewed; physical popover gestures, imported-message/provider combinations, full keyboard/accessibility and installed signed acceptance remain separate.",
+    "No complete hosted CI, whole-port or signed-installed acceptance is established by this focused checkpoint."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "17ec6e24104e5272c214278886f36c24e28ec593e13c1154bc365866d8a1befc",
+    "docs/qa/commit-report-typing-native-2026-10-30.swift": "344fd934c0e92658eb9fd8764c51e9dc3ab70de79d4a46c2226a0f74c87e0095",
+    "scripts/test-commit-report-typing.py": "a2a959b299722130923c0ee0d4c6a3a95503daa7a2414ead2753e830d870290b"
+  }
+}

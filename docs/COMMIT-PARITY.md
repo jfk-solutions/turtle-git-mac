@@ -2910,3 +2910,28 @@ receipts. Checkbox events retain their native action; group rows cannot launch
 a different selected file. Explicit multi-file menu commands retain their
 existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
 separate from the connected native checkpoint.
+
+
+## Stable feedback layout — October 31, 2026
+
+Commit now presents transient feedback in its existing compact toolbar row in
+both Classic and Git Gui layouts. Loading phases, Amend, author/date/import
+reads, provider diagnostics and cancellable file operations no longer insert
+rows between **Commit to** and the message editor. The single-line summary
+retains full text through its tooltip and a small details popover. This changes
+feedback placement, without changing Git operations or command admission.
+
+The [focused checkpoint](qa/commit-feedback-layout-2026-10-31.json) records exact
+native destination/editor/list/header geometry through held reads, file-operation
+cancellation and actual native alert acknowledgement, plus Git Gui selection and
+stage/unstage. Both Git engines completed both presentations cumulatively. The
+system-Git pass used an accessory receiver; a later bundled attempt activated
+under that policy and failed. The final fixture remains prohibited, and only the
+affected bundled case was repeated successfully. Earlier failures are retained.
+
+The receiver exposed no SwiftUI accessibility children. Actual offscreen toolbar
+pixels and Vision text recognition establish that the held loading message is
+rendered; they do not establish VoiceOver behavior. Physical status-popover and
+keyboard gestures, broader provider/import combinations, signed-installed
+acceptance and complete hosted integration remain separate. No Core or unrelated
+native suite was repeated for this layout correction.

@@ -9,9 +9,13 @@ A combined viewer is the source **left view**, even though its editable output
 is Mine. Its context menu now uses the left-role Use this block/file labels and
 does not expose the right-view Mark/Unmark/Leave only marked commands.
 Copy/Cut/Paste precede writable whitespace/line-ending/encoding choices in
-combined mode. Read-only combined views show Copy and omit Cut/Paste and format
-mutation commands. Encoding items follow the source's nine-choice order and
-carry explicit format identities, so reordering cannot dispatch the wrong enum.
+combined mode. Read-only combined views show Copy and omit Cut/Paste,
+whitespace conversion and line-ending mutation commands. Ordinary output-encoding
+conversion stays disabled. The later [input-encoding family](MERGE-INPUT-ENCODING-PARITY.md)
+retains the File Encoding menu for source Control-reinterpretation and adds an
+explicit Reload with encoding submenu available on read-only inputs. Encoding
+items follow the source's nine-choice order and carry explicit format identities,
+so reordering cannot dispatch the wrong enum.
 
 Upstream still appends transfer items in the combined left view, but the
 handlers address the hidden right view whose data/working file are cleared by
@@ -53,3 +57,18 @@ No Core suite was rerun for the native-only menu changes. The check touched only
 private named pasteboards and scratch files. See
 [the batch record](qa/merge-one-pane-context-2026-10-12.json).
 Hosted CI and physical/signed acceptance remain unproven.
+
+## Read-only encoding fixture correction — October 31, 2026
+
+Hosted run 41129980751 on source `87701028` exposed an older expectation that
+read-only mode removed File Encoding entirely. The fixture now follows the
+implemented input-reload contract above; production behavior is unchanged.
+An explicit unmodified event makes menu/action checks independent of the user's
+Control key. It retains Cut/Paste/EOL/whitespace refusal, nine ordered encoding
+choices, disabled output conversion, enabled input reload, stale clipboard/edit/
+reload guards and unchanged saved bytes.
+
+The focused `scripts/test-native-merge-regex.py --one-pane-context-only` check
+passed; owned receiver 57794 was reaped. See
+`build/qa/readonly-one-pane-contract-2026-10-31.log`. No LFS/mail batch, app build
+or Core suite was rerun; full hosted, physical and signed acceptance remain open.

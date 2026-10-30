@@ -14,6 +14,7 @@ from native_receiver import build_receiver, run_receiver
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
+parser.add_argument('--only', choices=['typing','feedback'], default='typing')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 cleanup_tree = ast.parse((root/'scripts/test-log-file-drags.py').read_text())
@@ -36,23 +37,33 @@ for index, git in enumerate(args.git or [Path('/usr/bin/git'), root/'build/git-r
         environment.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),
                            GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
                            CFFIXED_USER_HOME=str(folder/'preferences'), HOME=str(folder/'home'),
-                           TMPDIR=str(folder/'temporary')+'/', XDG_CONFIG_HOME=str(folder/'xdg'))
+                           TMPDIR=str(folder/'temporary')+'/', XDG_CONFIG_HOME=str(folder/'xdg'),
+                           TURTLEGIT_COMMIT_REPORT_CASE=args.only)
         approved = {str(git.resolve())}
         selected = subprocess.run(['/usr/bin/xcrun', '--find', 'git'], capture_output=True, text=True, timeout=10)
         if selected.returncode == 0:
             approved.add(str(Path(selected.stdout.strip()).resolve()))
         passed = False
-        print('Checking native Commit report typing with '+str(git), flush=True)
+        print('Checking native Commit report '+args.only+' with '+str(git), flush=True)
         try:
             result = run_receiver([str(receiver), str(folder/'repository'), str(git)], cwd=root, env=environment,
                                   capture_output=True, text=True, timeout=180, timeout_sample=folder/'timeout.sample.txt')
             print(result.stdout, end=''); print(result.stderr, end='')
-            passed = result.returncode == 0 and 'PASS: Classic Commit message typing preserves native report headers' in result.stdout
-            results.append(dict(git=str(git), returncode=result.returncode, passed=passed))
-            (root/'build/qa/commit-report-typing-native-results.json').write_text(json.dumps(results, indent=2)+'\n')
+            marker='PASS: Commit feedback geometry in both presentations' if args.only=='feedback' else 'PASS: Classic Commit message typing preserves native report headers'
+            passed = result.returncode == 0 and marker in result.stdout
+            results.append(dict(case=args.only, git=str(git), returncode=result.returncode, passed=passed))
+            (root/('build/qa/commit-report-'+args.only+'-native-results.json')).write_text(json.dumps(results, indent=2)+'\n')
             result.check_returncode()
             if not passed:
                 raise RuntimeError('Commit report receiver exited without its final behavioral/cleanup assertion')
+            if args.only == 'feedback' and (folder/'feedback-observation').is_dir():
+                captures=root/'build/qa/commit-feedback-observation'
+                captures.mkdir(parents=True,exist_ok=True)
+                destination=Path(tempfile.mkdtemp(prefix=str(index)+'-',dir=captures))
+                shutil.copytree(folder/'feedback-observation',destination,dirs_exist_ok=True)
+                results[-1]['feedback_observation']=str(destination)
+                (root/('build/qa/commit-report-'+args.only+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
+                print('Retained private feedback rendering/AX observations: '+str(destination),flush=True)
         except BaseException:
             evidence = Path(tempfile.mkdtemp(prefix='commit-report-typing-failed-'+str(index)+'-', dir=root/'build/qa'))
             shutil.copytree(folder, evidence, dirs_exist_ok=True)

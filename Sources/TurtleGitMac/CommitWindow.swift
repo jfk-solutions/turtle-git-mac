@@ -1098,6 +1098,21 @@ import TurtleGitCore
         reloadPhase = phase
     }
     var fileListLoadingStatus: String? { reloadCancellation == nil ? nil : reloadStatusMessage }
+    /// Feedback occupies the existing toolbar row in either presentation.
+    /// Transient readers must never insert children above the editable form.
+    var feedbackMessages:[String] {
+        var result:[String]=[]
+        if let issueProviderError,!issueProviderError.isEmpty {result.append(issueProviderError)}
+        if !fileOperationTitle.isEmpty {result.append(fileOperationCancelling ? NSLocalizedString("Cancelling…",comment:""):fileOperationTitle)}
+        if let fileListLoadingStatus {result.append(fileListLoadingStatus)}
+        if loadingAmendMessage {result.append(NSLocalizedString("Reading last commit message…",comment:""))}
+        if loadingAuthorIdentity {result.append(NSLocalizedString("Reading author…",comment:""))}
+        if loadingAuthorDate {result.append(NSLocalizedString("Reading author date…",comment:""))}
+        if loadingImportedMessage {result.append(NSLocalizedString("Reading commit message…",comment:""))}
+        if issueProviderBusy,reloadPhase != .provider {result.append(NSLocalizedString(ReloadPhase.provider.rawValue,comment:""))}
+        return result
+    }
+    var feedbackActivityVisible:Bool {busy || !fileOperationTitle.isEmpty || loadingAmendMessage || loadingAuthorIdentity || loadingAuthorDate || loadingImportedMessage || issueProviderBusy}
     private var reloadStatusMessage: String {
         let stem = hasLoaded ? "Refreshing changes…" : "Loading changes…"
         guard reloadCancellation != nil, let reloadPhase else { return stem }
@@ -3588,23 +3603,21 @@ struct CommitDialog: View {
     @State private var dividerStart: Double?
     @State private var initialFocusIntent:UUID?
     @State private var initialIssueFocusApplied = false
+    @State private var feedbackDetails:String?
     var body: some View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Spacer(minLength: 0)
+                feedbackBand
                 if model.gitGuiInterface {Button("Refresh") {model.reload()}.controlSize(.small).disabled(model.inputsBlocked)}
                 Picker("Commit window", selection: Binding(get: { model.gitGuiInterface }, set: { model.setCommitInterface($0) })) {
                     Text("Classic").tag(false); Text("Git Gui-style staging").tag(true)
                 }.pickerStyle(.menu).labelsHidden().controlSize(.small).fixedSize()
                     .accessibilityLabel("Commit window")
                     .disabled(model.inputsBlocked || model.guiPatch?.applyingChanges == true)
-            }
+            }.frame(height:24)
             destinationSection.disabled(model.inputsBlocked)
-            if let error = model.issueProviderError { Text(error).font(.caption).foregroundStyle(.red).textSelection(.enabled) }
             if model.gitGuiInterface { guiWorkspace } else {
             Group {
-                if let status = model.fileListLoadingStatus { Text(status).font(.caption).foregroundStyle(.secondary) }
-                if !model.fileOperationTitle.isEmpty { HStack { Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption); Spacer(); Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling) } }
                 GeometryReader { geometry in
                     let maximum = max(245.0, geometry.size.height - 288)
                     let height = min(max(messagePaneHeight, 245), maximum)
@@ -3667,6 +3680,29 @@ struct CommitDialog: View {
         .sheet(isPresented: $model.creatingChangelist) { CreateChangelistSheet(model: model) }
 
     }
+    private var feedbackBand:some View {
+        let messages=model.feedbackMessages,details=messages.joined(separator:"\n")
+        let summary=messages.flatMap{$0.components(separatedBy:.newlines)}.filter{!$0.isEmpty}.joined(separator:" · ")
+        return HStack(spacing:6) {
+            ProgressView().controlSize(.small).frame(width:18,height:18)
+                .opacity(model.feedbackActivityVisible ? 1:0).accessibilityHidden(!model.feedbackActivityVisible).allowsHitTesting(false)
+            Button {feedbackDetails=details} label: {
+                HStack(spacing:4) {
+                    Text(summary.isEmpty ? " ":summary).font(.caption).lineLimit(1).truncationMode(.tail)
+                    Image(systemName:"chevron.down").font(.caption2).opacity(details.isEmpty ? 0:1)
+                }.frame(maxWidth:.infinity,alignment:.leading)
+            }.buttonStyle(.plain).foregroundStyle(model.issueProviderError == nil ? Color.secondary:Color.red)
+                .disabled(details.isEmpty).opacity(details.isEmpty ? 0:1).accessibilityHidden(details.isEmpty)
+                .accessibilityLabel("Commit status").accessibilityValue(details).help(details)
+                .popover(isPresented:Binding(get:{feedbackDetails != nil},set:{if !$0 {feedbackDetails=nil}})) {
+                    Text(feedbackDetails ?? "").font(.callout).textSelection(.enabled).padding(12).frame(maxWidth:520,alignment:.leading)
+                }
+            Button("Cancel operation") {model.cancelFileOperation()}.controlSize(.small)
+                .disabled(model.fileOperationTitle.isEmpty || model.fileOperationCancelling)
+                .opacity(model.fileOperationTitle.isEmpty ? 0:1).accessibilityHidden(model.fileOperationTitle.isEmpty)
+        }.frame(maxWidth:.infinity,minHeight:24,maxHeight:24,alignment:.leading)
+            .accessibilityIdentifier("commit-feedback-band")
+    }
     private var destinationSection:some View {
         let receipt=model.formReceipt,branchFocus=model.branchFocusIntent
         return CommitDestinationLayout {
@@ -3685,26 +3721,11 @@ struct CommitDialog: View {
                     Text(model.issueProperties.label).lineLimit(1).truncationMode(.tail).frame(maxWidth:180).help(model.issueProperties.label)
                     CommitNewBranchField(name:Binding(get:{model.issueID},set:{if model.acceptsFormReceipt(receipt){model.issueID=$0}}),acceptsChanges:{model.acceptsFormReceipt(receipt) && !model.inputsBlocked},fieldIdentifier:"Commit issue",fieldLabel:model.issueProperties.label,automaticFocus:false,onSubmit:{model.focusMessage()}).frame(width:140)
                 }
-                ProgressView().controlSize(.small).frame(width:18,height:18).opacity(model.busy ? 1:0)
-                    .accessibilityHidden(!model.busy).allowsHitTesting(false)
             }
         }
     }
     private var guiWorkspace: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // Reserve the operation band so starting/stopping Git never moves
-            // either native file list beneath the pointer.
-            HStack(spacing: 8) {
-                ProgressView().controlSize(.small).frame(width: 18, height: 18)
-                Text(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle).font(.caption).lineLimit(1)
-                    .help(model.fileOperationCancelling ? "Cancelling…" : model.fileOperationTitle)
-                Spacer()
-                Button("Cancel operation") { model.cancelFileOperation() }.disabled(model.fileOperationCancelling)
-            }
-            .frame(height: 24)
-            .opacity(model.fileOperationTitle.isEmpty ? 0 : 1)
-            .allowsHitTesting(!model.fileOperationTitle.isEmpty)
-            .accessibilityHidden(model.fileOperationTitle.isEmpty)
             HSplitView {
                 VSplitView {
                     guiFiles(staged: false)
