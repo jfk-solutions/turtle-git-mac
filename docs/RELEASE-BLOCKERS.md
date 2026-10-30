@@ -30,7 +30,8 @@ missing source behavior, reported defect or failing check.
   counts alone do not complete this requirement.
 - [ ] Check the accepted build's README, license/source notices, manual, offline
   Help and screenshot website together; keep publisher credit unobtrusive.
-- [ ] Deliver the signed local testing package for owner acceptance. Public
+- [x] Deliver the signed local testing package for owner acceptance. Build39 is
+  installed with build38 preserved for rollback; owner acceptance remains open. Public
   distribution and the later App Store submission remain separate, including
   distribution signing and the unresolved GPL/App Store terms gate.
 
@@ -51,17 +52,39 @@ corrections. The terminal hosted run passed Core and SVN but failed seven native
 lanes; all seven now have local repairs and focused passes in the continuation
 below. A complete corrected-source pass is still required.
 
+## Installed local testing build39
+
+[Signed build39](qa/signed-consolidation-build39-2026-10-30.json), `0.1.0 (39)`,
+is installed from source `fa5f05fe`. The first-use permission picker targets the
+clicked folder, and Classic Commit message edits leave the native report header
+stable. Real file, selection, checkbox, column, font and appearance changes remain
+live. The folder-access guide and bundled Help describe the permission flow.
+
+One signed universal build succeeded with zero contradictory compiler diagnostics.
+Strict seals, frozen source inputs, eight owned arm64/x86_64 components, the
+scoped public Core/packaged Git sandbox probe, bundled Help, ZIP round trip and
+all 6,381 installed inventory members pass. The app remains closed; build38 is
+preserved for rollback. No user app was terminated and Finder/Dock were not
+restarted. The pre-install registration helper retains its exact PID assertion
+failure: the managed extension PID changed while metadata restoration succeeded
+and Finder remained running. This does not replace physical integration checks.
+
+The full hosted run on this source is still in progress. Current signed picker
+and typing acceptance, the broader source/layout gates and later public/store
+distribution remain separate. This local development signature is not an App
+Store submission, notarization or complete-port certification.
+
 ## Finder permission and Classic Commit presentation continuation
 
-The [October30 focused batch](qa/commit-finder-presentation-2026-10-30.json)
+The [October 30 focused batch](qa/commit-finder-presentation-2026-10-30.json)
 targets the clicked repository directly in the first-use permission picker and
 isolates the Classic Commit file table from message-only updates. Actual native
 column-visibility observations now detect transient changes during typing; both
 Git engines pass the report/column/typing family while real selection, checkbox,
 status, font, appearance and saved column changes remain active. The picker,
 Help, Services, Settings ownership, image blink, Merge Patch and affected Log
-checks have scoped passes. Installed build38 predates these changes; build39
-packaging and physical acceptance remain separate.
+checks have scoped passes. Installed build39 includes these changes; physical
+acceptance remains separate.
 
 Hosted run [41001587894](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41001587894)
 passed Core, SVN, the unsigned universal candidate audit, graph framework and

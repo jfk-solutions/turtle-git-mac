@@ -1,0 +1,62 @@
+name: Independent WMF full 2D basis and arithmetic reference
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent full source-basis observer
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-halftone-sampling-reference-2026-10-30\HalftoneBasisReference.cpp
+          /Fe:HalftoneBasisReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Observe full 2D basis and component boundaries after positive controls
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wireInputPath = 'docs/qa/metafile-halftone-sampling-reference-2026-10-30/continuity.wmf'
+          if ((Get-FileHash $wireInputPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne '56587d45ceda1fd246523ca8e04c64bccbed942dbd2aca5c2815937d38555c37') { throw 'Retained continuity wire changed' }
+          ./HalftoneBasisReference.exe basis-output $wireInputPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $m = Get-Content -Raw basis-output/basis-observations.json | ConvertFrom-Json
+          if ($m.requestedCaseCount -ne 611 -or $m.capturedCaseCount -ne 611 -or $m.cases.Count -ne 611 -or $m.diagnosticCount -ne 600) { throw 'Incomplete basis inventory' }
+          if (-not $m.uniformControlsPassed -or $m.uniformControlCount -ne 11 -or $m.positive128ControlCount -ne 3 -or -not $m.allCapturedObservable) { throw 'Uniform preflight did not complete before diagnostics' }
+          if ($m.continuity.loadStatusAfterRawFormat -ne 0 -or $m.continuity.drawStatus -ne 0 -or $m.continuity.getPixelErrors -ne 0 -or -not $m.continuity.originalSixRGBPassed) { throw 'Original six RGB control differs; preserve observations' }
+          if ($m.continuity.width -ne 240 -or $m.continuity.height -ne 160 -or (Get-Item basis-output/continuity-picture.rgba).Length -ne 153600) { throw 'Retained continuity dimensions changed' }
+          $groups = @{}
+          foreach ($c in $m.cases) {
+            if (-not $groups.ContainsKey($c.group)) { $groups[$c.group] = 0 }
+            $groups[$c.group]++
+            if ($c.picture.loadStatusAfterRawFormat -ne 0 -or $c.picture.drawStatus -ne 0 -or $c.picture.getPixelErrors -ne 0 -or $c.picture.intrinsicGetPixelErrors -ne 0 -or $c.picture.nonzeroAlphaPixels -le 0) { throw "Unobservable primary input $($c.name)" }
+            if ($c.picture.width -ne 64 -or $c.picture.height -ne 40 -or (Get-Item "basis-output/$($c.name)-picture.rgba").Length -ne 10240) { throw 'Truncated primary capture' }
+            # Intrinsic/natural mismatches remain observations; raw alpha is
+            # retained. No kernel, sign, rounding or component tolerance is fitted.
+          }
+          if ($groups['uniform128-control'] -ne 3 -or $groups['shifted-base-control'] -ne 8 -or $groups['full2d-source-basis'] -ne 486 -or $groups['dense1d-integer-boundary'] -ne 60 -or $groups['shifted-base1d-boundary'] -ne 54) { throw 'Unexpected source-basis family coverage' }
+          if ((Get-ChildItem basis-output -File | Measure-Object Length -Sum).Sum -ge 10MB) { throw 'Basis artifact exceeds10MiB before provenance' }
+      - name: Record immutable observer and Windows runtime provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force basis-output | Out-Null
+          git rev-parse HEAD | Set-Content basis-output/source-revision.txt
+          cl 2>&1 | Out-File basis-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content basis-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content basis-output/runtime-versions.json
+          $files = @(Get-ChildItem basis-output -File) + @(Get-Item docs/qa/metafile-halftone-sampling-reference-2026-10-30/HalftoneBasisReference.cpp, docs/qa/metafile-halftone-sampling-reference-2026-10-30/continuity.wmf, .github/workflows/metafile-halftone-basis-reference.yml)
+          if (Test-Path HalftoneBasisReference.exe) { $files += Get-Item HalftoneBasisReference.exe }
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content basis-output/sha256.json
+          if ((Get-ChildItem basis-output -File | Measure-Object Length -Sum).Sum -ge 10MB) { throw 'Basis artifact exceeds10MiB with provenance' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-halftone-full-basis-windows-reference
+          path: basis-output
+          if-no-files-found: error
+          retention-days: 30

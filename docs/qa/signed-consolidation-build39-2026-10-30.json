@@ -1,0 +1,102 @@
+{
+  "date": "2026-10-30",
+  "recorded_utc": "2026-10-30T16:15:25.312504+00:00",
+  "status": "installed-local-testing-build39-not-release-certification",
+  "version": "0.1.0",
+  "build": "39",
+  "source_commit": "fa5f05feb90350cf393aaaf5c3357a1ba9e0c4f4",
+  "source_input_sha256": "625cecf3d44ad435eff8cf7df66bb56fabad0520cf993ae17e7bd2cf9058b587",
+  "native_batch": "commit-finder-presentation-2026-10-30.json",
+  "implementation": [
+    "Add to TurtleGit first-use permission picker opens the selected folder directly; valid saved access avoids another picker.",
+    "Classic Commit message typing no longer recomposes native file Table or toggles its header columns. Real report/selection/checkbox/preference/ownership transitions retain explicit presentation inputs.",
+    "Updated folder-access guide and bundled Help; affected native lifecycle/readiness fixture repairs retain behavioral assertions."
+  ],
+  "signed_build": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 479.43,
+        "log": "build/qa/signed39-build-2026-10-30.log"
+      }
+    ],
+    "build_environment": {
+      "DEVELOPER_DIR": "/Applications/Xcode.app/Contents/Developer",
+      "SDKROOT": "macosx"
+    },
+    "exit_code": 0,
+    "contradictory_exit_zero_diagnostics": 0,
+    "architecture_scope": "All8 owned app components arm64+x86_64; inherited Git/LibGit2/Metafile representatives checked. Structure is not physical Intel/minimum-OS acceptance.",
+    "strict_deep_seal": true,
+    "same_team_sandbox_app_groups": true,
+    "source_inputs_unchanged": true,
+    "packaged_help_source_equal": true,
+    "packaged_help_source_members": 95
+  },
+  "sealed_probe": {
+    "passed": true,
+    "scope": "Disposable private sandbox parent with production public Core and packaged Git; no shipping native UI, Finder activation, outside grants or App Group entitlement exercised.",
+    "local_tools_children": {
+      "observed_helper_processes": 3,
+      "owned_helper_pids": [
+        78240,
+        78378,
+        78416
+      ],
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false
+    },
+    "parent_pid": 78173,
+    "independently_absent_after_probe": [
+      78173,
+      78240,
+      78378,
+      78416
+    ],
+    "private_container_cleaned": true
+  },
+  "archive": {
+    "zip": "TurtleGit-for-Mac-0.1.0-build39-signed.zip",
+    "zip_bytes": 423312278,
+    "zip_sha256": "9a95c4f00505367459fe357c896ab45dbb26591cafb6e7b0ab28d65ffba3dad9",
+    "bundle_members": 6381,
+    "application_sha256": "e182c8897b80adc1c95e14651d7a5685c95e8ff21bc5ef1becf80c60585f5808",
+    "copied_and_extracted_inventory_equal": true,
+    "strict_deep_seal_source_copy_roundtrip": true
+  },
+  "installation": {
+    "status": "installed-build39-kept-closed",
+    "path": "/Applications/TurtleGit for Mac.app",
+    "installed_utc": "2026-10-30T16:14:19.250041+00:00",
+    "inventory_members": 6381,
+    "complete_inventory_equal": true,
+    "main_sha256": "e182c8897b80adc1c95e14651d7a5685c95e8ff21bc5ef1becf80c60585f5808",
+    "atomic_swap": true,
+    "build38_rollback_preserved": true,
+    "app_launched": false,
+    "signals_sent": false,
+    "finder_restarted": false,
+    "dock_restarted": false,
+    "login_item_preferences_changed": false,
+    "service_preferences_changed": false,
+    "independent_installed_plist_and_main_hash_confirmed": true
+  },
+  "preinstall_registration_review": {
+    "original_exit_code": 1,
+    "metadata_restored": true,
+    "original_pid_assertion_preserved": true,
+    "scope": "Only OS-managed installed extension PID changed during registration; Finder1881 persisted, no main app was present, no signals or deliberate UI launch. Original failure retained, not rerun or weakened."
+  },
+  "hosted_ci": {
+    "run": 41085850782,
+    "source_commit": "fa5f05feb90350cf393aaaf5c3357a1ba9e0c4f4",
+    "status": "in progress at packaging; no full corrected-source pass claimed"
+  },
+  "remaining": [
+    "Owner acceptance of current signed picker targeting and Classic typing behavior remains separate from linked native checks.",
+    "Complete current hosted CI and wider dialog/state/layout/keyboard/accessibility acceptance remain open.",
+    "Intel/minimum-macOS execution, wider signed grants/receiving applications/external services remain scoped separately.",
+    "WMF HALFTONE component arithmetic remains under independent Windows analysis; this build does not add a renderer sampling change.",
+    "No public binary upload, notarization, App Store submission or full-port completion."
+  ]
+}
