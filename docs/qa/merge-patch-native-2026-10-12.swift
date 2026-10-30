@@ -17,6 +17,7 @@ struct MergePatchNativeVerification {
         let host = NSHostingView(rootView: MergeEditorSettings(defaults: prefs, commentProfileURL: root.appendingPathComponent("ignorecomments.txt"),model:settingsModel).environment(\.settingsTransaction, settings))
         settingsWindow.contentView = host; host.frame = settingsWindow.contentLayoutRect; host.layoutSubtreeIfNeeded()
         defer { settings.invalidate(); settingsWindow.contentView = nil; settingsWindow.close() }
+        settingsWindow.alphaValue=0;settingsWindow.setFrameOrigin(.init(x:-18000,y:-18000));settingsWindow.orderFront(nil)
         func findField(_ view: NSView) -> NSTextField? {
             if let field = view as? NSTextField, field.identifier?.rawValue == "MergePatchContext" { return field }
             return view.subviews.compactMap(findField).first
@@ -26,13 +27,31 @@ struct MergePatchNativeVerification {
             throw NSError(domain:"MergePatch",code:2,userInfo:[NSLocalizedDescriptionKey:"\(message); context=\(settingsModel.patchContext),validation=\(String(describing:settingsModel.validationError)),active=\(settingsModel.active),owner=\(settingsModel.window===settingsWindow),modified=\(settings.modified),busy=\(settings.busy),error=\(String(describing:settings.error)),field=\(findField(host)?.stringValue ?? "missing"),enabled=\(findField(host)?.isEnabled == true)"])
         }
         // Attaching the page rotates its input receipt and asynchronously
-        // publishes the activated revision. A field existing before that
-        // transition does not establish that its binding may accept edits.
+        // publishes the activated revision. Field existence/enablement does
+        // not establish that updateNSView installed the resulting binding.
         try await waitSettings("Owned Merge Settings activation did not complete") {settingsModel.window===settingsWindow && settingsModel.active && settingsModel.revision != unattachedRevision && findField(host)?.isEnabled==true}
         let field = findField(host)!
-        try check(field.stringValue == "-1", "Source default context is missing")
+        try check(field.stringValue == "-1" && settingsModel.patchContext=="-1", "Source default context is missing")
+        func prepareCleanContextEditor(_ expected:String,probe:String)async throws {
+            try check(settingsModel.patchContext==expected && !settings.modified,"Context rendering probe requires the clean accepted draft")
+            let original=settingsModel.state,saved=prefs.object(forKey:"TurtleGitMerge.ContextLines") as? NSNumber
+            // A distinct model value reaching the actual native field proves
+            // its updateNSView ran after the receipt rotation. Restore the
+            // accepted draft and transaction before issuing one native edit;
+            // rejected native edits are never retried to mask stale delivery.
+            settingsModel.patchContext=probe
+            try await waitSettings("Context probe did not render with its owned binding") {
+                findField(host)?.window===settingsWindow && findField(host)?.stringValue==probe && settings.modified
+            }
+            settingsModel.patchContext=expected
+            try await waitSettings("Accepted context did not render cleanly after the probe") {
+                findField(host)?.stringValue==expected && findField(host)?.isEnabled==true && !settings.modified
+            }
+            try check(settingsModel.state==original && (prefs.object(forKey:"TurtleGitMerge.ContextLines") as? NSNumber)==saved,"Context rendering probe changed the saved settings or another draft")
+        }
+        try await prepareCleanContextEditor("-1",probe:"0")
         func edit(_ value: String)async throws {
-            guard let current=findField(host),current.isEnabled,current.delegate != nil else {throw NSError(domain:"MergePatch native context control unavailable",code:3)}
+            guard let current=findField(host),current.window===settingsWindow,current.isEnabled,current.delegate != nil else {throw NSError(domain:"MergePatch native context control unavailable",code:3)}
             current.stringValue=value;current.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:current))
             try await waitSettings("Actual native context edit was not accepted: "+value) {settingsModel.patchContext==value}
         }
@@ -42,6 +61,7 @@ struct MergePatchNativeVerification {
         try await edit("0");try await waitSettings("Valid context draft not registered") {settings.modified && settingsModel.validationError==nil}
         settings.apply(closeAfter: false); try await waitSettings("Valid context Apply did not persist") { !settings.busy && prefs.object(forKey: "TurtleGitMerge.ContextLines") != nil }
         try check(MergeUnifiedPatch.contextLines(from: prefs) == 0 && !settings.modified, "Apply did not persist context")
+        try await prepareCleanContextEditor("0",probe:"-1")
         try await edit("12"); try await waitSettings("Cancel draft not registered") { settings.modified }; settings.cancel()
         try await waitSettings("Cancel did not restore accepted context") { findField(host)?.stringValue == "0" && settingsModel.patchContext=="0" && !settings.modified }
         func controls(_ view: NSView) -> [NSControl] { (view as? NSControl).map { [$0] } ?? view.subviews.flatMap(controls) }
@@ -55,6 +75,7 @@ struct MergePatchNativeVerification {
         try Data(before.utf8).write(to: base); try Data(after.utf8).write(to: mine)
         let owner = FileComparisonWindowController(comparison: try WorkingFileComparison(base: base, destination: mine), permissions: [])
         defer { owner.window?.close() }
+        owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-18000,y:-18000));owner.window?.orderFront(nil)
         let model = owner.model; model.comparisonDefaults = prefs; model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt")
         model.patchExecutable = URL(fileURLWithPath: "/usr/bin/git"); model.load(); try await TwoPaneEngineVerification.settled(model)
         let output = root.appendingPathComponent("saved.diff")

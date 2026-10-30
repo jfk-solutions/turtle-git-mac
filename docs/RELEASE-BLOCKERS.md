@@ -20,8 +20,9 @@ missing source behavior, reported defect or failing check.
   contention. Build36 verified Settings OK/Cancel and Remote selection; Finder
   retirement still performed a costly warm-cache rewrite. The owner subsequently
   [accepted build38 Finder registration, badges and cold Commit launch](qa/owner-acceptance-build38-2026-10-30.json).
-  The newly reported first-use permission-picker targeting and Classic Commit
-  typing/header refresh are the current correction batch. The private fixture
+  Build39 includes the first-use permission-picker targeting and Classic Commit
+  typing/header refresh corrections; owner acceptance of those changes remains
+  open. The private fixture
   permission was removed and test apps quit normally.
 - [ ] Obtain a complete hosted macOS CI pass on the release source and repair
   concrete failures without repeatedly running unrelated local suites.
@@ -69,12 +70,27 @@ restarted. The pre-install registration helper retains its exact PID assertion
 failure: the managed extension PID changed while metadata restoration succeeded
 and Finder remained running. This does not replace physical integration checks.
 
-The full hosted run on this source is still in progress. Current signed picker
+The full hosted run on this source has reported failures while other lanes are
+still running. Current signed picker
 and typing acceptance, the broader source/layout gates and later public/store
 distribution remain separate. This local development signature is not an App
 Store submission, notarization or complete-port certification.
 
 ## Finder permission and Classic Commit presentation continuation
+
+The subsequent hosted run
+[41085850782](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41085850782)
+found an obsolete Help index-generation timeout and a Quit fixture admission
+race. The [Help and Quit repair checkpoint](qa/help-quit-ci-repairs-2026-10-30.json)
+records the modern CoreSpotlight index, actual private index inspections, native
+Help routing and both-Git Quit checks. Those changes are committed after build39
+and are not installed yet. The subsequent
+[native fixture continuation](qa/native-ci-readiness-continuation-2026-10-30.json)
+records focused local passes for Merge Patch settings, real SSH bookmark
+creation/resolution and Finder delivery refusal ownership. The SSH fixture's
+canonical-path repair still needs hosted macOS 15.7 verification; the original
+Foundation refusal is not proven resolved there. No current complete hosted pass
+or additional installed build is implied.
 
 The [October 30 focused batch](qa/commit-finder-presentation-2026-10-30.json)
 targets the clicked repository directly in the first-use permission picker and

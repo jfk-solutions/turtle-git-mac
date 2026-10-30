@@ -30,6 +30,7 @@ enum FinderDeliveryRepositoryVerification {
     static let folderNames:Set<String>=["export","formatPatch","requestPull"]
     static let originalNames=["pull","fetch","push","synchronize","commit","diff","log","status","rebase","stash","stashApply","stashPop","stashList","switchBranch","merge","branch","tag","clone","initialize","add","revert","resolve","resolveCurrent","resolveMine","resolveTheirs","blame","previousDiff","editConflict","ignore","ignoreMask","ignoreDelete","ignoreDeleteMask","rename","remove","removeKeep","clean","worktreeList","worktreeCreate","submoduleAdd","submoduleUpdate","submoduleSync","logSubmodule","reflog","referenceBrowser","repositoryBrowser","revisionGraph","daemon"]
     static let literal="literal [a]; 雪\n.txt"
+    static func trace(_ phase:String){fputs("Finder delivery routes: "+phase+"\n",stderr)}
     static func require(_ value:Bool,_ message:String,line:UInt = #line)throws {if !value{throw Failure(description:"\(line): \(message)")}}
     @MainActor static func wait(_ message:String,_ ready:()->Bool)async throws {
         for _ in 0..<2400 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
@@ -147,6 +148,7 @@ enum FinderDeliveryRepositoryVerification {
         var panels:[NSOpenPanel]=[]
         var heldReply:((NSApplication.ModalResponse)->Void)?
         var holdNextGrant=false,grantURL:URL?
+        var activationRequests=0
         init(root:URL,git:URL)throws {
             self.root=root;self.git=git;suite="TurtleGit.Delivery.Repository.QA."+UUID().uuidString;otherSuite=suite+".other"
             defaults=UserDefaults(suiteName:suite)!;other=UserDefaults(suiteName:otherSuite)!
@@ -176,7 +178,17 @@ enum FinderDeliveryRepositoryVerification {
                 parent?.beginSheet(panel,completionHandler:nil);Task{@MainActor in await Task.yield();reply(.OK)}
             }
             workspace.selectedCommandImportFolderURL={ [weak self] _ in self?.grantURL}
-            delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
+            // Capture the real routing intent while the receiver keeps every
+            // owned window offscreen and never activates the user's desktop.
+            delegate.activateStandaloneApplication={ [weak self] in self?.activationRequests += 1 }
+            delegate.startupMergeToolExit={status in
+                FinderDeliveryRepositoryVerification.trace("unexpected standalone tool exit status=\(status)")
+                preconditionFailure("Repository delivery fixture requested standalone tool termination")
+            }
+            delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in};delegate.makeStandaloneWorkspace={ [workspace] in workspace};delegate.repositoryModel=workspace
+            FinderDeliveryRepositoryVerification.trace("delegate startup")
+            delegate.startupDidFinishLaunching()
+            FinderDeliveryRepositoryVerification.trace("context initialized")
         }
         func make(_ name:String)async throws->GitRepository {
             let directory=root.appendingPathComponent(name,isDirectory:true);try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
@@ -196,8 +208,16 @@ enum FinderDeliveryRepositoryVerification {
         func launch(_ name:String,_ paths:[URL],accepted:Bool=true,delayed:Bool=false)async throws->NSWindowController? {
             try await FinderDeliveryRepositoryVerification.wait("delivery workspace busy before \(name)"){!self.workspace.busy && !self.workspace.hasPendingRepositoryWork}
             workspace.error=nil;let count=windows.count,board=FinderDeliveryRepositoryVerification.board(paths);defer{board.releaseGlobally()}
+            FinderDeliveryRepositoryVerification.trace("invoke \(name) count=\(count) delayed=\(delayed)")
             let error=FinderDeliveryRepositoryVerification.invoke(delegate.finderServicesProvider,board,name)
-            if error != nil {try FinderDeliveryRepositoryVerification.require(!accepted && windows.count==count,"unexpected delivery refusal \(name): \(String(describing:error))");return nil}
+            FinderDeliveryRepositoryVerification.trace("returned \(name) error=\(String(describing:error))")
+            if error != nil {
+                try FinderDeliveryRepositoryVerification.require(!accepted && windows.count==count,"unexpected delivery refusal \(name): \(String(describing:error))")
+                // A synchronous model refusal can publish its owned error before
+                // returning false to the provider. It still needs real OK.
+                if let message=workspace.error {try await acknowledgeActionError(message)}
+                return nil
+            }
             if delayed {
                 try await FinderDeliveryRepositoryVerification.wait("delivery grant was not held"){self.heldReply != nil}
                 try FinderDeliveryRepositoryVerification.require(windows.count==count && workspace.hasPendingFinderServiceWork,"grant created native form early or lost accounting")
@@ -205,19 +225,38 @@ enum FinderDeliveryRepositoryVerification {
                 let reply=heldReply;heldReply=nil;reply?(.OK)
             }
             try await FinderDeliveryRepositoryVerification.wait("delivery dispatch did not settle: \(name)"){!self.workspace.busy && !self.workspace.hasPendingFinderServiceWork && (self.windows.count>count || self.workspace.error != nil)}
-            if !accepted {try FinderDeliveryRepositoryVerification.require(windows.count==count && workspace.error != nil,"ineligible delivery presented \(name)");return nil}
+            if !accepted {
+                try FinderDeliveryRepositoryVerification.require(windows.count==count && workspace.error != nil,"ineligible delivery presented \(name)")
+                try await acknowledgeActionError(workspace.error!)
+                return nil
+            }
             try FinderDeliveryRepositoryVerification.require(windows.count==count+1,"actual \(name) controller missing: \(workspace.error ?? "nil")")
             let found=windows[count]
             try FinderDeliveryRepositoryVerification.require(found.0.rawValue==name && found.1.window?.alphaValue==0 && found.3?.hasSecurityScope==true && found.3?.contains(found.2.root)==true,"actual delivery action/window/primary lease lost")
             try await FinderDeliveryRepositoryVerification.wait("actual \(name) metadata did not settle"){FinderDeliveryRepositoryVerification.loaded(found.1)}
             return found.1
         }
+        private func acknowledgeActionError(_ expected:String)async throws {
+            try await FinderDeliveryRepositoryVerification.wait("refused delivery did not retain its native error owner"){self.delegate.actionErrorController?.window != nil}
+            guard let controller=delegate.actionErrorController,let window=controller.window else{throw Failure(description:"Refused delivery error owner disappeared")}
+            func views(_ view:NSView?)->[NSView]{guard let view else{return []};return [view]+view.subviews.flatMap{views($0)}}
+            let contents=views(window.contentView)
+            let detailTexts=contents.compactMap{$0 as? NSTextView}.map(\.string)
+            let errorDiagnostic="expected=\(String(reflecting:expected)),details=\(String(reflecting:detailTexts)),delegate=\(window.delegate === controller),visible=\(window.isVisible),alpha=\(window.alphaValue),current=\(delegate.actionErrorController === controller),modelError=\(String(reflecting:workspace.error)),activationRequests=\(activationRequests)"
+            try FinderDeliveryRepositoryVerification.require(window.delegate === controller && window.alphaValue==0 && detailTexts.contains(expected),"Refused delivery native owner lost its exact error or offscreen policy; "+errorDiagnostic)
+            guard let ok=contents.compactMap({$0 as? NSButton}).first(where:{$0.title=="OK"}) else{throw Failure(description:"Refused delivery native OK button missing")}
+            ok.performClick(nil)
+            try await FinderDeliveryRepositoryVerification.wait("refused delivery acknowledgment did not drain owner/error"){self.delegate.actionErrorController==nil && self.workspace.error==nil && !window.isVisible}
+        }
         func finish()async throws {
             let reply=heldReply;heldReply=nil;reply?(.cancel)
-            delegate.retireFinderServices();workspace.stopMonitoringForTermination()
+            // Retire the actual action router's error subscription/queue as well
+            // as its Services provider; it owns the same private model here.
+            delegate.applicationWillTerminate(Notification(name:NSApplication.willTerminateNotification));workspace.stopMonitoringForTermination()
             windows.forEach{$0.1.close()}
             for panel in panels {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close()};host.close()
-            try await FinderDeliveryRepositoryVerification.wait("delivery forms/readers/sheets did not retire"){!self.workspace.hasPendingFinderServiceWork && self.windows.allSatisfy{!FinderDeliveryRepositoryVerification.pending($0.1)}}
+            try await FinderDeliveryRepositoryVerification.wait("delivery forms/readers/sheets did not retire"){!self.workspace.hasPendingFinderServiceWork && self.windows.allSatisfy{!FinderDeliveryRepositoryVerification.pending($0.1)} && self.delegate.actionErrorController==nil}
+            try FinderDeliveryRepositoryVerification.require(activationRequests>0 && NSApp.activationPolicy() == .prohibited,"Native delivery activation intent was lost or activated the receiver")
             defaults.removePersistentDomain(forName:suite);other.removePersistentDomain(forName:otherSuite)
         }
     }
@@ -226,12 +265,19 @@ enum FinderDeliveryRepositoryVerification {
         return [try Data(contentsOf:root.appendingPathComponent(".git/index")),try Data(contentsOf:root.appendingPathComponent(".git/config")),try Data(contentsOf:root.appendingPathComponent(literal)),try await repository.run(["rev-parse","HEAD"]).stdout]
     }
     @MainActor static func routes(root:URL,git:URL)async throws {
+        trace("construct context")
         let context=try Context(root:root,git:git)
         do {
-            let a=try await context.make("deliveryA"),b=try await context.make("workspaceB")
+            trace("create private repository A")
+            let a=try await context.make("deliveryA")
+            trace("create private workspace B")
+            let b=try await context.make("workspaceB")
+            trace("open private workspace B")
             try context.store.remember(b.root);try await context.open(b)
+            trace("workspace B opened")
             let originalA=try await preserved(a),originalB=try await preserved(b)
             for(index,name)in repositoryNames.enumerated() {
+                trace("begin "+name)
                 context.workspace.fileComparisonPreferences=context.defaults;context.grantURL=a.root;context.holdNextGrant=index==0
                 let child=try await context.launch(name,[a.root],delayed:index==0)!
                 if let importer=child as? ImportPatchWindowController {try require(importer.model.items.isEmpty,"selected repository folder was imported as a patch file")}
@@ -280,6 +326,6 @@ enum FinderDeliveryRepositoryVerification {
             try require(afterBareHead==bareHead,"bare delivery changed HEAD")
             try await context.finish()
         } catch {try? await context.finish();throw error}
-        print("PASS: four actual repository delivery forms, captured roots/preferences, delayed grant, independent live cache and retired replacement, source selection gates and unchanged Git state")
+        print("PASS: four actual repository delivery forms, captured roots/preferences, delayed grant, independent live cache and retired replacement, real refused-route error acknowledgment/retirement, captured activation intent, source selection gates and unchanged Git state")
     }
 }

@@ -121,6 +121,7 @@ import TurtleGitCore
         var reply: ((NSApplication.ModalResponse) -> Void)?; var panel: NSOpenPanel?
         model.presentSSHPanel = { chooser, window, callback in panel = chooser; reply = callback; window.beginSheet(chooser, completionHandler: callback) }
         var selectionCalls=0,bookmarkCalls=0,selectionAttached=false,bookmarkError:String?,reentered=false
+        var createdBookmarks:[Data]=[],bookmarkRoundTrips=0
         model.selectedSSHURL={chooser in
             selectionCalls += 1;selectionAttached=chooser.sheetParent === owner.window
             if !reentered{reentered=true;reply?(.cancel)}
@@ -128,8 +129,18 @@ import TurtleGitCore
         }
         model.bookmarkSSH={file in
             bookmarkCalls += 1
-            do{return try file.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
-            catch{let failure=error as NSError;bookmarkError="\(failure.domain) code=\(failure.code): \(failure.localizedDescription)";throw error}
+            do{
+                let bytes=try file.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)
+                var stale=false
+                let restored=try URL(resolvingBookmarkData:bytes,options:[.withSecurityScope,.withoutUI],relativeTo:nil,bookmarkDataIsStale:&stale)
+                try require(!bytes.isEmpty && !stale && restored.isFileURL && Data(restored.path.utf8)==Data(file.path.utf8),"Real scoped bookmark failed exact private-file round trip")
+                createdBookmarks.append(bytes);bookmarkRoundTrips += 1
+                return bytes
+            }catch{
+                let failure=error as NSError
+                bookmarkError="\(failure.domain) code=\(failure.code): \(failure.localizedDescription); userInfo=\(failure.userInfo); canonical=\(String(reflecting:file.resolvingSymlinksInPath().path)); exists=\(FileManager.default.fileExists(atPath:file.path)); executable=\(FileManager.default.isExecutableFile(atPath:file.path))"
+                throw error
+            }
         }
         let stale = model.formContext, binding = model.sshPathBinding(context: stale)
         model.browseSSH(context:stale)
@@ -139,10 +150,10 @@ import TurtleGitCore
         try require(model.ssh.path == client.path && !prefs.bool(forKey: "TurtleGit.FirstStartComplete"), "Picker allowed stale edits/Finish")
         reply?(.OK); reply?(.cancel)
         try await wait { !model.selectingSSH && owner.window?.attachedSheet == nil && panel?.sheetParent == nil }
-        let diagnostics="path=\(String(reflecting:model.ssh.path)) expected=\(String(reflecting:client.path)) bookmark=\(model.ssh.bookmark != nil) selectionCalls=\(selectionCalls) attachedAtSelection=\(selectionAttached) bookmarkCalls=\(bookmarkCalls) bookmarkError=\(bookmarkError ?? "none") modelError=\(model.error ?? "none") selecting=\(model.selectingSSH) page=\(model.page) activeWrites=\(FirstStartWizardModel.activeWrites)"
+        let diagnostics="path=\(String(reflecting:model.ssh.path)) expected=\(String(reflecting:client.path)) bookmark=\(model.ssh.bookmark != nil) selectionCalls=\(selectionCalls) attachedAtSelection=\(selectionAttached) bookmarkCalls=\(bookmarkCalls) scopedRoundTrips=\(bookmarkRoundTrips) createdBookmarks=\(createdBookmarks.count) canonicalClient=\(String(reflecting:client.resolvingSymlinksInPath().path)) bookmarkError=\(bookmarkError ?? "none") modelError=\(model.error ?? "none") selecting=\(model.selectingSSH) page=\(model.page) activeWrites=\(FirstStartWizardModel.activeWrites)"
         print("First Start SSH accepted-picker diagnostics: "+diagnostics)
         try require(model.ssh.path == client.path && model.ssh.bookmark != nil,"Accepted client lost security bookmark; "+diagnostics)
-        try require(selectionCalls==1 && selectionAttached && bookmarkCalls==1 && reentered && FirstStartWizardModel.activeWrites==0,"Picker selection/bookmark/reentrant admission or work drain was not exactly once; "+diagnostics)
+        try require(selectionCalls==1 && selectionAttached && bookmarkCalls==1 && bookmarkRoundTrips==1 && createdBookmarks.count==1 && model.ssh.bookmark==createdBookmarks.first && reentered && FirstStartWizardModel.activeWrites==0,"Picker selection/real scoped bookmark roundtrip/reentrant admission or work drain was not exactly once; "+diagnostics)
         binding.wrappedValue = "/after"
         try require(model.ssh.path == client.path, "Consumed picker revived old binding")
         var accepted=model.ssh
@@ -159,7 +170,7 @@ import TurtleGitCore
         try await wait{panel?.sheetParent === owner.window && owner.window?.attachedSheet === panel}
         reply?(.OK)
         try await wait{!model.selectingSSH && owner.window?.attachedSheet==nil}
-        try require(model.ssh.path==client.path && model.ssh.bookmark != nil,"A fresh picker did not restore the original program grant")
+        try require(model.ssh.path==client.path && model.ssh.bookmark != nil && bookmarkCalls==2 && bookmarkRoundTrips==2 && createdBookmarks.count==2 && model.ssh.bookmark==createdBookmarks.last,"A fresh picker did not restore the original program grant with a real scoped roundtrip")
         accepted=model.ssh
         model.checkSSH(context:model.formContext);try await wait{!model.checkingSSH}
         try require(model.sshVersion=="OpenSSH_private_fixture","Freshly accepted original program did not inspect correctly")

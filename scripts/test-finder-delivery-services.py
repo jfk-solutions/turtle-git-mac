@@ -96,10 +96,11 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-finder-delivery-') as tempora
             private_tmp = context / 'temporary'; private_tmp.mkdir(mode=0o700)
             preferences = context / 'preferences'; preferences.mkdir(mode=0o700)
             xdg = context / 'xdg'; xdg.mkdir(mode=0o700)
+            home = context / 'home'; home.mkdir(mode=0o700)
             config = context / 'global.config'; config.write_text('')
             env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             env.update(DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'), GIT_CONFIG_GLOBAL=str(config),
-                       GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0', CFFIXED_USER_HOME=str(preferences),
+                       GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0', HOME=str(home), CFFIXED_USER_HOME=str(preferences),
                        XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp)+'/', TURTLEGIT_FINDER_DELIVERY_CASE=case)
             print('Checking delivery Finder Services ' + case + ' with ' + str(git), flush=True)
             completed = False

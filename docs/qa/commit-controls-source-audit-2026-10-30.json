@@ -1,0 +1,131 @@
+{
+  "schema": 1,
+  "date": "2026-10-30",
+  "kind": "bounded-read-only-source-audit",
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "currentBaseCommit": "e23524d10ab79e0468a1fa4aeb50604d813f7b71",
+  "currentSnapshot": "Working-tree file hashes below identify the inspected source; currentBaseCommit alone does not describe uncommitted work.",
+  "scope": [
+    "Classic Commit visible control inventory in IDD_COMMITDLG: destination, message metadata, selection categories, staging/partial actions, statistics and footer actions.",
+    "Classic staging transition and shared Git Gui file lists: native list presentation, primary stage/unstage, shared file menus and stationary activity/status bands.",
+    "Partial text staging byte transport and metadata support, checked to distinguish historical documentation limits from current implementation."
+  ],
+  "upstream": [
+    {
+      "path": "src/Resources/TortoiseProcENG.rc",
+      "sha256": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+      "references": [
+        {
+          "lines": "245-298",
+          "contract": "IDD_COMMITDLG visible controls and placement"
+        }
+      ]
+    },
+    {
+      "path": "src/TortoiseProc/CommitDlg.cpp",
+      "sha256": "455cfa3b883565ab7d37c4636156a47b73ad7856afcf80dbbd51039943b41578",
+      "references": [
+        {
+          "lines": "497-499",
+          "contract": "Commit/ReCommit/Commit & Push split actions"
+        },
+        {
+          "lines": "3099-3138",
+          "contract": "PrepareStagingSupport and staging toggle: three-state semantics and conditional partial/view-patch actions"
+        }
+      ]
+    },
+    {
+      "path": "src/TortoiseProc/PatchViewDlg.cpp",
+      "sha256": "da98b40223a2a97ee9fe72a59662f85fed0a21ce25a3218085f10cd490228db1",
+      "references": [
+        {
+          "lines": "406-485",
+          "contract": "Selected lines/hunks retain raw patch buffer and apply to index/reverse index"
+        }
+      ]
+    },
+    {
+      "path": "src/TortoiseProc/StagingOperations.cpp",
+      "sha256": "985f2662fbb7eb1eff6a65d67eceea522ff6116141cf97a72a22cbe15239a214",
+      "references": [
+        {
+          "lines": "81-114",
+          "contract": "Hunk discovery and added/deleted source restrictions"
+        }
+      ]
+    }
+  ],
+  "current": [
+    {
+      "path": "Sources/TurtleGitMac/CommitWindow.swift",
+      "sha256": "d1fae09ed3a50218f75e230b71949cecb8e462f193dca4bfd1133f51e8205faf",
+      "references": [
+        {
+          "lines": "1564-1572",
+          "contract": "Shared completion action choices"
+        },
+        {
+          "lines": "3570-3665",
+          "contract": "Classic/GUI layout choice, shared footer/actions"
+        },
+        {
+          "lines": "3660-3900",
+          "contract": "Destination, GUI lists and primary transfer action, message metadata, Classic changes categories/staging/partial controls"
+        },
+        {
+          "lines": "3910-4035",
+          "contract": "Stable Classic file report, columns and file menu wiring"
+        }
+      ]
+    },
+    {
+      "path": "Sources/TurtleGitCore/GitPatch.swift",
+      "sha256": "279365642803f21c20a051e976bd73a3011839ade2b4f49cb6ad5973bb93709b",
+      "references": [
+        {
+          "lines": "19-30",
+          "contract": "Partial support metadata and excluded payload/mode classes"
+        },
+        {
+          "lines": "33-157",
+          "contract": "Byte carrier, separate display decoding, selected patch bytes and surviving partial-file headers"
+        }
+      ]
+    },
+    {
+      "path": "Sources/TurtleGitMac/PatchWindow.swift",
+      "sha256": "99ef9c9f7f0b864011061508512f61ab7a0eae65e46c051216c9a46b6d9a981c",
+      "references": [
+        {
+          "lines": "411-421",
+          "contract": "Partial action availability and metadata/unsupported-file notices"
+        },
+        {
+          "lines": "430-470",
+          "contract": "Raw patch acquisition and selected application"
+        }
+      ]
+    }
+  ],
+  "result": {
+    "actionableProvenGaps": [],
+    "conclusion": "No additional proven missing end-user control/action found within the stated audit scope.",
+    "documentationCorrection": "Early UTF-8-only/whole-file restrictions in COMMIT-PARITY.md are now explicitly historical and link the existing added/deleted, rename/mode and byte-preserving continuations."
+  },
+  "excluded": [
+    "Exhaustive file-context-command equivalence",
+    "Physical visual/keyboard acceptance and all conditional operation combinations",
+    "Full Git command/ownership/cancellation execution coverage",
+    "Known macOS platform adaptations",
+    "WMF/graphics, CI and packaging",
+    "Dialog-ledger counts as completion evidence"
+  ],
+  "validation": {
+    "sourceInspectionOnly": true,
+    "testsRun": false,
+    "buildsRun": false,
+    "nativeUIRun": false,
+    "claim": "This source inventory audit is not full behavioral, visual, signed Finder, hosted CI or whole-port parity certification."
+  }
+}

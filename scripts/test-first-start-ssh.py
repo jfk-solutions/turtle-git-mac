@@ -50,7 +50,10 @@ results = []
 for case in args.only or ['choices', 'picker', 'lifetime']:
     for git in args.git or [Path('/usr/bin/git'), root/'build/git-runtime/Git/bin/git']:
         with tempfile.TemporaryDirectory(prefix='turtlegit-first-start-ssh-') as temporary:
-            context = Path(temporary)
+            # Canonicalize the private fixture root before constructing argv,
+            # homes and injected selections; do not transform user-picked URLs.
+            # This removes the /var -> /private/var fixture alias consistently.
+            context = Path(temporary).resolve()
             env = {k:v for k,v in os.environ.items() if not k.startswith('GIT_')}
             for name, key in [('home','HOME'), ('preferences','CFFIXED_USER_HOME'), ('xdg','XDG_CONFIG_HOME'), ('temporary','TMPDIR')]:
                 folder = context/name; folder.mkdir(mode=0o700)

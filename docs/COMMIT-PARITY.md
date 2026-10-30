@@ -6,6 +6,10 @@ checkbox/staging routes. Its grouped checkpoint is separate from older evidence.
 
 Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
 
+The [October 30 bounded Commit source audit](qa/commit-controls-source-audit-2026-10-30.json)
+found no additional proven missing control/action in its stated Classic and Git
+Gui staging scope. It does not certify complete behavioral or visual parity.
+
 Issue-matching runtime, native property/field/warning behavior and remaining work
 are tracked in [issue tracker parity](ISSUE-TRACKER-PARITY.md).
 
@@ -79,23 +83,32 @@ shortcuts were exercised. A second Escape closed the patch and restored the butt
 labels. Native Save As output matched the current Git diff byte-for-byte. The
 closed window wrote its width preference, which is read on reopening.
 
-Integration tests cover line and hunk staging/unstaging, adjusting offsets across
-multiple hunks, unusual filenames, and rejection of stale diffs. Partial operations
-currently support ordinary modified UTF-8 text files. The pinned upstream
-`StagingOperations::FindHunkEndGivenHunkStartAndCounts` explicitly limits partial
-staging to modified files and excludes added/deleted files. Those files use
-whole-file staging in this port too. Renamed, binary, mode-changing and non-UTF-8
-files also currently require whole-file staging; their behavior still needs audit.
+At this initial verification checkpoint, integration tests covered line and hunk
+staging/unstaging, offsets across multiple hunks, unusual filenames and stale
+patch rejection. Partial operations then supported ordinary modified UTF-8 text
+files. The pinned upstream
+`StagingOperations::FindHunkEndGivenHunkStartAndCounts` excludes added/deleted
+files; this port also used whole-file controls for them at that checkpoint.
+These historical limits are superseded by the
+[added/deleted continuation](#addeddeleted-partial-staging-continuation--2026-10-13),
+[rename/mode continuation](#rename-and-regular-mode-metadata--2026-10-13) and
+[byte-preserving continuation](#byte-preserving-legacy-text-partial-staging--october-15-2026).
+Current selected patches retain original bytes, including legacy text and regular
+rename/mode metadata with text hunks. Binary/copy/symlink/gitlink changes and files
+without selectable text hunks still require whole-file controls; this is not
+arbitrary multibyte encoding detection or editing.
 Enabling staging support itself retains the same file list and switches its
 checkbox semantics. Staged files remain visible outside Finder-requested scope.
 
 ## Remaining upstream behavior
 
-- Audit partial changes for renamed/binary/mode-changing files and other encodings;
-  broader mixed-stage QA and multi-display placement. The attached patch Find now
+- The initial partial-file/encoding limitations above were followed by the linked
+  added/deleted, rename/mode and byte-preserving continuations. Broader metadata
+  combinations, mixed-stage QA and multi-display placement remain acceptance work.
+  The attached patch Find now
   stops at a boundary and pulses the native window; physical keyboard/placement
   acceptance remains incomplete.
-  Added/deleted file partial changes would extend the pinned upstream behavior.
+  Added/deleted partial changes in the later continuation extend pinned upstream behavior.
 - Complete issue-provider/message-history acceptance, root/merge/rename amend
   combinations and broader date/author combinations remain to be established.
   Native new-branch and submodule-autoselection controls exist; their existence

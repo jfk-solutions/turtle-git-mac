@@ -1,0 +1,96 @@
+{
+  "date": "2026-10-30",
+  "hosted_run": 41085850782,
+  "hosted_source": "fa5f05feb90350cf393aaaf5c3357a1ba9e0c4f4",
+  "scope": "Focused native fixture readiness and security bookmark diagnostics; no shipping source change or app build.",
+  "merge_patch": {
+    "command": [
+      "/usr/bin/python3",
+      "scripts/test-merge-editor-source.py",
+      "--only",
+      "patch"
+    ],
+    "source_scope": "fixture-only binding-render readiness and invisible owned windows",
+    "exit_code": 0,
+    "seconds": 6.403,
+    "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/merge-patch-binding-readiness-2026-10-30.log",
+    "private_home_and_preferences": true,
+    "full_app_build": false,
+    "other_merge_cases_run": false,
+    "developer_dir": "/Applications/Xcode.app/Contents/Developer",
+    "sdkroot": "macosx",
+    "owned_receiver_pid": 84256,
+    "owned_receiver_reaped": true,
+    "owned_receiver_independently_absent": true
+  },
+  "first_start_ssh": {
+    "repair": "Canonicalize only the private receiver fixture root; retain real security-scoped bookmark creation and add exact nonstale resolution assertions for both accepted picks.",
+    "passed": [
+      "system Git picker",
+      "bundled Git picker"
+    ],
+    "receivers_reaped": [
+      83810,
+      83841
+    ],
+    "limitation": "The hosted macOS15.7 Foundation code256 cause remains unproven; local modernmacOS pass does not prove hosted repair."
+  },
+  "finder_delivery": {
+    "compile_failure": "Swift6.1 requires explicit capture of Context.workspace in makeStandaloneWorkspace closure.",
+    "repair": "Capture workspace value explicitly; preserve ownership and source behavior. Capture actual activation intent and own real error windows for both refusal paths; retire delegate routing/error ownership at cleanup.",
+    "provider": "Focused provider case passed.",
+    "routes": "Both Git engines pass real route/cache/eligibility/unchanged-Git checks after fixture owns synchronous and asynchronous refusal errors, clicks actual native OK and drains owner; captures activation intent without desktop activation.",
+    "hosted_job": 124167882979,
+    "receivers_reaped": [
+      86548,
+      87454
+    ],
+    "private_home": true,
+    "production_changed": false,
+    "local_failures_preserved": [
+      "Initial compiler spacing typo in fixture repair.",
+      "Initial routes exit0 before final completion.",
+      "Stale prior Import Patch error owner found when RequestPull refusal was checked."
+    ],
+    "scope": "Provider passed once; routes passed with both engines. Files/owners cases were not rerun."
+  },
+  "logs": {
+    "merge-patch-binding-readiness-2026-10-30.log": {
+      "sha256": "3b0c4786c9903db084f577047ff14d4877014355029a0ae3cebaecf077025cd0"
+    },
+    "first-start-ssh-canonical-picker-2026-10-30.log": {
+      "sha256": "41d43005b8569ea9e006da4d018e6d6a16a05f1ae0f282c2ca865ca6745ba5ab"
+    },
+    "finder-delivery-compiler-repair-2026-10-30.log": {
+      "sha256": "3a25daeb07d425f4ae6f17b51d511c154ddc68df05f57c233463fb814f2532d9"
+    },
+    "ci41085850782-first-start-ssh-failure-2026-10-30.log": {
+      "sha256": "723b90830ae289fcfea28b8dfd88cf30414b77e9f65929f04bee1595e0b3ed55"
+    },
+    "ci41085850782-merge-patch-failure-2026-10-30.log": {
+      "sha256": "1f9d18f2d007b98d98df6215bd50c90c2818d49027c3a84e2e9aadaa15d6f55e"
+    },
+    "finder-delivery-routes-diagnostic-2026-10-30.log": {
+      "sha256": "b12fd0f1a81601c23f5d773bec309fb3dccd9cfba5fe3aef9f062adf649c95ab"
+    },
+    "finder-delivery-routes-owned-errors-2026-10-30.log": {
+      "sha256": "c583ace4f6e1984d0fb083ed6afb718bf23820d3ef21e92762a47646790cdc0f"
+    },
+    "finder-delivery-routes-owned-errors-repair-2026-10-30.log": {
+      "sha256": "c1e77510e55a0ed949695334c5ece0a74be3626b897061cb741cb18cb2e57b98"
+    },
+    "finder-delivery-routes-error-owner-diagnostic-2026-10-30.log": {
+      "sha256": "fd04b7d0b754dc998162a01ba383c41d4070fbce95f4847c2e02a7d800fc10f3"
+    },
+    "finder-delivery-routes-refusal-ownership-2026-10-30.log": {
+      "sha256": "d337b32a1297bd5d25c1eb15cab28df9cd4d26e022cd975ccb7f2af00364ede3"
+    }
+  },
+  "installed_build_changed": false,
+  "complete_hosted_pass": false,
+  "scope_limits": [
+    "No current hosted macOS15.7 pass is implied by modern local native fixture results.",
+    "No shipping app source changes, full app rebuild, full Core rerun or install in this batch.",
+    "Earlier Help/Quit checkpoint is separate and already committed."
+  ]
+}
