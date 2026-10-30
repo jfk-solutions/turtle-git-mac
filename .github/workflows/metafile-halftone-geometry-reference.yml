@@ -1,0 +1,93 @@
+name: Independent WMF signed HALFTONE geometry reference
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent signed geometry observer
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-halftone-geometry-reference-2026-10-30\HalftoneGeometryReference.cpp
+          /Fe:HalftoneGeometryReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Require retained controls before observing signed geometry
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $inputFolder = 'docs/qa/metafile-halftone-geometry-reference-2026-10-30'
+          $inputs = @(Import-Csv "$inputFolder/inputs.tsv" -Delimiter "`t")
+          $identities = @('b33', 'b66', 'b498', 'b528', 'b310', 'continuity')
+          if ($inputs.Count -ne 6) { throw 'Retained input count differs' }
+          foreach ($wire in $inputs) {
+            if ($wire.name -notin $identities -or $wire.file -ne "$($wire.name).wmf") { throw 'Unknown immutable input path' }
+            if ((Get-FileHash "$inputFolder/$($wire.file)" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $wire.sha256) { throw 'Immutable retained wire differs' }
+          }
+          $historical = @(Import-Csv "$inputFolder/historical-input.tsv" -Delimiter "`t")
+          if ($historical.Count -ne 1 -or $historical[0].name -ne 'integer-box' -or $historical[0].file -ne 'integer-box.wmf' -or $historical[0].sourcePath -ne 'Tests/TurtleGitCoreTests/Fixtures/Metafile/wmf-bitmap16-halftone-integer-box.wmf') { throw 'Historical input identity differs' }
+          foreach ($path in @("$inputFolder/integer-box.wmf", $historical[0].sourcePath)) {
+            if ((Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant() -ne $historical[0].sha256) { throw 'Historical integer-box wire differs' }
+          }
+          ./HalftoneGeometryReference.exe $inputFolder geometry-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $m = Get-Content -Raw geometry-output/geometry-observations.json | ConvertFrom-Json
+          if ($m.requestedRetainedControls -ne 6 -or $m.controls.Count -ne 6 -or -not $m.allRetainedTargetsPassed -or $m.failure) { throw 'Retained controls failed before mutations' }
+          foreach ($control in $m.controls) {
+            $retained = @($inputs | Where-Object { $_.name -eq $control.name })
+            if ($retained.Count -ne 1 -or -not $control.retainedTargetPassed -or $control.targetRGBAHex -ne $retained[0].targetRGBAHex -or $control.intrinsicTargetRGBAHex -ne $retained[0].targetRGBAHex) { throw 'Retained actual target differs' }
+            if (-not $control.prepaintTargetPassed -or $control.prepaintTargetRGBAHex -ne $retained[0].prepaintTargetRGBAHex -or -not $control.backgroundEvidencePassed -or $control.backgroundEvidenceRGBAHex -ne $retained[0].backgroundEvidenceRGBAHex) { throw 'Retained independent backdrop evidence differs' }
+            if ($control.inputSHA256 -ne $retained[0].sha256 -or $control.retainedSourceRun -ne $retained[0].sourceRun -or $control.retainedSourceCommit -ne $retained[0].sourceCommit) { throw 'Retained target provenance differs' }
+          }
+          if ($m.requestedDerivedCases -ne 48 -or $m.requestedHistoricalCases -ne 1 -or $m.capturedCaseCount -ne 55 -or $m.captures.Count -ne 55) { throw 'Geometry capture inventory differs' }
+          $seen = @{}
+          $mutationNames = @('src-x-negative-zero-anchor','src-x-negative-inclusive-anchor','src-x-negative-edge-anchor','dst-x-negative-original-anchor','dst-x-negative-edge-anchor','both-x-negative-edge-anchors','src-y-negative-edge-anchor','src-y-negative-inclusive-anchor','dst-y-negative-edge-anchor','both-y-negative-edge-anchors','both-xy-negative-edge-anchors','dst-offcanvas-minus-one','dst-plus-quarter-xy','dst-minus-quarter-xy','src-outside-minus-one-xy','src-outside-plus-one-xy')
+          foreach ($capture in $m.captures) {
+            if ($seen.ContainsKey($capture.name) -or $capture.wire -ne "$($capture.name).wmf") { throw 'Duplicate or unsafe capture identity' }
+            $seen[$capture.name] = $true
+            if ($capture.input -eq 'integer-box') {
+              if ($capture.name -ne 'integer-box' -or $capture.mutation -ne 'unchanged-historical-fixture' -or $capture.width -ne 64 -or $capture.height -ne 64) { throw 'Historical capture identity differs' }
+            } else {
+              $retained = @($inputs | Where-Object { $_.name -eq $capture.input })
+              if ($retained.Count -ne 1 -or $capture.width -ne [int]$retained[0].canvasWidth -or $capture.height -ne [int]$retained[0].canvasHeight) { throw 'Unknown geometry input or changed intrinsic canvas' }
+              if ($capture.mutation -eq 'unchanged-retained-control') {
+                if ($capture.name -ne $capture.input) { throw 'Unchanged capture identity differs' }
+              } elseif ($capture.input -notin @('b33','b310','continuity') -or $capture.mutation -notin $mutationNames -or $capture.name -ne "$($capture.input)-$($capture.mutation)") { throw 'Unexpected derived case' }
+            }
+            if ($capture.width -le 0 -or $capture.width -gt 240 -or $capture.height -le 0 -or $capture.height -gt 160) { throw 'Canvas dimensions outside observation budget' }
+            if ($capture.rawFormatStatus -ne 0 -or $capture.loadStatusAfterRawFormat -ne 0 -or $capture.naturalDrawStatus -ne 0 -or $capture.intrinsicGetPixelErrors -ne 0 -or $capture.naturalGetPixelErrors -ne 0) { throw 'Geometry consumer failed; keep actual failure artifact' }
+            foreach ($kind in @('intrinsic','natural')) {
+              $file = Get-Item "geometry-output/$($capture.name)-$kind.rgba"
+              if ($file.Length -ne [int]$capture.width * [int]$capture.height * 4) { throw 'Full-canvas raw RGBA truncated' }
+            }
+            # Paint bounds, alpha, intrinsic/natural differences and signed
+            # anchor behavior are observations. No expected bbox/kernel is used.
+          }
+          if ($seen.Count -ne 55) { throw 'Missing unique geometry capture' }
+          if ((Get-ChildItem geometry-output -File | Measure-Object Length -Sum).Sum -gt 10MB) { throw 'Geometry output exceeds10MiB' }
+      - name: Record immutable sources and Windows runtime provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force geometry-output | Out-Null
+          git rev-parse HEAD | Set-Content geometry-output/source-revision.txt
+          cl 2>&1 | Out-File geometry-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content geometry-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content geometry-output/runtime-versions.json
+          Copy-Item docs/qa/metafile-halftone-geometry-reference-2026-10-30/inputs.tsv geometry-output/retained-inputs.tsv
+          Copy-Item docs/qa/metafile-halftone-geometry-reference-2026-10-30/historical-input.tsv geometry-output/historical-input.tsv
+          $files = @(Get-ChildItem geometry-output -File) + @(Get-ChildItem docs/qa/metafile-halftone-geometry-reference-2026-10-30 -File) + @(Get-Item .github/workflows/metafile-halftone-geometry-reference.yml)
+          if (Test-Path HalftoneGeometryReference.exe) { $files += Get-Item HalftoneGeometryReference.exe }
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content geometry-output/sha256.json
+          if ((Get-ChildItem geometry-output -File | Measure-Object Length -Sum).Sum -gt 10MB) { throw 'Geometry output exceeds10MiB including provenance' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-halftone-geometry-windows-reference
+          path: geometry-output
+          if-no-files-found: error
+          retention-days: 30
