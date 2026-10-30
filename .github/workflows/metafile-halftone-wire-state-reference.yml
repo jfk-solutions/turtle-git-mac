@@ -1,0 +1,50 @@
+name: Independent WMF wire-state discriminator
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile only independent minimal wire-state probe
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-halftone-sampling-reference-2026-10-30\WireStateReference.cpp
+          /Fe:WireStateReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Observe nine retained-wire variants without running full matrix
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $wireInputPath = 'docs/qa/metafile-halftone-sampling-reference-2026-10-30/continuity.wmf'
+          if ((Get-FileHash $wireInputPath -Algorithm SHA256).Hash.ToLowerInvariant() -ne '56587d45ceda1fd246523ca8e04c64bccbed942dbd2aca5c2815937d38555c37') { throw 'Retained wire identity changed' }
+          ./WireStateReference.exe $wireInputPath wire-state-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $m = Get-Content -Raw wire-state-output/wire-state-observations.json | ConvertFrom-Json
+          if (-not $m.positiveBaselineSixRGBPassed -or $m.requestedCaseCount -ne 9 -or $m.cases.Count -ne 9) { throw 'Positive baseline or observation inventory failed' }
+          # A changed variant's blank/failed playback is an observation. No
+          # invented color, alpha or kernel model is asserted for those cases.
+      - name: Record source, capture and Windows runtime hashes
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force wire-state-output | Out-Null
+          git rev-parse HEAD | Set-Content wire-state-output/source-revision.txt
+          cl 2>&1 | Out-File wire-state-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content wire-state-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content wire-state-output/runtime-versions.json
+          $files = @(Get-ChildItem wire-state-output -File) + @(Get-Item docs/qa/metafile-halftone-sampling-reference-2026-10-30/WireStateReference.cpp, docs/qa/metafile-halftone-sampling-reference-2026-10-30/continuity.wmf, .github/workflows/metafile-halftone-wire-state-reference.yml)
+          if (Test-Path WireStateReference.exe) { $files += Get-Item WireStateReference.exe }
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content wire-state-output/sha256.json
+          if ((Get-ChildItem wire-state-output -File | Measure-Object Length -Sum).Sum -gt 4MB) { throw 'Minimal discriminator exceeds4MiB' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-halftone-wire-state-reference
+          path: wire-state-output
+          if-no-files-found: error
+          retention-days: 30
