@@ -20,6 +20,22 @@ LANES = ['core', 'commit-repository', 'history-references', 'replay-transport',
 GUARD = {'name': 'Check workflow lane contracts', 'run': 'python3 scripts/test-macos-ci-lanes.py'}
 EDITOR_SETUP = {'name': 'Prepare SwiftPM editor for native and Core consumers',
                 'run': 'swift build --product TurtleGitMac'}
+# This one diagnostic addition is checked in full, then removed before the
+# immutable pre-split inventory comparison. It cannot excuse any producer or
+# other artifact drift, nor introduce a generic class of untracked steps.
+METAFILE_CONSUMER = 'WMF and EMF native comparison consumers and colors'
+METAFILE_FAILURE_EVIDENCE = {
+    'name': 'Retain failed metafile source and pixel evidence',
+    'if': "matrix.lane == 'commit-repository' && failure()",
+    'uses': 'actions/upload-artifact@v4',
+    'with': {
+        'name': 'metafile-pixel-evidence-${{ matrix.lane }}',
+        'path': ('build/qa/metafile-workflow-failures/**\n'
+                 'build/qa/metafile-wmf-text-native-results.json\n'
+                 'build/qa/metafile-wmf-text-runtime-*.json\n'),
+        'if-no-files-found': 'ignore',
+    },
+}
 ARTIFACT_NAMES = {
     'wrapped-editor-timeout-stacks': 'wrapped-editor-timeout-stacks-${{ matrix.lane }}',
     'unsigned-appstore-distribution-audit': 'unsigned-appstore-distribution-audit-${{ matrix.lane }}',
@@ -61,6 +77,17 @@ def verify(workflow, inventory, originals):
     actual = list(worker['steps'])
     require(actual[1] == GUARD, 'Missing initial fail-closed coverage check')
     actual.pop(1)
+    evidence = [i for i, step in enumerate(actual)
+                if step.get('name') == METAFILE_FAILURE_EVIDENCE['name']]
+    consumers = [i for i, step in enumerate(actual)
+                 if step.get('name') == METAFILE_CONSUMER]
+    require(len(evidence) == 1, 'Missing or duplicate exact metafile failure-evidence step')
+    require(len(consumers) == 1, 'Missing or duplicate inventoried metafile consumer')
+    require(evidence[0] == consumers[0] + 1,
+            'Metafile failure evidence must immediately follow its source/pixel producer')
+    require(actual[evidence[0]] == METAFILE_FAILURE_EVIDENCE,
+            'Changed metafile failure artifact action, owner/condition, name, paths or missing-file policy')
+    actual.pop(evidence[0])
     app_index = next(i for i, step in enumerate(originals) if step.get('name') == 'Application and embedded Finder extension')
     require(actual[app_index + 1] == EDITOR_SETUP,
             'Every lane needs the unconditional SwiftPM executable before native/Core consumers')

@@ -2610,10 +2610,48 @@ extension MetafileImageTests {
         let controls=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("wmf-text-") && $0.hasSuffix("-control.emf")}.sorted()
         XCTAssertEqual(controls.count,62)
         for control in controls {
-            let name=String(control.dropLast("-control.emf".count)),filename=name+(name.contains("embedded-") ? ".emf":".wmf"),original=try data(filename)
-            XCTAssertEqual(try wmfTextPixels(filename),try wmfTextPixels(control),filename)
+            let name=String(control.dropLast("-control.emf".count)),embedded=name.contains("embedded-"),filename=name+(embedded ? ".emf":".wmf")
+            let original=try data(filename),originalControl=try data(control)
+            // Preserve/decode captured WMF source, including its transparent
+            // PS_NULL border. Text paint equality uses a separately named wire
+            // with an explicit matching background, never an opaque test matte.
+            _ = try image(filename)
+            let matched=embedded ? filename:name+"-full-background.wmf",matchedBytes=try data(matched)
+            XCTAssertEqual(try wmfTextPixels(matched),try wmfTextPixels(control),matched)
             XCTAssertEqual(try data(filename),original,"WMF rendering must preserve original bytes")
+            XCTAssertEqual(try data(control),originalControl,"Unicode control bytes changed")
+            XCTAssertEqual(try data(matched),matchedBytes,"Full-background derivative bytes changed")
         }
+    }
+    func testWMFTextFamilyFullBackgroundDerivativesPreserveWireRecordsAndOriginalTransparentEdges()throws {
+        let controls=try FileManager.default.contentsOfDirectory(atPath:fixtures.path).filter{$0.hasPrefix("wmf-text-") && $0.hasSuffix("-control.emf")}.sorted()
+        let rectangle=Data([7,0,0,0,0x1b,0x04,64,0,96,0,0,0,0,0])
+        let patcopy=Data([9,0,0,0,0x1d,0x06,0x21,0,0xf0,0,64,0,96,0,0,0,0,0])
+        var count=0
+        for control in controls {
+            let name=String(control.dropLast("-control.emf".count))
+            if name.contains("embedded-") {continue}
+            let original=try data(name+".wmf"),derived=try data(name+"-full-background.wmf")
+            let range=try XCTUnwrap(original.range(of:rectangle),name)
+            var expected=original;expected.replaceSubrange(range,with:patcopy)
+            let words=UInt32((expected.count-22)/2)
+            for index in 0..<4 {expected[28+index]=UInt8(truncatingIfNeeded:words >> (index*8))}
+            XCTAssertEqual(derived,expected,"Only initial background-paint record and WMF file wordcount may change: "+name)
+            count+=1
+        }
+        XCTAssertEqual(count,60)
+        let name="wmf-text-textout-odd",source=try wmfTextPixels(name+".wmf"),matched=try wmfTextPixels(name+"-full-background.wmf")
+        XCTAssertEqual(SHA256.hash(data:try data(name+".wmf")).map{String(format:"%02x",$0)}.joined(),"b0ac839cd7aa18f464ae8ccb71a43a5c8f847276e011e3d616ccd0521a3d303f")
+        XCTAssertEqual(SHA256.hash(data:try data(name+"-control.emf")).map{String(format:"%02x",$0)}.joined(),"3871a090638fe80c6eeeffb5a940cb5a89dffef9f1e8f2c5d3fedb89862c34a8")
+        for y in 0..<64 {for x in 0..<96 {
+            let offset=(y*96+x)*4
+            if x==95 || y==63 {
+                // CGContext byte rows are normalized exactly as the established
+                // text oracle; captured source keeps its final row/column clear.
+                XCTAssertEqual(Array(source[offset..<offset+4]),[0,0,0,0],"Original transparent GDI rectangle edge")
+                XCTAssertEqual(Array(matched[offset..<offset+4]),[255,255,255,255],"Explicit PATCOPY must paint the complete96x64 background")
+            } else {XCTAssertEqual(Array(source[offset..<offset+4]),Array(matched[offset..<offset+4]),"Background correction must not change any interior/text pixel")}
+        }}
     }
     func testWMFTextFamilyRealInkSpacingClipBackgroundFontAndSavedState()throws {
         let normal=try wmfTextInk("wmf-text-ext-even.wmf")

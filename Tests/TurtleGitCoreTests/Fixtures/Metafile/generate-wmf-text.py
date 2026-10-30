@@ -2,11 +2,15 @@
 # SPDX-License-Identifier: MIT
 """Original WMF text wires and independently framed Unicode EMF controls.
 No helper or test process is run; existing corpus is never rewritten.
+Full-background text-pair derivatives retain original/captured source wires.
 """
 import pathlib,struct
 P=pathlib.Path(__file__).parent
-(P/'unsupported-wmf-text-textout-missing-odd-pad.wmf').unlink(missing_ok=True)
-(P/'unsupported-wmf-text-ext-pdy.wmf').unlink(missing_ok=True)
+def put(name,wire):
+ path=P/name
+ if path.exists():
+  if path.read_bytes()!=wire:raise ValueError('Refusing to rewrite retained fixture: '+name)
+ else:path.write_bytes(wire)
 U=lambda *v:struct.pack('<'+'I'*len(v),*v)
 I=lambda *v:struct.pack('<'+'i'*len(v),*v)
 H=lambda *v:struct.pack('<'+'H'*len(v),*v)
@@ -40,9 +44,9 @@ def et(text='HH',xy=(8,28),dx=None,options=0,rect=(4,4,48,40)):
  raw=pad(text.encode('utf-16le'));offdx=76+len(raw) if dx is not None else 0
  return er(84,I(0,0,96,64)+U(1)+F(1,1)+I(*xy)+U(len(text.encode('utf-16le'))//2,76,options)+I(*rect)+U(offdx)+raw+(b'' if dx is None else I(*dx)))
 def write(name,ws,es=None,**kw):
- (P/('wmf-text-'+name+'.wmf')).write_bytes(wmfb(ws,**kw))
- if es is not None:(P/('wmf-text-'+name+'-control.emf')).write_bytes(emfb(es,**kw))
-def bad(name,rs,**kw):(P/('unsupported-wmf-text-'+name+'.wmf')).write_bytes(wmfb(rs,**kw))
+ put('wmf-text-'+name+'.wmf',wmfb(ws,**kw))
+ if es is not None:put('wmf-text-'+name+'-control.emf',emfb(es,**kw))
+def bad(name,rs,**kw):put('unsupported-wmf-text-'+name+'.wmf',wmfb(rs,**kw))
 for name,raw,text in [('even',b'HH','HH'),('odd',b'HHH','HHH'),('cp1252',b'\x80\xe9','€é'),('empty',b'','')]:
  write('textout-'+name,[wt(raw,padbyte=0xa5)],[et(text)])
  write('ext-'+name,[wx(raw,padbyte=0xa5)],[et(text)])
@@ -79,8 +83,8 @@ def embedded(kind,child):
  stream=b'EMF+'+b''.join(rs);records=[er(70,U(len(stream))+stream),er(14,U(0,0,20))]
  return U(1,88)+I(0,0,96,64)+I(0,0,2540,1693)+U(0x464d4520,0x10000,88+sum(map(len,records)),len(records)+1)+H(32,0)+U(0,0,0)+I(960,960,254,254)+b''.join(records)
 childw=wmfb([wx(b'HHH',xy=(12,32),dx=(24,24,24))]);childe=emfb([et('HHH',xy=(12,32),dx=(24,24,24))])
-(P/'wmf-text-embedded-affine.emf').write_bytes(embedded(2,childw))
-(P/'wmf-text-embedded-affine-control.emf').write_bytes(embedded(3,childe))
+put('wmf-text-embedded-affine.emf',embedded(2,childw))
+put('wmf-text-embedded-affine-control.emf',embedded(3,childe))
 write('charset-oem437',[wx(bytes((0x80,0x82)),dx=(28,28))],[et('Çé',dx=(28,28))],charset=255)
 write('dbcs-johab',[wx(bytes((0x88,0x61,0x48)),dx=(12,16,28))],[et('가H',dx=(12,16))],charset=130)
 bad('dbcs-johab-lead',[wx(bytes((0x88,)))],charset=130)
@@ -98,8 +102,8 @@ write('justify-natural-negative',[wr(0x20a,S(2,-11)),wx(b'H H H')])
 bad('extra-short',[wr(0x108)])
 bad('justify-short',[wr(0x20a,S(2))])
 clipw=wmfb([wx(b'HHH',xy=(12,32),dx=(24,24,24),options=6,rect=(4,4,48,40))]);clipe=emfb([et('HHH',xy=(12,32),dx=(24,24,24),options=6,rect=(4,4,48,40))])
-(P/'wmf-text-embedded-clip-affine.emf').write_bytes(embedded(2,clipw))
-(P/'wmf-text-embedded-clip-affine-control.emf').write_bytes(embedded(3,clipe))
+put('wmf-text-embedded-clip-affine.emf',embedded(2,clipw))
+put('wmf-text-embedded-clip-affine-control.emf',embedded(3,clipe))
 
 # Windows WMF playback ignores PDY semantics, consuming firstcount WORDs as DX.
 write('ext-pdy-ignored',[wx(b'HHH',dx=(28,0,28,8,28,0),options=0x2000)],[et('HHH',dx=(28,0,28))])
@@ -113,3 +117,45 @@ bad('ext-pdy-short',[wx(b'HH',dx=(20,20),options=0x2000)])
 write('dbcs-single-128',[wx(bytes((0x82,0xa0)),dx=(12,16))],[et('あ',dx=(28,))],charset=128)
 write('dbcs-single-johab',[wx(bytes((0x88,0x61)),dx=(12,16))],[et('가',dx=(12,))],charset=130)
 write('dbcs-repeat-128',[wx(bytes((0x82,0xa0))*3,dx=(12,16)*3)],[et('あああ',dx=(28,28,28))],charset=128)
+
+# Independent full-RGBA text pairs need the same painted background, not a
+# white matte that hides format-specific alpha. Original WMF PS_NULL Rectangle
+# excludes the final device row/column; its captured bytes remain unchanged.
+# PATCOPY paints the explicit96x64 background using the already-selected white
+# brush, without depending on pen semantics. Text/font/clip/state records remain
+# byte-identical. Embedded EMF roots already have an opaque parent background;
+# their local-matrix rectangle playback does not use the root PS_NULL adjustment.
+def full_background_wmf(original):
+ assert original[:4]==U(0x9ac6cdd7) and len(original)>=40
+ assert struct.unpack_from('<I',original,28)[0]==(len(original)-22)//2
+ records=[];cursor=40
+ while cursor<len(original):
+  words=struct.unpack_from('<I',original,cursor)[0];size=words*2
+  assert words>=3 and cursor+size<=len(original)
+  records.append(original[cursor:cursor+size]);cursor+=size
+ assert cursor==len(original) and records[-1]==wr(0)
+ expected=[wr(0x20b,S(0,0)),wr(0x20c,S(64,96))]+wsetup()[:5]
+ assert records[:7]==expected
+ assert struct.unpack_from('<I',original,34)[0]>=9
+ replacement=wr(0x61d,U(0x00f00021)+S(64,96,0,0))
+ assert len(records[6])==14 and len(replacement)==18
+ records[6]=replacement
+ result=bytearray(original[:40]+b''.join(records))
+ struct.pack_into('<I',result,28,(len(result)-22)//2)
+ # Only the file wordcount and the one intended background-paint record differ.
+ assert result[:28]==original[:28] and result[32:40]==original[32:40]
+ assert result[40:40+sum(map(len,records[:6]))]==original[40:40+sum(map(len,records[:6]))]
+ offset=40+sum(map(len,records[:6]))
+ assert result[offset+18:]==original[offset+14:]
+ return bytes(result)
+
+derived=0;embedded=[]
+for control in sorted(P.glob('wmf-text-*-control.emf')):
+ name=control.name[:-len('-control.emf')]
+ source=P/(name+'.wmf')
+ if not source.exists():
+  assert name in ('wmf-text-embedded-affine','wmf-text-embedded-clip-affine')
+  embedded.append(name+'.emf');continue
+ put(name+'-full-background.wmf',full_background_wmf(source.read_bytes()));derived+=1
+assert derived==60 and len(embedded)==2
+print('Prepared60 full-background WMF text derivatives;62 original controls and all captured wires retained unchanged.')

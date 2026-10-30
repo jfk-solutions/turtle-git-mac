@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+## WMF text-control background continuation
+
+The [WMF text checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)
+reproduces and resolves the hosted comparison failure without changing the
+renderer. Original WMF null-pen edges are transparent; the EMF text control
+painted them white. Explicit PATCOPY background derivatives now make the text
+inputs equivalent while preserving every existing wire and separate alpha
+assertions. Five focused Core methods and both native workflows pass with exact
+RGBA equality. Hosted confirmation remains required; installed build41 is
+unchanged.
+
 ## File activation and Sync options continuation
 
 The [connected checkpoint](qa/file-activation-sync-options-2026-10-30.json)
@@ -11,8 +22,8 @@ and affected-only repairs remain in the record. These app-only changes did not
 rerun Core. Installed build41 predates both this and the Finder continuation.
 
 The build41-source hosted run reports a long-caption native readiness failure
-(now repaired locally with both engines) and an open WMF text raster mismatch.
-Other lanes continue; a complete corrected-source hosted pass remains required.
+(now repaired locally with both engines) and the later diagnosed WMF text
+background mismatch, whose scoped repair is recorded above. Other lanes continue; a complete corrected-source hosted pass remains required.
 
 ## Finder startup and saved-permission continuation
 

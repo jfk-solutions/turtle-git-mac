@@ -62,6 +62,63 @@ class MacOSLaneTests(unittest.TestCase):
             if mutation == 'conditional': changed[setup_index]['if'] = "matrix.lane == 'distribution'"
             if mutation == 'late': changed.append(changed.pop(setup_index))
             with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testMetafileFailureEvidenceHasExactOwnerAndPlacement(self):
+        steps = self.workflow['jobs']['validation']['steps']
+        indexes = [i for i, step in enumerate(steps)
+                   if step.get('name') == ci.METAFILE_FAILURE_EVIDENCE['name']]
+        self.assertEqual(len(indexes), 1)
+        index = indexes[0]
+        self.assertEqual(steps[index], ci.METAFILE_FAILURE_EVIDENCE)
+        self.assertEqual(steps[index - 1]['name'], ci.METAFILE_CONSUMER)
+        self.verify()
+    def testMetafileFailureEvidenceMissingDuplicateMovedAndRenamedRefused(self):
+        for mutation in ['missing', 'duplicate', 'before-producer', 'late', 'renamed']:
+            value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+            index = next(i for i, step in enumerate(steps)
+                         if step.get('name') == ci.METAFILE_FAILURE_EVIDENCE['name'])
+            if mutation == 'missing': steps.pop(index)
+            if mutation == 'duplicate': steps.insert(index + 1, copy.deepcopy(steps[index]))
+            if mutation == 'before-producer': steps.insert(index - 1, steps.pop(index))
+            if mutation == 'late': steps.append(steps.pop(index))
+            if mutation == 'renamed': steps[index]['name'] = 'Uninventoried metafile artifact'
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testMetafileEvidenceCannotRunForSuccessOrAnotherLane(self):
+        for condition in ["matrix.lane == 'commit-repository'", 'failure()', 'always()',
+                          "matrix.lane == 'images-documents' && failure()",
+                          "matrix.lane == 'commit-repository' && success()",
+                          "matrix.lane == 'commit-repository' || failure()"]:
+            value = copy.deepcopy(self.workflow)
+            step = next(s for s in value['jobs']['validation']['steps']
+                        if s.get('name') == ci.METAFILE_FAILURE_EVIDENCE['name'])
+            step['if'] = condition
+            with self.subTest(condition=condition), self.assertRaises(AssertionError): self.verify(value)
+    def testMetafileEvidenceActionAndConstrainedPathsCannotDrift(self):
+        mutations = {
+            'action-version': lambda s: s.update(uses='actions/upload-artifact@v3'),
+            'another-action': lambda s: s.update(uses='another/upload@v4'),
+            'artifact-name': lambda s: s['with'].update(name='metafile-pixel-evidence'),
+            'broad-path': lambda s: s['with'].update(path='build/**\n'),
+            'extra-path': lambda s: s['with'].update(path=s['with']['path']+'**\n'),
+            'missing-path': lambda s: s['with'].update(path='\n'.join(s['with']['path'].splitlines()[:2])+'\n'),
+            'missing-file-policy': lambda s: s['with'].update({'if-no-files-found': 'error'}),
+            'extra-upload-setting': lambda s: s['with'].update({'include-hidden-files': True}),
+            'extra-command': lambda s: s.update(run='true'),
+            'extra-environment': lambda s: s.update(env={'UNREVIEWED': 'value'}),
+        }
+        for name, mutate in mutations.items():
+            value = copy.deepcopy(self.workflow)
+            step = next(s for s in value['jobs']['validation']['steps']
+                        if s.get('name') == ci.METAFILE_FAILURE_EVIDENCE['name'])
+            mutate(step)
+            with self.subTest(mutation=name), self.assertRaises(AssertionError): self.verify(value)
+    def testMetafileDiagnosticAdditionCannotHideProducerChanges(self):
+        for field, replacement in [('run', 'true'), ('if', "matrix.lane == 'images-documents'"),
+                                   ('env', {'UNREVIEWED': 'value'})]:
+            value = copy.deepcopy(self.workflow)
+            step = next(s for s in value['jobs']['validation']['steps']
+                        if s.get('name') == ci.METAFILE_CONSUMER)
+            step[field] = replacement
+            with self.subTest(field=field), self.assertRaises(AssertionError): self.verify(value)
     def testNoFailFastCancellationOrMissingAggregate(self):
         for change in ['fail-fast', 'aggregate', 'cancel', 'timeout']:
             value = copy.deepcopy(self.workflow)

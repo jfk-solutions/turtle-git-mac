@@ -91,3 +91,41 @@ linking improves represented Unicode text; it does not add complex-script
 paragraph shaping or support bitmap/color-only glyphs. Physical image-window,
 current signed-installed, minimum-macOS, physical Intel and complete hosted
 acceptance remain separate.
+
+
+## Matching text-control backgrounds — October 30, 2026
+
+Hosted CI later exposed an invalid equality assumption after the independently
+verified null-pen WMF rectangle correction. In `textout-odd`, all 159 differing
+pixels are exactly the last row/column: the original WMF leaves them transparent,
+while the Unicode EMF control paints them white. Every interior/text pixel is
+identical. DeviceRGB and separately normalized sRGB report the same difference;
+this is not evidence of a font-substitution or positioned-text defect.
+
+The [background checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)
+adds 60 explicitly named full-background WMF derivatives. Each replaces only the
+initial white null-pen rectangle with a 96×64 PATCOPY operation and adjusts the
+file wordcount. All other header/record bytes remain unchanged. The two embedded
+EMF pairs retain their original inputs. Every one of the 2,117 preexisting WMF/EMF
+binaries, including the captured Windows wires and 62 Unicode controls, retains
+its SHA256. The generator refuses to overwrite differing existing fixtures.
+
+Core compares all 62 pairs over the complete existing 96×64 region. Native
+consumers compare 20 relevant pairs with both exact DeviceRGB and named-sRGB RGBA8
+oracles. Separate Core/native witnesses require all 159 original transparent
+edge pixels, all 159 derivative opaque-white edges and identical glyph interiors.
+There is no renderer whitening, matte, tolerance increase or smaller crop. The
+[bitmap full-frame contract](METAFILE-WMF-BITMAP16-PARITY.md) remains intact.
+
+Five focused Core methods and both native Git-engine workflows pass. Original
+source decoding, byte preservation, malformed refusal and the native conflict/
+drop/cancellation/permission ownership checks remain. All three observed native
+receivers, including the diagnostic failure, were reaped and independently absent.
+No app or runtime rebuild was needed because production rendering did not change.
+
+Failures now retain source bytes, full native images/storage/profiles, exact
+normalized pixels, difference bounds, helper/renderer provenance and separately
+labelled fresh SVG conversions. The CI artifact action is constrained to its
+failed producer and preserves all original workflow commands and ownership.
+This local checkpoint does not establish a complete hosted, signed or physical
+acceptance pass.

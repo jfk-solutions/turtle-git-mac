@@ -629,6 +629,16 @@ jobs:
       - name: WMF and EMF native comparison consumers and colors
         if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-metafile-workflows.py --only dib-profiles --only wmf-bitmap16 --only wmf-text --only classic-text-records --only formatted-digits --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Retain failed metafile source and pixel evidence
+        if: matrix.lane == 'commit-repository' && failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: metafile-pixel-evidence-${{ matrix.lane }}
+          path: |
+            build/qa/metafile-workflow-failures/**
+            build/qa/metafile-wmf-text-native-results.json
+            build/qa/metafile-wmf-text-runtime-*.json
+          if-no-files-found: ignore
       - name: Classic WMF and EMF Boolean raster consumers and conflict ownership
         if: matrix.lane == 'commit-repository'
         run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

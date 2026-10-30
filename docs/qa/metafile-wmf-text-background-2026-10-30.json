@@ -1,0 +1,179 @@
+{
+  "date": "2026-10-30",
+  "status": "focused-core-native-and-workflow-checks-passed-hosted-confirmation-open",
+  "source_base": "af547ec5bfa6113c5afdba6c0c52a0ac53b15bad",
+  "trigger": {
+    "run": 41129980751,
+    "source": "87701028",
+    "job": 124326670733,
+    "failure": "Native WMF/Unicode EMF raster mismatch: textout-odd"
+  },
+  "root_cause": {
+    "type": "invalid cross-format fixture background equivalence after correct PS_NULL alpha implementation",
+    "different_pixels": 159,
+    "actual_difference": "Only x95 or y63 in96×64 region: originalWMF transparent RGBA0; EMFcontrol opaque whiteRGBA255. Every other pixel, including text, equal.",
+    "original_native_helper_sha256": "790b1d6a7990e6a2832db204e0d8e5917499f0cffd713b9e920390eabf9fba2f",
+    "first_failure_report_sha256": "e90f844d1c789da4c15fcf81e29c3bb50e45b207d9839e9085cc179757ea628e",
+    "color_space_discriminator": "Original DeviceRGB oracle and independent named-sRGB RGBA8 report identical159-pixel difference; not a font/color normalization hypothesis.",
+    "production_contract": "Existing Windows full-frame source/null-pen acceptance preserves transparent edges. No renderer, native decoder, canvas sizing, matte, tolerance or reduced-crop change."
+  },
+  "fixtures": {
+    "preexisting_wmf_emf_binaries": 2117,
+    "changed_originals": 0,
+    "independent_original_sha_audit": true,
+    "before_manifest_sha256": "d5b403caf2103c3c45e8af3be19a127f206fd6a21d04bda7c5ed157572f4c34c",
+    "new_full_background_derivatives": 60,
+    "derived_names_sha256": "241af55e347981a6e4aa701ae7680531084d08e662ef0d0c951ff98077bfdaec",
+    "transform": "Replace only initial14-byte white PS_NULL Rectangle with18-byte96×64 PATCOPY; file wordcount+2. All other record/header bytes unchanged; existing maximum record bound remains sufficient.",
+    "control_pairs": 62,
+    "embedded_original_emf_pairs_unchanged": 2,
+    "generator": "Refuses differing existing fixtures and no longer unlinks historical wires.",
+    "derived_sha256": {
+      "wmf-text-align-bottom-full-background.wmf": "3f36be33210b24b74948e361c24b2e0b21365b1d0f5d705e7976b9b7d3991d43",
+      "wmf-text-align-center-full-background.wmf": "50c30160cba030ac7268a21001b3834d6c8fb9a085bb738a9981d438e523f416",
+      "wmf-text-align-right-full-background.wmf": "04cfbeeb3d878e8e76ef1b617bd84c774222aa8fa3d9865406fc0c87503e3753",
+      "wmf-text-align-top-full-background.wmf": "5cdbf5ed6d9bd9ff8a75f1bddbb6db27b5b083830d4ce5df2f0ea3971c8c2ec5",
+      "wmf-text-background-opaque-full-background.wmf": "cd7bcdd6c6bde9487540f25ecf6ceedba5d5bf3a1a6d0f38c7f39d5f863ec0c3",
+      "wmf-text-charset-161-full-background.wmf": "b6602dd667b4e6ea1729e0b1a1b23c1ee2f17f4cc74146ac819831b4626e6adf",
+      "wmf-text-charset-162-full-background.wmf": "2681bae7d083172161d25964f80b6108bcc9fa2e1ab65dc32c4e43e741262b0e",
+      "wmf-text-charset-163-full-background.wmf": "40e1ff52fb0984ae868a50a852cd16a103cc34e77cfc2b96c403a448edc64c45",
+      "wmf-text-charset-177-full-background.wmf": "fe43778c6d75e35eb8723e999255f316e99f143694ed3053df25af5e9b9fe6d8",
+      "wmf-text-charset-178-full-background.wmf": "a85fc8f41c8d35c2fe50f50987dbc7d2c4dac157e8f2b14f258100f573c47c83",
+      "wmf-text-charset-186-full-background.wmf": "78b08d0aaf524e400680236ff343ab49ce7d384d0c7586595f37fc62f3b1f7d9",
+      "wmf-text-charset-204-full-background.wmf": "a60578b8032ca900c32d7e1bdbc7a35b6ea6294144530e7f4ea7be40c3c96f80",
+      "wmf-text-charset-222-full-background.wmf": "8e03d6055cbbb045ed93b10bce7f9f106442568d928adb8fd806eccb30b43c22",
+      "wmf-text-charset-238-full-background.wmf": "25ffc9e5b9af294bf991190dd84a96ac0377fc667e41411803e8ecdb39423729",
+      "wmf-text-charset-oem437-full-background.wmf": "f6c6f30d25f73ceeb5df3095f4f734286ea7449a358a3653b13d187ec3fbad71",
+      "wmf-text-dbcs-128-full-background.wmf": "599782d59dd6d34301a5797b45aa81f5de5c916106fb3a6aa4377638d24d9917",
+      "wmf-text-dbcs-129-full-background.wmf": "0975d14dfe77d12589381029cd8460702e245b29c8efd327bbfe2e64f2dc320d",
+      "wmf-text-dbcs-134-full-background.wmf": "0fae27add193b557ef792467b250eae60103af9a9b07c044ab0ed276ea72b1b1",
+      "wmf-text-dbcs-136-full-background.wmf": "2a08342dc02c8bad2cc640290d77d38d88dd5fd0b6766998f4dee4e737837dd5",
+      "wmf-text-dbcs-johab-full-background.wmf": "24c2ecf1dfe93bcfdc74662f68efb510a053b4004856b3240d7b91e1fcc5a0b7",
+      "wmf-text-dbcs-repeat-128-full-background.wmf": "b449a0447eb9011ebca7c5b22982837bac98f3253c76dd77cb8d99582d37615d",
+      "wmf-text-dbcs-single-128-full-background.wmf": "becb30b300675cad1b2a47a1194d10cf6cc12c84ac012d1ef806aae452e6ab94",
+      "wmf-text-dbcs-single-johab-full-background.wmf": "0b6898c895d68b46a56241b2afec93240e38ab60030d21992c2093d3789c5cbe",
+      "wmf-text-ext-clip-full-background.wmf": "d961b076c8765dfdf49453b81a98620f5c6f6544cc9a4d2aa808e460a8c8d7d3",
+      "wmf-text-ext-clip-opaque-full-background.wmf": "506db33c8a8aeb4c28e804ce03dfcf868748cfdf637ee97a8407012ef9c6479c",
+      "wmf-text-ext-cp1252-full-background.wmf": "005153c97f013d310dba477ea43e738c6666f4549049ad19f7eb61c732b1d825",
+      "wmf-text-ext-dx-full-background.wmf": "c183809a00ad5ff6340778c9fe508e127b0eefe50cf20594e69f0c85fd2927d5",
+      "wmf-text-ext-dx-negative-full-background.wmf": "09c7c5c69c7bbfd41d79b8f032464cdb063075badc901b9e098346da8a4cfe4d",
+      "wmf-text-ext-empty-full-background.wmf": "c8a09ab425efb98e9698052dd95e82db4bc2d5f3755b5feb32d9fc181dcea3f9",
+      "wmf-text-ext-empty-opaque-full-background.wmf": "60e8ae3b399730ede88ef1ff9c9050258e5cec57fcd5723ec8916ca33c548588",
+      "wmf-text-ext-even-full-background.wmf": "893b2fced162e8ceea86010519b279c506df2e6d0447c9994d9464b14097c28b",
+      "wmf-text-ext-odd-full-background.wmf": "04d9a08e2de620d4436981d33bdac804a7335736f1773fb4e5d179e1c43ba88e",
+      "wmf-text-ext-opaque-full-background.wmf": "5ecd69d54dd51331b1529bd782383e28069b7be450efc9523ed3123d7136cf2e",
+      "wmf-text-ext-pdy-ignored-full-background.wmf": "3c1495e2955160d72532a1b35c0764b3d30676290a3f58e51f5084ca17700029",
+      "wmf-text-ext-updatecp-dx-full-background.wmf": "536a7dc7d3e3c07b447dfa37a5433d6627d6e12e651f22c471072c4073a8c527",
+      "wmf-text-ext-updatecp-full-background.wmf": "1012da8db5974d3822333bbfa053c4f1dae0842419325becf3b17e66342c7ced",
+      "wmf-text-extra-dx-negative-full-background.wmf": "04b73504d5e4a5256ce38ad0b812e4696058e55f3a7002d3f6f78518dc9d1aee",
+      "wmf-text-extra-dx-positive-full-background.wmf": "0eca0211758ef51a26b486f668eedf5d05a7f2d1264c6b3228fc29d3dd7d7377",
+      "wmf-text-extra-dx-updatecp-full-background.wmf": "32a51a54c6cf099ac0ecaf93cfcd0f8e5eaecec942f1273de79edb64cfcc95e1",
+      "wmf-text-extra-justify-dx-full-background.wmf": "a0db9f9ba68f4213f2c10b5779e66f8de6ebaf1e375dd06932ed708d6186745d",
+      "wmf-text-extra-restore-full-background.wmf": "e1bd4df2c899e2e18cf9aca7097f47f38e0fb3f789ede081ac21cdee351c5b78",
+      "wmf-text-font-angle-full-background.wmf": "92333a0d7d8e486c27ea7af6b1c0d35e47e8601d7f3265acc2c179dd8a24203f",
+      "wmf-text-font-bold-full-background.wmf": "119b62765317b2f944814fefad8b236beedbc667fdf5252e3a86f3b2dc5f3983",
+      "wmf-text-font-cell-full-background.wmf": "107798b785bbd8b5d4814770267949bf5aa6e48e1e35b13d87cc9634732adf31",
+      "wmf-text-font-decorated-full-background.wmf": "069b25394274278d25e3514c2512f6d3c8c8202e9465c7a0b9a99042f0f82eb1",
+      "wmf-text-font-italic-full-background.wmf": "8b70212322cf86ce86dc5363cd8811a750fccaab8e67117f6918d9c7c8e1266a",
+      "wmf-text-font-orientation-full-background.wmf": "eed0614bf601d7aab46fff3bea391dfe0882db8f409d7c551f24136b32794095",
+      "wmf-text-font-strike-full-background.wmf": "0b33d59ff97f54a311db033c6533a744602d3fe7d0c5cae3873d3f31729c3bfb",
+      "wmf-text-font-underline-full-background.wmf": "c9e5056268b30e120832beb9de9e12069265d68d68f94aa42f3f1b2fa2fd719a",
+      "wmf-text-font-width-full-background.wmf": "8d298d633e829656eb221b9fbf9f600a6a9fbfaa96832ec327c16991b585a33c",
+      "wmf-text-justify-dx-negative-full-background.wmf": "afd58dc767f3baab0af4a1fd258dad5c617b201d2fb234e9d4368a2fd5a8ddd7",
+      "wmf-text-justify-dx-positive-full-background.wmf": "f9b1c75edb0c6b830e1b63a73ee5ec20880eddc352f0cc2d58cd634513075427",
+      "wmf-text-restore-full-background.wmf": "2a24be2f8e5c59a657f4cca92dc0be5f3a8154cad71ee2a6c2d16c5e3932369e",
+      "wmf-text-scaled-full-background.wmf": "b8584abb318e2c1017f7ecad4fcecfb5fec6c64a18c8ed1ea0b0ec70bc8c9de2",
+      "wmf-text-textout-cp1252-full-background.wmf": "17007be2dc3310f78eb8651592a05309eb355107445dcc5d53c580831646e681",
+      "wmf-text-textout-empty-full-background.wmf": "7fc0a15ca3cda781c0d4f3f28ba9a2410bc6a9a3aca986cf85e900a9bf559bf6",
+      "wmf-text-textout-even-full-background.wmf": "7d6800050f9934e2b7d53fd709a054ada8a49d84730f0344380dad198fd8adee",
+      "wmf-text-textout-odd-full-background.wmf": "5136313b3656b0d2f62d42d96065242e4424441cedc0bc718b0a3cf7e58139d7",
+      "wmf-text-textout-updatecp-full-background.wmf": "61b9766b41027a785d9bf20c3e8b87bdaa20302ed1f8db052b542e88187f7f5f",
+      "wmf-text-translated-full-background.wmf": "10070234c79737dc571ca3d6620d3c3cb20741fff72935b6881cd26f37c3b8ee"
+    }
+  },
+  "validation": {
+    "core": {
+      "methods": 5,
+      "failures": 0,
+      "seconds": 17.247,
+      "filter": "MetafileImageTests/testWMFTextFamily",
+      "log": "build/qa/wmf-text-matched-background-core-2026-10-30.log",
+      "scope": "All62 full-RGBA control pairs, derivative wire invariants, pinned original/control hashes, all159 originaltransparent/derivedopaque edges plus unchanged interior, original-source decoding and byte preservation, ink/state/encoding/refusal/fallback glyph cases."
+    },
+    "native": {
+      "case": "wmf-text",
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "pairs": 2,
+      "log": "build/qa/wmf-text-matched-background-native-2026-10-30.log",
+      "scope": "Original23 sample decode/dimensions/bytes;20 matched-background full96×64 pairs in both unchanged DeviceRGB exact oracle and named-sRGB RGBA8 exact oracle; original159-edge witness; existing malformed refusal, drop preview, three-stage conflict, chooser/cancel/late-result/grant/Quit ownership; repository bytes unchanged.",
+      "captures": [
+        {
+          "engine": "/usr/bin/git",
+          "report_sha256": "0a36658f0b945393ca725643520e121095a31e25c8749f2c42c43ed9636a9557",
+          "full_rgba_equal": true,
+          "opaque_edges": 159,
+          "runtime": {
+            "helper": "790b1d6a7990e6a2832db204e0d8e5917499f0cffd713b9e920390eabf9fba2f",
+            "provenance.json": "ffe217a83f8dc845b9f5155e1606727421ff2bc265e14c2200c46a2fe73ac159",
+            "renderer.js": "f5c8430688a3615b6701987c504c47b54283ed5b7726a07d5a045df427acbe15"
+          }
+        },
+        {
+          "engine": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "report_sha256": "0a36658f0b945393ca725643520e121095a31e25c8749f2c42c43ed9636a9557",
+          "full_rgba_equal": true,
+          "opaque_edges": 159,
+          "runtime": {
+            "helper": "790b1d6a7990e6a2832db204e0d8e5917499f0cffd713b9e920390eabf9fba2f",
+            "provenance.json": "ffe217a83f8dc845b9f5155e1606727421ff2bc265e14c2200c46a2fe73ac159",
+            "renderer.js": "f5c8430688a3615b6701987c504c47b54283ed5b7726a07d5a045df427acbe15"
+          }
+        }
+      ],
+      "reaped_and_independently_absent_native_pids": [
+        50252,
+        51469,
+        52048
+      ]
+    },
+    "workflow": {
+      "initial_tests": 9,
+      "initial_failures": 1,
+      "initial_log": "build/qa/wmf-text-matched-background-ci-lanes-2026-10-30.log",
+      "cause": "Existing fail-closed inventory correctly refused newly added diagnostic artifact step.",
+      "repair": "One exact failure-only artifact action immediately after its WMF producer, removed only for baseline comparison; original baseline/inventory/hash/commands/env/conditions unchanged. Missing/duplicate/moved/condition/path/action/producer drift rejected.",
+      "tests_after_repair": 14,
+      "failures_after_repair": 0,
+      "original_baseline_verified": true,
+      "log": "build/qa/wmf-text-matched-background-ci-lanes-repair-2026-10-30.log"
+    },
+    "app_build": "Not repeated: production/Core/runtime source unchanged; native receivers compiled against existing current Debug objects."
+  },
+  "failure_retention": "Synthetic private requests, original sources/full native PNG/backing/profile, exact oracle and sRGB bytes/diff bounds/counts, runtime identity, host/font metadata and separately labelled fresh SVG reconversions. CI failure upload constrained to commit-repository lane. Positive captures explicitly marked completed=true.",
+  "source_sha256": {
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-wmf-text.py": "5daa0059aa3a1ea121b924bcc0f187c0f03be4e0e0ed1d35f66cb839fb3af485",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "73d2e906198b81b83b237c6ee947d054ae9ab8f8531e1bf931cd6d6c30387240",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "051b763fca585e2306a2cc28cea2805f615233a48b0fb2fc4ebf6555d52bd28b",
+    "scripts/test-metafile-workflows.py": "27f1d141f0029ae281cc3d268fa08f0417ba90d4ba8f037f0e5f6c89dc328f69",
+    ".github/workflows/macos.yml": "484a106b97b1cb83a9b997240fac28dc0bbe3087774d997175796b728c1371f9",
+    "scripts/check-macos-ci-lanes.py": "018473c25bf0f3c4985a2df0277202ad00aa77c94ef093c3767e35a28dd00a49",
+    "scripts/test-macos-ci-lanes.py": "dc544d9e9a4e62079c9232b54f7cc13b093c8ac507222dcb082af6854aeec12c"
+  },
+  "limits": [
+    "No new Windows capture: original captured wires and existing Windows alpha acceptance remain intact; PATCOPY derivatives are explicit test background variants.",
+    "Local full-RGBA passes are not a complete hosted CI pass.",
+    "Installed app remains build41; no new package or physical Finder/signed external grant acceptance.",
+    "Remaining full-port/minimum-OS/Intel/accessibility/localization/distribution/App Store terms gates remain open.",
+    "No public binary release, notarization or App Store submission."
+  ],
+  "documentation": {
+    "coverage_reconciled": true,
+    "site_build_and_links": "passed",
+    "site_log": "build/qa/wmf-text-matched-background-site-2026-10-30.log",
+    "bundled_help_topics_changed": false,
+    "native_literal_ui_labels_changed": false
+  }
+}

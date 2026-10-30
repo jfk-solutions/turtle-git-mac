@@ -77,9 +77,12 @@ Build41 remains installed and predates this source continuation.
 
 Hosted run877 now reports two failures: the long HEAD radio-control check awaited
 model readiness before the native update (repaired locally with unchanged exact
-assertions), and WMF `textout-odd` differs from its Unicode EMF raster. The latter
-remains open; its current evidence does not establish a font-substitution cause.
-The completed local batch does not establish a full hosted or installed pass.
+assertions), and WMF `textout-odd` differed from its Unicode EMF raster. The
+[later background checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)
+proves identical text and a 159-pixel transparent/white edge difference, preserves
+production alpha and original wires, and passes the matched-background checks
+locally. Hosted confirmation remains open. Neither local batch establishes a
+full hosted or installed pass.
 
 ## Installed local testing build39
 

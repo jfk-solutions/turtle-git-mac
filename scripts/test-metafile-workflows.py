@@ -124,6 +124,7 @@ if not main.is_file() or main.read_text() != main_contents:
     main.write_text(main_contents)
 receiver = build_receiver(root, fixtures+[main], generated)
 results=[]
+observed_cases={'path-gradients','dib-profiles','wmf-bitmap16','wmf-text'}
 with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temporary:
     folder = Path(temporary)
     environment = {key:value for key,value in os.environ.items() if not key.startswith('GIT_')}
@@ -146,24 +147,41 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             try:
                 result = run_receiver(command, cwd=root, env=environment, capture_output=True, text=True,
                                       timeout_sample=directory/'timeout.sample.txt')
+                (directory/'receiver.stdout.log').write_text(result.stdout)
+                (directory/'receiver.stderr.log').write_text(result.stderr)
                 print(result.stdout, end=''); print(result.stderr, end='')
                 completed=result.returncode==0 and 'PASS: metafile workflow completed' in result.stdout
-                if case in ['path-gradients','dib-profiles','wmf-bitmap16']:
+                if case in observed_cases:
                     results.append(dict(case=case,git=str(git.absolute()),returncode=result.returncode,passed=completed))
                     (root/('build/qa/metafile-'+case+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
                 result.check_returncode()
                 if not completed:raise SystemExit('Metafile receiver exited before completion: '+case)
             finally:
-                if case in ['path-gradients','dib-profiles','wmf-bitmap16']:
-                    sample=directory/'timeout.sample.txt'
-                    if sample.is_file():shutil.copyfile(sample,root/('build/qa/metafile-'+case+'-'+str(index)+'.sample.txt'))
-                    approved={str(git.resolve())}
-                    resolved=subprocess.run(['/usr/bin/xcrun','--find','git'],capture_output=True,text=True)
-                    if resolved.returncode==0:approved.add(str(Path(resolved.stdout.strip()).resolve()))
-                    for helper in [root/'build/metafile-runtime/Metafile/metafile-convert',root/'build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Metafile/metafile-convert']:
-                        if helper.is_file():approved.add(str(helper.resolve()))
-                    cleaned=retire_owned_helpers(directory,approved)
-                    if completed and cleaned:
-                        results[-1].update(passed=False,helper_cleanup_needed=True)
-                        (root/('build/qa/metafile-'+case+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
-                        raise RuntimeError('Owned helper outlived completed '+case+' request')
+                try:
+                    if case in observed_cases:
+                        sample=directory/'timeout.sample.txt'
+                        if sample.is_file():shutil.copyfile(sample,root/('build/qa/metafile-'+case+'-'+str(index)+'.sample.txt'))
+                        runtime_identity=directory/'wmf-text-runtime-identity.json'
+                        if runtime_identity.is_file():shutil.copyfile(runtime_identity,root/('build/qa/metafile-wmf-text-runtime-'+str(index)+'.json'))
+                        approved={str(git.resolve())}
+                        resolved=subprocess.run(['/usr/bin/xcrun','--find','git'],capture_output=True,text=True)
+                        if resolved.returncode==0:approved.add(str(Path(resolved.stdout.strip()).resolve()))
+                        for helper in [root/'build/metafile-runtime/Metafile/metafile-convert',root/'build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Metafile/metafile-convert']:
+                            if helper.is_file():approved.add(str(helper.resolve()))
+                        cleaned=retire_owned_helpers(directory,approved)
+                        if completed and cleaned:
+                            completed=False
+                            results[-1].update(passed=False,helper_cleanup_needed=True)
+                            (root/('build/qa/metafile-'+case+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
+                            raise RuntimeError('Owned helper outlived completed '+case+' request')
+                finally:
+                    # Preserve the complete private request only on failure or
+                    # explicit diagnostic capture. Never follow a fixture link
+                    # outside its private request while retaining evidence.
+                    if not completed or (directory/'metafile-text-mismatch').exists():
+                        evidence_root=root/'build/qa/metafile-workflow-failures'
+                        evidence_root.mkdir(parents=True,exist_ok=True)
+                        evidence=Path(tempfile.mkdtemp(prefix=case+'-'+str(index)+'-',dir=evidence_root))
+                        shutil.copytree(directory,evidence,dirs_exist_ok=True,symlinks=True)
+                        (evidence/'request.json').write_text(json.dumps(dict(case=case,git=str(git.absolute()),completed=completed),indent=2)+'\n')
+                        print('Retained private metafile workflow evidence: '+str(evidence),flush=True)

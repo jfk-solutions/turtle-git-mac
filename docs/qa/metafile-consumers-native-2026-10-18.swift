@@ -2,6 +2,8 @@
 import AppKit
 import UniformTypeIdentifiers
 import CoreText
+import ImageIO
+import CryptoKit
 import TurtleGitCore
 
 private final class MetafileConsumerScopeLog {var starts=0,stops=0}
@@ -24,6 +26,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
     static func verify(dibProfiles:Bool=false,wmfBitmap16:Bool=false,wmfText:Bool=false,classicTextRecords:Bool=false,formattedDigits:Bool=false,compressedPaths:Bool=false,positionedText:Bool=false,classicPens:Bool=false,classicRegions:Bool=false,classicPatternBrushes:Bool=false,embeddedMetafiles:Bool=false,compressedRaster:Bool=false)async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),suppliedCorpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpus=dibProfiles ? suppliedCorpus.appendingPathComponent("DIBProfiles"):suppliedCorpus
+        if wmfText {try JSONSerialization.data(withJSONObject:try textRuntimeIdentity(),options:[.prettyPrinted,.sortedKeys]).write(to:root.appendingPathComponent("wmf-text-runtime-identity.json"),options:.atomic)}
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
         let legacySamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf","plus-formatted-tabs.emf","plus-formatted-rtl.emf","plus-formatted-vertical.emf","plus-formatted-tracking.emf","plus-formatted-ellipsis.emf","plus-formatted-gradient.emf","classic-clip-region-xor.emf","classic-clip-region-diff.emf","classic-clip-meta-repeated.emf","classic-clip-offset-offcanvas.emf","classic-clip-path-and.emf","classic-clip-rect-world.emf","plus-pen-compound.emf","plus-pen-transform.emf","plus-pen-inset.emf","plus-pen-asymmetric-caps.emf","plus-pen-dash-round.emf","plus-pen-gradient.emf","plus-pen-custom-fill.emf","plus-pen-custom-stroke.emf","plus-pen-custom-both-paths.emf","plus-pen-custom-arrow-filled.emf","plus-pen-custom-arrow-notch.emf","plus-pen-custom-world-clip.emf"]
         let acceptedLegacyBitmap16Samples:Set<String>=["unsupported-raster-device-bitblt.wmf","unsupported-raster-device-stretchblt.wmf","unsupported-raster-wmf-without-bitmap-source-bitblt.wmf","unsupported-raster-wmf-without-bitmap-source-stretchblt.wmf"]
@@ -220,13 +223,55 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             }
             if wmfText {
                 for name in ["textout-odd","ext-dx","ext-clip-opaque","ext-updatecp-dx","font-decorated","font-cell","font-angle","restore","translated","charset-204","dbcs-128","embedded-affine","charset-oem437","dbcs-johab","extra-dx-positive","justify-dx-positive","embedded-clip-affine","ext-pdy-ignored","dbcs-single-johab","dbcs-repeat-128"] {
-                    let left=corpus.appendingPathComponent("wmf-text-"+name+(name.hasPrefix("embedded-") ? ".emf":".wmf")),right=corpus.appendingPathComponent("wmf-text-"+name+"-control.emf")
+                    let embedded=name.hasPrefix("embedded-")
+                    let original=corpus.appendingPathComponent("wmf-text-"+name+(embedded ? ".emf":".wmf"))
+                    let originalBytes=try Data(contentsOf:original)
+                    // The original WMF's PS_NULL Rectangle intentionally leaves
+                    // the last row/column transparent. Its independently framed
+                    // EMF control paints those pixels white. Use the original
+                    // text records over an explicit full-surface PATCOPY for
+                    // exact RGBA equality; retain the differing originals above
+                    // and establish their edge-alpha contract separately below.
+                    let left=embedded ? original:corpus.appendingPathComponent("wmf-text-"+name+"-full-background.wmf"),right=corpus.appendingPathComponent("wmf-text-"+name+"-control.emf")
                     let leftBytes=try Data(contentsOf:left),rightBytes=try Data(contentsOf:right)
+                    if name=="textout-odd" {
+                        let raw=track(FileComparisonWindowController(images:try ImageFileComparison(base:original,destination:right),permissions:[],preferences:prefs))
+                        raw.model.load();try await wait{!raw.model.busy && raw.model.document != nil}
+                        guard let a=raw.model.imageComparison?.base?.pixels,let b=raw.model.imageComparison?.destination?.pixels else {throw Failure(message:"Original WMF edge-alpha witness failed; \(comparisonState(raw))")}
+                        let aBytes=try textRGBA(a),bBytes=try textRGBA(b)
+                        var differences=0,edgeContract=true
+                        for y in 0..<64 {for x in 0..<96 {
+                            let start=(y*96+x)*4,aPixel=Array(aBytes[start..<(start+4)]),bPixel=Array(bBytes[start..<(start+4)])
+                            if aPixel != bPixel {differences += 1}
+                            if x==95 || y==63 {edgeContract = edgeContract && aPixel==[0,0,0,0] && bPixel==[255,255,255,255]}
+                            else {edgeContract = edgeContract && aPixel==bPixel}
+                        }}
+                        if !edgeContract || differences != 159 {
+                            do {try retainTextMismatch(name:"original-textout-odd-edge",left:a,right:b,leftSource:original,leftBytes:originalBytes,rightSource:right,rightBytes:rightBytes,leftOracle:try raster(a,interior:CGSize(width:96,height:64)),rightOracle:try raster(b,interior:CGSize(width:96,height:64)),root:root)}catch{print("Original edge diagnostic retention failed: "+error.localizedDescription)}
+                        }
+                        try require(edgeContract && differences==159,"Original PS_NULL WMF must retain exactly159 transparent right/bottom pixels versus the opaque Unicode EMF control; glyph interior must remain identical")
+                        try require(raw.model.document?.base.bytes==originalBytes && raw.model.document?.destination.bytes==rightBytes,"Original edge-alpha inspection changed source bytes")
+                        raw.close()
+                    }
                     let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
                     pair.model.load();try await wait{!pair.model.busy && pair.model.document != nil}
                     guard let a=pair.model.imageComparison?.base?.pixels,let b=pair.model.imageComparison?.destination?.pixels else {throw Failure(message:"WMF text native pair failed; \(comparisonState(pair))")}
-                    try require(try raster(a,interior:CGSize(width:96,height:64))==raster(b,interior:CGSize(width:96,height:64)),"Native WMF/Unicode EMF raster mismatch: \(name)")
+                    let leftRaster=try raster(a,interior:CGSize(width:96,height:64)),rightRaster=try raster(b,interior:CGSize(width:96,height:64))
+                    let leftSRGB=try textRGBA(a),rightSRGB=try textRGBA(b)
+                    if leftRaster != rightRaster || leftSRGB != rightSRGB || ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_TEXT_CAPTURE"]==name {
+                        do {try retainTextMismatch(name:name,left:a,right:b,leftSource:left,leftBytes:leftBytes,rightSource:right,rightBytes:rightBytes,leftOracle:leftRaster,rightOracle:rightRaster,root:root)}
+                        catch {print("WMF text mismatch diagnostic retention failed: "+error.localizedDescription)}
+                    }
+                    try require(leftRaster==rightRaster,"Native WMF/Unicode EMF raster mismatch: \(name)")
+                    try require(leftSRGB==rightSRGB,"Native matched-background WMF/Unicode EMF named-sRGB RGBA mismatch: \(name)")
+                    if name=="textout-odd" {
+                        for y in 0..<64 {for x in 0..<96 where x==95 || y==63 {
+                            let start=(y*96+x)*4
+                            try require(Array(leftSRGB[start..<(start+4)])==[255,255,255,255] && Array(rightSRGB[start..<(start+4)])==[255,255,255,255],"Matched-background derivative and Unicode control must both paint every original right/bottom background pixel opaque white")
+                        }}
+                    }
                     try require(pair.model.document?.base.bytes==leftBytes && pair.model.document?.destination.bytes==rightBytes,"WMF native comparison changed source bytes")
+                    try require(try Data(contentsOf:original)==originalBytes,"Matched-background control changed its original WMF/embedded source")
                     pair.close()
                 }
             }
@@ -529,6 +574,87 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         try require(rendered,"Native bitmap brush raster failed")
         let p=(y*image.width+x)*4,actual=Array(bytes[p..<p+4]).map(Int.init)
         try require(zip(actual.prefix(3),expected).allSatisfy{pair in abs(pair.0-pair.1)<=3} && actual[3]==255,label+" sample(\(x),\(y))=\(actual), expected=\(expected)")
+    }
+    private static func textRuntimeIdentity()throws->[String:Any] {
+        let helper=try MetafileImageDecoder.executable()
+        func identity(_ url:URL)throws->[String:Any] {
+            let bytes=try Data(contentsOf:url)
+            return ["path":url.path,"bytes":bytes.count,"sha256":SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()]
+        }
+        var result:[String:Any]=["helper":try identity(helper),"phase":"Diagnostic-time resolver identity; no conversion result is substituted for the failed native image."]
+        for leaf in ["renderer.js","provenance.json"] {
+            let url=helper.deletingLastPathComponent().appendingPathComponent(leaf)
+            if FileManager.default.fileExists(atPath:url.path) {result[leaf]=try identity(url)}
+        }
+        return result
+    }
+    private static func textRGBA(_ image:CGImage)throws->Data {
+        guard let crop=image.cropping(to:CGRect(x:0,y:0,width:96,height:64)),crop.width==96,crop.height==64,let space=CGColorSpace(name:CGColorSpace.sRGB) else {throw Failure(message:"Cannot crop diagnostic native text image")}
+        var bytes=Data(count:96*64*4)
+        let success=bytes.withUnsafeMutableBytes {storage->Bool in
+            guard let context=CGContext(data:storage.baseAddress,width:96,height:64,bitsPerComponent:8,bytesPerRow:96*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{return false}
+            context.interpolationQuality = .none;context.draw(crop,in:CGRect(x:0,y:0,width:96,height:64));return true
+        }
+        guard success else {throw Failure(message:"Cannot normalize diagnostic native text image")};return bytes
+    }
+    /// Diagnostic output never replaces the original exact equality oracle.
+    /// Native backing bytes and normalized bytes remain separate so a host
+    /// color/byte-order difference is not mistaken for a renderer difference.
+    private static func retainTextMismatch(name:String,left:CGImage,right:CGImage,leftSource:URL,leftBytes:Data,rightSource:URL,rightBytes:Data,leftOracle:Data,rightOracle:Data,root:URL)throws {
+        let directory=root.appendingPathComponent("metafile-text-mismatch",isDirectory:true).appendingPathComponent(name,isDirectory:true)
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+        func save(_ bytes:Data,_ leaf:String)throws {try bytes.write(to:directory.appendingPathComponent(leaf),options:.atomic)}
+        func hash(_ bytes:Data)->String {SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()}
+        func png(_ image:CGImage,_ leaf:String)throws {
+            let data=NSMutableData()
+            guard let destination=CGImageDestinationCreateWithData(data,"public.png" as CFString,1,nil) else {throw Failure(message:"Cannot encode mismatch PNG")}
+            CGImageDestinationAddImage(destination,image,nil)
+            guard CGImageDestinationFinalize(destination) else {throw Failure(message:"Cannot finish mismatch PNG")}
+            try save(data as Data,leaf)
+        }
+        func metadata(_ image:CGImage,_ side:String)throws->[String:Any] {
+            var result:[String:Any]=["width":image.width,"height":image.height,"bitsPerComponent":image.bitsPerComponent,"bitsPerPixel":image.bitsPerPixel,"bytesPerRow":image.bytesPerRow,"alphaInfo":image.alphaInfo.rawValue,"bitmapInfo":image.bitmapInfo.rawValue,"byteOrderMask":image.bitmapInfo.intersection(.byteOrderMask).rawValue,"shouldInterpolate":image.shouldInterpolate,"renderingIntent":image.renderingIntent.rawValue]
+            if let space=image.colorSpace {
+                result["colorSpace"]=["name":space.name.map{$0 as String} ?? "unnamed","model":space.model.rawValue,"components":space.numberOfComponents]
+                if let profile=space.copyICCData() as Data? {try save(profile,side+"-profile.icc");result["profileSHA256"]=hash(profile)}
+            }
+            if let storage=image.dataProvider?.data as Data?,storage.count<=16*1024*1024 {try save(storage,side+"-native-storage.bin");result["nativeStorageBytes"]=storage.count;result["nativeStorageSHA256"]=hash(storage)}
+            try png(image,side+"-native.png")
+            return result
+        }
+        func difference(_ a:Data,_ b:Data)->[String:Any] {
+            guard a.count==b.count,a.count==96*64*4 else{return ["leftBytes":a.count,"rightBytes":b.count,"sizeMismatch":true]}
+            var pixels=0,channels=0,maxDelta=0,minX=96,minY=64,maxX = -1,maxY = -1,first:[[String:Any]]=[]
+            for pixel in 0..<(96*64) {
+                var changed=false
+                for channel in 0..<4 {let delta=abs(Int(a[pixel*4+channel])-Int(b[pixel*4+channel]));if delta>0 {changed=true;channels += 1;maxDelta=max(maxDelta,delta)}}
+                if changed {let x=pixel%96,y=pixel/96;pixels += 1;minX=min(minX,x);minY=min(minY,y);maxX=max(maxX,x);maxY=max(maxY,y);if first.count<32 {first.append(["x":x,"y":y,"left":Array(a[(pixel*4)..<(pixel*4+4)]),"right":Array(b[(pixel*4)..<(pixel*4+4)])])}}
+            }
+            return ["equal":a==b,"differentPixels":pixels,"differentChannels":channels,"maximumChannelDelta":maxDelta,"bounds":pixels==0 ? []:[minX,minY,maxX,maxY],"firstDifferentPixels":first,"leftSHA256":hash(a),"rightSHA256":hash(b)]
+        }
+        try save(leftBytes,"left-source."+leftSource.pathExtension);try save(rightBytes,"right-source."+rightSource.pathExtension)
+        try save(leftOracle,"left-original-oracle.rgba");try save(rightOracle,"right-original-oracle.rgba")
+        var report:[String:Any]=["schema":1,"runtime":try textRuntimeIdentity(),"case":name,"operatingSystem":ProcessInfo.processInfo.operatingSystemVersionString,"crop":[0,0,96,64],"sourceFiles":[leftSource.lastPathComponent,rightSource.lastPathComponent],"sourceSHA256":[hash(leftBytes),hash(rightBytes)],"originalOracle":difference(leftOracle,rightOracle),"originalOracleLayout":"Existing DeviceRGB premultipliedLast bitmapInfo; retained without reinterpretation."]
+        report["leftNative"]=try metadata(left,"left");report["rightNative"]=try metadata(right,"right")
+        let a=try textRGBA(left),b=try textRGBA(right)
+        try save(a,"left-srgb-rgba8.bin");try save(b,"right-srgb-rgba8.bin")
+        report["namedSRGBRGBA8"]=difference(a,b)
+        report["captureKind"]=leftOracle==rightOracle && a==b ? "requested exact matched comparison evidence":"failed exact comparison evidence"
+        report["normalizedLayout"]="Named sRGB, RGBA8 big-endian, premultiplied alpha, 384 bytes per row, exact top-left crop, no interpolation."
+        // This probe describes the fixture's common nominal font independently;
+        // the retained generated SVG records the actual helper-produced paths.
+        let font=CTFontCreateWithName("Helvetica" as CFString,18,nil)
+        report["nominalFontProbe"]=["requested":"Helvetica 18 regular","postScript":CTFontCopyPostScriptName(font) as String,"family":CTFontCopyFamilyName(font) as String,"fullName":CTFontCopyFullName(font) as String,"ascent":CTFontGetAscent(font),"descent":CTFontGetDescent(font),"unitsPerEm":CTFontGetUnitsPerEm(font)]
+        // Save evidence before optional reconversion, which may itself fail.
+        try save(try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]),"report.json")
+        var conversions:[String:String]=[:]
+        for (side,source) in [("left",leftBytes),("right",rightBytes)] {
+            do {if let svg=try MetafileImageDecoder.convert(source) {try save(svg,side+"-reconverted.svg");conversions[side]="Retained fresh helper conversion; the failed CGImage remains separately retained."}else{conversions[side]="No converted SVG returned."}}
+            catch {conversions[side]=error.localizedDescription}
+        }
+        report["diagnosticReconversion"]=conversions
+        try save(try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]),"report.json")
+        print("WMF text comparison evidence: "+directory.path)
     }
     private static func raster(_ source:CGImage,interior:CGSize?=nil)throws->Data {
         let image:CGImage
