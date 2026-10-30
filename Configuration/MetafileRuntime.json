@@ -152,5 +152,18 @@
       "domain": "Every integer setting in all eight active curve domains and every 8-bit input, with all four channel masks verified; no sampled-parameter interpolation.",
       "endpoint_profile": "White saturation0 and black saturation255 bypass effects, matching actual native file replay."
     }
+  },
+  "bitmap16_halftone": {
+    "implementation": "Original TurtleGit integer Q13/staged-CROSS adaptation (GPL-2.0-or-later)",
+    "documentation": "docs/METAFILE-WMF-BITMAP16-PARITY.md",
+    "windows_sampling_run": 41084286487,
+    "windows_basis_run": 41088515841,
+    "windows_interpolation_identity_run": 41100585350,
+    "windows_signed_geometry_run": 41106488548,
+    "cumulative_shares": 8192,
+    "horizontal_intermediate": "Half-up byte only when both axes shrink; final vertical reduction remains Q13.",
+    "geometry": "Original rounded transfer lattice; inclusive negative anchors; finished-output reflection; measured source boundary and leading-black support.",
+    "connected_playback": "WMF SETPIXEL source-DC paint; transparent initial WMF output and null-pen Rectangle device-edge exclusion, retaining opaque white RGB interpretation for Boolean/source-DC reads.",
+    "limits": "Axis-aligned captured Bitmap16 family. Signed self-source reuses the serialized profile without a separate signed-self oracle. Affine and wider source-size/enlargement branch parity remains unproven."
   }
 }

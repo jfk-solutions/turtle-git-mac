@@ -17,7 +17,10 @@ code. For each RGB bit the truth-table index is <code>(P &lt;&lt; 2) | (S &lt;&l
 ROP2 uses the corresponding two-input table for modes 1–16. Operand-dependency
 checks distinguish an unused source from a missing required source. A PATBLT
 record cannot supply a source rectangle and rejects source-dependent functions.</p>
-<p>The canvas starts with a white destination backdrop. A later operation observes
+<p>Unpainted WMF output remains transparent, as in the retained Windows Picture
+captures. Boolean destination RGB and source-DC reads use the existing opaque
+white-backdrop interpretation of transparent pixels; this does not paint a
+background into otherwise untouched output. A later operation observes
 all earlier painting in record order, including ordinary vector/text drawing
 between Boolean operations. Coverage is a separate operand: a source's color or
 alpha cannot silently replace the rectangle/path and clip that determine where
@@ -66,7 +69,7 @@ adapter adds no independent app, persistent worker or document mutation.</p>
 <h2 id="explicit-limits">Explicit limits</h2>
 <p>Source rotation/shear for required bitmap operands remains an error, matching
 the baseline BitBlt/StretchBlt restriction. The connected
-<a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-WMF-BITMAP16-PARITY.html">Bitmap16 transfer family</a> adds monochrome and
+<a href="METAFILE-WMF-BITMAP16-PARITY.html">Bitmap16 transfer family</a> adds monochrome and
 the measured Windows 32-bit BGRX profile, plus prior-surface copying for DDB
 source-omitted records. DIB source-omitted records retain their own required-
 source refusal. The <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/METAFILE-DIB-PROFILES-PARITY.html">V4/V5 metadata family</a>

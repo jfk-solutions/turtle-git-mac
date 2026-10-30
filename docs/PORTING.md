@@ -1,6 +1,43 @@
 # TurtleGit for Mac — full port tracking
 
-## Installed local testing build38
+## Installed local testing build39
+
+[Signed build39](qa/signed-consolidation-build39-2026-10-30.json), `0.1.0 (39)`,
+is installed from source `fa5f05fe`. It isolates Classic Commit's file-table
+presentation from message typing and opens the first-use Finder permission picker
+at the selected folder. Valid saved access avoids another picker. The signed
+universal build, strict seals, frozen source inputs, packaged Help, private
+packaged-Git sandbox probe and ZIP/install inventory checks pass within the
+receipt's stated scope. Build38 rollback copies remain available.
+
+The owner confirmed that build38's Add to TurtleGit registration, Finder menus/
+badges and cold Finder Commit command work. That feedback does not establish
+every dialog's visual parity or complete minimum-OS/Intel acceptance. Build39's
+folder targeting and Commit presentation have their own bounded native evidence.
+Later source continuations, including the WMF HALFTONE work, are not installed
+in build39. A complete corrected-source hosted CI pass and final distribution
+acceptance remain open. No Store submission or public binary release occurred.
+
+## WMF HALFTONE and connected playback continuation
+
+The [October 30 rendering checkpoint](qa/wmf-halftone-sampling-2026-10-30.json)
+replaces the measured Bitmap16 shrinking approximation with independently
+reconstructed integer sampling. Serialized and immutable source-DC copies retain
+original rounded transfer geometry, signed reflection, clipping and bounded work.
+The connected repair adds WMF SetPixel and preserves transparent unpainted output
+and the measured null-pen rectangle edges.
+
+Sixteen focused Core methods pass cumulatively after the recorded failures and
+affected-only repairs. The retained Windows corpus covers 612 basis/color cases,
+400 original sampling cases and 55 full-frame signed/historical cases. Both native
+Git-engine checks pass, with private repositories and hidden windows; both owned
+receivers were reaped and independently absent. Universal helper and Debug app
+builds pass. This source continuation is not installed in build39. Affine and wider
+source-size/enlargement profiles, independently captured signed self copies and
+fractional/embedded null-pen rectangles remain explicit limits; this is not
+complete WMF/EMF or whole-port certification.
+
+## Previous local testing build38 checkpoint
 
 [Signed build38](qa/signed-consolidation-build38-2026-10-30.json), `0.1.0 (38)`,
 is installed from source `da767b69`. It consolidates Commit/progress admission,

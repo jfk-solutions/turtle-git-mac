@@ -164,7 +164,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 }
             }
             if wmfBitmap16 {
-                for name in ["bitblt-native","stretch-upscale","word-padding17","crop","mirror-dest-x","live-colors","save-restore","rop-66","rop-c0","clip","mapped","source-independent-color24-bitblt","embedded-affine","pattern-bitmap16","bgrx32-stretch","widthbytes-negative","self-bitblt-overlap","self-stretchblt-copy","shrink-mode1","shrink-mode2","shrink-mode3","halftone-integer-box","self-bitblt-mapped","self-stretchblt-outside-preserve"] {
+                for name in ["bitblt-native","stretch-upscale","word-padding17","crop","mirror-dest-x","live-colors","save-restore","rop-66","rop-c0","clip","mapped","source-independent-color24-bitblt","embedded-affine","pattern-bitmap16","bgrx32-stretch","widthbytes-negative","self-bitblt-overlap","self-stretchblt-copy","shrink-mode1","shrink-mode2","shrink-mode3","self-bitblt-mapped","self-stretchblt-outside-preserve"] {
                     let ext=name=="embedded-affine" ? ".emf":".wmf",left=corpus.appendingPathComponent("wmf-bitmap16-"+name+ext),right=corpus.appendingPathComponent("wmf-bitmap16-"+name+"-control"+ext)
                     let leftBytes=try Data(contentsOf:left),rightBytes=try Data(contentsOf:right)
                     let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
@@ -172,6 +172,49 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     guard let a=pair.model.imageComparison?.base?.pixels,let b=pair.model.imageComparison?.destination?.pixels else {throw Failure(message:"Bitmap16 native pair failed; \(comparisonState(pair))")}
                     try require(try raster(a,interior:CGSize(width:64,height:64))==raster(b,interior:CGSize(width:64,height:64)),"Native Bitmap16/DIB raster mismatch: \(name)")
                     try require(pair.model.document?.base.bytes==leftBytes && pair.model.document?.destination.bytes==rightBytes,"Bitmap16 native comparison changed source bytes")
+                    pair.close()
+                }
+                // Both controls use original immutable wires and actual
+                // Windows pixels, including the historical integer-box input.
+                let basisURL=corpus.appendingPathComponent("Bitmap16Halftone/windows-basis-2026-10-30.json")
+                let basis=try JSONSerialization.jsonObject(with:Data(contentsOf:basisURL)) as? [String:Any]
+                let signedURL=corpus.appendingPathComponent("Bitmap16Halftone/windows-signed-geometry-2026-10-30.json")
+                let signed=try JSONSerialization.jsonObject(with:Data(contentsOf:signedURL)) as? [String:Any]
+                guard let continuity=basis?["continuityControl"] as? [String:Any],
+                      let signedCases=signed?["cases"] as? [[String:Any]],
+                      let integerBox=signedCases.first(where:{$0["id"] as? String == "integer-box"}) else {throw Failure(message:"Missing retained Windows HALFTONE controls")}
+                for (name,control,rect) in [("continuity",continuity,[8,8,3,2]),("integer-box",integerBox,[8,8,4,2])] {
+                    guard let encoded=control["wireBase64"] as? String,let wire=Data(base64Encoded:encoded),
+                          let encodedExpected=control["expectedRGBABase64"] as? String,let measured=Data(base64Encoded:encodedExpected),
+                          let frame=control["frame"] as? [Int],frame.count==2,
+                          let measuredRect=control["sampleRect"] as? [Int],measuredRect.count==4 else {throw Failure(message:"Invalid Windows HALFTONE control")}
+                    if name == "integer-box" {
+                        try require(wire == Data(contentsOf:corpus.appendingPathComponent("wmf-bitmap16-halftone-integer-box.wmf")),"Integer-box oracle changed the historical input wire")
+                    }
+                    var expected=Data()
+                    for y in rect[1]..<(rect[1]+rect[3]) {
+                        let p=((y-measuredRect[1])*measuredRect[2]+rect[0]-measuredRect[0])*4
+                        expected.append(measured[p..<(p+rect[2]*4)])
+                    }
+                    let left=root.appendingPathComponent("windows-halftone-"+name+"-left.wmf"),right=root.appendingPathComponent("windows-halftone-"+name+"-right.wmf")
+                    try wire.write(to:left);try wire.write(to:right)
+                    let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
+                    pair.model.load();try await wait{!pair.model.busy && pair.model.document != nil}
+                    guard let a=pair.model.imageComparison?.base?.pixels,let b=pair.model.imageComparison?.destination?.pixels else {throw Failure(message:"Windows HALFTONE native control failed; \(comparisonState(pair))")}
+                    for image in [a,b] {
+                        try require(image.width==frame[0] && image.height==frame[1],"Windows HALFTONE intrinsic frame changed: "+name)
+                        var rgba=Data(count:frame[0]*frame[1]*4)
+                        let rendered=rgba.withUnsafeMutableBytes {storage -> Bool in
+                            guard let context=CGContext(data:storage.baseAddress,width:frame[0],height:frame[1],bitsPerComponent:8,bytesPerRow:frame[0]*4,space:CGColorSpace(name:CGColorSpace.sRGB)!,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{return false}
+                            context.interpolationQuality = .none
+                            context.draw(image,in:CGRect(x:0,y:0,width:frame[0],height:frame[1]));return true
+                        }
+                        try require(rendered,"Cannot inspect Windows HALFTONE native pane")
+                        var actual=Data()
+                        for y in rect[1]..<(rect[1]+rect[3]) {let p=(y*frame[0]+rect[0])*4;actual.append(rgba[p..<(p+rect[2]*4)])}
+                        try require(actual==expected,"Native HALFTONE pane differs from exact retained Windows RGBA: "+name)
+                    }
+                    try require(pair.model.document?.base.bytes==wire && pair.model.document?.destination.bytes==wire,"Windows HALFTONE native comparison changed original wire bytes")
                     pair.close()
                 }
             }

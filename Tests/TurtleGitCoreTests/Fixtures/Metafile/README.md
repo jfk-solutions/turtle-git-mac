@@ -390,11 +390,16 @@ index. The two ROP2 matrices use CC/AA and independently expect the four-bit tru
 nibble repeated twice for each of the sixteen brush and pen operations.
 
 Additional originals cover source-independent PATBLT and missing DIBs, irrelevant
-null patterns, white opaque destination, successive clipped operations, saved
+null patterns, white RGB destination interpretation, successive clipped operations, saved
 mixing/mapping/clip state, device-fixed 2×2 pattern phase under world transforms,
 source crop/reflection/scale and separate fractional geometric coverage. Native
 color assertions use the actual named-sRGB pixel buffer; fractional coverage has
 an independent literal-SVG reference without metafile parsing or Boolean code.
+The two unpainted WMF outside-point assertions use transparent RGBA, following
+the retained full-frame Windows WMF canvas profile; the Boolean reads themselves
+still use white RGB and paint opaque results. Those two synthetic PATBLT wires
+are not separately captured Windows full-frame oracles. The EMF outside-white
+expectations retain their existing profile.
 
 The `unsupported-raster-*` records retain explicit refusal for missing required
 operands, unsupported high flags, palette/device-dependent layouts, malformed

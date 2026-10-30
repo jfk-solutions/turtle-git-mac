@@ -730,6 +730,17 @@ private final class SVGGuard: NSObject, XMLParserDelegate {
 private final class NativeRasterComposite {
     private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0,sampledPixels=0
     private struct Region { let x:Int,y:Int,width:Int,height:Int;var pixels:Int{width*height} }
+    /// Original, uncut transfer geometry. The rectangular lattice is only a
+    /// bounding domain for a non-axis-aligned parallelogram; the inverse keeps
+    /// its actual normalized shape and the signed source/destination mapping.
+    /// Neither the clipped work ROI nor the snapshot dimensions define its edges.
+    private struct SelfCopySamplingDomain {
+        let destination:[Double],inverseDestination:[Double],source:[Double]
+        let minX:Double,maxX:Double,minY:Double,maxY:Double
+        let sourceMinX:Double,sourceMaxX:Double,sourceMinY:Double,sourceMaxY:Double
+        let boundingColumns:Range<Int>,boundingRows:Range<Int>
+        let axisAlignedDestination:Bool,axisAlignedSource:Bool
+    }
     private struct Checkpoint {let token:String,width:Int,height:Int,pixels:Data}
     // One native-produced canvas per conversion, never an SVG/state cache.
     private var checkpoint:Checkpoint?
@@ -859,9 +870,10 @@ private final class NativeRasterComposite {
     /// existing native checkpoint supplies pixels, not rerendered vector shapes
     /// scaled to a new size. Out-of-surface source pixels exclude destination
     /// coverage; overlapping source/destination rectangles cannot feed back.
-    /// Bounded port quality kernel; device-specific Windows HALFTONE edge
-    /// heuristics remain separate from this mathematical resampling profile.
-    private func qualityAxis(center:Double,span:Double,limit:Int,box:Bool)throws->[(Int,Double)] {
+    /// Compatibility kernel for matrix-only or affine
+    /// self transfers outside the independently measured domain-aware family.
+    /// This profile is retained deliberately and is not claimed GDI-exact.
+    private func legacyQualityAxis(center:Double,span:Double,limit:Int,box:Bool)throws->[(Int,Double)] {
         if span<=1.000000001 {return [(max(0,min(limit-1,Int(floor(center)))),1)]}
         let first=box ? floor(center-span*0.5+1e-9):ceil(center-0.5-3*span)
         let last=box ? floor(center+span*0.5+1e-9)-1:floor(center-0.5+3*span)
@@ -883,7 +895,152 @@ private final class NativeRasterComposite {
         guard total.isFinite,abs(total)>=1e-12 else {throw invalid("invalid HALFTONE kernel")}
         return weights.keys.sorted().map{($0,weights[$0]!/total)}
     }
-    private func selfSource(_ snapshot:Data,width:Int,height:Int,area:Region,matrix:[Double],mode:Int)throws->Data {
+    private struct HalftoneDCKey:Hashable {let x:Int,y:Int}
+    private struct HalftoneDCRGB {let r:Int64,g:Int64,b:Int64
+        subscript(_ c:Int)->Int64 {c==0 ? r:c==1 ? g:b}
+    }
+    private struct HalftoneDCAxis {let destinationStart:Int,destinationCount:Int,sourceStart:Int,sourceCount:Int,reflectOutput:Bool
+        var shrinks:Bool {sourceCount>destinationCount}
+    }
+    /// Independently derived from retained Windows WMF captures: cumulative
+    /// 13-bit footprint shares, a byte horizontal intermediate only when both
+    /// axes reduce, then unrounded reduction and destination-neighbour CROSS.
+    /// Signed geometry follows the independently captured serialized-bitmap
+    /// profile: reduce a positive canonical crop, then reflect finished output.
+    /// Its reuse for source-DC snapshots retains the same mathematical profile;
+    /// signed/out-of-surface self copies have not independently been captured.
+    /// Legacy/affine callers retain the compatibility sampler below; no clipped
+    /// ROI is ever invented as their source domain.
+    private func halftoneDCSource(_ snapshot:Data,width:Int,height:Int,area:Region,domain:SelfCopySamplingDomain)throws->Data? {
+        guard domain.axisAlignedDestination,domain.axisAlignedSource else{return nil}
+        func edge(_ v:Double)throws->Int {
+            let n=floor(v+0.5)
+            guard n.isFinite,abs(n)<=10_000_000_000 else{throw invalid("HALFTONE device edge limit")}
+            return Int(n)
+        }
+        func axis(_ d:Double,_ dn:Double,_ s:Double,_ sn:Double)throws->HalftoneDCAxis? {
+            let a=try edge(d),b=try edge(d+dn),c=try edge(s),e=try edge(s+sn)
+            // A transfer with an empty snapped source/destination extent
+            // contributes no source coverage; it has no sampling lattice.
+            guard b != a,e != c else{return nil}
+            let count=abs(b-a),sourceCount=abs(e-c)
+            guard count<=2_000_000_000,sourceCount<=2_000_000_000 else{throw invalid("HALFTONE device span limit")}
+            // The bridge already converts negative WMF inclusive endpoints to
+            // snapped half-open edges. Applying another +1 here shifts twice.
+            return HalftoneDCAxis(destinationStart:min(a,b),destinationCount:count,sourceStart:min(c,e),sourceCount:sourceCount,reflectOutput:(b<a) != (e<c))
+        }
+        guard let ax=try axis(domain.destination[4],domain.destination[0],domain.source[4],domain.source[0]),
+              let ay=try axis(domain.destination[5],domain.destination[3],domain.source[5],domain.source[3]) else{return Data(count:area.pixels*4)}
+        let reducingAxes=(ax.shrinks ? 1:0)+(ay.shrinks ? 1:0),both=reducingAxes==2
+        // Entirely-left footprint columns produce opaque black and are not
+        // neighbours of the first supported column. Bound before multiplying:
+        // a partially overlapping origin has magnitude < sourceCount <=2e9.
+        let firstActiveColumn:Int
+        if ax.sourceStart>=0 {firstActiveColumn=0}
+        else if ax.sourceStart+ax.sourceCount<=0 {firstActiveColumn=ax.destinationCount}
+        else {firstActiveColumn=Int(Int64(-ax.sourceStart)*Int64(ax.destinationCount)/Int64(ax.sourceCount))}
+        // All numerators after the optional horizontal byte step have Q13
+        // units. 255*8192 and the CROSS numerator fit comfortably in Int64.
+        // Coordinate products are bounded by (2e9)^2 before any conversion.
+        var xWeights=[Int:[(Int,Int64)]](),yWeights=[Int:[(Int,Int64)]]()
+        var xTaps=0,yTaps=0
+        var horizontal=[HalftoneDCKey:HalftoneDCRGB](),reduced=[HalftoneDCKey:HalftoneDCRGB]()
+        let cacheEntries=32_768,axisTapLimit=262_144
+        func work(_ count:Int)throws {
+            guard count>=0,count<=67_108_864-sampledPixels else{throw invalid("aggregate raster sampling budget exceeded")}
+            sampledPixels+=count
+        }
+        func weights(_ a:HalftoneDCAxis,_ index:Int,_ cache:inout[Int:[(Int,Int64)]],_ stored:inout Int)throws->[(Int,Int64)] {
+            if let saved=cache[index]{return saved}
+            let row:[(Int,Int64)]
+            if !a.shrinks {
+                try work(1)
+                row=[(a.sourceStart+Int(Int64(index)*Int64(a.sourceCount)/Int64(a.destinationCount)),8192)]
+            } else {
+                let n=Int64(a.sourceCount),m=Int64(a.destinationCount),left=Int64(index)*n,right=Int64(index+1)*n
+                let first=left/m,end=(right+m-1)/m
+                try work(Int(end-first))
+                var taps=[(Int,Int64)]();taps.reserveCapacity(Int(min(8192,end-first)))
+                var previous:Int64=0
+                for i in first..<end {
+                    let covered=min((i+1)*m,right)-left
+                    let cumulative=covered*8192/n,share=cumulative-previous
+                    if share>0{taps.append((a.sourceStart+Int(i),share))}
+                    previous=cumulative
+                }
+                guard previous==8192 else{throw invalid("invalid HALFTONE footprint shares")}
+                row=taps
+            }
+            // Deterministic bounded caches; eviction may repeat computation,
+            // which remains charged to the conversion-wide work counter.
+            if cache.count>=4096 || stored>axisTapLimit-row.count{cache.removeAll(keepingCapacity:true);stored=0}
+            cache[index]=row;stored+=row.count
+            return row
+        }
+        var result=Data(count:area.pixels*4)
+        try snapshot.withUnsafeBytes { (source:UnsafeRawBufferPointer) in
+            func pixel(_ x:Int,_ y:Int)->HalftoneDCRGB {
+                // Captured bitmap boundary profile, explicitly reused for
+                // source DC: left clamps, right is black, vertical edges clamp.
+                // Surface bounds are independent of the
+                // original crop and of the clipped destination work region.
+                if x>=width{return HalftoneDCRGB(r:0,g:0,b:0)}
+                let p=(max(0,min(height-1,y))*width+max(0,min(width-1,x)))*4,alpha=Int64(source[p+3])
+                return HalftoneDCRGB(r:min(255,Int64(source[p])+255-alpha),g:min(255,Int64(source[p+1])+255-alpha),b:min(255,Int64(source[p+2])+255-alpha))
+            }
+            func horizontalPixel(_ x:Int,_ sourceY:Int)throws->HalftoneDCRGB {
+                let key=HalftoneDCKey(x:x,y:sourceY)
+                if let saved=horizontal[key]{return saved}
+                let taps=try weights(ax,x,&xWeights,&xTaps);try work(taps.count)
+                var r:Int64=0,g:Int64=0,b:Int64=0
+                for (sourceX,share) in taps {let p=pixel(sourceX,sourceY);r+=p.r*share;g+=p.g*share;b+=p.b*share}
+                let value=HalftoneDCRGB(r:both ? (r+4096)/8192:r,g:both ? (g+4096)/8192:g,b:both ? (b+4096)/8192:b)
+                if horizontal.count>=cacheEntries{horizontal.removeAll(keepingCapacity:true)}
+                horizontal[key]=value;return value
+            }
+            func base(_ x:Int,_ y:Int)throws->HalftoneDCRGB {
+                let key=HalftoneDCKey(x:x,y:y)
+                if let saved=reduced[key]{return saved}
+                let taps=try weights(ay,y,&yWeights,&yTaps);try work(taps.count)
+                var r:Int64=0,g:Int64=0,b:Int64=0
+                for (sourceY,share) in taps {
+                    let p=try horizontalPixel(x,sourceY)
+                    // With no horizontal byte step its result already has
+                    // Q13 units; y is then a single nearest row of weight8192.
+                    let weight=both ? share:share/8192
+                    if ax.shrinks {r+=p.r*weight;g+=p.g*weight;b+=p.b*weight}
+                    else {r+=p.r*share/8192;g+=p.g*share/8192;b+=p.b*share/8192}
+                }
+                let value=HalftoneDCRGB(r:r,g:g,b:b)
+                if reduced.count>=cacheEntries{reduced.removeAll(keepingCapacity:true)}
+                reduced[key]=value;return value
+            }
+            try result.withUnsafeMutableBytes { (target:UnsafeMutableRawBufferPointer) in
+                for row in 0..<area.height {for column in 0..<area.width {
+                    let physicalX=area.x+column-ax.destinationStart,physicalY=area.y+row-ay.destinationStart
+                    guard physicalX>=0,physicalX<ax.destinationCount,physicalY>=0,physicalY<ay.destinationCount else{continue}
+                    let x=ax.reflectOutput ? ax.destinationCount-1-physicalX:physicalX
+                    let y=ay.reflectOutput ? ay.destinationCount-1-physicalY:physicalY
+                    try work(1)
+                    let o=(row*area.width+column)*4
+                    if x<firstActiveColumn {target[o+3]=255;continue}
+                    let center=try base(x,y)
+                    var neighbours=[HalftoneDCRGB]()
+                    if ax.shrinks {neighbours.append(try base(max(firstActiveColumn,x-1),y));neighbours.append(try base(min(ax.destinationCount-1,x+1),y))}
+                    if ay.shrinks {neighbours.append(try base(x,max(0,y-1)));neighbours.append(try base(x,min(ay.destinationCount-1,y+1)))}
+                    for channel in 0..<3 {
+                        let numerator=reducingAxes==0 ? center[channel]:Int64(6*reducingAxes)*center[channel]-neighbours.reduce(Int64(0)){$0+$1[channel]}
+                        let denominator:Int64=reducingAxes==0 ? 8192:Int64(8192*4*reducingAxes)
+                        target[o+channel]=UInt8(max(0,min(255,numerator/denominator)))
+                    }
+                    target[o+3]=255
+                }}
+            }
+        }
+        return result
+    }
+    private func selfSource(_ snapshot:Data,width:Int,height:Int,area:Region,matrix:[Double],mode:Int,domain:SelfCopySamplingDomain?)throws->Data {
+        if mode==4,let domain,let exact=try halftoneDCSource(snapshot,width:width,height:height,area:area,domain:domain){return exact}
         var result=Data(count:area.pixels*4)
         let halfX=(abs(matrix[0])+abs(matrix[2]))*0.5,halfY=(abs(matrix[1])+abs(matrix[3]))*0.5
         try snapshot.withUnsafeBytes { (source:UnsafeRawBufferPointer) in
@@ -897,7 +1054,7 @@ private final class NativeRasterComposite {
                         let spanX=halfX*2,spanY=halfY*2
                         func integral(_ span:Double)->Bool {span<=1.000000001 || abs(span-span.rounded())<1e-9}
                         let box=integral(spanX) && integral(spanY)
-                        let xs=try qualityAxis(center:sx,span:spanX,limit:width,box:box),ys=try qualityAxis(center:sy,span:spanY,limit:height,box:box)
+                        let xs=try legacyQualityAxis(center:sx,span:spanX,limit:width,box:box),ys=try legacyQualityAxis(center:sy,span:spanY,limit:height,box:box)
                         let visits=xs.count*ys.count
                         guard visits<=67_108_864-sampledPixels else {throw invalid("aggregate raster sampling budget exceeded")};sampledPixels+=visits
                         var rgb=[Double](repeating:0,count:3)
@@ -929,13 +1086,51 @@ private final class NativeRasterComposite {
         }
         return result
     }
+    private func selfCopySamplingDomain(_ value:JSValue,matrix:[Double])throws->SelfCopySamplingDomain {
+        guard value.isArray,let length=value.forProperty("length"),length.isNumber,length.toDouble()==6 else {throw invalid("invalid self-copy destination domain")}
+        var destination=[Double]();destination.reserveCapacity(6)
+        for index in 0..<6 {
+            guard let component=value.atIndex(index),component.isNumber else {throw invalid("invalid self-copy destination value")}
+            let number=component.toDouble()
+            guard number.isFinite,abs(number)<=1_000_000_000 else {throw invalid("self-copy destination coordinate limit")}
+            destination.append(number)
+        }
+        let a=destination[0],b=destination[1],c=destination[2],d=destination[3],tx=destination[4],ty=destination[5]
+        let determinant=a*d-b*c
+        guard determinant.isFinite,abs(determinant)>=1e-15 else {throw invalid("singular self-copy destination domain")}
+        let inverse=[d/determinant,-b/determinant,-c/determinant,a/determinant,(c*ty-d*tx)/determinant,(b*tx-a*ty)/determinant]
+        // Compose the accepted device-to-source matrix with the original
+        // normalized destination. Preserve out-of-surface source coordinates;
+        // existing source validity/coverage still decides whether they paint.
+        let source=[matrix[0]*a+matrix[2]*b,matrix[1]*a+matrix[3]*b,
+                    matrix[0]*c+matrix[2]*d,matrix[1]*c+matrix[3]*d,
+                    matrix[0]*tx+matrix[2]*ty+matrix[4],matrix[1]*tx+matrix[3]*ty+matrix[5]]
+        let xs=[tx,tx+a,tx+c,tx+a+c],ys=[ty,ty+b,ty+d,ty+b+d]
+        let sourceXs=[source[4],source[4]+source[0],source[4]+source[2],source[4]+source[0]+source[2]]
+        let sourceYs=[source[5],source[5]+source[1],source[5]+source[3],source[5]+source[1]+source[3]]
+        guard inverse.allSatisfy(\.isFinite),source.allSatisfy(\.isFinite),xs.allSatisfy(\.isFinite),ys.allSatisfy(\.isFinite),sourceXs.allSatisfy(\.isFinite),sourceYs.allSatisfy(\.isFinite) else {throw invalid("invalid self-copy sampling geometry")}
+        let minX=xs.min()!,maxX=xs.max()!,minY=ys.min()!,maxY=ys.max()!
+        // Device pixel centers use i+0.5. These bounds describe the original
+        // geometric extent before canvas/clip intersection, without allocating
+        // its potentially off-canvas lattice. Empty center domains stay empty.
+        func lattice(_ lower:Double,_ upper:Double)throws->Range<Int> {
+            let first=ceil(lower-0.5),end=ceil(upper-0.5)
+            guard first.isFinite,end.isFinite,abs(first)<=10_000_000_000,abs(end)<=10_000_000_000,end>=first else {throw invalid("self-copy destination lattice limit")}
+            return Int(first)..<Int(end)
+        }
+        return SelfCopySamplingDomain(destination:destination,inverseDestination:inverse,source:source,
+            minX:minX,maxX:maxX,minY:minY,maxY:maxY,
+            sourceMinX:sourceXs.min()!,sourceMaxX:sourceXs.max()!,sourceMinY:sourceYs.min()!,sourceMaxY:sourceYs.max()!,
+            boundingColumns:try lattice(minX,maxX),boundingRows:try lattice(minY,maxY),
+            axisAlignedDestination:b==0 && c==0,axisAlignedSource:source[1]==0 && source[2]==0)
+    }
     func composite(_ destination:JSValue,_ source:JSValue,_ pattern:JSValue,_ coverage:JSValue,_ widthValue:Double,_ heightValue:Double,_ ropValue:Double,_ request:JSValue)throws->NSObject {
         guard widthValue.isFinite,heightValue.isFinite,ropValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,ropValue.rounded()==ropValue,
               widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,ropValue>=0,ropValue<=255 else{throw invalid("invalid dimensions or ROP3 truth byte")}
         let width=Int(widthValue),height=Int(heightValue),pixels=width*height,rop=Int(ropValue),size=CGSize(width:width,height:height)
         let area=try region(request,width:width,height:height)
         let needsSource=depends(rop,2,0x33),needsPattern=depends(rop,4,0x0f)
-        var selfMap:[Double]?,selfMode=1
+        var selfMap:[Double]?,selfMode=1,selfDomain:SelfCopySamplingDomain?
         if let value=request.forProperty("selfSource"),!value.isUndefined,!value.isNull {
             guard needsSource,value.isArray,value.forProperty("length")?.toInt32()==6 else {throw invalid("invalid self-copy source mapping")}
             var entries=[Double]();entries.reserveCapacity(6)
@@ -948,9 +1143,18 @@ private final class NativeRasterComposite {
                 guard stretch.isNumber,[1.0,2,3,4].contains(stretch.toDouble()) else {throw invalid("invalid self-copy stretch mode")};selfMode=Int(stretch.toDouble())
             }
         }
+        // Optional during this internal protocol transition: legacy matrix-only
+        // bridge callers remain valid, without inventing a domain from the ROI.
+        if let value=request.forProperty("selfDestination"),!value.isUndefined,!value.isNull {
+            guard let selfMap,selfMode==4 else {throw invalid("self-copy destination domain requires HALFTONE source")}
+            selfDomain=try selfCopySamplingDomain(value,matrix:selfMap)
+        }
         let renders=2+(needsSource ? 1:0)+(needsPattern ? 1:0)
+        // Domain-aware self HALFTONE uses bounded axis/row caches in addition
+        // to the existing canvas/operand buffers. Reserve their complete cap.
+        let samplingCacheBytes=selfMode==4 && selfDomain != nil ? 32*1024*1024:0
         guard calls<4096,pixels<=33554432-compositePixels,pixels*renders<=67108864-renderedPixels,
-              pixels*4*(renders+2)<=256*1024*1024 else{throw invalid("pixel, work or memory budget exceeded")}
+              pixels*4*(renders+2)<=256*1024*1024-samplingCacheBytes else{throw invalid("pixel, work or memory budget exceeded")}
         calls += 1;compositePixels += pixels;renderedPixels += pixels*renders
         guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
         let sourceSVG=try svg(source,size:size,required:needsSource && selfMap==nil),patternSVG=try svg(pattern,size:size,required:needsPattern)
@@ -958,7 +1162,7 @@ private final class NativeRasterComposite {
         var tile=cropped(output,region:area,width:width)
         let mask=try render(coverageSVG,width:width,height:height,region:area)
         let sourcePixels:Data?
-        if let selfMap {sourcePixels=try selfSource(output,width:width,height:height,area:area,matrix:selfMap,mode:selfMode)}
+        if let selfMap {sourcePixels=try selfSource(output,width:width,height:height,area:area,matrix:selfMap,mode:selfMode,domain:selfDomain)}
         else {sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height,region:area):nil}
         let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height,region:area):nil
         try tile.withUnsafeMutableBytes { (destinationBytes:UnsafeMutableRawBufferPointer) in

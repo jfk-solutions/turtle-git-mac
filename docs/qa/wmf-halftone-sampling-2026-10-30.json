@@ -1,0 +1,218 @@
+{
+  "date": "2026-10-30",
+  "status": "focused-core-and-native-validation-passed-after-recorded-repairs",
+  "scope": "WMF Bitmap16 HALFTONE serialized/source-DC resampling, original transfer geometry, signed source/destination and captured boundaries. Not a whole-port completion claim.",
+  "source_base": "c9baf6ca2a84bfbcd1930261d26746c508a67585",
+  "windows": {
+    "sampling": {
+      "run": 41084286487,
+      "artifact": 12990328757,
+      "zip_sha256": "c7442c3a3487e8edb37df5a4066532acc98e6878e9711ea80d33dc0da0574b25",
+      "direct_picture_rgb_exact_cases": 400,
+      "direct_picture_target_pixels": 2254,
+      "alpha_conventions": "Picture255, direct DIB0; no matte applied."
+    },
+    "basis": {
+      "run": 41088515841,
+      "artifact": 12993250606,
+      "zip_sha256": "ea1645802b144131c9ee04eafea1d1d65c4f5f8b1998658bd7ac5e0a22b464a0"
+    },
+    "interpolation_identity": {
+      "run": 41100585350,
+      "artifact": 12999061203,
+      "zip_sha256": "3c5737c097c2e1fae845f1982b2ff6d717aff061870f3f05d0bbccca7225d629",
+      "verified_controls": 6,
+      "direct_profiles": 576,
+      "exact_profiles_per_control": 0,
+      "interpretation": "Finite accepted direct GDI+ modes/formats/offset/wrap settings do not reproduce these WMF targets; no universal interpolation claim."
+    },
+    "signed_geometry": {
+      "run": 41106488548,
+      "artifact": 13002275674,
+      "zip_sha256": "f26d579e4aad7059519568083f25493a4c0f4befa7de202dca2d8431f2f8ce47",
+      "captures": 55,
+      "derived_cases": 48,
+      "independent_full_frame_bytes": 2785280,
+      "independent_full_frame_mismatched_bytes": 0
+    }
+  },
+  "model": {
+    "cumulative_shares": 8192,
+    "two_shrinking_axes": "Horizontal mean rounds half-up tobyte; vertical mean retainsQ13 numerator; destinationCROSS strength1/8; finalfloor/clamp.",
+    "one_shrinking_axis": "Reduction remainsunroundedQ13; destinationCROSS strength1/4; finalfloor/clamp.",
+    "geometry": "Round originaldeviceedges; negativeinclusiveanchor once; reducecanonicalsource thenreflectfinishedoutput by source/destination signparity; clip/ROI neverdefineoriginalfilteredges.",
+    "source_boundary": "Xleftclamp/rightblack;Yclamp; whollyleftfootprintsblack/excludedfromXneighbor support.",
+    "independent_wire_proof": {
+      "basis_cases": 611,
+      "basis_pixels": 6370,
+      "old_mode4_cases": 392,
+      "old_mode4_pixels": 2222,
+      "colored_pixels": 6,
+      "colored_channels": 18,
+      "mismatches": 0
+    }
+  },
+  "fixtures": {
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/Bitmap16Halftone/windows-basis-2026-10-30.json": {
+      "sha256": "0c6b9891c6b6d96dcd151033471edd6a35ffe50f534a722c3c0e6dd4153f3b22",
+      "cases": 611,
+      "samplePixels": 6376
+    },
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/Bitmap16Halftone/windows-sampling-2026-10-30.json": {
+      "sha256": "836e47c4f114a3d7dc92d96c8e18acf1d5cebc5243fdb140a95d0d3c221b45d7",
+      "cases": 400,
+      "samplePixels": 2260
+    },
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/Bitmap16Halftone/windows-signed-geometry-2026-10-30.json": {
+      "sha256": "a021e3e87afd080c89b01f44976f94437acdf3c25e1012c9df065d9095c15fcb",
+      "cases": 55,
+      "samplePixels": 751616
+    }
+  },
+  "implementation": [
+    "patches/metafile-renderer.patch: bounded needed-column/neighbor halo, eight horizontal rows/four reduced rows, integer stagedsampling and originalcoverage; standaloneJSCore only.",
+    "Sources/TurtleGitMetafile/main.swift: immutable native sourceDC snapshot, originalgeometry descriptor, boundedQ13 axis/rowcache and sharedsampling budget.",
+    "Connected WMF SETPIXEL record playback copies one clipped mapped device pixel, retaining source-DC snapshot order and palette-aware COLORREF handling.",
+    "Unpainted WMF output remains transparent; integral mapped null-pen rectangles exclude one device pixel in width/height. Normal pens/EMF/fractional/embedded-local-matrix rectangle paths unchanged."
+  ],
+  "failures_retained": [
+    "Original Lanczos/boxapproximation differs from actualWindowsPicture output.",
+    "Ordinary directGDI+profile identity experiment matches0/576.",
+    "UnroundedQ13/CROSS alone leaves2D residuals; first-axis all-byte variants incorrectlyquantize sole-axis reduction.",
+    "Private external emf-converter4.24.0 comparison paints prepaintcolors in all6 selectedtargets; no production adoption/sourcecopy/dependency change.",
+    "First grouped native decoder Core checkpoint: 15 methods, 40 failures; c359 self-source decode refusal plus 38 signed-geometry and one historical full-frame mismatch. Passing basis/Boolean/ROI results do not override these failures.",
+    "First focused repair: 5methods,8failures from old synthetic untouched-WMF opaque-white expectations. Source history1103d0d5 and original generator establish no actual white paint or same-wire Windows reference. Corrected only untouched points to exact transparentRGBA; one affected method recheck passes."
+  ],
+  "mathematical_documentation_lead": {
+    "url": "https://github.com/ChristopherVR/emf-converter/blob/main/docs/parity-notes.md",
+    "blob": "e3ccf7d5368cf914a6368424260bbd9eb6ce8ef5",
+    "use": "Cumulative Q13 reduction description only. Independent implementation and retainedWindows verification; no Apache implementation copied intoport."
+  },
+  "validation": {
+    "core": {
+      "result": "passed cumulatively after focused repairs",
+      "distinct_methods": 16,
+      "complete_core_suite_run": false,
+      "initial": {
+        "methods": 15,
+        "failures": 40,
+        "receipt": "build/qa/wmf-halftone-core-2026-10-30.json",
+        "log": "build/qa/wmf-halftone-core-2026-10-30.log"
+      },
+      "first_focused_repair": {
+        "methods": 5,
+        "failures": 8,
+        "receipt": "build/qa/wmf-halftone-core-repair-2026-10-30.json",
+        "log": "build/qa/wmf-halftone-core-repair-2026-10-30.log",
+        "passing": "All400 original sampling cases, all55 full measured frames, existing Bitmap16/DIB family comparisons, ROP2truth controls.",
+        "failure": "Only2 untouched WMF points retain old synthetic opaque-white expectation; all painted Boolean/clip/restore checks pass."
+      },
+      "last_affected_method": {
+        "methods": 1,
+        "failures": 0,
+        "receipt": "build/qa/wmf-halftone-core-unpainted-repair-2026-10-30.json",
+        "log": "build/qa/wmf-halftone-core-unpainted-repair-2026-10-30.log",
+        "change": "Require exact transparentRGBA only at2 never-painted synthetic WMF points, based on measured generic WMF canvas policy. Retain painted Boolean/clip/restore and EMF assertions. No same-wire Windows observation claimed for these2 synthetic PATBLT wires."
+      },
+      "retained_windows_cases": {
+        "basis_and_color": 612,
+        "sampling": 400,
+        "signed_and_historical_full_frame": 55
+      },
+      "other_scope": "Adjacent Boolean/ROI, mode/ROP/malformed/budget methods pass within the initial/affected groups; no repeated full suite."
+    },
+    "native": {
+      "result": "pass",
+      "case": "wmf-bitmap16",
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "log": "build/qa/wmf-halftone-native-2026-10-30.log",
+      "receipt": "build/qa/metafile-wmf-bitmap16-native-results.json",
+      "scope": "Actual comparison panes, exact measured continuity/integer-box outputs, DIB pairs/refusals, dropped preview, conflict stages, chooser/cancel/late-result/grant/Quit ownership and original source/HEAD/index preservation.",
+      "private_repositories_home_preferences": true,
+      "windows": "hidden/offscreen; normal fixture cleanup",
+      "receiver_pids": [
+        98661,
+        98967
+      ],
+      "both_reaped_and_independently_absent": true,
+      "owned_helper_cleanup_needed": false
+    },
+    "runtime_build": {
+      "result": "pass",
+      "log": "build/qa/wmf-halftone-runtime-build-2026-10-30.log",
+      "scope": "universal arm64/x86_64 helper, pinned renderer patch applied",
+      "repair_result": "pass",
+      "repair_log": "build/qa/wmf-halftone-runtime-repair-build-2026-10-30.log"
+    },
+    "app_build": {
+      "result": "pass",
+      "log": "build/qa/wmf-halftone-debug-build-2026-10-30.log",
+      "scope": "Debug macOS app; unrelated iOSSimulator tool-version warning retained",
+      "repair_result": "pass",
+      "repair_log": "build/qa/wmf-halftone-debug-repair-build-2026-10-30.log",
+      "warning_scope": "Existing iOSSimulator tool-version mismatch; macOS build succeeds. Debug runtime install_name/ad-hoc signing messages retained."
+    },
+    "generated_resources": {
+      "help": "check passed:62documents51topics96files9367801bytes",
+      "coverage": "regenerated unchanged:130resources120partial audits10pendingfamilies85pendingcontrols; notfeaturecompletion",
+      "diff_whitespace": "pass",
+      "literal_native_ui_labels_changed": false
+    }
+  },
+  "limits": [
+    "Not installed; build39 unchanged.",
+    "Signed/out-of-surface self-source reuses serializedprofile; no separate signed-self oracle.",
+    "Affine/matrix-only compatibility path, broader source-size/filterselection/enlargement/device profiles remain unproven.",
+    "No wholehostedCIpass, physicalFinder, minimumOS or AppStore distribution claim.",
+    "Null-pen rectangle edge correction is measured for integral mapped device bounds; fractional and embedded-local-matrix rectangle placement retains its existing path."
+  ],
+  "private_analysis": {
+    "wire-proof": {
+      "file": "halftone-integer-wire-independent-2026-10-30.json",
+      "sha256": "1907ccd8e9f3f2cab04cd8dd5624880bb4e40a264e6a91a8d5ab5d60b0f234b1"
+    },
+    "geometry-proof": {
+      "file": "geometry-model-leading-support-41106488548.json",
+      "sha256": "afc6edd2e64c423f188d0ad1434fad77d46c8f01e82a4f52981fcb3abd114a61"
+    },
+    "gdi-picture-proof": {
+      "file": "halftone-direct-picture-comparison-41084286487.json",
+      "sha256": "ed9721f8e7208f066ff33d9aa6897d8d6f20332982fa61c9235cd3e7fd68dda7"
+    },
+    "identity-proof": {
+      "file": "interpolation-identity-analysis-41100585350.json",
+      "sha256": "2d6f9fcb749744b9df8dd2e12a21a3dc8572be97361eb722af148d38a9cf47be"
+    }
+  },
+  "focused_diagnosis": {
+    "self_source_c359": {
+      "cause": "Unsupported WMF META_SETPIXEL record 0x041f precedes the self-source transfer; original c359 helper conversion exits 1 before sampling.",
+      "evidence": "build/qa/halftone-c359-native-refusal-2026-10-30.stderr",
+      "reference": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wmf/de9a67c4-2ddb-4e5b-b5df-eca1772af366"
+    },
+    "full_frame": {
+      "cause": "Gray prepaint null-pen Rectangle fills the rightmost column and bottom row; actual Windows captures leave these unpainted and transparent. Initial white background also needs to remain absent for WMF output.",
+      "b33_differing_pixels": 103,
+      "integer_box_differing_pixels": 127,
+      "transfer_and_other_interior_pixels": "exact",
+      "evidence": [
+        "build/qa/diagnose-geometry-b33.svg",
+        "build/qa/diagnose-geometry-integer-box.svg"
+      ],
+      "reference": "https://learn.microsoft.com/en-us/windows/desktop/api/wingdi/nf-wingdi-rectangle"
+    },
+    "oracles": "Unchanged original wires and Windows full RGBA remain required; no crop, alpha rewrite, matte or tolerance change."
+  },
+  "source_hashes": {
+    "Configuration/MetafileRuntime.json": "aede7bfd5c52bec93bcb49fcf0dd9bad54e642a6697a458c23d11dfad85f9db8",
+    "Sources/TurtleGitMetafile/main.swift": "117fdff316e01c5fe5f70e714292f51c550f9ce249eaecb1cc71896f8dea236c",
+    "patches/metafile-renderer.patch": "292be367fcfe19be3d13e621a95642d75974b5e7e815746cdfcfd0234132c680",
+    "Tests/TurtleGitCoreTests/MetafileHalftoneWindowsCorpusTests.swift": "83b8c4abeaa39901796365d60ddba3cbabeea8c3ee8cfb2410ae46dfc83d5c33",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "66c370c8564f2f1a9903bd96ce4c6354e07e816f96de6b006499b2761fec74c8",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "942a88e16e59d651ba2de79066d43e94b0a55a3b54570e2251be6a5f97cbb249",
+    "scripts/test-metafile-workflows.py": "72b2431c564c1e8cbeba0bfc9e02a40b8912a33e4dbe27af4100fe6c40fc5cfc"
+  }
+}

@@ -134,7 +134,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
             config = directory/'global.config'; config.write_text('')
             private_temporary=directory/'temporary';private_temporary.mkdir(mode=0o700)
             private_home=directory/'home';private_home.mkdir(mode=0o700)
-            environment.update(CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
+            environment.update(HOME=str(private_home), CFFIXED_USER_HOME=str(private_home), GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_temporary)+'/', TURTLEGIT_METAFILE_CASE=case)
             command = [str(receiver), str(directory), str(git.absolute())]
             if case in ['dib-profiles','wmf-bitmap16','wmf-text','classic-text-records','path-gradients','compressed-raster','embedded-metafiles','drawing-state','consumers','formatted-digits','compressed-paths','positioned-text','classic-pens','classic-regions','classic-patternbrushes']: command.append(str(root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'))
             environment.pop('TURTLEGIT_DRAWING_STATE_CAPTURES', None)
@@ -148,13 +148,13 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-metafile-workflows-') as temp
                                       timeout_sample=directory/'timeout.sample.txt')
                 print(result.stdout, end=''); print(result.stderr, end='')
                 completed=result.returncode==0 and 'PASS: metafile workflow completed' in result.stdout
-                if case in ['path-gradients','dib-profiles']:
+                if case in ['path-gradients','dib-profiles','wmf-bitmap16']:
                     results.append(dict(case=case,git=str(git.absolute()),returncode=result.returncode,passed=completed))
                     (root/('build/qa/metafile-'+case+'-native-results.json')).write_text(json.dumps(results,indent=2)+'\n')
                 result.check_returncode()
                 if not completed:raise SystemExit('Metafile receiver exited before completion: '+case)
             finally:
-                if case in ['path-gradients','dib-profiles']:
+                if case in ['path-gradients','dib-profiles','wmf-bitmap16']:
                     sample=directory/'timeout.sample.txt'
                     if sample.is_file():shutil.copyfile(sample,root/('build/qa/metafile-'+case+'-'+str(index)+'.sample.txt'))
                     approved={str(git.resolve())}

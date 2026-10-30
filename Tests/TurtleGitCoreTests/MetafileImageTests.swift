@@ -1919,10 +1919,22 @@ extension MetafileImageTests {
         }
     }
     func testClassicBooleanOpaqueWhiteBackdropAndProgressiveClippedDestination()throws {
+        func assertUntouched(_ value:PenPixels,_ name:String) {
+            if name.hasSuffix(".wmf") {
+                // These synthetic PATBLT fixtures never paint this point.
+                // Retained Windows full-frame WMFs establish transparent
+                // unpainted output, distinct from the white RGB operand used
+                // by Boolean reads below. These two wires are not themselves
+                // independently captured Windows full-frame references.
+                XCTAssertEqual(value.pixel(60,60),[0,0,0,0],name+" untouched WMF retains transparent output")
+            } else {
+                booleanGray(value,60,60,255,name+" outside retained opaque white")
+            }
+        }
         for name in ["classic-rop3-white-backdrop.emf","wmf-rop3-white-backdrop.wmf"] {
             let value=try booleanPixels(name)
             booleanGray(value,24,24,0,name+" inverts white DC to black")
-            booleanGray(value,60,60,255,name+" outside retained opaque white")
+            assertUntouched(value,name)
         }
         for(name,once)in[("classic-rop3-successive.emf",240),("wmf-rop3-successive.wmf",0)] {
             let value=try booleanPixels(name)
@@ -1930,7 +1942,7 @@ extension MetafileImageTests {
             booleanGray(value,20,20,once,name+" clipped second operation must not paint here")
             booleanGray(value,30,30,255,name+" second XOR/invert restores previous destination")
             booleanGray(value,52,12,255,name+" RestoreDC removes captured middle clip")
-            booleanGray(value,60,60,255,name+" untouched white DC")
+            assertUntouched(value,name)
         }
     }
     func testClassicBooleanROP2ClipTransformAndSavedStateRemainDeviceCorrect()throws {
@@ -2713,7 +2725,23 @@ extension MetafileImageTests {
         XCTAssertEqual(controls.count,67)
         for control in controls {
             let ext=control.hasSuffix(".emf") ? ".emf":".wmf",name=String(control.dropLast(("-control"+ext).count)),filename=name+ext,original=try data(filename)
-            XCTAssertEqual(try bitmap16Pixels(filename),try bitmap16Pixels(control),filename)
+            if filename == "wmf-bitmap16-halftone-integer-box.wmf" {
+                // Replace the obsolete box-average DIB expectation with the
+                // complete actual Windows frame captured from this same wire.
+                let referenceURL=fixtures.appendingPathComponent("Bitmap16Halftone/windows-signed-geometry-2026-10-30.json")
+                let reference=try XCTUnwrap(try JSONSerialization.jsonObject(with:Data(contentsOf:referenceURL)) as? [String:Any])
+                let cases=try XCTUnwrap(reference["cases"] as? [[String:Any]])
+                let entry=try XCTUnwrap(cases.first { $0["id"] as? String == "integer-box" })
+                let measuredWire=try XCTUnwrap(Data(base64Encoded:try XCTUnwrap(entry["wireBase64"] as? String)))
+                let expected=try XCTUnwrap(Data(base64Encoded:try XCTUnwrap(entry["expectedRGBABase64"] as? String)))
+                XCTAssertEqual(original,measuredWire)
+                XCTAssertEqual(entry["frame"] as? [Int],[64,64])
+                XCTAssertEqual(entry["sampleRect"] as? [Int],[0,0,64,64])
+                XCTAssertEqual(Data(try bitmap16Pixels(filename)),expected,"Same-wire Windows HALFTONE full-frame oracle")
+                XCTAssertEqual(try bitmap16Pixels(control).count,64*64*4)
+            } else {
+                XCTAssertEqual(try bitmap16Pixels(filename),try bitmap16Pixels(control),filename)
+            }
             XCTAssertEqual(try data(filename),original,"Bitmap16 rendering preserves original serialized bytes")
         }
     }
@@ -2806,7 +2834,7 @@ extension MetafileImageTests {
 
 
 extension MetafileImageTests {
-    func testWMFBitmap16FamilyMeasuredShrinkModesAndBoundedHalftoneQualityProfile()throws {
+    func testWMFBitmap16FamilyMeasuredShrinkModesAndWindowsHalftoneControl()throws {
         // Raw Bitmap16 hand-final-color32-modeN-phase0, Windows reference
         // run40385962693: native DIRECT, GDI and GDI+ agree on these six pixels.
         let windows:[Int:[[[Int]]]]=[
@@ -2819,19 +2847,25 @@ extension MetafileImageTests {
                 XCTAssertEqual(Array(pixels[p..<p+3]),windows[mode]![y][x].map{UInt8($0)},"AND/OR/nearest shrink must match actual raw Bitmap16 target samples")
             }}
         }
-        // Independent arithmetic: standard centers (i+.5)*src/dst-.5,
-        // antialiased separable sinc(t)*sinc(t/3), support3, REFLECT_101 edges,
-        // floating intermediates, final channel round/clamp. These constants
-        // establish our explicit quality profile, not exact Windows HALFTONE.
-        let profile=[[[29,30,29],[60,170,81],[90,62,134]],[[146,45,110],[176,186,163],[207,78,215]]]
-        let pixels=try bitmap16Pixels("wmf-bitmap16-halftone-lanczos-quality.wmf")
-        var differsFromNearest=false
-        for y in 0..<2 {for x in 0..<3 {let p=((8+y)*64+8+x)*4
-            for channel in 0..<3 {
-                XCTAssertEqual(Double(pixels[p+channel]),Double(profile[y][x][channel]),accuracy:1,"HALFTONE must preserve the independently specified antialiased profile")
-                differsFromNearest = differsFromNearest || Int(pixels[p+channel]) != windows[3]![y][x][channel]
-            }
-        }}
-        XCTAssertTrue(differsFromNearest,"HALFTONE must not silently reuse nearest-neighbor sampling")
+        // Mode4 is measured on the original captured wire, including its
+        // intrinsic frame/background. Never transplant a Windows crop onto an
+        // approximation fixture or generate an expectation from our sampler.
+        let referenceURL=fixtures.appendingPathComponent("Bitmap16Halftone/windows-basis-2026-10-30.json")
+        let document=try XCTUnwrap(try JSONSerialization.jsonObject(with:Data(contentsOf:referenceURL)) as? [String:Any])
+        let control=try XCTUnwrap(document["continuityControl"] as? [String:Any])
+        let wire=try XCTUnwrap(Data(base64Encoded:try XCTUnwrap(control["wireBase64"] as? String)))
+        let expected=try XCTUnwrap(Data(base64Encoded:try XCTUnwrap(control["expectedRGBABase64"] as? String)))
+        let rendered=try XCTUnwrap(ComparisonImage(bytes:wire))
+        XCTAssertEqual(rendered.pixels.width,240);XCTAssertEqual(rendered.pixels.height,160)
+        var rgba=Data(count:240*160*4)
+        try rgba.withUnsafeMutableBytes { storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:240,height:160,bitsPerComponent:8,bytesPerRow:240*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none
+            context.draw(rendered.pixels,in:CGRect(x:0,y:0,width:240,height:160))
+        }
+        var measured=Data()
+        for y in 8..<10 {let p=(y*240+8)*4;measured.append(rgba[p..<p+12])}
+        XCTAssertEqual(expected,Data([19,25,20,255,52,176,76,255,83,62,131,255,152,43,112,255,184,194,168,255,216,80,223,255]),"Retained Windows continuity measurement changed")
+        XCTAssertEqual(measured,expected,"HALFTONE must match actual Windows RGBA exactly")
     }
 }

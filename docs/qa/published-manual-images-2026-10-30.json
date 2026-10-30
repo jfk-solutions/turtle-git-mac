@@ -1,0 +1,148 @@
+{
+  "observed_utc": "2026-10-30T18:00:01.409717+00:00",
+  "scope": "Read-only GET of two actual published HTML pages and HEAD of every declared img source; no rendering, no image bytes fetched, no republishing.",
+  "pages": [
+    {
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/",
+      "status": 200,
+      "images": [
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "73340"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "73340"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-light-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "401802"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-dark-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "412993"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-light-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "459932"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-dark-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "440248"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-light-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "504689"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-dark-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "503046"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-light-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "394898"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-dark-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "348520"
+        }
+      ]
+    },
+    {
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/manual/GETTING-STARTED.html",
+      "status": 200,
+      "images": [
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "73340"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-light-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "459932"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-dark-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "440248"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-light-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "504689"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-dark-2026-10-29.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "503046"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-light-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "401802"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-dark-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "412993"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-compare-compact-light-classic-2026-10-25.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "765427"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-compare-compact-dark-p4merge-2026-10-25.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "744447"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-light-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "394898"
+        },
+        {
+          "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-dark-2026-10-27.png",
+          "status": 200,
+          "type": "image/png",
+          "length": "348520"
+        }
+      ]
+    }
+  ],
+  "limits": [
+    "HTTP200 and image/png availability establish delivery, not screenshot pixel identity or browser layout.",
+    "This does not establish latest queued Pages source deployment or whole-app acceptance."
+  ]
+}

@@ -20,7 +20,10 @@ ROP2 uses the corresponding two-input table for modes 1–16. Operand-dependency
 checks distinguish an unused source from a missing required source. A PATBLT
 record cannot supply a source rectangle and rejects source-dependent functions.
 
-The canvas starts with a white destination backdrop. A later operation observes
+Unpainted WMF output remains transparent, as in the retained Windows Picture
+captures. Boolean destination RGB and source-DC reads use the existing opaque
+white-backdrop interpretation of transparent pixels; this does not paint a
+background into otherwise untouched output. A later operation observes
 all earlier painting in record order, including ordinary vector/text drawing
 between Boolean operations. Coverage is a separate operand: a source's color or
 alpha cannot silently replace the rectangle/path and clip that determine where
