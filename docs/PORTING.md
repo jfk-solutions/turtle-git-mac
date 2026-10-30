@@ -2046,16 +2046,27 @@ records 83 distinct focused Core passes, eight native case/engine pairs, and
 affected Finder/Settings source checks. Physical installed Finder/sandbox grants and complete source acceptance
 remain separate; this does not imply it was the only remaining workflow.
 
-Confirmed implementation differences remain in the linked families; the table
-above is not an exhaustive missing-control inventory. Examples that must not be
-hidden behind acceptance language include raw original-path checkout,
-working-tree comparison/mutation, folder export containing raw descendants and
-raw submodule checkout resolution. Historical single-file comparison and safe
-chosen-name delivery are connected in the [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json);
+Native behavior boundaries remain explicit in the linked families; the table
+above is not an exhaustive missing-control inventory. Raw original-path checkout,
+working-tree comparison/mutation, literal filesystem folder delivery containing
+raw descendants and raw submodule checkout resolution remain restricted. The
+[bounded source review](qa/namespace-graphics-review-2026-10-30.json) does not
+establish byte-exact invalid-UTF8 checkout in pinned Windows Browser either: tree
+names are decoded into CString before the checkout route. A decoded substitute
+must not be treated as original-name support. This is source-path evidence,
+not a universal Windows or Mac filesystem claim.
+
+Historical single-file comparison and safe chosen-name delivery are connected in
+the [materialization checkpoint](qa/raw-historical-materialization-2026-10-27.json);
+individual-file promises and exact-name historical folder archives have later
+continuations above. These do not remove the original-name filesystem restrictions.
 CLI and selected-helper Open/Save retain their distinct upstream filter policies.
 Other differences include provider-specific integrations outside the embedded
-adapters, recorded graphics/
-encoding compatibility limits, and UDiff's explicit native entry behavior.
+adapters, recorded graphics/encoding compatibility limits, and UDiff's explicit
+native entry behavior. In particular, nonintegral WMF Bitmap16 HALFTONE still uses
+a bounded native quality profile whose pixels differ from retained actual Windows
+Picture observations; the stretch-sampling continuation needs independent
+reference evidence before replacing that approximation.
 The dedicated `turtlegit-udiff` launcher now defaults to stdin and accepts a
 literal filename; the combined app preserves its existing empty-document marker
 and filename routing. Input failure remains visible until its owner closes,

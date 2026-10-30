@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-30",
+  "observed_utc": "2026-10-30T04:40:56.020406+00:00",
+  "status": "bounded-source-review-not-completion-certification",
+  "native_source_commit": "da767b69855e71513e651f9876076616c9d9a7e8",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_sha256": {
+    ".upstream/TortoiseGit/src/TortoiseProc/RepositoryBrowser.cpp": "85ae513942557de1b0c829beb7ae81d563a9b9efa8f253b4f19ef187f13442f7",
+    ".upstream/TortoiseGit/src/Utils/UnicodeUtils.h": "0189c5f41ddbb7bd6fff4f91551b834ff18ecae5f7f3d6b7b92a279b2a1f39ac",
+    ".upstream/TortoiseGit/src/Utils/UnicodeUtils.cpp": "9181fd8e02323e28feb8b0106914424db959f42387165e610545318d0fd6f18e",
+    "Sources/TurtleGitCore/HistoricalGitPath.swift": "7a06cdd6720c9a3092c6bfabf5d963f6a2acbdf9b68820551d1e94d9b8f931c3",
+    "Sources/TurtleGitCore/RepositoryBrowserTransferPolicy.swift": "80a95a2b8e27195f62012482c003303cb41f47c8aae30e5bac41dd66e7ce6089",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "4e01863c01243666eb9680eaf633f79fddc4dc2b505416ea38481739101e46db",
+    "Sources/TurtleGitMetafile/main.swift": "5e36c62850bb5d7832e2619f63a980c5554cc408321f8625ae1473ebb3db8f9d",
+    "patches/metafile-renderer.patch": "91039ebe2c643f6137850b13da2947a88e77897a7c7d6ae817d233a88bd72d38"
+  },
+  "raw_original_paths": {
+    "upstream_evidence": [
+      "RepositoryBrowser.cpp382 decodes git_tree_entry_name with CUnicodeUtils::GetUnicode;386 stores decoded CString map key",
+      "UnicodeUtils.h56-59 defaults CP_UTF8;UnicodeUtils.cpp228-241 uses MultiByteToWideChar(acp,0)",
+      "RepositoryBrowser.cpp1317-1333 constructs checkout from decoded CString path"
+    ],
+    "finding": "Exact original invalid-UTF8 filename checkout is not established by these upstream paths; original bytes are not retained through this route. Do not infer Windows supports byte-exact checkout or bypass native guards using a decoded substitute.",
+    "native_boundaries": [
+      "Browser original-path Revert and raw submodule checkout navigation require representable paths",
+      "Working-tree endpoints reject opaque paths; historical byte-key endpoints remain supported",
+      "Literal folder transfer refuses raw descendants; exact-name archives and safe chosen-name individual transfers are implemented"
+    ],
+    "confidence": "High for inspected source paths; not a universal Windows/macOS/filesystem assertion. The separate retained Mac EILSEQ observation is not generalized to every filesystem.",
+    "new_implementation_batch_justified": false
+  },
+  "wmf_bitmap16_halftone": {
+    "finding": "Nonintegral HALFTONE native Lanczos3 still differs from retained Windows gradient observations. Serialized and self-source paths share the documented bounded approximation; this is a real rendering compatibility difference.",
+    "native_sites": [
+      "patches/metafile-renderer.patch2906-2922",
+      "Sources/TurtleGitMetafile/main.swift862-883"
+    ],
+    "upstream_consumer": "Picture.cpp418-420,547-556 Bitmap(file,FALSE) GDI+ load/natural draw",
+    "next_batch": "Stretch sampling across serialized/self source, fractional scale/device/brush phase, edges/clipping and saved stretch mode; independent focused Windows reference needed before faithful implementation.",
+    "not_justified_as_new_features": [
+      "Partial compressed scanline refusals without positive exact upstream wire acceptance",
+      "Source rotation/shear explicitly restricted by BitBlt/StretchBlt",
+      "Pen alignments not implemented by public GDI+"
+    ]
+  },
+  "limits": [
+    "No tests, native builds, UI actions or controls/status certification performed for this source review",
+    "No unsafe original-name mutation or fitted HALFTONE model introduced",
+    "Full hosted CI and physical owner/Finder acceptance remain open"
+  ]
+}

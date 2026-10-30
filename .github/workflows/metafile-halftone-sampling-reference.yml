@@ -1,0 +1,73 @@
+name: Independent WMF HALFTONE sampling observation
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent Windows observation utility
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-halftone-sampling-reference-2026-10-30\HalftoneSamplingReference.cpp
+          /Fe:HalftoneSamplingReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Capture primary Picture path and separate GDI controls
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./HalftoneSamplingReference.exe reference-output docs/qa/metafile-halftone-sampling-reference-2026-10-30/continuity.wmf
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $m = Get-Content -Raw reference-output/observations.json | ConvertFrom-Json
+          if ($m.diagnosticCount -ne 328 -or $m.caseCount -ne 400 -or $m.cases.Count -ne 400 -or $m.brushControls.Count -ne 8) { throw 'Incomplete observation inventory' }
+          # Statuses and pixels are observations, never TurtleGit expected values.
+          # Fail if the primary path cannot provide actual observable samples.
+          foreach ($c in $m.cases) {
+            if ($c.picture.loadStatusAfterRawFormat -ne 0 -or $c.picture.drawStatus -ne 0 -or $c.picture.getPixelErrors -ne 0 -or $c.picture.intrinsicGetPixelErrors -ne 0) { throw "Unobservable primary input $($c.name)" }
+            if ($c.picture.nonzeroAlphaPixels -le 0) { throw "No observable primary canvas for $($c.name)" }
+            # A signed/held-out pattern may cancel or alias to background. Record
+            # its ink count without assuming the unknown sampling outcome.
+            if ($c.group -eq 'matched-constant128' -and $c.picture.destinationNonBackgroundPixels -le 0) { throw "No positive matched transfer control for $($c.name)" }
+            if ($c.picture.width -ne 64 -or $c.picture.height -ne 40) { throw 'Unexpected hand-authored intrinsic dimensions' }
+            if ((Get-Item "reference-output/$($c.name)-picture.rgba").Length -ne 10240 -or (Get-Item "reference-output/$($c.name)-direct.rgba").Length -ne 10240) { throw 'Truncated raw capture' }
+          }
+          if ($m.continuity.loadStatusAfterRawFormat -ne 0 -or $m.continuity.drawStatus -ne 0 -or $m.continuity.getPixelErrors -ne 0) { throw 'Retained Picture continuity input did not produce pixels' }
+          # Byte-identical retained Windows control; six original RGB samples,
+          # not fitted TurtleGit expectations. Keep captured alpha untouched.
+          if ($m.continuity.width -ne 240 -or $m.continuity.height -ne 160) { throw 'Retained continuity dimensions changed' }
+          $raw = [System.IO.File]::ReadAllBytes((Resolve-Path reference-output/continuity-picture.rgba))
+          $expected = @(@(19,25,20), @(52,176,76), @(83,62,131), @(152,43,112), @(184,194,168), @(216,80,223))
+          for ($y = 0; $y -lt 2; $y++) {
+            for ($x = 0; $x -lt 3; $x++) {
+              $offset = ((8+$y)*240+8+$x)*4
+              for ($channel = 0; $channel -lt 3; $channel++) {
+                if ($raw[$offset+$channel] -ne $expected[$y*3+$x][$channel]) { throw 'Retained Picture continuity RGB differs; preserve observations for analysis' }
+              }
+            }
+          }
+          $bytes = (Get-ChildItem reference-output -File | Measure-Object Length -Sum).Sum
+          if ($bytes -ge 10MB) { throw 'Observation artifact exceeds 10MiB before provenance' }
+      - name: Record immutable inputs and Windows runtime provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force reference-output | Out-Null
+          git rev-parse HEAD | Set-Content reference-output/source-revision.txt
+          cl 2>&1 | Out-File reference-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content reference-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content reference-output/runtime-versions.json
+          $files = @(Get-ChildItem reference-output -File) + @(Get-ChildItem docs/qa/metafile-halftone-sampling-reference-2026-10-30 -File) + @(Get-Item .github/workflows/metafile-halftone-sampling-reference.yml)
+          if (Test-Path HalftoneSamplingReference.exe) { $files += Get-Item HalftoneSamplingReference.exe }
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content reference-output/sha256.json
+          if ((Get-ChildItem reference-output -File | Measure-Object Length -Sum).Sum -ge 10MB) { throw 'Final observation artifact exceeds 10MiB' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-halftone-sampling-windows-reference
+          path: reference-output
+          if-no-files-found: error
+          retention-days: 30
