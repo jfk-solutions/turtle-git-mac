@@ -24,6 +24,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $m = Get-Content -Raw reference-output/observations.json | ConvertFrom-Json
           if ($m.diagnosticCount -ne 328 -or $m.caseCount -ne 400 -or $m.cases.Count -ne 400 -or $m.brushControls.Count -ne 8) { throw 'Incomplete observation inventory' }
+          if (-not $m.positiveBaselinePreflightPassed -or $m.positiveBaselineCount -ne 68 -or $m.capturedCaseCount -ne 400) { throw 'Matched geometry preflight did not complete before diagnostics' }
           # Statuses and pixels are observations, never TurtleGit expected values.
           # Fail if the primary path cannot provide actual observable samples.
           foreach ($c in $m.cases) {

@@ -1,0 +1,414 @@
+{
+  "date": "2026-10-30",
+  "workflow_run": 41019384262,
+  "source_commit": "840bf7c8a4e69049226e05cc7be63e7cdd0cd4ac",
+  "job": 123942991448,
+  "conclusion": "success",
+  "artifact": {
+    "id": 12961076236,
+    "zip_sha256": "5f172594dad40311df9ac1cd17bd685762f94b37cfd694a83e92112db6dba29c",
+    "raw_files_crc_paths_budget_verified": true
+  },
+  "positive_baseline": true,
+  "cases": [
+    {
+      "name": "baseline",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          19,
+          25,
+          20,
+          255
+        ],
+        [
+          52,
+          176,
+          76,
+          255
+        ],
+        [
+          83,
+          62,
+          131,
+          255
+        ],
+        [
+          152,
+          43,
+          112,
+          255
+        ],
+        [
+          184,
+          194,
+          168,
+          255
+        ],
+        [
+          216,
+          80,
+          223,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "alpha0-only",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          19,
+          25,
+          20,
+          255
+        ],
+        [
+          52,
+          176,
+          76,
+          255
+        ],
+        [
+          83,
+          62,
+          131,
+          255
+        ],
+        [
+          152,
+          43,
+          112,
+          255
+        ],
+        [
+          184,
+          194,
+          168,
+          255
+        ],
+        [
+          216,
+          80,
+          223,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "alpha255-only",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          19,
+          25,
+          20,
+          255
+        ],
+        [
+          52,
+          176,
+          76,
+          255
+        ],
+        [
+          83,
+          62,
+          131,
+          255
+        ],
+        [
+          152,
+          43,
+          112,
+          255
+        ],
+        [
+          184,
+          194,
+          168,
+          255
+        ],
+        [
+          216,
+          80,
+          223,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "initial-mm-text-only",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          19,
+          25,
+          20,
+          255
+        ],
+        [
+          52,
+          176,
+          76,
+          255
+        ],
+        [
+          83,
+          62,
+          131,
+          255
+        ],
+        [
+          152,
+          43,
+          112,
+          255
+        ],
+        [
+          184,
+          194,
+          168,
+          255
+        ],
+        [
+          216,
+          80,
+          223,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "prepend-mm-text-only",
+      "ink": 0,
+      "original_six_rgba": [
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ],
+        [
+          0,
+          0,
+          0,
+          0
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "identity-map-reassert",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          19,
+          25,
+          20,
+          255
+        ],
+        [
+          52,
+          176,
+          76,
+          255
+        ],
+        [
+          83,
+          62,
+          131,
+          255
+        ],
+        [
+          152,
+          43,
+          112,
+          255
+        ],
+        [
+          184,
+          194,
+          168,
+          255
+        ],
+        [
+          216,
+          80,
+          223,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "quarter-map-dst-only",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          19,
+          25,
+          20,
+          255
+        ],
+        [
+          52,
+          176,
+          76,
+          255
+        ],
+        [
+          83,
+          62,
+          131,
+          255
+        ],
+        [
+          152,
+          43,
+          112,
+          255
+        ],
+        [
+          184,
+          194,
+          168,
+          255
+        ],
+        [
+          216,
+          80,
+          223,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "quarter-map-src-and-dst",
+      "ink": 6,
+      "original_six_rgba": [
+        [
+          118,
+          76,
+          112,
+          255
+        ],
+        [
+          0,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          0,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    },
+    {
+      "name": "quarter-map-unscaled",
+      "ink": 1,
+      "original_six_rgba": [
+        [
+          70,
+          130,
+          80,
+          255
+        ],
+        [
+          70,
+          130,
+          80,
+          255
+        ],
+        [
+          70,
+          130,
+          80,
+          255
+        ],
+        [
+          70,
+          130,
+          80,
+          255
+        ],
+        [
+          70,
+          130,
+          80,
+          255
+        ],
+        [
+          70,
+          130,
+          80,
+          255
+        ]
+      ],
+      "intrinsic_natural_rgba_mismatches": 0
+    }
+  ],
+  "findings": [
+    "Changing fourth byte to0 or255 alone retained all six opaque baseline pixels.",
+    "Replacing original first anisotropic mode with MM_TEXT alone retained baseline. Prepending MM_TEXT before original anisotropic setup instead produced fully transparent output in this exact wire.",
+    "Reasserted identity and quarter destination-only mapping retained baseline; quarter source-and-destination scaling changed samples. Serialized Bitmap16 source coordinates must remain bitmap pixel coordinates in the corrected observation.",
+    "The original400-case run41015708762 failed its positive controls; those blank samples cannot support a sampling-kernel model."
+  ],
+  "next": "Correct the independent400-case wire setup and require all68 matched positive controls before diagnostic capture; preserve existing per-case/status/pixel and continuity assertions.",
+  "limits": [
+    "No universal GDI+ mapping explanation established from this narrow wire experiment.",
+    "No self-source behavior or sampling-kernel model established.",
+    "No shipping renderer change or full metafile parity claim."
+  ]
+}
