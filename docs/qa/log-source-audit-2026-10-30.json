@@ -1,0 +1,153 @@
+{
+  "schema": 1,
+  "date": "2026-10-30",
+  "kind": "bounded-read-only-source-audit",
+  "sourceCommit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "currentBaseCommit": "dc4393478a55dbbec453a733fe7dc214cb0476d4",
+  "currentSnapshot": "Working-tree source hashes identify the inspected files independently of currentBaseCommit.",
+  "scope": [
+    "Show Log main dialog visible controls and pane organization.",
+    "Reference, limit, walk and view control-menu inventory.",
+    "Actual revision and changed-file context command inventory, with selected conditional menu gates inspected.",
+    "Source implementation checks for two apparent omissions; source comments alone are not treated as implemented behavior."
+  ],
+  "upstream": [
+    {
+      "path": "src/Resources/TortoiseProcENG.rc",
+      "sha256": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+      "references": [
+        {
+          "lines": "210-243",
+          "contract": "IDD_LOGMESSAGE main controls and panes"
+        }
+      ]
+    },
+    {
+      "path": "src/TortoiseProc/LogDlg.cpp",
+      "sha256": "f7f61c888ae379112be47151d62d01255230cdbad2df852dbf26f6928a4e730c",
+      "references": [
+        {
+          "lines": "308-309",
+          "contract": "Changed-file context mask excludes restore and changelists"
+        },
+        {
+          "lines": "793-830",
+          "contract": "Clears changed-file report before branching on selected revision count"
+        },
+        {
+          "lines": "1038-1058",
+          "contract": "Multiple-revision branch contains aggregation comment but no report-population implementation"
+        },
+        {
+          "lines": "1375-1496",
+          "contract": "Reference and limit menus"
+        },
+        {
+          "lines": "3365-3449",
+          "contract": "Walk and view option menus"
+        }
+      ]
+    },
+    {
+      "path": "src/TortoiseProc/GitLogListBase.cpp",
+      "sha256": "024c118c31678bfe86b3f9494c900be5242d9db1955eaf251f67ec6baa7d92a2",
+      "references": [
+        {
+          "lines": "94-100",
+          "contract": "Default Log context mask removes rebase actions, ordinary Show Log and revision Blame/BlamePrevious"
+        },
+        {
+          "lines": "1749-2338",
+          "contract": "Revision context menu commands and selection/reference-dependent branches"
+        }
+      ]
+    },
+    {
+      "path": "src/Git/GitStatusListCtrl.cpp",
+      "sha256": "3e36539a5a969f1164d5a1295c77db2f1b2d5646eae33689ef858f1e49fc2546",
+      "references": [
+        {
+          "lines": "1695-2004",
+          "contract": "Changed-file comparison, working-file, history, export/open, prepared comparison and clipboard commands"
+        }
+      ]
+    }
+  ],
+  "current": [
+    {
+      "path": "Sources/TurtleGitMac/LogWindow.swift",
+      "sha256": "e39c30d732a2ae021fb187ea4889fa4698940c15b0ab0dc2c7d1d187dab1d6ca",
+      "references": [
+        {
+          "lines": "2345-2346",
+          "contract": "Single historical revision accessor"
+        },
+        {
+          "lines": "2708-2731",
+          "contract": "Selection clears old report and starts historical details only for a single revision"
+        },
+        {
+          "lines": "3889-3998",
+          "contract": "Main dialog controls and panes"
+        },
+        {
+          "lines": "4008-4141",
+          "contract": "Changed-file context actions"
+        },
+        {
+          "lines": "4171-4238",
+          "contract": "Reference, limit, walk and view menus"
+        },
+        {
+          "lines": "5110-5348",
+          "contract": "Revision context menu commands, conditional branches and clipboard/find submenu"
+        }
+      ]
+    },
+    {
+      "path": "Sources/TurtleGitCore/HistoryContextMenu.swift",
+      "sha256": "2c544a7d734eb1acf435e883da707a73b6ee26391e08feb017d524ce9645dc5a",
+      "references": [
+        {
+          "lines": "25-35",
+          "contract": "Consumer-specific Log, Blame and Rebase command policies"
+        },
+        {
+          "lines": "41-44",
+          "contract": "Named-reference/extended Show Log exception"
+        }
+      ]
+    }
+  ],
+  "result": {
+    "actionableProvenGaps": [],
+    "conclusion": "No additional proven missing end-user command/control found within this bounded Show Log source inventory audit.",
+    "relatedImplementationBatch": null
+  },
+  "ruledOutFalseGaps": [
+    {
+      "candidate": "Revision-list Blame and Blame previous missing from ordinary Show Log",
+      "reason": "Pinned GitLogListBase constructor masks both commands out for the ordinary Log consumer. Changed-file Blame is separately present in the current file menu."
+    },
+    {
+      "candidate": "Multiple selected revisions should populate a union of changed files",
+      "reason": "Pinned LogDlg clears the report before selection branching. Its multi-selection branch only clears Gravatar and contains an aggregation comment; it does not populate the report. The comment alone does not prove a missing implementation in the port."
+    }
+  ],
+  "excluded": [
+    "Exhaustive execution of every conditional revision/file menu combination",
+    "Physical appearance, keyboard/default-button and pane geometry acceptance",
+    "Full Git-operation, cancellation, lifetime and security-scope runtime behavior",
+    "Known native platform adaptations",
+    "Blame/Rebase consumer-specific context menus beyond policy inspection",
+    "Installed build 39 commit/file inspection evidence as a substitute for full parity",
+    "Graphics/WMF, CI, packaging and dialog-ledger completion counts"
+  ],
+  "validation": {
+    "sourceInspectionOnly": true,
+    "testsRun": false,
+    "buildsRun": false,
+    "nativeUIRun": false,
+    "claim": "This bounded inventory audit does not certify complete behavioral/visual parity, hosted CI, signed Finder integration or the whole port."
+  }
+}

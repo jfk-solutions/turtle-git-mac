@@ -1,0 +1,102 @@
+{
+  "schema": 1,
+  "date": "2026-10-30",
+  "kind": "bounded-source-comparison",
+  "native_base_commit": "dc4393478a55dbbec453a733fe7dc214cb0476d4",
+  "pinned_upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "certification": false,
+  "actionable_gaps": [],
+  "new_implementation_batch_justified": false,
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitConfiguration.swift": "16c5899364bc710cbd58574728724d74a1baaffa8dd62a00e0989adfbc636bdb",
+    "Sources/TurtleGitCore/RemoteSettings.swift": "364d14d71a56f53b060aea710fe178f5bf449014371eea6c3872b402f28bc454",
+    "Sources/TurtleGitMac/GitConfigurationSettings.swift": "3c1e76dabb890f627e8bb2f41ebf07f6538760db9a6126f37aa44284d7bf7875",
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": "70ef6d7c6fb16834bab08103762caca18e48209e3bbc0e67f0edbc3078841c9e",
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "042afcf8118f7dcdbff01bcc2cdf5184dfd37fc9f7e8bfb845dea18aa24413e4",
+    "Sources/TurtleGitMac/SettingsTransaction.swift": "6c2b2c1483e15f51e89537bf6d611ef1bf52efe31649dc726d79fdce794518c8",
+    "Sources/TurtleGitMac/SettingsSheetController.swift": "5eae9553af614ba9da1c85f60ac6d5eb3b028c0e8dbe0a9d22fd6a0042aa9d7a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "3d08edf272e275e8f617e3eacb41f548fdc872fce37fa674f6eeb3638af3ccbd",
+    ".upstream/TortoiseGit/src/Resources/TortoiseProcENG.rc": "148a0b3e3165254286c088296a8dc7c9d2df3bbca5546c259929506bfb81bed6",
+    ".upstream/TortoiseGit/src/TortoiseProc/Settings/SettingGitConfig.cpp": "0d706dc669e9bb59f9e372d6ed966ee87cf5da94a34716d1debec039f617f9e2",
+    ".upstream/TortoiseGit/src/TortoiseProc/Settings/SettingGitRemote.cpp": "01cfeacd173f26d1f50f1151dbfd31edfde9b599dbe86191230d739df71ff70e",
+    ".upstream/TortoiseGit/src/TortoiseProc/Settings/GitSettings.h": "978d1090d7683770daa1a8e4422843e15e96dddf8e4039c7e5595c78c09f1748",
+    ".upstream/TortoiseGit/src/TortoiseProc/Settings/Settings.cpp": "700f7798c7b85f913f6572bb3125345b69641215e56798a5d7408e70ce895d5a",
+    ".upstream/TortoiseGit/src/Git/Git.cpp": "4b0d0830cb066480d6ed76395654dd41ba4673e16124930c5efa342c2b0b7247"
+  },
+  "audited_native_files_match_base": {
+    "Sources/TurtleGitCore/GitConfiguration.swift": true,
+    "Sources/TurtleGitCore/RemoteSettings.swift": true,
+    "Sources/TurtleGitMac/GitConfigurationSettings.swift": true,
+    "Sources/TurtleGitMac/RemoteSettingsWindow.swift": true,
+    "Sources/TurtleGitMac/SettingsNavigation.swift": true,
+    "Sources/TurtleGitMac/SettingsTransaction.swift": true,
+    "Sources/TurtleGitMac/SettingsSheetController.swift": true,
+    "Sources/TurtleGitMac/RepositoryModel.swift": true
+  },
+  "families": [
+    {
+      "family": "Git configuration page",
+      "upstream_refs": [
+        "src/Resources/TortoiseProcENG.rc:1592 IDD_SETTINGIT_CONFIG",
+        "src/TortoiseProc/Settings/SettingGitConfig.cpp:154 LoadDataImpl,226 EnDisableControls,254 SafeDataImpl,300-373 editor/view handlers",
+        "src/TortoiseProc/Settings/GitSettings.h:49 InitGitSettings,124 LoadData,186 SafeData",
+        "src/Git/Git.cpp:576 GetUserName,589 GetUserEmail"
+      ],
+      "native_refs": [
+        "Sources/TurtleGitMac/GitConfigurationSettings.swift:85 activate,136 load,222 performApply,310 editConfiguration,351 viewConfiguration,373 native page",
+        "Sources/TurtleGitCore/GitConfiguration.swift:99 gitConfiguration,137 saveGitConfiguration,188 gitConfigurationFiles,221 projectConfigurationFromHEAD"
+      ],
+      "reviewed_behavior": [
+        "Effective/Local/Global/System sources; Local/Global save destinations and differing-source confirmation.",
+        "Name/email/signing-key inheritance; read-only Effective author environment/config fallback; first-use Global identity selection.",
+        "AutoCRLF/SafeCRLF options and tri-state QuotePath/Prune.",
+        "Local/project/global/XDG/system editor and effective/system viewer routes, including bare HEAD .tgitconfig preview."
+      ],
+      "finding": "No missing end-user control, action or persistence route established in the inspected paths."
+    },
+    {
+      "family": "Remote configuration page",
+      "upstream_refs": [
+        "src/Resources/TortoiseProcENG.rc:1633 IDD_SETTINREMOTE",
+        "src/TortoiseProc/Settings/SettingGitRemote.cpp:157 Add,237 selection Save/Discard,295-358 field changes,421 Apply,549 Remove,583 Rename",
+        "src/TortoiseProc/Settings/Settings.cpp:206 default Remote page suppresses optional Fetch"
+      ],
+      "native_refs": [
+        "Sources/TurtleGitMac/RemoteSettingsWindow.swift:120 field edits/collision,161 load/hint,187 selection,203 Apply,207 Add/Save,217 source-ordered writes/prompts,241 Rename,249 Remove,322 native controls,431 rendering",
+        "Sources/TurtleGitCore/RemoteSettings.swift:54 load,84 edited-field persistence,109 rename,115 remove,123 refspec collision",
+        "Sources/TurtleGitMac/SettingsNavigation.swift:408 embedded Remote participant,514 command-page no-Fetch policy",
+        "Sources/TurtleGitMac/RepositoryModel.swift:1083 configured Remote continuations"
+      ],
+      "reviewed_behavior": [
+        "Remote list/name/URL/push URL/key fields, tag policy, push default, tri-state prune, Add New/Save, Rename and Remove.",
+        "Overwrite default-No, no-tags warning/suppression, optional post-add Fetch, Save/Discard on selection and origin/refspec advisory behavior.",
+        "Edited-field Git writes, rename/remove and synchronization-history cleanup; PuTTY interoperability field plus native OpenSSH adaptation."
+      ],
+      "finding": "No missing end-user control, action or persistence route established. Rename reads the edited Remote field upstream too; an extra rename input dialog is not absent."
+    },
+    {
+      "family": "Settings footer and page ownership",
+      "upstream_refs": [
+        "src/TortoiseProc/Settings/SettingGitConfig.cpp:288 OnApply",
+        "src/TortoiseProc/Settings/SettingGitRemote.cpp:421 OnApply",
+        "src/TortoiseProc/Settings/Settings.cpp:195 default-page routing"
+      ],
+      "native_refs": [
+        "Sources/TurtleGitMac/SettingsNavigation.swift:180 canDismiss,181 repository replacement,255-307 Apply/OK/Cancel completion,357 cached page navigation",
+        "Sources/TurtleGitMac/SettingsTransaction.swift:26 registration,33 ordered Apply,79 Cancel,83 retirement",
+        "Sources/TurtleGitMac/SettingsSheetController.swift:37 close admission,44 finish,54 captured sheet drain"
+      ],
+      "reviewed_behavior": [
+        "Apply/OK/Cancel admission, participant validation and ordered persistence, retained cached drafts, page selection and repository replacement.",
+        "Captured parent/sheet completion, refusal recovery, terminal Remote retirement and asynchronous owner draining."
+      ],
+      "finding": "No concrete missing end-user footer/navigation behavior established from the inspected ownership paths."
+    }
+  ],
+  "scope_exclusions": [
+    "Source comparison only: no tests, builds, Git writes, settings edits or UI interaction performed.",
+    "No every-state visual/layout, keyboard, accessibility or physical workflow certification inferred.",
+    "Windows-only framework, registry and COM substitutions are not counted as missing native controls.",
+    "Other settings and application workflow families are outside this bounded audit; an empty gap list does not establish full-port completion."
+  ]
+}
