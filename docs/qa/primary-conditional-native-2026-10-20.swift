@@ -14,6 +14,16 @@ import TurtleGitCore
     @MainActor static var owners:[NSWindowController]=[], gates:[Gate]=[], releaseFiles:[URL]=[]
     static func require(_ value:Bool,_ message:String)throws {if !value{throw Failure(description:message)}}
     @MainActor static func views(_ root:NSView?)->[NSView] {guard let root else{return []};return [root]+root.subviews.flatMap{views($0)}}
+    @MainActor static func publishedLogDates(_ owner:LogWindowController,enabled:Bool)->Bool {
+        guard let window=owner.window else{return false}
+        let dates=views(window.contentView).compactMap{$0 as? LogDateControl}
+        guard dates.count==2,Set(dates.compactMap{$0.identifier?.rawValue})==Set(["Log.Date.From","Log.Date.To"]) else{return false}
+        return dates.allSatisfy {picker in
+            guard let coordinator=picker.target as? LogHistoryDatePicker.Coordinator else{return false}
+            return picker.window === window && picker.action != nil && coordinator.model === owner.model &&
+                coordinator.from == (picker.identifier?.rawValue=="Log.Date.From") && picker.isEnabled==enabled
+        }
+    }
     @MainActor static func wait(_ window:NSWindow?=nil,line:Int = #line,_ ready:()->Bool)async throws {
         for _ in 0..<1200 {window?.contentView?.layoutSubtreeIfNeeded();if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Conditional UI timeout at \(line)")
@@ -133,17 +143,23 @@ import TurtleGitCore
         let held=GitRepository(root:repo.root,executable:wrapper)
         let owner=LogWindowController(repository:held,access:nil,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,loadsImmediately:false);own(owner)
         let model=owner.model;model.reload()
-        try await wait(owner.window){FileManager.default.fileExists(atPath:entered.path) && model.loadingHistory && views(owner.window?.contentView).compactMap{$0 as? LogDateControl}.count==2 && !views(owner.window?.contentView).compactMap{$0 as? LogControlButton}.contains{$0.identifier?.rawValue=="Log.Control.walk"}}
+        try await wait(owner.window){FileManager.default.fileExists(atPath:entered.path) && model.loadingHistory && publishedLogDates(owner,enabled:false) && !views(owner.window?.contentView).compactMap{$0 as? LogControlButton}.contains{$0.identifier?.rawValue=="Log.Control.walk"}}
         try require(!model.canShowStatistics && !model.canJump(up:true),"Loading Log commands remained active")
         try require(!views(owner.window?.contentView).compactMap{$0 as? LogControlButton}.contains{$0.identifier?.rawValue=="Log.Control.view"},"History load left native View controls visible")
         try FileManager.default.removeItem(at:hold)
-        try await wait(owner.window){!model.busy && model.entries.count==3 && views(owner.window?.contentView).compactMap{$0 as? LogDateControl}.count==2}
+        // Model settlement can precede the observed SwiftUI/AppKit transaction.
+        // Wait for mounted controls bound to this owner, not merely the disabled
+        // picker objects which already existed during the held history load.
+        try await wait(owner.window){!model.busy && model.entries.count==3 && model.canChangeLogControls && publishedLogDates(owner,enabled:true)}
         let dates=views(owner.window?.contentView).compactMap{$0 as? LogDateControl}
         let from=try XCT(dates.first{$0.identifier?.rawValue=="Log.Date.From"},"Native From date missing")
         let to=try XCT(dates.first{$0.identifier?.rawValue=="Log.Date.To"},"Native To date missing")
         var gregorian=Calendar(identifier:.gregorian);gregorian.timeZone = .current
         let sourceMaximum=gregorian.date(from:DateComponents(year:2100,month:1,day:2,hour:23,minute:59,second:59))!
-        try require(from.isEnabled && to.isEnabled && from.minDate==Date(timeIntervalSince1970:0) && from.maxDate==sourceMaximum && to.maxDate==sourceMaximum,"Native Gregorian source date bounds")
+        print("Log date controls: busy=\(model.busy), loadingHistory=\(model.loadingHistory), canChange=\(model.canChangeLogControls), fromEnabled=\(from.isEnabled), toEnabled=\(to.isEnabled), fromMin=\(String(describing:from.minDate)), fromMax=\(String(describing:from.maxDate)), toMax=\(String(describing:to.maxDate)), expectedMax=\(sourceMaximum), timeZone=\(TimeZone.current.identifier)")
+        try require(from.isEnabled && to.isEnabled,"Native Log date enablement: From=\(from.isEnabled), To=\(to.isEnabled), model=\(model.canChangeLogControls)")
+        try require(from.minDate==Date(timeIntervalSince1970:0) && to.minDate==Date(timeIntervalSince1970:0),"Native Gregorian minimum: From=\(String(describing:from.minDate)), To=\(String(describing:to.minDate))")
+        try require(from.maxDate==sourceMaximum && to.maxDate==sourceMaximum,"Native Gregorian maximum: From=\(String(describing:from.maxDate)), To=\(String(describing:to.maxDate)), expected=\(sourceMaximum)")
         let limit=LogControlMenus.make(model:model,kind:.limit)
         try require(limit.items.first?.title=="No limitation" && limit.items.last?.title=="Configure default" && limit.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image != nil},"Source limit menu order/icons")
         try require(from.buildMenu?()?.items.map(\.title)==limit.items.map(\.title),"From context menu differs from source limitation button")
@@ -156,12 +172,12 @@ import TurtleGitCore
         let chosen=gregorian.date(from:DateComponents(year:2020,month:1,day:2))!
         from.dateValue=chosen
         if let action=from.action{_ = NSApp.sendAction(action,to:from.target,from:from)}
-        try await wait(owner.window){!model.busy && model.historyLimit.scale == .selectedDate && model.entries.count==2}
+        try await wait(owner.window){!model.busy && model.historyLimit.scale == .selectedDate && model.entries.count==2 && model.canChangeLogControls && publishedLogDates(owner,enabled:true)}
         let once=model.contextMenuGeneration
         from.dateValue=chosen;if let action=from.action{_ = NSApp.sendAction(action,to:from.target,from:from)}
         try require(model.contextMenuGeneration==once,"Identical date caused another history acquisition")
         let menu=LogControlMenus.make(model:model,kind:.limit);menu.performActionForItem(at:0)
-        try await wait(owner.window){!model.busy && model.entries.count==3}
+        try await wait(owner.window){!model.busy && model.entries.count==3 && model.canChangeLogControls && publishedLogDates(owner,enabled:true)}
         let table=views(owner.window?.contentView).compactMap{$0 as? HistoryTableView}.first
         try require(table?.tableColumns.first?.identifier.rawValue=="graph","Graph no longer precedes revision list")
         // Actual source Cancel exists in ordinary (non-picker) Log too.

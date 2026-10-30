@@ -1,0 +1,43 @@
+{
+  "date": "2026-10-30",
+  "status": "focused-native-readiness-check-passed-hosted-cause-unconfirmed",
+  "source_base": "0a02c754",
+  "scope": "Log native date-control publication through held load, selected-date reload and removal of the limit; hosted history-reference lane blocker. No product or date-bound change.",
+  "hosted_failure": {
+    "run": 41101501351,
+    "job": 124254921443,
+    "step": 109,
+    "source": "dc439347",
+    "assertion": "Native Gregorian source date bounds",
+    "failed_conjunct": "Not printed by the older combined assertion; unknown."
+  },
+  "diagnostic": {
+    "result": "Local system-Git Log case passed; enabled flags and exact min/max agree with source Gregorian dates. This does not prove the hosted failure cause.",
+    "log": "build/qa/log-date-controls-diagnostic-2026-10-30.log",
+    "receiver_pid": 3546
+  },
+  "change": "Await two mounted picker controls with current owner/coordinator bindings and actual enabled state after held history publication and reloads. Preserve exact date bounds; add To minimum check and separate enabled/minimum/maximum diagnostics.",
+  "validation": {
+    "native_result": "pass",
+    "case": "log",
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "log": "build/qa/log-date-controls-native-2026-10-30.log",
+    "receivers_reaped_and_independently_absent": [
+      3779,
+      3919
+    ],
+    "diagnostic_receiver_also_absent": true,
+    "scope": "Date bounds, held loading, limitation-menu order/icons/stale receipt, actual date action and identical-date no-reload, graph-first column, ordinary Cancel, working-row/parent jump guards. Private repositories/preferences; hidden/offscreen windows.",
+    "core": "Not rerun: only native fixture changed.",
+    "app_build": "Not repeated: no shipping source, labels or Help change."
+  },
+  "source_sha256": "148055a8901b7c4f828ab9eb4b9d717c9e32d47de04537380a8a9a33dd0a74b8",
+  "limits": [
+    "Original hosted failed conjunct remains unidentified; current-source hosted rerun must establish compatibility.",
+    "No full hosted pass or signed/physical UI acceptance claim.",
+    "Installed build39 unchanged."
+  ]
+}
