@@ -1,0 +1,164 @@
+{
+  "date": "2026-10-30",
+  "status": "grouped-native-workflows-passed-not-installed",
+  "source_base": "04bf8885670974594181ef2275d2bd668744c463",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Source clicked-row activation in Classic Commit, Check for Modifications, Revert and Resolve, preserving highlighted selection and existing conflict/diff/Shift policy.",
+    "Browser clicked-row activation versus singleton Return, stable two-line metadata/footer/spinner geometry.",
+    "Sync full Fetch/Pull options inherit prepared private SSH identities with child autoload policy, key prompts and complete child/picker drain ownership.",
+    "Hosted long-HEAD native control readiness regression."
+  ],
+  "changes": {
+    "activation": "Opt-in native second-click row receipt with content/sort ownership and captured modifiers; checkbox event passes through while accidental selected-set primary fallback is excluded; keyboard/AX fallback chooses focused/displayed selected row. GUI staging and explicit multi-file menus unchanged.",
+    "browser": "Separate NSTableView doubleAction resolves clickedRow; Return/menu retain singleton guard; existing model snapshot/file/directory/gitlink validation. Source two-line info and spinner space held stable.",
+    "ssh": "Scoped borrowing wrappers retain prepared owner agent, optionally add child-selected keys via child presenter and never close parent on borrower close. Sync waits exact options child service drain/sheet detachment. Fetch retains active and independently closed Remote Reference children until actual query drain. Login agent/environment unchanged."
+  },
+  "builds": [
+    {
+      "exit": 0,
+      "configuration": "Debug",
+      "log": "build/qa/file-activation-sync-debug-2026-10-30.log"
+    },
+    {
+      "exit": 0,
+      "configuration": "Debug affected incremental",
+      "reason": "Real Remote Reference child-drain ownership repair",
+      "log": "build/qa/file-activation-sync-child-drain-debug-2026-10-30.log"
+    }
+  ],
+  "core": "Not rerun: all production changes in this batch are app-only; preceding Finder Core checkpoint remains separately scoped.",
+  "native": {
+    "case_engine_pairs_passing": 16,
+    "groups": [
+      {
+        "group": "status primary activation",
+        "pairs": 2,
+        "log": "build/qa/file-activation-status-native-optional-repair-2026-10-30.log"
+      },
+      {
+        "group": "reference and transport source controls",
+        "pairs": 4,
+        "receiver_executions": 2,
+        "log": "build/qa/file-activation-source-forms-native-2026-10-30.log"
+      },
+      {
+        "group": "Git Gui staging regression",
+        "pairs": 2,
+        "log": "build/qa/file-activation-gui-staging-native-2026-10-30.log"
+      },
+      {
+        "group": "Browser activation, presentation, lifecycle",
+        "pairs": 6,
+        "log": "build/qa/file-activation-browser-key-state-current-2026-10-30.log"
+      },
+      {
+        "group": "SSH coordinator and borrowed options",
+        "pairs": 2,
+        "log": "build/qa/file-activation-sync-ssh-live-secret-2026-10-30.log"
+      }
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "partial_build_scope": "Status/control/GUI checks passed before the later Fetch-only child-drain repair. Those unrelated families were not repeated; Browser and SSH final passes use the rebuilt current app objects.",
+    "cleanup": {
+      "reaped_process_receipts_independently_absent": [
+        37673,
+        37680,
+        37728,
+        38720,
+        38739,
+        38913,
+        39281,
+        39623,
+        39675,
+        39690,
+        40873,
+        41216,
+        41682,
+        42322,
+        42332,
+        42402,
+        42468,
+        42473,
+        42631,
+        42881,
+        43595,
+        45088,
+        45098,
+        47088
+      ],
+      "process_scope": "Includes compiler and native receiver processes printed by existing drivers; not a count of application instances. SSH private-agent/helper/grant cleanup is additionally asserted inside its receiver.",
+      "private_home_and_preferences": true,
+      "windows": "Private/offscreen; receiver exit and cleanup assertions; installed shipping app not launched."
+    },
+    "browser_event_boundary": "Actual AppKit mouse tracker and real doubleAction under original-forwarding public key-state injection for one invisible receiver window. No desktop activation or physical-focus proof.",
+    "ssh_evidence": "Real private keys/agents; disabled-child Fetch and Pull retain prepared identity and false saved autoload; enabled child adds another encrypted remote key through own presenter without replacing prior identities; borrower close preserves parent; stale capture and late Submit refused; live prompt secret wiped on closure; held key reads and active/picker-first remote query closure retain parent until worker returns; no late refs/errors/transport; balanced grants and unchanged login-agent environment."
+  },
+  "retained_failures": [
+    "New activation fixture initially failed actor annotations and optional-row comparisons; two fixture-only compile repairs, no app rebuild.",
+    "Invisible Browser synthetic mouse action produced no callback; diagnostics showed key=false. Attempt to make prohibited invisible window key refused; scoped public key-state injection retained actual AppKit mouse tracking and exact behavioral assertions.",
+    "A Browser attempt refused stale Fetch app objects before executing any receiver; re-executed only after the required affected rebuild.",
+    "Old SSH Push-close fixture asserted onClosed before actual owned drain; now waits drain/callback and retains exact callback/no-late-result/prompt assertions.",
+    "New SSH fixture edited an existing remote with changed:.all, re-adding its name; changed to .sshKeyFile only.",
+    "New SSH late-response fixture programmatically reinserted a secret after prompt retirement; moved entry before close to assert real secret wipe, then invokes stale Submit without altering retired controls."
+  ],
+  "hosted_ci": {
+    "run": 41129980751,
+    "source": "87701028",
+    "history_job": 124326670877,
+    "history_failure": "Long HEAD radio lost full source name/tooltip",
+    "history_repair": "Await exact resolved model branch and native HEAD caption before existing exact tooltip/middle-truncation assertions; both engines pass locally.",
+    "commit_job": 124326670733,
+    "commit_failure_open": "Native WMF/Unicode EMF raster mismatch: textout-odd",
+    "full_pass": false,
+    "wmf_review": "Both compared fixtures explicitly request Helvetica -18 ASCII HHH and share positioned painter; font-substitution explanation unproven. Need retained exact rendered pair/frame/color metadata before choosing a decoder/raster repair; do not relax pixel equality."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "f3cd0aa1969e4f81d07a4a359e2120e3cf947b57e43f134815eacef0c1bf0afb",
+    "Sources/TurtleGitMac/CommitWindow.swift": "da1f6589f7e202cf9110feceec5fca849715764bc517772e0b1ed910f2d65adb",
+    "Sources/TurtleGitMac/StatusWindow.swift": "e4905c24274e768d1dae24e184842591ddec5f9fa1aa4ddcd1be995f86e1d52e",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "4588f2dca4a1aa0b1b0e67575312bcdce9b84153b1acc3fbf80bdb83b3e696fb",
+    "Sources/TurtleGitMac/RevertWindow.swift": "5b76adc322891164f65520d16d599fe6cf908cb5f826c812c6e2fcebe915e925",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "e7bb7dc64b6fc3d76fb6850d76d95fbc38fb98a37aa57f2cb132e5554d0b69f2",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "238f98157658e1bfb0137d3837363c2bd2a9017ae424298df8ce53f8b429e4ef",
+    "Sources/TurtleGitMac/SSHTransportCoordinator.swift": "e5664faa02ad073d8c0ef4606c3163ff44879870bb6cea3dc6989b06ec5bc9c9",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "9f18c40689384550ebe943b48fb74c027b68e854d3c20e6c437a2356efa10490",
+    "Sources/TurtleGitMac/FetchWindow.swift": "fa048ef2568ab506024620b6e987d796600fb805ea0c215db4def7fe991602df",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "d3b298038e9e0b8a7d6eadf3ab122767d5171f3c6dde01f53dfd380a41eb2a26",
+    "docs/qa/browser-activation-native-2026-10-30.swift": "47b50be72a38e41d765c688a62bd647be88c9c6e35f2aef848cddf1b305d3db7",
+    "docs/qa/ssh-coordinator-native-2026-10-09.swift": "c2be930b959b77075e92ec8cc1d07f466e04a377b637c9a957c31ae5a7aba56a",
+    "docs/qa/source-form-controls-native-2026-10-20.swift": "f877f0866f6e68c66c64e3156c7f008a37a539c0b5119f89e40c5c48f00ac60f"
+  },
+  "logs": [
+    "build/qa/file-activation-status-native-2026-10-30.log",
+    "build/qa/file-activation-status-native-actor-repair-2026-10-30.log",
+    "build/qa/file-activation-status-native-optional-repair-2026-10-30.log",
+    "build/qa/file-activation-browser-native-2026-10-30.log",
+    "build/qa/file-activation-browser-diagnostic-2026-10-30.log",
+    "build/qa/file-activation-browser-event-admission-2026-10-30.log",
+    "build/qa/file-activation-browser-key-state-2026-10-30.log",
+    "build/qa/file-activation-browser-key-state-current-2026-10-30.log",
+    "build/qa/file-activation-source-forms-native-2026-10-30.log",
+    "build/qa/file-activation-gui-staging-native-2026-10-30.log",
+    "build/qa/file-activation-sync-ssh-native-2026-10-30.log",
+    "build/qa/file-activation-sync-ssh-close-repair-2026-10-30.log",
+    "build/qa/file-activation-sync-ssh-picker-drain-2026-10-30.log",
+    "build/qa/file-activation-sync-ssh-live-secret-2026-10-30.log"
+  ],
+  "limits": [
+    "Installed app remains build41. No signed package or physical Finder/external grants acceptance for these changes.",
+    "No complete hosted CI pass; WMF failure remains open.",
+    "Full keyboard/VoiceOver, source appearance, localization, minimum macOS/Intel and distribution/App Store terms gates remain separate.",
+    "No public binary release, notarization or App Store submission."
+  ],
+  "documentation": {
+    "native_literal_labels_added": false,
+    "bundled_help_topics_changed": false,
+    "coverage_reconciled": true,
+    "site_build_and_links": "passed",
+    "site_log": "build/qa/file-activation-sync-site-2026-10-30.log"
+  }
+}

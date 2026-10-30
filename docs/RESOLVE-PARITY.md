@@ -339,3 +339,14 @@ does not certify every Resolve dialog or the complete port.
 Resolve now drains ordered file notifications into the source Action/Path progress list before adding its timed Finished row. File menus and action logs retain their producing attempt. Commit retains the captured repository grant, preferences and appearance and waits for actual result-window/sheet/worker closure. Cancellation question replies also wait for sheet detachment.
 
 See the [connected progress family](SYNC-ADD-RESOLVE-PROGRESS-PARITY.md) for source distinctions, scoped validation and remaining physical, signed and whole-dialog requirements. This continuation does not certify the whole family or port.
+
+
+## Source row activation continuation — October 30, 2026
+
+The shared [file-list activation family](STATUS-LIST-ACTIVATION-PARITY.md)
+separates a double-clicked row from highlighted multi-selection, preserves its
+comparison/conflict and Shift-tool intent, and rejects stale sort/reload/closed
+receipts. Checkbox events retain their native action; group rows cannot launch
+a different selected file. Explicit multi-file menu commands retain their
+existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
+separate from the connected native checkpoint.

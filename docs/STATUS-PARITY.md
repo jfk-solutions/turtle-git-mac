@@ -468,3 +468,14 @@ grouped checkpoint remains separate from older dialog checks above.
 [The shared conditional UI audit](PRIMARY-CONDITIONAL-UI-PARITY.md) records the
 Commit split control, Log control states and Working Tree refresh/cancellation
 follow-up, with focused validation and remaining acceptance kept explicit.
+
+
+## Source row activation continuation — October 30, 2026
+
+The shared [file-list activation family](STATUS-LIST-ACTIVATION-PARITY.md)
+separates a double-clicked row from highlighted multi-selection, preserves its
+comparison/conflict and Shift-tool intent, and rejects stale sort/reload/closed
+receipts. Checkbox events retain their native action; group rows cannot launch
+a different selected file. Explicit multi-file menu commands retain their
+existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
+separate from the connected native checkpoint.

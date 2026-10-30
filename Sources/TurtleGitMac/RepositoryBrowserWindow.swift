@@ -1032,8 +1032,14 @@ private struct RepositoryBrowserDialog: View {
                 RepositoryBrowserContentsTable(model:model)
             }.border(Color.secondary.opacity(0.4))
             HStack {
-                Text(model.info).font(.caption).frame(maxWidth: .infinity, alignment: .leading)
-                if model.busy || model.handlingFile { ProgressView().controlSize(.small) }
+                // IDC_INFOLABEL has a fixed two-line rectangle in the source.
+                // Selection changes its contents, never the tree/list height.
+                Text(model.info).font(.caption).lineLimit(2)
+                    .frame(maxWidth:.infinity,minHeight:informationHeight,maxHeight:informationHeight,alignment:.leading)
+                    .help(model.info)
+                ZStack {
+                    if model.busy || model.handlingFile {ProgressView().controlSize(.small)}
+                }.frame(width:16,height:16)
                 Button("OK", action: model.close).keyboardShortcut(.defaultAction).disabled(model.mutating)
                 Button("Cancel", action: model.close).keyboardShortcut(.cancelAction).disabled(model.mutating)
                 Button("Help") { TurtleGitHelp.show(.browser) }
@@ -1041,6 +1047,9 @@ private struct RepositoryBrowserDialog: View {
         }.padding(12).disabled(model.confirmingQuit || model.choosingRevision).alert("Repository Browser", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
+    }
+    private var informationHeight:CGFloat {
+        ceil(NSLayoutManager().defaultLineHeight(for:NSFont.preferredFont(forTextStyle:.caption1)))*2
     }
     private func browserIcon(_ entry: RepositoryBrowserEntry) -> NSImage {
         if [.directory, .submodule].contains(entry.kind) { return NSWorkspace.shared.icon(for: .folder) }

@@ -229,9 +229,12 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         controller.model.push(confirmed: true)
         try await wait { pendingControllerPrompt != nil }
         controller.close()
-        try await wait { pendingCoordinator?.closed == true && !controller.model.transportRunning }
+        // Push now delivers onClosed only after its exact service-owned work
+        // and sheets drain. A closed coordinator/idle model can precede that
+        // asynchronous callback; observe the actual lifecycle completion too.
+        try await wait("Push controller owned close/drain") {pendingCoordinator?.closed == true && !controller.model.transportRunning && !controller.serviceWorkPending && closedCallbacks>0}
         pendingControllerPrompt?.submit()
-        try require(closedCallbacks == 1 && resultCallbacks == 0 && controller.model.error == nil && pendingControllerPrompt?.finished == true, "Controller close allowed a late result or live prompt")
+        try require(closedCallbacks == 1 && resultCallbacks == 0 && controller.model.error == nil && pendingControllerPrompt?.finished == true, "Controller close allowed a late result or live prompt: closes=\(closedCallbacks) results=\(resultCallbacks) error=\(controller.model.error ?? "nil") finished=\(String(describing:pendingControllerPrompt?.finished))")
         try require(try String(contentsOf: URL(fileURLWithPath: wrapper.path+".calls")) == logCalls, "Closed prompt launched transport")
         var clonePrompts = 0
         let cloneFactory: SSHCloneTransportFactory = { runner in
@@ -399,8 +402,206 @@ private final class NativeIdentityBookmarks: RepositoryBookmarkProvider {
         deferredAdd.invalidate()
         try require(try privateActionLog.read().components(separatedBy: "\nSuccess (").count == 4, "Add action log missed completed attempts or duplicated records")
         preferences.removeObject(forKey: "ConfirmKillProcess"); preferences.removeObject(forKey: "AutoCloseGitProgress")
+        try await verifySyncOptionsBorrow(root:root,git:git,wrapper:wrapper,identities:identities,provider:provider,tools:tools,key:encrypted,phrase:phrase)
         try require(coordinators.allSatisfy { $0.closed } && provider.starts == provider.stops,"Finished transport coordinator or file lease remains")
         try require(!NSApplication.shared.windows.contains { $0.isVisible },"Receiver displayed UI")
         print("PASS native encrypted-key prompt/retry/dedup, Cancel/token/forced-close fences, private agent cleanup; shipping Push/Fetch/Pull/browse auto-load snapshots and local Git effects; CRLF headers, remote tag/browser deletion transports and Log remote deletion and Push/tag/Log/Clone controller close fences; direct and streamed native SSH Clone with remote-key config; Submodule Add captured branch/gitlink/child-key, bounded failure, Quit and forced-close fences")
+    }
+
+    private actor BorrowCredentials:SSHAuthenticationStore {
+        let entered=DispatchSemaphore(value:0)
+        private var hold=false
+        private var release:CheckedContinuation<Void,Never>?
+        func holdNextRead() {hold=true}
+        func releaseRead() {hold=false;let reply=release;release=nil;reply?.resume()}
+        func read(identity:String) async throws->String? {
+            if hold {await withCheckedContinuation {reply in release=reply;entered.signal()}}
+            return nil
+        }
+        func save(identity:String,name:String,passphrase:String) async throws {}
+        func entries() async throws->[SSHAuthenticationEntry] {[]}
+        func remove(identity:String) async throws {}
+    }
+    @MainActor private static func verifySyncOptionsBorrow(root:URL,git:URL,wrapper:URL,identities:SSHIdentityAccessStore,provider:NativeIdentityBookmarks,tools:SSHAgentRuntime,key:URL,phrase:String) async throws {
+        let domain="TurtleGit.SyncBorrow.QA."+UUID().uuidString,defaults=UserDefaults(suiteName:domain)!
+        defer{defaults.removePersistentDomain(forName:domain)}
+        let directory=root.appendingPathComponent("sync-borrow"),server=directory.appendingPathComponent("server.git"),client=directory.appendingPathComponent("client")
+        try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:false)
+        let base=GitRepository(root:directory,executable:git)
+        _ = try await base.run(["init","--bare","-b","main",server.path])
+        _ = try await base.run(["init","-b","main",client.path])
+        let plain=GitRepository(root:client,executable:git),repo=GitRepository(root:client,executable:wrapper)
+        for (name,value) in [("user.name","Borrow QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("branch.main.remote","origin"),("branch.main.merge","refs/heads/main"),("pull.rebase","false"),("pull.ff","only")] {_ = try await plain.run(["config",name,value])}
+        try Data("borrowed identity\n".utf8).write(to:client.appendingPathComponent("file"));try await plain.stage(["file"]);_ = try await plain.commit(message:"baseline")
+        for name in ["origin","second"] {var remote=RemoteSettings(name:name);remote.url=server.path;remote.sshKeyFile=key.path;try await plain.applyRemoteSettings(remote,changed:.all)}
+        _ = try await plain.run(["push","origin","main"])
+        let nextKey=directory.appendingPathComponent("second-encrypted-key")
+        let generate=Process();generate.executableURL=URL(fileURLWithPath:"/usr/bin/ssh-keygen");generate.arguments=["-q","-t","ed25519","-N",phrase,"-C","borrowed-second-fixture","-f",nextKey.path]
+        generate.standardInput=FileHandle.nullDevice;generate.standardOutput=FileHandle.nullDevice;generate.standardError=FileHandle.nullDevice
+        try generate.run();generate.waitUntilExit();try require(generate.terminationStatus==0,"Borrow key generation failed")
+        try identities.remember(nextKey)
+        var remote=try await plain.remoteSettings(name:"second");remote.sshKeyFile=nextKey.path;try await plain.applyRemoteSettings(remote,changed:.sshKeyFile)
+        let inheritedSocket=ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"],inheritedPID=ProcessInfo.processInfo.environment["SSH_AGENT_PID"]
+        var parents:[SSHTransportCoordinator]=[],owners:[SynchronizationWindowController]=[],sessions:[SSHAgentSession]=[],pids:[Int32]=[]
+        defer{owners.forEach {$0.close()};parents.forEach {$0.close()}}
+        func makeOwner(childAutoload:Bool,holdChildPrompt:Bool=false,credentials:BorrowCredentials=BorrowCredentials())->(SynchronizationWindowController,()->Int,()->Int,()->SSHKeyPassphraseWindowController?) {
+            defaults.set(childAutoload,forKey:"Fetch."+client.path+".autoload");defaults.set(childAutoload,forKey:"Pull."+client.path+".autoload")
+            let owner=SynchronizationWindowController(repository:repo,access:nil,preferences:defaults);owners.append(owner)
+            owner.window?.alphaValue=0;owner.window?.setFrameOrigin(NSPoint(x:-20000,y:-20000))
+            var parentPrompts=0,childPrompts=0,pending:SSHKeyPassphraseWindowController?
+            owner.model.sshSettings.enabled=true
+            owner.model.sshSettings.makeCoordinator={
+                let coordinator=SSHTransportCoordinator(repository:repo,identities:identities,temporaryRoot:root,credentials:credentials,runtime:{tools})
+                coordinator.present={prompt in parentPrompts += 1;prompt.passphrase.stringValue=phrase;prompt.submit();return true}
+                parents.append(coordinator);return coordinator
+            }
+            owner.configureOptions={child in
+                child.model.sshSettings.present={prompt in
+                    childPrompts += 1;pending=prompt
+                    if !holdChildPrompt {prompt.passphrase.stringValue=phrase;prompt.submit()}
+                    return true
+                }
+                child.presentFetchProgress={parent,progress in progress.alphaValue=0;parent.beginSheet(progress);return true}
+                child.presentPullProgress={parent,progress in progress.alphaValue=0;parent.beginSheet(progress);return true}
+            }
+            return(owner,{parentPrompts},{childPrompts},{pending})
+        }
+        // Actual full Fetch/Pull transports run with child autoload OFF. The
+        // wrapper requires the parent's private socket and loaded public key.
+        for pull in [false,true] {
+            let(owner,parentPrompts,childPrompts,_)=makeOwner(childAutoload:false),model=owner.model
+            try await wait("Sync borrow initial load") {!model.busy && model.outgoing != nil}
+            model.remote="origin";model.remoteBranch="main";model.localBranch="main"
+            model.fetch(pull ? .pull:.fetch,shift:true)
+            try await wait("Borrowed full options") {owner.optionsController != nil && !owner.optionsController!.model.busy}
+            let child=owner.optionsController!,context=model.optionsSSHContext,parent=parents.last!
+            try require(context != nil && child.model.sshSettings.inheritedContext === context && !child.model.sshSettings.enabled,"Sync did not hand off context or changed child's disabled autoload")
+            let session=try await parent.prepare(["origin"],cancellation:.init())!;sessions.append(session)
+            let pid=Int32(try String(contentsOf:URL(fileURLWithPath:tools.agent.path+".pid")).trimmingCharacters(in:.whitespacesAndNewlines))!;pids.append(pid)
+            child.model.options.remote="origin";child.model.options.branch="main";child.model.launchRebase=false
+            child.model.fetch()
+            try await wait("Borrowed full options completion") {!child.model.busy}
+            try require((pull ? child.model.progress?.success:child.model.fetchProgress?.success)==true,"Full options lost the prepared agent: "+(child.model.error ?? "no error"))
+            try require(session.isRunning && !parent.closed && parentPrompts()==1 && childPrompts()==0,"Child closed its parent agent or repeated encrypted-key prompt")
+            try require(defaults.bool(forKey:(pull ? "Pull.":"Fetch.")+client.path+".autoload")==false,"Borrowed session enabled child autoload preference")
+            if pull {child.model.progress?.close()} else {child.model.fetchProgress?.close()}
+            try await wait("Borrowed parent release") {!model.busy && owner.optionsController==nil && parent.closed}
+            try require(context?.retired==true && !session.isRunning && kill(pid,0) != 0,"Finished Sync failed to retire borrowed context/agent")
+            let stale=child.model.sshSettings.capture()?()
+            do {_ = try await stale?.prepare(["origin"],cancellation:.init());throw Failure(message:"Retired options context was reusable")} catch OperationCancellationFailure.cancelled {}
+            stale?.close();owner.close()
+        }
+        // Enabled child chooses a different configured remote. Its key is added
+        // to the same agent, using the child's presenter once; parent key remains.
+        do {
+            let(owner,parentPrompts,childPrompts,_)=makeOwner(childAutoload:true),model=owner.model
+            try await wait("Additional-key initial load") {!model.busy && model.outgoing != nil}
+            model.remote="origin";model.remoteBranch="main";model.localBranch="main";model.fetch(.fetch,shift:true)
+            try await wait("Additional-key options") {owner.optionsController != nil && !owner.optionsController!.model.busy}
+            let child=owner.optionsController!,parent=parents.last!,session=try await parent.prepare(["origin"],cancellation:.init())!;sessions.append(session)
+            child.model.options.remote="second";child.model.options.branch="main";child.model.fetch()
+            try await wait("Additional-key transport") {!child.model.busy}
+            try require(child.model.fetchProgress?.success==true && parentPrompts()==1 && childPrompts()==1,"Child remote did not add its key with one child-owned prompt")
+            let publicKeys=try session.publicIdentities()
+            try require(publicKeys.contains("native-coordinator-fixture") && publicKeys.contains("borrowed-second-fixture") && session.isRunning,"Additional child key replaced/closed prepared parent identities")
+            child.model.fetchProgress?.close();try await wait("Additional-key release") {!model.busy && parent.closed};owner.close()
+        }
+        // Parent closure while a child requests its new remote key cancels the
+        // borrowed request, drains the prompt/agent and rejects a late response.
+        do {
+            let(owner,_,_,pending)=makeOwner(childAutoload:true,holdChildPrompt:true),model=owner.model
+            try await wait("Cancelled borrow initial load") {!model.busy && model.outgoing != nil}
+            model.remote="origin";model.remoteBranch="main";model.localBranch="main";model.fetch(.fetch,shift:true)
+            try await wait("Cancelled borrow options") {owner.optionsController != nil && !owner.optionsController!.model.busy}
+            let child=owner.optionsController!,parent=parents.last!,context=model.optionsSSHContext
+            let session=try await parent.prepare(["origin"],cancellation:.init())!;sessions.append(session)
+            child.model.options.remote="second";child.model.options.branch="main";child.model.fetch()
+            try await wait("Child-owned encrypted prompt") {pending() != nil}
+            let prompt=pending()!
+            // Enter the response while the owned prompt is live. Closure must
+            // wipe/disable that real field; a later callback cannot reload it.
+            // Programmatically replacing a disabled, already-closed field would
+            // manufacture a state that the actual response UI cannot produce.
+            prompt.passphrase.stringValue=phrase
+            let callsBeforeClose=try String(contentsOf:URL(fileURLWithPath:wrapper.path+".calls")),outputBeforeClose=model.commandOutput
+            owner.close()
+            try await wait("Cancelled borrowed context drain") {parent.closed && !child.model.busy && SSHTransportCoordinator.activeOperations==0}
+            try require(prompt.finished && prompt.passphrase.stringValue.isEmpty && !prompt.passphrase.isEnabled && !prompt.accept.isEnabled,"Retired borrowed prompt did not wipe/disable its live secret")
+            prompt.submit()
+            try require(context?.retired==true && model.closed && prompt.finished && prompt.passphrase.stringValue.isEmpty && !session.isRunning && child.model.error==nil && model.commandOutput==outputBeforeClose,"Late borrowed response survived owner retirement: retired=\(String(describing:context?.retired)) closed=\(model.closed) finished=\(prompt.finished) empty=\(prompt.passphrase.stringValue.isEmpty) agentLive=\(session.isRunning) childError=\(child.model.error ?? "nil")")
+            try require(try String(contentsOf:URL(fileURLWithPath:wrapper.path+".calls"))==callsBeforeClose,"Late borrowed response launched a transport after owner retirement")
+        }
+        // Hold the actual child key-loading operation across parent closure.
+        // UI retirement and cancellation alone cannot release its parent's
+        // agent before the pending worker returns and releases its key grant.
+        do {
+            let credentials=BorrowCredentials()
+            let(owner,_,_,_)=makeOwner(childAutoload:true,credentials:credentials),model=owner.model
+            try await wait("Held borrow initial load") {!model.busy && model.outgoing != nil}
+            model.remote="origin";model.remoteBranch="main";model.localBranch="main";model.fetch(.fetch,shift:true)
+            try await wait("Held borrow options") {owner.optionsController != nil && !owner.optionsController!.model.busy}
+            let child=owner.optionsController!,parent=parents.last!,context=model.optionsSSHContext
+            let session=try await parent.prepare(["origin"],cancellation:.init())!;sessions.append(session)
+            await credentials.holdNextRead()
+            child.model.options.remote="second";child.model.options.branch="main";child.model.fetch()
+            do {
+                try await wait("Held child credential read") {credentials.entered.wait(timeout:.now()) == .success}
+                owner.close()
+                try require(context?.retired==true && child.serviceWorkPending && model.hasPendingInlineWork && session.isRunning && !parent.closed,"Parent agent released before its held child worker drained")
+                await credentials.releaseRead()
+                try await wait("Held borrowed worker release") {parent.closed && !child.serviceWorkPending && !model.hasPendingInlineWork}
+                try require(!session.isRunning && provider.starts==provider.stops,"Held borrower leaked parent agent or identity scope")
+            } catch {await credentials.releaseRead();throw error}
+        }
+        // Remote-reference browsing is a separate owned child, outside Fetch's
+        // progress counters. Hold its actual borrowed key preparation through
+        // forced owner closure, also closing the picker first independently.
+        // Both paths must retain that exact query until it drains.
+        for closePickerFirst in [false,true] {
+            let credentials=BorrowCredentials()
+            let(owner,_,_,_)=makeOwner(childAutoload:true,credentials:credentials),model=owner.model
+            try await wait("Borrowed remote picker initial load") {!model.busy && model.outgoing != nil}
+            model.remote="origin";model.remoteBranch="main";model.localBranch="main";model.fetch(.fetch,shift:true)
+            try await wait("Borrowed remote picker options") {owner.optionsController != nil && !owner.optionsController!.model.busy}
+            let child=owner.optionsController!,parent=parents.last!,context=model.optionsSSHContext
+            let session=try await parent.prepare(["origin"],cancellation:.init())!;sessions.append(session)
+            child.presentRemoteReferences={parent,picker in picker.alphaValue=0;parent.beginSheet(picker);return true}
+            await credentials.holdNextRead();child.showRemoteReferences("second")
+            do {
+                try await wait("Held remote-reference key read") {credentials.entered.wait(timeout:.now()) == .success}
+                let picker=child.remoteReferenceController!
+                if closePickerFirst {
+                    picker.close()
+                    try require(child.remoteReferenceController==nil && picker.model.retired && picker.model.busy && child.serviceWorkPending,"Independently closed remote picker lost its pending query ownership")
+                }
+                owner.close()
+                try require(context?.retired==true && picker.model.retired && picker.model.busy && child.serviceWorkPending && model.hasPendingInlineWork && session.isRunning && !parent.closed,"Remote picker released its borrowed parent agent before query drain")
+                await credentials.releaseRead()
+                try await wait("Borrowed remote picker query release") {parent.closed && !picker.model.busy && !child.serviceWorkPending && !model.hasPendingInlineWork}
+                try require(picker.model.refs.isEmpty && picker.model.error==nil && !session.isRunning && provider.starts==provider.stops,"Retired remote picker published late refs/error or leaked agent/grant")
+            } catch {await credentials.releaseRead();throw error}
+        }
+        // With both controls disabled there is no inherited context and no
+        // preparatory factory invocation. The wrapper positively refuses the
+        // transport because no fixture-private identity socket was supplied.
+        do {
+            let count=parents.count
+            let(owner,parentPrompts,childPrompts,_)=makeOwner(childAutoload:false),model=owner.model
+            model.sshSettings.enabled=false
+            try await wait("Disabled borrow initial load") {!model.busy && model.outgoing != nil}
+            model.remote="origin";model.remoteBranch="main";model.localBranch="main";model.fetch(.fetch,shift:true)
+            try await wait("Disabled borrow options") {owner.optionsController != nil && !owner.optionsController!.model.busy}
+            let child=owner.optionsController!
+            try require(model.optionsSSHContext==nil && child.model.sshSettings.inheritedContext==nil,"Disabled Sync created an agent context")
+            child.model.options.remote="origin";child.model.options.branch="main";child.model.fetch()
+            try await wait("Disabled borrower refused transport") {!child.model.busy}
+            try require(child.model.fetchProgress?.success==false && parentPrompts()==0 && childPrompts()==0 && parents.count==count,"Disabled autoload silently prepared a private key")
+            child.model.fetchProgress?.close();try await wait("Disabled options closure") {!model.busy};owner.close()
+        }
+        try require(parents.allSatisfy {$0.closed} && sessions.allSatisfy {!$0.isRunning} && pids.allSatisfy {kill($0,0) != 0},"Borrowed options leaked owned private agents")
+        try require(provider.starts==provider.stops && SSHTransportCoordinator.activeOperations==0,"Borrowed key grant/request lifetime leaked")
+        try require(ProcessInfo.processInfo.environment["SSH_AUTH_SOCK"]==inheritedSocket && ProcessInfo.processInfo.environment["SSH_AGENT_PID"]==inheritedPID,"Borrowing changed login-agent environment")
+        try require(!NSApp.windows.contains {$0.isVisible},"Borrowed options displayed a receiver window")
+        print("PASS: Sync→full Fetch/Pull borrowed private agent with disabled child autoload, single encrypted parent prompt, child remote key additions/presenter, preserved parent identities, child-vs-parent closure ownership, retired captures, pending-response cancellation, balanced grants and unchanged login agent")
     }
 }

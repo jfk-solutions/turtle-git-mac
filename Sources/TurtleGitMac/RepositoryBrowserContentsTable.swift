@@ -41,7 +41,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             let table=RepositoryBrowserNativeTable();table.style = .plain
             table.dragContext={ [weak model] in model?.transferContext(tree:false) }
             table.contentsAttached={ [weak model] table in model?.contentsTableAttached(table) }
-            table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(open)
+            table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openClickedRow)
             table.rowHeight=24;table.intercellSpacing=NSSize(width:4,height:0);table.allowsMultipleSelection=true
             table.columnAutoresizingStyle = .noColumnAutoresizing;table.allowsColumnResizing=true;table.allowsColumnReordering=true
             table.setAccessibilityLabel("Repository contents")
@@ -243,6 +243,14 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         @objc func openStoredBlobWith() {one{model.openStoredBlob($0,action:.openWith)}}
         @objc func editStoredBlob() {one{model.openStoredBlob($0,action:.alternativeEditor)}}
         @objc func saveStoredBlob() {one{model.openStoredBlob($0,action:.save)}}
+        /// A double-click activates its hit row, unlike Return/Open-menu which
+        /// require a singleton selection. AppKit can retain several highlights
+        /// while a selected row is double-clicked; the source uses NMITEMACTIVATE
+        /// iItem rather than the number of highlighted rows in that case.
+        @objc func openClickedRow() {
+            guard available,let table,rows.indices.contains(table.clickedRow) else{return}
+            model.open(rows[table.clickedRow])
+        }
         @objc func open() { one { model.open($0) } }
         @objc func openWith() { one { model.open($0,action:.openWith) } }
         @objc func alternativeEditor() { one { model.open($0,action:.alternativeEditor) } }

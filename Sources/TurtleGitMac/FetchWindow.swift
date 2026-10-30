@@ -111,8 +111,13 @@ import TurtleGitCore
         let request = UUID(), branch = model.options.branch, arbitrary = model.options.arbitraryURL, allRemotes = model.options.allRemotes, draft = model.submissionIdentity
         remotePickerRequest = request; model.browsing = true
         remotePickerFocus = (owner.firstResponder as? NSTextView).flatMap { $0.isFieldEditor ? $0.delegate as? NSResponder : $0 } ?? owner.firstResponder
+        weak var exactChild:RemoteReferenceWindowController?
         let child = RemoteReferenceWindowController(repository: model.repository, access: model.repositoryAccess, remote: remote, preferences: model.settingsPreferences) { [weak self] choice in
             guard let self, self.remotePickerRequest == request, !self.model.closed else { return }
+            // A picker can close independently while its cancelled query still
+            // drains. Retain that exact child before clearing the active slot,
+            // so a subsequent options/Sync close cannot release its agent early.
+            if let child=exactChild {self.serviceDrainChecks.append{child.model.busy || child.window?.sheetParent != nil || child.window?.attachedSheet != nil}}
             self.remoteReferenceController = nil
             self.remotePickerCompletion = { [weak self] in
                 guard let self, !self.model.closed, self.model.currentRemoteDestination.utf8.elementsEqual(remote.utf8),
@@ -122,6 +127,7 @@ import TurtleGitCore
             }
             self.remotePickerSheetEnded()
         }
+        exactChild=child
         child.makeSSH = model.sshSettings.capture(); configureRemoteReferences(child); remoteReferenceController = child
         guard let window = child.window else { child.close(); return }
         window.alphaValue = owner.alphaValue; window.appearance = owner.appearance
@@ -133,6 +139,7 @@ import TurtleGitCore
         // the exact workers/sheets, rather than waiting on unrelated dialogs.
         if let child=progressController {serviceDrainChecks.append{child.model.pendingOperations>0 || child.window?.sheetParent != nil}}
         if let child=fetchProgressController {serviceDrainChecks.append{child.model.pendingOperations>0 || child.notificationFiles.busy || child.window?.sheetParent != nil}}
+        if let child=remoteReferenceController {serviceDrainChecks.append{child.model.busy || child.window?.sheetParent != nil || child.window?.attachedSheet != nil}}
         NotificationCenter.default.removeObserver(self); remotePickerRequest = nil; remotePickerCompletion = nil; remotePickerFocus = nil
         if let child=model.remoteManagerModel {serviceDrainChecks.append{child.hasPendingWork}}
         model.invalidate(); remoteReferenceController?.close(); remoteReferenceController = nil

@@ -49,8 +49,9 @@ signed sandbox acceptance.
   cancellation. Keep private bytes out of command output, Finder and docs.
 - Verify inherited-agent compatibility for submodule Update initialization and
   recursion. The pinned Update command has no LaunchPAgent call or autoload
-  checkbox; preserve that dialog. Extend source-appropriate auto-load to broader
-  SyncDlg transports, preserving destination and failure ordering.
+  checkbox; preserve that dialog. Direct Sync transports and its
+  [full-options handoff](SYNC-OPTIONS-SSH-PARITY.md) have connected consumers;
+  the scoped borrowing context preserves prepared identities and failure ownership.
 - Test actual SSH authentication/host-key handling, saved and expired grants,
   connection errors, both architectures and signed App Store/Finder routes.
 

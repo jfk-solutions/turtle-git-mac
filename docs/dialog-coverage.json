@@ -1072,6 +1072,7 @@
         "docs/HISTORICAL-WINDOW-IDENTITY-PARITY.md",
         "docs/REPOSITORY-BROWSER-NAMESPACE-PARITY.md",
         "docs/REPOSITORY-BROWSER-PARITY.md",
+        "docs/STATUS-LIST-ACTIVATION-PARITY.md",
         "docs/SYMLINK-BLAME-PARITY.md"
       ],
       "qa_records": [
@@ -1079,6 +1080,7 @@
         "docs/qa/browser-presentation-2026-10-16.json",
         "docs/qa/browser-revisions-2026-10-16.json",
         "docs/qa/browser-tree-comparisons-2026-10-15.json",
+        "docs/qa/file-activation-sync-options-2026-10-30.json",
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/prepared-submodule-2026-10-16.json",

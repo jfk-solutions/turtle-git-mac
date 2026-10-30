@@ -492,6 +492,15 @@ struct ResolveConflictRow: Identifiable {
         else { showingProgress = false; load() }
     }
     func dismissSubmoduleReset() { guard active, hasChild, !busy else { return }; hasChild = false; showingProgress = false; load() }
+    var primaryActionRevision:UUID {fileMenuEpoch}
+    func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
+        guard receipt.revision==primaryActionRevision,canInteract else{return}
+        let snapshot=fileMenu([receipt.path],markedPath:receipt.path)
+        guard snapshot.entries.count==1 else{return}
+        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {
+            withFileMenu(snapshot) {editOrCompare([receipt.path])}
+        }
+    }
     func editOrCompare(_ values: some Sequence<String>) {
         let ids = GitPathSet(values)
         guard canInteract else { return }
@@ -529,6 +538,7 @@ private struct ResolveDialog: View {
     @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
     var body: some View {
         let geometry=FileListUniformRowGeometry.resolve(useLogFont:reportUsesLogFont,name:reportFontName,size:reportFontSize)
+        let primaryRows=model.entries.map{Optional($0.path)},primaryRevision=model.primaryActionRevision
         Group {
             if model.showingProgress {
                 VStack(alignment: .leading, spacing: 12) {
@@ -578,7 +588,10 @@ private struct ResolveDialog: View {
                                 Button {model.copyFileMenu(target,copy:choice.copy)} label: {CommandLabel(title:choice.rawValue,icon:.copy)}
                             }} label: {CommandLabel(title:"Copy to clipboard",icon:.copy)}
                         }
-                    } primaryAction: { ids in model.editOrCompare(GitPathRowIdentity.paths(ids)) }
+                    } primaryAction: { ids in
+                        if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(ids),focus:model.focusedFilePath,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
+                    }
+                    .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,checkboxColumns:1,activate:model.activatePrimaryFile))
                     HStack {
                         SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? GitPathSet(model.entries.map(\.path)) : [] }.fixedSize().disabled(!model.canInteract)
                         Spacer()

@@ -66,6 +66,21 @@ corrections. The terminal hosted run passed Core and SVN but failed seven native
 lanes; all seven now have local repairs and focused passes in the continuation
 below. A complete corrected-source pass is still required.
 
+## Source workflow continuation after build41
+
+The [file activation and Sync options batch](qa/file-activation-sync-options-2026-10-30.json)
+adds clicked-row conflict/comparison behavior across four status-list dialogs,
+Browser activation and stable footer geometry, and borrowed private SSH identity
+ownership through full options and active/retired remote pickers. Its sixteen
+native case/engine pairs pass; no Core suite was repeated for app-only changes.
+Build41 remains installed and predates this source continuation.
+
+Hosted run877 now reports two failures: the long HEAD radio-control check awaited
+model readiness before the native update (repaired locally with unchanged exact
+assertions), and WMF `textout-odd` differs from its Unicode EMF raster. The latter
+remains open; its current evidence does not establish a font-substitution cause.
+The completed local batch does not establish a full hosted or installed pass.
+
 ## Installed local testing build39
 
 [Signed build39](qa/signed-consolidation-build39-2026-10-30.json), `0.1.0 (39)`,

@@ -10,12 +10,19 @@ typealias SSHTransportFactory = @MainActor () -> SSHTransportCoordinator
     let repository: GitRepository
     @Published var enabled = false
     var makeCoordinator: SSHTransportFactory?
+    /// A full options child can use identities already prepared by Sync without
+    /// owning its parent's agent or changing the child's saved autoload choice.
+    var inheritedContext: SSHTransportBorrowContext?
     var present: (SSHKeyPassphraseWindowController) -> Bool = { _ in false }
     init(repository: GitRepository) { self.repository = repository }
-    var available: Bool { makeCoordinator != nil || (try? SSHAgentRuntime.resolve())?.askpass != nil }
+    var available: Bool { inheritedContext != nil || makeCoordinator != nil || (try? SSHAgentRuntime.resolve())?.askpass != nil }
     func load(_ preferences: UserDefaults, key: String) { enabled = available && (preferences.object(forKey: key) as? Bool ?? true) }
     func save(_ preferences: UserDefaults, key: String) { preferences.set(enabled && available, forKey: key) }
     func capture() -> SSHTransportFactory? {
+        if let inheritedContext {
+            let loadKeys=enabled,presenter=present
+            return { SSHTransportCoordinator(borrowing:inheritedContext,loadConfiguredKeys:loadKeys,presenter:presenter) }
+        }
         guard enabled, available else { return nil }
         if let makeCoordinator { return makeCoordinator }
         let repository = repository, presenter = present
@@ -27,6 +34,53 @@ struct SSHAutoloadToggle: View {
     var body: some View {
         Toggle("Auto-load SSH key", isOn: $settings.enabled).disabled(!settings.available)
             .help(settings.available ? "Load the selected remote's OpenSSH key into a private agent." : "SSH key loading is unavailable in this build.")
+    }
+}
+
+/// One Sync options workflow lends its prepared agent to child operations.
+/// Borrowers keep the parent's identities available even with autoload disabled;
+/// enabled children may add their newly selected remotes to the same agent.
+/// Retirement cancels child requests, but only the original owner closes the
+/// agent. The login agent and global process environment are never modified.
+@MainActor final class SSHTransportBorrowContext {
+    private let owner:SSHTransportCoordinator
+    private let cancellation:OperationCancellation
+    private var borrowers:[UUID:OperationCancellation]=[:]
+    private var preparing:UUID?
+    private(set) var retired=false
+    private var watcher:Task<Void,Never>?
+    var repository:GitRepository {owner.repository}
+    init(owner:SSHTransportCoordinator,cancellation:OperationCancellation) {
+        self.owner=owner;self.cancellation=cancellation
+        watcher=Task { [weak self] in
+            while !Task.isCancelled {
+                guard self?.retired==false else{return}
+                if self?.cancellation.isCancelled==true {self?.retire();return}
+                do {try await Task.sleep(nanoseconds:20_000_000)} catch {return}
+            }
+        }
+    }
+    deinit {watcher?.cancel()}
+    private func check(_ token:OperationCancellation)throws {
+        try cancellation.check();try token.check()
+        guard !retired else{throw OperationCancellationFailure.cancelled}
+    }
+    func prepare(_ id:UUID,names:[String],loadConfiguredKeys:Bool,presenter:@escaping(SSHKeyPassphraseWindowController)->Bool,cancellation token:OperationCancellation) async throws -> SSHAgentSession? {
+        try check(token)
+        guard preparing==nil else{throw SSHAgentFailure.closed}
+        borrowers[id]=token;preparing=id
+        let previous=owner.present;owner.present=presenter
+        defer{owner.present=previous;preparing=nil}
+        let session:SSHAgentSession?
+        if loadConfiguredKeys {session=try await owner.prepare(names,cancellation:token)}
+        else {session=try owner.preparedSession(cancellation:token)}
+        try check(token);return session
+    }
+    func release(_ id:UUID) {borrowers.removeValue(forKey:id)}
+    func retire() {
+        guard !retired else{return};retired=true;watcher?.cancel();watcher=nil
+        let requests=Array(borrowers.values);borrowers.removeAll()
+        requests.forEach {$0.cancel()}
     }
 }
 
@@ -43,6 +97,9 @@ struct SSHAutoloadToggle: View {
     private(set) var prompt: SSHKeyPassphraseWindowController?
     private(set) var closed = false
     private var session: SSHAgentSession?
+    private var borrowedContext:SSHTransportBorrowContext?
+    private var loadBorrowedConfiguredKeys=true
+    private let borrowerID=UUID()
     private struct IdentityRevision: Hashable {
         let path: Data
         let digest: String
@@ -55,7 +112,16 @@ struct SSHAutoloadToggle: View {
     init(repository: GitRepository, identities: SSHIdentityAccessStore = SSHIdentityAccessStore(), temporaryRoot: URL = FileManager.default.temporaryDirectory, credentials: any SSHAuthenticationStore = SSHKeychainAuthenticationStore.shared, runtime: @escaping () throws -> SSHAgentRuntime = { try SSHAgentRuntime.resolve() }) {
         self.repository = repository; self.identities = identities; self.temporaryRoot = temporaryRoot; self.runtime = runtime; self.credentials = credentials
     }
+    convenience init(borrowing context:SSHTransportBorrowContext,loadConfiguredKeys:Bool,presenter:@escaping(SSHKeyPassphraseWindowController)->Bool) {
+        self.init(repository:context.repository)
+        borrowedContext=context;loadBorrowedConfiguredKeys=loadConfiguredKeys;present=presenter
+    }
     var preparation: SSHTransportPreparation { { [self] names, token in try await prepare(names, cancellation: token) } }
+    fileprivate func preparedSession(cancellation token:OperationCancellation)throws->SSHAgentSession? {
+        try check(token)
+        if let session,!session.isRunning {throw SSHAgentFailure.closed}
+        return session
+    }
     private func check(_ token: OperationCancellation) throws {
         if token.isCancelled || closed { throw OperationCancellationFailure.cancelled }
     }
@@ -63,6 +129,9 @@ struct SSHAutoloadToggle: View {
         try check(token); guard active == nil else { throw SSHAgentFailure.closed }
         active = token; Self.activeOperations += 1
         defer { active = nil; Self.activeOperations -= 1 }
+        if let borrowedContext {
+            return try await borrowedContext.prepare(borrowerID,names:names,loadConfiguredKeys:loadBorrowedConfiguredKeys,presenter:present,cancellation:token)
+        }
         discardStoppedSession()
         let configured = try await repository.remoteNames(cancellation: token); try check(token)
         for name in names {
@@ -79,6 +148,7 @@ struct SSHAutoloadToggle: View {
     }
     func prepareKey(path: String, cancellation token: OperationCancellation) async throws -> SSHAgentSession {
         try check(token); guard active == nil else { throw SSHAgentFailure.closed }
+        guard borrowedContext==nil else{throw SSHAgentFailure.closed}
         active = token; Self.activeOperations += 1
         defer { active = nil; Self.activeOperations -= 1 }
         try await loadKey(path: path, cancellation: token); try check(token)
@@ -185,6 +255,7 @@ struct SSHAutoloadToggle: View {
     }
     func close() {
         guard !closed else { return }; closed = true; active?.cancel(); prompt?.abort(); watcher?.cancel(); watcher = nil
+        borrowedContext?.release(borrowerID);borrowedContext=nil
         session?.close(); session = nil; loaded.removeAll()
     }
 }

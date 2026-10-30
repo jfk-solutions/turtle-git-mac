@@ -361,7 +361,17 @@ import TurtleGitCore
             let owner=BranchTagWindowController(repository:repo,access:nil,isTag:isTag,preferences:prefs);own(owner)
             let model=owner.model;model.load(revision:nil,name:isTag ? "private-tag-draft":"private-branch-draft")
             try await wait(owner.window){model.canEditForm}
-            try await wait(owner.window){views(owner.window?.contentView).compactMap{$0 as? NSButton}.contains{$0.identifier?.rawValue=="ReferenceForm.HEAD"}}
+            try require(model.currentBranch==long,"Reference form model did not resolve the full current branch")
+            // The initial HEAD(detached) radio already has this identifier.
+            // Model read completion precedes SwiftUI's native update; await the
+            // resolved caption, then retain the full title/tooltip/mode check.
+            do {
+                try await wait(owner.window){views(owner.window?.contentView).compactMap{$0 as? NSButton}.contains{$0.identifier?.rawValue=="ReferenceForm.HEAD" && $0.title=="HEAD ("+long+")"}}
+            } catch {
+                let current=views(owner.window?.contentView).compactMap{$0 as? NSButton}.filter{$0.identifier?.rawValue=="ReferenceForm.HEAD"}
+                fputs("HEAD caption readiness: tag=\(isTag) model=\(model.currentBranch) native=\(current.map{($0.title,$0.toolTip ?? "nil",String(describing:$0.cell?.lineBreakMode))})\n",stderr)
+                throw error
+            }
             let headCaption=try unwrap(views(owner.window?.contentView).compactMap{$0 as? NSButton}.first{$0.identifier?.rawValue=="ReferenceForm.HEAD"},"Native HEAD radio missing")
             try require(headCaption.title.contains(long) && headCaption.toolTip==headCaption.title && headCaption.cell?.lineBreakMode == .byTruncatingMiddle,"Long HEAD radio lost full source name/tooltip")
             let ids=["name","head","branch","tag","commit","browseReferences","chooseCommit","track","force"]+(isTag ? ["sign","push"]:["switch"])+["message"]

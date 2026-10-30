@@ -397,9 +397,10 @@ its `MergeConflictsNeedsCommit` suppression preference for both direct and
 options-based Pull. Closing the owner forcibly invalidates and closes
 the options dialog and its progress; late continuation results cannot update the
 closed Synchronization model. Authenticated server, rendered/physical interactions
-and signed sandbox acceptance remain pending. Because macOS uses private SSH
-agents per operation, options transport also prepares its own configured agent;
-this does not inherit a shared Pageant process as Windows does.
+and signed sandbox acceptance remain pending. The later [options SSH handoff](SYNC-OPTIONS-SSH-PARITY.md) supersedes the
+initial independent-agent behavior: full Fetch/Pull options borrow the identities
+already prepared by Sync, preserving disabled-child autoload and new-key prompt
+ownership without changing the login agent.
 
 At checkpoint `5b472dd`, full-options Rebase closed Fetch before a modeless
 Rebase callback, allowing incoming results to refresh too early. Synchronization

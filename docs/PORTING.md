@@ -1,5 +1,19 @@
 # TurtleGit for Mac — full port tracking
 
+## File activation and Sync options continuation
+
+The [connected checkpoint](qa/file-activation-sync-options-2026-10-30.json)
+fixes source clicked-row activation in four status-list dialogs and Repository
+Browser, stable Browser footer geometry, and prepared SSH identity ownership
+through full Fetch/Pull options and remote-reference picker cancellation.
+Sixteen native case/engine pairs pass across system and bundled Git; failures
+and affected-only repairs remain in the record. These app-only changes did not
+rerun Core. Installed build41 predates both this and the Finder continuation.
+
+The build41-source hosted run reports a long-caption native readiness failure
+(now repaired locally with both engines) and an open WMF text raster mismatch.
+Other lanes continue; a complete corrected-source hosted pass remains required.
+
 ## Finder startup and saved-permission continuation
 
 The next source batch reuses live/restart snapshots written by this process,

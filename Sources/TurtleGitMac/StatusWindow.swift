@@ -273,7 +273,7 @@ final class StatusNativeWindow: NSWindow {
         }
     }
 
-    @Published var sortOrder = [StatusFileSort(column: .path)]
+    @Published var sortOrder = [StatusFileSort(column: .path)] {didSet {if !sortOrder.elementsEqual(oldValue,by:{$0.column == $1.column && $0.order == $1.order}) {menuGeneration=UUID()}}}
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
     @Published private(set) var hasHead = false
@@ -606,6 +606,11 @@ final class StatusNativeWindow: NSWindow {
     }
     /// Source default activation edits a single conflict; an explicit Compare
     /// command always compares the captured paths, independent of that status.
+    var primaryActionRevision:UUID {menuGeneration}
+    func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
+        guard receipt.revision==primaryActionRevision else{return}
+        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction([receipt.path])}
+    }
     func primaryFileAction(_ ids:some Sequence<String>) {
         let ids=GitPathSet(ids),snapshot=fileMenu(ids)
         guard !ids.isEmpty,snapshot.entries.count==ids.count else{return}
@@ -925,6 +930,7 @@ struct StatusDialog: View {
         let geometry=reportGeometry
         let rows = model.sortedRows
         let rowsByID = GitPathMap(uniqueKeysWithValues: rows.map { ($0.id,$0) })
+        let primaryRows=model.tableRows.map{$0.row.entry?.id},primaryRevision=model.primaryActionRevision
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 if !model.refreshing && model.hasStatusSnapshot {
@@ -1051,10 +1057,9 @@ struct StatusDialog: View {
                     }
                 }
             } primaryAction: { nativeIDs in
-                let ids = GitPathRowIdentity.paths(nativeIDs)
-                if ids.count == 1, let group = model.tableRows.first(where: { ids.contains($0.row.id) })?.row.group { model.selectGroup(group); return }
-                model.primaryFileAction(ids)
+                if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(nativeIDs),focus:focusedPath,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
             }
+            .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,activate:model.activatePrimaryFile))
             .frame(minHeight: 300)
             .overlay {
                 if model.refreshing {

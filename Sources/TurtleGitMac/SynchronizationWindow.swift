@@ -458,6 +458,7 @@ final class SynchronizationNativeWindow: NSWindow {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                 let child = FetchWindowController(repository: repository, access: access, isPull: isPull, preferences: preferences)
                 self.configureOptions(child)
+                child.model.sshSettings.inheritedContext=self.model.optionsSSHContext
                 var dismissed = false
                 var handoffError: Error?
                 child.model.onOwnedRebase = { [weak self, weak child] target, autoStart, preserve in
@@ -476,9 +477,18 @@ final class SynchronizationNativeWindow: NSWindow {
                 child.onClosed = { [weak self, weak child] in
                     guard !dismissed else { return }; dismissed = true
                     if let window = child?.window { window.sheetParent?.endSheet(window) }
-                    self?.optionsController = nil
-                    if let handoffError { continuation.resume(throwing: handoffError) }
-                    else { continuation.resume() }
+                    // Window retirement can precede cancellation settlement.
+                    // Keep this exact child and the Sync transport context alive
+                    // until its Git/key-loading/preparation workers and sheets
+                    // drain; another dialog's activity is not our ownership.
+                    Task { @MainActor [child] in
+                        while child?.serviceWorkPending==true || child?.window?.sheetParent != nil {
+                            try? await Task.sleep(nanoseconds:5_000_000)
+                        }
+                        if self?.optionsController === child {self?.optionsController=nil}
+                        if let handoffError { continuation.resume(throwing: handoffError) }
+                        else { continuation.resume() }
+                    }
                 }
                 self.optionsController = child
                 child.window?.alphaValue = owner.alphaValue
@@ -1290,6 +1300,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     var detachRebase: () -> Void = {}
     var presentConflictHint: () async -> Bool = { false }
     var runOptions: (Bool, String?) async throws -> Void = { _, _ in throw SynchronizationFailure.invalidInput }
+    private(set) var optionsSSHContext:SSHTransportBorrowContext?
     var runPushOptions: (String) async throws -> Void = { _ in throw SynchronizationFailure.invalidInput }
     var confirmPushDeletion: (String) async -> Bool = { _ in false }
     static let conflictColumns: Set<StatusListColumn> = [.path,.fileExtension,.status,.added,.removed]
@@ -1887,7 +1898,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { optionsSSHContext?.retire();optionsSSHContext=nil;notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
         formRevision=UUID()
@@ -2425,8 +2436,15 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                     // The options dialog owns its own command/progress. Pull has
                     // already switched the selected branch; Fetch receives only
                     // a named remote, never the URL from this dialog.
-                    if let preparation = coordinator?.preparation, action != .remoteUpdate {
-                        _ = try await preparation(plan.transportRemotes, request)
+                    var inherited:SSHTransportBorrowContext?
+                    if let coordinator, action != .remoteUpdate {
+                        _ = try await coordinator.preparation(plan.transportRemotes, request)
+                        inherited=SSHTransportBorrowContext(owner:coordinator,cancellation:request)
+                    }
+                    optionsSSHContext=inherited
+                    defer {
+                        inherited?.retire()
+                        if optionsSSHContext === inherited {optionsSSHContext=nil}
                     }
                     guard !closed, token === request, !request.isCancelled else { throw OperationCancellationFailure.cancelled }
                     let preset = action == .fetch && !options.remote.contains("/") && !options.remote.contains("\\") ? options.remote : nil

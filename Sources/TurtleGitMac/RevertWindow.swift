@@ -326,6 +326,10 @@ private final class RevertNativeWindow:NSWindow {
             return acceptedRows()
         }
     }
+    func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
+        guard receipt.revision==commands.primaryActionRevision,canInteract else{return}
+        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction([receipt.path])}
+    }
     func primaryFileAction(_ paths:some Sequence<String>) {
         let ids=GitPathSet(paths)
         guard canInteract,!ids.isEmpty else{return}
@@ -472,6 +476,7 @@ private struct RevertDialog:View {
     var body:some View {
         let geometry=reportGeometry
         let rows = model.rows,byID = GitPathMap(uniqueKeysWithValues:rows.map{($0.id,$0)})
+        let primaryRows=rows.map{Optional($0.id)},primaryRevision=model.commands.primaryActionRevision
         VStack(spacing:10) {
             Table(rows.map {RevertFileRow(value:$0)},selection:$model.nativeSelection,sortOrder:Binding(get:{model.sortOrder.map {RevertFileSort(column:$0.column,order:$0.order)}},set:{model.sortOrder = $0.map {StatusFileSort(column:$0.column,order:$0.order)}})) {
                 TableColumn("") {row in FileSelectionCheckbox(path:row.value.path,verb:"Revert",checked:model.checked.contains(row.value.path),enabled:model.canInteract) {model.setFileChecked(row.value.path,value:$0)}.frame(width:20,height:20).frame(height:geometry.contentHeight)}.width(24)
@@ -530,7 +535,10 @@ private struct RevertDialog:View {
                         } label:{CommandLabel(title:"Copy to Clipboard",icon:.copy)}
                     }
                 }.disabled(!model.canInteract)
-            } primaryAction:{model.primaryFileAction(GitPathRowIdentity.paths($0))}
+            } primaryAction:{ids in
+                if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(ids),focus:focusedPath,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
+            }
+            .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,checkboxColumns:1,activate:model.activatePrimaryFile))
             HStack {
                 SelectionAllCheckbox(checked:model.checked.count,total:model.entries.count,checkedCount:{model.checked.count}) {model.setChecked(GitPathSet(model.entries.map(\.path)),value:$0)}.frame(width:190,height:22).disabled(!model.canInteract)
                 Spacer()

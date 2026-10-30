@@ -1165,7 +1165,7 @@ import TurtleGitCore
     }
     var availableFileColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases).subtracting(hasLFS ? [] : [.lfsOwner]) }
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
-    @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID();refreshRequiredFileMetadata() } } }
+    @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileReportRevision=UUID();fileMenuGeneration = UUID();refreshRequiredFileMetadata() } } }
     @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
     @Published var changelists = GitChangelists() { didSet {fileReportRevision=UUID(); if changelists != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
     @Published var changelistsLoaded = false
@@ -2885,6 +2885,17 @@ import TurtleGitCore
             message=IssueTrackerProperties.addingSignOff(trailer,to:message)
         },completed:{ [weak self] in self?.requestMessageFocus(ifCurrent:focus) })
     }
+    func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
+        guard !gitGuiInterface,fileListAvailable,receipt.revision==fileReportRevision,
+              let entry=visibleEntries.first(where:{GitReferenceName.equal($0.id,receipt.path)}) else{return}
+        let snapshot=fileMenu([entry.id],mark:entry.id)
+        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {
+            withFileMenu(snapshot) {
+                if entry.state == .conflicted {onResolve(.editConflict,[entry.path])}
+                else {compare(paths:[entry.id])}
+            }
+        }
+    }
     func compare(paths selected: some Sequence<String>) { let selected = GitPathSet(selected);
         guard fileListAvailable else { return }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
@@ -3923,6 +3934,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
         let focus = Binding<String?>(get: { model.focusedFiles[focusKey] }, set: { model.focusedFiles[focusKey] = $0 })
         let ignored = GitPathSet(model.indexFlagFiles.filter { $0.assumeUnchanged || $0.skipWorktree }.map { $0.entry.path })
         let rows = StatusListGroups.rows(entries: entries, changelists: model.changelists, locallyIgnored: ignored)
+        let primaryRows=rows.map{$0.entry?.id},primaryRevision=model.fileReportRevision
         let tableRows = rows.map { CommitSortableRow(row: $0, statistics: $0.entry.flatMap { statistics[$0.path] }, isDirectory: $0.entry.map { model.submodules.contains($0.path) } ?? false, metadata: $0.entry.flatMap { model.fileMetadata[$0.path] }, lfsOwner: $0.entry.flatMap { model.lfsOwners[$0.path] } ?? "") }
         let sort = Binding(get: { model.fileSortOrder }, set: { model.setFileSortOrder($0) })
         return Table(tableRows, selection: $model.nativeFileSelection, sortOrder: sort) {
@@ -3994,12 +4006,9 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 }
             }
         } primaryAction: { nativeIDs in
-            let requested = GitPathRowIdentity.paths(nativeIDs)
-            let ids = requested.intersection(GitPathSet(entries.map(\.id)))
-            model.selection = ids
-            if ids.count == 1, let entry = model.entries.first(where: { ids.contains($0.id) }), entry.state == .conflicted { model.onResolve(.editConflict, [entry.path]) }
-            else { model.compare(paths: ids) }
+            if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(nativeIDs),focus:focus.wrappedValue,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
         }
+        .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,checkboxColumns:1,activate:model.activatePrimaryFile))
         .background(CommitFileInteraction(rows: rows,contentRevision:model.fileReportRevision,uniformRowGeometry:geometry,ownsNativeColumns:true,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
             String(StatusListClipboard.text([entry], root: model.repository.root, statistics: statistics, copy: .column(column), metadata: model.fileMetadata, lfsOwners: model.lfsOwners, label:FileListLabels.caption).dropLast())
         }, savedOrder: model.fileColumns.order, savedWidths: model.fileColumns.widths, saveLayout: { model.saveFileColumnLayout(order: $0, widths: $1) }, setColumnVisible: { model.setFileColumn($0, visible: $1) }, resetColumns: { choose, accepted in model.requestResetFileColumns(choose: choose, onAccepted: accepted) }, focusedPath: focus, enabled: model.fileListAvailable, delete: { model.deleteFiles($0, selectionMark: $1, permanently: $2) }, copy: { model.copyFileText($0, statistics: statistics, copy: $1 ? .pathsAndStatus : .relativePaths) }, copyColumn: { model.copyFileText($0, statistics: statistics, copy: .column($1)) }, toggleCheck: { files, mark in

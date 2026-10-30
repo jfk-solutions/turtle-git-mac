@@ -699,3 +699,13 @@ native contents/tree gestures to captured recursive path text, gitlink-only text
 root exports without an extra repository folder, and receiver-owned historical
 promises. Its bounded metadata collection and actual grouped checkpoint remain
 separate from older file/folder promise checks above.
+
+
+## Activated rows and stable selection information — October 30, 2026
+
+The [activation continuation](STATUS-LIST-ACTIVATION-PARITY.md) distinguishes
+clicked-row Open from singleton Return/menu Open, preserving existing historical
+file bytes, folder navigation and submodule inspection. The source two-line info
+label and spinner now reserve stable space so selection/loading changes do not
+resize the contents/tree/header area. Native event admission in the invisible
+receiver uses scoped public key-state injection; it is not physical focus proof.

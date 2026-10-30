@@ -369,3 +369,14 @@ Both Debug builds and localization write/check pass; all seven attempted receive
 were reaped and independently absent. Earlier checkpoints retain their original
 scope. Physical signed-sandbox Trash behavior, external volumes and every
 rename/submodule combination remain outside those focused claims.
+
+
+## Source row activation continuation — October 30, 2026
+
+The shared [file-list activation family](STATUS-LIST-ACTIVATION-PARITY.md)
+separates a double-clicked row from highlighted multi-selection, preserves its
+comparison/conflict and Shift-tool intent, and rejects stale sort/reload/closed
+receipts. Checkbox events retain their native action; group rows cannot launch
+a different selected file. Explicit multi-file menu commands retain their
+existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
+separate from the connected native checkpoint.

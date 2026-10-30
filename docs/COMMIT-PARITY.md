@@ -2899,3 +2899,14 @@ typing and selection, plus actual positive resize/reorder/Fit changes, saved
 layout and interface retirement/rebinding. Initial fixture failures and the
 wrapper's duplicate typing invocation are retained explicitly. Physical header
 gestures and a signed build containing this change remain separate acceptance.
+
+
+## Source row activation continuation — October 30, 2026
+
+The shared [file-list activation family](STATUS-LIST-ACTIVATION-PARITY.md)
+separates a double-clicked row from highlighted multi-selection, preserves its
+comparison/conflict and Shift-tool intent, and rejects stale sort/reload/closed
+receipts. Checkbox events retain their native action; group rows cannot launch
+a different selected file. Explicit multi-file menu commands retain their
+existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
+separate from the connected native checkpoint.

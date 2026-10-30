@@ -258,6 +258,68 @@ final class FileListWatermark: NSView {
     }
 }
 
+/// A status-list primary action belongs to one displayed row, rather than the
+/// selected set supplied by SwiftUI's selection-based context-menu API.
+struct StatusListPrimaryActionReceipt {
+    let path:String
+    let revision:UUID
+    let alternate:Bool
+    @MainActor private static weak var nonRowPointerEvent:NSEvent?
+    @MainActor static func excludePointerActivation(_ event:NSEvent) {nonRowPointerEvent=event}
+    @MainActor static func focused(_ ids:some Sequence<String>,focus:String?,rows:[String?],revision:UUID)->Self? {
+        if let event=NSApp.currentEvent,event === nonRowPointerEvent {return nil}
+        let requested=GitPathSet(ids),available=rows.compactMap{$0}.filter{requested.contains($0)}
+        guard let path=available.first(where:{GitReferenceName.equal($0,focus)}) ?? available.first else{return nil}
+        return .init(path:path,revision:revision,alternate:ComparisonToolInvocation.capture)
+    }
+}
+
+/// Opt in only source status-list default actions. GUI staging transfers and
+/// explicit multi-file menu commands retain their selected-set semantics.
+struct StatusListPrimaryActionBridge:NSViewRepresentable {
+    let rows:[String?]
+    let revision:UUID
+    var checkboxColumns=0
+    let activate:(StatusListPrimaryActionReceipt)->Void
+    func makeNSView(context:Context)->Probe {Probe()}
+    func updateNSView(_ view:Probe,context:Context) {view.rows=rows;view.revision=revision;view.checkboxColumns=checkboxColumns;view.activate=activate}
+    static func dismantleNSView(_ view:Probe,coordinator:()) {view.stop()}
+    final class Probe:NSView {
+        var rows:[String?]=[],revision=UUID(),checkboxColumns=0
+        var activate:((StatusListPrimaryActionReceipt)->Void)?
+        private var monitor:Any?,closeObserver:NSObjectProtocol?
+        private(set) var active=false
+        override func hitTest(_ point:NSPoint)->NSView? {nil}
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow();stop();guard let window else{return};active=true
+            monitor=NSEvent.addLocalMonitorForEvents(matching:.leftMouseDown) { [weak self] event in guard let self else{return event};return self.observe(event) }
+            closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.stop()} }
+        }
+        func stop() {
+            active=false
+            if let monitor {NSEvent.removeMonitor(monitor)};monitor=nil
+            if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil
+        }
+        private func table(in view:NSView,point:NSPoint)->NSTableView? {
+            if let table=view as? NSTableView,convert(bounds,to:nil).intersects(table.convert(table.visibleRect,to:nil)),table.visibleRect.contains(table.convert(point,from:nil)) {return table}
+            return view.subviews.lazy.compactMap{self.table(in:$0,point:point)}.first
+        }
+        func observe(_ event:NSEvent)->NSEvent? {
+            guard active,event.type == .leftMouseDown,event.clickCount==2,let window,event.window === window,
+                  let root=window.contentView,let table=table(in:root,point:event.locationInWindow) else{return event}
+            let point=table.convert(event.locationInWindow,from:nil),row=table.row(at:point),column=table.column(at:point)
+            // The native checkbox still receives its ordinary mouse event.
+            // Only a selection-based table primary callback is excluded for it.
+            if column>=0,column<checkboxColumns {StatusListPrimaryActionReceipt.excludePointerActivation(event);return event}
+            // Group/empty rows cannot activate a different highlighted file.
+            guard rows.indices.contains(row),let path=rows[row] else{return nil}
+            let receipt=StatusListPrimaryActionReceipt(path:path,revision:revision,alternate:event.modifierFlags.contains(.shift))
+            activate?(receipt)
+            return nil
+        }
+    }
+}
+
 /// Native binary checkbox shared by file-selection dialogs. Git membership is
 /// authoritative even when AppKit has already advanced its cell's visual state.
 struct FileSelectionCheckbox:NSViewRepresentable {
