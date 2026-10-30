@@ -845,7 +845,7 @@ import TurtleGitCore
     @Published var conflictRebase = false
     @Published var entries: [StatusEntry] = [] { didSet { if entries != oldValue { fileMenuGeneration = UUID(); guiFileListGeneration = UUID(); providerDraftChanged() } } }
     @Published var indexFlagFiles: [WorkingTreeFile] = []
-    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet { fileMenuGeneration = UUID() } }
+    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } }
     var restoreWorkingCopy:((WorkingFileRestoreCopy,OperationCancellation?)async throws->Void)?
     enum RestoreChoice { case restore, keep, cancel }
     var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
@@ -953,7 +953,7 @@ import TurtleGitCore
         let statistics = staged ? stagedStatistics : unstagedStatistics
         return statistics[entry.path]?.status ?? entry.state.rawValue.capitalized
     }
-    @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } } }
+    @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } } }
     @Published var viewingPatch = false
     var readCommitIdentity:((OperationCancellation)async throws->ReplayUserIdentity)?
     var repairCommitIdentity:(OperationCancellation)async->Bool={_ in false}
@@ -1166,7 +1166,7 @@ import TurtleGitCore
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
     @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileMenuGeneration = UUID();refreshRequiredFileMetadata() } } }
     @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
-    @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var changelists = GitChangelists() { didSet { if changelists != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
     @Published var changelistsLoaded = false
     @Published var keepChangelists = false { didSet { if keepChangelists != oldValue { providerDraftChanged() } } }
     @Published var creatingChangelist = false
@@ -1477,10 +1477,10 @@ import TurtleGitCore
     @Published var authorDate = Date() { didSet { if authorDate != oldValue { providerDraftChanged() } } }
     @Published var resetAuthorDate = false {didSet{if resetAuthorDate != oldValue{retireFormReceipts()}}}
     @Published var messageOnly = false {
-        didSet { if messageOnly != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } }
+        didSet { if messageOnly != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } }
     }
-    @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{retireFormReceipts()}}}
-    @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{guiFileListGeneration=UUID();retireFormReceipts()}}}
+    @Published var submodules = GitPathSet() { didSet { if submodules != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
     @Published var setAuthor = false {didSet{if setAuthor != oldValue{formOptionValueChanged(.author)}}}
     @Published var author = "" { didSet { if !GitReferenceName.equal(author, oldValue) { providerDraftChanged() } } }
     @Published private(set) var loadingAuthorIdentity = false
@@ -1516,7 +1516,7 @@ import TurtleGitCore
     var queryCommitAuthor: ((Bool, OperationCancellation) async throws -> String?)?
     var queryCommitAuthorDate: ((OperationCancellation) async throws -> Date?)?
     var queryAmendMessage: ((OperationCancellation) async throws -> String?)?
-    @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID();retireFormReceipts() } } }
+    @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } } }
     private let unversionedDefaults: UserDefaults
     var messageEditorPreferences: UserDefaults { dialogDefaults }
     private let dialogDefaults: UserDefaults
@@ -1526,16 +1526,16 @@ import TurtleGitCore
     @Published private(set) var fileListReportInEnglish=true
     @Published var showWholeProject = true {
         willSet {if newValue != showWholeProject,messageFocusAvailable,!busy {filterPosition = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)}}
-        didSet {if showWholeProject != oldValue{retireFormReceipts()};updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
+        didSet {if showWholeProject != oldValue{guiFileListGeneration=UUID();retireFormReceipts()};updateScopeTitle();if let position = filterPosition {filterPosition = nil;restoreVisibleFilePosition(position)}}
     }
-    @Published var scopePaths: [String] = [] { didSet { updateScopeTitle(); if scopePaths.map({Data($0.utf8)}) != oldValue.map({Data($0.utf8)}) { providerDraftChanged() } } }
+    @Published var scopePaths: [String] = [] { didSet { updateScopeTitle(); if scopePaths.map({Data($0.utf8)}) != oldValue.map({Data($0.utf8)}) { guiFileListGeneration=UUID();providerDraftChanged() } } }
     @Published var busy = false {didSet{
         if busy != oldValue {retireFormReceipts(); guiFileListGeneration = UUID()}
         if busy {cancelFileMetadataRead()} else {refreshRequiredFileMetadata()}
     }}
     @Published var confirmingQuit = false {didSet{
         guard confirmingQuit != oldValue else{return}
-        supersedeFocusIntent();retireFormReceipts();metadataEpoch=UUID(); guiPatch?.confirmingQuit = confirmingQuit
+        supersedeFocusIntent();retireFormReceipts();metadataEpoch=UUID();guiFileListGeneration=UUID(); guiPatch?.confirmingQuit = confirmingQuit
         if confirmingQuit {
             cancelFileMetadataRead()
             if loadingAmendMessage {amendMessageReadFailed=true}
@@ -2631,7 +2631,11 @@ import TurtleGitCore
     struct FileCheckReceipt:Equatable {
         let generation:UUID,staging:Bool,files:[StatusEntry],noAutoSubmodules:Bool
     }
-    var fileCheckReceipt:FileCheckReceipt {FileCheckReceipt(generation:fileMenuGeneration,staging:stagingEnabled,files:visibleEntries,noAutoSubmodules:doNotAutoselectSubmodules)}
+    // Pointer focus/selection changes precede a native checkbox's action. Keep
+    // its row/policy receipt current through that gesture; menus independently
+    // retain their stricter focus/selection epoch. Actual list, operation,
+    // presentation and Quit transitions still retire the checkbox receipt.
+    var fileCheckReceipt:FileCheckReceipt {FileCheckReceipt(generation:guiFileListGeneration,staging:stagingEnabled,files:visibleEntries,noAutoSubmodules:doNotAutoselectSubmodules)}
     private func acceptsFileCheck(_ receipt:FileCheckReceipt?) -> Bool {
         fileListAvailable && (receipt == nil || receipt == fileCheckReceipt)
     }

@@ -24,9 +24,9 @@ struct MergeOpenNativeVerification {
         return (accepted.boolValue, error?.takeUnretainedValue() as? NSError)
     }
     @MainActor static func require(_ value: @autoclosure () -> Bool, line: Int = #line) throws { if !value() { throw MergeOpenCheckFailure(line: line) } }
-    @MainActor static func wait(_ condition: () -> Bool) async throws {
+    @MainActor static func wait(line:Int = #line,_ condition: () -> Bool) async throws {
         for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw MergeOpenCheckFailure(line: #line)
+        throw MergeOpenCheckFailure(line: line)
     }
     @MainActor static func verifyAuthorization(root: URL, prefs: UserDefaults, pasteboard: NSPasteboard) async throws {
         let provider = MergeOpenPrivateBookmarks()
@@ -199,7 +199,25 @@ struct MergeOpenNativeVerification {
         merge.model.comparisonDefaults = prefs; merge.model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); merge.model.load()
         try await wait { !merge.model.busy && merge.model.document != nil }
         try require(merge.model.result == "a\nB\nC\n" && merge.model.dirty)
-        merge.model.save(markResolved:true); try require(!merge.model.busy) // No index resolution in standalone mode.
+        // Standalone Mark as resolved now saves first, then obtains authority
+        // for that actual output. Cancelling its output choice must do neither.
+        var outputChoices=0,resolutionRequests=0,resolvedCallbacks=0
+        var outputReply:CheckedContinuation<URL?,Never>?
+        defer {outputReply?.resume(returning:nil)}
+        merge.model.newOutputAdd.resolveRepository={_,_ in resolutionRequests += 1;throw MergeOpenCheckFailure(line:#line)}
+        merge.model.onResolvedOutput={_,_ in resolvedCallbacks += 1}
+        merge.model.chooseStandaloneOutput={_,_ in outputChoices += 1;return await withCheckedContinuation {outputReply=$0}}
+        merge.model.save(markResolved:true)
+        try await wait {outputReply != nil}
+        try require(merge.model.busy && merge.model.workingMergeOutput==nil && merge.model.pendingResolve==nil && resolutionRequests==0)
+        merge.model.save(markResolved:true);try require(outputChoices==1)
+        merge.model.cancelSaveOperation()
+        try require(merge.model.busy) // The accepted chooser remains owned until its real reply drains.
+        let cancelledOutput=root.appendingPathComponent("cancelled-resolve-output.txt")
+        outputReply?.resume(returning:cancelledOutput);outputReply=nil
+        try await wait {!merge.model.mergeToolHasPendingWork}
+        try require(!FileManager.default.fileExists(atPath:cancelledOutput.path) && merge.model.workingMergeOutput==nil && merge.model.pendingResolve==nil && merge.model.dirty && merge.model.error==nil && resolutionRequests==0 && resolvedCallbacks==0)
+        try require((try? Data(contentsOf:mine))==Data("a\nB\nc\n".utf8) && !FileManager.default.fileExists(atPath:root.appendingPathComponent(".git").path))
         merge.model.chooseStandaloneOutput = { _,_ in nil }
         merge.model.save(markResolved:false); try await wait { !merge.model.busy }
         try require(merge.model.workingMergeOutput == nil && merge.model.dirty)
@@ -227,7 +245,15 @@ struct MergeOpenNativeVerification {
         try require(merge.model.result == originalResult)
         merge.model.chooseFormat = { _,_,_ in .init(encoding:.utf8,ending:.crlf) }; merge.model.showFormatDialog()
         try await wait { merge.model.encoding == .utf8 && merge.model.result == "another result\r\n" }
-        merge.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
+        let beforeRetirement=try Data(contentsOf:mine),retiredOutput=root.appendingPathComponent("retired-resolve-output.txt")
+        merge.model.chooseStandaloneOutput={_,_ in outputChoices += 1;return await withCheckedContinuation {outputReply=$0}}
+        merge.model.save(markResolved:true,chooseNewOutput:true)
+        try await wait {outputReply != nil}
+        merge.window?.close()
+        outputReply?.resume(returning:retiredOutput);outputReply=nil
+        try await wait { MergeRegexOperations.activeRequests == 0 }
+        try require(merge.model.retired && !merge.model.mergeToolHasPendingWork && !FileManager.default.fileExists(atPath:retiredOutput.path) && resolutionRequests==0 && resolvedCallbacks==0)
+        try require((try? Data(contentsOf:mine))==beforeRetirement && !FileManager.default.fileExists(atPath:root.appendingPathComponent(".git").path))
         print("Merge Open: native source radio/field/clipboard gates, captured private patch, mode Apply/Cancel, invalid path, expired picker, standalone three-pane load/save/dirty and no Git initialization passed. All owned windows closed.")
     }
 }

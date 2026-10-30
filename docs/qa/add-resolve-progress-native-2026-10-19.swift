@@ -11,6 +11,14 @@ private struct FileProgressScopes:RepositoryBookmarkProvider {
 @MainActor enum AddResolveProgressVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
+    // Reconstruct the immutable value snapshot without changing the real
+    // coordinator, state object, owner callbacks or presentation policy.
+    static func availabilitySnapshot(_ value:FileOperationProgressTable,available:Bool,keyboardAvailable:Bool)->FileOperationProgressTable {
+        FileOperationProgressTable(state:value.state,icon:value.icon,available:available,repository:value.repository,
+            keyboardAvailable:keyboardAvailable,fileRowIcons:value.fileRowIcons,backgroundIcon:value.backgroundIcon,
+            actionAvailability:value.actionAvailability,keyboardAvailability:value.keyboardAvailability,
+            performRow:value.performRow,perform:value.perform)
+    }
     static func wait(line:Int = #line,_ ready:()->Bool)async throws {
         for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Add/Resolve progress timeout at \(line)")
@@ -188,6 +196,34 @@ private struct FileProgressScopes:RepositoryBookmarkProvider {
             try require(resolved.percentage==100 && resolved.progress.rows.contains{$0.kind == .file && $0.path=="file"},"Resolve lost completed notification")
             let resolveTable=try await fileTable(resolve);try await wait {resolveTable.numberOfRows==resolved.progress.rows.count}
             try require(resolveTable.tableColumns.map(\.title)==["Action","Path"],"Resolve native source progress table absent")
+            guard let resolveSource=NativeListSelection.originalDelegate(of:resolveTable) as? FileOperationProgressTable.Coordinator,
+                  let resolvedRow=resolveSource.rows.firstIndex(where:{$0.kind == .file && $0.path=="file"}) else {throw Failure(description:"Resolve actual completed row/coordinator missing")}
+            resolveTable.selectRowIndexes(IndexSet(integer:resolvedRow),byExtendingSelection:false)
+            var resolvedCopies:[String]=[];resolved.progress.publishClipboard={resolvedCopies.append($0)}
+            let resolveSnapshot=resolveSource.parent
+            // Reproduce delayed representable updates synchronously while
+            // retaining the real Resolve model's complete live predicates.
+            resolveSource.parent=availabilitySnapshot(resolveSource.parent,available:false,keyboardAvailable:false)
+            guard let resolveMenu=resolveTable.makeMenu(),let resolveCopy=resolveMenu.items.first(where:{$0.title=="Copy to Clipboard"}),let copyAction=resolveCopy.action else {throw Failure(description:"Completed Resolve popup retained a stale disabled snapshot")}
+            _ = NSApp.sendAction(copyAction,to:resolveCopy.target,from:resolveCopy)
+            resolveTable.keyDown(with:key(resolve.window!,8,"c"))
+            try require(resolvedCopies==["file",resolveSource.rows[resolvedRow].action+": file  \r\n"],"Resolve live popup/keyboard Copy failed under stale disabled snapshots")
+            guard let blockedMenu=resolveTable.makeMenu(),let blockedCopy=blockedMenu.items.first(where:{$0.title=="Copy to Clipboard"}),let blockedAction=blockedCopy.action else {throw Failure(description:"Resolve retained popup capture missing")}
+            resolveSource.parent=availabilitySnapshot(resolveSource.parent,available:true,keyboardAvailable:true)
+            resolved.confirmingQuit=true
+            try require(resolveTable.makeMenu()==nil,"Stale enabled Resolve snapshot admitted a Quit-blocked popup")
+            let beforeBlocked=resolvedCopies.count
+            resolveTable.keyDown(with:key(resolve.window!,8,"c"));_ = NSApp.sendAction(blockedAction,to:blockedCopy.target,from:blockedCopy)
+            try require(resolvedCopies.count==beforeBlocked,"Resolve stale enabled snapshot dispatched during Quit")
+            resolved.confirmingQuit=false;_ = NSApp.sendAction(blockedAction,to:blockedCopy.target,from:blockedCopy)
+            try require(resolvedCopies.count==beforeBlocked,"Resolve rejected once-only popup revived")
+            resolved.progressFileActionBusy=true
+            try require(resolveTable.makeMenu()==nil,"Resolve live file-handler busy gate was bypassed")
+            resolved.progressFileActionBusy=false;resolved.handoffPending=true
+            try require(resolveTable.makeMenu()==nil,"Resolve live handoff gate was bypassed")
+            resolveTable.keyDown(with:key(resolve.window!,8,"c"))
+            try require(resolvedCopies.count==beforeBlocked,"Resolve keyboard command bypassed live handoff")
+            resolved.handoffPending=false;resolveSource.parent=resolveSnapshot
             try await capture(resolve,"resolve-completed")
             workspace.fileComparisonPreferences=otherPrefs
             var resolveClosed=0,resolveCommit=0,resolveDrained=false

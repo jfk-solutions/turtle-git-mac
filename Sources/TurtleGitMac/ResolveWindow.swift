@@ -201,6 +201,7 @@ struct ResolveConflictRow: Identifiable {
     var onProgressFileAction:(FileOperationProgressAction,String)->Void = {_,_ in}
     var progressOwnerAvailable:Bool {active && showingProgress && !busy && !confirmingQuit && !handoffPending && !hasQuestion && !hasChild && !confirmingCancellation && externalAvailability()}
     var progressActionsAvailable:Bool {progressOwnerAvailable && !progressFileActionBusy}
+    var progressKeyboardAvailable:Bool {active && !confirmingQuit && !handoffPending && externalAvailability()}
     var actionLogOutput:String {progress.output+"\n"+output}
     let quick: ResolveChoice?
     let commandOptions: ResolveCommandOptions?
@@ -532,7 +533,7 @@ private struct ResolveDialog: View {
             if model.showingProgress {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(model.busy ? "Resolving selected conflicts…" : model.success ? "Resolved \(model.resolvedCount) files." : model.cancelled ? "Resolution aborted. Earlier resolved items remain resolved." : "Resolution failed.").font(.headline)
-                    FileOperationProgressTable(state:model.progress,icon:.resolveBackdrop,available:model.progressActionsAvailable,repository:model.repository.root,keyboardAvailable:model.active && !model.confirmingQuit && !model.handoffPending && model.externalAvailability(),perform:model.onProgressFileAction)
+                    FileOperationProgressTable(state:model.progress,icon:.resolveBackdrop,available:model.progressActionsAvailable,repository:model.repository.root,keyboardAvailable:model.progressKeyboardAvailable,actionAvailability:{model.progressActionsAvailable},keyboardAvailability:{model.progressKeyboardAvailable},perform:model.onProgressFileAction)
                     if !model.output.isEmpty{SubmoduleProgressOutputView(text:model.output,completed:!model.busy,success:model.success,preferences:model.preferences).frame(height:90)}
                     Text("Reminder: Commit your change after resolve").font(.caption).foregroundStyle(.secondary)
                     HStack {

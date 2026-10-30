@@ -39,6 +39,14 @@ found no additional missing workflow family among the85 pending occurrences;
 Windows-only or dormant controls must not be counted as missing Mac dialogs.
 This is static evidence, not full dialog or release certification.
 
+The hosted run later failed on Commit checkbox admission, completed-Revert popup
+availability and an older standalone Open fixture. The [grouped native correction](qa/native-file-interactions-2026-10-29.json)
+passes eighteen relevant native cases/engine pairs, including First Start SSH
+authority and a PowerPoint fixture compiler repair. Build37 predates the production
+corrections. The terminal hosted run passed Core and SVN but failed seven native
+lanes; five have local repairs, while recovery/editor diagnostics remain unavailable
+during GitHub connection failures. A complete corrected-source pass is still required.
+
 ## Installed local testing build37
 
 [Signed build37](qa/signed-consolidation-build37-2026-10-29.json), `0.1.0 (37)`,
@@ -49,8 +57,10 @@ Help and ZIP/inventory round trip pass. The full installed inventory matches;
 build36 rollback copies remain available. Installation left the app closed and
 restarted no Finder/Dock process or login/service preference.
 
-The repaired macOS workflow has four validation lanes running concurrently after
-its SVN producer passed. A complete hosted result and physical Finder cold command,
+The hosted run finished with Core and SVN passing and seven native lanes failing.
+Five failed jobs have local corrections and focused passes; the recovery and editor
+job diagnostics remain unavailable during GitHub connection failures. A complete
+hosted pass on corrected source and physical Finder cold command,
 badge and real large-repository latency acceptance remain open. No public upload,
 notarization or Store submission occurred.
 

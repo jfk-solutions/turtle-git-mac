@@ -11,8 +11,23 @@ import TurtleGitCore
         let value=NSAppleEventDescriptor.list();for (index,item) in values.enumerated(){value.insert(item,at:index+1)};return value
     }
     nonisolated static func receipt(code:Int32=0,opened:Bool=false,restored:Bool=true,both:Bool=false)->PowerPointComparisonAutomation.ExecutionReply {
-        let rows=list((0..<2).map{list([.init(int32:Int32($0)),.init(string:String(256+$0)),.init(string:$0==0 ? "visible":"hidden slide"),.init(string:"speaker notes")])})
-        return .init(result:list([.init(int32:code),.init(string:code==0 ? "":"Injected export refusal"),.init(boolean:opened),.init(boolean:restored),rows,both ? rows:list([])]),error:nil)
+        var slideRows:[NSAppleEventDescriptor]=[]
+        for index in 0..<2 {
+            let number=NSAppleEventDescriptor(int32:Int32(index))
+            let identifier=NSAppleEventDescriptor(string:String(256+index))
+            let text=NSAppleEventDescriptor(string:index==0 ? "visible":"hidden slide")
+            let notes=NSAppleEventDescriptor(string:"speaker notes")
+            let fields:[NSAppleEventDescriptor]=[number,identifier,text,notes]
+            slideRows.append(list(fields))
+        }
+        let rows=list(slideRows)
+        let status=NSAppleEventDescriptor(int32:code)
+        let message=NSAppleEventDescriptor(string:code==0 ? "":"Injected export refusal")
+        let openedResult=NSAppleEventDescriptor(boolean:opened)
+        let restoredResult=NSAppleEventDescriptor(boolean:restored)
+        let secondRows:NSAppleEventDescriptor=both ? rows:list([])
+        let fields:[NSAppleEventDescriptor]=[status,message,openedResult,restoredResult,rows,secondRows]
+        return PowerPointComparisonAutomation.ExecutionReply(result:list(fields),error:nil)
     }
     nonisolated static func stub()throws->NSAppleScript {
         guard let script=NSAppleScript(source:"on run\nreturn 0\nend run") else{throw Failure(description:"No injected script")}

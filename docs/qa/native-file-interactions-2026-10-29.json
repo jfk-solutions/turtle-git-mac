@@ -1,0 +1,175 @@
+{
+  "date": "2026-10-29",
+  "created_utc": "2026-10-29T23:19:36.287335+00:00",
+  "status": "grouped-native-checkpoint-passed",
+  "scope": [
+    "Commit checkbox row/policy receipts independent of pointer focus and menu epochs; real rows/status/mode/scope/policy/Quit boundaries still retire inputs",
+    "Shared progress live action/keyboard availability, complete Add/Resolve consumer callbacks and existing Clone/Fetch/Sync/Reset consumers",
+    "Standalone Merge Open fixture aligned to existing asynchronous Save-first Mark Resolved contract, with held output/cancel/retirement fencing",
+    "First Start custom SSH accepted panel URL captured before drain; unchanged path/client preserves authority; reentrant replies consumed once",
+    "PowerPoint automation fixture expressions decomposed into typed descriptors preserving result schema and assertions"
+  ],
+  "production_changes": [
+    "Sources/TurtleGitMac/CommitWindow.swift",
+    "Sources/TurtleGitMac/FileOperationProgress.swift",
+    "Sources/TurtleGitMac/AddProgressTable.swift",
+    "Sources/TurtleGitMac/ResolveWindow.swift",
+    "Sources/TurtleGitMac/FirstStartWizard.swift"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "aaf2faffb8399e0a22c48ce9ce2ed2fab62811895b5d1c726f237d0d866b5990",
+    "Sources/TurtleGitMac/FileOperationProgress.swift": "0c092afaadcade66b5c60d19eb342f528b7258ae01453f7bf666a4c6798162ca",
+    "Sources/TurtleGitMac/AddProgressTable.swift": "99e55c4b2c2694fd820628ebe3114c8e2855c35e0b4f6cc349c2f02c519f3ebe",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "535da99aeb975f3ad88070118cc5cb1714ea1913603e8ce534609e28bb2d3ae7",
+    "docs/qa/working-selection-identities-native-2026-10-17.swift": "a67e234cce066faabc187c2eb4e5a1542d0d72c053ca60119541e686fc211d0b",
+    "docs/qa/revert-result-actions-native-2026-10-19.swift": "4bf77c5fdb5bda2ea353f39534f302434246a06bc41979c7503dc95326e63518",
+    "docs/qa/add-resolve-progress-native-2026-10-19.swift": "81a035172fd87e5a33d8c9a109b07b0d9b47b1a462b45d8dacffd8b074ce60fe",
+    "docs/qa/merge-open-native-2026-10-12.swift": "a1d34cbeb95f2fe508415676a02925353589087f04c5786f20770fb5581447e4",
+    "Sources/TurtleGitMac/FirstStartWizard.swift": "38d0774b6a4ca53524b5b7eff701b032c2fbd8e5ef2f7377b5561f9b72d79d33",
+    "docs/qa/first-start-ssh-native-2026-10-24.swift": "3cea162be2c7dcf62eb186c1a927ad99ac7e5588e5d3523ba6c1815f465c5cf5",
+    "docs/qa/powerpoint-revision-automation-native-2026-10-20.swift": "5f2a4108ad69aedea75b8befa6ff87a4b2335a57b797e7553c6e8b2bc07e6978"
+  },
+  "hosted_failures": {
+    "run": 40964073622,
+    "source": "a25f65abf6e889c0ffa09a81798e5fe906ba3a22",
+    "jobs": [
+      {
+        "id": 123765567307,
+        "failure": "Exact native selection wait at103",
+        "cause": "Immediate native checkbox after focus change carried a row receipt tied to invalidated menu epoch"
+      },
+      {
+        "id": 123765567638,
+        "failure": "Completed Revert popup missing: snapshot availablefalse, live dynamictrue",
+        "cause": "Captured SwiftUI availability vetoed actual completed-state predicate after picker settlement"
+      },
+      {
+        "id": 123765567264,
+        "failure": "MergeOpenCheckFailure203",
+        "cause": "Pre-feature fixture expected synchronous standalone Mark Resolved no-op; actual supported feature saves first asynchronously"
+      },
+      {
+        "id": 123765567263,
+        "failure": "First Start picker accepted client lost security bookmark",
+        "cause": "Exact hosted causal path remains uncertain; source-proven same-path authority loss, panel teardown timing and callback reentrancy repaired; local actual security bookmark checks pass."
+      },
+      {
+        "id": 123765567392,
+        "failure": "Compiler unable to type-check nested AppleEvent descriptor expression",
+        "cause": "Fixture expression complexity; explicit typed descriptors preserve exact schema."
+      }
+    ],
+    "terminal_result": {
+      "core": "success",
+      "svn-runtime": "success",
+      "failed_native_lanes": 7,
+      "locally_repaired_jobs": 5,
+      "unresolved": [
+        {
+          "job": 123765567237,
+          "step": "Native Cherry Pick and Rebase recovery across Git versions"
+        },
+        {
+          "job": 123765567265,
+          "step": "Reflected EditorConfig, Log references and external workspace requests"
+        }
+      ],
+      "diagnostic_access": "GitHub connector transport closed; authenticated browser direct job page and reload both ERR_NETWORK_CHANGED. Exact remaining failure diagnostics unavailable; no inferred cause or repair claimed."
+    }
+  },
+  "validation": {
+    "debug_build_exit": 0,
+    "debug_log": "build/qa/native-file-interactions-debug-2026-10-29.log",
+    "debug_contradictory_exit_zero_diagnostics": 3,
+    "debug_diagnostic_limit": "Build exit0 accompanied by compiler exit0/no-output diagnostics. Actual freshly linked native component behavior is validated by the regressions; this is not a clean signed package build claim.",
+    "commit": {
+      "command": "python3 scripts/test-commit-command-family.py --only identities --only staging --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "case_engine_pairs": 4,
+      "log": "build/qa/native-file-interactions-commit-2026-10-29.log"
+    },
+    "progress": {
+      "command": "python3 scripts/test-revert-result-actions.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "initial_attempt": "Fixture compilation failed because new assertions assigned an immutable available property; no receiver executed.",
+      "fixture_repair": "Reconstruct immutable representable snapshots preserving actual state, callbacks, icon and policies; no production immutability change or assertion removal.",
+      "recheck_exit": 0,
+      "case_engine_pairs": 6,
+      "log": "build/qa/native-file-interactions-progress-fixture-recheck-2026-10-29.log"
+    },
+    "reported_receiver_pids": [
+      26664,
+      26767,
+      26868,
+      27173,
+      27641,
+      27820,
+      28000,
+      28178,
+      28353,
+      28472,
+      28939,
+      29658,
+      29674,
+      29689,
+      29715,
+      29741,
+      29762,
+      32654
+    ],
+    "all_independently_absent": true,
+    "windows_private_and_hidden": true,
+    "core_suite_rerun": false,
+    "core_scope_reason": "Native app models/views and fixtures changed; no Core implementation change.",
+    "unrelated_native_families_rerun": false,
+    "merge_open": {
+      "command": "python3 scripts/test-merge-open-source.py --only open",
+      "exit": 0,
+      "cases": 1,
+      "log": "build/qa/native-file-interactions-merge-open-2026-10-29.log",
+      "source_change": "Fixture only; no app rebuild or repeated Commit/progress checks",
+      "observed_warnings": [
+        "sandbox_extension_consume failed: 1 (Operation not permitted)",
+        "sandbox_extension_consume failed: 1 (Operation not permitted)"
+      ],
+      "warning_limit": "Receiver completion and private authorization/cleanup assertions passed; no signed outside-grant acceptance inferred."
+    },
+    "total_native_case_engine_pairs": 18,
+    "first_start_ssh": {
+      "command": "python3 scripts/test-first-start-ssh.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "case_engine_pairs": 6,
+      "log": "build/qa/first-start-ssh-admission-native-2026-10-29.log",
+      "debug_build_exit": 0,
+      "debug_log": "build/qa/first-start-ssh-admission-debug-2026-10-29.log",
+      "debug_contradictory_exit_zero_diagnostics": 1,
+      "bookmark_diagnostics": "Both picker engines: bookmark true; selected while attached; one selection and one bookmark call; no errors; no outstanding writes. Security-scoped bookmark production factory unchanged."
+    },
+    "powerpoint": {
+      "command": "python3 scripts/test-presentation-comparison.py --only revision-automation --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "exit": 0,
+      "cases": 1,
+      "log": "build/qa/powerpoint-typed-fixture-2026-10-30.log",
+      "scope": "Fixture compile plus revision-automation runtime; no app rebuild. This case runs once, independent of Git engine."
+    }
+  },
+  "registration_restoration": {
+    "installed_build": "37",
+    "main_sha256_unchanged": true,
+    "finder_pid_preserved": true,
+    "installed_plugin_listed": true,
+    "debug_plugin_listed": false,
+    "debug_unregister_scan_exit": 1,
+    "debug_unregister_scan_code": -10814,
+    "exact_debug_paths_in_registration_dump": false,
+    "installed_restore_in_finally_succeeded": true,
+    "no_app_launch_or_signals": true,
+    "after_ssh_build": "Installed37 app/cache registrations restored and installed Finder extension listed; Debug extension not listed. No launches, signals or Finder restart. Private receipt build/qa/installed37-after-ssh-registration-2026-10-30.json."
+  },
+  "limits": [
+    "Installed signed build37 predates these native production repairs",
+    "Complete hosted current-source macOS result remains required",
+    "Physical Finder Add/cold Commit/badges remain unverified; menu artwork was observed separately",
+    "No universal visual/accessibility/localization or public/App Store release claim"
+  ],
+  "updated_utc": "2026-10-30T03:46:59.510266+00:00"
+}

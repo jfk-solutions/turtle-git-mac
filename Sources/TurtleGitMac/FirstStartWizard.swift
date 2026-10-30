@@ -106,7 +106,7 @@ import TurtleGitCore
         Binding(get: { self.sshChoice }, set: { self.chooseSSH($0, context: context) })
     }
     func chooseSSH(_ choice: SSHChoice, context: FormContext) {
-        guard accepts(context), canEditSSH else { return }
+        guard accepts(context),canEditSSH,choice != sshChoice else{return}
         if sshChoice == .custom { customSSH = ssh }
         sshChoice = choice; ssh = choice == .automatic ? SSHClientPreferences() : customSSH
         sshVersion = ""; error = nil; formRevision = UUID()
@@ -115,7 +115,7 @@ import TurtleGitCore
         Binding(get: { self.ssh.path }, set: { self.editSSHPath($0, context: context) })
     }
     func editSSHPath(_ value: String, context: FormContext) {
-        guard accepts(context), canEditSSH, sshChoice == .custom else { return }
+        guard accepts(context),canEditSSH,sshChoice == .custom,!GitReferenceName.equal(value,ssh.path) else{return}
         ssh.path = value; ssh.bookmark = nil; customSSH = ssh; sshVersion = ""; error = nil
     }
     private func checkedSSH(_ value: SSHClientPreferences, choice: SSHChoice, token: OperationCancellation) async throws -> String {
@@ -153,13 +153,18 @@ import TurtleGitCore
         sshPanel = chooser; sshChoiceID = request; selectingSSH = true; formRevision = UUID(); Self.activeWrites += 1
         presentSSHPanel(chooser, window) { [weak self, weak chooser] response in
             guard let self, let chooser, self.sshPanel === chooser, self.sshChoiceID == request else { return }
-            self.sshPanel = nil; self.sshChoiceID = nil
+            // Consume callback admission before querying the panel: injected
+            // or native selection delivery can reenter its reply callback.
+            self.sshPanel=nil;self.sshChoiceID=nil
+            // Native panels own their selected URL; capture it while its
+            // accepted sheet is still attached, before physical teardown.
+            let selectedFile=response == .OK ? self.selectedSSHURL(chooser):nil
             SettingsLifecycleSheetDrain.close([chooser]) { [self] in
                 Self.activeWrites -= 1
                 guard !self.retired else { return }
                 self.selectingSSH = false; self.formRevision = UUID()
                 guard self.page == .authentication, self.pageGeneration == visit, self.window === window, self.ssh == submitted,
-                      self.sshChoice == .custom, response == .OK, let file = self.selectedSSHURL(chooser) else { return }
+                      self.sshChoice == .custom,response == .OK,let file=selectedFile else{return}
                 do {
                     var directory: ObjCBool = false
                     guard file.isFileURL, FileManager.default.fileExists(atPath: file.path, isDirectory: &directory), !directory.boolValue,

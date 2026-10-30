@@ -1,5 +1,29 @@
 # TurtleGit for Mac — full port tracking
 
+## Native file interactions and standalone Open checkpoint
+
+The [grouped native checkpoint](qa/native-file-interactions-2026-10-29.json)
+repairs two production timing defects found by the hosted run: Commit checkbox
+focus no longer expires the unchanged row action, and completed progress menus
+use current owner availability instead of a stale SwiftUI snapshot. Add and
+Resolve retain independent live keyboard guards; Clone, Fetch, Sync and Reset
+already provide their complete live predicates. Row identity, operation/policy
+boundaries, Quit, retirement and once-only callbacks remain enforced.
+
+Commit identity/staging and Revert/retained Add/Resolve checks pass with both Git
+engines. The older standalone Open fixture now exercises the existing asynchronous
+Save-first Mark Resolved contract with held choices, cancellation and retirement;
+its focused check passes. One fixture compilation mistake was repaired without
+changing production immutability or dropping assertions. First Start now preserves
+unchanged custom SSH authority, captures the selected URL before panel teardown,
+and consumes reentrant replies once. Its six engine/case checks pass with actual
+security bookmarks; the exact hosted bookmark failure remains unconfirmed. A
+PowerPoint fixture compiler-limit repair preserves the descriptor schema and passes
+its focused automation check. Eighteen native cases/engine pairs pass in total;
+no Core or unrelated native suite was repeated.
+Installed build37 predates these production corrections. Complete hosted CI and
+physical Finder registration/cold Commit/badges remain open.
+
 ## Current Finder acceptance and pending-control review
 
 The [installed build37 first-use check](qa/installed37-finder-first-use-2026-10-29.json)
@@ -7,8 +31,8 @@ reached the private repository in Finder and observed the intended creation,
 registration and utility commands. Services contained only Open in TurtleGit.
 Menu invocation then met computer-control context guards and capture failures;
 registration, cold Commit and physical badges remain unverified. No product failure
-is inferred from the control-tool failures, and the owned test window needs safe
-cleanup after the pending Escape request.
+is inferred from the control-tool failures, and the private test window received a normal Close attempt. Its subsequent
+control read could not confirm closure; the Escape request is now resolved.
 
 The [bounded pending-control review](qa/pending-control-source-review-2026-10-29.json)
 retains all85 exact original occurrences and matching pinned/native line references.
@@ -57,8 +81,10 @@ Help and ZIP/inventory round trip pass. The full installed inventory matches;
 build36 rollback copies remain available. Installation left the app closed and
 restarted no Finder/Dock process or login/service preference.
 
-The repaired macOS workflow has four validation lanes running concurrently after
-its SVN producer passed. A complete hosted result and physical Finder cold command,
+The hosted run finished with Core and SVN passing and seven native lanes failing.
+Five failed jobs have local corrections and focused passes; the recovery and editor
+job diagnostics remain unavailable during GitHub connection failures. A complete
+hosted pass on corrected source and physical Finder cold command,
 badge and real large-repository latency acceptance remain open. No public upload,
 notarization or Store submission occurred.
 

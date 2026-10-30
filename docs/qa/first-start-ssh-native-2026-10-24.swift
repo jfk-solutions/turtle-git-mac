@@ -120,25 +120,67 @@ import TurtleGitCore
         let (owner, prefs, client, _, _) = try await seed(root, git), model = owner.model
         var reply: ((NSApplication.ModalResponse) -> Void)?; var panel: NSOpenPanel?
         model.presentSSHPanel = { chooser, window, callback in panel = chooser; reply = callback; window.beginSheet(chooser, completionHandler: callback) }
-        model.selectedSSHURL = { _ in client }; model.bookmarkSSH = { try $0.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) }
+        var selectionCalls=0,bookmarkCalls=0,selectionAttached=false,bookmarkError:String?,reentered=false
+        model.selectedSSHURL={chooser in
+            selectionCalls += 1;selectionAttached=chooser.sheetParent === owner.window
+            if !reentered{reentered=true;reply?(.cancel)}
+            return selectionAttached ? client:nil
+        }
+        model.bookmarkSSH={file in
+            bookmarkCalls += 1
+            do{return try file.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
+            catch{let failure=error as NSError;bookmarkError="\(failure.domain) code=\(failure.code): \(failure.localizedDescription)";throw error}
+        }
         let stale = model.formContext, binding = model.sshPathBinding(context: stale)
-        model.browseSSH(context: stale)
+        model.browseSSH(context:stale)
+        try await wait{panel?.sheetParent === owner.window && owner.window?.attachedSheet === panel}
         try require(model.selectingSSH && !model.canNavigate && !model.canCancel, "SSH picker failed to own navigation/Close")
         binding.wrappedValue = "/stale"; model.chooseSSH(.automatic, context: stale); model.next(context: stale)
         try require(model.ssh.path == client.path && !prefs.bool(forKey: "TurtleGit.FirstStartComplete"), "Picker allowed stale edits/Finish")
         reply?(.OK); reply?(.cancel)
         try await wait { !model.selectingSSH && owner.window?.attachedSheet == nil && panel?.sheetParent == nil }
-        try require(model.ssh.path == client.path && model.ssh.bookmark != nil, "Accepted client lost security bookmark")
+        let diagnostics="path=\(String(reflecting:model.ssh.path)) expected=\(String(reflecting:client.path)) bookmark=\(model.ssh.bookmark != nil) selectionCalls=\(selectionCalls) attachedAtSelection=\(selectionAttached) bookmarkCalls=\(bookmarkCalls) bookmarkError=\(bookmarkError ?? "none") modelError=\(model.error ?? "none") selecting=\(model.selectingSSH) page=\(model.page) activeWrites=\(FirstStartWizardModel.activeWrites)"
+        print("First Start SSH accepted-picker diagnostics: "+diagnostics)
+        try require(model.ssh.path == client.path && model.ssh.bookmark != nil,"Accepted client lost security bookmark; "+diagnostics)
+        try require(selectionCalls==1 && selectionAttached && bookmarkCalls==1 && reentered && FirstStartWizardModel.activeWrites==0,"Picker selection/bookmark/reentrant admission or work drain was not exactly once; "+diagnostics)
         binding.wrappedValue = "/after"
         try require(model.ssh.path == client.path, "Consumed picker revived old binding")
-        model.checkSSH(context: model.formContext); try await wait { !model.checkingSSH }
-        try require(model.sshVersion == "OpenSSH_private_fixture", "Bookmarked SSH cannot be inspected")
+        var accepted=model.ssh
+        model.sshPathBinding(context:model.formContext).wrappedValue=client.path
+        try require(model.ssh==accepted,"Unchanged native path publication discarded accepted bookmark")
+        model.checkSSH(context:model.formContext);try await wait{!model.checkingSSH}
+        try require(model.sshVersion=="OpenSSH_private_fixture","Bookmarked SSH cannot be inspected")
+        model.sshPathBinding(context:model.formContext).wrappedValue=client.path
+        model.chooseSSH(.custom,context:model.formContext)
+        try require(model.ssh==accepted && model.sshVersion=="OpenSSH_private_fixture","Unchanged path/client choice discarded inspected program identity")
+        model.editSSHPath(client.path+".changed",context:model.formContext)
+        try require(model.ssh.path==client.path+".changed" && model.ssh.bookmark==nil && model.sshVersion.isEmpty,"Real program edit retained the previous program’s bookmark/inspection")
+        model.browseSSH(context:model.formContext)
+        try await wait{panel?.sheetParent === owner.window && owner.window?.attachedSheet === panel}
+        reply?(.OK)
+        try await wait{!model.selectingSSH && owner.window?.attachedSheet==nil}
+        try require(model.ssh.path==client.path && model.ssh.bookmark != nil,"A fresh picker did not restore the original program grant")
+        accepted=model.ssh
+        model.checkSSH(context:model.formContext);try await wait{!model.checkingSSH}
+        try require(model.sshVersion=="OpenSSH_private_fixture","Freshly accepted original program did not inspect correctly")
+        // A refused bookmark must leave the prior accepted authority repairable.
+        let inspection=model.sshVersion
+        model.selectedSSHURL={_ in client}
+        model.bookmarkSSH={_ in throw NSError(domain:"TurtleGit.FirstStartSSH.Private",code:71,userInfo:[NSLocalizedDescriptionKey:"Private bookmark refusal"])}
+        model.browseSSH(context:model.formContext)
+        try await wait{panel?.sheetParent === owner.window && owner.window?.attachedSheet === panel}
+        reply?(.OK)
+        try await wait{!model.selectingSSH && owner.window?.attachedSheet==nil}
+        try require(model.ssh==accepted && model.sshVersion==inspection && model.error?.contains("Private bookmark refusal")==true,"Bookmark failure replaced accepted authority or hid its error")
+        model.checkSSH(context:model.formContext);try await wait{!model.checkingSSH}
+        try require(model.error==nil && model.ssh==accepted,"Retained bookmark could not recover after picker failure")
         model.skipHelper = true; model.next(context: model.formContext); try await wait { !model.busy }
         try require(SSHClientPreferences.load(from: prefs) == model.ssh && prefs.bool(forKey: "TurtleGit.FirstStartComplete"), "Custom/bookmark not saved on Finish")
     }
     @MainActor static func lifetime(_ root: URL, _ git: URL) async throws {
         let (owner, prefs, client, _, _) = try await seed(root, git), model = owner.model
         var entered = false, release = false
+        defer{release=true}
         model.readSSHVersion = { _, _ in entered = true; while !release { try? await Task.sleep(nanoseconds: 10_000_000) }; return "OpenSSH_late" }
         model.checkSSH(context: model.formContext); try await wait { entered }
         model.cancelSSHCheck()

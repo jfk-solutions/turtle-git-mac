@@ -71,10 +71,13 @@ struct FileOperationProgressTable: NSViewRepresentable {
     var keyboardAvailable=true
     var fileRowIcons=false
     var backgroundIcon:MenuIcon?
-    var actionAvailability:()->Bool = {true}
+    // A supplied live predicate is the authority. The representable's value
+    // snapshot can lag operation settlement or a newly blocked owner until the
+    // next SwiftUI update; combining both can strand a completed result menu.
+    var actionAvailability:(()->Bool)?
     var keyboardAvailability:(()->Bool)?
-    var keyboardAllowed:Bool {keyboardAvailable && (keyboardAvailability?() ?? actionAvailability())}
-    var actionsAllowed:Bool {available && actionAvailability()}
+    var keyboardAllowed:Bool {keyboardAvailability?() ?? actionAvailability?() ?? keyboardAvailable}
+    var actionsAllowed:Bool {actionAvailability?() ?? available}
     var performRow:((FileOperationProgressAction,FileOperationProgressRow)->Void)?
     var perform:(FileOperationProgressAction,String)->Void = {_,_ in}
     func makeCoordinator()->Coordinator {Coordinator(self)}

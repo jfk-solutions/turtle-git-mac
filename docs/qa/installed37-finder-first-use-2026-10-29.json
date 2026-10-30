@@ -15,7 +15,8 @@
     "Created one owned Finder window while preserving preexisting Downloads window",
     "Reached exact private fixture parent through Finder Go to Folder; selected repository folder",
     "Actual Finder context-menu tree exposes TurtleGit Clone, Create repository here, Add to TurtleGit, Settings, Help and About for the unregistered folder",
-    "Services submenu contains Open in TurtleGit; no full duplicate command catalog appeared"
+    "Services submenu contains Open in TurtleGit; no full duplicate command catalog appeared",
+    "On later recovered capture, the visible scrolled menu showed the green TurtleGit Git-shell icon next to TurtleGit"
   ],
   "not_established": [
     "Add registration completion or outside-folder permission prompt",
@@ -27,9 +28,9 @@
   "main_app_process_observed_after_attempt": false,
   "cleanup": {
     "owned_finder_window": "TurtleGit-Acceptance37-3aihxi82",
-    "owned_window_close": "pending safe control recovery",
+    "owned_window_close": "Normal Cmd-W attempted against verified owned window; subsequent cgWindowNotFound; independent closure verification unavailable",
     "private_fixture": "retained unregistered for pending acceptance and scoped cleanup",
-    "user_request": "Async request asks Escape in test menu; no response yet",
+    "user_request": "Answered: No menu is open; prior Escape request resolved",
     "preexisting_downloads_window_untouched": true,
     "finder_restarted": false,
     "signals_sent": false
@@ -38,5 +39,6 @@
     "Accessibility menu text is not proof of icon artwork or execution",
     "No new app/Core/native suite was run for this physical observation",
     "Source pending-control review separately classifies all85 existing pending occurrences without certifying full dialogs"
-  ]
+  ],
+  "control_recovery": "Menu closure was observed before user answered No menu is open; no Escape action is now requested. A recovered capture exposed the long menu and logo, but submenu invocation/navigation did not deliver a command. Normal Cmd-W was attempted only against the verified owned private window; subsequent access returned cgWindowNotFound, so closure was not independently confirmed."
 }

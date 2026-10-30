@@ -8,7 +8,7 @@ import TurtleGitCore
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ condition:Bool,_ message:String) throws { if !condition { throw Failure(description:message) } }
     @MainActor static func descendants(_ view:NSView?)->[NSView] { guard let view else {return []};return [view]+view.subviews.flatMap {descendants($0)} }
-    @MainActor static func wait(_ owner:NSWindow?,line:Int = #line,_ ready:()->Bool) async throws {
+    @MainActor static func wait(_ owner:NSWindow?,line:Int = #line,label:String = "native row identity",_ ready:()->Bool) async throws {
         var settled = 0
         for _ in 0..<2000 {
             try await Task.sleep(nanoseconds:10_000_000)
@@ -16,7 +16,7 @@ import TurtleGitCore
             settled = ready() ? settled + 1 : 0
             if settled == 2 {return}
         }
-        throw Failure(description:"Exact native selection wait at \(line)")
+        throw Failure(description:"Exact native selection wait at \(line): \(label)")
     }
     @MainActor static func main() async { NSApplication.shared.setActivationPolicy(.prohibited);do {try await verify();print("PASS: exact native Commit/Working Tree row IDs, checkbox/highlight/group/menu/refresh identity and owned closure") } catch { fputs("Native exact selection failed: \(error)\n",stderr);exit(1) } }
     @MainActor final class ControlModel:ObservableObject {
@@ -95,12 +95,28 @@ import TurtleGitCore
         CommitFileInteraction.replaceSelection(in:table,with:IndexSet([index(a),index(b)]))
         try await wait(commit.window) {model.selection.count == 2}
         checkbox(a)!.performClick(nil);try await wait(commit.window) {model.checked.count == 2 && checkbox(b)?.state == .on}
+        let focusCheckReceipt = model.fileCheckReceipt
         model.focusedFiles["checkbox"] = a
         let focusedMenu = model.fileMenu(model.selection,mark:a)
         model.focusedFiles["checkbox"] = b
         var staleFocusDispatch = false;model.withFileMenu(focusedMenu) {staleFocusDispatch = true}
         try require(!staleFocusDispatch && GitReferenceName.equal(model.focusedFiles["checkbox"] ?? "",b),"Canonical-only focus replacement retained Commit menu")
-        checkbox(b)!.performClick(nil);try await wait(commit.window) {model.checked.isEmpty && checkbox(a)?.state == .off && checkbox(b)?.state == .off && model.selection.count == 2 && table.selectedRowIndexes.count == 2}
+        try require(model.fileCheckReceipt == focusCheckReceipt,"Pointer focus retired unchanged Commit checkbox row/policy receipt")
+        checkbox(b)!.performClick(nil)
+        do {try await wait(commit.window,label:"immediate checkbox action after exact focus change") {model.checked.isEmpty && checkbox(a)?.state == .off && checkbox(b)?.state == .off && model.selection.count == 2 && table.selectedRowIndexes.count == 2}}
+        catch {
+            print("Checkbox focus diagnostic: checked=\(model.checked.map {Array($0.utf8)}), selected=\(model.selection.map {Array($0.utf8)}), native=\(table.selectedRowIndexes), states=\(checkbox(a)?.state.rawValue ?? -99)/\(checkbox(b)?.state.rawValue ?? -99), enabled=\(checkbox(b)?.isEnabled == true), currentReceipt=\(model.fileCheckReceipt == focusCheckReceipt), available=\(model.fileListAvailable)")
+            throw error
+        }
+        let policyReceipt=model.fileCheckReceipt
+        model.doNotAutoselectSubmodules.toggle();model.doNotAutoselectSubmodules.toggle()
+        let exactB=model.entries.first {GitReferenceName.equal($0.path,b)}!
+        model.setFileChecked(exactB,files:model.visibleEntries,highlighted:model.selection,checked:true,receipt:policyReceipt)
+        try require(model.checked.isEmpty,"Old checkbox receipt revived after a submodule policy round trip")
+        let quitReceipt=model.fileCheckReceipt
+        model.confirmingQuit=true;model.confirmingQuit=false
+        model.setFileChecked(exactB,files:model.visibleEntries,highlighted:model.selection,checked:true,receipt:quitReceipt)
+        try require(model.checked.isEmpty,"Old checkbox receipt revived after a Quit ownership round trip")
         CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:index(b)))
         do { try await wait(commit.window) {model.selection.count == 1 && model.selection.contains(b)} }
         catch {
@@ -117,8 +133,12 @@ import TurtleGitCore
         model.withFileMenu(captured) {dispatched = true};try require(!dispatched,"Canonical-only selection replacement retained old menu")
         CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integer:index(b)))
         try await wait(commit.window) {model.selection.count == 1 && model.selection.contains(b)}
+        let reloadCheckReceipt=model.fileCheckReceipt
         model.reload();try await wait(commit.window) {!model.busy && model.selection.count == 1 && model.selection.contains(b)}
         try await wait(commit.window) {table.selectedRowIndexes.count == 1 && table.selectedRow == index(b)}
+        let refreshedChecks=model.checked
+        model.setFileChecked(exactB,files:model.visibleEntries,highlighted:model.selection,checked:false,receipt:reloadCheckReceipt)
+        try require(model.checked==refreshedChecks,"Old checkbox receipt survived an actual same-row repository reload")
         try require(model.checkedPathsForCommit.count == 1 && model.checkedPathsForCommit.contains(b) && !model.checkedPathsForCommit.contains(a),"Refresh merged checked aliases")
         try await capture(commit.window!,prefix:"commit-file-selection")
         let status = StatusWindowController(repository:repo,access:nil,defaults:prefs),working = status.model

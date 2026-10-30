@@ -6,6 +6,14 @@ import TurtleGitCore
 @MainActor enum RevertResultActionsVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
+    // Reconstruct the immutable value snapshot without changing the real
+    // coordinator, state object, owner callbacks or presentation policy.
+    static func availabilitySnapshot(_ value:FileOperationProgressTable,available:Bool,keyboardAvailable:Bool)->FileOperationProgressTable {
+        FileOperationProgressTable(state:value.state,icon:value.icon,available:available,repository:value.repository,
+            keyboardAvailable:keyboardAvailable,fileRowIcons:value.fileRowIcons,backgroundIcon:value.backgroundIcon,
+            actionAvailability:value.actionAvailability,keyboardAvailability:value.keyboardAvailability,
+            performRow:value.performRow,perform:value.perform)
+    }
     static func wait(line:Int = #line,_ ready:()->Bool)async throws {
         for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Revert result timeout at \(line)")
@@ -31,7 +39,7 @@ import TurtleGitCore
         let index=source.rows.firstIndex{$0.kind == .file && GitReferenceName.equal($0.path,path)}!
         table.selectRowIndexes(IndexSet(integer:index),byExtendingSelection:false)
     }
-    static func menu(_ table:FileOperationProgressNativeTable,line:Int = #line)throws->NSMenu {guard let menu=table.makeMenu() else {let source=try coordinator(table);throw Failure(description:"Native completed Revert popup missing at \(line); selected=\(table.selectedRowIndexes) available=\(source.parent.available) dynamic=\(source.parent.actionAvailability()) rows=\(source.rows.count)")};return menu}
+    static func menu(_ table:FileOperationProgressNativeTable,line:Int = #line)throws->NSMenu {guard let menu=table.makeMenu() else {let source=try coordinator(table);throw Failure(description:"Native completed Revert popup missing at \(line); selected=\(table.selectedRowIndexes) available=\(source.parent.available) dynamic=\(String(describing:source.parent.actionAvailability?())) rows=\(source.rows.count)")};return menu}
     static func item(_ menu:NSMenu,_ title:String)throws->NSMenuItem {guard let item=menu.items.first(where:{$0.title==title}) else{throw Failure(description:"Missing Revert result action "+title)};return item}
     static func invoke(_ item:NSMenuItem) {if let action=item.action {_ = NSApp.sendAction(action,to:item.target,from:item)}}
     static func key(_ window:NSWindow,_ text:String)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:window.windowNumber,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:text=="c" ? 8:0)!}
@@ -119,6 +127,40 @@ import TurtleGitCore
             try require(native.tableColumns.map(\.title)==["Action","Path"],"Revert notification columns diverged")
             model.progress.publishClipboard={text in clipboard.clearContents();clipboard.setString(text,forType:.string)}
             try await select(native,path:first)
+            // Freeze only the representable's value snapshots at the previous
+            // busy state, reproducing the hosted SDK's delayed updateNSView.
+            // All commands still traverse the actual native table/coordinator
+            // and the real model's live admission; no asynchronous wait hides
+            // stale-false or stale-true behavior.
+            let valueSnapshot=source.parent
+            source.parent=availabilitySnapshot(source.parent,available:false,keyboardAvailable:false)
+            let liveMenu=try menu(native),retainedBlocked=try item(liveMenu,"Show Log")
+            invoke(try item(liveMenu,"Copy to Clipboard"))
+            try require(clipboard.string(forType:.string)==first,"Live completed popup was blocked by an old busy snapshot")
+            native.keyDown(with:key(owner.window!,"c"))
+            let liveRow=source.rows[native.selectedRow]
+            try require(clipboard.string(forType:.string)==liveRow.action+": "+first+"  \r\n","Live keyboard Copy was blocked by an old busy snapshot")
+            source.parent=availabilitySnapshot(source.parent,available:true,keyboardAvailable:true)
+            model.confirmingQuit=true
+            try require(native.makeMenu()==nil,"Stale enabled snapshot admitted a Quit-blocked popup")
+            clipboard.clearContents();clipboard.setString("blocked-copy-witness",forType:.string)
+            native.keyDown(with:key(owner.window!,"c"));invoke(retainedBlocked)
+            try require(clipboard.string(forType:.string)=="blocked-copy-witness" && logs.isEmpty,"Stale enabled snapshot dispatched a blocked command")
+            model.confirmingQuit=false;invoke(retainedBlocked)
+            try require(logs.isEmpty,"Rejected once-only popup revived after Quit cancellation")
+            // Static-only consumers retain their independent keyboard policy:
+            // running output may be copied while file actions stay disabled.
+            source.parent.actionAvailability=nil;source.parent.keyboardAvailability=nil
+            source.parent=availabilitySnapshot(source.parent,available:false,keyboardAvailable:true)
+            try require(native.makeMenu()==nil,"Static disabled action fallback was ignored")
+            native.keyDown(with:key(owner.window!,"c"))
+            try require(clipboard.string(forType:.string)==liveRow.action+": "+first+"  \r\n","Independent static keyboard fallback was lost")
+            source.parent=availabilitySnapshot(source.parent,available:true,keyboardAvailable:false)
+            try require(native.makeMenu() != nil,"Static enabled action fallback was ignored")
+            clipboard.clearContents();clipboard.setString("static-keyboard-witness",forType:.string)
+            native.keyDown(with:key(owner.window!,"c"))
+            try require(clipboard.string(forType:.string)=="static-keyboard-witness","Static disabled keyboard fallback was ignored")
+            source.parent=valueSnapshot
             let firstMenu=try menu(native),captions=firstMenu.items.filter{!$0.isSeparatorItem}.map(\.title)
             try require(captions==["Show Log","Open","Open With","Explore to","Copy to Clipboard"],"Completed Revert file popup differs: \(captions)")
             try require(firstMenu.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image != nil},"Revert result source icons missing")
