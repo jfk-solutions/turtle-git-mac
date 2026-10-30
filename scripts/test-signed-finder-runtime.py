@@ -20,7 +20,7 @@ def metafile_request():
     clear=lambda x,y:{'point':[x,y],'min':[0,0,0],'max':[0,0,0],'rgba':[0,0,0,0],'tolerance':0}
     painted_white=lambda x,y:{**white(x,y),'rgba':[255,255,255,255],'tolerance':0}
     cases=[
-        {'name':'clip-vector.wmf','samples':[red(12,12),white(35,35)]},
+        {'name':'clip-vector.wmf','samples':[red(12,12),clear(35,35)]},
         {'name':'classic-vector.emf','samples':[red(12,12),blue(58,12)]},
         {'name':'plus-bitmap-text.emf','samples':[red(12,12),green(28,12)],'svgContains':['Helvetica','TurtleGit','data:image/png;base64,']},
         {'name':'plus-gradient-blend.emf','samples':[red(16,24),blue(80,24),{'point':[48,24],'min':[0.35,0,0.35],'max':[1,0.25,1]}]},
@@ -40,6 +40,29 @@ def metafile_request():
         {'name':'unsupported-wmf-text-dbcs-johab-lead.wmf','samples':[],'refuse':True},
         {'name':'unsupported-wmf-bitmap16-bits-short.wmf','samples':[],'refuse':True},
     ]
+    # One original signed-helper mode4 smoke, not another corpus/model run.
+    # Its eight expected pixels come only from the retained Windows full frame.
+    geometry=json.loads((folder/'Bitmap16Halftone/windows-signed-geometry-2026-10-30.json').read_text())
+    halftone=next(case for case in geometry['cases'] if case['id']=='integer-box')
+    halftone_source_sha='795c8c2e60d7414053003406311eaf2b6a77e631e469ab4dc0ec77bae236645a'
+    halftone_raw_sha='fcde79be7a48c35498fb763409249d13a269ef5071ca64ecfd17f0fb21f96186'
+    halftone_wire=base64.b64decode(halftone['wireBase64'],validate=True)
+    halftone_raw=base64.b64decode(halftone['expectedRGBABase64'],validate=True)
+    halftone_path=folder/'wmf-bitmap16-halftone-integer-box.wmf'
+    if (halftone['frame']!=[64,64] or halftone['sampleRect']!=[0,0,64,64]
+        or halftone['wireSHA256']!=halftone_source_sha or hashlib.sha256(halftone_wire).hexdigest()!=halftone_source_sha
+        or halftone_path.read_bytes()!=halftone_wire or halftone['expectedRGBASHA256']!=halftone_raw_sha
+        or hashlib.sha256(halftone_raw).hexdigest()!=halftone_raw_sha or len(halftone_raw)!=64*64*4):
+        raise ValueError('Original same-wire Windows HALFTONE oracle changed')
+    halftone_samples=[]
+    for y in range(8,10):
+        for x in range(8,12):
+            offset=(y*64+x)*4;expected=list(halftone_raw[offset:offset+4])
+            if expected[3]!=255:raise ValueError('Windows HALFTONE smoke point is no longer opaque')
+            halftone_samples.append({'point':[x,y],'min':[v/255 for v in expected[:3]],
+                                     'max':[v/255 for v in expected[:3]],'rgba':expected,'tolerance':0})
+    cases.append({'name':halftone_path.name,'width':64,'height':64,'samples':halftone_samples,
+                  'windowsRGBAHash':halftone_raw_sha})
     effects=folder/'ImageEffects'
     native=next(case for case in json.loads((effects/'windows-reference.json').read_text())['cases'] if case['file']=='state-seed.emf')
     source_sha='96eab58020dddd6c1f64f2a1b0dbb65c2e77a6f301e20b5354128df6f95bb0f7'
@@ -353,6 +376,15 @@ def main():
                             if alpha.get('source_alpha_retained') is not True or alpha.get('windows_rgba_sha256')!='100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3':raise ValueError('Signed source-alpha proof missing original Windows oracle')
                             observed={(tuple(item.get('point',[])),tuple(item.get('original_windows_rgba',[]))) for item in alpha.get('samples',[])}
                             if observed!={((8,4),(0,0,0,0)),((8,0),(36,8,8,191)),((8,8),(8,8,8,255))}:raise ValueError('Signed source-alpha receipt lost transparent/partial/opaque points')
+                            halftone=next(image for image in images if image['name']=='wmf-bitmap16-halftone-integer-box.wmf')
+                            if (halftone.get('windows_halftone_exact_pixels') is not True
+                                or halftone.get('windows_rgba_sha256')!='fcde79be7a48c35498fb763409249d13a269ef5071ca64ecfd17f0fb21f96186'
+                                or halftone.get('width')!=64 or halftone.get('height')!=64):
+                                raise ValueError('Signed HALFTONE smoke lost original same-wire Windows proof')
+                            halftone_points=halftone.get('samples',[])
+                            if (len(halftone_points)!=8 or {tuple(item.get('point',[])) for item in halftone_points}!={(x,y) for y in range(8,10) for x in range(8,12)}
+                                or any(item.get('rgba_tolerance')!=0 or item.get('premultiplied_rgba')!=item.get('original_windows_rgba') for item in halftone_points)):
+                                raise ValueError('Signed HALFTONE smoke did not preserve all eight exact RGBA points')
                             johab=next(image for image in images if image['name']=='wmf-text-dbcs-single-johab.wmf')
                             if johab.get('native_fallback_outline') is not True or johab.get('fallback_coverage',0)<=0.9:raise ValueError('Signed Johab did not paint the actual native fallback outline')
                     finally:

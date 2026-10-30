@@ -35,6 +35,8 @@ missing source behavior, reported defect or failing check.
   installed with build38 preserved for rollback; owner acceptance remains open. Public
   distribution and the later App Store submission remain separate, including
   distribution signing and the unresolved GPL/App Store terms gate.
+  [Consolidated build40](qa/signed-consolidation-build40-2026-10-30.json) is now
+  packaged with focused signed-helper and ZIP checks; it has not replaced build39.
 
 The [current first-use Finder observation](qa/installed37-finder-first-use-2026-10-29.json)
 verified the intended unregistered-folder menu and reduced Services entry. The

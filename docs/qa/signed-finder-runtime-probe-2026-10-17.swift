@@ -23,7 +23,7 @@ import TurtleGitCore
         NSApplication.shared.setActivationPolicy(.prohibited)
         guard let payload=Data(base64Encoded:encoded),payload.count<=192*1024 else {throw Failure(description:"Invalid bounded metafile payload")}
         let inputs=try JSONDecoder().decode([MetafileCase].self,from:payload)
-        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf","state-seed.emf"]
+        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-halftone-integer-box.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf","state-seed.emf"]
         try require(inputs.count==required.count && Set(inputs.map(\.name))==required,"Incomplete signed metafile family")
         let helper=try MetafileImageDecoder.executable(),resolved=helper.resolvingSymlinksInPath()
         try require(resolved.deletingLastPathComponent()==Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS"),"Metafile helper escaped the signed MacOS directory")
@@ -128,9 +128,17 @@ import TurtleGitCore
                 }
                 entry["width"]=width;entry["height"]=height;entry["samples"]=samples;entry["svg_bytes"]=svg.count;entry["consumer_loaded"]=true
                 if let oracle=input.windowsRGBAHash {
-                    try require(input.name=="state-seed.emf" && oracle=="100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3","Unexpected Windows alpha oracle")
-                    try require(input.samples.count==3 && Set(input.samples.compactMap{$0.rgba?.last})==Set([0,191,255]),"Missing transparent/partial/opaque alpha samples")
-                    entry["windows_rgba_sha256"]=oracle;entry["source_alpha_retained"]=true
+                    if input.name == "state-seed.emf" {
+                        try require(oracle=="100bd7a6901f7ce4dd60febb660b70543fd852b70234d509ee9d5948b15d43d3","Unexpected Windows alpha oracle")
+                        try require(input.samples.count==3 && Set(input.samples.compactMap{$0.rgba?.last})==Set([0,191,255]),"Missing transparent/partial/opaque alpha samples")
+                        entry["source_alpha_retained"]=true
+                    } else {
+                        try require(input.name=="wmf-bitmap16-halftone-integer-box.wmf" && input.sha256=="795c8c2e60d7414053003406311eaf2b6a77e631e469ab4dc0ec77bae236645a" && oracle=="fcde79be7a48c35498fb763409249d13a269ef5071ca64ecfd17f0fb21f96186","Unexpected Windows HALFTONE oracle")
+                        let points=Set(input.samples.map{$0.point.map(String.init).joined(separator:",")})
+                        try require(width==64 && height==64 && input.samples.count==8 && points==Set(["8,8","9,8","10,8","11,8","8,9","9,9","10,9","11,9"]) && input.samples.allSatisfy{$0.tolerance==0 && $0.rgba?.count==4 && $0.rgba?.last==255},"Missing exact Windows HALFTONE points")
+                        entry["windows_halftone_exact_pixels"]=true
+                    }
+                    entry["windows_rgba_sha256"]=oracle
                 }
             }
             if input.deadline == true {

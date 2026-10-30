@@ -7,7 +7,24 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Installed local testing build33
+## Prepared signed local testing build40
+
+[Signed build40](qa/signed-consolidation-build40-2026-10-30.json), `0.1.0 (40)`,
+is packaged from clean source `3ef55703`. Its universal build, strict code seals,
+frozen inputs, 96 bundled Help source members and 6,382-member ZIP round trip
+pass. A disposable signed sandbox parent executes packaged Git and 19 metafile
+cases, including eight exact Windows HALFTONE pixels. All observed helpers and
+probe parents drained without forced cleanup. These checks do not exercise the
+shipping GUI or physical Finder integration.
+
+The local package is `TurtleGit-for-Mac-0.1.0-build40-signed.zip`, SHA-256
+`6bfc1ac06e25c83beb8facffe0793c997dba86eb3d16f2afa07692a18f1e5670`.
+It has not been installed or publicly uploaded. Installed build39 and the system's
+TurtleGit application/URL resolution remain unchanged. The package is for local
+Apple Development testing; it is not notarized or submitted to the App Store.
+Current-source hosted CI and final acceptance remain open.
+
+## Historical local testing build33
 
 [Signed build33](qa/signed-consolidation-build33-2026-10-29.json), version
 `0.1.0 (33)`, was built from clean source `4daef1a3`. It includes the three Unified
@@ -30,7 +47,7 @@ The workspace was visually confirmed; physical installed workflows,
 Intel/minimum-macOS execution, complete hosted CI and full-port acceptance remain
 separate.
 
-## Current installed local checkpoint — 29 October 2026
+## Historical installed checkpoint — 29 October 2026
 
 [Signed build32](qa/signed-consolidation-build32-2026-10-29.json), version
 `0.1.0 (32)`, was installed from clean source `144fdf78`. It adds retained-byte

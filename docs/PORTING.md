@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Prepared local testing package40
+
+[Signed build40](qa/signed-consolidation-build40-2026-10-30.json), `0.1.0 (40)`,
+consolidates the current source and Help from clean revision `3ef55703`.
+Universal signing, frozen inputs, packaged Help, focused signed-parent Git and
+19-case metafile execution, and all 6,382 recorded ZIP round-trip members pass.
+The metafile phase includes eight exact captured Windows HALFTONE pixels.
+An inapplicable unsigned-validator invocation is retained separately; signed
+helper execution passed through its actual sandbox parent. All probe parents and
+observed helpers are absent, with no forced cleanup.
+
+Build40 is packaged for local testing and has not been installed or publicly
+released. Build39 remains installed and selected for TurtleGit application/URL
+handling. Full current-source hosted CI and remaining dialog/end-to-end
+acceptance are open; this checkpoint does not certify the complete port or
+App Store distribution.
+
 ## Installed local testing build39
 
 [Signed build39](qa/signed-consolidation-build39-2026-10-30.json), `0.1.0 (39)`,

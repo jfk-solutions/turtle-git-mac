@@ -1,0 +1,168 @@
+{
+  "date": "2026-10-30",
+  "recorded_utc": "2026-10-30T20:17:50.861795+00:00",
+  "status": "packaged-signed-local-testing-build40-not-installed-not-release-certification",
+  "version": "0.1.0",
+  "build": "40",
+  "source_commit": "3ef55703839b4c112a60faaf682e47ffab20b120",
+  "source_input_sha256": "3a627d2063113d1b3ca5febf8866cecbb3d3dbce075cc83649057cb67b9ebbd7",
+  "source_scope": "Clean detached source snapshot; the two unrelated main-worktree edits were excluded and left untouched. Later external probe-only edits are identified separately.",
+  "consolidates": [
+    "Existing build39 Classic Commit header/message isolation and first-use Finder permission targeting.",
+    "Modern CoreSpotlight Help index and updated activation/authorization/staging instructions.",
+    "Measured WMF Bitmap16 sampling, source-DC SetPixel and transparent prepaint behavior.",
+    "Correct inclusive enhanced-metafile export header bounds for Statistics and Revision Graph.",
+    "Current native CI readiness/artifact-isolation corrections, with their original failures retained."
+  ],
+  "signed_build": {
+    "attempts": [
+      {
+        "exit": 0,
+        "elapsed_seconds": 492.356,
+        "log": "build/qa/signed40-build-2026-10-30.log"
+      }
+    ],
+    "contradictory_compiler_errors": 0,
+    "required_owned_components": 8,
+    "architectures": {
+      "Contents/MacOS/TurtleGitMac": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/MacOS/TurtleGitWCRev": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitCore.framework/TurtleGitCore": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Frameworks/TurtleGitSMTP.framework/TurtleGitSMTP": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Library/LaunchServices/TurtleGitCache.app/Contents/MacOS/TurtleGitCache": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/SSHAskpass/TurtleGitSSHAskpass": [
+        "x86_64",
+        "arm64"
+      ],
+      "Contents/Helpers/GitAskpass/TurtleGitGitAskpass": [
+        "x86_64",
+        "arm64"
+      ]
+    },
+    "strict_deep_seal": true,
+    "runtime_layout_code_entries": 206,
+    "source_inputs_unchanged": true,
+    "packaged_help_source_members": 96,
+    "packaged_help_source_equal": true,
+    "standard_xcode_launchservices_registration": [
+      "RegisterWithLaunchServices /Users/jkuehner/.codex/worktrees/turtlegit-signed40/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitCache.app (in target 'TurtleGitCache' from project 'TurtleGitMac')",
+      "RegisterWithLaunchServices /Users/jkuehner/.codex/worktrees/turtlegit-signed40/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app (in target 'TurtleGitMac' from project 'TurtleGitMac')"
+    ],
+    "retained_postbuild_failure": {
+      "log": "build/qa/signed40-static-2026-10-30.log",
+      "cause": "Unsigned runtime validator directly invoked inherited-sandbox Git from unsandboxed Python; SIGTRAP is outside its supported execution context. Build succeeded; sealed execution is checked by sandbox parent instead."
+    },
+    "execution_validation": "Inherited-sandbox helpers were exercised through a signed sandbox parent, not the unsigned-runtime validator."
+  },
+  "sealed_probe": {
+    "passed": true,
+    "phases": [
+      "local-tools",
+      "metafile"
+    ],
+    "report": "build/qa/signed40-local-tools-metafile-2026-10-30.json",
+    "packaged_core_sha256": "4087a12ea2af9a8f3ad771c35c80f5d55d81dc6856da48247f5af8b1011aa42d",
+    "external_probe_source_sha256": "59f14e2cfc25fad9c21f7e2dfad27908d0a2a011a3956acb69d402513e89703d",
+    "external_wrapper_sha256": "e09ffbcd498ab8d149c30ccd1cac2d9942b246586b9a1c42d4c13be77002bbbb",
+    "scope": "Disposable uniquely identified signed sandbox parent clones; production public Core, packaged Git and actual Metafile helper. No shipping GUI, outside folder grants, Finder activation, real service registration or signed x86_64 execution.",
+    "metafile_cases": 19,
+    "metafile_exact_windows_halftone_points": 8,
+    "all_original_case_assertions_retained": true,
+    "local_tools_helper_processes": 3,
+    "metafile_helper_processes": 23,
+    "helper_groups_drained": true,
+    "forced_cleanup_needed": false,
+    "parent_pids_reaped_and_independently_absent": [
+      8707,
+      8712,
+      8997,
+      9104
+    ],
+    "observed_helper_pids_independently_absent": [
+      8803,
+      8933,
+      8979,
+      9002,
+      9009,
+      9012,
+      9015,
+      9019,
+      9021,
+      9026,
+      9028,
+      9032,
+      9040,
+      9043,
+      9048,
+      9055,
+      9057,
+      9060,
+      9063,
+      9065,
+      9068,
+      9075,
+      9080,
+      9091,
+      9096,
+      9099
+    ],
+    "original_metafile_fixtures_unchanged": true
+  },
+  "package": {
+    "directory": "build/local-testing/TurtleGit-for-Mac-0.1.0-build40-signed",
+    "zip": "TurtleGit-for-Mac-0.1.0-build40-signed.zip",
+    "zip_bytes": 423238128,
+    "zip_sha256": "6bfc1ac06e25c83beb8facffe0793c997dba86eb3d16f2afa07692a18f1e5670",
+    "main_sha256": "d9f27a9a8cef0d31bf7fb3ca37b4203aa24e031f2ac8961f7c912636220e5a02",
+    "inventory_members": 6382,
+    "source_copy_roundtrip_inventory_equal": true,
+    "strict_copy_and_roundtrip_seals": true,
+    "license_notice_start_here_manifest_and_checksum_included": true
+  },
+  "installation": {
+    "status": "not performed",
+    "installed_build": "39",
+    "installed_main_sha256": "e182c8897b80adc1c95e14651d7a5685c95e8ff21bc5ef1becf80c60585f5808",
+    "main_ui_launched": false,
+    "user_app_signals_sent": false,
+    "finder_or_dock_restarted": false,
+    "default_application_readback": {
+      "application_for_bundle_id": "/Applications/TurtleGit for Mac.app",
+      "application_for_turtlegit_url": "/Applications/TurtleGit for Mac.app",
+      "installed_path": "/Applications/TurtleGit for Mac.app",
+      "read_only": true
+    }
+  },
+  "hosted_ci": {
+    "source_commit": "3ef55703839b4c112a60faaf682e47ffab20b120",
+    "macos_run": 41118907375,
+    "macos_status": "pending at packaging",
+    "pages_run": 41118907324,
+    "pages_conclusion": "success"
+  },
+  "remaining": [
+    "Complete hosted macOS CI on the accepted source.",
+    "Owner acceptance of the consolidated signed main UI and remaining dialog/state/layout/keyboard/accessibility requirements.",
+    "Physical Intel/minimum-macOS, broader signed grants/external integrations and full-port acceptance remain separate.",
+    "No public binary upload, notarization, App Store submission or licensing clearance is implied."
+  ]
+}
