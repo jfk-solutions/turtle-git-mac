@@ -1,0 +1,85 @@
+name: Independent WMF GDI+ interpolation identity reference
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent interpolation-mode identity observer
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-interpolation-identity-reference-2026-10-30\InterpolationIdentityReference.cpp
+          /Fe:InterpolationIdentityReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Validate selected immutable wires and observe direct profiles
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $inputFolder = 'docs/qa/metafile-interpolation-identity-reference-2026-10-30'
+          $inputs = @(Import-Csv "$inputFolder/inputs.tsv" -Delimiter "`t")
+          if ($inputs.Count -ne 6) { throw 'Selected immutable input inventory differs' }
+          $identities = @('b33', 'b66', 'b498', 'b528', 'b310', 'continuity')
+          foreach ($wire in $inputs) {
+            if ($wire.name -notin $identities -or $wire.file -ne "$($wire.name).wmf") { throw 'Unexpected input path' }
+            if ((Get-FileHash "$inputFolder/$($wire.file)" -Algorithm SHA256).Hash.ToLowerInvariant() -ne $wire.sha256) { throw 'Retained wire bytes differ' }
+          }
+          ./InterpolationIdentityReference.exe $inputFolder identity-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $m = Get-Content -Raw identity-output/interpolation-identity-observations.json | ConvertFrom-Json
+          if ($m.requestedInputCount -ne 6 -or $m.controls.Count -ne 6 -or -not $m.allRetainedTargetsPassed) { throw 'WMF target controls failed before direct observations' }
+          foreach ($control in $m.controls) {
+            $retained = @($inputs | Where-Object { $_.name -eq $control.name })
+            if ($retained.Count -ne 1 -or -not $control.retainedTargetPassed -or $control.targetRGBAHex -ne $retained[0].targetRGBAHex) { throw 'Retained target RGBA differs' }
+            if (-not $control.prepaintTargetPassed -or $control.prepaintTargetRGBAHex -ne $retained[0].prepaintTargetRGBAHex -or $control.prepaintExpectedRGBAHex -ne $retained[0].prepaintTargetRGBAHex) { throw 'Removed-blit target differs from independent known backdrop' }
+            if (-not $control.backgroundEvidencePassed -or $control.backgroundEvidenceReadErrors -ne 0 -or $control.backgroundEvidenceRGBAHex -ne $retained[0].backgroundEvidenceRGBAHex -or $control.backgroundEvidenceRawSHA256 -ne $retained[0].backgroundEvidenceRawSHA256 -or $control.backgroundEvidencePoints -ne $retained[0].backgroundEvidencePoints) { throw 'Retained outside-transfer backdrop evidence differs' }
+            if ($control.inputSHA256 -ne $retained[0].sha256 -or $control.retainedSourceCommit -ne $retained[0].sourceCommit -or $control.retainedSourceRun -ne $retained[0].sourceRun) { throw 'Retained target provenance differs' }
+            if ($control.loadStatusAfterRawFormat -ne 0 -or $control.drawStatus -ne 0 -or $control.targetReadErrors -ne 0 -or $control.intrinsicTargetReadErrors -ne 0) { throw 'Retained consumer did not produce observable target pixels' }
+          }
+          if ($m.requestedProfileCount -ne 576 -or $m.capturedProfileCount -ne 576 -or $m.profiles.Count -ne 576 -or $m.profilesPerInput -ne 96 -or $m.sourceFormatCount -ne 18 -or -not $m.allSourceFormatsReady -or -not $m.allDirectGeometryReady) { throw 'Direct source/profile inventory differs' }
+          $seen = @{}
+          foreach ($profile in $m.profiles) {
+            $wire = @($inputs | Where-Object { $_.name -eq $profile.input })
+            if ($wire.Count -ne 1 -or $profile.sourceFormat -notin @('24RGB', '32RGB', 'opaque32ARGB') -or $profile.interpolationRequested -notin 0..7 -or $profile.pixelOffsetRequested -notin @(3, 4) -or $profile.wrapRequested -notin @(3, 4)) { throw 'Unknown direct observation profile' }
+            $key = "$($profile.input):$($profile.sourceFormat):$($profile.interpolationRequested):$($profile.pixelOffsetRequested):$($profile.wrapRequested)"
+            if ($seen.ContainsKey($key)) { throw 'Duplicate direct profile' }
+            $seen[$key] = $true
+            $targetHexLength = [int]$wire[0].width * [int]$wire[0].height * 8
+            if ($profile.targetRGBAHex.Length -ne $targetHexLength -or $profile.naturalTargetRGBAHex.Length -ne $targetHexLength) { throw 'Truncated direct target RGBA' }
+            if (-not $profile.sourceReady -or $profile.sourceWriteErrors -ne 0 -or $profile.sourceReadErrors -ne 0 -or $profile.sourceRGBAErrors -ne 0) { throw 'Decoded direct source differs from retained BGRX RGB' }
+            foreach ($dpi in @($profile.sourceDPI, $profile.canvasDPI)) {
+              if (-not $dpi.ready -or $dpi.setStatus -ne 0 -or $dpi.xReadStatus -ne 0 -or $dpi.yReadStatus -ne 0 -or $dpi.x -ne 96 -or $dpi.y -ne 96) { throw 'Direct bitmap DPI differs from explicit96 policy' }
+            }
+            $page = $profile.directPage
+            if (-not $profile.directGeometryReady -or -not $page.ready -or $page.requestedUnitName -ne 'UnitPixel' -or $page.actualUnit -ne $page.requestedUnit -or $page.actualScale -ne 1 -or $page.unitSetStatus -ne 0 -or $page.scaleSetStatus -ne 0 -or $page.unitReadStatus -ne 0 -or $page.scaleReadStatus -ne 0 -or $page.dpiXReadStatus -ne 0 -or $page.dpiYReadStatus -ne 0 -or $page.dpiX -ne 96 -or $page.dpiY -ne 96) { throw 'Direct destination page unit, scale or DPI is not the explicit pixel policy' }
+            # Mode statuses, requested/actual aliases, target differences and
+            # any match are observations. No interpolation mode is required
+            # to match, and no component tolerance or fitted kernel is used.
+          }
+          if ($seen.Count -ne 576) { throw 'Missing direct profile' }
+          if ((Get-ChildItem identity-output -File | Measure-Object Length -Sum).Sum -ge 10MB) { throw 'Identity output exceeds10MiB before provenance' }
+      - name: Record immutable sources and Windows GDI+ runtime provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force identity-output | Out-Null
+          git rev-parse HEAD | Set-Content identity-output/source-revision.txt
+          cl 2>&1 | Out-File identity-output/compiler.txt
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content identity-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content identity-output/runtime-versions.json
+          Copy-Item docs/qa/metafile-interpolation-identity-reference-2026-10-30/inputs.tsv identity-output/retained-inputs.tsv
+          $files = @(Get-ChildItem identity-output -File) + @(Get-ChildItem docs/qa/metafile-interpolation-identity-reference-2026-10-30 -File) + @(Get-Item .github/workflows/metafile-interpolation-identity-reference.yml)
+          if (Test-Path InterpolationIdentityReference.exe) { $files += Get-Item InterpolationIdentityReference.exe }
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content identity-output/sha256.json
+          if ((Get-ChildItem identity-output -File | Measure-Object Length -Sum).Sum -ge 10MB) { throw 'Identity output exceeds10MiB with provenance' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-interpolation-identity-windows-reference
+          path: identity-output
+          if-no-files-found: error
+          retention-days: 30
