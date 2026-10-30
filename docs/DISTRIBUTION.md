@@ -7,7 +7,24 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Prepared signed local testing build40
+## Installed signed local testing build41
+
+[Signed build41](qa/signed-consolidation-build41-2026-10-30.json), `0.1.0 (41)`,
+is installed from clean source `87701028`, with a complete build39 rollback copy.
+Its frozen inputs, strict signatures, eight universal app components, 206 runtime
+entries, exact Help resources and 6,382-member ZIP/install inventories pass.
+A focused signed sandbox check executes the actual packaged Core/Git local-tools
+workflow. The installed GUI was separately checked for Commit header stability,
+Stage/Unstage gestures, Log inspection and Settings/Remote dismissal behavior in
+a private repository; all owned windows/processes were closed afterward.
+
+The local archive is `TurtleGit-for-Mac-0.1.0-build41-signed.zip`, SHA-256
+`8a9fbf4e8f4bffb9713893b2a40cd93f1b75b0fdea008dcfe06dbb62c2b690f0`.
+It is an Apple Development testing package. No public binary upload,
+notarization or App Store submission was performed. Full current-source hosted
+CI and the remaining acceptance/distribution gates are still required.
+
+## Historical prepared signed local testing build40
 
 [Signed build40](qa/signed-consolidation-build40-2026-10-30.json), `0.1.0 (40)`,
 is packaged from clean source `3ef55703`. Its universal build, strict code seals,
@@ -19,8 +36,8 @@ shipping GUI or physical Finder integration.
 
 The local package is `TurtleGit-for-Mac-0.1.0-build40-signed.zip`, SHA-256
 `6bfc1ac06e25c83beb8facffe0793c997dba86eb3d16f2afa07692a18f1e5670`.
-It has not been installed or publicly uploaded. Installed build39 and the system's
-TurtleGit application/URL resolution remain unchanged. The package is for local
+It was not installed or publicly uploaded. The then-installed build39 and the
+system's TurtleGit application/URL resolution remained unchanged. The package is for local
 Apple Development testing; it is not notarized or submitted to the App Store.
 Current-source hosted CI and final acceptance remain open.
 

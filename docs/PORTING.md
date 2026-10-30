@@ -1,6 +1,27 @@
 # TurtleGit for Mac — full port tracking
 
-## Prepared local testing package40
+## Installed local testing build41
+
+[Signed build41](qa/signed-consolidation-build41-2026-10-30.json), `0.1.0 (41)`,
+is installed from clean source `87701028`. It includes the Commit column-ownership
+and Finder encoding batch. Frozen inputs, strict seals, eight universal app-owned
+components, all 206 runtime layout entries, 96 Help source members and the
+6,382-member ZIP/install inventory checks pass. One signed sandbox parent
+executes the packaged local-tools public-Core workflow; it does not exercise
+Finder or shipping UI.
+
+A separate installed acceptance session verifies Classic row selection/message
+editing, initial saved columns, actual Git Gui double-click Stage/Unstage,
+interface return, Log commit/file selection and read-only comparison, the bordered
+Remote list, and Settings Cancel/OK. Only a private repository was changed; its
+index/preferences/registration were restored and the app quit normally. The
+first ready workspace observation followed the folder-open action by about
+9.3 seconds including tool overhead; this is not a general startup benchmark.
+Build39 is preserved for rollback. Current-source hosted CI, wider Finder/large
+repository acceptance and the remaining full-port requirements remain open.
+No public binary release, notarization or Store submission occurred.
+
+## Historical prepared local testing package40
 
 [Signed build40](qa/signed-consolidation-build40-2026-10-30.json), `0.1.0 (40)`,
 consolidates the current source and Help from clean revision `3ef55703`.
@@ -11,13 +32,12 @@ An inapplicable unsigned-validator invocation is retained separately; signed
 helper execution passed through its actual sandbox parent. All probe parents and
 observed helpers are absent, with no forced cleanup.
 
-Build40 is packaged for local testing and has not been installed or publicly
-released. Build39 remains installed and selected for TurtleGit application/URL
-handling. Full current-source hosted CI and remaining dialog/end-to-end
+At that checkpoint build40 was packaged without installation or public release.
+Build39 remained selected for TurtleGit application/URL handling. Full current-source hosted CI and remaining dialog/end-to-end
 acceptance are open; this checkpoint does not certify the complete port or
 App Store distribution.
 
-## Installed local testing build39
+## Historical installed local testing build39
 
 [Signed build39](qa/signed-consolidation-build39-2026-10-30.json), `0.1.0 (39)`,
 is installed from source `fa5f05fe`. It isolates Classic Commit's file-table

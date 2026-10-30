@@ -12,18 +12,17 @@ not additional implementation milestones. A new batch must address a concrete
 missing source behavior, reported defect or failing check.
 
 - [x] Finish and validate the [Clone/Init/Submodule Add/Switch/Reset batch](qa/repository-setup-transitions-2026-10-29.json).
-- [ ] Accept the installed everyday workflows: Finder cold Commit launch and
-  registration/badges; responsive Commit loading and stable staging lists;
-  selecting a Log commit and inspecting its files; Settings OK/Cancel and remotes.
-  The [partial build35 check](qa/installed35-workflows-2026-10-29.json) verified
-  staging transfers, Log inspection and Remote selection. It found live cache
-  contention. Build36 verified Settings OK/Cancel and Remote selection; Finder
-  retirement still performed a costly warm-cache rewrite. The owner subsequently
-  [accepted build38 Finder registration, badges and cold Commit launch](qa/owner-acceptance-build38-2026-10-30.json).
-  Build39 includes the first-use permission-picker targeting and Classic Commit
-  typing/header refresh corrections; owner acceptance of those changes remains
-  open. The private fixture
-  permission was removed and test apps quit normally.
+- [x] Verify the reported installed Commit selection/typing/staging, Log inspection,
+  Remote list and Settings OK/Cancel paths in a private repository. The
+  [build41 checkpoint](qa/signed-consolidation-build41-2026-10-30.json) records
+  the actual gestures, exact bytes and cleanup, including bounded startup
+  observations rather than a general latency claim.
+- [ ] Complete current first-use Finder grants/registration/badges/cold commands
+  and representative large-repository latency acceptance. The owner
+  [accepted build38 Finder registration, badges and cold Commit](qa/owner-acceptance-build38-2026-10-30.json);
+  that feedback remains scoped to its tested version/repository. Build41 carries
+  the later permission-picker targeting and cache improvements; its private
+  workspace check does not establish every Finder/grant combination.
 - [ ] Obtain a complete hosted macOS CI pass on the release source and repair
   concrete failures without repeatedly running unrelated local suites.
 - [ ] Close the explicit source/layout gaps in the family records and establish
@@ -31,28 +30,24 @@ missing source behavior, reported defect or failing check.
   counts alone do not complete this requirement.
 - [ ] Check the accepted build's README, license/source notices, manual, offline
   Help and screenshot website together; keep publisher credit unobtrusive.
-- [x] Deliver the signed local testing package for owner acceptance. Build39 is
-  installed with build38 preserved for rollback; owner acceptance remains open. Public
-  distribution and the later App Store submission remain separate, including
-  distribution signing and the unresolved GPL/App Store terms gate.
-  [Consolidated build40](qa/signed-consolidation-build40-2026-10-30.json) is now
-  packaged with focused signed-helper and ZIP checks; it has not replaced build39.
+- [x] Deliver and install the [signed local testing build41](qa/signed-consolidation-build41-2026-10-30.json).
+  Build39 is preserved for rollback. Owner testing, public distribution and the
+  later App Store submission remain separate, including distribution signing
+  and the unresolved GPL/App Store terms gate.
 
-The later [installed build39 acceptance attempt](qa/installed39-startup-commit-2026-10-30.json)
-found a concrete large-cache startup blocker and a native Commit column-set
-transition. The owner also reports header movement when selecting files. These
-are active product defects; earlier scoped checks did not close them. Build40
-contains the same relevant source, so its package does not establish that these
-reported problems are fixed. The connected ordering and column-ownership batch
-now has a [passing grouped checkpoint](qa/commit-columns-cache-scale-2026-10-30.json).
-The next signed consolidation must include it and establish actual installed
-header stability and startup responsiveness; private timings do not close that gate.
+The [installed build39 attempt](qa/installed39-startup-commit-2026-10-30.json)
+found the large-cache startup delay and native Commit column-set transition.
+The [ordering and column-ownership checkpoint](qa/commit-columns-cache-scale-2026-10-30.json)
+records the repair and retained failures. Installed build41 now verifies stable
+initial/selected/edited columns and staging lists in the private workflow. Its
+first ready workspace observation was about 9.3 seconds including automation
+overhead; representative large-repository timing remains an explicit gate.
 
 The [hosted compatibility repair batch](qa/ci-host-compatibility-2026-10-30.json)
 records the SSH bookmark host identity, Settings color-control lifecycle and
 pinned Unicode source-loader failures together. Its focused local checks do not
-replace the required complete hosted macOS pass. The installed build39 and
-packaged build40 are unchanged by these verification-source repairs.
+replace the required complete hosted macOS pass. These verification-source repairs are included in the build41 source checkpoint;
+the required current hosted macOS pass remains open.
 
 The [current first-use Finder observation](qa/installed37-finder-first-use-2026-10-29.json)
 verified the intended unregistered-folder menu and reduced Services entry. The
@@ -316,8 +311,8 @@ Both owned app processes exited, and repository HEAD/index were unchanged.
 | --- | --- |
 | Source behavior and layout | [Family records](PORTING.md#current-component-and-workflow-state--october-25-2026) describe connected implementations. The [resource ledger](DIALOG-COVERAGE.md) keeps partial controls and unmapped platform/example resources explicit. Complete dialog states, command eligibility, layout, keyboard and accessibility acceptance must be established from their actual consumers, rather than counting screens. |
 | Connected workflow defects | Commit cross-presentation workflows have a [grouped checkpoint](qa/commit-presentation-workflows-2026-10-29.json). Explicit working-file Compare/conflict intent, captured requesting-repository routing, and Browser read-to-panel/launch ownership now pass their [connected native checkpoint](qa/file-comparison-browser-ownership-2026-10-29.json) with both Git engines and affected regressions. Explicit unchanged-file, copy/rename, Amend first-parent and added/deleted gitlink comparisons pass their [content checkpoint](qa/working-file-content-selection-2026-10-29.json), including read-only index preservation. The later [Log file inspection checkpoint](qa/log-streamed-file-navigation-2026-10-29.json) covers historical navigation and delivery during streamed history; its shared list-control regression is recorded separately. Current Commit screenshots cover both layouts and appearances; signed workflow acceptance remains separate. |
-| Current hosted integration | The [dated Commit failure record](qa/commit-option-observers-2026-10-28.json) records a hosted Core stage with 3,153 methods, two skips and no failures, followed by a native Commit observer failure. Its local repair passes both Git engines; that is not a full hosted pass. The later [hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40709146937) failed the Amend option observer assertion; the following [Commit option workflow repair](qa/commit-option-workflow-2026-10-28.json) aligns eleven native option routes and passes the focused menu/shared-handler family with both Git engines. The invisible receiver cannot dispatch actual checkbox actions; build27 separately verifies basic physical Amend checkbox behavior in both views, with broader option/lifecycle acceptance still open. The later [hosted run 40734366346](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40734366346) failed an outdated exact initial loading-caption assertion. The [October 29 caption checkpoint](qa/commit-loading-caption-2026-10-29.json) preserves busy/phase ownership and passes the affected Commit family with both Git engines. The older-source [run 40781174821](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40781174821) completed 3,201 Core methods with two skips and zero failures, then failed the same outdated initial-loading caption assertion; the recorded later caption repair remains local evidence. The later [run 40801565372](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40801565372) on `adbf6be7` passed 3,222 Core methods with two skips, then failed the first conflict-pane header activation assertion. The [header continuation](MERGE-PANE-HEADER-PARITY.md#activation-result-and-mounted-pane-ownership--october-29-2026) distinguishes actual native-render readiness from the production focus/admission repair. The subsequent [run 40809282544](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40809282544) on `a38bdba6` passed 3,228 Core methods with two skips and both Compare engines, then failed that same conflict header activation assertion. Its older source predates the recorded header repair; the later complete hosted workflow remains unproven. The later [run 40830336479](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40830336479) on `c366f2b3` ran 3,234 Core methods with two skips and 326 failed assertions in two metafile methods. The [canvas-bounds continuation](METAFILE-CANVAS-BOUNDS-PARITY.md) corrects the physical-frame/device-bound conflation and recorded-Plus classification without changing expected pixels or tolerances. A complete macOS workflow on the release source remains required. The later [run 40863559740](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/40863559740) on `59351fd7` passed 3,245 Core methods with two skips and no failures, then timed out saving a required standalone Merge output: default AutoAdd opened a repository chooser for a plain non-Git folder. The [AutoAdd completion continuation](MERGE-AUTOADD-COMPLETION-PARITY.md) addresses that end-user policy and retains sandbox-unknown authority. Its local checkpoint does not establish a complete hosted pass. Pages success does not certify the app. |
-| Installed workflow acceptance | Earlier signed physical checks cover specific private workflows, not every current source batch. Repeat the relevant installed Commit/Log/comparison/replay/Settings paths after consolidation, including error, cancellation and reopen behavior. Build27's static checks and older focused sandbox evidence do not replace those checks. |
+| Current hosted integration | The release source is `87701028`, packaged and installed as build41. Its [macOS run 41129980751](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41129980751) has passed its runtime bootstrap and started four validation lanes at this checkpoint; the remaining lanes are queued. Earlier-source failures have bounded local repairs in the linked family records, including the [hosted compatibility batch](qa/ci-host-compatibility-2026-10-30.json); those do not establish a full hosted pass. Pages success does not certify the app. Older run failures and repairs remain in their dated records and source history. |
+| Installed workflow acceptance | [Build41 installed acceptance](qa/signed-consolidation-build41-2026-10-30.json) covers the reported Commit headers, actual staging transfers, Log file comparison, Remote selection and Settings dismissal in one private repository. Wider completion/recovery, first-use Finder/grants and representative large-repository behavior remain separate. |
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
 | Startup and large repositories | [Finder publication](qa/finder-publication-pipeline-2026-10-27.json) and [shared Commit reads](qa/commit-shared-display-read-2026-10-27.json) have measured improvements. Complete installed startup/status latency and representative large repositories remain separate measurements; synthetic command counts are not an end-user timing guarantee. |
 | Text, image and document compatibility | [Comparison](IMAGE-COMPARISON.md), [metafile compatibility](IMAGE-METAFILE-PARITY.md), [formatted text](METAFILE-TEXT-PARITY.md) and the document-tool records retain unsupported formats, encodings, font/locale differences and external application boundaries. Explicit refusals must remain visible; a passed corpus is not universal format support. |
