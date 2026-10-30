@@ -5391,51 +5391,66 @@ private enum TransportBatchPresentationContext {
                 else {openSession(lease,selected:request,action:request.action,onFinished:CommandProgressContext.capture {_ in finish()},handoffOwner:owner,serviceCommand:command,servicePreferences:preferences)}
             }
         }
-        if transportBatch {
-            // Related metadata scopes never widen contains(). Keep each saved
-            // repository's genuine primary lease and choose one per root.
-            var leases:[RepositoryAccessLease]=[]
-            if let activeAccess,!requiresRepositoryScope || activeAccess.hasSecurityScope {leases.append(activeAccess)}
-            if let store=accessStore {
-                for saved in store.repositories {
-                    if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),permissionTargets.contains(where:{lease.contains($0)}) {leases.append(lease)}
+        if let activeAccess,permissionTargets.allSatisfy({activeAccess.contains($0)}),!requiresRepositoryScope || activeAccess.hasSecurityScope{dispatch(activeAccess);return true}
+        func choosePermission() {
+            let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
+            panel.title=registration ? "Add to TurtleGit":"Allow repository folder access";panel.prompt="Allow Access"
+            panel.message=registration
+                ? "Allow access to this repository folder to enable Git commands and status badges in Finder."
+                : "Choose a folder containing all selected items to allow this Git command."
+            panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
+            // Finder registration already identifies a folder. Open that folder in
+            // the permission picker so Allow Access accepts it without searching
+            // its parent; the URL itself still grants no access before confirmation.
+            panel.directoryURL=registration ? request.paths[0]:permissionTargets.first?.deletingLastPathComponent()
+            panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+            finderServiceFolderChoice=choice;finderServiceWorkers += 1;busy=true
+            choice.onFinished=CommandProgressContext.capture { [weak self,weak choice] selected in
+                guard let self,let choice else{return}
+                Task{@MainActor [self,choice] in
+                    defer{self.finderServiceWorkers -= 1;if self.finderServiceFolderChoice === choice{self.finderServiceFolderChoice=nil}}
+                    while choice.panel.sheetParent != nil || choice.panel.attachedSheet != nil{try? await Task.sleep(nanoseconds:5_000_000)}
+                    if self.finderServiceOwner === owner{self.busy=false}
+                    guard !self.retired,!self.confirmingQuit,!owner.cancellation.isCancelled,generation==self.adoptionGeneration,let selected else{finish();return}
+                    let lease=RepositoryAccessLease(url:selected,provider:self.repositoryBookmarkProvider)
+                    guard permissionTargets.allSatisfy({lease.contains($0)}),!self.requiresRepositoryScope || lease.hasSecurityScope else{self.error="The selected folder does not authorize every requested item.";finish();return}
+                    dispatch(lease)
                 }
             }
-            if permissionTargets.allSatisfy({target in leases.contains{$0.contains(target)}}) {
-                launchFinderServiceTransportBatch(request,command:command,leases:leases,owner:owner);return true
+            choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
+        }
+        guard accessStore?.repositories.isEmpty == false else {choosePermission();return true}
+        // Resolving a saved bookmark can wait for a disconnected volume. Keep
+        // that preparation off the main actor for registration and Services,
+        // just as ordinary Finder actions already do. The captured owner keeps
+        // Quit/close admission alive until resolution and its handoff drain.
+        let identity=UUID(),token=owner.cancellation
+        finderAuthorityPreparations[identity]=token;finderActionAuthorityPending=true;Self.activeFinderAuthorityPreparations += 1
+        finderServiceWorkers += 1
+        Task { [self,owner] in
+            var handedOff=false
+            defer {
+                finderAuthorityPreparations.removeValue(forKey:identity);finderActionAuthorityPending = !finderAuthorityPreparations.isEmpty;Self.activeFinderAuthorityPreparations -= 1
+                finderServiceWorkers -= 1
+                if !handedOff {finish()}
+                withExtendedLifetime(owner) {}
+            }
+            do {
+                let existing=transportBatch ? activeAccess.map{[$0]} ?? [] : []
+                let selection=try await savedFinderAuthorities(for:permissionTargets,existing:existing,requiringSingleLease:!transportBatch,cancellation:token)
+                try token.check()
+                guard !retired,!confirmingQuit,!busy,generation==adoptionGeneration,finderServiceOwner === owner,
+                      finderAuthorityPreparations[identity] === token else{return}
+                handedOff=true
+                if transportBatch,selection.complete {
+                    launchFinderServiceTransportBatch(request,command:command,leases:selection.leases,owner:owner)
+                } else if !transportBatch,let lease=selection.leases.first {dispatch(lease)}
+                else {choosePermission()}
+            } catch {
+                if !retired,!token.isCancelled,generation==adoptionGeneration,finderServiceOwner === owner,
+                   !(error is OperationCancellationFailure) {self.error=error.localizedDescription}
             }
         }
-        if let activeAccess,permissionTargets.allSatisfy({activeAccess.contains($0)}),!requiresRepositoryScope || activeAccess.hasSecurityScope{dispatch(activeAccess);return true}
-        if let store=accessStore {
-            for saved in store.repositories {
-                if let lease=try? store.acquire(saved.id,requireSecurityScope:requiresRepositoryScope),permissionTargets.allSatisfy({lease.contains($0)}){dispatch(lease);return true}
-            }
-        }
-        let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
-        panel.title=registration ? "Add to TurtleGit":"Allow repository folder access";panel.prompt="Allow Access"
-        panel.message=registration
-            ? "Allow access to this repository folder to enable Git commands and status badges in Finder."
-            : "Choose a folder containing all selected items to allow this Git command."
-        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
-        // Finder registration already identifies a folder. Open that folder in
-        // the permission picker so Allow Access accepts it without searching
-        // its parent; the URL itself still grants no access before confirmation.
-        panel.directoryURL=registration ? request.paths[0]:permissionTargets.first?.deletingLastPathComponent()
-        panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
-        finderServiceFolderChoice=choice;finderServiceWorkers += 1;busy=true
-        choice.onFinished=CommandProgressContext.capture { [weak self,weak choice] selected in
-            guard let self,let choice else{return}
-            Task{@MainActor [self,choice] in
-                defer{self.finderServiceWorkers -= 1;if self.finderServiceFolderChoice === choice{self.finderServiceFolderChoice=nil}}
-                while choice.panel.sheetParent != nil || choice.panel.attachedSheet != nil{try? await Task.sleep(nanoseconds:5_000_000)}
-                if self.finderServiceOwner === owner{self.busy=false}
-                guard !self.retired,!self.confirmingQuit,!owner.cancellation.isCancelled,generation==self.adoptionGeneration,let selected else{finish();return}
-                let lease=RepositoryAccessLease(url:selected,provider:self.repositoryBookmarkProvider)
-                guard permissionTargets.allSatisfy({lease.contains($0)}),!self.requiresRepositoryScope || lease.hasSecurityScope else{self.error="The selected folder does not authorize every requested item.";finish();return}
-                dispatch(lease)
-            }
-        }
-        choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
         return true
     }
     func handle(_ url: URL) {
@@ -6441,37 +6456,55 @@ private enum TransportBatchPresentationContext {
     /// Stored paths are a cheap priority hint, never authority. A moved bookmark
     /// still gets its original fallback attempt after likely matching records.
     private func savedFinderAuthority(for targets: [URL], cancellation: OperationCancellation) async throws -> RepositoryAccessLease? {
-        guard let store = accessStore else { return nil }
-        let records = store.repositories
-        func hinted(_ value: SavedRepository) -> Bool {
-            let path = value.lastKnownPath
-            return targets.allSatisfy { target in
-                let requested = target.standardizedFileURL.path
-                return GitReferenceName.equal(requested, path) || requested.hasPrefix(path == "/" ? "/" : path + "/")
-            }
-        }
-        let likely = records.filter(hinted).sorted { $0.lastKnownPath.count > $1.lastKnownPath.count }
-        let fallback = records.filter { !hinted($0) }
-        for record in likely + fallback {
+        try await savedFinderAuthorities(for:targets,requiringSingleLease:true,cancellation:cancellation).leases.first
+    }
+    private struct SavedFinderAuthorities {let leases:[RepositoryAccessLease];let complete:Bool}
+    private func savedFinderAuthorities(for targets:[URL],existing:[RepositoryAccessLease] = [],requiringSingleLease:Bool,
+                                       cancellation:OperationCancellation) async throws -> SavedFinderAuthorities {
+        let requireScope=requiresRepositoryScope
+        var leases=existing.filter{!requireScope || $0.hasSecurityScope}
+        let initial=leases
+        var matched=try await Task.detached(priority:.userInitiated) {
             try cancellation.check()
-            guard !retired, accessStore === store else { throw OperationCancellationFailure.cancelled }
-            guard let request = try? store.captureAuthority(record.id) else { continue }
+            return Set(targets.indices.filter{index in initial.contains{$0.contains(targets[index])}})
+        }.value
+        if matched.count==targets.count{return .init(leases:leases,complete:true)}
+        guard let store=accessStore else{return .init(leases:leases,complete:false)}
+        let records=store.repositories
+        func hinted(_ value:SavedRepository)->Bool {
+            let path=value.lastKnownPath
+            func contains(_ target:URL)->Bool {
+                let requested=target.standardizedFileURL.path
+                return GitReferenceName.equal(requested,path) || requested.hasPrefix(path == "/" ? "/":path+"/")
+            }
+            return requiringSingleLease ? targets.allSatisfy(contains):targets.contains(where:contains)
+        }
+        let likely=records.filter(hinted).sorted{$0.lastKnownPath.utf8.count>$1.lastKnownPath.utf8.count}
+        let fallback=records.filter{!hinted($0)}
+        for record in likely+fallback {
+            try cancellation.check()
+            guard !retired,accessStore === store else{throw OperationCancellationFailure.cancelled}
+            guard let request=try? store.captureAuthority(record.id) else{continue}
+            // All actual containment decisions, including symlink resolution,
+            // happen while the immutable captured authority is on its worker.
+            let uncovered=requiringSingleLease ? Array(targets.indices):targets.indices.filter{!matched.contains($0)}
             do {
-                let requireScope = requiresRepositoryScope
-                let resolved = try await Task.detached(priority: .userInitiated) {
-                    let authority = try request.resolve(requireSecurityScope: requireScope, skipUnavailableAdditionalPermissions: true, cancellation: cancellation)
-                    let matches = targets.allSatisfy { authority.primary.contains($0) }
-                    try cancellation.check()
-                    return (authority, matches)
+                let resolved=try await Task.detached(priority:.userInitiated) {
+                    let authority=try request.resolve(requireSecurityScope:requireScope,skipUnavailableAdditionalPermissions:true,cancellation:cancellation)
+                    let matches=Set(uncovered.filter{authority.primary.contains(targets[$0])})
+                    try cancellation.check();return(authority,matches)
                 }.value
                 try cancellation.check()
-                guard !retired, accessStore === store else { throw OperationCancellationFailure.cancelled }
-                guard resolved.1, try store.adoptAuthority(resolved.0, from: request) else { continue }
-                recentRepositories = store.repositories
-                return resolved.0.primary.retainingRelatedScopes(resolved.0.additional)
-            } catch { try cancellation.check() /* Unavailable/moved grants retain the existing chooser fallback. */ }
+                guard !retired,accessStore === store else{throw OperationCancellationFailure.cancelled}
+                guard !resolved.1.isEmpty,(!requiringSingleLease || resolved.1.count==targets.count),
+                      try store.adoptAuthority(resolved.0,from:request) else{continue}
+                recentRepositories=store.repositories
+                leases.append(resolved.0.primary.retainingRelatedScopes(resolved.0.additional))
+                matched.formUnion(resolved.1)
+                if matched.count==targets.count{return .init(leases:leases,complete:true)}
+            } catch {try cancellation.check() /* Moved/unavailable grants retain the chooser fallback. */}
         }
-        return nil
+        return .init(leases:leases,complete:false)
     }
     private func resolveFinderSavedAuthority(_ request: FinderRequest, permissionTargets: [URL], invocation: PrimaryCommandInvocation?,
         messageAccess: RepositoryAccessLease?, outputAccess: RepositoryAccessLease?, commandCancellation: OperationCancellation?,

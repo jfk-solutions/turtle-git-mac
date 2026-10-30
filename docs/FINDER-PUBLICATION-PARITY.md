@@ -122,3 +122,28 @@ focused Core, native lifecycle/root and Merge startup verification. A private
 its elapsed observation is not an installed large-repository latency guarantee.
 The shipping build36 predates this continuation. Physical Finder cold command and
 badge acceptance, initial cache decode/scan cost and full hosted CI remain open.
+
+
+## Reuse of locally written snapshots — October 30, 2026
+
+The startup continuation retains the exact decoded value of a live or warm
+snapshot after this process successfully writes it. Previously only control
+records populated the write-side cache; the next queued transaction decoded the
+complete snapshot JSON again, even though this process had just generated it.
+
+Snapshot writes use the same private staged-file and inode-witness mechanism as
+control writes. Reuse requires the current regular file's identity to match;
+replacement, modification, removal and unsafe file types retain their existing
+read/validation paths. The transient persistence diagnostic is never seeded as
+disk data. This does not change the version-four wire format, publication order,
+root claims, lease authority, synchronous archive completion or warm-failure
+reporting. A new process still performs its first real decode.
+
+The related [registration continuation](FINDER-REGISTRATION-PARITY.md#saved-grant-preparation--october-30-2026)
+moves saved-grant lookup off the main actor. The
+[grouped checkpoint](qa/finder-startup-reuse-2026-10-30.json) records 60 distinct
+Core methods cumulatively passing and 12 native case/engine pairs, including
+retained timestamp and startup-readiness fixture failures. All 13 receiver
+processes were reaped and independently absent. Build41 predates this
+continuation; physical Finder, signed external grants and representative installed
+large-repository latency remain separate.

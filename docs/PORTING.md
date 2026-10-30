@@ -1,5 +1,20 @@
 # TurtleGit for Mac — full port tracking
 
+## Finder startup and saved-permission continuation
+
+The next source batch reuses live/restart snapshots written by this process,
+avoiding another complete decode on the next queued cache transaction. External
+file changes still invalidate reuse. Registration and Services commands resolve
+saved permissions on workers, including distinct primary grants for multi-root
+transport, while retaining cancellation, stale-record and chooser ownership.
+See the [publication](FINDER-PUBLICATION-PARITY.md#reuse-of-locally-written-snapshots--october-30-2026)
+and [registration](FINDER-REGISTRATION-PARITY.md#saved-grant-preparation--october-30-2026)
+continuations and their [grouped checkpoint](qa/finder-startup-reuse-2026-10-30.json).
+Sixty distinct Core methods cumulatively and twelve native case/engine pairs pass;
+the record retains the two fixture failures and affected-only repairs. Build41
+predates these changes. Broader installed/Finder/large-repository acceptance
+remains separate.
+
 ## Installed local testing build41
 
 [Signed build41](qa/signed-consolidation-build41-2026-10-30.json), `0.1.0 (41)`,

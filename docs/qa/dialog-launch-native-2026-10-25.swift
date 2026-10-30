@@ -123,6 +123,11 @@ import TurtleGitCore
         for url in eventURLsExpected {try dispatchURL(url.absoluteString)}
         try require(eventURLs.isEmpty,"Cold GetURL bypassed startup ownership")
         eventDelegate.startupDidFinishLaunching(defaultLaunch:true)
+        // Native startup admits Git-backed URLs only after its actual async
+        // configuration-permission restoration returns. Startup's synchronous
+        // method returning is not that receipt; keep the real gate and then
+        // check the complete FIFO cohort and no-default-workspace invariant.
+        try await wait("cold GetURL configuration ownership drained") {eventDelegate.gitConfigurationReadsReady}
         try require(eventURLs==eventURLsExpected && eventPresentations==0 && eventModel.workspaceWindow==nil,"Cold GetURL queue lost routing/order or created default workspace")
         try dispatchURL(eventURLsExpected[0].absoluteString)
         try dispatchURL(eventURLsExpected[0].absoluteString)
@@ -144,6 +149,10 @@ import TurtleGitCore
         // Drain the queued launch reassertion before testing the successor.
         await withCheckedContinuation { continuation in DispatchQueue.main.async { continuation.resume() } }
         try dispatchURL(eventURLsExpected[0].absoluteString)
+        // A fresh action-only successor requests the same real configuration
+        // gate on its first URL; the preceding main-queue drain only settled
+        // event-slot reassertion, not a preparation that had not started yet.
+        try await wait("successor GetURL configuration ownership drained") {successor.gitConfigurationReadsReady}
         try require(successorURLs==[eventURLsExpected[0]] && eventURLs.count==eventURLsExpected.count+2,"Old handler retirement removed successor or redelivered URL")
         successor.retireInboundURLBridge()
         successor.applicationWillFinishLaunching(Notification(name:NSApplication.willFinishLaunchingNotification))

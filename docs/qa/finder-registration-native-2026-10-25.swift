@@ -11,6 +11,26 @@ final class RegistrationBookmarks:RepositoryBookmarkProvider {
     func startAccessing(_ url:URL)->Bool {true}
     func stopAccessing(_ url:URL) {}
 }
+/// A real blocking bookmark provider, not a delayed MainActor callback. Its
+/// gate proves that native event processing remains available while the worker
+/// is resolving authority; release is guaranteed by the fixture's defer.
+private final class HeldRegistrationBookmarks:RepositoryBookmarkProvider {
+    private let lock=NSLock(),gate=DispatchSemaphore(value:0)
+    private var held:String?,entered=false,paths=[String](),mainResolution=false
+    func create(for url:URL)throws->Data {Data(url.path.utf8)}
+    func resolve(_ bytes:Data)throws->ResolvedBookmark {
+        let path=String(decoding:bytes,as:UTF8.self)
+        lock.lock();paths.append(path);mainResolution = mainResolution || Thread.isMainThread
+        let pause=held==path;if pause {entered=true};lock.unlock()
+        if pause,gate.wait(timeout:.now()+15) != .success {throw RepositoryAccessFailure.securityScopeUnavailable}
+        return .init(url:URL(fileURLWithPath:path),stale:false)
+    }
+    func startAccessing(_ url:URL)->Bool {true}
+    func stopAccessing(_ url:URL) {}
+    func arm(_ url:URL){lock.lock();held=url.path;entered=false;paths=[];mainResolution=false;lock.unlock()}
+    func release(){lock.lock();held=nil;lock.unlock();gate.signal()}
+    var observation:(entered:Bool,paths:[String],main:Bool){lock.lock();defer{lock.unlock()};return(entered,paths,mainResolution)}
+}
 private extension NSWindow {
     @objc func registrationOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {alphaValue=0;setFrameOrigin(.init(x:-24000,y:-24000));registrationOrder(mode,relativeTo:number)}
 }
@@ -336,6 +356,84 @@ private extension NSWindow {
         try require(refused.model.error==nil && refused.model.output != nil && FileManager.default.fileExists(atPath:second.appendingPathComponent(".git").path),"Registration failure discarded successful Clone")
         try require(refused.model.completionWarning?.contains("Finder registration") == true && !c.watched.repositories.contains {$0.lastKnownPath==second.path},"Registration failure was silent or saved through retired watch owner")
     }
+    static func authority(_ c:Context)async throws {
+        let provider=HeldRegistrationBookmarks()
+        defer{provider.release()}
+        let store=try RepositoryAccessStore(storageURL:c.root.appendingPathComponent("held-authority.json"),provider:provider)
+        let source=try store.remember(c.source.root)
+        _=try store.remember(c.other.root);let third=try store.remember(c.third.root)
+        func model()->RepositoryModel {
+            let value=RepositoryModel(startMonitoring:false,initializePreferences:false,
+                repositoryFactory:{GitRepository(root:$0,executable:c.git,libgit2Configuration:.init(enabled:false))},
+                snapshotWriter:{_ in true},finderWatches:c.manager,savedAccessStore:store)
+            value.requiresRepositoryScope=true;value.repositoryBookmarkProvider=provider;value.fileComparisonPreferences=c.prefs;value.workspaceWindow=c.parent
+            c.additionalModels.append(value);return value
+        }
+        let registration=model()
+        provider.arm(c.third.root)
+        try require(registration.handleFinderService(.init(action:.registerRepository,paths:[c.third.root])),"Held saved Add was refused")
+        try await wait{provider.observation.entered}
+        try require(registration.finderActionAuthorityPending && registration.hasPendingFinderServiceWork && !registration.busy && !provider.observation.main,"Saved Add blocked native event processing or lost worker ownership")
+        try require(!registration.handleFinderService(.init(action:.registerRepository,paths:[c.source.root])),"Held Add admitted overlapping action")
+        provider.release();try await wait{!registration.hasPendingRepositoryWork && !registration.busy && c.manager.pendingOperations==0}
+        try require(registration.error==nil && registration.root==nil && c.watched.repositories.contains{$0.lastKnownPath==c.third.root.path},"Saved Add did not register headlessly after worker release")
+        try require(provider.observation.paths==[c.third.root.path] && !provider.observation.main,"Saved Add resolved unrelated grants or ran bookmark resolution on main")
+
+        // A forgotten grant cannot return from its worker as fresh authority.
+        // Keep the normal first-use permission fallback, then cancel it.
+        let stale=model();var chooser:((NSApplication.ModalResponse)->Void)?,commits=0
+        stale.presentFinderServiceFolderPanel={_,_,reply in chooser=reply}
+        stale.commitWindowFactory={repository,access in commits += 1;let controller=CommitWindowController(repository:repository,access:access,defaults:c.prefs);c.additionalWindows.append(controller);return controller}
+        provider.arm(c.source.root)
+        try require(stale.handleFinderService(.init(action:.commit,paths:[c.source.root])),"Held Services Commit was refused")
+        try await wait{provider.observation.entered};try store.forget(source.id)
+        provider.release();try await wait{chooser != nil}
+        try require(commits==0 && stale.hasPendingFinderServiceWork && !provider.observation.main,"Forgotten saved grant launched Commit or lost chooser ownership")
+        chooser?(.cancel);chooser=nil;try await wait{!stale.hasPendingRepositoryWork && !stale.busy}
+        try require(commits==0 && stale.root==nil && !store.repositories.contains{$0.id==source.id},"Cancelled stale-grant fallback revived permission or workspace")
+        let restoredSource=try store.remember(c.source.root)
+
+        // Multi-root transport must retain separate genuine primary leases;
+        // closing each captured form allows the next repository to proceed.
+        let batch=model();var roots=[String](),forms=[NSWindowController]()
+        batch.finderServiceWorkflowPresentation={action,controller,repository,access in
+            guard action == .fetch else{return}
+            roots.append(repository.root.path);forms.append(controller);c.additionalWindows.append(controller)
+            if access?.contains(repository.root) != true {batch.error="Wrong transport authority"}
+            Task{@MainActor in await Task.yield();controller.close()}
+        }
+        provider.arm(c.third.root)
+        try require(batch.handleFinderService(.init(action:.fetch,paths:[c.source.root,c.third.root])),"Multi-root saved Fetch refused")
+        try await wait{provider.observation.entered}
+        try require(batch.hasPendingRepositoryWork && batch.finderActionAuthorityPending && roots.isEmpty && !provider.observation.main,"Multi-root authority lost ownership or presented before all scopes resolved")
+        provider.release();try await wait{!batch.hasPendingRepositoryWork && !batch.busy}
+        try require(batch.error==nil && roots==[c.source.root.path,c.third.root.path] && forms.count==2,"Independent saved roots did not receive ordered Fetch forms: \(roots); \(batch.error ?? "")")
+        try require(Set(provider.observation.paths)==Set([c.source.root.path,c.third.root.path]) && !provider.observation.main,"Multi-root Fetch resolved unrelated grants or main-thread bookmarks")
+
+        // Additional metadata scopes must never become a second repository's
+        // primary grant merely because a combined lease retains their lifetime.
+        try store.forget(third.id);try store.addPermission(restoredSource.id,url:c.third.root)
+        let related=model();var relatedChooser:((NSApplication.ModalResponse)->Void)?,relatedForms=0
+        related.presentFinderServiceFolderPanel={_,_,reply in relatedChooser=reply}
+        related.finderServiceWorkflowPresentation={_,controller,_,_ in relatedForms += 1;c.additionalWindows.append(controller);controller.close()}
+        try require(related.handleFinderService(.init(action:.fetch,paths:[c.source.root,c.third.root])),"Related-only authority request refused before owned validation")
+        try await wait{relatedChooser != nil}
+        try require(relatedForms==0 && related.hasPendingRepositoryWork,"Related metadata scope widened primary authority for a second root")
+        relatedChooser?(.cancel);relatedChooser=nil;try await wait{!related.hasPendingRepositoryWork && !related.busy}
+
+        // Quit cancels admission immediately but the real blocking worker still
+        // owns its grants and pending barrier until it actually returns.
+        let cancelled=model();var latePanels=0
+        cancelled.presentFinderServiceFolderPanel={_,_,_ in latePanels += 1}
+        provider.arm(c.source.root)
+        try require(cancelled.handleFinderService(.init(action:.registerRepository,paths:[c.source.root])),"Cancellable saved Add refused")
+        try await wait{provider.observation.entered}
+        cancelled.confirmingQuit=true
+        try require(cancelled.hasPendingRepositoryWork,"Quit released a real saved-bookmark worker early")
+        provider.release();try await wait{!cancelled.hasPendingRepositoryWork}
+        try require(latePanels==0 && cancelled.root==nil && cancelled.error==nil && !c.watched.repositories.contains{$0.lastKnownPath==c.source.root.path},"Quit permitted late chooser/registration/error delivery")
+        cancelled.confirmingQuit=false
+    }
     static func services(_ c:Context)async throws {
         let selected=NSPasteboard.withUniqueName();defer{selected.releaseGlobally()}
         let paths=[c.source.root.appendingPathComponent("file"),c.third.root]
@@ -499,7 +597,7 @@ private extension NSWindow {
         defer{NSApp.delegate=originalDelegate;withExtendedLifetime(lifetime){}}
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.registrationOrder(_:relativeTo:))) {method_exchangeImplementations(original,replacement)}
         var context:Context?
-        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "publication":try await publication(c);case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
+        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "publication":try await publication(c);case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "authority":try await authority(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
         catch {try? await context?.cleanup();fputs("Finder registration failed: \(error)\n",stderr);exit(1)}
     }
 }

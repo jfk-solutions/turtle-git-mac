@@ -1216,13 +1216,19 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             return bytes
         }
         guard bytes.count<=268435456 else {throw FinderPublicationFailure.corruptStore}
-        if let state=value as? Control {
-            // Bind the memoized state to our actual staged inode. A foreign
+        if value is Control || value is FinderSnapshot {
+            // Bind every memoized record to our actual staged inode. A foreign
             // replacement between rename and stat must not authenticate it.
+            // Snapshots otherwise force the next queued writer to decode the
+            // complete live/restart archive that this process just produced.
             let staged=location.deletingLastPathComponent().appendingPathComponent(".finder-control-"+UUID().uuidString)
             let fd=Darwin.open(staged.path,O_WRONLY | O_CREAT | O_EXCL | O_NOFOLLOW | O_CLOEXEC,mode_t(0o600))
             guard fd>=0 else{throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
             defer{Darwin.close(fd);_ = unlink(staged.path)}
+            // Snapshot writes previously forced0600 after Data.write(.atomic).
+            // Preserve that policy independently of this process's umask,
+            // applying it to our owned descriptor before the destination rename.
+            if value is FinderSnapshot, fchmod(fd,mode_t(0o600)) != 0 {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
             try bytes.withUnsafeBytes {buffer in
                 var offset=0
                 while offset<buffer.count {
@@ -1234,11 +1240,24 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             }
             var stagedInfo=stat();guard fstat(fd,&stagedInfo)==0 else{throw POSIXError(.EIO)}
             guard rename(staged.path,location.path)==0 else{throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
-            coordination.cacheLock.lock();coordination.work.controlWrites += 1;coordination.cacheLock.unlock()
+            let isWarm=GitReferenceName.equal(location.path,warmURL.path)
+            coordination.cacheLock.lock()
+            if value is Control {coordination.work.controlWrites += 1}
+            else if isWarm {coordination.work.warmWrites += 1}
+            coordination.cacheLock.unlock()
             let witness=try identity(location)
             if let witness,witness.device==stagedInfo.st_dev,witness.inode==stagedInfo.st_ino,witness.size==stagedInfo.st_size,
                witness.modifiedSeconds==stagedInfo.st_mtimespec.tv_sec,witness.modifiedNanoseconds==stagedInfo.st_mtimespec.tv_nsec {
-                coordination.cacheLock.lock();coordination.control=(witness,state);coordination.cacheLock.unlock()
+                coordination.cacheLock.lock()
+                if let state=value as? Control {coordination.control=(witness,state)}
+                else if var snapshot=value as? FinderSnapshot {
+                    // This diagnostic is deliberately absent from wire records.
+                    // Cached values must have the same semantics as a decode.
+                    snapshot.persistenceFailure=nil
+                    if isWarm {coordination.warm=(witness,snapshot)}
+                    else if GitReferenceName.equal(location.path,url.path) {coordination.raw=(witness,snapshot)}
+                }
+                coordination.cacheLock.unlock()
             }
         }else{
             try bytes.write(to:location,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:location.path)

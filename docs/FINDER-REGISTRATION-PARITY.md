@@ -104,3 +104,33 @@ in both archives while leaving the workspace unselected. Temporary recent/watch
 entries and Clone preferences were removed, original record IDs retained, and
 owned app/Finder windows closed. Background refresh stayed disabled. This covers
 one private local-folder workflow, not every Finder provider or upstream dialog.
+
+
+## Saved-grant preparation — October 30, 2026
+
+Add to TurtleGit, Services commands and multi-repository Fetch/Pull/Push now use
+the same captured-authority worker path as ordinary Finder commands. Resolving
+a saved bookmark can wait on a disconnected volume; registration previously
+resolved every saved repository directly on the main actor before presenting
+its permission chooser or handing off the command.
+
+Stored paths only prioritize likely grants. Actual resolved folder containment
+and required security scopes decide eligibility, and moved bookmarks retain a
+fallback attempt. Multi-repository transport keeps separate genuine primary
+leases; related metadata grants never widen their folder boundaries. Lookup
+stops once the requested coverage is available.
+
+The originating request owns lookup, cancellation and its eventual chooser or
+command handoff. Quit waits for owned work to drain, and a stale result cannot
+adopt a replacement saved record or publish a window into another repository
+session. A missing usable grant retains the existing chooser, including the
+clicked folder as registration's initial directory. A URL or cached status
+still grants no filesystem permission.
+
+The [grouped checkpoint](qa/finder-startup-reuse-2026-10-30.json) covers held-worker
+responsiveness, headless registration, stale-record fallback, distinct-primary
+multi-root forms, related-only scope refusal and cancellation drain with both
+Git engines, alongside registration/ownership/warm/Services/launch regressions.
+The old cold-launch fixture readiness failure and its affected-only repair are
+retained. Installed build41 predates this continuation; real Finder invocation,
+signed external grants and representative large-repository timing remain separate.

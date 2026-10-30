@@ -1,0 +1,119 @@
+{
+  "date": "2026-10-30",
+  "status": "grouped-focused-checkpoint-passed-not-installed",
+  "source_base": "991c50736ae16027fb5a7c48b0a8e2c7eca627a9",
+  "scope": [
+    "Reuse locally written raw and warm Finder snapshots under exact-file identity validation.",
+    "Background saved-authority resolution for registration/Services and separate primary grants for multi-repository transport."
+  ],
+  "changes": {
+    "cache": "Owned staged-file inode witness seeds decoded raw/warm snapshots;0600 preserved; transient persistenceFailure excluded; external identity changes still force validation. Wirev4/order/claims/leases/synchronous archive failure semantics unchanged.",
+    "permissions": "Immutable captured bookmarks resolve and match targets on workers; target prioritization and early complete-coverage stop; stale store/record adoption fence, related-scope boundary, chooser targeting, owner cancellation and Quit drain retained."
+  },
+  "core": {
+    "initial_tests": 60,
+    "initial_failures": 1,
+    "initial_seconds": 12.558,
+    "initial_log": "build/qa/finder-startup-reuse-core-2026-10-30.log",
+    "repair": "New test incorrectly equated warm maintenance time with live scan time; preserved production semantics, bounded maintenance timestamp and independently decoded restored warm payload.",
+    "affected_retry_tests": 1,
+    "affected_retry_failures": 0,
+    "affected_retry_log": "build/qa/finder-startup-reuse-core-timestamp-2026-10-30.log",
+    "distinct_methods_cumulatively_passing": 60,
+    "new_methods": 7,
+    "proof": "Own/peer publication no additional raw/warm decodes; independent disk content and exact Unicode/metadata/flags, stale/consumed tickets, replacement/corruption/recovery/refusal, disabled persistence, symlinks, same-inode/size/restored-mtime edit invalidation through ctime."
+  },
+  "build": {
+    "configuration": "Debug",
+    "exit": 0,
+    "log": "build/qa/finder-startup-reuse-debug-2026-10-30.log",
+    "diagnostics": "Existing simulator mismatch, actor warnings and generic command-failed-with-exit0 diagnostics retained; xcodebuild exit0."
+  },
+  "native": {
+    "distinct_case_engine_pairs_passing": 12,
+    "cases": [
+      "authority",
+      "registration",
+      "ownership",
+      "warm",
+      "services",
+      "launch"
+    ],
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "runs": [
+      {
+        "log": "build/qa/finder-startup-reuse-native-2026-10-30.log",
+        "passed_cases": [
+          "authority",
+          "registration",
+          "ownership",
+          "warm",
+          "services"
+        ],
+        "failed": true
+      },
+      {
+        "log": "build/qa/finder-startup-reuse-native-launch-2026-10-30.log",
+        "passed_cases": [
+          "launch"
+        ],
+        "failed": false
+      },
+      {
+        "log": "build/qa/finder-startup-reuse-native-bundled-2026-10-30.log",
+        "passed_cases": [
+          "authority",
+          "registration",
+          "ownership",
+          "warm",
+          "services",
+          "launch"
+        ],
+        "failed": false
+      }
+    ],
+    "retained_failure": "Existing DialogLaunch receiver asserted cold URL FIFO before real asynchronous Git configuration readiness. Fixture now awaits actual readiness in cold and successor paths; exact FIFO, URL counts, repeated delivery, handler retirement and no-default-workspace assertions preserved. No app rebuild for fixture-only repair.",
+    "owned_receivers_reaped_and_independently_absent": [
+      32681,
+      32817,
+      33355,
+      33483,
+      33623,
+      33720,
+      34049,
+      34327,
+      34451,
+      34893,
+      35022,
+      35160,
+      35249
+    ],
+    "visible_windows": "Private/offscreen receiver policy retained; no shipping app or user repository opened.",
+    "authority_cases": "Held real worker provider proves main responsiveness, headless saved Add and unrelated-grant avoidance; forgotten record falls back without launching Commit; ordered independent-root Fetch forms; metadata scopes do not become primary grants; Quit blocks late handoff and retains drain until worker returns."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "141c2cebf0ef40f91af52466551cff916c4fbd5eee9801dbb5bd55a513ff0767",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "161c2a17af92f6aadb002bdecbac54713283b30ece63a69d20094db33f57f5a1",
+    "Tests/TurtleGitCoreTests/FinderPublicationSnapshotReuseTests.swift": "fa9de7ca82410be3d04ca148731b3dc3f2e2702a919c29cf1aca600e4933acf5",
+    "docs/qa/finder-registration-native-2026-10-25.swift": "f9fa075bab3945a285a8e58ec439e02c3c4ab71ad596d854e81a9bc9110da59a",
+    "docs/qa/dialog-launch-native-2026-10-25.swift": "87fa94a835e4c73ceedafe4cce4ec67c9ad6c94d62af9008fb54b11dfc383280",
+    "scripts/test-finder-registration.py": "a1ca32bcf0b5c6a3e3fa125415d6a67024e069029e1beb020391be348706f609"
+  },
+  "limits": [
+    "Installed app remains build41; this source continuation is not packaged or installed.",
+    "Focused private receivers are not physical Finder/real external sandbox grant acceptance.",
+    "No new controlled installed or representative large-repository latency benchmark.",
+    "Full hosted CI and complete source/layout/localization/accessibility/minimum-OS/Intel parity remain open.",
+    "No public binary upload, notarization or App Store submission."
+  ],
+  "documentation": {
+    "coverage_reconciled": true,
+    "help_topics_changed": false,
+    "native_literal_labels_added": false,
+    "site_build_and_links": "passed",
+    "site_log": "build/qa/finder-startup-reuse-site-2026-10-30.log"
+  }
+}
