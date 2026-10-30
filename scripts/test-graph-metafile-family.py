@@ -81,7 +81,7 @@ for case in args.only or ['statistics', 'revision', 'ownership']:
             environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             environment.update(DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'),
                                GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
-                               CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(scratch) + '/')
+                               HOME=str(preferences), CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(scratch) + '/')
             print('Checking graph metafile ' + case + ' with ' + str(git), flush=True)
             completed = False
             try:

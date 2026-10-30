@@ -65,6 +65,12 @@ its workspace first. If the selected repository has no saved folder permission,
 choose its folder when macOS asks; receiving a Finder command does not itself
 grant access to your files.
 
+First open **Settings → Icon Overlays → Manage Finder Extension…** and enable
+TurtleGit in the macOS Finder extensions list. Return to Settings to see the
+activation status. **Apply** saves badge preferences; macOS controls extension
+activation. Enabling the extension does not grant folder access or register a
+repository.
+
 With the signed Finder extension enabled, select a folder and open **TurtleGit**
 in its context menu. **Clone…** opens the clone form with that destination;
 **Create repository…** opens the creation form. For a repository already on disk,
@@ -144,9 +150,14 @@ Classic remains the default. The choice is saved for subsequent Commit windows.
 The staging workspace shows unstaged files above staged files on the left, with
 an embedded patch and commit message on the right. Select a file in either list
 to review that side of the index. A partially staged file appears in both lists.
-Use **Stage files** or **Unstage files** for whole-file changes. Select changed
-lines in the patch, then use **Stage lines** or **Stage chunks**; the staged view
-offers the corresponding Unstage actions. The working file is preserved.
+Use **Stage files** or **Unstage files** for whole-file changes. Double-click a
+row in the upper **Unstaged changes** list to stage it, or in the lower **Staged
+changes** list to unstage it. Double-clicking a selected row transfers the
+selected group. Classic keeps its double-click Diff action.
+
+Select changed lines in the patch, then use **Stage lines** or **Stage chunks**;
+the staged view offers the corresponding Unstage actions. The working file is
+preserved.
 
 The alternative workspace commits the Git index, including staged changes outside
 the displayed scope. It shares the classic commit checks and progress workflow.

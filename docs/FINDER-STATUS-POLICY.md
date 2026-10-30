@@ -1,6 +1,6 @@
 # Choosing Finder status behavior
 
-Open **Settings → Icon Overlays → Status cache** to choose how TurtleGit
+Open **Settings → Icon Overlays** and use **Status cache** to choose how TurtleGit
 collects badge status. Apply accepts the choice; Cancel keeps the previous one.
 
 - **Default** compares working files, the index and HEAD and rolls changes up
@@ -19,9 +19,15 @@ Use Default when badges should include staged/HEAD differences. The app's Workin
 Tree window continues to show full Git status in every mode.
 
 Finder reads published status and submits asynchronous refresh requests. It does
-not run Git. To refresh watched repositories after closing the main app, enable
-the background service and authorize the repository folders in Finder Integration.
-Changing cache mode does not grant access or enable a disabled service.
+not run Git. To refresh watched repositories after quitting the main app, open
+**Settings → Icon Overlays → Watched Repositories**. Use **Add…** to authorize a
+repository folder, or **Renew Access…** for a selected repository whose permission
+has expired. Enable **Refresh after TurtleGit quits** for background refresh.
+
+Finder extension activation is separate: use **Settings → Icon Overlays → Manage
+Finder Extension…**. Enabling the extension does not grant repository access.
+Changing cache mode does not authorize or register folders, activate the extension
+or enable the background service.
 
 Opening an individual action window does not start a fresh scan of every saved
 repository. Completed Git actions refresh the selected watched repository.

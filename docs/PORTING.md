@@ -37,6 +37,25 @@ source-size/enlargement profiles, independently captured signed self copies and
 fractional/embedded null-pen rectangles remain explicit limits; this is not
 complete WMF/EMF or whole-port certification.
 
+## Graph framing and first-use manual continuation
+
+The [graph/manual checkpoint](qa/graph-framing-first-use-manual-2026-10-30.json)
+corrects enhanced-metafile header bounds shared by Statistics and Revision Graph.
+The header now uses inclusive endpoints; authored vector coordinates, drawing
+record bounds and physical frame stay unchanged. The native checks distinguish
+transparent pre-Picture coverage from the final filter's legitimate edge mixing,
+retaining complete images and original-coordinate geometry checks.
+
+Five focused writer Core methods and six native case/engine pairs pass after the
+recorded repairs. Both Git engines cover Statistics formats/styles/appearances
+and shared Statistics/Revision Graph rendering. All ten attempted receivers,
+including failed attempts, were reaped and independently absent. No unrelated
+suite was repeated. The first-use manual now explains extension activation,
+folder grants and registration separately, uses the actual Watched Repositories
+settings path, and documents staging double-clicks. Bundled Help is regenerated
+and checked. Installed build39 does not contain this continuation; complete
+corrected-source hosted and release acceptance remain open.
+
 ## Previous local testing build38 checkpoint
 
 [Signed build38](qa/signed-consolidation-build38-2026-10-30.json), `0.1.0 (38)`,

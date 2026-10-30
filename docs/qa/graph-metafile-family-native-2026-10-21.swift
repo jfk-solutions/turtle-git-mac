@@ -1,5 +1,8 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 import ImageIO
 import ObjectiveC
 import TurtleGitCore
@@ -32,9 +35,14 @@ actor GraphMetafileWriteGate {
     static func views(_ root:NSView?)->[NSView] {guard let root else{return []};return [root]+root.subviews.flatMap{views($0)}}
     static func drained()->Bool {StatisticsWindowController.activeExports==0 && StatisticsWindowModel.activeOperations==0 && RevisionGraphWindowModel.activeOperations==0 && RevisionGraphWindowController.activeExportOperations==0}
     static func word(_ bytes:Data,_ offset:Int)->Int {Int((0..<4).reduce(UInt32(0)){$0|UInt32(bytes[offset+$1])<<($1*8)})}
-    static func records(_ bytes:Data,size:CGSize)throws->[Record] {
+    static func authoredHeader(_ bytes:Data,size:CGSize)throws {
         try require(bytes.count>=108 && word(bytes,0)==1 && word(bytes,4)==88 && word(bytes,40)==0x464d4520,"Not a real enhanced-metafile header")
-        try require(word(bytes,48)==bytes.count && word(bytes,16)==Int(ceil(size.width)) && word(bytes,20)==Int(ceil(size.height)),"EMF header bounds/byte count drifted")
+        try require(word(bytes,48)==bytes.count && word(bytes,8)==0 && word(bytes,12)==0 && word(bytes,16)==Int(ceil(size.width))-1 && word(bytes,20)==Int(ceil(size.height))-1,"EMF header bounds/byte count drifted")
+        try require(word(bytes,24)==0 && word(bytes,28)==0 && word(bytes,32)==Int((size.width*2540/96).rounded()) && word(bytes,36)==Int((size.height*2540/96).rounded()),"Authored EMF physical frame drifted")
+        try require(word(bytes,72)==960 && word(bytes,76)==960 && word(bytes,80)==254 && word(bytes,84)==254,"Authored EMF device profile drifted")
+    }
+    static func records(_ bytes:Data,size:CGSize)throws->[Record] {
+        try authoredHeader(bytes,size:size)
         var result:[Record]=[],offset=0
         while offset<bytes.count {
             try require(offset<=bytes.count-8,"Truncated EMF record header")
@@ -70,15 +78,53 @@ actor GraphMetafileWriteGate {
         }
     }
     static func png(_ data:Data)throws->CGImage {let source=try unwrap(CGImageSourceCreateWithData(data as CFData,nil),"Invalid native PNG");return try unwrap(CGImageSourceCreateImageAtIndex(source,0,nil),"Native PNG has no pixels")}
-    static func decoded(_ bytes:Data,name:String)async throws->CGImage {
+    static func prePictureSVG(_ bytes:Data)throws->Data {
+        func invalid(_ reason:String)->NSError {NSError(domain:"TurtleGit.GraphMetafileFixtureXML",code:1,userInfo:[NSLocalizedDescriptionKey:reason])}
+        guard let text=String(data:bytes,encoding:.utf8),text.range(of:"<!DOCTYPE",options:.caseInsensitive)==nil,text.range(of:"<!ENTITY",options:.caseInsensitive)==nil else{throw invalid("Unexpected entity declaration in controlled graph SVG")}
+        let document=try XMLDocument(data:bytes,options:[]),namespace="http://www.w3.org/2000/svg"
+        guard let root=document.rootElement(),root.localName=="svg",root.uri==namespace else{throw invalid("Controlled graph output has no SVG root")}
+        let holders=try document.nodes(forXPath:"/*[local-name()='svg']/*[local-name()='defs']/*[local-name()='g' and @id='turtle-picture-source-scene']")
+        let outputs=root.elements(forLocalName:"image",uri:namespace).filter{$0.attribute(forName:"id")?.stringValue=="turtle-picture-output"}
+        if holders.isEmpty {
+            guard outputs.isEmpty else{throw invalid("Final Picture image lost its retained source scene")}
+            return bytes // Identity Picture plan: the whole SVG is pre-Picture.
+        }
+        guard holders.count==1,outputs.count==1,let holder=holders.first as? XMLElement,holder.uri==namespace else{throw invalid("Ambiguous retained Picture source scene")}
+        let scenes=holder.elements(forLocalName:"svg",uri:namespace)
+        guard scenes.count==1,let source=scenes[0].copy() as? XMLElement else{throw invalid("Retained Picture source scene is not one SVG document")}
+        // Detach a real XML element, preserving its defs/masks/namespaces. Never
+        // search/substitute image data, clip pixels, resize or matte the output.
+        if source.namespace(forPrefix:"")?.stringValue != namespace {source.addNamespace(XMLNode.namespace(withName:"",stringValue:namespace) as! XMLNode)}
+        return XMLDocument(rootElement:source).xmlData(options:[])
+    }
+    struct DecodedMetafile {let final:CGImage,source:CGImage}
+    static func decoded(_ bytes:Data,name:String)async throws->DecodedMetafile {
         // One real bundled conversion; retain thrown diagnostics instead of hiding
         // a timeout behind a nil ComparisonImage result or retrying the decoder.
         let svg=try await Task.detached(priority:.userInitiated){try MetafileImageDecoder.convert(bytes)}.value
         let converted=try unwrap(svg,"Decoder did not recognize EMF "+name)
-        return try unwrap(ComparisonImage(bytes:converted)?.pixels,"Bundled helper SVG did not render "+name)
+        let final=try unwrap(ComparisonImage(bytes:converted)?.pixels,"Bundled helper SVG did not render "+name)
+        let sourceSVG=try prePictureSVG(converted)
+        let source=try unwrap(sourceSVG==converted ? final:ComparisonImage(bytes:sourceSVG)?.pixels,"Retained pre-Picture SVG did not render "+name)
+        try require(source.width==final.width && source.height==final.height,"Pre-Picture canvas changed "+name)
+        return DecodedMetafile(final:final,source:source)
     }
-    static func interiors(_ native:Pixels,_ decoded:Pixels,_ name:String)throws {
-        try require(native.width==decoded.width && native.height==decoded.height,"Decoded canvas changed "+name)
+    static func interiors(_ native:Pixels,_ decoded:Pixels,_ name:String,inclusiveMetafile:Bool=false,prePicture:Pixels?=nil)throws {
+        if inclusiveMetafile {
+            try require(decoded.width==native.width+1 && decoded.height==native.height+1,"Decoded canvas \(decoded.width)x\(decoded.height), expected inclusive \(native.width+1)x\(native.height+1) for \(name)")
+            // Final directed-float/Q11 Picture projection may populate the
+            // endpoint border. Require zero coverage on the retained pre-Picture
+            // scene; final pixels remain whole for all geometry/palette checks.
+            let source=try unwrap(prePicture,"Missing pre-Picture endpoint witness "+name)
+            try require(source.width==decoded.width && source.height==decoded.height,"Pre-Picture canvas changed "+name)
+            func transparentEndpoint(_ x:Int,_ y:Int)throws {
+                try require(source.sample(x,y)==[0,0,0,0],"Pre-Picture EMF border contains ink at (\(x),\(y)) in \(name): \(source.sample(x,y))")
+            }
+            for y in 0..<decoded.height {try transparentEndpoint(native.width,y)}
+            for x in 0..<native.width {try transparentEndpoint(x,native.height)}
+        } else {
+            try require(native.width==decoded.width && native.height==decoded.height,"Decoded canvas changed "+name)
+        }
         var checked=0,failures=0,first=""
         // Only opaque five-by-five flat interiors are witnesses. This avoids
         // comparing two renderers' edge antialiasing or font hinting policies.
@@ -190,8 +236,8 @@ actor GraphMetafileWriteGate {
             try c.artifact(MacGraphVectorRenderer.raster(drawing.scene,type:.png),name:"statistics-\(style.rawValue)-\(dark).png")
             _=try records(bytes,size:size)
             let actual=try await decoded(bytes,name:"statistics \(style) dark=\(dark)")
-            let actualPixels=try Pixels(actual)
-            try interiors(Pixels(expected),actualPixels,"statistics \(style) dark=\(dark)")
+            let actualPixels=try Pixels(actual.final)
+            try interiors(Pixels(expected),actualPixels,"statistics \(style) dark=\(dark)",inclusiveMetafile:true,prePicture:Pixels(actual.source))
             try palette(actualPixels,graph:graph,plot:drawing.plotBounds,dark:dark,name:"\(style)/\(dark)")
             let resolved=try MacGraphVectorRenderer.resolvedText(drawing.scene)
             try require(!resolved.commands.contains{if case .text = $0{return true};return false},"Unicode labels remained unresolved text")
@@ -207,9 +253,11 @@ actor GraphMetafileWriteGate {
         for(index,word)in words.enumerated(){commands.append(.text(.init(text:word,origin:CGPoint(x:12,y:32+index*40),fontName:font.fontName,fontSize:24)))}
         let scene=GraphVectorScene(size:size2,commands:commands),resolved=try MacGraphVectorRenderer.resolvedText(scene)
         try require(resolved.commands.contains{if case .raster = $0{return true};return false},"Native color emoji did not take a label-local fallback")
-        let bytes=try MacGraphVectorRenderer.emf(scene),image=try await decoded(bytes,name:"Unicode shaping"),pixels=try Pixels(image)
+        let bytes=try MacGraphVectorRenderer.emf(scene)
+        try authoredHeader(bytes,size:size2)
+        let image=try await decoded(bytes,name:"Unicode shaping"),pixels=try Pixels(image.final)
         for index in words.indices {let ink=pixels.count([0,0,0],inside:CGRect(x:8,y:index*40+6,width:320,height:30),tolerance:24);try require(ink>10,"Unicode label lost native ink: "+words[index])}
-        let native=try png(MacGraphVectorRenderer.raster(scene,type:.png));try interiors(Pixels(native),pixels,"Unicode shaping")
+        let native=try png(MacGraphVectorRenderer.raster(scene,type:.png));try interiors(Pixels(native),pixels,"Unicode shaping",inclusiveMetafile:true,prePicture:Pixels(image.source))
         try c.preserved()
     }
     static func revision(_ c:Context)async throws {
@@ -224,18 +272,18 @@ actor GraphMetafileWriteGate {
                 let bytes=try owner.graphExportData(format:.emf),alias=try owner.graphExportData(format:.wmf),size=try RevisionGraphExport.size(canvas:canvas,viewport:owner.window!.contentView!.bounds.size,format:.emf)
                 // Use actual header dimensions because the canvas viewport is
                 // smaller than the outer form and is the source export viewport.
-                let actualSize=CGSize(width:word(bytes,16),height:word(bytes,20))
+                let actualSize=CGSize(width:word(bytes,16)+1,height:word(bytes,20)+1)
                 try require(bytes==alias && actualSize.width>0 && size.width>=actualSize.width,"Revision suffix alias or source vector sizing changed")
                 try c.artifact(bytes,name:"revision-\(dark)-\(direction).emf")
                 try c.artifact(owner.graphExportData(format:.png),name:"revision-\(dark)-\(direction).png")
                 let parsed=try records(bytes,size:actualSize)
                 try require(parsed.contains{$0.type==64},"Revision arrows/selection lost vector strokes")
-                let image=try await decoded(bytes,name:"revision graph"),pixels=try Pixels(image)
+                let image=try await decoded(bytes,name:"revision graph"),pixels=try Pixels(image.final)
                 let native=try withAppearance(appearance) {try nativeImage(size:actualSize) {
                     NSColor.textBackgroundColor.setFill();CGRect(origin:.zero,size:actualSize).fill()
                     NSGraphicsContext.current?.cgContext.translateBy(x:10,y:10);canvas.drawGraph(text:true,renderingZoom:1)
                 }}
-                try interiors(Pixels(native),pixels,"revision scene/native canvas")
+                try interiors(Pixels(native),pixels,"revision scene/native canvas",inclusiveMetafile:true,prePicture:Pixels(image.source))
                 let nodes=Dictionary(uniqueKeysWithValues:model.nodes.map{($0.hash,$0)})
                 try withAppearance(appearance) {
                     for item in geometry.nodes {

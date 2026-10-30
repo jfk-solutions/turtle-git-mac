@@ -15,6 +15,21 @@ these source branches. TurtleGit accepts both `.wmf` and explicit `.emf` as alia
 for enhanced EMF. Statistics restores the source `.wmf` extensionless Pictures
 default; Revision Graph retains `.svg` for Pictures and `.gv` for Graphs.
 
+The [EMF header bounds](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/e4a35c41-e8e3-43f9-bc07-a18e99bb866d)
+are inclusive. An integral 640 × 360 authored viewport therefore has bounds
+`(0, 0, 639, 359)`, while its physical frame retains the full viewport at the
+writer's 96-DPI profile. The file-backed Picture consumer allocates 641 × 361;
+its additional row and column are distinct from the authored graph. The header
+must not extend initial drawing coverage into that allocation. Geometry checks
+retain the complete decoded image and compare original coordinates without
+cropping, rescaling or replacing transparent pixels with a matte. Drawing-record
+bounds, vector coordinates and the physical frame have separate contracts.
+The extra allocation is transparent before final Picture sampling. The measured
+directed-float Picture filter can mix adjacent viewport pixels into that edge
+at nonidentity dimensions. Native checks inspect the retained pre-Picture scene
+for the unpainted-border invariant and keep the complete final image for its
+dimension, palette and geometry checks; they do not erase the filtered edge.
+
 The user-provided layout2vector repository, pinned at
 `2e0a96b9f87f2a8c0ff649963a67dfccd73bf5bb`, provided a separate writer reference.
 The native implementation uses an original shared display list and Core writer;

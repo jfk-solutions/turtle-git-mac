@@ -168,7 +168,12 @@ public enum EnhancedMetafileWriter {
             guard depth == 0 else { throw invalid("the graph leaves an unclosed drawing state.") }
             try record(14, words([0, 0, 20]))
             let frame = integers([0, 0, Int32((size.width * 2540 / 96).rounded()), Int32((size.height * 2540 / 96).rounded())])
-            let header = words([1, 88]) + bounds() + frame + words([0x464d4520, 0x10000, UInt32(output.count), UInt32(records), 3, 0, 0, 0]) + integers([960, 960, 254, 254])
+            // MS-EMF Header.Bounds is inclusive-inclusive. The authored
+            // viewport covers ceil(width) by ceil(height) device pixels; its
+            // last pixel is extent-1. This does not change the physical Frame,
+            // path geometry, or individual drawing-record bounding hints.
+            let headerBounds=integers([0,0,Int32(ceil(size.width))-1,Int32(ceil(size.height))-1])
+            let header = words([1, 88]) + headerBounds + frame + words([0x464d4520, 0x10000, UInt32(output.count), UInt32(records), 3, 0, 0, 0]) + integers([960, 960, 254, 254])
             guard header.count == 88 else { throw invalid("the metafile header could not be encoded.") }
             output.replaceSubrange(0..<88, with: header)
             try cancellation?.check(); return output

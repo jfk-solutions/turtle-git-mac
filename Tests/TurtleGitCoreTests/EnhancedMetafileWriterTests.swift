@@ -21,24 +21,32 @@ final class EnhancedMetafileWriterTests: XCTestCase {
         }
         return result
     }
-    private func pixels(_ bytes: Data) throws -> [UInt8] {
+    private func pixels(_ bytes: Data,viewportWidth:Int=64,viewportHeight:Int=64) throws -> [UInt8] {
         let image = try XCTUnwrap(ComparisonImage(bytes: bytes), "Actual metafile reader refused exported EMF")
-        XCTAssertEqual(image.pixels.width, 65); XCTAssertEqual(image.pixels.height, 65)
-        // File-backed EMF display includes the final edge pixel. Keep the
-        // authored 64x64 geometry oracle at 1:1 scale without that extra edge.
-        let playback = try XCTUnwrap(image.pixels.cropping(to: CGRect(x: 0, y: 0, width: 64, height: 64)))
-        var rgba = [UInt8](repeating: 0, count: 64 * 64 * 4)
+        let width=image.pixels.width,height=image.pixels.height
+        XCTAssertEqual(width,viewportWidth+1,"Raw inclusive EMF canvas width")
+        XCTAssertEqual(height,viewportHeight+1,"Raw inclusive EMF canvas height")
+        guard width==viewportWidth+1,height==viewportHeight+1 else {throw NSError(domain:"Raw EMF canvas differs from authored viewport",code:1)}
+        var rgba = [UInt8](repeating: 0, count: width*height*4)
         try rgba.withUnsafeMutableBytes { memory in
-            let context = try XCTUnwrap(CGContext(data: memory.baseAddress, width: 64, height: 64, bitsPerComponent: 8,
-                bytesPerRow: 256, space: try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB)),
+            let context = try XCTUnwrap(CGContext(data: memory.baseAddress, width: width, height: height, bitsPerComponent: 8,
+                bytesPerRow: width*4, space: try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB)),
                 bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none; context.draw(playback, in: CGRect(x: 0, y: 0, width: 64, height: 64))
+            context.interpolationQuality = .none; context.draw(image.pixels, in: CGRect(x: 0, y: 0, width: width, height: height))
         }
+        // Keep the whole raw image. Neither crop nor matte can conceal a
+        // producer/decoder mismatch on the allocated endpoint row/column.
+        func transparentEndpoint(_ x:Int,_ y:Int) {
+            let offset=(y*width+x)*4
+            XCTAssertEqual(Array(rgba[offset..<offset+4]),[0,0,0,0],"Inclusive border ink at (\(x),\(y))")
+        }
+        for y in 0..<height {transparentEndpoint(viewportWidth,y)}
+        for x in 0..<viewportWidth {transparentEndpoint(x,viewportHeight)}
         return rgba
     }
     private func expect(_ pixels: [UInt8], _ x: Int, _ y: Int, _ expected: [Int], tolerance: Int = 0,
                         file: StaticString = #filePath, line: UInt = #line) {
-        let actual = (0..<4).map { Int(pixels[(y * 64 + x) * 4 + $0]) }
+        let actual = (0..<4).map { Int(pixels[(y * 65 + x) * 4 + $0]) }
         XCTAssertTrue(zip(actual, expected).allSatisfy { abs($0.0 - $0.1) <= tolerance },
                       "Exported pixel (\(x),\(y)) = \(actual), expected \(expected)", file: file, line: line)
     }
@@ -57,7 +65,7 @@ final class EnhancedMetafileWriterTests: XCTestCase {
         XCTAssertEqual(header.type, 1); XCTAssertEqual(header.bytes.count, 88)
         XCTAssertEqual(word(bytes, 40), 0x464d4520); XCTAssertEqual(word(bytes, 44), 0x10000)
         XCTAssertEqual(Int(word(bytes, 48)), bytes.count); XCTAssertEqual(Int(word(bytes, 52)), parsed.count)
-        XCTAssertEqual(word(bytes, 16), 50000); XCTAssertEqual(word(bytes, 20), 2000)
+        XCTAssertEqual(word(bytes, 16), 49999); XCTAssertEqual(word(bytes, 20), 1999)
         XCTAssertEqual(word(bytes, 32), UInt32((50000.0 * 2540 / 96).rounded()))
         XCTAssertEqual(parsed.last?.type, 14); XCTAssertEqual(parsed.last?.bytes.count, 20)
         XCTAssertTrue(parsed.contains { $0.type == 59 }); XCTAssertTrue(parsed.contains { $0.type == 5 })
@@ -72,6 +80,34 @@ final class EnhancedMetafileWriterTests: XCTestCase {
         let curves = parsed.filter { $0.type == 5 }
         XCTAssertEqual(curves.count, 4, "Both fills and strokes must keep cubic and converted quadratic segments")
         XCTAssertEqual(curves.map { word($0.bytes, 24) }, [3,3,3,3])
+    }
+
+    func testInclusiveHeaderKeepsPhysicalFrameAndAuthoredDrawingGeometry() throws {
+        for size in [CGSize(width:1,height:1),CGSize(width:64,height:64),CGSize(width:64.25,height:31.5)] {
+            let shape=GraphVectorPath(segments:[.move(CGPoint(x:0.25,y:0.5)),.line(CGPoint(x:size.width,y:size.height)),.line(.zero),.close])
+            let bytes=try EnhancedMetafileWriter.encode(GraphVectorScene(size:size,commands:[.fill(path:shape,color:red,rule:.nonZero)]))
+            let parsed=try records(bytes)
+            XCTAssertEqual(word(bytes,8),0);XCTAssertEqual(word(bytes,12),0)
+            XCTAssertEqual(Int(word(bytes,16)),Int(ceil(size.width))-1)
+            XCTAssertEqual(Int(word(bytes,20)),Int(ceil(size.height))-1)
+            XCTAssertEqual(word(bytes,24),0);XCTAssertEqual(word(bytes,28),0)
+            XCTAssertEqual(word(bytes,32),UInt32((size.width*2540/96).rounded()))
+            XCTAssertEqual(word(bytes,36),UInt32((size.height*2540/96).rounded()))
+            XCTAssertEqual(word(bytes,72),960);XCTAssertEqual(word(bytes,76),960)
+            XCTAssertEqual(word(bytes,80),254);XCTAssertEqual(word(bytes,84),254)
+            let move=try XCTUnwrap(parsed.first{$0.type==27}),line=try XCTUnwrap(parsed.first{$0.type==54})
+            XCTAssertEqual(word(move.bytes,8),16);XCTAssertEqual(word(move.bytes,12),32)
+            XCTAssertEqual(word(line.bytes,8),UInt32((size.width*64).rounded()))
+            XCTAssertEqual(word(line.bytes,12),UInt32((size.height*64).rounded()))
+            // Header correction must not silently rewrite record-local bounds.
+            let fill=try XCTUnwrap(parsed.first{$0.type==62})
+            XCTAssertEqual(word(fill.bytes,8),0);XCTAssertEqual(word(fill.bytes,12),0)
+            XCTAssertEqual(Int(word(fill.bytes,16)),Int(ceil(size.width)))
+            XCTAssertEqual(Int(word(fill.bytes,20)),Int(ceil(size.height)))
+        }
+        let one=try EnhancedMetafileWriter.encode(GraphVectorScene(size:CGSize(width:1,height:1),commands:[.fill(path:.rectangle(CGRect(x:0,y:0,width:1,height:1)),color:red,rule:.nonZero)]))
+        let raw=try pixels(one,viewportWidth:1,viewportHeight:1)
+        XCTAssertEqual(Array(raw[0..<4]),[255,0,0,255],"One-pixel viewport lost authored ink")
     }
 
     func testExportedCompoundFillClipRestoreAndDashedStrokePaintActualGeometry() throws {

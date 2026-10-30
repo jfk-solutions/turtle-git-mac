@@ -1,0 +1,149 @@
+{
+  "date": "2026-10-30",
+  "status": "focused-core-and-six-native-cases-passed-after-recorded-repairs",
+  "source_base": "08cf398c",
+  "scope": "Shared Statistics/Revision Graph enhanced-metafile header bounds, native viewport consumers and first-use manual instructions. Not a complete release or graph Windows pixel certification.",
+  "hosted_blocker": {
+    "run": 41085850782,
+    "job": 124167882946,
+    "source": "fa5f05fe",
+    "failure": "statistics-native-receiver-2026-10-07.swift79: Metafile lost viewport. Old640x360 expectation predates file-backed inclusive641x361 allocation."
+  },
+  "production_repair": {
+    "file": "Sources/TurtleGitCore/EnhancedMetafileWriter.swift",
+    "change": "Header.Bounds only: inclusive ceil(width)-1 / ceil(height)-1. Physical Frame, device profile, path/world coordinates and record-local bounding hints unchanged.",
+    "primary_contract": "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/e4a35c41-e8e3-43f9-bc07-a18e99bb866d"
+  },
+  "failures_retained": [
+    {
+      "attempt": "first grouped native check",
+      "logs": [
+        "build/qa/graph-framing-statistics-native-2026-10-30.log",
+        "build/qa/graph-framing-scenes-native-2026-10-30.log"
+      ],
+      "receiver_pids": [
+        455,
+        456
+      ],
+      "result": "Both system-Git cases failed on fully opaque endpoint pixels: the header declared an exclusive extent as an inclusive bound. Receivers were reaped; bundled-Git cases were not reached.",
+      "original_artifact": "build/qa/graph-framing-original-export-failure-2026-10-30/statistics-1-false.emf",
+      "original_sha256": "12f138d2524e8e54404f84e4de3e008a5d61bbeafd03abbea904946b04f67181",
+      "original_bounds": [
+        0,
+        0,
+        720,
+        420
+      ],
+      "original_frame": [
+        0,
+        0,
+        19050,
+        11113
+      ]
+    },
+    {
+      "attempt": "after header correction",
+      "logs": [
+        "build/qa/graph-framing-statistics-native-repair-2026-10-30.log",
+        "build/qa/graph-framing-scenes-native-repair-2026-10-30.log"
+      ],
+      "receiver_pids": [
+        1300,
+        1299
+      ],
+      "result": "Both system-Git cases failed the new zero-final-border assertion with alpha5/6 rather than255. Five focused Core writer methods passed. The retained pre-Picture scene has a zero border; the intended final directed-float/Q11 Picture projection mixes neighboring viewport pixels into it. The new assertion targeted the wrong stage. No filter changed and no output pixel was blanked.",
+      "diagnostic": [
+        "build/qa/graph-fringe-imageio-diagnostic-2026-10-30.swift",
+        "build/qa/graph-fringe-imageio-diagnostic-2026-10-30.json",
+        "build/qa/graph-framing-repair-source-scene.svg"
+      ]
+    }
+  ],
+  "manual_changes": [
+    "Getting Started explains Manage Finder Extension activation separately from repository folder authorization and registration.",
+    "Finder status guide uses Icon Overlays → Watched Repositories, Add…, Renew Access… and Refresh after TurtleGit quits.",
+    "Getting Started explains double-click Stage/Unstage in staging lists and preserves Classic double-click Diff."
+  ],
+  "validation": {
+    "core": {
+      "result": "pass",
+      "methods": 5,
+      "receipt": "build/qa/graph-framing-core-2026-10-30.json",
+      "log": "build/qa/graph-framing-core-2026-10-30.log",
+      "scope": "Only EnhancedMetafileWriterTests: inclusive header for one-pixel, integral and fractional viewports; unchanged physical frame and drawing-record geometry; actual one-pixel ink/raw border; existing geometry/raster/refusal/cancellation checks. No full Core suite."
+    },
+    "app_build": {
+      "initial": "pass",
+      "initial_log": "build/qa/graph-framing-manual-debug-build-2026-10-30.log",
+      "after_production_repair": "pass",
+      "repair_log": "build/qa/graph-framing-manual-debug-repair-build-2026-10-30.log"
+    },
+    "native": {
+      "result": "pass",
+      "case_engine_pairs": 6,
+      "statistics_dialog": {
+        "case": "family",
+        "engines": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "scope": "Seven actual encodings × five styles × light/dark; PDF labels, raster colors, author/date/empty graphs, metric/axis labels, palette/background; summary/busy/write refusal; held picker/cancel/duplicate/stale/close/Quit, restore and unchanged repository."
+      },
+      "shared_graph_scenes": {
+        "cases": [
+          "statistics",
+          "revision"
+        ],
+        "engines": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "scope": "Authored header/physical frame, full final allocation, zero PRE-Picture endpoint coverage, original-coordinate flat interiors, palette, Unicode/color glyphs, vector records and Revision Graph markers/arrows."
+      },
+      "logs": [
+        "build/qa/graph-framing-statistics-native-stage-repair-2026-10-30.log",
+        "build/qa/graph-framing-scenes-native-stage-repair-2026-10-30.log"
+      ],
+      "shared_graph_receipt": "build/qa/graph-metafile-family-native-results.json",
+      "private_repositories_home_preferences": true,
+      "windows": "Prohibited activation or hidden/offscreen; owned child window cleanup retained.",
+      "success_receiver_pids": [
+        2067,
+        2290,
+        2066,
+        2372,
+        2552,
+        2739
+      ],
+      "all_ten_attempted_receivers_reaped_and_independently_absent": true,
+      "graph_owned_helper_cleanup_needed": false,
+      "scope_not_repeated": "Unchanged graph-save ownership-only group and unrelated Core/native workflows were not rerun."
+    },
+    "help": "Regenerated before app build; final --check passes:62documents51topics96files9368897bytes.",
+    "coverage": "Regenerated unchanged:130resources120partial audits10pendingfamilies85pendingcontrols; not a feature-completion count.",
+    "localization": "No literal native UI labels changed; only fixture diagnostics and documentation."
+  },
+  "limits": [
+    "Installed build39 is unchanged.",
+    "The final Picture filter has separate Windows-profile measurements. These graph files are not new independent Windows full-frame captures.",
+    "Drawing-record bounding hints retain their existing contract; only the header endpoint convention changed.",
+    "No complete corrected-source hosted CI, physical Finder, minimum-OS/Intel, release or App Store certification."
+  ],
+  "stage_diagnosis": {
+    "earliest_checkpoint_endpoint_pixels": 1141,
+    "earliest_checkpoint_all_rgba_zero": true,
+    "final_picture_nonzero_endpoint_pixels": 1140,
+    "final_picture_max_alpha": 6,
+    "diagnostic_scope": "ImageIO raw PNG reads and12 minimal AppKit controls; whole source scene and direct checkpoint/PNG replay retain zero endpoints under both interpolation qualities. The already-embedded final PNG contains the fringe before outer SVG replay.",
+    "cause": "Intended final SpatialImageSampling.picture directed-float coordinate recurrence/Q11 filtering at nonidentity dimensions. A zero pre-sampling border need not remain zero after this projection.",
+    "repair": "Move the newly introduced endpoint assertion to the retained pre-Picture scene. Keep full final output, exact final dimensions, original-coordinate graph/color/style/ownership assertions and converter failure diagnostics. No crop, resize, matte, blanking or fitted tolerance."
+  },
+  "source_hashes": {
+    "Sources/TurtleGitCore/EnhancedMetafileWriter.swift": "a6aad29d53217e924353717530b6ff0f594e948fcdcfd837c6e183a39c0c41c7",
+    "Tests/TurtleGitCoreTests/EnhancedMetafileWriterTests.swift": "5f15758d446e0bf2780433b5c688e28f336160cbd78da8c2062ef7385187d456",
+    "docs/qa/statistics-native-receiver-2026-10-07.swift": "97a7f4536083dc37041e55139b02d7d900cd49386e2bec7bf1f666fa59cc6f5a",
+    "docs/qa/graph-metafile-family-native-2026-10-21.swift": "71d9650887972399bd47ee92964ac85b5e599b42286e863d7409ed516f39c9bc",
+    "scripts/test-statistics-dialog.py": "7a7ae9894a85d5170ed2e0dde5d6e0bd401a432d7f4dd90f8ed0fefff8d4d142",
+    "scripts/test-graph-metafile-family.py": "52893b0dd3ae00615e13bbbb4b8bcab4cf705535deb0b8c5d2e1df8a5df9d216"
+  }
+}

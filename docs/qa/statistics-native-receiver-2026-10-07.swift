@@ -1,4 +1,7 @@
 import AppKit
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 import Foundation
 import TurtleGitCore
 import ImageIO
@@ -61,12 +64,35 @@ import PDFKit
         }
         precondition(abs(verticalCenters[0] - verticalCenters[1]) <= 1, "Date pies lost their common vertical center")
     }
+    static func prePictureSVG(_ bytes:Data)throws->Data {
+        func invalid(_ reason:String)->NSError {NSError(domain:"TurtleGit.GraphMetafileFixtureXML",code:1,userInfo:[NSLocalizedDescriptionKey:reason])}
+        guard let text=String(data:bytes,encoding:.utf8),text.range(of:"<!DOCTYPE",options:.caseInsensitive)==nil,text.range(of:"<!ENTITY",options:.caseInsensitive)==nil else{throw invalid("Unexpected entity declaration in controlled graph SVG")}
+        let document=try XMLDocument(data:bytes,options:[]),namespace="http://www.w3.org/2000/svg"
+        guard let root=document.rootElement(),root.localName=="svg",root.uri==namespace else{throw invalid("Controlled graph output has no SVG root")}
+        let holders=try document.nodes(forXPath:"/*[local-name()='svg']/*[local-name()='defs']/*[local-name()='g' and @id='turtle-picture-source-scene']")
+        let outputs=root.elements(forLocalName:"image",uri:namespace).filter{$0.attribute(forName:"id")?.stringValue=="turtle-picture-output"}
+        if holders.isEmpty {
+            guard outputs.isEmpty else{throw invalid("Final Picture image lost its retained source scene")}
+            return bytes // Identity Picture plan: the whole SVG is pre-Picture.
+        }
+        guard holders.count==1,outputs.count==1,let holder=holders.first as? XMLElement,holder.uri==namespace else{throw invalid("Ambiguous retained Picture source scene")}
+        let scenes=holder.elements(forLocalName:"svg",uri:namespace)
+        guard scenes.count==1,let source=scenes[0].copy() as? XMLElement else{throw invalid("Retained Picture source scene is not one SVG document")}
+        // Detach a real XML element, preserving its defs/masks/namespaces. Never
+        // search/substitute image data, clip pixels, resize or matte the output.
+        if source.namespace(forPrefix:"")?.stringValue != namespace {source.addNamespace(XMLNode.namespace(withName:"",stringValue:namespace) as! XMLNode)}
+        return XMLDocument(rootElement:source).xmlData(options:[])
+    }
     static func verifyMetafile(_ data:Data,size:CGSize)throws->CGImage {
         func word(_ offset:Int)->UInt32 {
             precondition(offset>=0 && offset+4<=data.count,"Truncated EMF field")
             return (0..<4).reduce(UInt32(0)){$0 | UInt32(data[offset+$1]) << ($1*8)}
         }
         precondition(data.count>=88 && word(0)==1 && word(40)==0x464d4520 && Int(word(48))==data.count,"Not a complete enhanced-metafile graph")
+        let viewportWidth=Int(ceil(size.width)),viewportHeight=Int(ceil(size.height))
+        precondition(word(4)==88 && word(8)==0 && word(12)==0 && Int(word(16))==viewportWidth-1 && Int(word(20))==viewportHeight-1,"Authored EMF viewport bounds changed")
+        precondition(word(24)==0 && word(28)==0 && Int(word(32))==Int((size.width*2540/96).rounded()) && Int(word(36))==Int((size.height*2540/96).rounded()),"Authored EMF physical frame changed")
+        precondition(word(72)==960 && word(76)==960 && word(80)==254 && word(84)==254,"Authored EMF device profile changed")
         var offset=0,records=0,fills=0,strokes=0,rasters=0,last:UInt32=0
         while offset<data.count {
             let type=word(offset),length=Int(word(offset+4))
@@ -76,7 +102,27 @@ import PDFKit
         }
         precondition(last==14 && records==Int(word(52)) && fills>1 && strokes>0 && rasters==0,"Graph is not vector paths and outlined labels")
         guard let svg=try MetafileImageDecoder.convert(data),let image=ComparisonImage(bytes:svg)?.pixels else {preconditionFailure("Actual bundled EMF decoder refused exported graph")}
-        precondition(image.width==Int(size.width) && image.height==Int(size.height),"Metafile lost viewport")
+        let sourceSVG=try prePictureSVG(svg)
+        guard let sourceImage=sourceSVG==svg ? image:ComparisonImage(bytes:sourceSVG)?.pixels else{preconditionFailure("Retained pre-Picture graph SVG did not render")}
+        precondition(sourceImage.width==image.width && sourceImage.height==image.height,"Pre-Picture graph canvas changed")
+        // Retain the complete decoder output: native Windows EMF allocation
+        // includes the right/bottom endpoint, while authored graph ink keeps
+        // its original viewport coordinates. Never crop, resize or matte it.
+        // Check untouched endpoint coverage before final Picture projection:
+        // its directed-float/Q11 sampling can legitimately populate this border.
+        precondition(image.width==viewportWidth+1 && image.height==viewportHeight+1,"Metafile canvas \(image.width)x\(image.height), expected inclusive \(viewportWidth+1)x\(viewportHeight+1) for viewport \(viewportWidth)x\(viewportHeight)")
+        var raw=[UInt8](repeating:0,count:image.width*image.height*4)
+        raw.withUnsafeMutableBytes {buffer in
+            let context=CGContext(data:buffer.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:CGColorSpaceCreateDeviceRGB(),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue)!
+            context.interpolationQuality = .none
+            context.draw(sourceImage,in:CGRect(x:0,y:0,width:sourceImage.width,height:sourceImage.height))
+        }
+        func transparentEndpoint(_ x:Int,_ y:Int) {
+            let offset=(y*image.width+x)*4
+            precondition(raw[offset..<offset+4].allSatisfy{$0==0},"Pre-Picture EMF inclusive border contains ink at (\(x),\(y)): \(Array(raw[offset..<offset+4]))")
+        }
+        for y in 0..<image.height {transparentEndpoint(viewportWidth,y)}
+        for x in 0..<viewportWidth {transparentEndpoint(x,viewportHeight)}
         return image
     }
     @MainActor static func verifyExport(_ controller: StatisticsWindowController, root: URL) throws {

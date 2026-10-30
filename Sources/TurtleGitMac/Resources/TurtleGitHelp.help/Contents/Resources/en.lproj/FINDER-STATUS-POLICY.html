@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Choosing Finder status behavior</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><h1 id="choosing-finder-status-behavior">Choosing Finder status behavior</h1>
-<p>Open <strong>Settings → Icon Overlays → Status cache</strong> to choose how TurtleGit
+<p>Open <strong>Settings → Icon Overlays</strong> and use <strong>Status cache</strong> to choose how TurtleGit
 collects badge status. Apply accepts the choice; Cancel keeps the previous one.</p>
 <ul>
 <li><strong>Default</strong> compares working files, the index and HEAD and rolls changes up
@@ -18,9 +18,14 @@ staged-only changes can remain Normal, and ignored files can appear unversioned.
 Use Default when badges should include staged/HEAD differences. The app's Working
 Tree window continues to show full Git status in every mode.</p>
 <p>Finder reads published status and submits asynchronous refresh requests. It does
-not run Git. To refresh watched repositories after closing the main app, enable
-the background service and authorize the repository folders in Finder Integration.
-Changing cache mode does not grant access or enable a disabled service.</p>
+not run Git. To refresh watched repositories after quitting the main app, open
+<strong>Settings → Icon Overlays → Watched Repositories</strong>. Use <strong>Add…</strong> to authorize a
+repository folder, or <strong>Renew Access…</strong> for a selected repository whose permission
+has expired. Enable <strong>Refresh after TurtleGit quits</strong> for background refresh.</p>
+<p>Finder extension activation is separate: use <strong>Settings → Icon Overlays → Manage
+Finder Extension…</strong>. Enabling the extension does not grant repository access.
+Changing cache mode does not authorize or register folders, activate the extension
+or enable the background service.</p>
 <p>Opening an individual action window does not start a fresh scan of every saved
 repository. Completed Git actions refresh the selected watched repository.
 Opening the workspace resumes monitoring all saved repositories; Add to TurtleGit
