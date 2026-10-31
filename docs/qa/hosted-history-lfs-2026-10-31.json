@@ -1,0 +1,239 @@
+{
+  "date": "2026-10-31",
+  "snapshot_completed_utc": "2026-10-31T22:26:46Z",
+  "kind": "read-only hosted workflow snapshot",
+  "repository": "jfk-solutions/turtle-git-mac",
+  "method": "Authenticated GitHub REST workflow-run and per-run job reads; terminal job logs inspected.",
+  "current_source": "4e0cd5f64d20c5d0f74c67dc00a29b97fbd5fd86",
+  "current_runs": [
+    {
+      "id": 41248034388,
+      "workflow": "macOS",
+      "status": "pending",
+      "conclusion": null,
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41248034388",
+      "jobs": []
+    },
+    {
+      "id": 41248034800,
+      "workflow": "GitHub Pages",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41248034800",
+      "jobs": [
+        {
+          "id": 124675465548,
+          "name": "build",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41248034800/job/124675465548"
+        },
+        {
+          "id": 124675601872,
+          "name": "deploy",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41248034800/job/124675601872"
+        }
+      ]
+    }
+  ],
+  "preceding_runs": [
+    {
+      "source": "2d385e2c98c685489bd65d1a9afcd864b3597d3c",
+      "workflow": "GitHub Pages",
+      "id": 41247133613,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41247133613"
+    },
+    {
+      "source": "2d385e2c98c685489bd65d1a9afcd864b3597d3c",
+      "workflow": "macOS",
+      "id": 41247133669,
+      "status": "completed",
+      "conclusion": "cancelled",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41247133669",
+      "jobs_created": 0
+    },
+    {
+      "source": "bbfbf390eeb277291a7e9704cd4b4fca3bcdf612",
+      "workflow": "GitHub Pages",
+      "id": 41243543454,
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41243543454"
+    },
+    {
+      "source": "bbfbf390eeb277291a7e9704cd4b4fca3bcdf612",
+      "workflow": "macOS",
+      "id": 41243543483,
+      "status": "completed",
+      "conclusion": "cancelled",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41243543483",
+      "jobs_created": 0
+    }
+  ],
+  "older_active_source": "fc45a076e91ce5b1306b0785a852d8d0586ede93",
+  "older_run": {
+    "id": 41237449674,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674",
+    "aggregate_status": "queued",
+    "aggregate_conclusion": null,
+    "actual_jobs": [
+      {
+        "id": 124653656237,
+        "name": "svn-runtime",
+        "status": "completed",
+        "conclusion": "success",
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653656237",
+        "active_or_failed_steps": []
+      },
+      {
+        "id": 124653873238,
+        "name": "validation (commit-repository)",
+        "status": "in_progress",
+        "conclusion": null,
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873238",
+        "active_or_failed_steps": [
+          {
+            "name": "Classic WMF and EMF Boolean raster consumers and conflict ownership",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 160
+          }
+        ]
+      },
+      {
+        "id": 124653873275,
+        "name": "validation (images-documents)",
+        "status": "queued",
+        "conclusion": null,
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873275",
+        "active_or_failed_steps": []
+      },
+      {
+        "id": 124653873291,
+        "name": "validation (settings-finder)",
+        "status": "in_progress",
+        "conclusion": null,
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873291",
+        "active_or_failed_steps": [
+          {
+            "name": "First-use Finder selected-file workflow Services",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 126
+          }
+        ]
+      },
+      {
+        "id": 124653873294,
+        "name": "validation (editors)",
+        "status": "in_progress",
+        "conclusion": null,
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873294",
+        "active_or_failed_steps": [
+          {
+            "name": "Standalone Merge tool entry and editor workflows",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 105
+          }
+        ]
+      },
+      {
+        "id": 124653873297,
+        "name": "validation (replay-transport)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873297",
+        "active_or_failed_steps": [
+          {
+            "name": "Grouped native LFS and Send Mail receivers with one compilation",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 189
+          }
+        ]
+      },
+      {
+        "id": 124653873337,
+        "name": "validation (core)",
+        "status": "in_progress",
+        "conclusion": null,
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873337",
+        "active_or_failed_steps": [
+          {
+            "name": "Git integration tests",
+            "status": "in_progress",
+            "conclusion": null,
+            "number": 79
+          }
+        ]
+      },
+      {
+        "id": 124653873357,
+        "name": "validation (distribution)",
+        "status": "queued",
+        "conclusion": null,
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873357",
+        "active_or_failed_steps": []
+      },
+      {
+        "id": 124653873442,
+        "name": "validation (history-references)",
+        "status": "completed",
+        "conclusion": "failure",
+        "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873442",
+        "active_or_failed_steps": [
+          {
+            "name": "Native optional remote-reference listing deletion and Sync workflow",
+            "status": "completed",
+            "conclusion": "failure",
+            "number": 227
+          }
+        ]
+      }
+    ]
+  },
+  "terminal_failures": [
+    {
+      "job_id": 124653873297,
+      "job": "validation (replay-transport)",
+      "step": 189,
+      "step_name": "Grouped native LFS and Send Mail receivers with one compilation",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873297",
+      "failure": "LFS native condition did not settle at line 543",
+      "phase": "LFSLocksVerification; receiver exited before SMTP readiness",
+      "owned_receiver_pid": 88387,
+      "owned_receiver_reaped": true,
+      "pinned_fixture": "docs/qa/lfs-locks-native-2026-10-08.swift",
+      "pinned_fixture_line": 542,
+      "receiver_line": 543,
+      "line_mapping": "Receiver adds an import before the original fixture.",
+      "assertion": "commit.model.fileColumns.widths[.lfsOwner] == 217",
+      "terminal_at": "2026-10-31T21:41:21Z"
+    },
+    {
+      "job_id": 124653873442,
+      "job": "validation (history-references)",
+      "step": 227,
+      "step_name": "Native optional remote-reference listing deletion and Sync workflow",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873442",
+      "failure": "Sync delete/refill lost accepted engine: The repository changed. Refresh Synchronization before starting this operation.",
+      "phase": "remote-reference-backend-native; packaged Git and LibGit2 helper",
+      "owned_receiver_pid": 81282,
+      "owned_receiver_reaped": true,
+      "pinned_fixture": "docs/qa/remote-reference-backend-native-2026-10-19.swift",
+      "pinned_fixture_line": 101,
+      "terminal_at": "2026-10-31T21:41:40Z"
+    }
+  ],
+  "limits": [
+    "This is a point-in-time snapshot; running and pending jobs have no final result.",
+    "Current 4e0cd5f6 macOS run has no created jobs in this snapshot; Pages success is not a macOS test pass.",
+    "The two terminal failures belong to older fc45a076 source, not an execution of current 4e0cd5f6.",
+    "No workflow cancellation, rerun or dispatch and no local tests, builds or source changes were performed."
+  ]
+}

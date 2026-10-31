@@ -86,6 +86,7 @@ final class SynchronizationTagTests: XCTestCase {
         let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
         _ = try await f.client.run(["tag", "local", f.base])
         let snapshot = try await f.client.synchronizationTags(remote: "origin"), row = snapshot.rows.first { $0.name.rawValue == "local" }!
+        XCTAssertTrue(snapshot.originatingRepository === f.client)
         let foreign = GitRepository(root: f.client.root, executable: f.client.executable)
         do { _ = try await foreign.synchronizeTag(.push, row: row, snapshot: snapshot); XCTFail("foreign actor") } catch SynchronizationTransportFailure.repositoryChanged {}
         let cancelled = OperationCancellation(); cancelled.cancel()
@@ -98,5 +99,23 @@ final class SynchronizationTagTests: XCTestCase {
         } catch SynchronizationTransportFailure.repositoryChanged {}
         let remote = try await f.client.remoteTags(remote: "origin"); XCTAssertTrue(remote.isEmpty)
         do { _ = try await f.client.synchronizationTags(remote: "bad\0remote"); XCTFail("NUL remote") } catch RemoteTagFailure.selection {}
+    }
+    func testTagReceiptPreservesProducingActorThroughLocalDeleteAndRefill() async throws {
+        let f = try await fixture(); defer { try? FileManager.default.removeItem(at: f.directory) }
+        _ = try await f.client.run(["tag", "local", f.base])
+        // A captured operation actor shares its working directory with the
+        // caller, but is still the sole authority for the resulting receipt.
+        let producer = GitRepository(root: f.client.root, executable: f.client.executable)
+        let snapshot = try await producer.synchronizationTags(remote: "origin")
+        let row = try XCTUnwrap(snapshot.rows.first { $0.name.rawValue == "local" })
+        XCTAssertTrue(snapshot.originatingRepository === producer)
+        do {
+            _ = try await f.client.synchronizeTag(.deleteLocal, row: row, snapshot: snapshot, deletionAuthorized: true)
+            XCTFail("Same-directory caller substituted for the captured actor")
+        } catch SynchronizationTransportFailure.repositoryChanged {}
+        _ = try await snapshot.originatingRepository.synchronizeTag(.deleteLocal, row: row, snapshot: snapshot, deletionAuthorized: true)
+        let updated = try await snapshot.originatingRepository.synchronizationTags(remote: snapshot.remote)
+        XCTAssertTrue(updated.originatingRepository === producer)
+        XCTAssertFalse(updated.rows.contains { $0.name.rawValue == "local" })
     }
 }

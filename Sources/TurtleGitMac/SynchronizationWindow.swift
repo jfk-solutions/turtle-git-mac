@@ -186,9 +186,17 @@ extension SynchronizationTagKind {
         let capturedBackend=(isCheckout ? repository.libgit2Configuration:nil) ?? backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
         self.backend = capturedBackend
         self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        // A checkout receipt belongs to the exact actor captured by its parent
-        // transport attempt. Preserve that actor and its already frozen policy.
-        self.repository = isCheckout ? repository:repository.capturingBackend(capturedBackend); self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
+        // Checkout and tag receipts belong to their producing actors. Tag
+        // commands pass this attempt's backend explicitly; cloning an actor to
+        // capture that policy would invalidate the accepted tag receipt.
+        if case .tag(_, _, let snapshot, _) = operation, snapshot.root == repository.root {
+            self.repository = snapshot.originatingRepository
+        } else {
+            // A foreign-root receipt is deliberately left for the unchanged
+            // Core identity/root guard to refuse, never redirected to its root.
+            self.repository = isCheckout ? repository:repository.capturingBackend(capturedBackend)
+        }
+        self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
         outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
     }
     func whenDrained(_ completion: @escaping () -> Void) { if working { drained.append(completion) } else { completion() } }
@@ -2144,6 +2152,9 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
               let snapshot = tagSnapshot, snapshot.rows.contains(row), row.allows(action) else { return }
         let request = OperationCancellation(); token = request; busy = true; transportRunning = true; error = nil
         let factory = sshSettings.capture(),backend=captureTagBackend?() ?? GitLibGit2Configuration.load(from:preferences)
+        // Match progress admission: a receipt from another root must reach
+        // Core on the caller actor and fail its unchanged ownership guard.
+        let tagRepository = snapshot.root == repository.root ? snapshot.originatingRepository : repository
         tagBackend=backend
         sshSettings.save(preferences, key: historyKey + ".autoload")
         let attempt = beginInlineAttempt(request, command: false)
@@ -2164,7 +2175,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                 let result: Result<SynchronizationProgressResult, Error>
                 if action == .deleteLocal {
                     // The source deletes locally without a command progress dialog.
-                    do { result = .success(.tag(try await repository.synchronizeTag(.deleteLocal, row: row, snapshot: snapshot, deletionAuthorized: true, cancellation: request,backend:backend))) }
+                    do { result = .success(.tag(try await tagRepository.synchronizeTag(.deleteLocal, row: row, snapshot: snapshot, deletionAuthorized: true, cancellation: request,backend:backend))) }
                     catch { result = .failure(error) }
                 } else {
                     result = await performTagOperation(.tag(action, row, snapshot, action == .deleteRemote), request)
@@ -2187,7 +2198,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                 let updated: Result<SynchronizationProgressResult, Error>
                 if action == .deleteLocal {
                     // Fill after local deletion also has no system progress dialog.
-                    do { updated = .success(.tags(try await repository.synchronizationTags(remote: snapshot.remote, cancellation: refresh, prepareTransport: coordinator?.preparation,backend:backend))) }
+                    do { updated = .success(.tags(try await tagRepository.synchronizationTags(remote: snapshot.remote, cancellation: refresh, prepareTransport: coordinator?.preparation,backend:backend))) }
                     catch { updated = .failure(error) }
                 } else { updated = await performTagOperation(.tags(snapshot.remote), refresh) }
                 guard !closed, token === refresh, !refresh.isCancelled else { return }

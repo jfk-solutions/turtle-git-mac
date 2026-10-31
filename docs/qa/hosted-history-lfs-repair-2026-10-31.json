@@ -1,0 +1,97 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-core-and-grouped-native-checkpoint-passed",
+  "failure_snapshot": "docs/qa/hosted-history-lfs-2026-10-31.json",
+  "changes": [
+    "Strict tag receipt actor retained across native progress, local delete and refill, with each accepted backend explicit",
+    "LFS fixture uses existing owned native layout transaction; actual/persisted/restored width assertions retained"
+  ],
+  "superseded_signed_build": {
+    "source": "4e0cd5f64d20c5d0f74c67dc00a29b97fbd5fd86",
+    "build": "48",
+    "exit": 75,
+    "elapsed_seconds": 229.365,
+    "reason": "Owned build explicitly interrupted to include newly confirmed Sync production fix before installation; caches retained.",
+    "installed": false,
+    "log": "/Users/jkuehner/.codex/worktrees/turtlegit-signed48/tortoise-git-mac/build/qa/signed48-build-2026-10-31.log"
+  },
+  "limits": [
+    "Focused local checks do not establish complete matching-source hosted CI, physical/signed Sync, authenticated public remotes or source-complete port acceptance."
+  ],
+  "core": {
+    "result": "passed",
+    "methods": 4,
+    "log": "build/qa/hosted-history-lfs-core-2026-10-31.log",
+    "scope": "SynchronizationTagTests; retained after native-only caller-root fence."
+  },
+  "initial_native": [
+    {
+      "case": "lfs",
+      "exit": 0,
+      "elapsed_seconds": 60.315,
+      "log": "build/qa/hosted-history-lfs-native-lfs-2026-10-31.log"
+    },
+    {
+      "case": "remote-system",
+      "exit": 0,
+      "elapsed_seconds": 6.82,
+      "log": "build/qa/hosted-history-lfs-native-remote-system-2026-10-31.log"
+    },
+    {
+      "case": "remote-bundled",
+      "exit": 0,
+      "elapsed_seconds": 4.575,
+      "log": "build/qa/hosted-history-lfs-native-remote-bundled-2026-10-31.log"
+    }
+  ],
+  "builds": [
+    {
+      "result": "passed",
+      "log": "build/qa/hosted-history-lfs-debug-2026-10-31.log"
+    },
+    {
+      "result": "passed",
+      "log": "build/qa/hosted-history-lfs-debug-root-fence-2026-10-31.log"
+    }
+  ],
+  "source_review_followup": "After initial grouped passes, local deletion routing received the same explicit parent-root fence as progress. Existing Core actor/root guard unchanged. Only affected native remote-reference cases will be repeated; LFS and Core results retained. Local foreign-root injection itself remains source-reviewed rather than claimed exercised.",
+  "final_affected_native": [
+    {
+      "case": "remote-system",
+      "exit": 0,
+      "elapsed_seconds": 8.236,
+      "log": "build/qa/hosted-history-lfs-root-fence-native-remote-system-2026-10-31.log"
+    },
+    {
+      "case": "remote-bundled",
+      "exit": 0,
+      "elapsed_seconds": 4.63,
+      "log": "build/qa/hosted-history-lfs-root-fence-native-remote-bundled-2026-10-31.log"
+    }
+  ],
+  "cleanup": {
+    "all_recorded_runtime_and_compiler_pids_independently_absent": [
+      35149,
+      35154,
+      35176,
+      35702,
+      36238,
+      36248,
+      36356,
+      36727,
+      36729,
+      36734,
+      36843
+    ],
+    "scope": "Private HOME/CFFIXED_USER_HOME/TMPDIR/XDG, repositories/preferences/pasteboards and hidden windows; owned native receiver/compiler cleanup. The superseded signed build process exited after explicit SIGINT; no matching frozen48 compiler/build processes remained."
+  },
+  "scope": "4 focused Core methods; LFS with system/bundled Git; native remote-reference family with system/bundled Git. Only remote-reference cases repeated after final native caller-root fence; Core/LFS passes retained. No SMTP or unrelated suites repeated.",
+  "native_diagnostics": "Existing RESET TARGET WAIT diagnostic and initial zero-size NSSplitView frame warnings remain logged; no full physical layout claim.",
+  "source_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "8c2581be38263bb107461d8581916397521d0decce456446c7b61193715a7a78",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "4f2a6ae395b84bf9b78ef218303906d52e0c327f9baeb8cc79f985bfba6d4e6e",
+    "Tests/TurtleGitCoreTests/SynchronizationTagTests.swift": "20ed0fef3f186baef7a0abfef6f01e6d739b7ed4ce39de44813a4ac0e992cf95",
+    "docs/qa/lfs-locks-native-2026-10-08.swift": "fdedbe720ba760528b1510dba9dfb1ea76c0d9a877ce88bac34425b73a88fea7",
+    "docs/qa/remote-reference-backend-native-2026-10-19.swift": "b377efc08c89b419a4a71a91ccb66cb9d5f7ef166a85c9d8223d1dc607896f53"
+  }
+}

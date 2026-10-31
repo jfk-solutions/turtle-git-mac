@@ -95,10 +95,33 @@ import TurtleGitCore
         sync.compareTags();off();try await wait{!sync.busy}
         guard let snapshot=sync.tagSnapshot,let row=snapshot.rows.first(where:{$0.name.rawValue=="beta"}) else {throw Failure(description:"Actual Sync helper tag rows missing: \(sync.error ?? "none")")}
         try require(sync.tagBackend?.requests(.fetch)==true && progress.last?.backend.requests(.fetch)==true,"Sync compare ignored originating backend")
+        try require(snapshot.originatingRepository !== repo && progress.last?.repository === snapshot.originatingRepository,"Sync list did not retain its captured producing actor")
         use(0x804);sync.confirmTagDeletion={_,_,_ in await withCheckedContinuation{confirmation=$0}}
         sync.performTag(.deleteRemote,row:row);try await wait{confirmation != nil};off();confirmation?.resume(returning:true);confirmation=nil
         try await wait{!sync.busy && SynchronizationProgressModel.activeOperations==0}
         try require(sync.tagSnapshot?.rows.first(where:{$0.name.rawValue=="beta"})?.remoteHash==nil && sync.error==nil && progress.last?.backend.requests(.push)==true,"Sync delete/refill lost accepted engine: \(sync.error ?? "none")")
+        try require(progress.last?.repository === snapshot.originatingRepository && sync.tagSnapshot?.originatingRepository === snapshot.originatingRepository,"Remote mutation/refill replaced the producing actor")
+        // Local deletion has no progress child, but must use the same receipt
+        // authority and refill engine even when preferences change in its warning.
+        guard let localSnapshot=sync.tagSnapshot,let local=localSnapshot.rows.first(where:{$0.name.rawValue=="gamma"}) else {throw Failure(description:"Local delete receipt missing")}
+        let beforeLocal=progress.count
+        use(0x804);sync.performTag(.deleteLocal,row:local);try await wait{confirmation != nil};off();confirmation?.resume(returning:true);confirmation=nil
+        try await wait{!sync.busy && !sync.hasPendingInlineWork}
+        try require(sync.error==nil && progress.count==beforeLocal && sync.tagSnapshot?.originatingRepository === localSnapshot.originatingRepository && sync.tagSnapshot?.rows.first(where:{$0.name.rawValue=="gamma"})?.kind == .onlyRemote,"Local tag deletion/refill lost receipt or opened progress: \(sync.error ?? "none")")
+        guard let fetchSnapshot=sync.tagSnapshot,let fetchRow=fetchSnapshot.rows.first(where:{$0.name.rawValue=="gamma"}) else {throw Failure(description:"Fetch receipt missing")}
+        // A separate same-directory actor still cannot directly mutate this
+        // receipt. Public provenance is routing, not relaxed Core admission.
+        do {_ = try await repo.synchronizeTag(.deleteRemote,row:fetchRow,snapshot:fetchSnapshot,deletionAuthorized:true);throw Failure(description:"Foreign actor accepted tag receipt")}
+        catch SynchronizationTransportFailure.repositoryChanged {}
+        let foreign=SynchronizationProgressModel(repository:remote,operation:.tag(.deleteRemote,fetchRow,fetchSnapshot,true),cancellation:OperationCancellation(),preferences:prefs,access:nil,backend:captured())
+        progress.append(foreign);foreign.start();try await wait{!foreign.busy && SynchronizationProgressModel.activeOperations==0}
+        guard case .failure(let foreignFailure)?=foreign.result,
+              let transportFailure=foreignFailure as? SynchronizationTransportFailure,
+              case .repositoryChanged=transportFailure else {throw Failure(description:"Foreign-root progress did not refuse mismatched receipt: \(String(describing:foreign.result))")}
+        use(0x804);let beforeFetch=progress.count;sync.performTag(.fetch,row:fetchRow);off()
+        try await wait{!sync.busy && !sync.hasPendingInlineWork && SynchronizationProgressModel.activeOperations==0}
+        try require(sync.error==nil && sync.tagSnapshot?.rows.first(where:{$0.name.rawValue=="gamma"})?.kind == .same && progress.count==beforeFetch+2 && progress[beforeFetch].repository === fetchSnapshot.originatingRepository && progress[beforeFetch].backend.requests(.fetch) && progress.last?.backend.requests(.fetch)==true,"Tag fetch/refill lost captured actor/backend: \(sync.error ?? "none")")
+        try require(try await remote.revisionLookup("refs/tags/gamma",requirement:.existingObject).objectID != nil,"Foreign receipt refusal deleted remote tag")
         sync.invalidate()
         // Native cancellation owns the actual selected-engine process group
         // until its child is reaped; Cancel closes only after that drain.

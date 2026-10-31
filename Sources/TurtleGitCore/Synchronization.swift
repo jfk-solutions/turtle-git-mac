@@ -778,6 +778,10 @@ public struct SynchronizationTagSnapshot: Sendable {
     public let rows: [SynchronizationTagRow]
     fileprivate let localObjects: [GitReferenceName: String]
     fileprivate let repository: GitRepository
+    /// Tag mutations must return to the actor which produced this receipt.
+    /// A later operation may explicitly select a new backend without replacing
+    /// that actor or weakening synchronizeTag's repository identity check.
+    public var originatingRepository: GitRepository { repository }
 }
 extension GitRepository {
     public func synchronizationTags(remote: String, cancellation: OperationCancellation? = nil,

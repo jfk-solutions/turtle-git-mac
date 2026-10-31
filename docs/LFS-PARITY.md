@@ -599,3 +599,15 @@ validation and its limits. Earlier LFS receipts above
 cover their dated callers, not this new Log entry. Real authenticated providers,
 arbitrary invalid UTF-8 filesystem targets, physical/VoiceOver interaction,
 signed external grants and complete visual/application parity remain open.
+
+
+## Hosted Commit owner-column fixture correction — October 31, 2026
+
+The hosted LFS check timed out while waiting for a direct assignment of width217
+to persist. Commit's current native column owner deliberately refuses writes
+outside its header/layout transaction. The receiver now uses the same owned
+layout transaction as existing sorting/typing checks, verifies actual table/column
+identity and width immediately, then asserts synchronous persistence and exact
+restored width. It retains the original LFS/server/partial-success/cancellation
+workflows. No LFS product guard or behavior was changed to satisfy this fixture.
+See [the grouped repair receipt](qa/hosted-history-lfs-repair-2026-10-31.json).

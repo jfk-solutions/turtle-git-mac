@@ -6157,3 +6157,21 @@ The app build passes after a property/action name collision repair. All recorded
 owned processes are independently absent. No Core suite was needed or repeated.
 Core-produced information prose, shared deletion-message prose, complete
 physical/VoiceOver and signed translated-app acceptance remain separate.
+
+
+## Hosted Sync tag and LFS continuation — October 31, 2026
+
+Two actual hosted failures were reviewed together: a real Sync tag receipt/actor
+mismatch across mutation/refill and an LFS fixture bypassing Commit's deliberate
+column ownership guard. The source repair retains captured actor authority and
+explicit accepted backend policy through local/remote tag operations; foreign
+receipts still fail. The LFS receiver now uses the existing native layout
+transaction and retains its exact width/persistence and original workflow checks.
+The [repair checkpoint](qa/hosted-history-lfs-repair-2026-10-31.json) passes
+four focused Core methods, LFS and remote-reference workflows with both engines.
+Only affected native remote-reference cases followed the final caller-root fence;
+Core/LFS passes were retained. All recorded owned processes are absent. The [bounded hosted snapshot](qa/hosted-history-lfs-2026-10-31.json)
+keeps the current source queue and successful Pages deployment distinct from
+older running/failed macOS jobs. The final signed48 consolidation will include
+the production fix; its superseded earlier assembly was cancelled with caches
+retained. No unrelated Core or SMTP suites are planned for these changes.

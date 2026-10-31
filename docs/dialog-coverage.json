@@ -1579,6 +1579,7 @@
       "qa_records": [
         "docs/qa/finder-lfs-mail-batch-2026-10-12.json",
         "docs/qa/git-lfs-runtime-2026-10-08.json",
+        "docs/qa/hosted-history-lfs-repair-2026-10-31.json",
         "docs/qa/lfs-columns-2026-10-09.json",
         "docs/qa/lfs-commands-2026-10-18.json",
         "docs/qa/lfs-completion-2026-10-18.json",
@@ -2443,6 +2444,7 @@
         "docs/qa/commit-message-file-2026-10-07.json",
         "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/history-boundaries-2026-10-09.json",
+        "docs/qa/hosted-history-lfs-repair-2026-10-31.json",
         "docs/qa/log-list-preferences-2026-10-09.json",
         "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/settings-publication-recovery-2026-10-29.json",
@@ -3528,6 +3530,7 @@
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/git-process-exit-2026-10-11.json",
         "docs/qa/history-workflow-batch-2026-10-11.json",
+        "docs/qa/hosted-history-lfs-repair-2026-10-31.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/primary-command-bands-2026-10-17.json",
         "docs/qa/push-stream-2026-10-08.json",
@@ -4031,6 +4034,7 @@
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/history-actions-2026-10-18.json",
         "docs/qa/history-languages-2026-10-31.json",
+        "docs/qa/hosted-history-lfs-repair-2026-10-31.json",
         "docs/qa/merge-cleanup-2026-10-09.json",
         "docs/qa/reference-batch-delete-2026-10-09.json",
         "docs/qa/reference-browser-2026-10-09.json",
@@ -4105,6 +4109,7 @@
         "docs/REMOTE-TAGS-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/hosted-history-lfs-repair-2026-10-31.json",
         "docs/qa/reference-source-family-2026-10-17.json",
         "docs/qa/remote-management-owned-2026-10-16.json",
         "docs/qa/remote-reference-engine-2026-10-19.json",
@@ -4646,6 +4651,7 @@
         "docs/REMOTE-REFERENCE-ENGINE-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/hosted-history-lfs-repair-2026-10-31.json",
         "docs/qa/remote-dialog-source-family-2026-10-17.json",
         "docs/qa/remote-dialogs-2026-10-13.json",
         "docs/qa/remote-reference-engine-2026-10-19.json"

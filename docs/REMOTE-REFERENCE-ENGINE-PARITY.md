@@ -99,3 +99,31 @@ stale-callback and actual cancellation/child-reaping family. Its PID 41370 was
 reaped, with owned windows/sheets/workers drained. Native zero-size split-view
 layout diagnostics from invisible windows are retained in the log. These checks
 do not prove full hosted CI, physical UI acceptance or signed deployment.
+
+
+## Sync tag receipt actor and accepted backend — October 31, 2026
+
+Hosted history/reference execution exposed a real Sync tag mutation failure: the
+Tags read produced a receipt owned by actor A, while a later tag progress window
+cloned actor B to capture its backend. Core correctly rejected the foreign actor.
+Local deletion had the same mismatch against the parent actor.
+
+The receipt now exposes its producing actor read-only. Same-root native tag
+progress and local deletion retain that actor through mutation and refill;
+the operation's newly accepted backend remains an explicit argument. A foreign
+root stays on the requesting actor and fails the unchanged Core identity/root
+guard. Direct same-directory foreign-actor calls still fail. Snapshot row,
+expected local object, authorization, cancellation and native retirement guards
+remain in place; the guard is not weakened to root-string equality.
+
+The extended existing Core/native fixtures cover receipt roundtrip, local
+delete without a child, remote delete/refill, fetch/refill and changed preference
+capture, plus foreign-root/actor refusal. The [grouped checkpoint](qa/hosted-history-lfs-repair-2026-10-31.json) passes
+four focused Core methods, both native remote-reference engines and both LFS
+engines. Only affected remote-reference checks were repeated after the final
+native caller-root fence; Core/LFS results were retained. The local foreign-root
+fence itself is source-reviewed; actual negative coverage is the Core same-root
+foreign actor and native foreign-root progress paths.
+Authenticated public remotes, physical/signed Sync and a complete matching-source
+hosted pass remain separate. The first superseded signed48 assembly was stopped
+so the final local candidate can include this production fix.

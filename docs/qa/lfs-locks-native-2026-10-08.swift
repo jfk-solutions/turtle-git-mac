@@ -537,9 +537,22 @@ import TurtleGitCore
             ownerProbe().enabled && ownerProbe().visibleColumns.contains(.lfsOwner) &&
             ownerProbe().savedWidths == commit.model.fileColumns.widths
         }
-        ownerColumn.width = 217
+        // Commit owns its native columns and rejects incidental SwiftUI width
+        // writes. Use the same explicit layout admission as saved/Fit/Reset
+        // commands; this tests the real setter, not a physical header drag.
+        ownerProbe().withOwnedColumnLayout { native in
+            precondition(native === ownerTable && native.tableColumns.contains { $0 === ownerColumn })
+            ownerColumn.width = 217
+        }
+        if ownerColumn.width != 217 {
+            print("LFS admitted owner-width setter diagnostic: native=\(ownerColumn.width), min=\(ownerColumn.minWidth), max=\(ownerColumn.maxWidth), enabled=\(ownerProbe().enabled), rejected=\(ownerProbe().nativeColumnResetAttempts)");fflush(stdout)
+        }
+        precondition(ownerColumn.width == 217,"Owned LFS column layout did not admit the requested native width")
         ownerProbe().rememberNativeColumnLayout(adjustedColumn: .lfsOwner)
-        try await settle { commit.model.fileColumns.widths[.lfsOwner] == 217 }
+        if commit.model.fileColumns.widths[.lfsOwner] != 217 {
+            print("LFS owner-width persistence diagnostic: native=\(ownerColumn.width), enabled=\(ownerProbe().enabled), busy=\(commit.model.busy), saved=\(commit.model.fileColumns.widths), probeSaved=\(ownerProbe().savedWidths), rejected=\(ownerProbe().nativeColumnResetAttempts)");fflush(stdout)
+        }
+        precondition(commit.model.fileColumns.widths[.lfsOwner] == 217,"Admitted native LFS width was not persisted synchronously")
         let restored = CommitWindowModel(repository: repository, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
         if !restored.fileColumns.visible.contains(.lfsOwner) || restored.fileColumns.widths[.lfsOwner] != 217 {
             print("LFS owner-width diagnostic: live=\(ownerColumn.width), max=\(ownerColumn.maxWidth), enabled=\(ownerProbe().enabled), busy=\(commit.model.busy), saved=\(commit.model.fileColumns.widths), restored=\(restored.fileColumns.widths), visible=\(restored.fileColumns.visible), nativeCount=\(ownerTable.numberOfRows)"); fflush(stdout)

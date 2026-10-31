@@ -382,6 +382,16 @@ is one sample excluding click/AX/full-history latency. Focused checks separately
 cover graph cancellation, coalescing, stale results, close and Quit ownership.
 Both owned app processes exited, and repository HEAD/index were unchanged.
 
+## Hosted Sync tag and LFS repair
+
+The [bounded hosted snapshot](qa/hosted-history-lfs-2026-10-31.json) found
+two terminal older-source failures while other jobs remained active. The
+[repair checkpoint](qa/hosted-history-lfs-repair-2026-10-31.json) fixes actual Sync
+tag actor ownership through local/remote mutation and refill, and corrects the
+LFS receiver to use Commit’s existing owned column transaction. Focused Core and
+both affected native engines pass. These are local repairs; complete matching-source
+hosted CI remains required. The final build48 assembly will include the repair.
+
 ## Remaining gates
 
 | Gate | Evidence and remaining work |
