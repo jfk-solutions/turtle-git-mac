@@ -641,6 +641,7 @@ import TurtleGitCore
     // that advisory flag alone, decide whether a workspace may be created.
     private var applicationUtilityAdmissionDepth=0
     var presentExistingApplicationUtility:()->Bool = {
+        if SupportReportService.shared.hasOwnedUtilityWindow {_ = SupportReportService.shared.presentExistingUtility();return true}
         if TurtleGitAboutService.shared.hasOwnedUtilityWindow { _ = TurtleGitAboutService.shared.presentExistingUtility();return true }
         if SettingsPresentationService.shared.hasOwnedUtilityWindow { _ = SettingsPresentationService.shared.presentExistingUtility();return true }
         if ApplicationIntroductionService.shared.hasOwnedUtilityWindow {_ = ApplicationIntroductionService.shared.presentExistingUtility();return true}

@@ -234,6 +234,10 @@
     {
       "id": "presentations",
       "document": "POWERPOINT-COMPARISON.md"
+    },
+    {
+      "id": "reportProblem",
+      "document": "REPORT-PROBLEM.md"
     }
   ],
   "additional_guides": [

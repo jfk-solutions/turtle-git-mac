@@ -125,6 +125,10 @@ bodies and report paths are not saved as preferences. Dismiss does not delete th
 Apple report. Manual import and the separately opened blank issue form retain
 their explicit sharing workflow.
 
+The [problem-report guide](REPORT-PROBLEM.md) explains review, import cancellation,
+Copy and Save. Cancelling an import leaves the previous report and inclusion
+choice unchanged; the file scope stays owned until the read actually returns.
+
 
 The optional persistent [Log cache](LOG-CACHE-PARITY.md) stores changed-file rows,
 rename pairs, status/statistics and submodule flags for completed commit/parent

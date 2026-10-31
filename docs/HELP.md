@@ -15,15 +15,15 @@ that chapter. If the book itself is missing, it opens the online Mac manual.
 The [dialog guide](DIALOG-GUIDE.md) explains the implemented options in Commit,
 Log, references, Push/Pull/Fetch, replay, conflict, working-file, patch, submodule,
 worktree and settings workflows. Longer task guides cover topics such as
-[Cherry Pick](CHERRY-PICK.md), [repository folder permissions](REPOSITORY-FOLDER-ACCESS.md)
-and [saving comparison results](SAVE-AS-TARGETS.md).
+[Cherry Pick](CHERRY-PICK.md), [repository folder permissions](REPOSITORY-FOLDER-ACCESS.md),
+[saving comparison results](SAVE-AS-TARGETS.md), and
+[preparing a problem report](REPORT-PROBLEM.md).
 
 Credential settings has its own [offline guide](CREDENTIAL-SETTINGS.md), including
 Apply versus Add New/Save and inherited settings. Some related dialogs and
-settings categories share a chapter. Links to source
-audits and further online material require a network connection. The help book
-describes a port in progress; it does not imply that every upstream dialog or
-signed Finder/App Store workflow is complete.
+settings categories share a chapter. Links to source audits and further online
+material require a network connection. The source audits record platform
+differences and the validation scope of each workflow.
 
 ## Maintaining the bundled book
 

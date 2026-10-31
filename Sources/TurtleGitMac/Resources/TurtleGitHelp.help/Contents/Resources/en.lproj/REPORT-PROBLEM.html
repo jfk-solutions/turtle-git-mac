@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Report a problem</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-reportProblem"></a><h1 id="report-a-problem">Report a problem</h1>
+<p>Choose <strong>Help → Report a Problem</strong>. You can prepare a report without opening a
+repository. The window includes application and bundled-component versions,
+your description, and an optional Apple crash report.</p>
+<h2 id="describe-and-review-the-problem">Describe and review the problem</h2>
+<ol>
+<li>Enter what happened and the steps needed to reproduce it. Include the command
+or dialog involved, the result you expected, and the result you observed.</li>
+<li>If you have an Apple crash report, choose <strong>Choose Crash Report…</strong>. Select a
+<code>.ips</code> or <code>.crash</code> file; reports larger than 4 MiB cannot be imported.</li>
+<li>Select <strong>Include the selected crash report</strong> when you want its contents in
+the report. Importing or replacing a crash report leaves this option off.</li>
+<li>Review the exact text in the preview. <strong>Replace my home folder path with
+&lt;HOME&gt;</strong> replaces that path in the description and included report. Other
+private information can remain, so check the text before sharing it.</li>
+</ol>
+<p><strong>Cancel reading</strong> stops an in-progress import. The current description, report
+and inclusion choice remain intact. The window waits for the read to finish
+before accepting another import; cancelling does not delete the Apple report.
+The status area shows progress and errors without moving the editor or preview.</p>
+<h2 id="copy-save-or-open-the-issue-form">Copy, save or open the issue form</h2>
+<p><strong>Copy Report</strong> copies the preview text. <strong>Save Report…</strong> opens a native Save
+sheet and writes the reviewed text to the file you choose. Cancel the sheet to
+leave the destination unchanged. Once a save is accepted, let the atomic write
+finish before closing the window.</p>
+<p><strong>Open Issue Form</strong> opens the project's blank GitHub issue form. It does not put
+your description, crash report or device information into the web address, and
+does not submit an issue. Paste or attach the report there when you are ready.
+Copy and Save keep the report local.</p>
+<h2 id="review-a-report-after-a-crash">Review a report after a crash</h2>
+<p>When a recent report for TurtleGit is available, a launch notice offers
+<strong>Review Report…</strong> or <strong>Dismiss</strong>. Review opens the same report window with the
+crash report excluded until you select Include. If the report window is busy,
+finish or cancel that operation and try Review again.</p>
+<p>Dismiss closes the notice and leaves the Apple report on disk. TurtleGit
+remembers a bounded content hash to avoid repeatedly offering a report you have
+already reviewed or dismissed. You can turn <strong>Check for crash reports at
+launch</strong> off or on in the report window. If macOS does not allow discovery of the
+DiagnosticReports folder, use the file chooser to select a report explicitly.</p>
+<p>The window's <strong>Help</strong> button and F1 open this guide. See <a href="PRIVACY.html">Privacy</a>
+for how local report discovery and sharing work.</p>
+</main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

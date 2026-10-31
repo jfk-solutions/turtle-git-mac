@@ -2,6 +2,7 @@
 import Foundation
 import Darwin
 import CryptoKit
+import CoreFoundation
 
 public enum SupportReportFailure: LocalizedError {
     case file, size, format, details
@@ -58,8 +59,24 @@ public struct SupportCrashReport: Sendable {
                   body["exception"] is [String: Any] || body["termination"] is [String: Any] else { throw SupportReportFailure.format }
             process = label(name)
             bundleIdentifier = (body["bundleInfo"] as? [String:Any])?["CFBundleIdentifier"] as? String ?? metadata["bundleID"] as? String
+            func metadataText(_ value: Any?) -> String? {
+                guard let value = value as? String else { return nil }
+                let text = label(value.components(separatedBy: .newlines).joined(separator: " ")).trimmingCharacters(in: .whitespacesAndNewlines)
+                return text.isEmpty ? nil : text
+            }
             let value = body["exception"] as? [String: Any] ?? [:]
-            exception = label([value["type"] as? String, value["signal"] as? String].compactMap { $0 }.joined(separator: " / "))
+            let primary = [metadataText(value["type"]), metadataText(value["signal"])].compactMap { $0 }
+            if !primary.isEmpty { exception = label(primary.joined(separator: " / ")) }
+            else {
+                // Apple's Termination schema defines namespace, numeric code and
+                // indicator as the Termination Reason fields. Keep their values;
+                // do not infer a signal/reason from a code or stringify JSON Bool.
+                let termination = body["termination"] as? [String: Any] ?? [:]
+                let code = termination["code"] as? NSNumber
+                let numericCode = code.flatMap { CFGetTypeID($0) != CFBooleanGetTypeID() && $0.doubleValue.isFinite ? $0.stringValue : nil }
+                exception = label([metadataText(termination["namespace"]), numericCode,
+                                   metadataText(termination["indicator"])].compactMap { $0 }.joined(separator: " / "))
+            }
         } else if suffix == "crash" {
             let lines = text.components(separatedBy: .newlines)
             func field(_ prefix: String) -> String? { lines.first(where: { $0.hasPrefix(prefix) }).map { String($0.dropFirst(prefix.count)).trimmingCharacters(in: .whitespaces) } }

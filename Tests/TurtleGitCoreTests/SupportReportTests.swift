@@ -17,6 +17,53 @@ final class SupportReportTests: XCTestCase {
         XCTAssertEqual(report.process, "TurtleGitMac [123]"); XCTAssertEqual(Data(report.text.utf8), Data(text.utf8))
         XCTAssertNoThrow(try SupportCrashReport.parse(Data("Process: git [3]\nTermination Reason: SIGNAL 6\n".utf8), fileName: "helper.crash"))
     }
+    func testIPSTerminationFallbackKeepsOriginalBodyAndExplicitPrivacyChoices() throws {
+        let body = #"{"procName":"TurtleGitMac","termination":{"namespace":"SIGNAL","code":0,"indicator":"Termination\nreason\rtext"},"procPath":"/Users/test/private","private":"token-fixture"}"#
+        for text in [body, #"{"bug_type":"309","bundleID":"org.test.turtle"}"# + "\n" + body] {
+            let report = try SupportCrashReport.parse(Data(text.utf8), fileName: "termination.ips")
+            XCTAssertEqual(report.exception, "SIGNAL / 0 / Termination reason text")
+            XCTAssertEqual(Data(report.text.utf8), Data(text.utf8))
+            var draft = SupportReportDraft()
+            XCTAssertFalse(try draft.render(systemInformation: "Version 1", report: report, home: "/Users/test").contains("token-fixture"))
+            draft.includeCrashReport = true; draft.replaceHomePath = false
+            let exact = try draft.render(systemInformation: "Version 1", report: report, home: "/Users/test")
+            XCTAssertTrue(exact.contains("Exception: SIGNAL / 0 / Termination reason text\n\n"))
+            XCTAssertTrue(exact.hasSuffix(text)); XCTAssertTrue(exact.contains("/Users/test/private"))
+            draft.replaceHomePath = true
+            let replaced = try draft.render(systemInformation: "Version 1", report: report, home: "/Users/test")
+            XCTAssertFalse(replaced.contains("/Users/test")); XCTAssertTrue(replaced.contains("<HOME>/private"))
+            XCTAssertTrue(replaced.contains("token-fixture"))
+            XCTAssertEqual(Data(report.text.utf8), Data(text.utf8))
+        }
+    }
+    func testIPSExceptionPrecedenceAndEmptyExceptionTerminationFallback() throws {
+        func summary(_ fields: String) throws -> String {
+            try SupportCrashReport.parse(Data((#"{"procName":"TurtleGitMac","# + fields + "}").utf8), fileName: "summary.ips").exception
+        }
+        let termination = #""termination":{"namespace":"SIGNAL","code":9,"indicator":"Killed"}"#
+        XCTAssertEqual(try summary(termination), "SIGNAL / 9 / Killed")
+        XCTAssertEqual(try summary(#""exception":{},"# + termination), "SIGNAL / 9 / Killed")
+        XCTAssertEqual(try summary(#""exception":{"type":" \n","signal":"\r "},"# + termination), "SIGNAL / 9 / Killed")
+        XCTAssertEqual(try summary(#""exception":{"type":"EXC_CRASH","signal":"SIGABRT"},"# + termination), "EXC_CRASH / SIGABRT")
+        XCTAssertEqual(try summary(#""exception":{"signal":"SIGABRT"},"# + termination), "SIGABRT")
+    }
+    func testIPSTerminationSummaryIsBoundedAndDoesNotExplainMalformedValues() throws {
+        let malformed = [#"{}"#, #"{"namespace":false,"code":false,"indicator":[]}"#,
+                         #"{"namespace":7,"code":true,"indicator":{}}"#,
+                         #"{"namespace":" \n","code":"0","indicator":"\r "}"#]
+        for termination in malformed {
+            let text = #"{"procName":"TurtleGitMac","termination":"# + termination + "}"
+            let report = try SupportCrashReport.parse(Data(text.utf8), fileName: "malformed-metadata.ips")
+            XCTAssertEqual(report.exception, ""); XCTAssertEqual(report.text, text)
+        }
+        let object: [String: Any] = ["procName": "TurtleGitMac", "termination": ["namespace": String(repeating: "n", count: 300), "code": 0, "indicator": "tail\ntext"]]
+        let bytes = try JSONSerialization.data(withJSONObject: object)
+        let report = try SupportCrashReport.parse(bytes, fileName: "bounded.ips")
+        XCTAssertEqual(report.exception, String(repeating: "n", count: 256))
+        XCTAssertEqual(Data(report.text.utf8), bytes)
+        let separated = try JSONSerialization.data(withJSONObject: ["procName": "TurtleGitMac", "termination": ["indicator": "reason\u{2028}continued\u{0085}end"]])
+        XCTAssertEqual(try SupportCrashReport.parse(separated, fileName: "separators.ips").exception, "reason continued end")
+    }
     func testIncompleteMalformedBinaryAndOversizedReportsAreRejected() {
         for text in ["", "{}", #"{"procName":"Other"}"#, #"{"procName":"Other","threads":[]}"#, #"{"metadata":true}"# + "\nnot JSON", ips + "\0"] {
             XCTAssertThrowsError(try SupportCrashReport.parse(Data(text.utf8), fileName: "bad.ips"))

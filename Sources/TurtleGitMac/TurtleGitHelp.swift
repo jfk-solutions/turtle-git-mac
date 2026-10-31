@@ -9,7 +9,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     case synchronization, ignore, lfs
     case patches, export, bisect, settings, finder, folderAccess, statistics
     case revisionGraph, blame, compare, presentations, images, unifiedDiff, svn, authentication
-    case ssh, savedData, privacy, notes, moving, languages, credentials
+    case ssh, savedData, privacy, notes, moving, languages, credentials, reportProblem
 }
 
 @MainActor final class TurtleGitHelpService {
@@ -132,6 +132,7 @@ enum TurtleGitHelpTopic: String, CaseIterable {
     static func showContext() { show(context(NSApp.keyWindow ?? NSApp.mainWindow)) }
     static func topic(dialog: String) -> TurtleGitHelpTopic {
         let name = dialog.lowercased()
+        if name.contains("report a problem") || name.contains("crash report") { return .reportProblem }
         if name.contains("lfs") { return .lfs }
         if name.contains("request pull") { return .patches }
         if name.contains("synchronization") { return .synchronization }

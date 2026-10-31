@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Connected problem-report workflow continuation
+
+The [report workflow batch](qa/support-workflow-continuation-2026-10-31.json)
+adds retained report/recovery ownership, cancellable imports that preserve the
+reviewed draft through actual worker drain, stable feedback geometry, contextual
+Help and a termination-only IPS summary fallback. Accepted atomic Save keeps its
+existing ownership. The new [user guide](REPORT-PROBLEM.md) is in the offline
+book and guide-first manual. No uploader or server solution workflow is added.
+
+One Debug build,13 focused Core methods and the connected native receiver pass.
+The initial native fixture assumed NSButton subviews for SwiftUI controls; only
+the repaired native check was repeated. This invisible run used contextual F1
+and captured cancellation receipts when public accessibility had no actionable
+button. Physical button clicks and signed scopes remain separate. All owned
+receivers drained/closed/reaped. Installed45 predates this source continuation.
+No full Core or unrelated native suites were repeated.
+
 ## Installed local testing build45 and guide-first manual
 
 [Signed build45](qa/signed-consolidation-build45-2026-10-31.json), `0.1.0 (45)`,

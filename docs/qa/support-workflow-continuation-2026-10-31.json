@@ -1,0 +1,72 @@
+{
+  "date": "2026-10-31",
+  "base_source": "5432abbb2d2b8233d8a196e50489675dc0c0b8e2",
+  "status": "connected-support-workflow-focused-checkpoint-passed",
+  "implementation": [
+    "Retained report/recovery factory and actual-window utility ownership; reopen never initiates scans or creates replacement report; actualClose releases owner.",
+    "Captured cancellable import retains previous report, details, privacy and preview; token/counter/lease and input gate remain until actual drain; old Cancel receipt cannot cancel later import.",
+    "Fixed header feedback/import row geometry, full details access and context Help for both report/recovery windows; accepted atomic export unchanged.",
+    "Termination-only IPS summary falls back to documented namespace/numericcode/indicator, rejects Bool codes, bounds/newlines, keeps exceptionprecedence and originaltext.",
+    "User guide registered as reportProblem in offline Help and guide-first website."
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "compiler_errors": 0,
+      "log": "build/qa/support-workflow-debug-2026-10-31.log"
+    },
+    "core": {
+      "result": "13 SupportReportTests methods passed, 0 failures",
+      "elapsed_seconds": 0.064,
+      "log": "build/qa/support-workflow-core-2026-10-31.log",
+      "full_core": false
+    },
+    "native": {
+      "result": "Passed connected ownership/import/cancel/drain/geometry/Help and original picker/privacy/export/recovery/retirement cases",
+      "log": "build/qa/support-workflow-native-accessibility-2026-10-31.log",
+      "receiver": 66216,
+      "activation": "Private prohibited/offscreen receiver, no capture requested",
+      "actual_activation_scope": "Invisible SwiftUI AX had no matching actionable controls; contextual F1 route and captured ReadContext cancellation fallback executed. Physical Help/Cancel button clicks are not claimed.",
+      "geometry": "Exact mounted native editor/preview/window frames through load/cancel/longerror/replacement/acceptedwrite/savednotice/Remove"
+    },
+    "documentation": {
+      "localization": "38 locales/1326 accepted label keys; resource consistency only",
+      "help": "63 documents/52 topics/97 source files; generated then checked",
+      "site": "518 documents, no unresolved fragments;3site checks and local search scopes/fallback checks passed"
+    },
+    "repeat_scope": "Only native fixture repeated after class-assumption repair. No app build, Core or site rerun after it."
+  },
+  "retained_failure": {
+    "receiver": 65796,
+    "log": "build/qa/support-workflow-native-2026-10-31.log",
+    "assertion": "Wait at verifyHelp line162 assumed SwiftUI Help rendered an NSButton subview.",
+    "repair": "Public accessibility traversal plus explicitly recorded contextual F1/captured read receipt fallbacks; all safety/export/ownership/geometry assertions retained."
+  },
+  "cleanup": {
+    "reaped_receivers": [
+      65796,
+      66216
+    ],
+    "private_state": true,
+    "owned_windows_closed": true,
+    "counter_drain": true
+  },
+  "primary_schema_reference": "https://developer.apple.com/tutorials/data/documentation/xcode/interpreting-the-json-format-of-a-crash-report.json",
+  "limits": [
+    "Installed45 predates this source batch; no signed report picker/permission or physical keyboard/VoiceOver acceptance.",
+    "No Windows DrDump transport/minidump/assert capture/solution lookup added; no external upload or submission occurred.",
+    "Signed-sandbox diagnostic chooser and home substitution defaults still need coordinated acceptance; discovery uses POSIX home while chooser/editor defaults use Foundation home APIs.",
+    "No complete corrected-source hosted CI or whole-port certification from this checkpoint."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/SupportReport.swift": "035d1abf1847c0ed977b04707dbb03572312fed5b46b80e7dec2e9151aa3b272",
+    "Sources/TurtleGitMac/SupportReportWindow.swift": "38cb36b4b913cc5abaeffe751be2f9b1dd9643efa10ed814f56c2bf74d36e4e0",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "81aa33a06d2fbbf2012cb989f20d8ccccb9ef289d6ab8c0a6ddf77755a77ff2b",
+    "Sources/TurtleGitMac/TurtleGitHelp.swift": "afdd383977e6bb99ff9fce6c782ca0efd4db745532e63898f0e3d4c32283c316",
+    "Tests/TurtleGitCoreTests/SupportReportTests.swift": "3bc90b39515db33d31e3e7e4afec5fd420be8285d01a50c78a68630d49570bc9",
+    "docs/qa/support-report-native-2026-10-17.swift": "50b4604c5b15c4201dd6ead4df3527546019733271b8893f627672a529d33f21",
+    "scripts/test-support-report-family.py": "e239c6e4293e32d2db407deae5a223e403079750f19051d0da907b897cac3155",
+    "docs/REPORT-PROBLEM.md": "92740780fe23b6173c419ca5c9ac4ad4d3ae57b56045cbade12efb870d7a788c",
+    "docs/help-topics.json": "b3c4efe39237d03c89f209165b52121f405b5e00ea609822348a7bd3e982274f"
+  }
+}
