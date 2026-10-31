@@ -6016,3 +6016,21 @@ existing limit, and both Git engines passing the focused Log workflow while
 reusing that executable. App code/Core did not change and their passing checks
 were not repeated. Older Intel compiler timing and full release-source hosted
 integration remain open; this is not a full local recovery-suite pass.
+
+
+## Signed local consolidation47 — October 31, 2026
+
+[Build47](qa/signed-consolidation-build47-2026-10-31.json) is installed from
+frozen clean `a4e0a323` and left closed. It consolidates the Blame permission/MRU,
+image owner/loading, nested Reflog and update-download families without repeating
+their passing native suites. One universal signed build, measured inputs,
+complete seals/architecture/resource/package inventories and the focused signed
+Core/bundled-Git sandbox probe pass. All probe processes exited. Build46 is
+retained for rollback; no user app was running or terminated.
+
+No shipping GUI or physical Finder check was added, and no public binary upload,
+notarization or Store submission occurred. The [next demonstrated text Open
+transaction gap](qa/text-open-ownership-review-2026-10-31.json), complete hosted
+integration, broader physical/platform/source acceptance and distribution terms
+remain open. The source archive and runtime reconstruction inputs accompany the
+local package; its receipt preserves their exact hashes and build identity.

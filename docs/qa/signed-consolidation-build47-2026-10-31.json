@@ -1,0 +1,119 @@
+{
+  "kind": "TurtleGitSignedConsolidationCheckpoint",
+  "date": "2026-10-31",
+  "version": "0.1.0",
+  "build": "47",
+  "source_commit": "a4e0a32366531c401f5830c91372dc153ddd3a1f",
+  "source_input_sha256": "19ddb6d90c4a0291cfbe0f2970b7dc4b88ad821a6dd4a1bef73c228b225defb8",
+  "main_sha256": "f9c6164144877c30ae1633573b741962585ee5a136b0249d3b7593077155396e",
+  "installed": true,
+  "changes": [
+    "Blame recent-save recovery, linked-worktree/common-directory/object-alternate permission retention and owned chooser handoffs",
+    "Image conflict/selection playback and command admission through actual sheet drainage",
+    "Browse References nested Reflog revision-command wiring and owned return/catalog refresh",
+    "Captured historical image inputs, cancellable Load Images reads, exact receipt handoff before view attachment and retained view modes/appearance",
+    "Bordered Updates file list, stable feedback, download/retry/cancellation and fresh owner isolation, plus offline update Help",
+    "Source-preserving bounded native fixture compilation and owned compiler cleanup without reducing default assertion coverage"
+  ],
+  "build_result": {
+    "configuration": "AppStore",
+    "signature": "Existing Apple Development identity for local testing",
+    "team": "A49SCA5S8K",
+    "certificate": "368185657EAF3B08917601A5447D52FE9B572E46",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 494.573,
+    "source_inputs_unchanged": true,
+    "compilation_cache": "Independent APFS clone of46; frozen clean a4e0a323 source"
+  },
+  "verification": {
+    "owned_universal_components": 8,
+    "runtime_code_entries": 206,
+    "help_source_members": 98,
+    "inventory_members": 6385,
+    "strict_deep_seals": true,
+    "copy_zip_extract_install_inventory_equal": true,
+    "static_inventory_equals_package": true,
+    "signed_runtime": "One local-tools sandbox parent passed actual public Core and packaged Git; no shipping UI/App Group/Finder proof inferred",
+    "runtime_probe_receiver": 6009,
+    "runtime_git_child": 6061,
+    "both_reaped_and_independently_absent": true,
+    "app_group_files_created": false,
+    "outside_file_grants": false
+  },
+  "package": {
+    "directory": "build/local-testing/TurtleGit-for-Mac-0.1.0-build47-signed",
+    "archive": "TurtleGit-for-Mac-0.1.0-build47-signed.zip",
+    "archive_bytes": 423766139,
+    "archive_sha256": "c2cc7aa50658d0ec7a414ea40555f0d06eb867660e92b547e502bacbddd1c791",
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-a4e0a32366531c401f5830c91372dc153ddd3a1f.tar.gz",
+      "source_commit": "a4e0a32366531c401f5830c91372dc153ddd3a1f",
+      "sha256": "ff7f459652b331774943dab76664e2beb42484219f285f695dce8826a7bf2731",
+      "bytes": 200868937,
+      "tracked_files": 10396,
+      "exact_tracked_tree": true,
+      "bundled_runtime_sources": "Retained separately inside application runtime payloads"
+    },
+    "apple_development_local_testing_only": true
+  },
+  "installation": {
+    "installed": true,
+    "build": "47",
+    "source_commit": "a4e0a32366531c401f5830c91372dc153ddd3a1f",
+    "main_sha256": "f9c6164144877c30ae1633573b741962585ee5a136b0249d3b7593077155396e",
+    "installed_inventory_matches_package": true,
+    "strict_deep_seal": true,
+    "previous_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "46",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "46"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "46"
+        }
+      }
+    },
+    "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build46-before47-2026-10-31.app",
+    "user_app_was_running": false,
+    "app_launched": false,
+    "Finder_Dock_restart": false,
+    "launch_services_registration_exit": 0,
+    "frozen_candidate_unregistration_exit": 0,
+    "public_upload": false
+  },
+  "hosted_snapshot": {
+    "source": "a4e0a32366531c401f5830c91372dc153ddd3a1f",
+    "macos_run": 41231919207,
+    "macos_status": "pending",
+    "jobs": [],
+    "pages_run": 41231919187,
+    "pages_status": "success",
+    "limit": "Bounded read-only snapshot before later documentation commits; no complete hosted pass established"
+  },
+  "remaining": [
+    "Complete matching-source hosted CI and older Intel compiler timing",
+    "Physical/signed UI/Finder, first-use grants and representative large-repository acceptance",
+    "Physical Intel and minimum macOS execution",
+    "Remaining source/layout/keyboard/accessibility states and external services/format boundaries",
+    "Concrete text-editor Open transaction ownership continuation: qa/text-open-ownership-review-2026-10-31.json",
+    "Distribution signing, source/license/Store terms and later owner-approved publication"
+  ],
+  "public_binary_upload_notarization_app_store_submission": "not performed",
+  "evidence": {
+    "static": "/Users/jkuehner/.codex/worktrees/turtlegit-signed47/tortoise-git-mac/build/qa/signed47-static-2026-10-31.json",
+    "build_log": "/Users/jkuehner/.codex/worktrees/turtlegit-signed47/tortoise-git-mac/build/qa/signed47-build-2026-10-31.log",
+    "signed_probe": "build/qa/signed47-local-tools-2026-10-31.json",
+    "installation": "build/qa/signed47-installation-2026-10-31.json"
+  }
+}

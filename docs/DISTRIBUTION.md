@@ -7,10 +7,36 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Installed signed local testing build46
+## Installed signed local testing build47
+
+[Signed build47](qa/signed-consolidation-build47-2026-10-31.json), `0.1.0 (47)`,
+is installed from exact clean source `a4e0a323` and left closed. Build46 is
+preserved for rollback. This consolidation adds the Blame metadata/Recent
+workflows, image sheet/playback ownership, nested Reflog commands, captured
+historical image loading and the Updates file list, cancellation and Help.
+
+Eight app-owned components contain arm64 and x86_64. Strict signatures and
+role entitlements, 206 runtime entries, 98 Help source members and complete
+6,385-member package/install inventories pass. One signed sandbox parent
+exercised public Core and packaged Git local tools; no shipping GUI, App Group
+file access or physical Finder acceptance is inferred.
+
+The local archive is `TurtleGit-for-Mac-0.1.0-build47-signed.zip`, SHA-256
+`c2cc7aa50658d0ec7a414ea40555f0d06eb867660e92b547e502bacbddd1c791`.
+The matching tracked-source archive and separate runtime reconstruction inputs
+and notices accompany it. No running user app was closed. Installation retained
+46, refreshed registration for the installed path and removed the frozen
+candidate's registration, without launching TurtleGit or restarting Finder/Dock.
+
+This is an Apple Development local testing package. No public binary upload,
+notarization or App Store submission occurred. Complete matching-source hosted
+CI, physical/platform acceptance and the [text Open transaction continuation](qa/text-open-ownership-review-2026-10-31.json)
+remain open alongside the distribution/Store terms gates.
+
+## Historical installed signed local testing build46
 
 [Signed build46](qa/signed-consolidation-build46-2026-10-31.json), `0.1.0 (46)`,
-is installed from exact clean source `9ebe7e98` and left closed. Build45 is
+was installed from exact clean source `9ebe7e98` and left closed. Build45 is
 preserved for rollback. It consolidates the Report Problem workflow, account-home
 path policy, created-worktree Finder registration/retry and creation-picker
 selection/focus/cancellation changes. The universal signed build, eight own code

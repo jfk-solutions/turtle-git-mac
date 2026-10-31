@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-31",
+  "status": "demonstrated-open-workflow-gap-awaiting-implementation",
+  "scope": "Read-only current text Compare/Merge Open transaction review; not a completion or validation claim",
+  "source_reviewed": "a4e0a32366531c401f5830c91372dc153ddd3a1f",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_anchor": "src/TortoiseMerge/MainFrm.cpp:696-713 completes CheckForSave and DoModal before document replacement",
+  "gaps": [
+    {
+      "source": "Sources/TurtleGitMac/MergeEditorOpenWorkflow.swift:25",
+      "behavior": "Save/Don\u2019t Save advances directly from the alert callback; presentOpen retires if the alert is still physically attached."
+    },
+    {
+      "source": "Sources/TurtleGitMac/MergeOpenWindow.swift:291",
+      "behavior": "Accepted Open dispatches before its editor-attached sheet closes; adoption ends the sheet but immediately replaces native content and begins the next document."
+    },
+    {
+      "source": "Sources/TurtleGitMac/MergeEditorOpenWorkflow.swift:55",
+      "behavior": "Internal Open retirement clears the opener before nested pendingChoices drain, unlike initial CLI Open retiredOpeners ownership. Global Quit counting is not the same as command/input ownership."
+    }
+  ],
+  "next_batch": "Capture one Save question\u2192Open\u2192nested Browse\u2192replacement transaction; retain exact scopes/children through actual sheet and worker drain; fence stale/duplicate/retired replies; extend existing hidden editor-Open fixture after complete implementation.",
+  "already_present": [
+    "Captured Browse form identity and actual Browse-sheet drain",
+    "Clipboard snapshotting and scope checks",
+    "CLI read-only/one-pane/Blame policy",
+    "Replacement configuration before load",
+    "Immutable historical inputs",
+    "Blank ordinary Open fields match source; no missing prefill demonstrated"
+  ],
+  "executed_tests_or_builds_for_review": false,
+  "source_changes_for_review": false,
+  "signed47_limit": "Signed47 is frozen at the reviewed source; this pending Open transaction continuation is not included."
+}

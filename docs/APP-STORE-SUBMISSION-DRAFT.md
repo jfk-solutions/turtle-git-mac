@@ -260,7 +260,7 @@ image was edited into a store asset or submitted.
 | Distribution certificate/profile and App Group entitlement | Final channel/account verification; Apple Development signatures are not a submitted distribution export |
 | Exact final archive/package/source+notice set | Match measured inputs, actual signed binary, symbols and corresponding source/reconstruction inputs; prior receipts remain historical |
 | Final screenshots and sample review attachment | Offline synthetic attachment prepared with checksums/reset instructions; final screenshots and owner/submission approval remain pending |
-| Hosted CI | [macOS run41221530949](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41221530949) at `9ebe7e98` is pending as observed October 31, 2026, behind active older workflow lanes. Complete current-source native integration remains unproven. [Pages run41221530906](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41221530906) succeeded for that source; website deployment does not prove native workflow coverage |
+| Hosted CI | Installed [build47](qa/signed-consolidation-build47-2026-10-31.json) is pinned to `a4e0a323`; [macOS41231919207](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41231919207) is pending with no jobs in the latest bounded snapshot. [Pages41231919187](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41231919187) succeeded. Complete matching-source native integration remains unproven; website deployment does not establish it |
 | Upload/validation/App Review/release | Not performed; only after owner approval and remaining gates |
 
 Existing [distribution engineering](DISTRIBUTION.md), [privacy](PRIVACY.md),
