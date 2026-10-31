@@ -56,12 +56,13 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-finder-file-services-') as te
             context = directory / (case + str(index)); context.mkdir(mode=0o700)
             fixture = context / 'fixture'; fixture.mkdir(mode=0o700)
             preferences = context / 'preferences'; preferences.mkdir(mode=0o700)
+            home = context / 'home'; home.mkdir(mode=0o700)
             xdg = context / 'xdg'; xdg.mkdir(mode=0o700)
             config = context / 'global.config'; config.write_text('')
             private_tmp = context / 'temporary'; private_tmp.mkdir(mode=0o700)
             env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             env.update(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
-                       CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp),
+                       HOME=str(home), CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp),
                        DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'), TURTLEGIT_FINDER_FILE_SERVICES_CASE=case)
             print('Checking selected-file Finder Services ' + case + ' with ' + str(git), flush=True)
             try:

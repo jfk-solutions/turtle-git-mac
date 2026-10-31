@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-31",
+  "status": "utility-ownership-and-distribution-availability-family-focused-passed",
+  "base_source": "23f85514a9fa9799560e4540a105532d43e0de54",
+  "implementation": [
+    "Retained/pending native utility, diagnostic and error owners fence false-flag Cocoa reopen; actual Close releases it; explicit workspace intent and quiet background work remain available.",
+    "Publication availability is separate from build configuration. Optional publisher-owned canonical Apple listing URL has no default; disabled guarded actions never open generic Store. Direct GitHub release flow retained.",
+    "Actual About/Settings/update/introduction/first-start/autotext factories expose scoped ownership through activation/dispatch/replay and retirement."
+  ],
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/utility-distribution-debug-2026-10-31.log",
+      "compiler_errors": 0,
+      "limits": "Existing Swift/SDK/runtime diagnostics remain; no warning-free or signed repair claim."
+    },
+    "core": {
+      "result": "2 ApplicationDistribution methods pass",
+      "log": "build/qa/utility-distribution-core-2026-10-31.log",
+      "scope": "build/listing distinction; canonical valid/invalid URLs and optional bundle metadata; not full Core."
+    },
+    "native": [
+      {
+        "family": "original utilities + corrected reopen",
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "logs": [
+          "build/qa/utility-distribution-native-utilities-2026-10-31.log",
+          "build/qa/utility-distribution-native-reopen-visible-2026-10-31.log"
+        ],
+        "receivers": [
+          11258,
+          11265,
+          15153,
+          15156
+        ]
+      },
+      {
+        "family": "About source variants/availability/retirement",
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "log": "build/qa/utility-distribution-native-about-2026-10-31.log",
+        "receivers": [
+          11286,
+          11296
+        ]
+      },
+      {
+        "family": "release lifetime/listing/quiet+forced ownership",
+        "log": "build/qa/utility-distribution-native-updates-2026-10-31.log",
+        "receivers": [
+          11315
+        ]
+      },
+      {
+        "family": "command diagnostics existing ownership regression",
+        "log": "build/qa/utility-distribution-native-diagnostics-2026-10-31.log",
+        "receivers": [
+          11330
+        ]
+      },
+      {
+        "family": "selected-file Services provider + paths/conflicts",
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "log": "build/qa/utility-distribution-native-services-2026-10-31.log",
+        "receivers": [
+          11339,
+          11349,
+          12393,
+          13459,
+          13820
+        ]
+      }
+    ],
+    "cleanup": "Private repositories/preferences; hidden/prohibited native receivers reaped, owned windows and metadata/child work drained. No installed GUI launched by these receivers.",
+    "not_repeated": "Only affected reopen rerun after fixture-only failures. Other passing families and full Core not repeated."
+  },
+  "installed_observation": "See signed-consolidation-build44-2026-10-31.json: actual close/observe reopening is temporally ambiguous and does not prove active-owner causation; controlled native cases cover the source boundary. Private preference marker failed and the one actual workspace-geometry key was restored.",
+  "installed_repair": "Not installed; build44 remains exact23f source.",
+  "retained_failures": "utility-reopen-2026-10-31.json records owned SIGSEGV/activation-loop and quiet-vs-visible fixture corrections; exact source behavior preserved.",
+  "remaining": [
+    "Full corrected-source hosted CI remains unproven; older run also has separate classic GDI test-contract failures and unlocalized Statistics timeout.",
+    "No signed installed acceptance of this source family, all dialogs/keyboard/accessibility or physical Intel/minimum macOS acceptance.",
+    "No public binary release, notarization, App Store publication or license/terms clearance."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/ApplicationDistribution.swift": "557322829367fc700add3375e599a8ffe55ecbbf33f6e61afadadaaf453da152",
+    "Sources/TurtleGitCore/GitRuntime.swift": "92d6ca2572e781b3193e1b25172ed53d57a79b1de5d111132bf5b185f997ad22",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "9294b76f76ec7986c4ff6746423e013cb0a8e45e05ca485c130d86bc8398e2ff",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "041259ce917d22f412aefe06c19eb5bb686dbeff42b5bf67cea8d2808d9eece5",
+    "Sources/TurtleGitMac/ApplicationIntroduction.swift": "af069088e5f91988c54bfe523436c49b7fc659adabf9eb29646fdbd9d3888de4",
+    "Sources/TurtleGitMac/FirstStartWizard.swift": "06267d1694dcf460426d568ac0724510976086800fce5cb481635f9cfa05b6e8",
+    "Sources/TurtleGitMac/AutotextTester.swift": "0ebb5865b07483457103790f7e240e3be3ab77a58b1cc7dc3e00cf5f670c5433",
+    "Sources/TurtleGitMac/SettingsNavigation.swift": "39966fa96b556a1707a98f781b923729deb82e6e178f29db4466ff86a5d57410",
+    "Sources/TurtleGitMac/ReleaseUpdateWindow.swift": "5e73f235dcc3bac2e3c2aca61065385fa90da15a0f8fb728dcc410489f1a5b67",
+    "Tests/TurtleGitCoreTests/ApplicationDistributionTests.swift": "1ef952dfaa2d68c7b86eac1e974ffc5a8bef486f8fb0a6a4adc361afb0f74f89",
+    "docs/qa/utility-startup-native-2026-10-31.swift": "134002d5b36b9b6d9bb5c8e845710ef9d903bc4830b3a96408d055dffebda8fc",
+    "docs/qa/about-source-native-2026-10-17.swift": "a8636a3447c181593c10fe6f208e5c755d994d9ccd42e8ec517b7a94d63f051b",
+    "docs/qa/release-update-native-2026-10-17.swift": "a6a1a323c670bbe6760e3c8e9457d2b0d8bc2a568d3f11bfd5776cf43fa8a6ca"
+  },
+  "final_documentation_checks": {
+    "dialog_coverage_reconciled": true,
+    "localization_check": "38 locales/1326 keys; resource consistency only",
+    "help_check": "62 documents/51 topics/96 files",
+    "site_build": "517 documents; zero unresolved fragments",
+    "site_checks": "documentation links and local search passed",
+    "owned_receiver_absence": "independent ps check: all listed receivers absent",
+    "protected_work": "two unrelated files retain baseline SHA256; excluded from staging",
+    "hosted_observation": "Older41147246774 terminal failure, current23f41157781531 observed queued; corrected uncommitted source has no complete hosted pass"
+  }
+}

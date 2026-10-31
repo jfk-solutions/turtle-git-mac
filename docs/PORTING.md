@@ -1,5 +1,36 @@
 # TurtleGit for Mac — full port tracking
 
+## Current consolidation and utility ownership — October 31, 2026
+
+[Signed local build44](qa/signed-consolidation-build44-2026-10-31.json),
+`0.1.0 (44)`, is installed from exact source `23f85514`. It includes the Log
+ownership, command diagnostics, Blame artwork and fixed Commit feedback layout.
+The local ZIP has a matching tracked-source archive; neither was publicly
+uploaded. Universal signatures, packaged runtime checks and archive/install
+inventory passed. Build43 is preserved for rollback. Installed About was
+observed; this is not physical acceptance of every workflow.
+
+The subsequent [utility/distribution batch](qa/utility-distribution-ownership-2026-10-31.json)
+keeps retained and pending utility owners ahead of Cocoa's advisory reopen flag,
+while explicit workspace commands and ordinary reopen after Close remain
+available. About and Updates distinguish local build configuration from a
+published App Store listing; no listing is configured and no generic Store
+launch is offered. The controlled native checks cover ownership through factory,
+activation, command queue, error acknowledgement and retirement. The installed
+About Close/reopen observation has ambiguous callback timing and does not prove
+that an active About window itself caused an unwanted workspace.
+
+One Debug build, two focused Core methods and grouped utility/About/update/
+diagnostics/Services checks pass. Fixture-only failures and affected retries are
+retained. This newer source family is not installed in build44. The hosted
+Services/line-menu consumers and classic GDI fixture contracts have their own
+[focused native](qa/native-service-line-host-2026-10-31.json) and
+[14-method Core/native](qa/classic-gdi-fixture-contracts-2026-10-31.json)
+checkpoints. A single instrumented Statistics ownership diagnostic passes;
+[the older hosted timeout remains unexplained](qa/statistics-export-diagnostic-2026-10-31.json).
+Complete corrected-source CI, signed acceptance of the newer source, hardware,
+accessibility and the explicit source/layout gaps remain release gates.
+
 ## Log comparison and refresh continuation
 
 The [Log ownership batch](qa/log-refresh-ownership-2026-10-31.json) retains
@@ -15,7 +46,7 @@ engines. The existing parent/working comparison, grouped merge/Revert and unifie
 routing assertions remain in the group. The old hosted wait reused a retired
 model; the fixture now has named stages, observable reload admission and private
 state, with the initial fixture compilation failure retained. No Core suite was
-repeated. This source continuation is not installed in build43; wider physical,
+repeated. This source continuation is included in build44; wider physical,
 signed and corrected-source hosted acceptance remain open.
 
 ## Installed local testing build43

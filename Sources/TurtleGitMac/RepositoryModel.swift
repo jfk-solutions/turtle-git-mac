@@ -393,6 +393,10 @@ private enum TransportBatchPresentationContext {
 
 @MainActor final class RepositoryModel: ObservableObject {
     private let autotextTester = AutotextTesterOwner()
+    // The retained tester is an application utility, including its temporary
+    // native presentation gap. Its owner clears the controller on real Close.
+    var autotextUtilityWindow:NSWindow? {autotextTester.controller?.window}
+    func presentExistingAutotextUtility()->Bool {autotextTester.presentExistingUtility()}
     func showAutotextTester() {
         guard !busy, !confirmingQuit else { return }
         autotextTester.show(preferences: fileComparisonPreferences)

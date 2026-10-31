@@ -95,3 +95,53 @@ VoiceOver, printing, signed distribution or the complete port. The independent
 selection; ordinary text edits retain the [byte-backed editor](UNIFIED-DIFF-BYTE-EDITING.md).
 The later [column editing family](UNIFIED-DIFF-COLUMN-EDITING-PARITY.md) extends
 selection and clipboard behavior with its own implementation and validation scope.
+
+
+## Integrated column submenu fixture — 31 October 2026
+
+The later Column Selection family appends a separator and its own eight-direction
+submenu after the seven whole-line commands in the actual Lines context menu.
+Older editors CI job124385294454 still expected exactly seven nonseparator items
+at fixture line126; that assertion predates the integrated group, rather than
+establishing incorrect production menu order.
+
+The corrected fixture requires the exact seven line command captions/order, then
+the separator and Column Selection group with no extra entries. It independently
+asserts all eight direction captions/order, source icons, enabled state and actual
+text-view action ownership; dispatching Right must extend a rectangle without
+changing bytes or Undo. Icon suppression covers both parent entries and direction
+leaves. Retained column receipts must not act through busy, sheet, Quit, equal-byte
+replacement or retired-owner boundaries, alongside the existing line-command
+checks. No production menu or receipt guard changes are made.
+
+The initial focused recheck passed the seven-command ordering assertion, then
+failed the newly added expectation that the attached submenu parent retained nil
+action/target (system receiver1365, reaped). The fixture now checks the parent's
+public submenu topology, exact localized caption and absence of a leaf command
+receipt, leaving AppKit's submenu dispatch to the native menu. It reports actual
+parent title/action/target/topology on failure. Every leaf's exact direction,
+icons, text-view target/action and behavioral dispatch assertions remain intact.
+No product change or private AppKit selector dependency was introduced.
+
+The final focused commands and ownership group passes with system and bundled
+Git, as recorded in the [native consumer checkpoint](qa/native-service-line-host-2026-10-31.json).
+The runner is
+`python3 scripts/test-unified-line-edit.py --only commands --only ownership`.
+The existing keyboard/bytes/draft assertions remain unchanged and were not
+repeated; Core was not rerun for these native-only fixture corrections. Both
+successful receivers were reaped and private windows/pasteboards released.
+This does not prove physical context-menu interaction, signed installed acceptance
+or complete current hosted CI success. The preceding failures remain recorded
+below and in the checkpoint.
+
+The next focused check passed the actual menu/topology/dispatch command cohort
+but found a second pre-column expectation in ownership (system receiver5132,
+reaped): the old test required Duplicate to reject multiple stream selections.
+Pinned `Editor.cxx:3294–3316` explicitly iterates every live selection for
+Duplicate, and the later native multiple-line engine implements that contract.
+The corrected ownership cohort first leaves rectangle mode through the native
+selection controller, requires two nonrectangular native selections, then checks
+exact duplication of both spans and single Undo/Redo restoration of original
+bytes, both ranges, direction and mode. It resets through native mode transitions
+before the original equal-byte replacement, held Save and retirement assertions.
+No secondary-selection assertion is removed and production behavior is unchanged.

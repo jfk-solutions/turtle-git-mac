@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-core-and-native-contracts-passed",
+  "kind": "ClassicGDIOriginalAlphaAndExplicitPaintFixtureContracts",
+  "hosted_observation": {
+    "run": 41147246774,
+    "job": 124385294450,
+    "source": "1a09d511ca5074002358359c7c6b366f686baca9",
+    "suite_methods": 3374,
+    "skipped": 3,
+    "failed_assertions": 133,
+    "failed_methods": [
+      "MetafileDirectScanlineTests.testDefaultLogicalPaletteDirectPixelsAndPartialBands",
+      "MetafileDirectScanlineTests.testDirectScanlinesTransformOriginOnlyAndRespectClipRestoreAndSourceCopy",
+      "MetafileDirectScanlineTests.testFullAndCroppedDirectScanlinesPaintIndependentDevicePixels",
+      "MetafileDirectScanlineTests.testPartialScanlineBandsPaletteFormatsAndCompressedColors",
+      "MetafileImageTests.testClassicFloodUsesDestinationConnectivityModesClipPatternsAndSavedState",
+      "MetafileImageTests.testClassicPatternBrushTransformsClipFillStrokeBooleanRegionAndFloodConsumers",
+      "MetafileImageTests.testClassicRegionFillPaintInvertExplicitBrushAndWMFObjectLifetime",
+      "MetafileImageTests.testClassicRegionFrameUsesAnisotropicUnionInteriorWithoutBandSeams",
+      "MetafileImageTests.testWMFBitmap16FamilyPromotesMeasuredLegacyDeviceAndSourceOmittedRecordsWithoutChangingBytes"
+    ]
+  },
+  "read_only_diagnostic": {
+    "helper_sha256": "790b1d6a7990e6a2832db204e0d8e5917499f0cffd713b9e920390eabf9fba2f",
+    "source": "wmf-classic-flood-border.wmf",
+    "source_sha256": "74389b3102850dc41613788c8b955e448e89fded8af64458bac4743037757b14",
+    "outputs": "build/qa/classic-gdi-readonly-2026-10-31/",
+    "helper_invocations": 1,
+    "gui": false,
+    "finding": "The actual original64x64 wall geometry has gaps at row9/row53. Independent PNG coverage decoding includes seed16,16, right40,16 and outside4,4, while excluding black wall8,16. Inclusive extra canvas is not required for the observed connectivity."
+  },
+  "implementation": {
+    "production_changes": false,
+    "original_wire_count_preserved": 255,
+    "original_wire_hash_manifest": "Tests/TurtleGitCoreTests/Fixtures/Metafile/classic-gdi-contract-controls.json",
+    "new_controls": 7,
+    "contracts": [
+      "Exact unpainted WMF alpha versus painted white and classic EMF initial surface; retain colored/clip/ROP/transform checks.",
+      "Full natural-canvas direct-scanline RGBA, with an independent explicit white PATCOPY control.",
+      "Independent full64x64 RGBA for WMF region fill, morphological union frame, clipped bitmap brush, clipped flood and empty selected region.",
+      "Independent full64x64 RGBA for all four original open-enclosure flood paintings and four explicitly closed PATCOPY controls, preserving source island/color/brush behavior.",
+      "Exact original empty-prior BitBlt white destination ROI/transparent exterior and zero-source StretchBlt transparency, with explicit white controls.",
+      "Independent exact derivative reconstruction, state-preserving white paint records, five-only wall replacements, required header fields and original/control SHA invariants."
+    ],
+    "native_enrollment": "Retain all original consumers and add seven explicit controls. Classic-regions native cases check full64x64 RGBA for all original/closed flood variants and explicit-white scanline; Bitmap16 native cases check full64x64 empty-prior ROI/no-op and explicit-white controls. Original bytes, image routing, malformed refusals, previews, conflict, cancellation and retirement assertions remain."
+  },
+  "validation": {
+    "performed_by_implementation_agent": "none; fixture generation only, no helper rerun/build/Core/native tests",
+    "planned_core": "Nine retained affected methods plus MetafileClassicGDIContractsTests and MetafileDirectScanlineTests.testFullNaturalScanlineCanvasDistinguishesUnpaintedAlphaAndExplicitWhiteControl",
+    "planned_native": "Existing classic-regions, classic-patternbrushes, wmf-bitmap16 and direct-scanline consumers, grouped after freeze by root.",
+    "core": {
+      "result": "14 focused methods pass; nine retained affected methods and independent full-canvas/control contracts",
+      "log": "build/qa/classic-gdi-contracts-core-2026-10-31.log",
+      "elapsed_test_seconds": 8.31,
+      "full_core_suite": false
+    },
+    "native": [
+      {
+        "family": "consumers",
+        "result": "passed with system and bundled Git",
+        "log": "build/qa/classic-gdi-contracts-native-consumers-2026-10-31.log",
+        "reaped_receivers": [
+          16097,
+          16459,
+          16633,
+          16792,
+          16978,
+          17286
+        ]
+      },
+      {
+        "family": "scanlines",
+        "result": "passed with system and bundled Git",
+        "log": "build/qa/classic-gdi-contracts-native-scanlines-2026-10-31.log",
+        "reaped_receivers": [
+          17613,
+          17638
+        ]
+      }
+    ],
+    "app_build": "Not repeated: no production/renderer/runtime source changes in this contract family.",
+    "repeated_after_failure": "None; initial grouped Core/native checkpoint passed."
+  },
+  "limits": "This fixture-contract correction does not certify all GDI behavior, physical Windows/macOS visual parity, signed delivery, minimum OS/Intel or complete hosted CI."
+}

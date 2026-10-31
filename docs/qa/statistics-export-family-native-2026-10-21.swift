@@ -35,9 +35,17 @@ actor StatisticsExportWriteGate {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String,line:Int = #line)throws {if !value {throw Failure(description:"\(line): "+message)}}
     static func unwrap<T>(_ value:T?,_ message:String)throws->T {guard let value else {throw Failure(description:message)};return value}
-    static func wait(line:Int = #line,_ ready:()->Bool)async throws {
+    private static var phases=[String](),lastState=""
+    static func phase(_ name:String,_ c:Context,_ owner:StatisticsWindowController? = nil) {
+        let state="exports=\(StatisticsWindowController.activeExports) calculations=\(StatisticsWindowModel.activeOperations) pending=\(owner?.hasPendingWork ?? false) canSave=\(owner?.canSaveGraph ?? false) busy=\(owner?.model.busy ?? false) exporting=\(owner?.model.exporting ?? false) hasSheet=\(owner?.model.hasSheet ?? false) sheet=\(owner?.window?.attachedSheet?.title ?? "none") windowVisible=\(owner?.window?.isVisible ?? false) error=\(owner?.model.error ?? "none") windows=\(NSApp.windows.count)"
+        lastState=state;phases.append(name)
+        let record:[String:Any] = ["phase":name,"state":state,"history":phases,"pid":ProcessInfo.processInfo.processIdentifier]
+        if let bytes=try? JSONSerialization.data(withJSONObject:record,options:[.prettyPrinted,.sortedKeys]) {try? bytes.write(to:c.base.appendingPathComponent("phase.json"),options:.atomic)}
+        print("Statistics export phase: "+name+"; "+state);fflush(stdout)
+    }
+    static func wait(_ name:String="state",line:Int = #line,_ ready:()->Bool)async throws {
         for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(description:"Statistics export timeout at \(line)")
+        throw Failure(description:"Statistics export timeout at \(line) phase=\(name) last=\(phases.last ?? "none"); "+lastState)
     }
     static func drained()->Bool {StatisticsWindowController.activeExports==0 && StatisticsWindowModel.activeOperations==0}
     @MainActor final class Context {
@@ -61,19 +69,23 @@ actor StatisticsExportWriteGate {
         func owner()async throws->StatisticsWindowController {
             let owner=StatisticsWindowController(repository:repo,access:RepositoryAccessLease(url:repo.root),entries:entries,defaults:prefs)
             owners.append(owner);owner.window?.orderFront(nil);owner.model.selectMetric(.commitsByDate);owner.model.selectStyle(.bar)
-            try await wait{owner.canSaveGraph && owner.model.graph != nil};return owner
+            phase("graph owner: awaiting save readiness",self,owner)
+            try await wait("graph owner save readiness"){owner.canSaveGraph && owner.model.graph != nil};phase("graph owner: ready",self,owner);return owner
         }
         func preserved()async throws {
             let currentIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),currentConfig=try Data(contentsOf:repo.root.appendingPathComponent(".git/config")),currentHead=try await repo.run(["rev-parse","HEAD"]).stdout
             try require(currentIndex==index && currentConfig==config && currentHead==head,"Statistics export changed repository state")
         }
         func clean()async {
+            phase("cleanup: release accepted writers",self)
             // Release every accepted writer even when an assertion throws.
             for gate in gates {await gate.finish()}
+            phase("cleanup: close native owners",self)
             owners.forEach{$0.close()}
             for window in NSApp.windows {if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.cancel);sheet.orderOut(nil)};window.orderOut(nil);window.close()}
             for _ in 0..<3000 {if drained() && owners.allSatisfy({!$0.hasPendingWork}) {break};try? await Task.sleep(nanoseconds:10_000_000)}
             prefs.removePersistentDomain(forName:suite)
+            phase("cleanup: complete",self)
         }
     }
     static func verify(_ data:Data,format:StatisticsGraphFormat,size:CGSize?=nil)throws {
@@ -192,35 +204,48 @@ actor StatisticsExportWriteGate {
         try await c.preserved()
     }
     static func ownership(_ c:Context)async throws {
+        phase("ownership: create graph owner",c)
         let owner=try await c.owner(),gate=StatisticsExportWriteGate();c.gates.append(gate)
         let target=c.base.appendingPathComponent("held.png"),sentinel=Data("preserved held destination".utf8);try sentinel.write(to:target)
         owner.writeGraph={data,url,token in try await gate.write(data,to:url,cancellation:token)}
         owner.selectedSaveURL={_ in target};owner.presentSavePanel={_,_,reply in reply(.OK)}
-        var closed=0;owner.onClosed={closed += 1};owner.saveGraphAs()
+        var closed=0;owner.onClosed={closed += 1};phase("writer: Save action begin",c,owner);owner.saveGraphAs();phase("writer: Save action returned",c,owner)
         var entered=false
         for _ in 0..<3000 {if await gate.entered {entered=true;break};try await Task.sleep(nanoseconds:10_000_000)}
         try require(entered,"Accepted cancellable writer never started")
-        owner.close()
+        phase("writer: gate entered; force-close begin",c,owner)
+        owner.close();phase("writer: force-close returned",c,owner)
         try require(closed==0 && owner.hasPendingWork && StatisticsWindowController.activeExports>0,"Visual close released held writer owner")
+        phase("writer: Quit admission begin",c,owner)
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit ignored accepted writer")
+        phase("writer: Quit refused",c,owner)
         let tokenCancelled=await gate.cancelled;try require(tokenCancelled,"Owner close did not cancel writer token")
-        await gate.finish();try await wait{closed==1 && !owner.hasPendingWork && drained()}
+        phase("writer: release cancelled gate",c,owner)
+        await gate.finish();try await wait("writer close/drain"){closed==1 && !owner.hasPendingWork && drained()}
+        phase("writer: closed and drained",c,owner)
         try require(try Data(contentsOf:target)==sentinel,"Late cancelled writer overwrote existing destination")
+        phase("error sheet: create owner",c)
         let failed=try await c.owner();var alert:NSAlert?,answer:((NSApplication.ModalResponse)->Void)?
         failed.writeGraph={_,_,_ in throw NSError(domain:"Private statistics writer failure",code:19)}
         failed.selectedSaveURL={_ in target};failed.presentSavePanel={_,_,reply in reply(.OK)}
-        failed.presentExportError={question,parent,reply in alert=question;answer=reply;question.beginSheetModal(for:parent,completionHandler:reply)}
-        failed.saveGraphAs();try await wait{alert?.window.sheetParent === failed.window}
+        failed.presentExportError={question,parent,reply in alert=question;answer=reply;phase("error sheet: native beginSheet begin",c,failed);question.beginSheetModal(for:parent,completionHandler:reply);phase("error sheet: native beginSheet returned",c,failed)}
+        phase("error sheet: first Save begin",c,failed);failed.saveGraphAs();phase("error sheet: first Save returned",c,failed)
+        try await wait("first error sheet attachment"){alert?.window.sheetParent === failed.window}
+        phase("error sheet: first attached",c,failed)
         try require(failed.hasPendingWork && !failed.windowShouldClose(failed.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Owned export error lost sheet/Quit guard")
-        let question=try unwrap(alert,"Actual failure alert missing");question.buttons[0].performClick(nil)
-        try await wait{!failed.hasPendingWork && failed.window?.attachedSheet==nil && question.window.sheetParent==nil}
-        answer?(.alertFirstButtonReturn);try require(failed.canSaveGraph,"Duplicate error reply blocked fresh export")
-        alert=nil;failed.saveGraphAs();try await wait{alert?.window.sheetParent === failed.window}
+        let question=try unwrap(alert,"Actual failure alert missing");phase("error sheet: actual OK performClick begin",c,failed);question.buttons[0].performClick(nil);phase("error sheet: actual OK performClick returned",c,failed)
+        try await wait("first error sheet detach/drain"){!failed.hasPendingWork && failed.window?.attachedSheet==nil && question.window.sheetParent==nil}
+        phase("error sheet: first detached/drained",c,failed)
+        phase("error sheet: duplicate first reply begin",c,failed);answer?(.alertFirstButtonReturn);phase("error sheet: duplicate first reply returned",c,failed);try require(failed.canSaveGraph,"Duplicate error reply blocked fresh export")
+        alert=nil;phase("error sheet: second Save begin",c,failed);failed.saveGraphAs();phase("error sheet: second Save returned",c,failed);try await wait("second error sheet attachment"){alert?.window.sheetParent === failed.window}
+        phase("error sheet: second attached",c,failed)
         let retiredAlert=try unwrap(alert,"Second owned error missing");var failureClosed=0;failed.onClosed={failureClosed += 1}
-        failed.close();answer?(.alertFirstButtonReturn);answer?(.alertFirstButtonReturn)
-        try await wait{failureClosed==1 && !failed.hasPendingWork && retiredAlert.window.sheetParent==nil && drained()}
+        phase("error sheet: forced close begin",c,failed);failed.close();phase("error sheet: forced close returned",c,failed)
+        answer?(.alertFirstButtonReturn);answer?(.alertFirstButtonReturn);phase("error sheet: retired duplicate replies returned",c,failed)
+        try await wait("retired error sheet detach and owner drain"){failureClosed==1 && !failed.hasPendingWork && retiredAlert.window.sheetParent==nil && drained()}
+        phase("error sheet: retired owner drained",c,failed)
         try require(try Data(contentsOf:target)==sentinel,"Failed export/error dismissal changed destination")
-        try await c.preserved()
+        phase("ownership: verify unchanged repository",c,failed);try await c.preserved();phase("ownership: complete",c,failed)
     }
     static func main()async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -228,7 +253,7 @@ actor StatisticsExportWriteGate {
         method_exchangeImplementations(original,hidden);defer{method_exchangeImplementations(original,hidden)}
         let c=Context();DialogGeometry.install(preferences:c.prefs);defer{DialogGeometry.install(preferences:.standard)}
         do {
-            try await c.seed();let which=CommandLine.arguments[3]
+            phase("seed: begin",c);try await c.seed();phase("seed: complete",c);let which=CommandLine.arguments[3]
             switch which {case "formats":try await formats(c);case "selection":try await selection(c);case "ownership":try await ownership(c);default:throw Failure(description:"Unknown statistics export case")}
             await c.clean();try require(drained() && c.owners.allSatisfy{!$0.hasPendingWork} && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Statistics export ownership did not drain")
             print("PASS: Statistics export family "+which)

@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "scope": "Actual native utility ownership and application reopen; focused grouped checkpoint passed",
+  "installedEvidence": {
+    "build": 44,
+    "pid": 8110,
+    "timestamp": "2026-10-31 03:20:25.179",
+    "log": "Reopen route: workspace-request; mode=actionOnly; startupReady=true; startupDelivered=true; hasVisibleWindows=false",
+    "aboutCloseDoesNotRequestWorkspace": true,
+    "automaticWorkspaceScene": false,
+    "privatePreferences": "not established by installed observation; no repository selected or granted",
+    "timingBoundary": "Cocoa reopen was about56ms after About screenshot save, during computer-control OK/AX operation. About may already have closed; this observation does not prove reopen while utility owned. Post-close reopen remains allowed."
+  },
+  "implementation": {
+    "delegate": "Scoped actual startup/URL/Service activation+dispatch and queued utility head ownership; focus retained utility before Cocoa flag or actionOnly workspace fallback",
+    "owners": [
+      "About",
+      "global/scoped Settings and accepted-close replay",
+      "Introduction",
+      "First Start",
+      "Update window/explicit forced pending presentation",
+      "Autotext tester",
+      "warm Debug command acknowledgement and queued accepted delivery",
+      "command error window/queued presentation"
+    ],
+    "retirement": "Actual service/controller Close clears ownership; pending-only owner never constructs a replacement",
+    "preserved": [
+      "explicit Open Repository/workspace intent",
+      "Dock/reopen after utility Close",
+      "Git configuration readiness and URL FIFO",
+      "Quit/cancellation gates"
+    ],
+    "quietUpdateBoundary": "Quiet/automatic network background alone permits workspace reopen; explicit forced pending presentation retains ownership."
+  },
+  "native": {
+    "runner": "python3 scripts/test-utility-startup.py --only reopen --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "usesActualWorkspaceSceneOwner": true,
+    "usesActualNativeUtilityControllers": true,
+    "privateState": true,
+    "activationProhibited": true,
+    "windows": "alpha0, offscreen; existing swizzled native ordering; all owned controllers closed and metadata workers drained",
+    "assertions": [
+      "no workspace during real CLI or global Settings URL utility admission",
+      "false Cocoa window flag focuses same existing owner without constructing another",
+      "reentrant initial/direct About factory cannot create a host",
+      "real utility Close releases ownership and actual reopen creates AppKit workspace",
+      "explicit workspace intent remains available while About is open",
+      "warm Debug open and accepted callback gap do not create workspace",
+      "queued/open command errors retain ownership until actual acknowledgement",
+      "held quiet update permits real workspace reopen; forcing same held check fences host until cancel/drain"
+    ],
+    "originalUtilitiesAndMergeAssertions": "retained unchanged"
+  },
+  "validation": {
+    "build": {
+      "result": "Debug exit0",
+      "log": "build/qa/utility-distribution-debug-2026-10-31.log"
+    },
+    "focusedNative": {
+      "result": "original utility admission and corrected actual reopen case pass with system and bundled Git",
+      "original_utilities_log": "build/qa/utility-distribution-native-utilities-2026-10-31.log",
+      "reopen_log": "build/qa/utility-distribution-native-reopen-visible-2026-10-31.log",
+      "successful_receivers": [
+        11258,
+        11265,
+        15153,
+        15156
+      ]
+    },
+    "physicalDockLaunchServices": "not run",
+    "signedInstalledRepair": "not established"
+  },
+  "retained_fixture_failures": [
+    {
+      "receiver": 11268,
+      "log": "build/qa/utility-distribution-native-utilities-2026-10-31.log",
+      "cause": "SIGSEGV from fixture activation wrapper repeatedly synthesizing reopen during later legitimate post-close workspace activation; owned crash stack confirms recursion. Injection now Settings-only/once, consumed before callback; no product guard added for this fixture cycle."
+    },
+    {
+      "receiver": 14814,
+      "log": "build/qa/utility-distribution-native-reopen-repair-2026-10-31.log",
+      "cause": "Fixture requested quiet update but expected window; actual visible-window scenario now sends /visible and asserts its delivery. Quiet/forced background contracts remain."
+    }
+  ]
+}

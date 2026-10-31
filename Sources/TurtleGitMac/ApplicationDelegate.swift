@@ -200,10 +200,14 @@ import TurtleGitCore
         }
         guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
         receivedExternalLaunchIntent=true
-        if captured.action != .registerRepository {activateStandaloneApplication()}
+        admittingApplicationUtility(captured) {
+            if captured.action != .registerRepository {activateStandaloneApplication()}
+        }
         if startupReady,startupDelivered,!deliveringFinderService,pendingOpenServiceSelection==nil,!debugEnabled(),diagnosticKey==nil,configurationReadsReady() {
             let target=actionRoutingModel()
-            guard !target.busy,!target.hasPendingRepositoryWork,!target.confirmingQuit,workspaceServiceHandler(target,captured) else {throw TurtleGitFinderServicesProvider.Failure.busy}
+            guard !target.busy,!target.hasPendingRepositoryWork,!target.confirmingQuit else {throw TurtleGitFinderServicesProvider.Failure.busy}
+            let accepted=admittingApplicationUtility(captured) {workspaceServiceHandler(target,captured)}
+            guard accepted else {throw TurtleGitFinderServicesProvider.Failure.busy}
         } else {pendingFinderServiceRequest=captured;deliverPendingFinderService()}
     }
     private func deliverPendingFinderService() {
@@ -232,7 +236,10 @@ import TurtleGitCore
         } else if let request=pendingFinderServiceRequest {
             pendingFinderServiceRequest=nil;consumeDiagnostic();consumed=true
             let target=actionRoutingModel()
-            if confirmingQuit || target.confirmingQuit || target.busy || target.hasPendingRepositoryWork || !workspaceServiceHandler(target,request) {pendingFinderServiceError="TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."}
+            let accepted:Bool
+            if confirmingQuit || target.confirmingQuit || target.busy || target.hasPendingRepositoryWork {accepted=false}
+            else {accepted=admittingApplicationUtility(request) {workspaceServiceHandler(target,request)}}
+            if !accepted {pendingFinderServiceError="TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."}
         }
         if let message=pendingFinderServiceError {pendingFinderServiceError=nil;actionRoutingModel(loadSavedAccess: false).error=message}
     }
@@ -379,8 +386,10 @@ import TurtleGitCore
                 let target = actionRoutingModel(loadSavedAccess:!localPatchDocument && !independentUtility)
                 guard !target.busy, !target.finderActionAuthorityPending else { return }
                 pendingOpenURLs.removeFirst()
-                if FinderRequest(url: url)?.action != .registerRepository { activateStandaloneApplication() }
-                workspaceOpenHandler(target, url)
+                admittingApplicationUtility(finderRequest) {
+                    if finderRequest?.action != .registerRepository {activateStandaloneApplication()}
+                    workspaceOpenHandler(target,url)
+                }
             } else {
                 pendingOpenURLs.removeFirst()
                 workspaceOpenHandler(repositoryModel, url)
@@ -627,11 +636,58 @@ import TurtleGitCore
     // Closing the workspace must not end an owned Git/editor child or stop
     // Finder routing. Reopen and the next external request use the same scene.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
+    // Cocoa can deliver reopen with hasVisibleWindows=false even while an
+    // AppKit utility owns the process. Retained utility owners, rather than
+    // that advisory flag alone, decide whether a workspace may be created.
+    private var applicationUtilityAdmissionDepth=0
+    var presentExistingApplicationUtility:()->Bool = {
+        if TurtleGitAboutService.shared.hasOwnedUtilityWindow { _ = TurtleGitAboutService.shared.presentExistingUtility();return true }
+        if SettingsPresentationService.shared.hasOwnedUtilityWindow { _ = SettingsPresentationService.shared.presentExistingUtility();return true }
+        if ApplicationIntroductionService.shared.hasOwnedUtilityWindow {_ = ApplicationIntroductionService.shared.presentExistingUtility();return true}
+        if FirstStartWizardService.shared.hasOwnedUtilityWindow {_ = FirstStartWizardService.shared.presentExistingUtility();return true}
+        if ReleaseUpdateService.shared.hasOwnedUtilityWindow {_ = ReleaseUpdateService.shared.presentExistingUtility();return true}
+        return false
+    }
+    private func admittingApplicationUtility<T>(_ request:FinderRequest?,_ body:()->T)->T {
+        let utility=request?.action.isApplicationUtility==true
+        if utility {applicationUtilityAdmissionDepth += 1}
+        defer {if utility {applicationUtilityAdmissionDepth -= 1}}
+        return body()
+    }
+    private func retainExistingApplicationUtility()->Bool {
+        guard isGeneralApplication else{return false}
+        // Do not replay an admission callback or construct a new utility while
+        // its original presenter is still creating/authorizing that owner.
+        if applicationUtilityAdmissionDepth>0 || pendingFinderServiceRequest?.action.isApplicationUtility==true || pendingOpenURLs.first.flatMap(FinderRequest.init(url:))?.action.isApplicationUtility==true {return true}
+        // Debug acknowledgement and command error presentation belong to the
+        // same command, including their queued callback/presentation gaps.
+        if diagnosticKey != nil {
+            if let window=commandDiagnosticController?.window {
+                if window.isMiniaturized {window.deminiaturize(nil)}
+                window.makeKeyAndOrderFront(nil)
+            }
+            return true
+        }
+        if actionErrorController != nil || !queuedActionErrors.isEmpty || pendingFinderServiceError != nil || actionRepositoryModel.map({!$0.isRetired && $0.error != nil})==true {
+            if let window=actionErrorController?.window {
+                if window.isMiniaturized {window.deminiaturize(nil)}
+                window.makeKeyAndOrderFront(nil)
+            }
+            return true
+        }
+        if let service=actionSettingsService,service.hasOwnedUtilityWindow {_ = service.presentExistingUtility();return true}
+        if presentExistingApplicationUtility() {return true}
+        for model in routingModels where !model.isRetired {
+            if model.presentExistingAutotextUtility() {return true}
+        }
+        return false
+    }
     private var actionPresentationPending:Bool {
         guard let action=actionRepositoryModel,!action.isRetired else{return false}
         return action.busy || action.hasPendingRepositoryWork
     }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        let utilityOwned=acceptingOpenURLs && !confirmingQuit && startupReady && startupDelivered && retainExistingApplicationUtility()
         // Diagnostic metadata is deliberately bounded and excludes URLs, paths,
         // command arguments and permission payloads. Physical acceptance can
         // distinguish this route from the default/untitled routes without
@@ -641,9 +697,9 @@ import TurtleGitCore
             let mode=String(describing:startupLaunchMode)
             let branch = !acceptingOpenURLs || confirmingQuit ? "retired-or-quitting" :
                 (!startupReady || !startupDelivered ? "startup-pending" :
-                    (isGeneralApplication && flag ? "existing-window" :
+                    (utilityOwned ? "existing-utility" : (isGeneralApplication && flag ? "existing-window" :
                         (isGeneralApplication && actionPresentationPending ? "action-work-pending" :
-                            (isGeneralApplication ? "workspace-request" : "tool-refused"))))
+                            (isGeneralApplication ? "workspace-request" : "tool-refused")))))
             Self.launchLog.notice("Reopen route: \(branch, privacy: .public); mode=\(mode, privacy: .public); startupReady=\(self.startupReady, privacy: .public); startupDelivered=\(self.startupDelivered, privacy: .public); hasVisibleWindows=\(flag, privacy: .public)")
         }
         guard acceptingOpenURLs,!confirmingQuit else{return false}
@@ -655,6 +711,7 @@ import TurtleGitCore
         // includes minimized windows; scanning isVisible would miss those and
         // create an unrelated workspace over the user's dialog. Explicit Open
         // Repository, workspace URLs and the Open Service keep their own route.
+        if utilityOwned {return false}
         if isGeneralApplication, flag {return true}
         // A command can own preparation before its panel becomes visible and
         // while that panel detaches. Preserve that owner across the presentation
@@ -695,6 +752,9 @@ import TurtleGitCore
             } else { pendingFinderServiceError = FinderActionLaunchFailure.invalid.localizedDescription }
             deliverPendingOpenURLs(); deliverPendingFinderService(); return
         }
+        let startupUtility=(try? PrimaryCommandInvocation.parse(arguments:startupArguments,currentDirectory:startupDirectory))?.request.action.isApplicationUtility==true
+        if startupUtility {applicationUtilityAdmissionDepth += 1}
+        defer {if startupUtility {applicationUtilityAdmissionDepth -= 1}}
         if let startupCommandHandler { startupCommandHandler(repositoryModel, startupArguments, startupDirectory) }
         else {
           if startupArguments == ["--turtlegit-action-only"] {deliverPendingOpenURLs();deliverPendingFinderService();return}

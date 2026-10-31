@@ -113,6 +113,7 @@
 		2BD5160A7FB19B41D7AAC268 /* SavedSSHAuthenticationWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7704AE3070C3BAECF693B26B /* SavedSSHAuthenticationWindow.swift */; };
 		2BE2A50FE49349D97E029CD3 /* UnifiedDiffPrintMargins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 548BA53E454CA6C5917EABE9 /* UnifiedDiffPrintMargins.swift */; };
 		2C55E0EBFCD53E3B244197A8 /* RemoteSettingsWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */; };
+		2CB1D3A2A19D097DDA4B7DC1 /* ApplicationDistribution.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC4157BDFFA1F9240FB456A5 /* ApplicationDistribution.swift */; };
 		2D11419DF7A44BFFC87F88DB /* ProjectDialogSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7147E00D8870E2CB238BAEDD /* ProjectDialogSettings.swift */; };
 		2D1E5C1B878989ED06CB2FD2 /* BlameToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = FED52170BDC5482B05F6DBB7 /* BlameToolbar.swift */; };
 		2D9636CAF8ECE838038BF5F8 /* IssueProviderSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = D7E6DA5F93A0F9287456B57C /* IssueProviderSettings.swift */; };
@@ -1132,6 +1133,7 @@
 		E7A0AFE1810E078E1C6F598D /* MessageURLFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageURLFinder.swift; sourceTree = "<group>"; };
 		EA1264F794E412CF0DFD5C59 /* FileCopy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileCopy.swift; sourceTree = "<group>"; };
 		EB40C59EBABEDD9F1D57C74C /* MergeInlineComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MergeInlineComparison.swift; sourceTree = "<group>"; };
+		EC4157BDFFA1F9240FB456A5 /* ApplicationDistribution.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationDistribution.swift; sourceTree = "<group>"; };
 		EC45B25889170370E887B2AC /* CommitCheckboxIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitCheckboxIndex.swift; sourceTree = "<group>"; };
 		EC889BB298CAB567A75F53F6 /* IssueRegexTester.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueRegexTester.swift; sourceTree = "<group>"; };
 		EE4D210C98ACAE51849E16C4 /* GitSVN.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitSVN.swift; sourceTree = "<group>"; };
@@ -1579,6 +1581,7 @@
 				1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */,
 				DEFB92D8B0C07D46059189F0 /* AppLanguagePreferences.swift */,
 				7738FB630AB0A69B82BECAB9 /* AppLanguages.generated.swift */,
+				EC4157BDFFA1F9240FB456A5 /* ApplicationDistribution.swift */,
 				F5B1B4492D159F92D3F03BBA /* Bisect.swift */,
 				1CA20BDAC0D5AFDEA1273F05 /* BlameSyntax.swift */,
 				DFC45A1FAC54431EE119A4E1 /* BlameToolbarConfiguration.swift */,
@@ -2254,6 +2257,7 @@
 				D346F92FAD1A13414F11CBB9 /* AlternativeEditorPreferences.swift in Sources */,
 				35B8F6AE5F02550BD409D4A3 /* AppLanguagePreferences.swift in Sources */,
 				809097D262F02EC9DCE694C2 /* AppLanguages.generated.swift in Sources */,
+				2CB1D3A2A19D097DDA4B7DC1 /* ApplicationDistribution.swift in Sources */,
 				F1CB359C0A4D4A0D76A000DD /* Bisect.swift in Sources */,
 				32999DFDD4058AD782D22857 /* BlameSyntax.swift in Sources */,
 				52BB329215CA22B8CF3571A7 /* BlameToolbarConfiguration.swift in Sources */,

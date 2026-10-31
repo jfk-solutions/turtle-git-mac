@@ -135,10 +135,21 @@ struct AutotextEditor: NSViewRepresentable {
 
 @MainActor final class AutotextTesterOwner: ObservableObject {
     private(set) var controller: AutotextTesterController?
+    private var creations=0
+    var hasOwnedUtilityWindow:Bool {controller != nil || creations>0}
+    func presentExistingUtility()->Bool {
+        guard hasOwnedUtilityWindow else{return false}
+        if let controller {
+            if controller.window?.isMiniaturized==true {controller.window?.deminiaturize(nil)}
+            present(controller)
+        }
+        return true
+    }
     var create: (UserDefaults) -> AutotextTesterController = { AutotextTesterController(model: AutotextTesterModel(preferences: $0)) }
     var present: (AutotextTesterController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     func show(preferences: UserDefaults = .standard) {
         if let controller { present(controller); return }
+        creations += 1;defer{creations -= 1}
         let controller = create(preferences); self.controller = controller
         controller.onClosed = { [weak self, weak controller] in if self?.controller === controller { self?.controller = nil } }
         present(controller)

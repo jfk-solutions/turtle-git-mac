@@ -1432,6 +1432,16 @@ jobs:
       - name: Statistics source export filters and owned save cancellation
         if: matrix.lane == 'images-documents'
         run: python3 scripts/test-statistics-export-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git
+      - name: Preserve Statistics export failure evidence
+        if: ${{ failure() && matrix.lane == 'images-documents' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: statistics-export-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/qa/statistics-export-failed-*/**
+            build/qa/statistics-export-family-native-results.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Synchronization typed Fetch results and owned Log routing
         if: matrix.lane == 'replay-transport'
         run: python3 scripts/test-sync-transfer-notifications.py --git /usr/bin/git --git build/git-runtime/Git/bin/git

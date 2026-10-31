@@ -494,6 +494,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
     private var installation = UUID()
     private var pendingPresentation: PresentationRequest?
     private var replayIdentity = UUID()
+    private var pendingReplay:UUID?
+    var hasOwnedUtilityWindow:Bool {controller != nil || pendingPresentation != nil || pendingReplay != nil}
+    func presentExistingUtility()->Bool {
+        guard hasOwnedUtilityWindow else{return false}
+        if let controller {if controller.window?.isMiniaturized == true {controller.window?.deminiaturize(nil)};present(controller)}
+        return true
+    }
     func install(workspace: RepositoryModel, appearance: AppAppearance) {
         if let previous = self.workspace, previous !== workspace {
             // A different scene/workspace cannot inherit an old window or its
@@ -537,7 +544,7 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         return true
     }
     private func cancelPendingPresentation() {
-        pendingPresentation = nil; replayIdentity = UUID()
+        pendingPresentation = nil;pendingReplay=nil; replayIdentity = UUID()
     }
     func show(globalOnly: Bool = false, initialPage: SettingsPageID? = nil, remoteNoFetch: Bool = false) {
         guard let workspace, let appearance, !workspace.confirmingQuit, !workspace.isRetired else { return }
@@ -585,11 +592,13 @@ struct SettingsNavigation: NSViewControllerRepresentable {
         updates?.cancel(); updates = nil; navigation = nil; self.controller = nil
         cancelPendingPresentation()
         guard accepted, let request, request.closingWindow === window else { return }
-        let replay = replayIdentity
+        let replay = replayIdentity;pendingReplay=replay
         // Leave the old delegate callback before constructing its replacement.
         // A newer synchronous command or workspace attachment wins this turn.
         DispatchQueue.main.async { [weak self] in
-            guard let self, self.replayIdentity == replay, self.controller == nil,
+            guard let self else{return}
+            defer {if self.pendingReplay==replay {self.pendingReplay=nil}}
+            guard self.replayIdentity == replay, self.controller == nil,
                   self.installation == request.installation,
                   let workspace = self.workspace, ObjectIdentifier(workspace) == request.workspace,
                   !workspace.confirmingQuit, !workspace.isRetired,
@@ -779,6 +788,13 @@ enum TurtleGitAboutTool: String, CaseIterable {
 @MainActor final class TurtleGitAboutService {
     static let shared = TurtleGitAboutService()
     private var controllers: [TurtleGitAboutTool: TurtleGitAboutController] = [:]
+    private var creations=0
+    var hasOwnedUtilityWindow:Bool {creations>0 || controllers.values.contains{$0.utilityOwnerActive}}
+    func presentExistingUtility()->Bool {
+        guard hasOwnedUtilityWindow else{return false}
+        if let owner=controllers.values.first(where:{$0.utilityOwnerActive}) {if owner.window?.isMiniaturized == true {owner.window?.deminiaturize(nil)};present(owner)}
+        return true
+    }
     var information:()->ApplicationAboutInformation = {
         let bundle=SubversionMergeDiff.applicationBundle()
         return ApplicationAboutInformation(application:bundle.bundleURL,version:bundle.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "",build:bundle.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "")
@@ -793,6 +809,7 @@ enum TurtleGitAboutTool: String, CaseIterable {
     var present:(TurtleGitAboutController)->Void = {$0.showWindow(nil);$0.window?.makeKeyAndOrderFront(nil)}
     @discardableResult func show(_ tool: TurtleGitAboutTool)->TurtleGitAboutController {
         if let controller=controllers[tool] {present(controller);return controller}
+        creations += 1;defer{creations -= 1}
         let controller=create(tool,information())
         controller.onClosed = { [weak self,weak controller] in
             if self?.controllers[tool] === controller {self?.controllers.removeValue(forKey:tool)}
@@ -827,13 +844,14 @@ enum TurtleGitAboutTool: String, CaseIterable {
     private var controls=[NSControl]()
     private var linkTargets=[ObjectIdentifier:URL]()
     var clipboard:NSPasteboard = .general
+    var utilityOwnerActive:Bool {!retired && window != nil}
     var diagnosticText:String {
         #if arch(arm64)
         let architecture="arm64"
         #else
         let architecture="x86_64"
         #endif
-        return tool.title+"\n"+TurtleGitAboutTool.portAuthorCredit+"\n"+runtimeText+"\n"+information.versionText+"\nmacOS: "+ProcessInfo.processInfo.operatingSystemVersionString+"\nArchitecture: "+architecture+"\nDistribution: "+(GitRuntime.isAppStoreBuild ? "App Store":"Desktop")
+        return tool.title+"\n"+TurtleGitAboutTool.portAuthorCredit+"\n"+runtimeText+"\n"+information.versionText+"\nmacOS: "+ProcessInfo.processInfo.operatingSystemVersionString+"\nArchitecture: "+architecture+"\nBuild configuration: "+information.distribution.buildConfiguration
     }
     var onClosed:()->Void = {}
     var open:(URL)->Void = {NSWorkspace.shared.open($0)}
@@ -893,7 +911,7 @@ enum TurtleGitAboutTool: String, CaseIterable {
         footer.addSubview(ok);ok.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([footer.heightAnchor.constraint(equalToConstant:28),ok.trailingAnchor.constraint(equalTo:footer.trailingAnchor),ok.centerYAnchor.constraint(equalTo:footer.centerYAnchor)])
         if tool == .application {
-            let update=NSButton(title:GitRuntime.isAppStoreBuild ? "View in App Store…":"Check For Updates…",target:self,action:#selector(update(_:)));controls.append(update);footer.addSubview(update);update.translatesAutoresizingMaskIntoConstraints=false
+            let update=NSButton(title:information.distribution.appStoreBuild ? "View in App Store…":"Check For Updates…",target:self,action:#selector(update(_:)));update.identifier = .init("TurtleGit.About.Update");update.isEnabled = !information.distribution.appStoreBuild || information.distribution.canOpenStoreListing;if information.distribution.appStoreBuild && !information.distribution.canOpenStoreListing {update.toolTip="An App Store listing is not available for this build."};controls.append(update);footer.addSubview(update);update.translatesAutoresizingMaskIntoConstraints=false
             NSLayoutConstraint.activate([update.leadingAnchor.constraint(equalTo:footer.leadingAnchor),update.centerYAnchor.constraint(equalTo:footer.centerYAnchor),update.trailingAnchor.constraint(lessThanOrEqualTo:ok.leadingAnchor,constant:-12)])
         }
         items.append(footer)
@@ -940,7 +958,11 @@ enum TurtleGitAboutTool: String, CaseIterable {
     @objc func openNotices(_ sender:Any?) {guard !retired,let url=information.notices else{return};open(url)}
     func copyVersionInformation(to pasteboard:NSPasteboard) {guard !retired else{return};pasteboard.clearContents();pasteboard.setString(diagnosticText,forType:.string)}
     @objc func copyVersions(_ sender:Any?) {copyVersionInformation(to:clipboard)}
-    @objc func update(_ sender:Any?) {guard !retired else{return};checkUpdates()}
+    @objc func update(_ sender:Any?) {
+        guard !retired else{return}
+        if information.distribution.appStoreBuild {guard let listing=information.distribution.appStoreListing else{return};open(listing)}
+        else {checkUpdates()}
+    }
     @objc func closeAbout(_ sender:Any?) {guard !retired else{return};window?.performClose(nil)}
     func windowWillClose(_ notification:Notification) {
         guard !retired else{return};retired=true;runtimeToken?.cancel();banner?.retire()

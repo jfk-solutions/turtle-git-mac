@@ -478,6 +478,16 @@ private struct FirstStartWizardDialog: View {
 @MainActor final class FirstStartWizardService {
     static let shared = FirstStartWizardService()
     private(set) var controller: FirstStartWizardController?
+    private var creations=0
+    var hasOwnedUtilityWindow:Bool {controller != nil || creations>0}
+    func presentExistingUtility()->Bool {
+        guard hasOwnedUtilityWindow else{return false}
+        if let controller {
+            if controller.window?.isMiniaturized==true {controller.window?.deminiaturize(nil)}
+            present(controller)
+        }
+        return true
+    }
     var create: (UserDefaults, Int) -> FirstStartWizardController = { FirstStartWizardController(preferences: $0, initialPage: $1) }
     var present: (FirstStartWizardController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     private var consideredFirstRun = false
@@ -499,6 +509,7 @@ private struct FirstStartWizardDialog: View {
     }
     func show(initialPage: Int = 0, preferences: UserDefaults = .standard) {
         if let controller { present(controller); return }
+        creations += 1;defer{creations -= 1}
         let controller = create(preferences, initialPage); self.controller = controller
         controller.onClosed = { [weak self, weak controller] in if self?.controller === controller { self?.controller = nil } }
         present(controller)

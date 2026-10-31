@@ -862,3 +862,33 @@ refuse unexpected or suffixed exception keys. This configuration does not prove
 Apple approval or successful signed cross-application file grants. Live export,
 TCC, protected-document prompts, macro-policy restoration and installed sandbox
 acceptance remain separate checks. See [presentation comparison](POWERPOINT-COMPARISON.md).
+
+
+## Build configuration and optional Store listing
+
+The `AppStore` configuration determines sandbox/runtime policy. It does not prove
+publication, a Store receipt, a purchasable listing or Store-managed updates for a
+locally installed Apple Development build. About labels this **Build configuration:
+App Store**. There is currently no configured Store listing: About's
+**View in App Store…** is disabled, and Check for Updates explains the unavailable
+listing without opening a generic Store application, fetching GitHub releases or
+downloading a replacement for the sandboxed candidate. Desktop builds retain their
+existing GitHub release checks and verified download workflow.
+
+When the publisher has an actual public listing, its reviewed bundle Info.plist
+may provide the optional `TurtleGitAppStoreListingURL` string. Use the canonical
+HTTPS page `https://apps.apple.com/app/id<assigned-id>` (optionally a two-letter
+country path and app slug). Validation rejects other hosts/schemes, userinfo,
+ports, query/fragment payloads, encoded path components and invalid ID paths. No
+placeholder/fake Store ID or default listing is shipped. The configured page is
+opened exactly; its existence and publication status remain the publisher's
+responsibility. The app does not infer publication from its build flag.
+
+The connected utility-owner registry preserves existing About, Settings and
+update-review owners through minimized, deliberate presentation and accepted
+Settings replay gaps. A quiet/automatic background update check without a window
+does not suppress an explicit workspace reopen; a forced pending presentation
+retains its intent until completion/cancellation. Reopen focuses an existing utility or retains its pending owner rather than
+creating a repository workspace. This continuation is not yet part of installed
+signed44, whose frozen source predates this family; complete current hosted and physical
+acceptance remain separate.

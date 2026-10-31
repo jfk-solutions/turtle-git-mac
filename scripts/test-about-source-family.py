@@ -13,6 +13,9 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-about-source-') as temporary:
     env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
         fixture=folder/str(index);fixture.mkdir();env.pop('TURTLEGIT_ABOUT_SOURCE_CAPTURE',None)
+        for name in ['home','preferences','xdg','temporary']:(fixture/name).mkdir(mode=0o700)
+        env={k:v for k,v in env.items() if not k.startswith('GIT_')}
+        env.update(HOME=str(fixture/'home'),CFFIXED_USER_HOME=str(fixture/'preferences'),XDG_CONFIG_HOME=str(fixture/'xdg'),TMPDIR=str(fixture/'temporary')+'/',GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
         if args.captures and index==0:
             args.captures.mkdir(parents=True,exist_ok=True);env['TURTLEGIT_ABOUT_SOURCE_CAPTURE']=str(args.captures.absolute())
         print('Checking About family with '+str(git),flush=True)

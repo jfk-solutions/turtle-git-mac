@@ -48,7 +48,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSADV` | partial-native-replacement | 8/8 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_URL` | pending-review | 0/4 mapped; 4 pending | No recorded family document; 0 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_TOOLASSOC` | partial-native-replacement | 7/7 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_CHECKFORUPDATES` | partial-native-replacement | 13/13 mapped; 0 pending | [RELEASE-UPDATES-PARITY](RELEASE-UPDATES-PARITY.md); 3 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_CHECKFORUPDATES` | partial-native-replacement | 13/13 mapped; 0 pending | [RELEASE-UPDATES-PARITY](RELEASE-UPDATES-PARITY.md); 4 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVERT` | partial-native-replacement | 6/6 mapped; 0 pending | [REVERT-PARITY](REVERT-PARITY.md), [STATUS-REPORT-ROWS-PARITY](STATUS-REPORT-ROWS-PARITY.md); 7 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_LFS_LOCKS` | partial-native-replacement | 6/6 mapped; 0 pending | [LFS-PARITY](LFS-PARITY.md); 22 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_STATGRAPH` | partial-native-replacement | 45/49 mapped; 4 pending | [LOG-STATISTICS-PARITY](LOG-STATISTICS-PARITY.md), [STATISTICS-EXPORT-PARITY](STATISTICS-EXPORT-PARITY.md); 14 QA records |

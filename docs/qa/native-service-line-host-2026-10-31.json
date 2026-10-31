@@ -1,0 +1,82 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-native-host-consumer-repairs-passed",
+  "base_source": "23f85514a9fa9799560e4540a105532d43e0de54",
+  "old_hosted_source": "1a09d511ca5074002358359c7c6b366f686baca9",
+  "production_changes_for_these_repairs": false,
+  "implementation": {
+    "services": "Explicit workspace snapshot capture fixes hosted compiler error without Context/self cycle; hidden receiver injects scoped activation/config preparation and retains named phases/missing-marker enforcement. Per-case HOME added to existing private preferences/Git/XDG/tmp isolation.",
+    "line_menu": "Exact seven line actions plus actual Column Selection submenu public topology, all eight directional leaves, actions/icons/ownership. Multi-stream Duplicate conforms to pinned sel.Count loop: exact both-span edits and one-step Undo/Redo restore all ranges/mode/bytes. Native mode is reset before stale replacement fences."
+  },
+  "validation": {
+    "services": [
+      {
+        "phase": "provider",
+        "log": "build/qa/services-column-native-services-2026-10-31.log",
+        "receiver": 1141,
+        "result": "passed"
+      },
+      {
+        "phase": "paths/conflicts both engines",
+        "log": "build/qa/services-column-native-services-repair-2026-10-31.log",
+        "receivers": [
+          2248,
+          3306,
+          4351,
+          4714
+        ],
+        "result": "passed"
+      },
+      {
+        "phase": "new utility source regression/provider+paths+conflicts",
+        "log": "build/qa/utility-distribution-native-services-2026-10-31.log",
+        "receivers": [
+          11339,
+          11349,
+          12393,
+          13459,
+          13820
+        ],
+        "result": "passed"
+      }
+    ],
+    "line_menu": {
+      "scope": "commands and ownership with system and bundled Git; not all original keyboard/bytes/draft cohorts repeated",
+      "log": "build/qa/services-column-native-line-menu-final-2026-10-31.log",
+      "receivers": [
+        7287,
+        7317
+      ],
+      "result": "passed"
+    },
+    "core": "Not rerun for these native-only fixture changes",
+    "cleanup": "All listed receivers reaped; private windows/pasteboards and owned work released. Sandbox extension-consume diagnostics remain in Services logs, not hidden by the assertions."
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/services-column-native-services-2026-10-31.log",
+      "receiver": 1148,
+      "cause": "Initial paths exited0 before required PASS marker. Old fixture used actual activation and default saved-config preparation; old exact exit cause not proven. Scoped injection and phase/termination diagnostics retain marker requirement; repaired current runs complete."
+    },
+    {
+      "log": "build/qa/services-column-native-line-menu-2026-10-31.log",
+      "receiver": 1365,
+      "cause": "New fixture overconstrained attached submenu parent action/target to nil; AppKit owns its dispatch. Exact public topology and all leaves retained instead."
+    },
+    {
+      "log": "build/qa/services-column-native-line-menu-repair-2026-10-31.log",
+      "receiver": 5132,
+      "cause": "Older fixture expected ordinary Duplicate to reject multiple selections, contrary to pinned source and existing native multi-selection implementation. Exact two-span output and Undo/Redo assertions strengthen actual source behavior."
+    }
+  ],
+  "limits": [
+    "A focused local pass is not complete hosted CI, physical user gestures or signed installed acceptance.",
+    "Statistics old300s timeout remains unlocalized despite one passing instrumented local ownership diagnostic.",
+    "Current utility/distribution production changes are measured separately in utility-distribution-ownership-2026-10-31.json."
+  ],
+  "source_sha256": {
+    "docs/qa/finder-file-services-native-2026-10-20.swift": "6616b7c86908259ac6fcbc787b735b9bd513a3c8d040eb5167745fc2ce3013ae",
+    "scripts/test-finder-file-services.py": "1a51e8c3b52d0ac176a06bdd381beb0af0b9685d056609a00c40a7384d3aa1c5",
+    "docs/qa/unified-line-edit-native-2026-10-26.swift": "f24b851105bd3acd308cf86e3a23b3edc28eaf42091c717621e5075bf2be3915"
+  }
+}

@@ -7,12 +7,12 @@ import tempfile
 from native_receiver import build_receiver, run_receiver
 p=argparse.ArgumentParser(description=__doc__)
 p.add_argument('--git',type=Path,action='append')
-p.add_argument('--only',choices=['utilities','merge'],action='append')
+p.add_argument('--only',choices=['utilities','merge','reopen'],action='append')
 a=p.parse_args();root=Path(__file__).resolve().parent.parent
 with tempfile.TemporaryDirectory(prefix='tg-utility-startup-') as temporary:
     directory=Path(temporary).resolve()
     receiver=build_receiver(root,[root/'docs/qa/utility-startup-native-2026-10-31.swift'],directory)
-    for case in a.only or ['utilities','merge']:
+    for case in a.only or ['utilities','merge','reopen']:
         for index,git in enumerate(a.git or [Path('/usr/bin/git'),root/'build/git-runtime/Git/bin/git']):
             private=directory/(case+str(index));private.mkdir(mode=0o700)
             for name in ['fixture','home','preferences','xdg','temporary']:(private/name).mkdir(mode=0o700)

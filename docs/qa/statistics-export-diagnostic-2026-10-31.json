@@ -1,0 +1,45 @@
+{
+  "date": "2026-10-31",
+  "family": "Statistics export ownership diagnostic and retained failure evidence",
+  "status": "single-focused-system-diagnostic-passed-old-hosted-timeout-unexplained",
+  "old_hosted_observation": {
+    "job": 124385294434,
+    "case": "ownership",
+    "timeout_seconds": 300,
+    "preceding_cases": [
+      "formats",
+      "selection"
+    ],
+    "limit": "Old unlabelled ownership timeout and deleted temporary sample do not identify an exact failing transition."
+  },
+  "changes": [
+    "Named flushed before/after phases bracket graph readiness, Save, writer cancellation/drain, real error-sheet attachment/OK, duplicate and retired replies, forced close and cleanup.",
+    "Atomic private phase.json includes phase history and owner/model/sheet/global counters.",
+    "Runner preserves failed private fixture, timeout.sample.txt, stdout/stderr and failure.json before removing the temporary directory.",
+    "Each case now explicitly receives private HOME as well as private CFFIXED preferences/XDG/temp.",
+    "The images-documents CI lane uploads retained Statistics export failure directories and result JSON on failure, with seven-day retention. Workflow source reviewed; upload execution awaits a hosted recurrence."
+  ],
+  "diagnostic": {
+    "command": "DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer SDKROOT=macosx python3 scripts/test-statistics-export-family.py --git /usr/bin/git --only ownership",
+    "log": "build/qa/statistics-export-ownership-diagnostic-2026-10-31.log",
+    "exit": 0,
+    "reaped_receiver_pid": 17809,
+    "scope": [
+      "real local Git fixture and unchanged HEAD/index/config",
+      "held cancellable writer forced close retains owner and Quit fence until drain",
+      "existing destination retained after cancellation",
+      "native error sheet and actual OK button acknowledgment/teardown",
+      "duplicate callback refusal and fresh export admission",
+      "second error sheet forced-close retirement and late duplicate replies",
+      "hidden/offscreen native owner cleanup and worker drain"
+    ],
+    "sample": "No timeout occurred; no live sample needed.",
+    "repeat_scope": "One authorized diagnostic receiver. Formats/selection and unrelated frame-format checks were not repeated."
+  },
+  "production_change": false,
+  "limits": [
+    "The current product defect and old hosted timeout cause remain unproven; no speculative product repair was applied.",
+    "This focused local pass does not establish a complete hosted pass, physical UI acceptance or signed deployment.",
+    "Named evidence preservation makes a later recurrence diagnosable; it is not proof the hosted hang is fixed."
+  ]
+}

@@ -142,12 +142,14 @@ private final class GitEngineAccess: @unchecked Sendable {
 /// configured repository. Missing/malformed metadata stays explicitly unknown.
 public struct ApplicationAboutInformation: Sendable {
     public let applicationVersion: String
+    public let distribution:ApplicationDistribution
     public let build: String
     public let components: [(name: String, version: String)]
     public let upstreamCommit: String?
     public let license: URL?
     public let notices: URL?
-    public init(application: URL, version: String, build: String) {
+    public init(application: URL, version: String, build: String, distribution:ApplicationDistribution? = nil) {
+        self.distribution=distribution ?? ApplicationDistribution(appStoreBuild:GitRuntime.isAppStoreBuild,appStoreListing:GitRuntime.appStoreListingURL(bundle:Bundle(url:application) ?? .main))
         applicationVersion = version.isEmpty ? "Development" : String(version.prefix(128))
         self.build = build.isEmpty ? "Unknown" : String(build.prefix(128))
         func json(_ path: String) -> [String: Any] {

@@ -10,6 +10,7 @@ final class MetafileDirectScanlineTests: XCTestCase {
 
     private struct Painting {
         let bytes: [UInt8]
+        let naturalBytes:[UInt8],naturalExtent:Int,unpainted:[Int]
         func pixel(_ x: Int, _ y: Int) -> [Int] { (0..<4).map { Int(bytes[(y * 64 + x) * 4 + $0]) } }
     }
     private func painting(_ filename: String) throws -> Painting {
@@ -28,8 +29,13 @@ final class MetafileDirectScanlineTests: XCTestCase {
             context.interpolationQuality = .none
             context.draw(playback, in: CGRect(x: 0, y: 0, width: 64, height: 64))
         }
+        var natural=[UInt8](repeating:0,count:naturalExtent*naturalExtent*4)
+        try natural.withUnsafeMutableBytes {storage in
+            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:naturalExtent,height:naturalExtent,bitsPerComponent:8,bytesPerRow:naturalExtent*4,space:try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB)),bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
+            context.interpolationQuality = .none;context.draw(image.pixels,in:CGRect(x:0,y:0,width:naturalExtent,height:naturalExtent))
+        }
         XCTAssertEqual(try Data(contentsOf: url), original, "Rendering changed source bytes: \(filename)")
-        return Painting(bytes: bytes)
+        return Painting(bytes:bytes,naturalBytes:natural,naturalExtent:naturalExtent,unpainted:filename.hasSuffix(".wmf") ? [0,0,0,0]:white)
     }
     private func expect(_ image: Painting, _ x: Int, _ y: Int, _ expected: [Int], _ name: String,
                         tolerance: Int = 0, file: StaticString = #filePath, line: UInt = #line) {
@@ -44,7 +50,7 @@ final class MetafileDirectScanlineTests: XCTestCase {
             let image = try painting(name)
             expect(image, 12, 12, red, name); expect(image, 32, 12, green, name)
             expect(image, 12, 32, blue, name); expect(image, 32, 32, yellow, name)
-            expect(image, 4, 12, white, name); expect(image, 44, 32, white, name)
+            expect(image, 4, 12, image.unpainted, name); expect(image, 44, 32, image.unpainted, name)
         }
         let crop = try painting("classic-scanlines-crop.emf")
         expect(crop, 10, 10, red, "crop"); expect(crop, 20, 10, green, "crop")
@@ -55,15 +61,15 @@ final class MetafileDirectScanlineTests: XCTestCase {
         expect(outside, 10, 10, white, "crop shifts destination"); expect(outside, 14, 22, white, "crop lower edge")
         let negative = try painting("classic-scanlines-wmf-negative-destination.wmf")
         expect(negative, 4, 4, red, "signed WMF destination"); expect(negative, 16, 16, yellow, "signed WMF destination")
-        expect(negative, 28, 16, white, "signed WMF clipping")
+        expect(negative, 28, 16, negative.unpainted, "signed WMF clipping")
     }
 
     func testPartialScanlineBandsPaletteFormatsAndCompressedColors() throws {
         for name in ["classic-scanlines-partial-bottom.emf", "classic-scanlines-partial-top.emf",
                      "classic-scanlines-wmf-partial-bottom.wmf", "classic-scanlines-wmf-partial-top.wmf"] {
             let image = try painting(name)
-            expect(image, 16, 28, red, name); expect(image, 16, 20, white, name)
-            expect(image, 16, 36, white, name); expect(image, 4, 28, white, name)
+            expect(image, 16, 28, red, name); expect(image, 16, 20, image.unpainted, name)
+            expect(image, 16, 36, image.unpainted, name); expect(image, 4, 28, image.unpainted, name)
         }
         for orientation in ["top", "bottom"] {
             let image = try painting("classic-scanlines-band-asymmetric-\(orientation).emf")
@@ -88,7 +94,7 @@ final class MetafileDirectScanlineTests: XCTestCase {
             // Alpha 0,128,255 in the PNG are reserved for this classic copy:
             // every encoded red sample is copied opaquely, without white blending.
             for x in [12, 24, 36] { expect(image, x, 16, red, name, tolerance: name.contains("jpeg") ? 2 : 0) }
-            expect(image, 44, 16, white, name)
+            expect(image, 44, 16, image.unpainted, name)
         }
     }
 
@@ -101,14 +107,14 @@ final class MetafileDirectScanlineTests: XCTestCase {
             let image = try painting(name)
             expect(image, 12, 12, [0, 0, 0, 255], name)
             expect(image, 32, 32, [128, 0, 0, 255], name)
-            expect(image, 4, 12, white, name)
+            expect(image, 4, 12, image.unpainted, name)
             for orientation in ["top", "bottom"] {
                 let bandName = "classic-scanlines-" + kind + "default-palette-band-" + orientation + suffix
                 let band = try painting(bandName)
                 expect(band, 12, 28, red, bandName)
                 expect(band, 32, 28, green, bandName)
-                expect(band, 12, 20, white, bandName)
-                expect(band, 12, 36, white, bandName)
+                expect(band, 12, 20, band.unpainted, bandName)
+                expect(band, 12, 36, band.unpainted, bandName)
             }
         }
     }
@@ -126,15 +132,31 @@ final class MetafileDirectScanlineTests: XCTestCase {
         expect(clipped, 52, 52, blue, "restored clip")
         let wmf = try painting("classic-scanlines-wmf-map-origin.wmf")
         expect(wmf, 12, 12, red, "WMF transformed origin"); expect(wmf, 36, 12, green, "WMF device extent")
-        expect(wmf, 44, 12, white, "WMF no stretching")
+        expect(wmf, 44, 12, wmf.unpainted, "WMF no stretching")
         let selected = try painting("classic-scanlines-wmf-selected-clip.wmf")
         expect(selected, 20, 20, red, "copied device clip")
-        expect(selected, 12, 20, white, "device clip left boundary")
-        expect(selected, 36, 20, white, "device clip independent of subsequent mapping")
+        expect(selected, 12, 20, selected.unpainted, "device clip left boundary")
+        expect(selected, 36, 20, selected.unpainted, "device clip independent of subsequent mapping")
         let bands = try painting("classic-scanlines-two-bands.emf")
         expect(bands, 16, 12, red, "upper physical band"); expect(bands, 16, 36, blue, "lower physical band")
         let noop = try painting("classic-scanlines-noop.emf")
         XCTAssertTrue(stride(from: 0, to: noop.bytes.count, by: 4).allSatisfy { Array(noop.bytes[$0..<($0+4)]) == [255,255,255,255] })
+    }
+
+    func testFullNaturalScanlineCanvasDistinguishesUnpaintedAlphaAndExplicitWhiteControl()throws {
+        for name in ["classic-scanlines-full-bottom.emf","classic-scanlines-wmf-full-bottom.wmf","classic-gdi-scanlines-full-white-patcopy-control.wmf"] {
+            let value=try painting(name),extent=value.naturalExtent
+            let explicitWhite=name.hasPrefix("classic-gdi-")
+            var expected=[UInt8]();expected.reserveCapacity(extent*extent*4)
+            for y in 0..<extent {for x in 0..<extent {
+                let rgba:[Int]
+                if x>=64 || y>=64 {rgba=value.unpainted}
+                else if (8..<40).contains(x) && (8..<40).contains(y) {rgba=y<24 ? (x<24 ? red:green):(x<24 ? blue:yellow)}
+                else {rgba=explicitWhite ? white:value.unpainted}
+                expected.append(contentsOf:rgba.map(UInt8.init))
+            }}
+            XCTAssertEqual(value.naturalBytes,expected,"Exact full natural RGBA includes every untouched background/edge pixel: \(name)")
+        }
     }
 
     func testMalformedDirectScanlinesRefuseEntirePaintedPrefixAndPreserveSource() throws {

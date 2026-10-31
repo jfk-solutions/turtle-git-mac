@@ -661,3 +661,34 @@ must match every full-canvas RGBA pixel; neither cropping nor a white matte
 supplies equality. Original Unicode/raw-glyph controls and source bytes remain
 unchanged. Evidence and grouped-check scope are recorded in
 `docs/qa/metafile-positioned-background-2026-10-31.json`.
+
+## Classic GDI alpha and sealed-wall controls (October 31, 2026)
+
+`generate-classic-gdi-contract-controls.py` derives seven clearly named controls
+without rendering or rewriting original inputs. `classic-gdi-contract-controls.json`
+pins 255 original scanline, region, flood, pattern-brush and Bitmap16 wires by
+SHA-256 and records each derivative's parent/hash. Four controls end in
+`-sealed-white-patcopy-control.wmf`; three have a `classic-gdi-` prefix and end in
+`-white-patcopy-control.wmf`.
+
+Each control inserts SaveDC, selection of the stock white brush, an explicit
+64-by-64 PATCOPY and RestoreDC after the original origin/extent. No object slot,
+source bitmap, palette, transform or later selected brush changes. The four flood
+controls additionally replace exactly the five named black wall Rectangle
+records with PATCOPY records of the intended closed wall extents. Only required
+WMF file-size/maximum-record header fields otherwise change. The Core derivation
+oracle reconstructs these exact bytes independently.
+
+The original WMFs start with unpainted alpha. A null-pen Rectangle omits its final
+device row/column, as retained Windows captures already establish. Consequently,
+the old synthetic enclosure's thin top/bottom/side/divider rectangles leave
+one-pixel gaps; flood legitimately reaches the outside and right components.
+The new sealed controls test closed connectivity while the originals retain and
+test their recorded open connectivity. Surface-mode islands, boundary colors,
+pattern phase, clips, ROPs and source bytes remain independently asserted.
+
+Full-canvas RGBA oracles retain transparent unpainted WMF pixels separately from
+actual white paint and classic EMF's opaque initial device surface. Original
+source-omitted BitBlt copies internally white-composited DC pixels only into its
+16-by-16 destination; the zero-source StretchBlt is a no-op. A white display matte
+or a production canvas clear is not a substitute for these alpha contracts.

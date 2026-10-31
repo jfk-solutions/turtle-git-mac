@@ -130,3 +130,40 @@ show the Store result and cannot enable GitHub downloads.
 See [service command evidence](qa/service-commands-2026-10-18.json) for exact local
 scope, retained download/lifetime checks and remaining public CDN, physical,
 signed and complete-source acceptance. No installer/code execution is added.
+
+
+## Explicit publication availability — 31 October 2026
+
+The App Store build flag is now separate from an optional validated publisher
+listing (`TurtleGitAppStoreListingURL`). No listing is supplied by default. Initial
+and manually reopened Store-compatible review windows say that no listing is
+configured; they neither claim installed local candidates have Store-managed
+updates nor open `com.apple.AppStore` generically. Only a configured public
+`https://apps.apple.com/.../id...` page enables the Store action. Direct build
+release checks, asset verification, cancellation/retirement and preference policy
+remain intact. About reports **Build configuration** and gates the same page using
+the shared availability model.
+
+The [grouped validation record](qa/utility-distribution-ownership-2026-10-31.json)
+records a passing Debug build and two focused ApplicationDistribution Core methods
+for optional metadata, build/listing separation and rejected URL forms. About
+source/availability/retirement passed against system and bundled Git; release
+lifetime/listing/quiet-versus-forced ownership passed its native receiver. Existing
+utilities/reopen, command diagnostics and selected-file Services checks also
+passed their recorded scopes, with owned receivers reaped. Only affected reopen
+cases were repeated after the retained fixture failures; full Core was not rerun.
+
+These checks cover initial unavailable state, disabled/guarded About action, exact
+configured URL dispatch, retired-owner refusal and no Store-mode GitHub fetch or
+download. Private homes/preferences and captured browser callbacks do not certify
+public Store publication/purchase, physical utility interaction or complete hosted
+CI. Installed signed44 predates this family; its close/observe reopening was
+temporally ambiguous and is not proof of active-owner causation.
+
+A quiet or automatic background network check is not a utility-window owner.
+Only an actual controller, synchronous presentation construction or a deliberate
+forced pending presentation fences workspace reopen. Cancellation drops that
+presentation intent immediately while the actual fetch remains in worker/Quit
+accounting until it returns. The lifetime fixture holds quiet/forced checks,
+asserts the negative/positive ownership distinction, then cancels/drains both
+without a late window.

@@ -44,6 +44,19 @@ import TurtleGitCore
         let bundle=Bundle(url:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app"))!
         let info=ApplicationAboutInformation(application:bundle.bundleURL,version:bundle.object(forInfoDictionaryKey:"CFBundleShortVersionString") as? String ?? "",build:bundle.object(forInfoDictionaryKey:"CFBundleVersion") as? String ?? "")
         let board=NSPasteboard(name:.init("TurtleGit.About.Source."+UUID().uuidString));defer{board.clearContents();owners.forEach{$0.close()};owners=[]}
+        for listing in [nil,URL(string:"https://apps.apple.com/app/id123456789")] as [URL?] {
+            let storeInfo=ApplicationAboutInformation(application:bundle.bundleURL,version:"0.1.0",build:"local",distribution:.init(appStoreBuild:true,appStoreListing:listing))
+            let storeOwner=TurtleGitAboutController(tool:.application,information:storeInfo);owners.append(storeOwner)
+            var opens=[URL](),checks=0;storeOwner.open={opens.append($0)};storeOwner.checkUpdates={checks += 1}
+            let button=views(storeOwner.window!.contentView!).compactMap{$0 as? NSButton}.first{$0.identifier?.rawValue=="TurtleGit.About.Update"}
+            try require(button?.title=="View in App Store…" && button?.isEnabled == (listing != nil),"About Store listing availability/disabled control differs")
+            try require(storeOwner.diagnosticText.contains("Build configuration: App Store") && !storeOwner.diagnosticText.contains("Distribution: App Store"),"About confused build configuration with published distribution")
+            storeOwner.update(nil)
+            try require(opens==(listing.map{[$0]} ?? []) && checks==0,"About opened generic Store or bypassed listing validation")
+            storeOwner.close();storeOwner.update(nil)
+            try require(opens.count == (listing == nil ? 0:1),"Retired About opened a Store page")
+        }
+
         for tool in TurtleGitAboutTool.allCases {
             let owner=TurtleGitAboutController(tool:tool,information:info);owners.append(owner)
             owner.clipboard=board;owner.banner?.reduceMotion={true}
@@ -107,7 +120,9 @@ import TurtleGitCore
         try require(first === again && first !== other && creations==2,"Tool singleton reuse")
         first.close();let replacement=service.show(.application);staleClose()
         try require(replacement !== first && service.show(.application) === replacement && creations==3,"Old close removed the replacement owner")
+        try require(service.hasOwnedUtilityWindow && service.presentExistingUtility(),"About registry lost existing utility owner")
         replacement.close();other.close()
+        try require(!service.hasOwnedUtilityWindow && !service.presentExistingUtility(),"Closed About retained utility owner")
         // Uncooperative read remains in Quit accounting, without late report writes.
         let held=TurtleGitAboutController(tool:.blame,information:info);owners.append(held)
         held.inspectRuntime={_,_,_ in try await withCheckedThrowingContinuation{pending=$0}}

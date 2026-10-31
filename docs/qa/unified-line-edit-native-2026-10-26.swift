@@ -123,15 +123,33 @@ private extension NSWindow {
         let original=Data("one\ntwo\nthree\nfour".utf8)
         try await load(s,original);select(s,NSRange(location:1,length:7),.upstream)
         let menu=try lineMenu(s),commands:[PatchLineCommand]=[.copyLines,.cutLines,.deleteLine,.duplicate,.transpose,.indent,.dedent]
-        try require(menu.items.filter{!$0.isSeparatorItem}.map{$0.title}==commands.map(title),"Source command order/captions differ")
-        try require(menu.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image != nil},"Lines menu lost source icons")
+        try require(menu.items.count==commands.count+2 && Array(menu.items.prefix(commands.count)).map(\.title)==commands.map(title),"Source seven-command order/captions differ")
+        try require(menu.items[commands.count].isSeparatorItem,"Column group lost its separating boundary after seven line commands")
+        let columns=menu.items[commands.count+1]
+        let groupTitle=NSLocalizedString("Column Selection",comment:"Unified Diff selection menu")
+        let groupState="title=\(columns.title) expected=\(groupTitle) action=\(String(describing:columns.action)) target=\(String(describing:columns.target)) hasSubmenu=\(columns.hasSubmenu) linkedParent=\(columns.submenu?.supermenu === menu) receipt=\(String(describing:columns.representedObject))"
+        // NSMenu owns the submenu parent's dispatch after attachment. Its
+        // target/action are not the leaf command receipt constructed below.
+        try require(columns.title==groupTitle && columns.hasSubmenu && columns.submenu?.title==groupTitle && columns.submenu?.supermenu === menu && columns.menu === menu && columns.representedObject==nil,"Lines menu lost separate Column Selection group; "+groupState)
+        phase("integrated Column Selection native parent: "+groupState)
+        try require(menu.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image != nil},"Lines menu lost source/group icons")
+        let columnItems=columns.submenu!.items
+        try require(columnItems.map(\.title)==PatchColumnDirection.allCases.map(\.title) && columnItems.allSatisfy{!$0.isSeparatorItem && $0.submenu==nil && $0.image != nil && $0.isEnabled && $0.target === s.text && $0.action != nil},"Column group lost exact direction order/icons/enabled native ownership")
         try dispatch(s,.copyLines)
         try require(c.board.string(forType:.string)=="one\ntwo\nthree\n" && s.text.selectedRange()==NSRange(location:1,length:7),"Copy Lines lost endpoint-line inclusion/selection")
         try bytes(s,original,"Copy Lines mutated bytes")
         try require(!s.text.canPerformLineCommand(.transpose) && !(try item(s,.transpose)).isEnabled,"First-line transpose incorrectly enabled")
         try require(!s.model.documentDirty && s.text.undoManager?.canUndo != true,"Copy Lines created an undo/edit transaction")
+        select(s,NSRange(location:0,length:0))
+        let right=columnItems.first{$0.title==PatchColumnDirection.right.title}!
+        try require(NSApp.sendAction(right.action!,to:right.target,from:right),"Integrated Column Selection action refused dispatch")
+        try require(s.text.lineSelectionSnapshot.rectangular && s.text.lineSelectionSnapshot.primary.range==NSRange(location:0,length:1),"Integrated Column Selection group routed wrong direction")
+        try bytes(s,original,"Integrated column extension edited document bytes")
+        try require(!s.model.documentDirty && s.text.undoManager?.canUndo != true,"Column extension created an edit/undo transaction")
+        try await load(s,original);select(s,NSRange(location:1,length:7),.upstream)
         c.preferences.set(false,forKey:"ShowAppContextMenuIcons")
-        try require(try lineMenu(s).items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image==nil},"Lines icons ignored private context-menu preference")
+        let noIcons=try lineMenu(s)
+        try require(noIcons.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image==nil} && noIcons.items.last?.submenu?.items.allSatisfy{$0.image==nil}==true,"Lines/Column Selection icons ignored private context-menu preference")
         c.preferences.set(true,forKey:"ShowAppContextMenuIcons")
         try dispatch(s,.cutLines);try await ready(s)
         try bytes(s,Data("four".utf8),"Cut Lines did not include boundary endpoint's whole line")
@@ -295,6 +313,7 @@ private extension NSWindow {
         }
         try await load(s,Data("one\ntwo\n".utf8));select(s,NSRange(location:5,length:0))
         let held=try item(s,.duplicate),original=try s.session.encodedBytes()
+        guard let heldColumn=try lineMenu(s).items.last?.submenu?.items.first(where:{$0.title==PatchColumnDirection.right.title}) else{throw Failure(description:"Integrated retained Column Selection action missing")}
         for gate in ["busy","quit","sheet"] {
             var sheet:NSWindow?
             if gate=="busy" {s.model.busy=true}
@@ -304,21 +323,46 @@ private extension NSWindow {
                 value.isReleasedWhenClosed=false;value.alphaValue=0;c.sheets.append(value);s.window.beginSheet(value,completionHandler:nil);sheet=value
             }
             try require(!s.text.canPerformLineCommand(.duplicate) && !s.text.performLineCommand(.duplicate),"\(gate) failed command fence")
+            let columnSelection=s.text.lineSelectionSnapshot
             _=NSApp.sendAction(held.action!,to:held.target,from:held);try bytes(s,original,"\(gate) retained menu mutated source")
+            _=NSApp.sendAction(heldColumn.action!,to:heldColumn.target,from:heldColumn)
+            try require(s.text.lineSelectionSnapshot==columnSelection,"\(gate) retained column menu changed selection")
             s.model.busy=false;s.model.confirmingQuit=false
             if let sheet {s.window.endSheet(sheet);try await wait {sheet.sheetParent==nil};sheet.close()}
         }
+        // Leave any prior rectangle through the native controller before
+        // installing explicit ordinary stream selections. Source Duplicate
+        // deliberately visits every live selection; ordinary typing is distinct.
+        s.text.columnSelection?.collapseToPrimary()
         select(s,NSRange(location:1,length:0))
         s.text.setSelectedRanges([NSValue(range:NSRange(location:1,length:1)),NSValue(range:NSRange(location:5,length:1))],affinity:.downstream,stillSelecting:false)
-        let multiple=s.text.selectedRanges
-        try require(multiple.count==2 && !s.text.canPerformLineCommand(.duplicate) && !s.text.performLineCommand(.duplicate),"Ordinary stream command discarded secondary selection")
-        try require(s.text.selectedRanges==multiple,"Declined command changed multiple native ranges")
-        try bytes(s,original,"Declined multi-range command changed bytes")
+        let multiple=s.text.selectedRanges,beforeMultiple=s.text.lineSelectionSnapshot
+        try require(multiple.count==2 && beforeMultiple.rows.count==2 && !beforeMultiple.rectangular,"Native ordinary stream setup lost secondary selection or retained rectangle mode")
+        try bytes(s,original,"Ordinary stream selection setup changed bytes")
+        try require(s.text.canPerformLineCommand(.duplicate),"Explicit Duplicate unavailable for two native stream selections")
+        // The ordinary single-range context helper intentionally restores one
+        // caret/range. Build this real native command menu without that helper
+        // so both accepted stream selections reach its captured action intact.
+        guard let multipleDuplicate=s.text.makeLineCommandMenu().items.first(where:{$0.title==title(.duplicate)}) else{throw Failure(description:"Multiple-stream native Duplicate item missing")}
+        try require(s.text.lineSelectionSnapshot==beforeMultiple && multipleDuplicate.isEnabled && multipleDuplicate.image != nil && multipleDuplicate.target === s.text && multipleDuplicate.action != nil,"Multiple-stream command menu changed selections or lost native ownership")
+        try require(NSApp.sendAction(multipleDuplicate.action!,to:multipleDuplicate.target,from:multipleDuplicate),"Native multiple-stream Duplicate dispatch failed");try await ready(s)
+        try bytes(s,Data("onne\ntwwo\n".utf8),"Explicit Duplicate failed to visit both live stream selections")
+        try require(s.text.selectedRanges.count==2 && s.text.lineSelectionSnapshot.rows.count==2 && !s.text.lineSelectionSnapshot.rectangular,"Explicit Duplicate discarded secondary selection or changed mode")
+        s.text.undoPatch(nil);try await ready(s);try bytes(s,original,"One Undo failed both stream-selection packet restoration")
+        try require(s.text.selectedRanges==multiple && s.text.lineSelectionSnapshot==beforeMultiple && !s.model.documentDirty && s.text.undoManager?.canUndo != true,"One Undo failed exact two-selection/direction/mode restoration")
+        s.text.redoPatch(nil);try await ready(s);try bytes(s,Data("onne\ntwwo\n".utf8),"One Redo failed both stream-selection duplicates")
+        try require(s.text.selectedRanges.count==2 && !s.text.lineSelectionSnapshot.rectangular,"Redo discarded secondary stream selection")
+        s.text.undoPatch(nil);try await ready(s);try bytes(s,original,"Stream-selection cohort did not reset exact original bytes")
+        try require(s.text.lineSelectionSnapshot==beforeMultiple,"Stream-selection cohort did not restore exact selection state")
+        s.text.columnSelection?.collapseToPrimary()
         // Same contents still constitute a replacement; the captured receipt
         // must not become live merely because visible text compares equal.
         try await load(s,original);select(s,NSRange(location:5,length:0))
         try require(s.text.canPerformLineCommand(.duplicate),"Current replacement commands unavailable")
         _=NSApp.sendAction(held.action!,to:held.target,from:held);try bytes(s,original,"Retained menu acted on replacement document")
+        let replacedSelection=s.text.lineSelectionSnapshot
+        _=NSApp.sendAction(heldColumn.action!,to:heldColumn.target,from:heldColumn)
+        try require(s.text.lineSelectionSnapshot==replacedSelection,"Retained column receipt acted on equal-byte replacement")
         try dispatch(s,.duplicate);try await ready(s);try require(s.model.documentDirty,"Fresh replacement receipt failed")
         var release:((URL?)->Void)?
         s.session.chooseSave={_,_,reply in release=reply;c.pending.append(reply)}
@@ -329,6 +373,9 @@ private extension NSWindow {
         try await wait {PatchDocumentSession.activeOperations==0}
         try require(!FileManager.default.fileExists(atPath:unwanted.path),"Retired save wrote captured edited packets")
         _=NSApp.sendAction(held.action!,to:held.target,from:held)
+        let retiredSelection=s.text.lineSelectionSnapshot
+        _=NSApp.sendAction(heldColumn.action!,to:heldColumn.target,from:heldColumn)
+        try require(s.text.lineSelectionSnapshot==retiredSelection,"Retired column receipt changed selection")
         try require(s.model.retired && s.window.isVisible==false,"Closed owner escaped retirement")
     }
     static func main()async {

@@ -120,12 +120,37 @@ struct ReleaseUpdateLifetimeVerification {
         pending?.resume(returning:[value]);pending=nil;try await QA.wait {ReleaseUpdateModel.activeOperations==0}
         try QA.require(results==0 && reading.release==nil,"Retired feed published result")
         readOwner.window?.close()
-        let store=ReleaseUpdateModel(preferences:prefs,installed:"1.0.0",repository:QA.repo,appStore:true),storeOwner=ReleaseUpdateWindowController(model:store)
+        // A quiet network check is not a presented utility owner. A deliberate
+        // forced check owns its pending presentation until actual drain/result.
+        for forced in [false,true] {
+            let service=ReleaseUpdateService(),background=ReleaseUpdateModel(preferences:prefs,installed:"1.0.0",repository:QA.repo,appStore:false)
+            var held:CheckedContinuation<[PublishedRelease],Error>?,displays=0
+            defer{service.cancelBackground();let pending=held;held=nil;pending?.resume(returning:[]);service.controller?.close()}
+            background.fetch={_,_ in try await withCheckedThrowingContinuation{held=$0}}
+            service.createModel={_ in background};service.display={_ in displays += 1}
+            service.showCommand(visible:false,force:forced,preferences:prefs)
+            try await QA.wait{held != nil}
+            try QA.require(service.hasOwnedUtilityWindow==forced && service.presentExistingUtility()==forced && service.controller==nil && displays==0,"Quiet background check claimed utility window or forced presentation lost intent")
+            service.cancelBackground()
+            try QA.require(!service.hasOwnedUtilityWindow && !service.presentExistingUtility() && ReleaseUpdateModel.activeOperations==1,"Cancelled background retained utility owner or lost actual worker drain")
+            let finish=held;held=nil;finish?.resume(returning:[]);try await QA.wait{ReleaseUpdateModel.activeOperations==0}
+            try QA.require(!service.hasOwnedUtilityWindow && service.controller==nil && displays==0,"Retired background created late update window")
+        }
+        let unpublished=ReleaseUpdateModel(preferences:prefs,installed:"1.0.0",repository:QA.repo,appStore:true,appStoreListing:nil)
+        let unpublishedOwner=ReleaseUpdateWindowController(model:unpublished);defer{unpublished.cancel();unpublishedOwner.close()}
+        var unexpected=0
+        unpublished.fetch={_,_ in unexpected += 1;return []};unpublished.openStore={_ in unexpected += 1;return true};unpublished.transfer={_,_,_ in unexpected += 1}
+        try QA.require(!unpublished.canOpenAppStore && unpublished.message=="An App Store listing is not available for this build.","Unpublished Store-compatible build implied listing before Check")
+        unpublished.check();unpublished.download();unpublished.openRelease();unpublished.openAppStore()
+        try QA.require(unexpected==0 && !unpublished.busy && !unpublished.canDownload && !unpublished.message.contains("managed by") && unpublished.releaseNotesPlaceholder.contains("not available") && unpublished.updateSourceDescription=="Local test build","Unconfigured Store build opened generic Store/downloaded/claimed published updates")
+        let listing=URL(string:"https://apps.apple.com/app/id123456789")!
+        let store=ReleaseUpdateModel(preferences:prefs,installed:"1.0.0",repository:QA.repo,appStore:true,appStoreListing:listing),storeOwner=ReleaseUpdateWindowController(model:store)
         defer {store.cancel();storeOwner.window?.close()}
         store.fetch={_,_ in throw QA.Failure(description:"App Store fetched outside metadata")};store.transfer={_,_,_ in throw QA.Failure(description:"App Store downloaded outside metadata")}
-        var stores=0;store.openStore={stores+=1;return true};store.check();store.download();store.openRelease();store.openAppStore()
-        try QA.require(!store.busy && !store.canDownload && stores==1 && ReleaseUpdateModel.activeOperations==0,"App Store update isolation failed")
-        store.openStore={false};store.openAppStore();try QA.require(store.error != nil,"App Store open failure hidden")
+        var stores=[URL]();store.openStore={stores.append($0);return true};store.check();store.download();store.openRelease();store.openAppStore()
+        try QA.require(!store.busy && !store.canDownload && store.canOpenAppStore && stores==[listing] && ReleaseUpdateModel.activeOperations==0,"Configured App Store page/isolation failed")
+        store.openStore={_ in false};store.openAppStore();try QA.require(store.error != nil,"App Store page open failure hidden")
+        store.cancel();store.openStore={stores.append($0);return true};store.openAppStore();try QA.require(stores==[listing],"Retired update owner opened Store page")
         print("PASS native release lifetime: held transfer/fetch, forced close/late progress refusal, real task drain and Quit ownership, App Store isolation and open failure")
     }
 }

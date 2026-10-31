@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Darwin
 import TurtleGitCore
 
 // This legacy workflow receiver injects its instrumented action owner through
@@ -38,9 +39,11 @@ private actor FileServiceReadGate {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String, line: UInt = #line) throws { if !value { throw Failure(description: "\(line): \(message)") } }
     @MainActor static var diagnostic: () -> String = { "" }
+    @MainActor static var currentPhase="entry"
+    @MainActor static func phase(_ name:String) {currentPhase=name;print("Selected-file Services phase: "+name);fflush(stdout)}
     @MainActor static func wait(_ message: String, line: UInt = #line, _ ready: () -> Bool) async throws {
         for _ in 0..<3000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "\(line): \(message); \(diagnostic())")
+        throw Failure(description: "\(line): \(message); phase=\(currentPhase); \(diagnostic())")
     }
     @MainActor static func board(_ paths: [URL]) -> NSPasteboard {
         let value = NSPasteboard.withUniqueName()
@@ -91,6 +94,7 @@ private actor FileServiceReadGate {
         var questions: [String] = []
         var keepLocal = true
         init(root: URL, git: URL) throws {
+            phase("private context construction")
             self.root = root; self.git = git; suite = "TurtleGit.FileServices.QA." + UUID().uuidString; defaults = UserDefaults(suiteName: suite)!
             store = try RepositoryAccessStore(storageURL: root.appendingPathComponent("access.json"), provider: FileServiceScopes())
             workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, repositoryFactory: { GitRepository(root: $0, executable: git) }, snapshotWriter: { _ in false }, savedAccessStore: store, comparisonMarks: WorkingComparisonMarkStore(storageURL: root.appendingPathComponent("marks.json")))
@@ -119,12 +123,26 @@ private actor FileServiceReadGate {
                 }
                 self.windows.append((action, controller, repository, access))
             }
-            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            // This hidden workflow host supplies all Git/repository state itself.
+            // Activation and saved user-config grants belong to launch acceptance,
+            // not this private selected-file action receiver.
+            delegate.activateStandaloneApplication={print("Selected-file Services private activation callback during "+currentPhase);fflush(stdout)}
+            delegate.prepareGitConfigurationReads={}
+            let shippingExit=delegate.startupMergeToolExit
+            delegate.startupMergeToolExit={status in
+                fputs("Selected-file Services unexpected tool exit: status=\(status), phase=\(currentPhase)\n",stderr);fflush(stderr)
+                shippingExit(status)
+            }
+            delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in phase("private startup command admitted")}
+            delegate.makeStandaloneWorkspace={ [workspace] in workspace };delegate.repositoryModel=workspace
+            delegate.startupDidFinishLaunching();phase("private context startup queued")
         }
         func finish() {
+            phase("private context cleanup")
             windows.forEach { $0.1.close() }; delegate.retireFinderServices(); workspace.stopMonitoringForTermination(); host.close(); defaults.removePersistentDomain(forName: suite)
         }
         func make(_ name: String) async throws -> GitRepository {
+            phase("create private repository \(name)")
             let directory = root.appendingPathComponent(name); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let repo = GitRepository(root: directory, executable: git); _ = try await repo.run(["init", "-b", "main"])
             for (key, value) in [("user.name", "File Services QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
@@ -134,6 +152,7 @@ private actor FileServiceReadGate {
             return repo
         }
         func open(_ repo: GitRepository) async throws {
+            phase("open private repository \(repo.root.lastPathComponent)")
             // Mutation callbacks enqueue a real workspace refresh. Opening
             // while that refresh owns busy is intentionally refused by Model;
             // wait for its accepted-command boundary before issuing Open.
@@ -147,6 +166,7 @@ private actor FileServiceReadGate {
             }
         }
         func launch(_ command: String, paths: [URL], accepted: Bool = true) async throws -> NSWindowController? {
+            phase("selected-file \(command), expected admission=\(accepted)")
             try await wait("idle before \(command)") { !self.workspace.busy && !self.workspace.hasPendingRepositoryWork }
             let prior = windows.count, selected = board(paths); defer { selected.releaseGlobally() }
             workspace.error = nil
@@ -239,6 +259,7 @@ private actor FileServiceReadGate {
         _ = try await a.run(["clone", "--bare", a.root.path, bareRoot.path]); try context.store.remember(bareRoot)
         for command in commands { _ = try await context.launch(command, paths: [bareRoot], accepted: false) }
         // First-use Add needs owned folder authority before it may stage.
+        phase("first-use Add folder authority")
         let c = try await context.make("unsavedC"), pending = c.root.appendingPathComponent("first-use [p].txt")
         try Data("pending\n".utf8).write(to: pending); try await context.open(b)
         var reply: ((NSApplication.ModalResponse) -> Void)?, panels: [NSOpenPanel] = []
@@ -259,6 +280,7 @@ private actor FileServiceReadGate {
         try require(context.windows.count == initialWindows && cancelledIndex == cIndex && context.workspace.root?.path == b.root.path, "cancelled/late Add permission mutated or adopted C")
         // Mixed repositories are not a transport batch. Grant the private common
         // parent explicitly, then verify discovery refuses the mixed file scope.
+        phase("mixed-repository grant and rejection")
         context.workspace.selectedFinderServiceFolderURL = { _ in context.root }
         let mixed = board([a.root.appendingPathComponent(literal), b.root.appendingPathComponent(literal)]); defer { mixed.releaseGlobally() }
         context.workspace.error = nil
@@ -270,6 +292,7 @@ private actor FileServiceReadGate {
         try require(context.windows.count == mixedStart, "mixed repositories opened one narrowed file dialog")
         // An accepted first-use Add retains its selected scope and Quit owner
         // through asynchronous preflight, even after the workspace closes.
+        phase("held Add preflight cancellation and owner drain")
         let gate = FileServiceReadGate()
         context.workspace.addSelectionPreflight = { repository, paths, token in
             await gate.hold(token)
@@ -300,6 +323,7 @@ private actor FileServiceReadGate {
             for _ in 0..<3000 { if !context.workspace.hasPendingRepositoryWork { break }; try? await Task.sleep(nanoseconds: 10_000_000) }
             throw error
         }
+        phase("final selected-path repository invariants")
         let afterB = try await stable(b), finalHead = try await a.run(["rev-parse", "HEAD"]).stdout
         try require(afterB == beforeB && finalHead == headA, "file Services changed unrelated B or committed A")
         print("PASS: literal selected-path views/reviews, direct file Add/symlink, four Ignore modes and actual keep/delete effects, live bare/normal/added/untracked/mixed eligibility, owned Add permission Cancel/late fence")
@@ -356,12 +380,20 @@ private actor FileServiceReadGate {
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        let termination=NotificationCenter.default.addObserver(forName:NSApplication.willTerminateNotification,object:NSApp,queue:.main) {_ in
+            MainActor.assumeIsolated {
+                fputs("Selected-file Services premature termination: phase=\(currentPhase), appDelegate=\(String(describing:NSApp.delegate)); \(diagnostic())\n",stderr);fflush(stderr)
+            }
+        }
+        defer {NotificationCenter.default.removeObserver(termination)}
+        phase("start case \(ProcessInfo.processInfo.environment["TURTLEGIT_FINDER_FILE_SERVICES_CASE"] ?? "nil")")
         switch ProcessInfo.processInfo.environment["TURTLEGIT_FINDER_FILE_SERVICES_CASE"] {
         case "provider": try provider()
         case "paths": try await paths()
         case "conflicts": try await conflicts()
         default: throw Failure(description: "Unknown selected-file Services case")
         }
-        print("PASS: selected-file Services case completed")
+        phase("all selected-file Services assertions complete")
+        print("PASS: selected-file Services case completed");fflush(stdout)
     }
 }

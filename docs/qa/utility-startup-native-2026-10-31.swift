@@ -51,7 +51,7 @@ private extension NSWindow {
             for service in settings{service.controller?.close()}
             for owner in windows{owner.close()}
             for window in NSApp.windows{if let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.close()};window.orderOut(nil);window.close()}
-            for _ in 0..<2000{if TurtleGitAboutController.activeReads==0 && MergeToolLaunchSession.activePreparations==0 && sessions.allSatisfy({!$0.hasPendingWork}){break};try? await Task.sleep(nanoseconds:10_000_000)}
+            for _ in 0..<2000{if TurtleGitAboutController.activeReads==0 && ReleaseUpdateModel.activeOperations==0 && MergeToolLaunchSession.activePreparations==0 && sessions.allSatisfy({!$0.hasPendingWork}){break};try? await Task.sleep(nanoseconds:10_000_000)}
             prefs.removePersistentDomain(forName:suite)
         }
     }
@@ -153,13 +153,209 @@ private extension NSWindow {
         }
         for(file,text)in source{try require((try Data(contentsOf:file))==Data(text.utf8),"Read-only Merge startup changed source bytes")}
     }
+    static func reopen(_ c:Context)async throws {
+        // Exercise actual WorkspaceSceneOwner and native utility controllers,
+        // rather than injecting a utility-only dispatcher that cannot exercise
+        // the controlled false-flag workspace regression. The installed probe
+        // may instead have received its reopen after About had closed.
+        for name in ["about","settings","rtfm","autotexttest","firststartwizard","updatecheck"] {
+            print("Utility reopen phase: "+name);fflush(stdout)
+            let arguments=name=="settings" ? ["--turtlegit-action-only"]:["/command:"+name]+(name=="updatecheck" ? ["/visible"]:[])
+            let model=c.model(),delegate=c.delegate(model,args:arguments)
+            let scene=WorkspaceSceneOwner(commandModel:model)
+            scene.makeModel={c.model()};scene.installWorkspaceServices={_ in}
+            scene.makeController={model,appearance,applicationDelegate in
+                let owner=WorkspaceWindowController(model:model,appearance:appearance,applicationDelegate:applicationDelegate)
+                owner.presentWindow={window in window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000));window.orderFront(nil)}
+                c.windows.append(owner);return owner
+            }
+            delegate.configureGeneralApplication={scene.configure(applicationDelegate:$0)}
+            let(service,about)=c.install(model)
+            let introduction=ApplicationIntroductionService(),wizard=FirstStartWizardService(),updates=ReleaseUpdateService()
+            introduction.display={owner in owner.window?.alphaValue=0;owner.showWindow(nil);c.windows.append(owner)}
+            wizard.present={owner in owner.window?.alphaValue=0;owner.showWindow(nil);c.windows.append(owner)}
+            updates.createModel={ReleaseUpdateModel(preferences:$0,appStore:true)}
+            updates.display={owner in owner.window?.alphaValue=0;owner.showWindow(nil);c.windows.append(owner)}
+            model.onIntroduction={introduction.show(preferences:c.prefs)}
+            model.onFirstStart={wizard.show(initialPage:$0,preferences:c.prefs)}
+            var updateWasVisible=false
+            model.onUpdateCheck={visible,force in updateWasVisible=visible;updates.showCommand(visible:visible,force:force,preferences:c.prefs)}
+            delegate.presentExistingApplicationUtility={
+                if about.hasOwnedUtilityWindow {_ = about.presentExistingUtility();return true}
+                if service.hasOwnedUtilityWindow {_ = service.presentExistingUtility();return true}
+                if introduction.hasOwnedUtilityWindow {_ = introduction.presentExistingUtility();return true}
+                if wizard.hasOwnedUtilityWindow {_ = wizard.presentExistingUtility();return true}
+                if updates.hasOwnedUtilityWindow {_ = updates.presentExistingUtility();return true}
+                return false
+            }
+            var admissionReopens=0,admissionOpenedWorkspace=false
+            let makeAbout=about.create
+            about.create={tool,information in
+                admissionReopens += 1
+                _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                admissionOpenedWorkspace = admissionOpenedWorkspace || scene.storedController != nil
+                return makeAbout(tool,information)
+            }
+            if name == "settings" {
+                let activate=delegate.activateStandaloneApplication
+                var activationProbed=false
+                delegate.activateStandaloneApplication={
+                    // Inject exactly the Settings URL's admission activation,
+                    // before its factory. Later post-Close workspace activation
+                    // is a different user intent, not another injected reopen.
+                    if delegate.startupDelivered,!activationProbed {
+                        activationProbed=true
+                        admissionReopens += 1;_ = delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                        admissionOpenedWorkspace = admissionOpenedWorkspace || scene.storedController != nil
+                    }
+                    activate()
+                }
+            }
+            delegate.prepareGitConfigurationReads={}
+            delegate.startupDidFinishLaunching(defaultLaunch:true)
+            if name=="settings" {delegate.application(NSApp,open:[FinderRequest(action:.settings,paths:[]).url!])}
+            await turn()
+            @MainActor func utilityWindow()->NSWindow? {
+                switch name {
+                case "about":return c.windows.compactMap{$0 as? TurtleGitAboutController}.last?.window
+                case "settings":return service.controller?.window
+                case "rtfm":return introduction.controller?.window
+                case "firststartwizard":return wizard.controller?.window
+                case "updatecheck":return updates.controller?.window
+                default:return model.autotextUtilityWindow
+                }
+            }
+            guard let window=utilityWindow() else{throw Failure(description:"Actual utility window absent: "+name)}
+            if name=="settings" {try require(admissionReopens==1,"Actual Settings URL activation gap was not exercised")}
+            if name=="updatecheck" {try require(updateWasVisible,"Visible update utility cohort lost the actual CLI /visible request")}
+            try require(scene.storedController==nil && !admissionOpenedWorkspace,"Utility admission/reentrant factory created workspace: "+name)
+            window.alphaValue=0;window.orderOut(nil)
+            let before=Set(NSApp.windows.map(ObjectIdentifier.init))
+            let handled=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+            try require(!handled && scene.storedController==nil && utilityWindow() === window,"False Cocoa flag promoted/replaced actual utility: "+name)
+            try require(Set(NSApp.windows.map(ObjectIdentifier.init))==before,"Utility reopen constructed another native owner: "+name)
+            if name=="about" {
+                try require(admissionReopens==1,"About factory gap was not exercised")
+                (c.windows.compactMap{$0 as? TurtleGitAboutController}.last)?.closeAbout(nil)
+                try await wait("About actual close retirement"){!about.hasOwnedUtilityWindow}
+                // A direct menu/service presentation has its own factory gap,
+                // outside the delegate's scoped CLI admission depth.
+                _=about.show(.application)
+                try require(admissionReopens==2 && !admissionOpenedWorkspace && scene.storedController==nil,"Direct About factory gap lost utility ownership")
+                about.presentExistingUtility()
+                (c.windows.compactMap{$0 as? TurtleGitAboutController}.last)?.closeAbout(nil)
+            } else {window.performClose(nil)}
+            try await wait("utility actual Close drains "+name){
+                switch name {
+                case "about":return !about.hasOwnedUtilityWindow
+                case "settings":return !service.hasOwnedUtilityWindow
+                case "rtfm":return introduction.controller==nil
+                case "firststartwizard":return wizard.controller==nil
+                case "updatecheck":return !updates.hasOwnedUtilityWindow
+                default:return model.autotextUtilityWindow==nil
+                }
+            }
+            // Once the real owner closes, an actual Dock/reopen request must
+            // remain available, and must create the real native workspace.
+            _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+            try require(scene.storedController != nil && scene.storedModel?.workspaceWindow === scene.storedController?.window,"Closed utility retained a sticky reopen fence: "+name)
+            scene.storedController?.close()
+            try await wait("utility metadata drain "+name){TurtleGitAboutController.activeReads==0}
+        }
+        // Explicit Open Repository/workspace is an independent user intent;
+        // retained utility ownership must not block it.
+        let model=c.model(),delegate=c.delegate(model,args:["/command:about"]),scene=WorkspaceSceneOwner(commandModel:model)
+        let(_,about)=c.install(model)
+        scene.makeModel={c.model()};scene.installWorkspaceServices={_ in}
+        scene.makeController={model,appearance,applicationDelegate in let owner=WorkspaceWindowController(model:model,appearance:appearance,applicationDelegate:applicationDelegate);owner.presentWindow={$0.alphaValue=0;$0.orderFront(nil)};c.windows.append(owner);return owner}
+        delegate.configureGeneralApplication={scene.configure(applicationDelegate:$0)}
+        delegate.presentExistingApplicationUtility={if about.hasOwnedUtilityWindow {_ = about.presentExistingUtility();return true};return false}
+        delegate.startupDidFinishLaunching();try require(about.hasOwnedUtilityWindow && scene.storedController==nil,"Explicit workspace cohort failed to open utility alone")
+        delegate.requestWorkspace()
+        try require(scene.storedController != nil && about.hasOwnedUtilityWindow,"Explicit workspace intent was blocked by utility ownership")
+        for owner in c.windows {owner.close()}
+        try await wait("final utility metadata drain"){TurtleGitAboutController.activeReads==0}
+        // Warm command Debug and error acknowledgements are retained native
+        // command owners too, even when Cocoa reports no visible windows.
+        for diagnostic in [true,false] {
+            print("Utility reopen phase: "+(diagnostic ? "warm-debug":"queued-command-errors"));fflush(stdout)
+            let model=c.model(),delegate=c.delegate(model,args:["--turtlegit-action-only"]),scene=WorkspaceSceneOwner(commandModel:model)
+            scene.makeModel={c.model()};scene.installWorkspaceServices={_ in}
+            scene.makeController={model,appearance,applicationDelegate in let owner=WorkspaceWindowController(model:model,appearance:appearance,applicationDelegate:applicationDelegate);owner.presentWindow={$0.alphaValue=0;$0.orderFront(nil)};c.windows.append(owner);return owner}
+            delegate.configureGeneralApplication={scene.configure(applicationDelegate:$0)}
+            delegate.presentExistingApplicationUtility={false}
+            delegate.startupDidFinishLaunching()
+            if diagnostic {
+                c.prefs.set(true,forKey:"Debug");delegate.diagnosticPreferences=c.prefs
+                delegate.presentCommandDiagnostic={owner in owner.window?.alphaValue=0;owner.showWindow(nil);c.windows.append(owner)}
+                var helpCalls=0;model.onHelp={helpCalls += 1}
+                delegate.application(NSApp,open:[FinderRequest(action:.help,paths:[]).url!])
+                guard let owner=delegate.commandDiagnosticController else{throw Failure(description:"Warm native Debug preview absent")}
+                _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                try require(scene.storedController==nil && delegate.commandDiagnosticController === owner,"Warm Debug preview lost native ownership")
+                owner.acknowledge()
+                _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                try require(scene.storedController==nil,"Accepted Debug callback gap created workspace")
+                try await wait("warm Debug actual admission"){helpCalls==1 && delegate.commandDiagnosticController==nil}
+                c.prefs.set(false,forKey:"Debug")
+            } else {
+                model.error="Private first command error";model.error="Private queued command error"
+                _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                try require(scene.storedController==nil,"Queued command error presentation gap created workspace")
+                try await wait("first actual command error"){delegate.actionErrorController != nil}
+                guard let first=delegate.actionErrorController else{throw Failure(description:"Actual command error absent")}
+                c.windows.append(first)
+                _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                try require(scene.storedController==nil && delegate.actionErrorController === first,"Open command error lost native ownership")
+                first.close()
+                try await wait("queued command error"){delegate.actionErrorController != nil && delegate.actionErrorController !== first}
+                guard let second=delegate.actionErrorController else{throw Failure(description:"Queued command error absent")};c.windows.append(second)
+                _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+                try require(scene.storedController==nil,"Queued native error acknowledgement created workspace")
+                second.close();try await wait("command error retirement"){delegate.actionErrorController==nil && model.error==nil}
+            }
+            _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+            try require(scene.storedController != nil,"Retired command acknowledgement left sticky reopen ownership")
+            scene.storedController?.close()
+        }
+        // A quiet automatic network check is not a utility presentation. A
+        // real Dock/reopen must still open the workspace while that read waits;
+        // promoting the same held check to an explicit forced presentation
+        // must then retain its pending owner without creating an update window.
+        do {
+            print("Utility reopen phase: quiet-and-forced-update");fflush(stdout)
+            let model=c.model(),delegate=c.delegate(model,args:["--turtlegit-action-only"]),scene=WorkspaceSceneOwner(commandModel:model),updates=ReleaseUpdateService()
+            var release:CheckedContinuation<[PublishedRelease],Error>?,hostPresentations=0
+            defer{release?.resume(returning:[]);updates.cancelBackground()}
+            updates.createModel={preferences in let model=ReleaseUpdateModel(preferences:preferences,appStore:false);model.fetch={_,_ in try await withCheckedThrowingContinuation{release=$0}};return model}
+            updates.display={owner in owner.window?.alphaValue=0;owner.showWindow(nil);c.windows.append(owner)}
+            scene.makeModel={c.model()};scene.installWorkspaceServices={_ in}
+            scene.makeController={model,appearance,applicationDelegate in let owner=WorkspaceWindowController(model:model,appearance:appearance,applicationDelegate:applicationDelegate);owner.presentWindow={hostPresentations += 1;$0.alphaValue=0;$0.orderFront(nil)};c.windows.append(owner);return owner}
+            delegate.configureGeneralApplication={scene.configure(applicationDelegate:$0)}
+            delegate.presentExistingApplicationUtility={if updates.hasOwnedUtilityWindow {_ = updates.presentExistingUtility();return true};return false}
+            delegate.startupDidFinishLaunching();updates.showCommand(visible:false,force:false,preferences:c.prefs)
+            try await wait("quiet update held read"){release != nil}
+            try require(!updates.hasOwnedUtilityWindow && updates.background != nil,"Quiet update incorrectly retained presentation ownership")
+            _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+            try require(hostPresentations==1 && scene.storedController != nil,"Quiet update blocked actual workspace reopen")
+            scene.storedController?.close()
+            updates.showCommand(visible:false,force:true,preferences:c.prefs)
+            try require(updates.hasOwnedUtilityWindow && updates.controller==nil,"Forced update lost held presentation intent")
+            _=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false)
+            try require(hostPresentations==1 && updates.controller==nil,"Forced held update constructed workspace or premature utility")
+            updates.cancelBackground();let reply=release;release=nil;reply?.resume(returning:[])
+            try await wait("held update actual cancellation drain"){ReleaseUpdateModel.activeOperations==0}
+            try require(!updates.hasOwnedUtilityWindow,"Cancelled forced update left stale presentation ownership")
+        }
+        print("Native utility reopen: real About/global Settings/introduction/autotext/wizard/update windows, false Cocoa flag, reentrant startup/direct factory admission, native Close retirement, real AppKit workspace successor and explicit workspace intent passed; hidden/private owners only")
+    }
     static func main()async {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let swaps=[(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.utilityOrder(_:relativeTo:)))),(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:))),class_getInstanceMethod(NSWindow.self,#selector(NSWindow.utilityFrame(_:to:))))]
         for(a,b)in swaps{if let a,let b{method_exchangeImplementations(a,b)}}
         defer{for(a,b)in swaps.reversed(){if let a,let b{method_exchangeImplementations(a,b)}}}
         let c=Context();DialogGeometry.install(preferences:c.prefs)
-        do{if CommandLine.arguments[3]=="merge"{try await merge(c)}else{try await utilities(c)};await c.clean();DialogGeometry.install(preferences:.standard);try require(NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil} && TurtleGitAboutController.activeReads==0 && MergeToolLaunchSession.activePreparations==0,"Utility-owned windows/workers survived cleanup");print("PASS: utility startup "+CommandLine.arguments[3])}
+        do{if CommandLine.arguments[3]=="merge"{try await merge(c)}else if CommandLine.arguments[3]=="reopen"{try await reopen(c)}else{try await utilities(c)};await c.clean();DialogGeometry.install(preferences:.standard);try require(NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil} && TurtleGitAboutController.activeReads==0 && ReleaseUpdateModel.activeOperations==0 && MergeToolLaunchSession.activePreparations==0,"Utility-owned windows/workers survived cleanup");print("PASS: utility startup "+CommandLine.arguments[3])}
         catch{await c.clean();DialogGeometry.install(preferences:.standard);fputs("Utility startup failed: \(error)\n",stderr);exit(1)}
     }
 }

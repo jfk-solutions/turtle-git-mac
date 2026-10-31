@@ -5,8 +5,13 @@ to macOS. This chapter covers opening a repository, working from Finder,
 committing changes and reviewing history in native Mac windows.
 
 Requires macOS 13 or later. Mac App Store distribution is planned; no store
-purchase is available yet. Build and signing
-instructions are in the [project README](../README.md) and
+purchase is available yet. A local test build may report **Build configuration:
+App Store**; that describes its sandbox/runtime policy, not a published
+Store release. **View in App Store…** stays disabled while no public listing is
+available for this build. The update window identifies a local test build and
+explains that state without opening a generic Store application. Desktop builds retain the GitHub release-check workflow.
+
+Build and signing instructions are in the [project README](../README.md) and
 [distribution guide](DISTRIBUTION.md).
 
 ## Set up Git and authentication

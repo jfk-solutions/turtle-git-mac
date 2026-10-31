@@ -1,0 +1,99 @@
+{
+  "kind": "TurtleGitSignedConsolidationCheckpoint",
+  "date": "2026-10-31",
+  "version": "0.1.0",
+  "build": "44",
+  "source_commit": "23f85514a9fa9799560e4540a105532d43e0de54",
+  "source_input_sha256": "1dafeace4fae2d907d937272baeabbdddd42846351863817d3d857315f9383bd",
+  "main_sha256": "7fbae1672140127c6ff5e4fa60aa2d92d38037c76ccd1f9ea9f1a1b306fc4c9a",
+  "installed": true,
+  "changes": [
+    "Owned Log refresh intent, comparison cancellation and busy settlement",
+    "Informational captured-command diagnostics, optional sanitized local Console tracing and live Advanced consumers",
+    "Pinned original Blame toolbar artwork/source menu order, text-only source actions and TurtleGit About branding",
+    "Current four Commit compositor screenshots in the manual and bundled Help"
+  ],
+  "build_result": {
+    "configuration": "AppStore",
+    "signing": "Existing Apple Development identity for local testing",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 500.104,
+    "source_inputs_unchanged": true,
+    "cache_reuse": "Independent APFS clone of prior43 derived data; recognized source/runtime caches; old43 preserved"
+  },
+  "verification": {
+    "strict_deep_seal": true,
+    "owned_code_components": 8,
+    "runtime_layout_entries": 206,
+    "packaged_help_source_members": 96,
+    "zip_and_installed_inventory_members": 6383,
+    "copied_extracted_and_installed_inventory_equal": true,
+    "signed_runtime_phases": [
+      "local-tools"
+    ],
+    "signed_runtime_passed": true,
+    "scope": "Actual packaged Git/public Core in one private sandbox parent, no App Group grants or shipping GUI inferred from probe; separate actual installed About observation below"
+  },
+  "package": {
+    "directory": "TurtleGit-for-Mac-0.1.0-build44-signed",
+    "archive": "TurtleGit-for-Mac-0.1.0-build44-signed.zip",
+    "archive_bytes": 423439110,
+    "archive_sha256": "a9895ad23be31a86028d1b0105e88638a579b757c2cb26deb8dff4eda4bb5e6d",
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-23f85514a9fa9799560e4540a105532d43e0de54.tar.gz",
+      "source_commit": "23f85514a9fa9799560e4540a105532d43e0de54",
+      "sha256": "003a2078f0860cf5deb7581c68245a7648f4ae0d4dee8479405d478b7e6a2f91",
+      "bytes": 200709083,
+      "tracked_files": 10356,
+      "exact_tracked_tree": true,
+      "bundled_runtime_sources": "Retained separately inside application runtime payloads"
+    },
+    "source_notice": "Exact tracked project source is included; bundled runtimes retain separate source/reconstruction and license payloads. No App Store licensing clearance inferred."
+  },
+  "installation": {
+    "previous_build": "43",
+    "rollback_retained": true,
+    "user_app_was_running": false,
+    "Finder_or_Dock_restart": false,
+    "launch_services_registration_exit": 0,
+    "candidate_worktree_unregistered": true
+  },
+  "physical_observation": {
+    "owned_main_pid": 8110,
+    "actual_installed_about": "Observed0.1.0(44), actual packaged Git2.55.0 and own TurtleGit banner through native computer control",
+    "private_preferences": "Not proven: private Debug marker was not visible; repository/grant tests stopped",
+    "real_reopen_finding": "Actual OSLog for PID8110 at03:20:25.179 local reports workspace-request/actionOnly/startup ready+delivered/hasVisibleWindows=false. The About screenshot was saved at02:20:25.122776Z, 56ms before the event, within the combined native OK/getAXState call. The existing evidence cannot order the reopen relative to actual Close versus control-tool activation. About completion has no workspace callback. Active/pending-owner false-flag cases are being tested separately; ordinary reopen after Close remains intentional.",
+    "store_action_finding": "About exposes View in App Store based solely on configuration and opens generic Store; no public listing configured. Separate availability consumer repair is in progress.",
+    "screenshot": "build/qa/signed44-installed-about-2026-10-31.png",
+    "screenshot_sha256": "a92f8583fb614d3835955fe9d92e372741392e10f49c2a12b85e218b9182bb8a",
+    "cleanup": {
+      "owned_main_pid": 8110,
+      "main_exited": true,
+      "restored_only_key": "TurtleGit.DialogGeometry.workspace",
+      "entire_preference_dictionary_equal_to_baseline": true,
+      "private_preferences_proven": false,
+      "repository_grants_or_actions": false,
+      "other_user_preferences_modified": false,
+      "scope": "Observed standard application preference domains only; the one geometry delta was restored. App Group/live cache contents were not comprehensively measured."
+    },
+    "user_repository_actions": false,
+    "pasteboard_access": false,
+    "private_isolation_limit": "Existing Recents appeared in the workspace. No repository was selected or deliberately operated on, but this probe does not prove absence of automatic background reads from real settings."
+  },
+  "validation_logs": [
+    "build/qa/signed44-static-2026-10-31.log",
+    "build/qa/signed44-local-tools-2026-10-31.log",
+    "build/qa/signed44-package-2026-10-31.log",
+    "build/qa/signed44-installation-2026-10-31.log"
+  ],
+  "remaining": [
+    "Active/pending utility reopen ownership and unpublished-store availability source family is being implemented. The actual close/observe probe does not prove About itself opens a workspace. Installed44 remains a testing candidate.",
+    "Complete corrected-source hosted CI, broad signed Finder/grants/recovery/representative large-repository acceptance.",
+    "Physical Intel/minimum macOS, all dialog/keyboard/accessibility states and future release/account/licensing gates.",
+    "No public binary upload, notarization or App Store submission."
+  ]
+}

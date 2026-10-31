@@ -19,6 +19,7 @@ import TurtleGitCore
     @Published private(set) var progress: Double = 0
     private var downloadedIDs: Set<Int64> = []
     let installed: String, repository: String, appStore: Bool
+    let distribution:ApplicationDistribution
     private let preferences: UserDefaults
     private var task: Task<Void,Never>?, downloadTask: Task<Void,Never>?
     @Published private(set) var manualPresentation = false
@@ -33,16 +34,19 @@ import TurtleGitCore
     var chooseFolder: ((NSWindow) async -> URL?)?
     var openURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
-    var openStore: () -> Bool = {
-        guard let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.AppStore") else { return false }
-        return NSWorkspace.shared.open(application)
-    }
+    var openStore:(URL)->Bool = {NSWorkspace.shared.open($0)}
     var onResult: () -> Void = {}
     init(preferences: UserDefaults = .standard,
          installed: String = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0",
-         repository: String = ReleaseUpdateFeed.repository(), appStore: Bool = GitRuntime.isAppStoreBuild) {
+         repository: String = ReleaseUpdateFeed.repository(), appStore: Bool = GitRuntime.isAppStoreBuild,appStoreListing:URL? = GitRuntime.appStoreListingURL(bundle:SubversionMergeDiff.applicationBundle())) {
         self.preferences = preferences; self.installed = installed; self.repository = repository; self.appStore = appStore
+        distribution=ApplicationDistribution(appStoreBuild:appStore,appStoreListing:appStoreListing)
+        if appStore {message=storeStatus}
     }
+    var canOpenAppStore:Bool {!retired && distribution.canOpenStoreListing}
+    var storeStatus:String {distribution.canOpenStoreListing ? "Open the App Store page to check availability and updates.":"An App Store listing is not available for this build."}
+    var updateSourceDescription:String {appStore ? (distribution.canOpenStoreListing ? "App Store":"Local test build"):"Using GitHub Releases: "+repository}
+    var releaseNotesPlaceholder:String {appStore ? (distribution.canOpenStoreListing ? "Release notes are available on the App Store page.":"App Store release notes are not available for this build."):"Release notes appear after the check completes."}
     var context: UUID { generation }
     var assets: [ReleaseAsset] { release?.assets ?? [] }
     var canDownload: Bool { !retired && !busy && !appStore && available && assets.contains { selected.contains($0.id) && $0.downloadable && !downloadedIDs.contains($0.id) } }
@@ -63,7 +67,7 @@ import TurtleGitCore
     }
     func check(force: Bool = false) {
         guard !busy, !retired else { return }
-        if appStore { message = "Application updates are managed by the App Store."; return }
+        if appStore {message=storeStatus;onResult();return}
         let request = UUID(); generation = request; forceRequested = force
         if force { manualPresentation = true }
         let preview = preferences.bool(forKey: "VersionCheckPreview"), fetch = fetch
@@ -183,7 +187,7 @@ import TurtleGitCore
         if !openURL(url) { error = "The release page could not be opened." }
     }
     func showDownloads() { guard !retired, !busy, !downloaded.isEmpty else { return }; reveal(downloaded) }
-    func openAppStore() { guard !retired, appStore else { return }; if !openStore() { error = "The App Store application could not be opened." } }
+    func openAppStore() {guard canOpenAppStore,let listing=distribution.appStoreListing else{return};if !openStore(listing) {error="The App Store page could not be opened."}}
     func disableAutomatic() { guard !retired, !busy else { return }; preferences.set(false, forKey: "VersionCheck"); window?.performClose(nil) }
 }
 @MainActor final class ReleaseUpdateWindowController: NSWindowController, NSWindowDelegate {
@@ -210,7 +214,7 @@ private struct ReleaseUpdateDialog: View {
     var body: some View {
         let context = model.context, automatic = self.automatic && !model.manualPresentation
         VStack(alignment: .leading, spacing: 10) {
-            Text(model.appStore ? "Using App Store updates" : "Using GitHub Releases: " + model.repository).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+            Text(model.updateSourceDescription).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             Text("Your version is: " + model.installed).textSelection(.enabled)
             Text("Current version is: " + (model.release?.tag ?? "—")).textSelection(.enabled)
             Text(model.message).foregroundStyle(model.available ? Color.green : Color.primary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -218,7 +222,7 @@ private struct ReleaseUpdateDialog: View {
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
             if !model.appStore { HStack { Spacer(); Button("Click here to go to the website", action: model.openRelease).buttonStyle(.link).disabled(model.busy); Spacer() } }
             GroupBox("Change log") {
-                ScrollView { Text(model.release?.notes ?? (model.appStore ? "The App Store provides release notes for this build." : "Release notes appear after the check completes.")).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(8) }.frame(minHeight: 100)
+                ScrollView { Text(model.release?.notes ?? model.releaseNotesPlaceholder).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(8) }.frame(minHeight: 100)
             }
             if !model.appStore && model.available {
                 GroupBox("Download") {
@@ -250,7 +254,7 @@ private struct ReleaseUpdateDialog: View {
             HStack {
                 Spacer()
                 if automatic { Button("Don’t ask me again") { if !model.manualPresentation { model.disableAutomatic() } }.disabled(model.busy) }
-                if model.appStore { Button("Open App Store", action: model.openAppStore) }
+                if model.appStore {Button("View in App Store…",action:model.openAppStore).disabled(!model.canOpenAppStore)}
                 if !model.downloaded.isEmpty && model.canDownload { Button("Show downloaded files", action: model.showDownloads).disabled(model.busy) }
                 Button(automatic ? "Remind me later" : "Close") { model.window?.performClose(nil) }.keyboardShortcut(.defaultAction).disabled(model.downloadPending)
             }
@@ -262,6 +266,13 @@ private struct ReleaseUpdateDialog: View {
     private var timer: Timer?
     private(set) var background: ReleaseUpdateModel?
     private(set) var controller: ReleaseUpdateWindowController?
+    private var presentations=0,backgroundPresentationIntent=false
+    var hasOwnedUtilityWindow:Bool {presentations>0 || controller?.model.retired == false || backgroundPresentationIntent && background?.retired == false}
+    func presentExistingUtility()->Bool {
+        guard hasOwnedUtilityWindow else{return false}
+        if let controller,!controller.model.retired {if controller.window?.isMiniaturized == true {controller.window?.deminiaturize(nil)};display(controller)}
+        return true
+    }
     private var backgroundAutomatic = false, backgroundRequiresEnabled = false
     private var attempted = false
     var createModel: (UserDefaults) -> ReleaseUpdateModel = { ReleaseUpdateModel(preferences: $0) }
@@ -277,14 +288,16 @@ private struct ReleaseUpdateDialog: View {
     }
     func show(preferences: UserDefaults = .standard) { showCommand(visible: true, force: false, preferences: preferences) }
     func showCommand(visible: Bool, force: Bool, preferences: UserDefaults = .standard) {
+        let ownsPresentation=visible || force
+        if ownsPresentation {presentations += 1};defer{if ownsPresentation {presentations -= 1}}
         if let controller {
             controller.model.promote(force: force, visible: visible)
             if visible || force { display(controller) }; return
         }
         if let model = background {
             model.promote(force: force, visible: visible); backgroundRequiresEnabled = false
-            if force { backgroundAutomatic = false }
-            if visible { background = nil; model.onResult = {}; present(model, automatic: false) }
+            if force {backgroundAutomatic=false;backgroundPresentationIntent=true}
+            if visible {background=nil;backgroundPresentationIntent=false;model.onResult={};present(model,automatic:false)}
             return
         }
         let model = createModel(preferences)
@@ -295,20 +308,21 @@ private struct ReleaseUpdateDialog: View {
         else { startBackground(model, force: force, automatic: !force, respectEnabled: false, preferences: preferences) }
     }
     func cancelBackground() {
-        let model = background; background = nil
+        let model = background; background = nil;backgroundPresentationIntent=false
         model?.cancel() // Backend accounting remains until its actual return.
     }
     private func present(_ model: ReleaseUpdateModel, automatic: Bool) {
+        presentations += 1;defer{presentations -= 1}
         let controller = ReleaseUpdateWindowController(model: model, automatic: automatic); self.controller = controller
         controller.onClosed = { [weak self, weak controller] in if self?.controller === controller { self?.controller = nil } }
         display(controller)
     }
     private func startBackground(_ model: ReleaseUpdateModel, force: Bool, automatic: Bool, respectEnabled: Bool, preferences: UserDefaults) {
-        background = model; backgroundAutomatic = automatic; backgroundRequiresEnabled = respectEnabled
+        background = model;backgroundPresentationIntent=force; backgroundAutomatic = automatic; backgroundRequiresEnabled = respectEnabled
         model.onResult = { [weak self, weak model] in
             guard let self, let model, self.background === model else { return }
             let show = model.available && (!self.backgroundRequiresEnabled || Self.enabled(in: preferences)) && self.controller == nil
-            let automatic = self.backgroundAutomatic && Self.enabled(in: preferences); self.background = nil
+            let automatic = self.backgroundAutomatic && Self.enabled(in: preferences); self.background = nil;self.backgroundPresentationIntent=false
             if show { self.present(model, automatic: automatic) } else { model.cancel() }
         }
         model.check(force: force)

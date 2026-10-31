@@ -33,14 +33,16 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         // Historical names are retained byte-for-byte. Their positive Core
         // checks now prove exact BGRX/self-copy colors and ROP2 cyan/yellow ink.
         let acceptedHistoricalRasterSamples=acceptedLegacyBitmap16Samples.union(["unsupported-rop.emf"])
-        let wmfBitmap16Samples:Set<String>=Set(["wmf-bitmap16-bitblt-native.wmf","wmf-bitmap16-stretch-upscale.wmf","wmf-bitmap16-word-padding17.wmf","wmf-bitmap16-crop.wmf","wmf-bitmap16-mirror-dest-x.wmf","wmf-bitmap16-live-colors.wmf","wmf-bitmap16-save-restore.wmf","wmf-bitmap16-rop-66.wmf","wmf-bitmap16-rop-c0.wmf","wmf-bitmap16-clip.wmf","wmf-bitmap16-mapped.wmf","wmf-bitmap16-source-independent-color24-bitblt.wmf","wmf-bitmap16-embedded-affine.emf","wmf-bitmap16-pattern-bitmap16.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-widthbytes-negative.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-self-stretchblt-copy.wmf","wmf-bitmap16-shrink-mode1.wmf","wmf-bitmap16-shrink-mode2.wmf","wmf-bitmap16-shrink-mode3.wmf","wmf-bitmap16-halftone-integer-box.wmf","wmf-bitmap16-halftone-lanczos-quality.wmf","wmf-bitmap16-self-bitblt-mapped.wmf","wmf-bitmap16-self-stretchblt-outside-preserve.wmf"]).union(acceptedLegacyBitmap16Samples)
+        let wmfBitmap16Samples:Set<String>=Set(["wmf-bitmap16-bitblt-native.wmf","wmf-bitmap16-stretch-upscale.wmf","wmf-bitmap16-word-padding17.wmf","wmf-bitmap16-crop.wmf","wmf-bitmap16-mirror-dest-x.wmf","wmf-bitmap16-live-colors.wmf","wmf-bitmap16-save-restore.wmf","wmf-bitmap16-rop-66.wmf","wmf-bitmap16-rop-c0.wmf","wmf-bitmap16-clip.wmf","wmf-bitmap16-mapped.wmf","wmf-bitmap16-source-independent-color24-bitblt.wmf","wmf-bitmap16-embedded-affine.emf","wmf-bitmap16-pattern-bitmap16.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-widthbytes-negative.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-self-stretchblt-copy.wmf","wmf-bitmap16-shrink-mode1.wmf","wmf-bitmap16-shrink-mode2.wmf","wmf-bitmap16-shrink-mode3.wmf","wmf-bitmap16-halftone-integer-box.wmf","wmf-bitmap16-halftone-lanczos-quality.wmf","wmf-bitmap16-self-bitblt-mapped.wmf","wmf-bitmap16-self-stretchblt-outside-preserve.wmf"]).union(acceptedLegacyBitmap16Samples).union(["classic-gdi-empty-prior-bitblt-white-patcopy-control.wmf","classic-gdi-empty-prior-stretchblt-white-patcopy-control.wmf"])
         let wmfTextSamples:Set<String>=["wmf-text-textout-odd.wmf","wmf-text-ext-dx.wmf","wmf-text-ext-clip-opaque.wmf","wmf-text-ext-empty-opaque.wmf","wmf-text-ext-updatecp-dx.wmf","wmf-text-font-decorated.wmf","wmf-text-font-cell.wmf","wmf-text-font-angle.wmf","wmf-text-restore.wmf","wmf-text-translated.wmf","wmf-text-charset-204.wmf","wmf-text-dbcs-128.wmf","wmf-text-embedded-affine.emf","wmf-text-charset-oem437.wmf","wmf-text-dbcs-johab.wmf","wmf-text-extra-dx-positive.wmf","wmf-text-justify-dx-positive.wmf","wmf-text-extra-natural-negative.wmf","wmf-text-embedded-clip-affine.emf","wmf-text-justify-natural-positive.wmf","wmf-text-ext-pdy-ignored.wmf","wmf-text-dbcs-single-johab.wmf","wmf-text-dbcs-repeat-128.wmf"]
         let classicTextSamples:Set<String>=["classic-text-compact-small.emf","classic-text-compact-low-unicode.emf","classic-text-compact-clip-opaque.emf","classic-text-compact-updatecp.emf","classic-text-compact-world.emf","classic-text-poly-wide-dx.emf","classic-text-poly-wide-pdy.emf","classic-text-poly-ansi-clip-opaque.emf","classic-text-poly-ansi-updatecp.emf","classic-text-ext-ansi-cp1252.emf","classic-text-poly-ansi-cp1252.emf","classic-text-ext-charset-204.emf","classic-text-poly-charset-222.emf","classic-text-ext-dbcs-128.emf","classic-text-poly-dbcs-pdy-134.emf","classic-text-compact-no-rect-opaque.emf","classic-text-poly-wide-offdx-zero-updatecp.emf"]
         let formattedDigitSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-formatted-digits-thai-national.emf","plus-formatted-digits-thai-traditional.emf","plus-formatted-digits-arabic-national.emf","plus-formatted-digits-persian-traditional.emf","plus-formatted-digits-thai-hotkey.emf","plus-formatted-digits-thai-vertical.emf","plus-formatted-digits-thai-wrap.emf","plus-formatted-digits-thai-gradient.emf","plus-formatted-controls-lrm-context-display.emf","plus-formatted-controls-zwj-alone-display.emf","plus-formatted-controls-vertical-display.emf","plus-formatted-controls-trim-removed-display.emf","plus-formatted-controls-path-trim-display.emf","windows-formatted-lrm-latin-display.emf","windows-formatted-rlm-alone-display.emf","windows-formatted-zwj-alone-display.emf","windows-formatted-zwnj-latin-display.emf","windows-formatted-digits-thai-traditional-plain.emf","windows-formatted-digits-arabic-national-arabic-rtl.emf","plus-formatted-controls-lrm-gradient-display.emf"]
         let compressedSamples:Set<String> = Set(["fill","region","cap"].flatMap { family in ["relative","float"].map {"plus-compressed-path-"+family+"-"+$0+".emf"} })
         let positionedSamples:Set<String> = ["plus-driver-positioned-full-background.emf","plus-driver-compatible-dx-full-background.emf","plus-driver-positioned.emf","plus-driver-natural.emf","plus-driver-vertical-natural.emf","plus-driver-linear-matrix.emf","plus-driver-vertical-matrix.emf","plus-driver-gradient.emf","classic-positioned-dx.emf","classic-positioned-pdy.emf","classic-positioned-opaque.emf","classic-positioned-compatible-dx.emf","plus-driver-compatible-dx.emf"]
         let classicPenSamples:Set<String>=["classic-extpen-custom.emf","classic-extpen-hatch-4.emf","classic-extpen-dib.emf","classic-extpen-state.emf","classic-extpen-inside-rectangle.emf"]
-        let classicRegionSamples:Set<String>=["classic-region-fill-preserve.emf","classic-region-frame-union.emf","classic-flood-surface.emf","wmf-classic-region-fill-preserve.wmf","wmf-classic-region-frame-union.wmf","wmf-classic-flood-border.wmf"]
+        let classicRegionSamples:Set<String>=Set(["classic-region-fill-preserve.emf","classic-region-frame-union.emf","classic-flood-surface.emf","wmf-classic-region-fill-preserve.wmf","wmf-classic-region-frame-union.wmf","wmf-classic-flood-border.wmf"])
+            .union(["wmf-classic-flood-surface.wmf","wmf-classic-flood-legacy-border.wmf","wmf-classic-flood-hatch.wmf","classic-gdi-scanlines-full-white-patcopy-control.wmf"])
+            .union(["surface","border","legacy-border","hatch"].map{"wmf-classic-flood-"+$0+"-sealed-white-patcopy-control.wmf"})
         let classicPatternSamples:Set<String>=["wmf-classic-patternbrush-mono.wmf","wmf-classic-patternbrush-state.wmf","classic-monobrush-dynamic.emf","classic-monobrush-colored.emf","classic-monobrush-palette-select.emf"]
         let embeddedSamples:Set<String>=["embedded-image-wmf.emf","embedded-image-placeable.emf","embedded-image-emf.emf","embedded-image-plus-only.emf","embedded-image-plus-dual.emf","embedded-image-recursive.emf","embedded-image-affine.emf","embedded-image-classic-text-affine.emf","embedded-image-wmf-round-clip-affine.emf","embedded-image-attributes-3.emf","embedded-texture-4.emf","embedded-texture-glyph.emf","embedded-compositing-copy.emf","embedded-image-destination-rop.emf","embedded-checkpoint-scopes.emf"]
         let compressedRasterSamples:Set<String>=["compressed-raster-image-gif-two-frames-visible.emf","compressed-raster-image-gif-two-frames-delay10-loop.emf","compressed-raster-image-tiff-two-pages.emf","compressed-raster-image-exif-orientation6.emf","compressed-raster-image-gif.emf","compressed-raster-image-tiff.emf","compressed-raster-image-gif-alpha.emf","compressed-raster-image-tiff-alpha.emf","compressed-raster-texture-tiff-alpha.emf","compressed-raster-pen-gif.emf","compressed-raster-alpha-tiff-alpha-copy.emf","compressed-raster-affine-gif.emf","compressed-raster-clip-tiff.emf","compressed-raster-attributes-3.emf","compressed-raster-stretch-png-emf.emf","compressed-raster-stretch-jpeg-wmf.wmf","compressed-raster-stretch-mirror-png-wmf.wmf"]
@@ -116,6 +118,10 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 let dimensions=renderedDimensions(sample)
                 try require(owner.model.imageComparison?.base?.pixels.width == dimensions.0 && owner.model.imageComparison?.base?.pixels.height == dimensions.1 && owner.window?.title.hasSuffix("TurtleGitIDiff") == true,"Metafile \(sample.lastPathComponent) was not rendered at its expected \(dimensions.0)x\(dimensions.1) dimensions in native IDiff; actual=\(owner.model.imageComparison?.base?.pixels.width ?? -1)x\(owner.model.imageComparison?.base?.pixels.height ?? -1); title=\(owner.window?.title ?? "none")")
                 try require(owner.model.document?.base.bytes == inputs[index] && owner.model.document?.destination.bytes == bad && (try Data(contentsOf:left)) == inputs[index] && (try Data(contentsOf:right)) == bad,"Metafile rendering rewrote original bytes")
+                if let expected=classicGDIFullCanvasExpected(sample.lastPathComponent),let image=owner.model.imageComparison?.base?.pixels {
+                    try require(image.width==64 && image.height==64,"Classic GDI contract needs the entire native64x64 canvas")
+                    try require(try raster(image)==Data(expected),"Native full-canvas original alpha/explicit PATCOPY/wall connectivity differs: \(sample.lastPathComponent)")
+                }
                 if classicPatternBrushes,let image=owner.model.imageComparison?.base?.pixels {
                     let colored=sample.lastPathComponent=="classic-monobrush-colored.emf" || sample.lastPathComponent=="classic-monobrush-palette-select.emf"
                     try patternRGB(image,8,8,colored ? [255,0,0]:[0,0,255],sample.lastPathComponent+" native bit1 palette")
@@ -691,6 +697,32 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         report["diagnosticReconversion"]=conversions
         try save(try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]),"report.json")
         print("Metafile text comparison evidence: "+directory.path)
+    }
+    /// Handwritten full-canvas expected paint, independent of SVG/raster output.
+    /// Original WMF PS_NULL walls leave row9/row53 gaps; sealed controls contain
+    /// actual PATCOPY records. No decoded image is cropped or composited here.
+    private static func classicGDIFullCanvasExpected(_ name:String)->[UInt8]? {
+        let clear:[UInt8]=[0,0,0,0],white:[UInt8]=[255,255,255,255],red:[UInt8]=[255,0,0,255],blue:[UInt8]=[0,0,255,255],green:[UInt8]=[0,255,0,255],yellow:[UInt8]=[255,255,0,255],black:[UInt8]=[0,0,0,255]
+        var expected=[UInt8]();expected.reserveCapacity(64*64*4)
+        let emptyOriginal=name.hasPrefix("unsupported-raster-wmf-without-bitmap-source-")
+        let emptyControl=name.hasPrefix("classic-gdi-empty-prior-")
+        let scanline=name=="classic-gdi-scanlines-full-white-patcopy-control.wmf"
+        let flood=name.hasPrefix("wmf-classic-flood-") && ["surface","border","legacy-border","hatch"].contains(where:{name=="wmf-classic-flood-"+$0+".wmf" || name=="wmf-classic-flood-"+$0+"-sealed-white-patcopy-control.wmf"})
+        guard emptyOriginal || emptyControl || scanline || flood else{return nil}
+        let sealed=name.contains("-sealed-"),surface=name.contains("-surface") || name.contains("-hatch"),hatch=name.contains("-hatch")
+        let walls=[[8,8,56,10],[8,54,56,56],[8,10,10,54],[54,10,56,54],[30,10,34,54]]
+        for y in 0..<64 {for x in 0..<64 {
+            let color:[UInt8]
+            if emptyControl {color=white}
+            else if emptyOriginal {color=name.contains("-bitblt.") && (8..<24).contains(x) && (8..<24).contains(y) ? white:clear}
+            else if scanline {color=(8..<40).contains(x) && (8..<40).contains(y) ? (y<24 ? (x<24 ? red:green):(x<24 ? blue:yellow)):white}
+            else if walls.contains(where:{r in x>=r[0] && y>=r[1] && x<r[2]-(sealed ? 0:1) && y<r[3]-(sealed ? 0:1)}) {color=black}
+            else if surface && (20..<23).contains(x) && (20..<23).contains(y) {color=blue}
+            else if sealed && !((10..<30).contains(x) && (10..<54).contains(y)) {color=white}
+            else {color = !hatch || x%8==0 || y%8==0 ? red:white}
+            expected.append(contentsOf:color)
+        }}
+        return expected
     }
     private static func raster(_ source:CGImage,interior:CGSize?=nil)throws->Data {
         let image:CGImage
