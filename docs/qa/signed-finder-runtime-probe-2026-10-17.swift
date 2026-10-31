@@ -418,6 +418,47 @@ import TurtleGitCore
         for(name,bytes)in originals{try require(try Data(contentsOf:directory.appendingPathComponent(name))==bytes,"Image selection rewrote input")}
         let git=try GitRuntime.executable(bundle:.main,appStore:true)
         try require(git.path.hasPrefix(Bundle.main.bundleURL.path+"/Contents/"),"Local-tools Git escaped packaged clone")
+        // Exercise the exported metadata API through this same signed sandbox
+        // parent and packaged Git. A utility must not need repository grants or
+        // parse caller configuration, while generic run keeps its authority gate.
+        func metadataProbe()async throws->[String:Any] {
+            enum ReadBarrier:Error {case reached}
+            final class Calls:@unchecked Sendable {
+                private let lock=NSLock();private var value=0
+                func record(){lock.lock();value += 1;lock.unlock()}
+                var count:Int {lock.lock();defer{lock.unlock()};return value}
+            }
+            let config=directory.appendingPathComponent("metadata-malformed.config"),invalid=Data("[broken configuration\n".utf8)
+            try invalid.write(to:config,options:.withoutOverwriting)
+            let caller=directory.appendingPathComponent("metadata-unavailable-caller"),context=directory.appendingPathComponent("metadata-outside-caller-context")
+            let metadata=GitRepository(root:caller,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
+            var environment=["GIT_CONFIG":config.path,"GIT_CONFIG_GLOBAL":config.path,"GIT_CONFIG_SYSTEM":config.path,"GIT_CONFIG_NOSYSTEM":"0","GIT_CONFIG_COUNT":"not-a-number","GIT_CONFIG_PARAMETERS":"'unterminated","HOME":directory.path,"XDG_CONFIG_HOME":context.appendingPathComponent("xdg").path]
+            for(key,leaf)in[("GIT_DIR","repository.git"),("GIT_WORK_TREE","worktree"),("GIT_COMMON_DIR","shared.git"),("GIT_INDEX_FILE","index")] {environment[key]=context.appendingPathComponent(leaf).path}
+            let temporary=try TurtleGitTemporaryStorage.root,before=Set(try FileManager.default.contentsOfDirectory(atPath:temporary.path))
+            let calls=Calls()
+            GitRuntime.installReadPreparation{token in try token?.check();calls.record();throw ReadBarrier.reached}
+            defer{GitRuntime.installReadPreparation{_ in}}
+            let version=try await metadata.executableVersion(environmentOverrides:environment)
+            try require(version.exitCode==0 && version.stdout.starts(with:Data("git version ".utf8)),"Packaged metadata probe did not report its executable version")
+            try require(calls.count==0,"Packaged metadata probe entered repository-grant preparation")
+            // These controls must fail at the installed preparation callback,
+            // before spawning or trying to read even the unavailable caller.
+            for arguments in [["--version"],["config","--global","--list"]] {
+                var stopped=false
+                do {_=try await metadata.run(arguments,environmentOverrides:environment)}catch ReadBarrier.reached {stopped=true}
+                try require(stopped,"Packaged generic Git run bypassed its repository-grant preparation")
+            }
+            try require(calls.count==2,"Packaged generic Git read preparation count changed")
+            let cancellation=OperationCancellation();cancellation.cancel()
+            var cancelled=false
+            do {_=try await metadata.executableVersion(environmentOverrides:environment,cancellation:cancellation)}catch is OperationCancellationFailure {cancelled=true}
+            try require(cancelled && calls.count==2,"Packaged metadata probe lost pre-cancellation or invoked preparation")
+            try require(!FileManager.default.fileExists(atPath:caller.path) && !FileManager.default.fileExists(atPath:context.path),"Packaged metadata probe created caller repository/context paths")
+            try require(try Data(contentsOf:config)==invalid,"Packaged metadata probe changed caller configuration")
+            try require(Set(try FileManager.default.contentsOfDirectory(atPath:temporary.path))==before,"Packaged metadata probe retained an owned temporary request")
+            return ["git":git.path,"version":version.text.trimmingCharacters(in:.whitespacesAndNewlines),"malformed_config_sha256":digest(invalid),"caller_context_not_created":true,"generic_run_barrier_calls":calls.count,"pre_cancelled":cancelled,"temporary_requests_cleaned":true]
+        }
+        let executableMetadata=try await metadataProbe()
         let root=directory.appendingPathComponent("repository");try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         // Keep one real packaged Git helper blocked on its owned stdin long
         // enough for the independent OS observer; fast repository calls alone
@@ -576,7 +617,7 @@ import TurtleGitCore
         let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterConfig=try Data(contentsOf:root.appendingPathComponent(".git/config")),afterWorking=try Data(contentsOf:sentinelURL)
         try require(afterHead==head && afterIndex==index && afterConfig==config && afterWorking==sentinel,"Local-tools smoke changed HEAD/index/config/worktree")
         try require(try FileManager.default.contentsOfDirectory(atPath:root.path).sorted()==[".git","sentinel.txt"],"Historical raw files leaked into checkout")
-        return ["finder_cache_retained_claims":true,"finder_cache_exact_unicode":true,"finder_cache_stale_ticket_fence":true,"finder_cache_v4_wire":true,"repository_initialization_acceptance":true,"clone_acceptance_receipt":true,"checkout_reset_acceptance":true,"auxiliary_setup_separate":true,"submodule_add_exercised":false,"public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
+        return ["executable_metadata_isolation":true,"executable_metadata_probe":executableMetadata,"finder_cache_retained_claims":true,"finder_cache_exact_unicode":true,"finder_cache_stale_ticket_fence":true,"finder_cache_v4_wire":true,"repository_initialization_acceptance":true,"clone_acceptance_receipt":true,"checkout_reset_acceptance":true,"auxiliary_setup_separate":true,"submodule_add_exercised":false,"public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
     }
 
     static func main() async throws {
