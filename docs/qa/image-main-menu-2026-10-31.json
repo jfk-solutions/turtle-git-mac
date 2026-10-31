@@ -1,0 +1,151 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-native-family-passed-system-and-bundled-cumulatively",
+  "source_reference": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseIDiff/TortoiseIDiff.rc:104-132 comparison File/View menu",
+    "src/TortoiseIDiff/TortoiseIDiff.rc:134-155 selection File/View menu",
+    "src/TortoiseIDiff/MainWindow.cpp::CreateToolbar/DoCommand and accelerator consumers"
+  ],
+  "scope": [
+    "Native image File/View main-menu contributions across comparison, standalone selection and repository conflict windows",
+    "Shared source menu recipes, localized captions/artwork, enable/check state and keyboard actions",
+    "Exact current owner, retained-item refusal, busy/sheet stability and owned retirement; preserve host Close/Quit commands"
+  ],
+  "source_findings": [
+    "Selection source omits Open, Overlay, Blend, Link and width/height matching.",
+    "Source V display label uses Ctrl-V accelerator; Mac retains Cmd-V and does not invent plain-V.",
+    "Unused b accelerator without a command consumer is not a missing implemented upstream feature.",
+    "Reload is an existing explicit native extension; source Exit maps to native Close and app Quit."
+  ],
+  "core": "No Core implementation or Git operations changed; no Core suite needed.",
+  "resources": {
+    "localization": "38 locales /1326 keys write/check passed; catalog unchanged.",
+    "help": "Image guide including native Paste behavior generated/checked:64 documents /53 topics /98 members /9398738 bytes.",
+    "coverage": "Reconciled all130 pinned dialog/id pairs and1659 static controls;120 partial family audits/10 pending reviews,85 controls remain pending; zero certified-complete dialogs. These are coverage classifications, not feature completion percentages.",
+    "site": "Rendered520 documents with zero unresolved fragments; build/qa/image-main-menu-site-2026-10-31.log."
+  },
+  "installed_build": "47 remains installed and closed; predates this family and the preceding text Open continuation.",
+  "limits": [
+    "Private receiver menu/key ownership injection does not prove OS event ordering or physical menu tracking.",
+    "Physical keyboard/VoiceOver, screenshots of all menu states, signed grants and complete image/source parity require separate acceptance.",
+    "No image decoding, frame playback or conflict resolution semantics changed. Their passing checks are not repeated solely for menu integration.",
+    "No public binary upload, notarization or App Store submission; whole-port completion remains unproven."
+  ],
+  "builds": [
+    {
+      "result": "passed",
+      "log": "build/qa/image-main-menu-debug-2026-10-31.log"
+    },
+    {
+      "result": "passed",
+      "log": "build/qa/image-main-menu-debug-source-freeze-2026-10-31.log",
+      "limit": "Swift compiled the source but reused the byte-identical object without updating its timestamp."
+    },
+    {
+      "result": "passed",
+      "log": "build/qa/image-main-menu-debug-object-refresh-2026-10-31.log",
+      "scope": "Only stale generated arm64 object forced to regenerate; production behavior unchanged."
+    },
+    {
+      "result": "passed",
+      "log": "build/qa/image-main-menu-debug-shortcut-ownership-2026-10-31.log"
+    }
+  ],
+  "retained_failures": [
+    {
+      "log": "build/qa/image-main-menu-native-2026-10-31.log",
+      "cause": "Prelaunch exact-input guard rejected MergeEditorOpenWorkflow.swift after root removed a trailing blank line after its compilation. No receiver ran; a final source-freeze incremental build refreshes that object without behavioral changes."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-source-freeze-2026-10-31.log",
+      "cause": "Same prelaunch guard after compiler preserved timestamp of byte-identical object. Only that generated arm64 object was removed to require fresh compiler output; no guard or assertions bypassed, no receiver launched."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-object-refresh-2026-10-31.log",
+      "cause": "First actual receiver reached localized native menu composition, then key-equivalent conjunction failed at fixture line226. Preserve command/key/modifier diagnostics before deciding whether native normalization or source mapping needs correction. Receiver15203 reaped."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-key-normalization-2026-10-31.log",
+      "cause": "Diagnostics identify Open specifically: logical Cmd-O, observed empty key with Command mask, independent differently titled native item retains Cmd-O. Cause not yet classified; source assignment, main-menu collision and caption-specific user override require bounded isolation. Receiver15460 reaped."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-key-stages-2026-10-31.log",
+      "cause": "Failure-only diagnostic reset of the contributed key did not resolve its public getter and the receiver later exited SIGSEGV during diagnostic failure cleanup. Mutation and asynchronous diagnostics were removed; this is not a passing product result."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-key-object-2026-10-31.log",
+      "cause": "Source getter and backing NSString both contain intended Cmd-O; actual and oracle use the same NSMenuItem class/accessors, but actual public getter is empty. No caption override or hidden/alternate flag explains it."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-key-host-2026-10-31.log",
+      "cause": "Causal receiver diagnostic: clearing only the host Open key makes contributed Open expose Cmd-O immediately. Restoring the host while contribution remains leaves AppKit preferring the contributed key; shortcut restoration must remove owned registrations first."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-shortcut-ownership-2026-10-31.log",
+      "cause": "All literal source key/chord checks now pass, including Open. Receiver17775 later exited SIGSEGV with objc_release→async fixture verify frame; exact next assertion/action and private native-menu cleanup are being diagnosed. Not a passing product result."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-action-boundary-2026-10-31.log",
+      "cause": "Exact trace identifies wrong fixture expectation: native NSMenu consumes a disabled owned Cmd-O without running image or host Open. Repaired assertion now requires consumption plus disabled validation, no action, no chooser and unchanged image state. Earlier SIGSEGV during failed-assertion unwind remains recorded, not passing acceptance."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-disabled-key-contract-2026-10-31.log",
+      "cause": "Comparison helper passed completely. Conflict native Paste passed, but post-field readiness failed because physical sheet detachment preceded asynchronous image owner-gate drain. Fixture now waits actual command readiness after detach; assertions retained."
+    },
+    {
+      "log": "build/qa/image-main-menu-native-owner-gate-2026-10-31.log",
+      "cause": "System full case passed. Bundled reached final standalone menu recipe then objc_release/async verify SIGSEGV without failed assertion. Explicit private target/menu lifetime now extends through native shortcut and main-menu restoration; only bundled repeated, successfully. Stack alone does not establish the precise release cause or a production-controller fault."
+    }
+  ],
+  "diagnostic_scope": {
+    "standalone": "Bounded prohibited AppKit-only processes, then full recipe/toolbar variants; no window shown. Those reduced cases did not reproduce receiver shortcut priority and are not passing app acceptance.",
+    "receiver": "Read-only object evidence and baseline-only causal check identify actual native shortcut priority; no production shortcut suppression was added on unsupported hypotheses."
+  },
+  "implementation_continuation": "Actual menu priority requires scoped shortcut leases: snapshot exact host chords before contribution, preserve native actions, keep disabled image chords scoped while busy, release image keys before conditional host restoration, allow native field-editor Paste, and reclaim on image focus.",
+  "native": {
+    "system": {
+      "result": "passed",
+      "log": "build/qa/image-main-menu-native-owner-gate-2026-10-31.log",
+      "receiver_reaped": 18787,
+      "scope": "Complete existing toolbar case: comparison, repository conflict and standalone selection, literal source recipes/artwork/keys/checks, actual native actions/events, busy disabled-key consumption without actions, physical hidden sheet/gate drain, private field-editor Paste, foreign window/stale epoch refusal, exact baseline and conditional external-edit restoration, unchanged source bytes/HEAD/index, owners closed."
+    },
+    "bundled": {
+      "result": "passed",
+      "log": "build/qa/image-main-menu-native-menu-lifetime-2026-10-31.log",
+      "scope": "Same complete toolbar case after fixture-only explicit private menu/target lifetime extension.",
+      "receiver_reaped": 19298
+    },
+    "source_boundary": "Both successful engine runs use the same final production implementation. System fixture predates the final explicit private menu/target cleanup lifetime extension; its pass is retained rather than repeated. No other image cases, full Core or full integration suites were repeated."
+  },
+  "production_sources_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "04bee5676c9a6e78a5fbe5110daa09eb9d0eecbfbd4ca7c666ac61832c4531e7",
+    "Sources/TurtleGitMac/ImageComparisonWindow.swift": "445b531cbc9e549d469eaa5fa47ffcab194812be449dad3c6361301c703571b4",
+    "Sources/TurtleGitMac/ImageConflictWindow.swift": "8ae840cb7a43edf23dc8e21d504101c7c45c28034c87e8867c6f26dbf900d529",
+    "Sources/TurtleGitMac/ImageEditorToolbar.swift": "5f199cc11e165d9c9f585785ecc0ee8f94501ac7a2d74335a51395400426ba58",
+    "Sources/TurtleGitMac/ImageSelectionWindow.swift": "e26f3aa6d1d31faa6a04a79d4bc2b709fd42f7c7ea0ca2f64e56ac782809d956",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "7b7eaacdc0da835aea360ba10766756a023c8d7d85f78a4b7674f1f6ce55c785",
+    "Sources/TurtleGitMac/MergeEditorOpenWorkflow.swift": "ddf4b7f9d2b1ac0a9935af543c329e35c7688c48df5129b2d6d10e4b4a331800",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "ccbba9497dc72b07f4eade9b5c0cac1325550a10c35a6942c9471297d9c7aaa4"
+  },
+  "cleanup": {
+    "owned_receiver_pids": [
+      15203,
+      15460,
+      16149,
+      16748,
+      17005,
+      17775,
+      18282,
+      18487,
+      18787,
+      18934,
+      19298
+    ],
+    "independent_ps": "Every recorded app receiver PID absent; each runner reaped its owned process. No unrelated user app signalled.",
+    "reduced_diagnostic_processes": "Separate bounded prohibited AppKit diagnostic processes15773,16290,16446 exited/reaped; compiler-only failure16429 exited/reaped. No diagnostic window shown.",
+    "diagnostics_independent_ps": "All four reduced diagnostic/compiler PIDs independently absent."
+  },
+  "source_parent_commit": "fc45a076e91ce5b1306b0785a852d8d0586ede93",
+  "final_fixture_sha256": "4e7643fe34cc564f54fdfea71f11847914e7c60876e93e6df539078166ce2465"
+}

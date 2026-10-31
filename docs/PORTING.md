@@ -6057,3 +6057,28 @@ repairs; no Core suite ran. All owned receivers were reaped and independently
 absent. The [source record](MERGE-OPEN-PARITY.md#continuous-native-open-transaction--october-31-2026)
 and user guide describe the behavior and remaining physical/signed/layout gates.
 Installed build47 is unchanged and predates this family.
+
+
+## Native image menu family — October 31, 2026
+
+Image comparison, standalone selection and repository conflict windows now
+contribute the source File/View recipes to the macOS menu bar. The toolbar
+menus share their command order, localized captions, artwork and state. Selection
+omits comparison-only commands; existing native Close/Quit/Help remain intact.
+
+Localized native roots are discovered by role, rather than an English caption.
+Main-menu, toolbar overflow and image key dispatch recheck the current window,
+command readiness and sheet ownership. Stale retained entries cannot act after
+a window switch or retirement. Loading keeps the menu shape stable while
+disabling competing actions. The image guide and bundled Help describe these
+commands. The [grouped checkpoint](qa/image-main-menu-2026-10-31.json) records
+actual validation and its physical/signed/full-source limits. Installed build47
+predates this family.
+
+The final production Debug build and grouped image-toolbar case pass with system
+and bundled Git, covering all three window modes. The system pass is retained
+across the final fixture-only private menu/target lifetime repair. The checkpoint
+records native shortcut-priority, disabled-key and owner-gate discoveries,
+remaining physical/OS-key-ordering limits and each failed attempt. All recorded
+receivers are reaped and independently absent; validation is closed for this
+family without repeating unrelated image or Core suites.

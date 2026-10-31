@@ -12,8 +12,14 @@ It preserves original multi-frame and metafile bytes; previews do not convert
 the selected result. A copied image can optionally be marked resolved when its
 existing repository conflict is available under current permissions.
 
-Hover over a toolbar button to read its command name. The **View** menu offers
-these same controls:
+Hover over a toolbar button to read its command name. While an image window is
+active, the macOS menu bar's **File** and **View** menus provide the same image
+commands as the toolbar's menu buttons. Checked menu items show the current
+window's settings. Commands follow the active image window when you switch
+between comparisons or conflict viewers. Text fields retain their normal
+editing shortcuts, including Paste.
+
+The **View** menu offers these controls:
 
 - **Arrange vertical** changes the two panes from side-by-side to top/bottom.
 - **Fit image widths** or **Fit image heights** matches that dimension between
@@ -80,6 +86,11 @@ Use the app's **File → Load Images…** to compare image files without opening
 repository. In an image viewer, **File → Open…** or **Cmd+O** opens the same
 native two-path chooser. Use Browse for either side, leave a side blank for a
 single image, or choose the same image twice. Cancel keeps the existing view.
+**Reload** reads the current comparison again. An image-selection or conflict
+window offers its own view and reload controls; it does not replace its inputs
+through Open. Use **File → Close** to close that window, or the app's **Quit**
+command to leave TurtleGit. Commands that would compete with loading, a file
+chooser or conflict resolution remain unavailable until that operation finishes.
 
 
 ## Windows metafiles

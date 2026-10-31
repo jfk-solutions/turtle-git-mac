@@ -274,7 +274,6 @@ private enum MergeSourceSide {
 }
 
 @MainActor final class TextConflictWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
-    private let editorFileMenu = MergeEditorFileMenu()
     private(set) var externalReload: MergeExternalReloadCoordinator?
     private final class CloseChoice {
         let alert:NSAlert,owner:NSWindow
@@ -304,9 +303,9 @@ private enum MergeSourceSide {
     private func retireCloseChoice() {
         guard let closeChoice else{return};closeChoice.retired=true;drainCloseChoice(closeChoice,response:.cancel)
     }
-    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install();externalReload?.activate() }
-    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove();editorFileMenu.remove() }
-    func detachForReplacement() {retireActivationObservers();retireCloseChoice();externalReload?.retire();editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); model.retire(); model.window = nil }
+    func windowDidBecomeKey(_ notification: Notification) { editorCommandMenu?.install();externalReload?.activate() }
+    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove() }
+    func detachForReplacement() {retireActivationObservers();retireCloseChoice();externalReload?.retire();editorCommandMenu?.retire();editorToolbar?.retire(); model.retire(); model.window = nil }
     @objc func reloadEditor(_ sender: Any?) { guard !model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !model.externalReloadBlocksCommands && !model.preservingSourceCopies && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     private(set) var editorToolbar: MergeEditorToolbar?
@@ -386,7 +385,7 @@ private enum MergeSourceSide {
     func windowWillClose(_ notification: Notification) {
         guard let closing = notification.object as? NSWindow, closing === window, !closingEditor else { return }; closingEditor = true
         retireActivationObservers(); retireCloseChoice(); externalReload?.retire(); MergeLineRuler.retire(in:window?.contentView)
-        editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); model.retire()
+        editorCommandMenu?.retire(); editorToolbar?.retire(); editorOpenWorkflow?.retire(); model.retire()
         let replacement = sharedReplacementOwner ?? replacementOwner
         let closingReplacement = replacement?.current == nil || replacement?.current === self ? replacement : nil
         guard mergeToolHasPendingWork || closingReplacement?.hasPendingRetiredWork == true else { onClosed(); return }

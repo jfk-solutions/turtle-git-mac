@@ -10,8 +10,13 @@ Theirs as a complete result image, use the <a href="IMAGE-TOOL.html">standalone 
 It preserves original multi-frame and metafile bytes; previews do not convert
 the selected result. A copied image can optionally be marked resolved when its
 existing repository conflict is available under current permissions.</p>
-<p>Hover over a toolbar button to read its command name. The <strong>View</strong> menu offers
-these same controls:</p>
+<p>Hover over a toolbar button to read its command name. While an image window is
+active, the macOS menu bar's <strong>File</strong> and <strong>View</strong> menus provide the same image
+commands as the toolbar's menu buttons. Checked menu items show the current
+window's settings. Commands follow the active image window when you switch
+between comparisons or conflict viewers. Text fields retain their normal
+editing shortcuts, including Paste.</p>
+<p>The <strong>View</strong> menu offers these controls:</p>
 <ul>
 <li><strong>Arrange vertical</strong> changes the two panes from side-by-side to top/bottom.</li>
 <li><strong>Fit image widths</strong> or <strong>Fit image heights</strong> matches that dimension between
@@ -71,7 +76,12 @@ appearance and resets the transparency background to the theme default.</p>
 <p>Use the app's <strong>File → Load Images…</strong> to compare image files without opening a
 repository. In an image viewer, <strong>File → Open…</strong> or <strong>Cmd+O</strong> opens the same
 native two-path chooser. Use Browse for either side, leave a side blank for a
-single image, or choose the same image twice. Cancel keeps the existing view.</p>
+single image, or choose the same image twice. Cancel keeps the existing view.
+<strong>Reload</strong> reads the current comparison again. An image-selection or conflict
+window offers its own view and reload controls; it does not replace its inputs
+through Open. Use <strong>File → Close</strong> to close that window, or the app's <strong>Quit</strong>
+command to leave TurtleGit. Commands that would compete with loading, a file
+chooser or conflict resolution remain unavailable until that operation finishes.</p>
 <h2 id="windows-metafiles">Windows metafiles</h2>
 <p>Bitmap drawings with V4/V5 color headers and embedded profiles use the same
 stored RGB colors as the upstream viewer. Linked profile names do not trigger

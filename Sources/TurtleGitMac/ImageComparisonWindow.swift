@@ -415,7 +415,9 @@ import TurtleGitCore
     }
     func performKey(_ event: NSEvent, window: NSWindow) -> Bool {
         guard interactionAllowed else { return false }
-        if let command = ImageEditorCommand.key(event) { perform(command); return true }
+        if let command = ImageEditorCommand.key(event) {
+            guard commandState(command).enabled else { return false }; perform(command); return true
+        }
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         guard flags.isEmpty || flags == .shift else { return false }
         switch event.keyCode {

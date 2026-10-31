@@ -6,14 +6,18 @@ import TurtleGitCore
 @MainActor private final class ImageConflictNSWindow: NSWindow {
     weak var imageModel: ImageConflictWindowModel?
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
-        guard attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
+        let keyWindow: NSWindow?
+        if let toolbar = (delegate as? ImageConflictWindowController)?.imageToolbar { keyWindow = toolbar.keyWindow() }
+        else { keyWindow = NSApp.keyWindow }
+        guard keyWindow === self, event.window == nil || event.window === self,
+              NSApp.modalWindow == nil, attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
               let imageModel, !imageModel.retired else { return super.performKeyEquivalent(with: event) }
         // Preview decoding is cancellable by the ordinary window close route.
         // Mutation/Select work still keeps its existing busy close protection.
         if event.modifierFlags.intersection([.command,.shift,.control,.option]).isEmpty, event.keyCode == 53,
            !imageModel.busy || imageModel.decoding { performClose(nil); return true }
         guard !imageModel.busy else {return super.performKeyEquivalent(with:event)}
-        if let command = ImageEditorCommand.key(event), imageModel.commandState(command) != nil {
+        if let command = ImageEditorCommand.key(event), imageModel.commandState(command)?.enabled == true {
             imageModel.perform(command); return true
         }
         return super.performKeyEquivalent(with: event)
@@ -35,10 +39,18 @@ import TurtleGitCore
         model.askMarkResolved = { [weak model = model] path in await model?.confirmResolution(path: path) ?? false }
         paneWindowGate=ImagePaneOwnerWindowGate(window:window){[weak model] blocked in model?.setWindowCommandsBlocked(blocked)}
         imageToolbar = ImageEditorToolbar.conflict(self)
+        TurtleGitHelp.attach(window, topic: .images)
         DialogGeometry.attach(window, identifier: "TurtleGit.ImageConflict", legacyName: "TurtleGit.ImageConflict")
+    }
+    func windowDidBecomeKey(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }; imageToolbar?.installMainMenu()
+    }
+    func windowDidResignKey(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }; imageToolbar?.removeMainMenu()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { (!model.busy || model.decoding) && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
         paneWindowGate?.retire();paneWindowGate=nil;imageToolbar?.retire(); model.retire(); (window as? ImageConflictNSWindow)?.imageModel = nil; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

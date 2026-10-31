@@ -32,7 +32,11 @@ private extension FileComparisonDocument {
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if let owner = delegate as? FileComparisonWindowController,owner.editorCommandMenu?.performKeyEquivalent(event) == true { return true }
         if let imageKeyModel, !imageKeysRetired {
-            if attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
+            let keyWindow: NSWindow?
+            if let toolbar = (delegate as? FileComparisonWindowController)?.imageToolbar { keyWindow = toolbar.keyWindow() }
+            else { keyWindow = NSApp.keyWindow }
+            if keyWindow === self, event.window == nil || event.window === self,
+               NSApp.modalWindow == nil, attachedSheet == nil, (firstResponder as? NSTextView)?.isFieldEditor != true,
                imageKeyModel.performKey(event, window: self) { return true }
             return super.performKeyEquivalent(with: event)
         }
@@ -60,7 +64,6 @@ private extension FileComparisonDocument {
     private(set) var editorCommandMenu: MergeEditorCommandMenu?
     private(set) var imageToolbar: ImageEditorToolbar?
     var showEditorHelp: () -> Void = { TurtleGitHelp.show(.compare) }
-    private let editorFileMenu = MergeEditorFileMenu()
     private weak var patchMenu: NSMenu?
     private var patchMenuItem: NSMenuItem?
     private(set) var externalReload: MergeExternalReloadCoordinator?
@@ -94,20 +97,22 @@ private extension FileComparisonDocument {
         }
     }
     func refreshScopedFileMenu() {
-        editorFileMenu.remove();removePatchMenu()
+        removePatchMenu()
         if model.imageComparison != nil {
-            editorCommandMenu?.remove()
-            editorFileMenu.install(target:self,open:#selector(openMergeDocument(_:)),reload:#selector(reloadEditor(_:)),images:true)
-        } else { editorCommandMenu?.install() }
+            editorCommandMenu?.remove(); imageToolbar?.installMainMenu()
+        } else { imageToolbar?.removeMainMenu(); editorCommandMenu?.install() }
     }
-    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove(); removePatchMenu(); editorFileMenu.remove() }
+    func windowDidResignKey(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }
+        editorCommandMenu?.remove(); removePatchMenu(); imageToolbar?.removeMainMenu()
+    }
     private func removePatchMenu() {
         if let item = patchMenuItem, let menu = patchMenu, menu.items.contains(item) { menu.removeItem(item) }
         patchMenuItem = nil; patchMenu = nil
     }
     func detachForReplacement() {
         externalReload?.retire()
-        imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
+        imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); imageToolbar?.removeMainMenu(); removePatchMenu(); model.retireImageLoader(); model.resetHistory(); model.window = nil
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
     @objc func reloadEditor(_ sender: Any?) {
@@ -226,7 +231,7 @@ private extension FileComparisonDocument {
         closingComparison = true; externalReload?.retire()
         if let observer = externalReloadSheetObserver { NotificationCenter.default.removeObserver(observer); externalReloadSheetObserver = nil }
         MergeLineRuler.retire(in:window?.contentView)
-        imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
+        imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); imageToolbar?.removeMainMenu(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.retire(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
         editorOpenWorkflow?.retire(); model.retireImageLoader(); model.resetHistory()
         let replacement = sharedReplacementOwner ?? replacementOwner

@@ -27,6 +27,22 @@ enum ImageEditorCommand: String, CaseIterable {
         case .fileMenu: return .open; case .viewMenu: return .imageInfo
         }
     }
+    var caption: String { Bundle.main.localizedString(forKey: title, value: title, table: nil) }
+    /// Pinned IDC_TORTOISEIDIFF/IDC_TORTOISEIDIFF2; Reload is a native extension.
+    static func menuCommands(_ menu: ImageEditorCommand, selection: Bool) -> [ImageEditorCommand?] {
+        if menu == .fileMenu { return selection ? [.reload] : [.open, .reload] }
+        let comparison: [ImageEditorCommand?] = selection ? [] : [.overlay, .blend, .link, .widths, .heights]
+        return comparison + [.fit, .original, .transparentColor, nil, .zoomOut, .zoomIn, nil, .info, .vertical, nil, .dark]
+    }
+    var menuKey: (String, NSEvent.ModifierFlags) {
+        switch self {
+        case .open: return ("o", .command); case .vertical: return ("v", .command)
+        case .overlay: return ("o", []); case .widths: return ("w", []); case .heights: return ("h", [])
+        case .fit: return ("f", []); case .original: return ("s", []); case .info: return ("i", [])
+        case .dark: return ("d", []); case .zoomOut: return ("-", []); case .zoomIn: return ("+", [])
+        default: return ("", [])
+        }
+    }
     var toggle: Bool { [.overlay, .blend, .link, .widths, .heights, .info, .vertical, .dark].contains(self) }
     var identifier: NSToolbarItem.Identifier { .init("TurtleGit.Image." + rawValue) }
     static func key(_ event: NSEvent) -> ImageEditorCommand? {
@@ -48,6 +64,7 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
 /// AppKit supplies native overflow; every item/menu dispatch rechecks its owner.
 @MainActor final class ImageEditorToolbar: NSObject, NSToolbarDelegate, NSToolbarItemValidation, NSMenuItemValidation, NSMenuDelegate {
     let toolbar: NSToolbar
+    private(set) var commandMenu: ImageEditorCommandMenu!
     private weak var window: NSWindow?
     private let commands: [ImageEditorCommand]
     private let defaults: [NSToolbarItem.Identifier]
@@ -58,6 +75,7 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
     private let preferences:UserDefaults
     private var observations: [AnyCancellable] = []
     private var retired = false, queued = false
+    var keyWindow: () -> NSWindow? = { NSApp.keyWindow }
     init(window: NSWindow, selection: Bool, changes: [AnyPublisher<Void, Never>],
          visible: @escaping () -> Bool, state: @escaping (ImageEditorCommand) -> ImageEditorCommandState?,
          action: @escaping (ImageEditorCommand) -> Void, installed: @escaping (Bool) -> Void, preferences:UserDefaults = .standard) {
@@ -67,8 +85,9 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
         defaults = (selection ? [] : [ImageEditorCommand.overlay.identifier, ImageEditorCommand.blend.identifier, .space, ImageEditorCommand.link.identifier, ImageEditorCommand.widths.identifier, ImageEditorCommand.heights.identifier, .space]) + common.prefix(4).map(\.identifier) + [.space] + common.suffix(2).map(\.identifier) + [.flexibleSpace, ImageEditorCommand.fileMenu.identifier, ImageEditorCommand.viewMenu.identifier]
         toolbar = NSToolbar(identifier: "TurtleGit.Image." + (selection ? "Selection." : "Comparison.") + UUID().uuidString)
         super.init(); toolbar.delegate = self; toolbar.displayMode = .iconOnly; toolbar.allowsUserCustomization = false
+        commandMenu = ImageEditorCommandMenu(window: window, selection: selection, available: visible, state: state, action: action, preferences: preferences)
         for publisher in changes { observations.append(publisher.sink { [weak self] in self?.scheduleRefresh() }) }
-        for name in [NSWindow.willBeginSheetNotification, NSWindow.didEndSheetNotification] {
+        for name in [NSWindow.willBeginSheetNotification, NSWindow.didEndSheetNotification, NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification] {
             observations.append(NotificationCenter.default.publisher(for: name, object: window).sink { [weak self] _ in self?.scheduleRefresh() })
         }
         refresh()
@@ -83,14 +102,19 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
         if show && window.toolbar !== toolbar { window.toolbarStyle = .expanded; window.toolbar = toolbar; installed(true) }
         else if !show { if window.toolbar === toolbar { window.toolbar = nil }; installed(false) }
         for item in toolbar.items { update(item) }
+        commandMenu.refresh()
     }
+    func installMainMenu() { commandMenu.install() }
+    func removeMainMenu() { commandMenu.remove() }
     func retire() {
-        guard !retired else { return }; retired = true; observations = []
+        guard !retired else { return }; retired = true; observations = []; commandMenu.retire()
         for item in toolbar.items { item.isEnabled = false; (item.view as? NSControl)?.isEnabled = false }
         if window?.toolbar === toolbar { window?.toolbar = nil }
         installed(false)
     }
-    private var active: Bool { !retired && visible() && window?.toolbar === toolbar }
+    private var active: Bool {
+        !retired && visible() && window?.toolbar === toolbar && keyWindow() === window && window?.attachedSheet == nil && NSApp.modalWindow == nil
+    }
     private func command(_ tag: Int) -> ImageEditorCommand? { ImageEditorCommand.allCases.indices.contains(tag) ? ImageEditorCommand.allCases[tag] : nil }
     private func command(_ identifier: NSToolbarItem.Identifier) -> ImageEditorCommand? { commands.first { $0.identifier == identifier } }
     func perform(_ command: ImageEditorCommand) {
@@ -109,21 +133,21 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
         if command == .fileMenu || command == .viewMenu {
             item = NSToolbarItem(itemIdentifier: identifier)
             let popup = NSPopUpButton(frame: .zero, pullsDown: true)
-            let contents = menu(command); contents.insertItem(withTitle: command.title, action: nil, keyEquivalent: "", at: 0)
-            popup.menu = contents; popup.title = command.title; popup.bezelStyle = .texturedRounded
-            popup.setAccessibilityLabel("Image " + command.title + " menu"); popup.sizeToFit(); item.view = popup
+            let contents = menu(command); contents.insertItem(withTitle: command.caption, action: nil, keyEquivalent: "", at: 0)
+            popup.menu = contents; popup.title = command.caption; popup.bezelStyle = .texturedRounded
+            popup.setAccessibilityLabel("Image " + command.caption + " menu"); popup.sizeToFit(); item.view = popup
         } else {
             item = NSToolbarItem(itemIdentifier: identifier)
             if command.toggle {
                 let button = NSButton(image: command.icon?.image(size: 24) ?? NSImage(), target: self, action: #selector(invoke(_:)))
                 button.setButtonType(.pushOnPushOff); button.bezelStyle = .texturedRounded; button.imagePosition = .imageOnly
-                button.tag = ImageEditorCommand.allCases.firstIndex(of: command)!; button.toolTip = command.title
-                button.setAccessibilityLabel(command.title); item.view = button
+                button.tag = ImageEditorCommand.allCases.firstIndex(of: command)!; button.toolTip = command.caption
+                button.setAccessibilityLabel(command.caption); item.view = button
             }
             item.image = command.icon?.image(size: 24); item.target = self; item.action = #selector(invoke(_:))
         }
         item.autovalidates = false
-        item.label = command.title; item.paletteLabel = command.title; item.toolTip = command.title
+        item.label = command.caption; item.paletteLabel = command.caption; item.toolTip = command.caption
         item.tag = ImageEditorCommand.allCases.firstIndex(of: command)!; update(item); return item
     }
     private func update(_ item: NSToolbarItem) {
@@ -138,14 +162,14 @@ struct ImageEditorCommandState { var enabled: Bool; var checked = false }
         item.menuFormRepresentation = overflow
     }
     private func leaf(_ command: ImageEditorCommand) -> NSMenuItem {
-        let item = NSMenuItem(title: command.title, action: #selector(invoke(_:)), keyEquivalent: "")
+        let item = NSMenuItem(title: command.caption, action: #selector(invoke(_:)), keyEquivalent: "")
         item.target = self; item.tag = ImageEditorCommand.allCases.firstIndex(of: command)!; item.image = command.icon?.contextImage(defaults:preferences)
         item.isEnabled = active && state(command)?.enabled == true; item.state = state(command)?.checked == true ? .on : .off
         return item
     }
     private func menu(_ command: ImageEditorCommand) -> NSMenu {
-        let menu = NSMenu(title: command.title); menu.delegate = self
-        let order: [ImageEditorCommand?] = command == .fileMenu ? [.open, .reload] : [.overlay, .blend, .link, .widths, .heights, .fit, .original, .transparentColor, nil, .zoomOut, .zoomIn, nil, .info, .vertical, nil, .dark]
+        let menu = NSMenu(title: command.caption); menu.delegate = self
+        let order = ImageEditorCommand.menuCommands(command, selection: !commands.contains(.open))
         for command in order {
             if let command { if commands.contains(command) { menu.addItem(leaf(command)) } }
             else if !menu.items.isEmpty && menu.items.last?.isSeparatorItem != true { menu.addItem(.separator()) }
@@ -195,5 +219,223 @@ extension ImageEditorToolbar {
         return ImageEditorToolbar(window: window, selection: true, changes: [model.objectWillChange.eraseToAnyPublisher(), model.presentation.objectWillChange.eraseToAnyPublisher()],
             visible: { [weak model] in model?.retired == false }, state: { [weak model] in model?.commandState($0) },
             action: { [weak model] in model?.perform($0) }, installed: { [weak model] value in if model?.nativeToolbarInstalled != value { model?.nativeToolbarInstalled = value } },preferences:model.presentationPreferences)
+    }
+}
+
+/// Contributions belong to one key image owner. Native File/Close, Window,
+/// application Quit and Help retain their existing responders and placement.
+@MainActor final class ImageEditorCommandMenu: NSObject, NSMenuItemValidation {
+    private final class Invocation {
+        let command: ImageEditorCommand, epoch: UUID
+        init(_ command: ImageEditorCommand, _ epoch: UUID) { self.command = command; self.epoch = epoch }
+    }
+    private final class ShortcutLease {
+        weak var item: NSMenuItem?
+        weak var parent: NSMenu?
+        let key: String, mask: NSEvent.ModifierFlags, action: Selector?, target: ObjectIdentifier?
+        var suppressed = false, relinquished = false
+        init(_ item: NSMenuItem) {
+            self.item = item; parent = item.menu; key = item.keyEquivalent
+            mask = item.keyEquivalentModifierMask; action = item.action
+            target = item.target.map { ObjectIdentifier($0) }
+        }
+        var unchangedOwner: Bool {
+            guard let item else { return false }
+            return item.menu === parent && parent != nil && item.action == action &&
+                item.target.map { ObjectIdentifier($0) } == target && item.keyEquivalentModifierMask == mask
+        }
+        func suppress() {
+            guard !relinquished, !suppressed, let item else { return }
+            guard unchangedOwner, item.keyEquivalent == key else { relinquished = true; return }
+            item.keyEquivalent = ""; suppressed = true
+        }
+        func restore() {
+            guard suppressed, let item else { return }; suppressed = false
+            guard unchangedOwner, item.keyEquivalent.isEmpty else { relinquished = true; return }
+            item.keyEquivalent = key
+        }
+    }
+    private var shortcutLeases: [ShortcutLease] = []
+    private var shortcutsClaimed = false
+    private weak var window: NSWindow?
+    private weak var mainMenu: NSMenu?
+    private var contributed: [NSMenuItem] = [], createdRoots: [NSMenuItem] = []
+    private var epoch = UUID(), retired = false, queued = false
+    private var observations: [AnyCancellable] = []
+    private var tracked = Set<ObjectIdentifier>()
+    private let selection: Bool, preferences: UserDefaults
+    private var available: () -> Bool
+    private var state: (ImageEditorCommand) -> ImageEditorCommandState?
+    private var action: (ImageEditorCommand) -> Void
+    var applicationMenu: () -> NSMenu? = { NSApp.mainMenu }
+    var keyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    init(window: NSWindow, selection: Bool, available: @escaping () -> Bool,
+         state: @escaping (ImageEditorCommand) -> ImageEditorCommandState?, action: @escaping (ImageEditorCommand) -> Void,
+         preferences: UserDefaults) {
+        self.window = window; self.selection = selection; self.available = available; self.state = state; self.action = action; self.preferences = preferences
+        super.init()
+        observations.append(NotificationCenter.default.publisher(for: NSApplication.didUpdateNotification).sink { [weak self] _ in
+            guard let self, self.needsSynchronization || self.shortcutsClaimed != self.shouldClaimShortcuts else { return }; self.scheduleRefresh()
+        })
+        for name in [NSControl.textDidBeginEditingNotification, NSControl.textDidEndEditingNotification] {
+            observations.append(NotificationCenter.default.publisher(for: name).sink { [weak self] note in
+                guard let self, (note.object as? NSView)?.window === self.window else { return }; self.scheduleRefresh()
+            })
+        }
+        observations.append(NotificationCenter.default.publisher(for: NSMenu.didBeginTrackingNotification).sink { [weak self] note in
+            guard let self, let menu = note.object as? NSMenu, self.belongs(menu) else { return }; self.tracked.insert(ObjectIdentifier(menu))
+        })
+        observations.append(NotificationCenter.default.publisher(for: NSMenu.didEndTrackingNotification).sink { [weak self] note in
+            guard let self, let menu = note.object as? NSMenu else { return }; self.tracked.remove(ObjectIdentifier(menu)); self.scheduleRefresh()
+        })
+    }
+    private var ownsWindow: Bool { !retired && window != nil && keyWindow() === window && available() }
+    private var active: Bool {
+        ownsWindow && mainMenu != nil && mainMenu === applicationMenu() && window?.attachedSheet == nil && NSApp.modalWindow == nil &&
+        (window?.firstResponder as? NSTextView)?.isFieldEditor != true
+    }
+    private var shouldClaimShortcuts: Bool {
+        ownsWindow && window?.attachedSheet == nil && NSApp.modalWindow == nil &&
+        (window?.firstResponder as? NSTextView)?.isFieldEditor != true
+    }
+    private var sourceChords: [(String, NSEvent.ModifierFlags)] {
+        [ImageEditorCommand.fileMenu, .viewMenu].flatMap { ImageEditorCommand.menuCommands($0, selection: selection).compactMap { $0 } }
+            .filter { state($0) != nil }.map(\.menuKey).filter { !$0.0.isEmpty }
+    }
+    private func hostItems(_ menu: NSMenu) -> [NSMenuItem] {
+        menu.items.flatMap { item in [item] + (item.submenu.map(hostItems) ?? []) }
+    }
+    private func captureHostShortcuts(in main: NSMenu, suppress: Bool) {
+        let owned = Set(contributed.map(ObjectIdentifier.init)), items = hostItems(main)
+        let flags: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
+        // Clearing one native winner may expose another native item with the
+        // same chord. Capture each before our own shortcut enters the menu.
+        for _ in 0...items.count {
+            var discovered = false
+            for item in items where !owned.contains(ObjectIdentifier(item)) && !shortcutLeases.contains(where: { $0.item === item }) {
+                guard sourceChords.contains(where: { $0.0 == item.keyEquivalent && $0.1.intersection(flags) == item.keyEquivalentModifierMask.intersection(flags) }) else { continue }
+                let lease = ShortcutLease(item); shortcutLeases.append(lease); discovered = true
+                if suppress { lease.suppress() }
+            }
+            if !suppress || !discovered { break }
+        }
+    }
+    private func reconcileShortcuts() {
+        guard let mainMenu else { return }
+        let claim = shouldClaimShortcuts
+        if !claim {
+            // Release our exact chords first so AppKit exposes the restored
+            // native Open/Paste keys instead of suppressing their public value.
+            for item in contributed where item.representedObject is Invocation { item.keyEquivalent = "" }
+            for lease in shortcutLeases { lease.restore() }
+        } else {
+            for lease in shortcutLeases { lease.suppress() }
+            captureHostShortcuts(in: mainMenu, suppress: true)
+            for item in contributed {
+                guard let invocation = item.representedObject as? Invocation, invocation.epoch == epoch else { continue }
+                let key = invocation.command.menuKey
+                if item.keyEquivalentModifierMask != key.1 { item.keyEquivalentModifierMask = key.1 }
+                if item.keyEquivalent != key.0 { item.keyEquivalent = key.0 }
+            }
+        }
+        shortcutsClaimed = claim
+    }
+    private func belongs(_ menu: NSMenu) -> Bool {
+        var current: NSMenu? = menu, seen = Set<ObjectIdentifier>()
+        while let candidate = current, seen.insert(ObjectIdentifier(candidate)).inserted {
+            if candidate === mainMenu { return true }; current = candidate.supermenu
+        }
+        return false
+    }
+    private var needsSynchronization: Bool {
+        ownsWindow && (mainMenu !== applicationMenu() || contributed.isEmpty || contributed.contains { $0.menu.map { !belongs($0) } ?? true })
+    }
+    private func scheduleRefresh() {
+        guard !queued, !retired else { return }; queued = true
+        DispatchQueue.main.async { [weak self] in guard let self else { return }; self.queued = false; self.refresh() }
+    }
+    func refresh() {
+        guard !retired else { return }
+        guard ownsWindow else { remove(); return }
+        if needsSynchronization, tracked.isEmpty { install(); return }
+        reconcileShortcuts()
+        for item in contributed where !item.isSeparatorItem { _ = validateMenuItem(item) }
+    }
+    func install(in main: NSMenu? = nil) {
+        guard !retired, ownsWindow, tracked.isEmpty, let main = main ?? applicationMenu() else { return }
+        remove(); mainMenu = main
+        // Resolve semantic roots before temporarily clearing native chords;
+        // SwiftUI may expose a standard File role through its shortcut alone.
+        let recipes: [(NSMenu, [ImageEditorCommand?])] = [ImageEditorCommand.fileMenu, .viewMenu].compactMap { role in
+            let commands = ImageEditorCommand.menuCommands(role, selection: selection)
+            guard commands.compactMap({ $0 }).contains(where: { state($0) != nil }) else { return nil }
+            return (root(role, in: main), commands)
+        }
+        captureHostShortcuts(in: main, suppress: shouldClaimShortcuts)
+        for (menu, commands) in recipes {
+            if !menu.items.isEmpty { let separator = NSMenuItem.separator(); menu.addItem(separator); contributed.append(separator) }
+            for command in commands {
+                guard let command else {
+                    if menu.items.last?.isSeparatorItem != true { let item = NSMenuItem.separator(); menu.addItem(item); contributed.append(item) }; continue
+                }
+                guard state(command) != nil else { continue }
+                let key = command.menuKey
+                let item = NSMenuItem(title: command.caption, action: #selector(invoke(_:)), keyEquivalent: "")
+                item.keyEquivalentModifierMask = key.1; item.target = self
+                item.identifier = .init(command.identifier.rawValue)
+                item.representedObject = Invocation(command, epoch)
+                item.image = command.icon?.contextImage(defaults: preferences)
+                menu.addItem(item); contributed.append(item); _ = validateMenuItem(item)
+            }
+        }
+        reconcileShortcuts()
+    }
+    private func root(_ role: ImageEditorCommand, in main: NSMenu) -> NSMenu {
+        let name = role == .fileMenu ? "file" : "view", identifier = NSUserInterfaceItemIdentifier("org.turtlegit.merge.menu." + name)
+        let selectors: Set<String> = role == .fileMenu ? ["openDocument:", "saveDocument:", "saveDocumentAs:", "saveAllDocuments:", "performClose:"] : ["toggleToolbarShown:", "toggleFullScreen:", "toggleSidebar:"]
+        let semantic = main.items.first { root in root.submenu?.items.contains { item in
+            if let action = item.action, selectors.contains(NSStringFromSelector(action)) { return true }
+            let flags = item.keyEquivalentModifierMask.intersection([.command, .control, .option, .shift])
+            return role == .fileMenu && ["o", "w", "s"].contains(item.keyEquivalent.lowercased()) && flags.contains(.command) && !flags.contains(.control)
+        } == true }
+        let existing = main.items.first { $0.identifier == identifier } ?? semantic ?? scaffold(role, in: main)
+        if let existing, let menu = existing.submenu { if existing.identifier == nil { existing.identifier = identifier }; return menu }
+        let item = NSMenuItem(title: role.caption, action: nil, keyEquivalent: ""); item.identifier = identifier; item.submenu = NSMenu(title: role.caption)
+        let following = main.items.firstIndex { candidate in
+            candidate.submenu === NSApp.windowsMenu || candidate.submenu === NSApp.helpMenu ||
+            (role == .fileMenu && candidate.identifier == .init("org.turtlegit.merge.menu.view"))
+        } ?? main.items.count
+        main.insertItem(item, at: following); createdRoots.append(item); return item.submenu!
+    }
+    private func scaffold(_ role: ImageEditorCommand, in main: NSMenu) -> NSMenuItem? {
+        guard let windows = NSApp.windowsMenu, let help = NSApp.helpMenu,
+              let app = main.items.firstIndex(where: { $0.submenu?.items.contains { item in
+                  item.action.map(NSStringFromSelector) == "terminate:" || item.keyEquivalent == "q" && item.keyEquivalentModifierMask.intersection([.command, .control, .option, .shift]) == .command
+              } == true }),
+              let end = main.items.firstIndex(where: { $0.submenu === windows }), app < end,
+              main.items.contains(where: { $0.submenu === help }) else { return nil }
+        let standard = main.items[(app + 1)..<end].filter { $0.submenu != nil && $0.identifier != .init("org.turtlegit.merge.menu.navigate") }
+        guard standard.count >= 3 else { return nil }; return standard[role == .fileMenu ? 0 : 2]
+    }
+    func remove() {
+        epoch = UUID()
+        for item in contributed { item.isEnabled = false; item.keyEquivalent = ""; item.menu?.removeItem(item) }
+        for lease in shortcutLeases { lease.restore() }
+        shortcutLeases = []; shortcutsClaimed = false
+        if let mainMenu { for root in createdRoots where root.submenu?.items.isEmpty == true && mainMenu.items.contains(root) { mainMenu.removeItem(root) } }
+        contributed = []; createdRoots = []; mainMenu = nil; tracked.removeAll()
+    }
+    func retire() { remove(); retired = true; observations = []; available = { false }; state = { _ in nil }; action = { _ in }; applicationMenu = { nil }; keyWindow = { nil } }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        guard let invocation = item.representedObject as? Invocation, invocation.epoch == epoch,
+              item.menu.map(belongs) == true else { item.isEnabled = false; return false }
+        let value = state(invocation.command)
+        item.state = value?.checked == true ? .on : .off
+        item.image = invocation.command.icon?.contextImage(defaults: preferences)
+        item.isEnabled = active && value?.enabled == true; return item.isEnabled
+    }
+    @objc private func invoke(_ item: NSMenuItem) {
+        guard validateMenuItem(item), let invocation = item.representedObject as? Invocation else { return }
+        action(invocation.command); refresh()
     }
 }

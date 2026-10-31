@@ -33,8 +33,9 @@ replacement reload starts after the chooser sheet ends, so ordinary sheet guards
 do not discard it. Cancel and retired/replaced chooser callbacks cannot submit
 new inputs. Image/text
 routing transfers the window toolbar between the two existing command surfaces;
-it does not show both toolbars. The active File menu labels the image command
-Load Images and sends it to the image chooser, keeping text Open separate.
+it does not show both toolbars. Image Open sends its request to the image chooser,
+keeping text Open separate. The October 31 main-menu continuation below replaces
+the earlier File-only Load Images contribution.
 Image header tooltips retain the complete path/revision or conflict identity
 when the visible caption is truncated.
 
@@ -62,3 +63,47 @@ The final Debug build and affected system-Git cases passed; the prior unchanged
 selection case and all four bundled-Git cases passed. Four unaltered current
 light/dark window captures were reviewed and published. The dated record retains
 every failed attempt, repair, exact case scope and owned process identifier.
+
+## Native main-menu continuation — October 31, 2026
+
+The pinned comparison menu (`IDC_TORTOISEIDIFF`, `TortoiseIDiff.rc:104–132`)
+contains File/Open and the complete View recipe. Its selection menu
+(`IDC_TORTOISEIDIFF2`, lines 134–155) omits Open, Overlay, Blend, Link and dimension
+matching. Both retain fit/original size, transparent background, zoom,
+information, arrangement and appearance commands. Windows Exit is adapted to
+the existing macOS Close and app Quit commands.
+
+The continuation connects those recipes to the native application menu bar for
+comparison, standalone selection and repository conflict windows. Toolbar menus
+and the main menu share command order, state, icons and dispatch rather than
+maintaining separate action lists. Native File/View roots are identified by
+their roles rather than the English words in their captions. Contributions
+belong only to the current image window; switching windows removes them without
+removing existing application commands. Old menu items must refuse dispatch
+after an owner switch or retirement, even if a caller retained them.
+Loading and owned sheets disable actions while retaining the same menu layout.
+Image keyboard dispatch retains the source modifier choices and refuses a
+different window or an active text-field editor. The source's displayed `V`
+label is backed by Ctrl-V in its accelerator table; the Mac binding remains
+Command-V rather than adding a new plain-V action.
+
+The active image menu temporarily owns conflicting native shortcuts. Existing
+host items retain their actions and positions; their shortcut bindings return
+when the image contributions leave. Owned entries are removed before restoration
+so AppKit cannot keep their shortcut registration ahead of the restored host.
+Busy image commands remain disabled without handing Open to a workspace action.
+Text-field editing retains the native Paste binding instead of image arrangement.
+
+The [grouped checkpoint](qa/image-main-menu-2026-10-31.json) records the Debug
+build and complete existing toolbar case passing with system and bundled Git.
+Each covers all three owner modes, localized semantic roots, literal source
+recipes/icons/keys, real menu and window-event actions, busy/sheet refusal, native
+field-editor Paste, foreign/stale owner fences and exact host restoration.
+Native shortcut priority required the scoped ownership continuation above;
+fixture repairs retain disabled-key consumption, asynchronous owner-gate drainage
+and explicit private menu/target lifetime. The system pass was retained after
+that last fixture-only repair. All owned receiver PIDs were reaped and
+independently absent. No Core code changed or unrelated image suites repeated.
+Installed build47 predates this family. The record retains every failed attempt
+and distinguishes injected key-owner/native-menu proof from OS event ordering. Physical menu tracking, keyboard/VoiceOver,
+signed grants and complete image-viewer/source acceptance remain separate.

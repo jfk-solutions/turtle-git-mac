@@ -7,7 +7,11 @@ import TurtleGitCore
 @MainActor private final class ImageSelectionNSWindow:NSWindow {
     weak var imageModel:ImageSelectionWindowModel?
     override func performKeyEquivalent(with event:NSEvent)->Bool {
-        guard attachedSheet==nil,(firstResponder as? NSTextView)?.isFieldEditor != true,
+        let keyWindow: NSWindow?
+        if let toolbar = (delegate as? ImageSelectionWindowController)?.imageToolbar { keyWindow = toolbar.keyWindow() }
+        else { keyWindow = NSApp.keyWindow }
+        guard keyWindow === self, event.window == nil || event.window === self,
+              NSApp.modalWindow == nil, attachedSheet==nil,(firstResponder as? NSTextView)?.isFieldEditor != true,
               let model=imageModel,!model.retired else{return super.performKeyEquivalent(with:event)}
         if event.keyCode==53,event.modifierFlags.intersection([.command,.option,.control,.shift]).isEmpty,
            !model.busy || model.decoding {performClose(nil);return true}
@@ -33,6 +37,12 @@ import TurtleGitCore
         imageToolbar=ImageEditorToolbar.selection(self)
         TurtleGitHelp.attach(window,topic:.images)
         DialogGeometry.attach(window,identifier:"TurtleGit.ImageSelection");window.center()
+    }
+    func windowDidBecomeKey(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }; imageToolbar?.installMainMenu()
+    }
+    func windowDidResignKey(_ notification: Notification) {
+        guard notification.object as? NSWindow === window else { return }; imageToolbar?.removeMainMenu()
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {(!model.busy || model.decoding) && sender.attachedSheet==nil}
     func windowWillClose(_ notification:Notification) {

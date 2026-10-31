@@ -870,7 +870,6 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 }
 
 @MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
-    private let editorFileMenu = MergeEditorFileMenu()
     var editorCommandMenu: MergeEditorCommandMenu?
     var editorToolbar:MergeEditorToolbar?
     var commandsAvailable:Bool { !retired && !preparingReplacement && editorOpenWorkflow == nil }
@@ -879,9 +878,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
-    func windowDidBecomeKey(_ notification: Notification) { editorFileMenu.remove();editorCommandMenu?.install() }
-    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove();editorFileMenu.remove() }
-    func detachForReplacement() { editorToolbar?.retire();editorCommandMenu?.retire();editorFileMenu.remove(); model.retire(); model.window = nil }
+    func windowDidBecomeKey(_ notification: Notification) { editorCommandMenu?.install() }
+    func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove() }
+    func detachForReplacement() { editorToolbar?.retire();editorCommandMenu?.retire(); model.retire(); model.window = nil }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { !retired && !activeOperation && !preparingReplacement && (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) }
     @objc func reloadEditor(_ sender: Any?) {
         guard !activeOperation, !preparingReplacement else { return }
@@ -958,7 +957,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func retireOwner() {
         guard !retired else{return};retired=true
-        editorToolbar?.retire();editorCommandMenu?.retire();editorFileMenu.remove()
+        editorToolbar?.retire();editorCommandMenu?.retire();
         let opening=editorOpenWorkflow;opening?.retire();editorOpenWorkflow=nil
         let editor=model.editor,conflict=model.conflictEditor
         model.retire()
