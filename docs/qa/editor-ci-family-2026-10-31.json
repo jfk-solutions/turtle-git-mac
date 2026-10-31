@@ -1,0 +1,122 @@
+{
+  "kind": "TurtleGitEditorCIFamilyCheckpoint",
+  "date": "2026-10-31",
+  "base_commit": "66302808f835c0efd0eb77240d2c02dc711d8386",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_changes": false,
+  "changes": [
+    "Bare/Open/Help/local two/three-way Merge admission without unrelated Git preparation; actual patch review/generation retain held preparation/order/exactly-once ownership",
+    "Complete serial consumer cohorts with unchanged300s receiver bounds, <=64 malformed images, exact filename/hash inventory and explicit selective repair scope",
+    "Supported historical effect/ROP/Bitmap16 names get independent positive pixels/bytes/route assertions; 517 genuine malformed cases keep strict refusals",
+    "Per-image bounded phases, pre-cleanup failure state and bounded partial timeout output retained in existing CI failure artifact"
+  ],
+  "initial_group": [
+    {
+      "case": "scene",
+      "exit": 0,
+      "elapsed_seconds": 10.065,
+      "log": "build/qa/editor-ci-family-scene-2026-10-31.log"
+    },
+    {
+      "case": "consumers",
+      "exit": 1,
+      "elapsed_seconds": 145.248,
+      "log": "build/qa/editor-ci-family-consumers-2026-10-31.log"
+    }
+  ],
+  "initial_passing_system_cohorts": [
+    "positive",
+    "negative-0",
+    "negative-1",
+    "negative-2"
+  ],
+  "retained_failure": {
+    "case": "negative-3",
+    "sample": "unsupported-image-effect.emf",
+    "state": "Native image97x65 decoded successfully; old filename-based refusal expectation was stale",
+    "evidence": "build/qa/metafile-workflow-failures/consumers-0-negative-3-f95cw2r8",
+    "independent_positive_oracle": "MetafileImageTests.testImageEffectFlagWithoutSerializedEffectUsesNativeOrdinaryImageFallback and existing Windows painting record; no decoder-derived expectation"
+  },
+  "affected_repair_group": [
+    {
+      "case": "system-repair",
+      "exit": 0,
+      "elapsed_seconds": 151.593,
+      "log": "build/qa/editor-ci-family-consumers-system-repair-2026-10-31.log"
+    },
+    {
+      "case": "bundled-routing",
+      "exit": 0,
+      "elapsed_seconds": 40.358,
+      "log": "build/qa/editor-ci-family-consumers-bundled-routing-2026-10-31.log"
+    }
+  ],
+  "combined_system_inventory": {
+    "original_positive_inputs": 64,
+    "supported_historical_inputs": 6,
+    "genuine_refusals": 517,
+    "all_generic_cohorts_covered": true,
+    "first_three_passing_negative_batches_and_hashes_unchanged": true,
+    "positive_input_order_same_with_bundled": true,
+    "scope": "Initial positive/negative0..2 retained; only reclassified and unrun cohorts checked after repair. This is combined evidence, not one fresh default full run."
+  },
+  "bundled_git_scope": "Original64 positive/lifecycle and six historical positives passed; backend-independent517 refusal wires exercised with system Git only locally. Default CI retains the full inventory with both engines.",
+  "inventory": {
+    "plan_version": 2,
+    "historical_positive": [
+      "unsupported-image-effect.emf",
+      "unsupported-raster-device-bitblt.wmf",
+      "unsupported-raster-device-stretchblt.wmf",
+      "unsupported-raster-wmf-without-bitmap-source-bitblt.wmf",
+      "unsupported-raster-wmf-without-bitmap-source-stretchblt.wmf",
+      "unsupported-rop.emf"
+    ],
+    "historical_positive_sha256": {
+      "unsupported-image-effect.emf": "5705ba583b4018edbf71e68b86ecb015ae55ba06c343b910d764ad1390206c6b",
+      "unsupported-raster-device-bitblt.wmf": "cefebfd1f03b4c3a9b5b855004a2d833ca7659337deb57c1bc7e1f7b9f171b7b",
+      "unsupported-raster-device-stretchblt.wmf": "a697f8b5116d59dec10748b1e6c61f2cdbced5f9b0f7f6a97fe6e297ee42bdae",
+      "unsupported-raster-wmf-without-bitmap-source-bitblt.wmf": "ed5172c566b1e0acaf6754d5504fb7e27d75dc1a2007274c257c0d658aeea322",
+      "unsupported-raster-wmf-without-bitmap-source-stretchblt.wmf": "32debc3478fe455486bb381c2a274c67d5d7c7afbde6efeb209d473c1d306cd3",
+      "unsupported-rop.emf": "81915da0be25e7d87c1888b86886042d8863c10794a0b210c5beca59d01c9a2b"
+    },
+    "negative_batches": [
+      64,
+      64,
+      64,
+      64,
+      64,
+      64,
+      64,
+      64,
+      5
+    ],
+    "negative_inventory_sha256": "53524a4faab10fe62b9c40aaccd7df9e0a16df8f44da238f77e1b4214ca1dc31"
+  },
+  "owned_receiver_pids": [
+    81103,
+    81114,
+    81172,
+    81634,
+    81757,
+    81868,
+    81969,
+    82649,
+    82668,
+    82779,
+    82876,
+    82977,
+    83079,
+    83181,
+    83203,
+    83612
+  ],
+  "all_owned_receivers_reaped_and_independently_absent": true,
+  "unchanged_checks": "No Core suite or app build for fixture-only changes. Passing scene cohort not repeated. Compiled receivers/cache reused, no installed app launched.",
+  "installed_build": "46 unchanged",
+  "remaining": [
+    "Complete corrected-source hosted CI",
+    "Newly observed selected-file Services Blame failure needs its prepared diagnostic checkpoint and production history-publication review",
+    "Physical/signed Finder, source layout/accessibility, Intel/minimum macOS and final distribution gates"
+  ],
+  "bounded_source_review": "Read-only Merge menu consumers at pinned TortoiseMergeENG.rc511–590 found implemented native actions; old separate-patch-window/in-place-row/resolved-empty paragraphs are superseded by later continuations. No new absent family demonstrated by that bounded review; no complete editor/layout certification."
+}

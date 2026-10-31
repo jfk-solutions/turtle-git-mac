@@ -214,3 +214,34 @@ layout2vector supplies independent export writers. TurtleGit retains its own
 framing checks, explicit unsupported-record errors, budgets, native text/bitmap
 bridges and affine playback. BaseHmiTypes' EMF+ object reader covers paths and
 images; TurtleGit retains its own bounded pen and custom-cap implementation.
+
+
+## Complete bounded native-consumer cohorts — October 31, 2026
+
+The generic native consumer fixture expanded to 64 positive inputs and 518
+malformed images under one 300-second process deadline. The older hosted failure
+retained no current-image marker or partial receiver logs, so a product deadlock
+was not established. The unchanged CI command now uses the original positive/lifecycle cohort,
+a separate historical-positive cohort and deterministic malformed cohorts of at
+most 64 images, strictly serial with the same compiled receiver and deadline.
+The first grouped run exposed a stale classification: the historical filename
+`unsupported-image-effect.emf` is a supported E-without-pending-effect fallback,
+already covered by independent Core/Windows pixel expectations. All six supported
+historical names now have explicit positive image/route/byte/pixel assertions;
+517 genuine malformed cases retain strict refusals. No expected result is derived
+from the decoder under test. A complete sorted filename/hash plan rejects omitted,
+duplicate or changed inputs, and incomplete cohort execution fails the runner.
+Exact cohort selectors support affected-only repair checks and label their scope
+as selective; default CI still executes the complete inventory.
+
+Each image records bounded flushed phase/state/counter evidence. Timeout handling
+retains partial output, metadata and the last atomic phase before private helper
+cleanup and the existing failure-only artifact upload. Owners drain between
+malformed images; no installed app or user repository is used. The [grouped checkpoint](qa/editor-ci-family-2026-10-31.json) combines unchanged
+initial passing system-Git groups with only repaired/unrun groups to cover all
+517 genuine refusals. Original positive/lifecycle and historical-positive groups
+pass with both Git engines. The same malformed decoder is checked once locally;
+default CI retains its complete inventory with both engines. Sixteen owned
+receivers were reaped and independently absent. No Core suite or app build was
+run for fixture-only changes. These checks do not establish whole-format Windows
+rendering equivalence or complete hosted CI.

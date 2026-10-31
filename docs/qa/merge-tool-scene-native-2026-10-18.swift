@@ -5,9 +5,9 @@ import TurtleGitCore
 enum MergeToolSceneVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
-    @MainActor static func wait(line: UInt = #line, _ ready: () -> Bool) async throws {
+    @MainActor static func wait(_ stage:String="",line: UInt = #line, _ ready: () -> Bool) async throws {
         for _ in 0..<1800 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Merge-tool scene timeout at \(line)")
+        throw Failure(description: "Merge-tool scene timeout at \(line): \(stage)")
     }
     static func unwrap<T>(_ value:T?)throws->T {guard let value else{throw Failure(description:"Utility owner unavailable")};return value}
     @MainActor static func verify() async throws {
@@ -29,37 +29,60 @@ enum MergeToolSceneVerification {
         let ordinary = lazyWorkspace.model
         try require(lazyWorkspace.model === ordinary && ordinaryCreations == 1, "Workspace scene did not retain exactly one owner")
         defer { ordinary.stopMonitoringForTermination() }
-        let standalone = TurtleGitApplicationDelegate(); standalone.startupArguments = ["--merge-tool"]; standalone.startupDirectory = root.path
-        var creations = 0, services = 0, activations = 0, deliveries = 0, correctDelivery = false
-        var preparations = 0, releasePreparation: CheckedContinuation<Void, Never>?
-        defer { releasePreparation?.resume(); standalone.repositoryModel?.stopMonitoringForTermination() }
-        standalone.prepareGitConfigurationReads = {
-            preparations += 1
-            await withCheckedContinuation { releasePreparation = $0 }
+        // Bare/Open/help and captured local two/three-way inputs are now
+        // repository-independent. Verify real parser/bootstrap admission once,
+        // without manufacturing an unrelated Git preparation continuation.
+        let localInputs:[[String]]=[
+            ["--merge-tool"],
+            ["--merge-tool","--help"],
+            ["--merge-tool","--base",root.appendingPathComponent("scene-base").path,"--mine",root.appendingPathComponent("scene-mine").path,"--readonly"],
+            ["--merge-tool","--base",root.appendingPathComponent("scene-base").path,"--mine",root.appendingPathComponent("scene-mine").path,"--theirs",root.appendingPathComponent("scene-theirs").path,"--readonly"]]
+        for arguments in localInputs {
+            let standalone=TurtleGitApplicationDelegate();standalone.startupArguments=arguments;standalone.startupDirectory=root.path
+            var creations=0,services=0,activations=0,deliveries=0,preparations=0,correctDelivery=false
+            defer{standalone.repositoryModel?.stopMonitoringForTermination()}
+            standalone.prepareGitConfigurationReads={preparations += 1}
+            standalone.makeStandaloneWorkspace={creations += 1;let model=RepositoryModel(startMonitoring:false,initializePreferences:false);model.fileComparisonPreferences=prefs;return model}
+            standalone.configureStandaloneServices={_,_ in services += 1}
+            standalone.activateStandaloneApplication={activations += 1}
+            standalone.startupCommandHandler={model,args,_ in deliveries += 1;correctDelivery=model === standalone.standaloneWorkspace && args==arguments}
+            standalone.startupDidFinishLaunching();standalone.startupDidFinishLaunching()
+            try require(standalone.startupDelivered && deliveries==1 && correctDelivery,"Local Merge startup did not admit its captured request immediately/exactly once: \(arguments)")
+            // A queued preparation would begin on the next main turn; absence
+            // is checked after that boundary as well as synchronously.
+            await withCheckedContinuation{reply in DispatchQueue.main.async{reply.resume()}}
+            standalone.startupDidFinishLaunching()
+            try require(creations==1 && services==1 && activations==1 && deliveries==1 && preparations==0 && !standalone.gitConfigurationReadsReady,"Local Merge duplicated ownership or prepared unrelated Git configuration")
+            try require(standalone.repositoryModel === standalone.standaloneWorkspace && standalone.repositoryModel?.finderWatches==nil && standalone.repositoryModel?.root==nil,"Local Merge restored repository/Finder workspace")
+            try require(!standalone.applicationShouldOpenUntitledFile(NSApp) && !standalone.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false),"Local Merge startup/reopen requested an untitled workspace")
         }
-        standalone.makeStandaloneWorkspace = {
-            creations += 1
-            let model = RepositoryModel(startMonitoring: false, initializePreferences: false); model.fileComparisonPreferences = prefs; return model
+        // Patch application/generation really depends on Git. Their accepted
+        // command must remain behind one actual preparation owner, regardless
+        // of repeat bootstrap notifications, and must deliver once after drain.
+        let gitInputs:[[String]]=[
+            ["--merge-tool","--diff",root.appendingPathComponent("scene-input.patch").path],
+            ["--merge-tool","--createunifieddiff","--origfile",root.appendingPathComponent("scene-base").path,"--modifiedfile",root.appendingPathComponent("scene-mine").path,"--outfile",root.appendingPathComponent("scene-output.patch").path]]
+        for arguments in gitInputs {
+            let standalone=TurtleGitApplicationDelegate();standalone.startupArguments=arguments;standalone.startupDirectory=root.path
+            var creations=0,services=0,activations=0,deliveries=0,preparations=0,correctDelivery=false
+            var releasePreparation:CheckedContinuation<Void,Never>?
+            defer{let pending=releasePreparation;releasePreparation=nil;pending?.resume();standalone.repositoryModel?.stopMonitoringForTermination()}
+            standalone.prepareGitConfigurationReads={preparations += 1;await withCheckedContinuation{releasePreparation=$0}}
+            standalone.makeStandaloneWorkspace={creations += 1;let model=RepositoryModel(startMonitoring:false,initializePreferences:false);model.fileComparisonPreferences=prefs;return model}
+            standalone.configureStandaloneServices={_,_ in services += 1}
+            standalone.activateStandaloneApplication={activations += 1}
+            standalone.startupCommandHandler={model,args,_ in deliveries += 1;correctDelivery=model === standalone.standaloneWorkspace && args==arguments}
+            standalone.startupDidFinishLaunching();standalone.startupDidFinishLaunching()
+            try await wait("Git-backed patch preparation entered"){releasePreparation != nil}
+            try require(creations==1 && services==1 && activations==1 && preparations==1 && deliveries==0 && !standalone.startupDelivered,"Git-backed Merge duplicated its owner or outran preparation")
+            try require(standalone.repositoryModel === standalone.standaloneWorkspace && standalone.repositoryModel?.finderWatches==nil && standalone.repositoryModel?.root==nil,"Pending Git-backed Merge restored repository/Finder workspace")
+            let pending=releasePreparation;releasePreparation=nil;pending?.resume()
+            try await wait("Git-backed patch captured delivery"){standalone.startupDelivered && deliveries==1}
+            standalone.startupDidFinishLaunching()
+            try require(correctDelivery && creations==1 && services==1 && activations==1 && deliveries==1 && preparations==1 && standalone.gitConfigurationReadsReady,"Git-backed Merge lost/repeated accepted command or preparation")
+            try require(!standalone.applicationShouldOpenUntitledFile(NSApp) && !standalone.applicationShouldHandleReopen(NSApp,hasVisibleWindows:false),"Git-backed Merge reopened repository workspace")
         }
-        standalone.configureStandaloneServices = { _, _ in services += 1 }
-        standalone.activateStandaloneApplication = { activations += 1 }
-        standalone.startupCommandHandler = { model, args, _ in
-            deliveries += 1
-            correctDelivery = model === standalone.standaloneWorkspace && args == ["--merge-tool"]
-        }
-        standalone.startupDidFinishLaunching(); standalone.startupDidFinishLaunching()
-        try await wait { releasePreparation != nil }
-        try require(creations == 1 && services == 1 && activations == 1 && preparations == 1 && deliveries == 0 && !standalone.startupDelivered,
-                    "Tool bootstrap duplicated its owner or delivered before configuration preparation")
-        try require(standalone.repositoryModel === standalone.standaloneWorkspace && standalone.repositoryModel?.finderWatches == nil && standalone.repositoryModel?.root == nil,
-                    "Pending tool startup initialized repository/Finder workspace")
-        releasePreparation?.resume(); releasePreparation = nil
-        try await wait { standalone.startupDelivered && deliveries == 1 }
-        standalone.startupDidFinishLaunching()
-        try require(creations == 1 && services == 1 && activations == 1 && deliveries == 1 && correctDelivery && standalone.startupDelivered, "Tool bootstrap is missing or delivered twice")
-        try require(preparations == 1 && standalone.gitConfigurationReadsReady, "Tool launch repeated or bypassed configuration preparation")
-        try require(standalone.repositoryModel === standalone.standaloneWorkspace && standalone.repositoryModel?.finderWatches == nil && standalone.repositoryModel?.root == nil, "Tool bootstrap initialized repository/Finder workspace")
-        try require(!standalone.applicationShouldOpenUntitledFile(NSApp) && !standalone.applicationShouldHandleReopen(NSApp, hasVisibleWindows: false), "Tool startup/reopen requested an untitled workspace")
+        print("PASS: scene local/Open/help admission without Git and Git-backed patch preparation/order, single owner and no workspace")
         let normal = TurtleGitApplicationDelegate(); normal.startupArguments = []; normal.startupDirectory = root.path
         var normalDeliveries = 0, normalPreparations = 0
         normal.prepareGitConfigurationReads = { normalPreparations += 1 }

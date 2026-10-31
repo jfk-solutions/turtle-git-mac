@@ -17,15 +17,34 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
 }
 @MainActor enum MetafileConsumersVerification {
     struct Failure:Error,LocalizedError {let message:String;var errorDescription:String? {message}}
+    private static var phaseHistory=[[String:Any]]()
+    private static var currentPhase="setup"
+    private struct ConsumerCohortPlan:Decodable {
+        let version:Int
+        let historical_positive:[String]
+        let historical_positive_sha256:[String:String]
+        let negative_batches:[[String]]
+        let negative_sha256:[String:String]
+    }
+    static func phase(_ name:String,sample:String="",state:String="") throws {
+        currentPhase=name+(sample.isEmpty ? "":" "+sample)
+        let entry:[String:Any]=["phase":name,"sample":sample,"state":String(state.prefix(16384)),"uptime":ProcessInfo.processInfo.systemUptime,
+            "sessions":FileListComparisonSession.activeOperations,"drops":ImageComparisonViewModel.activeFileReads,"conflicts":ImageConflictWindowModel.activeOperations,"chooserReleases":ImageLoadWindowController.activeReleases]
+        phaseHistory.append(entry);if phaseHistory.count>32 {phaseHistory.removeFirst(phaseHistory.count-32)}
+        let url=URL(fileURLWithPath:CommandLine.arguments[1]).appendingPathComponent("phase.json")
+        try JSONSerialization.data(withJSONObject:["current":entry,"history":phaseHistory],options:[.prettyPrinted,.sortedKeys]).write(to:url,options:.atomic)
+        print("Metafile phase: "+currentPhase+"; "+String(state.prefix(1024)));fflush(stdout)
+    }
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(message:message)}}
     static func wait(line:Int = #line,diagnostic:()->String={""},_ ready:()->Bool)async throws {
         for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(message:"Metafile consumers did not settle at \(line); \(diagnostic())")
+        throw Failure(message:"Metafile consumers did not settle at \(line), phase=\(currentPhase); \(diagnostic())")
     }
     static func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(descendants)}
     static func verify(dibProfiles:Bool=false,wmfBitmap16:Bool=false,wmfText:Bool=false,classicTextRecords:Bool=false,formattedDigits:Bool=false,compressedPaths:Bool=false,positionedText:Bool=false,classicPens:Bool=false,classicRegions:Bool=false,classicPatternBrushes:Bool=false,embeddedMetafiles:Bool=false,compressedRaster:Bool=false)async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),suppliedCorpus=URL(fileURLWithPath:CommandLine.arguments[3])
         let corpus=dibProfiles ? suppliedCorpus.appendingPathComponent("DIBProfiles"):suppliedCorpus
+        phaseHistory=[];try phase("setup",state:"case="+(ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_CASE"] ?? "direct"))
         if wmfText {try JSONSerialization.data(withJSONObject:try textRuntimeIdentity(),options:[.prettyPrinted,.sortedKeys]).write(to:root.appendingPathComponent("wmf-text-runtime-identity.json"),options:.atomic)}
         let corpusFiles=try FileManager.default.contentsOfDirectory(at:corpus,includingPropertiesForKeys:nil).filter { ["wmf","emf"].contains($0.pathExtension.lowercased()) }.sorted {$0.lastPathComponent < $1.lastPathComponent}
         let legacySamples:Set<String>=["clip-vector.wmf","classic-vector.emf","classic-bitmap.emf","plus-transform.emf","plus-bitmap-text.emf","plus-compressed-crop.emf","plus-gradient-transform.emf","plus-image-attributes.emf","plus-region-path.emf","plus-region-state.emf","plus-hatch-atlas.emf","plus-texture-world.emf","plus-region-texture.emf","plus-raw-indexed1-positive.emf","plus-raw-indexed4-negative.emf","plus-raw-indexed8-positive.emf","plus-raw-rgb555-negative.emf","plus-raw-rgb565-positive.emf","plus-raw-argb1555-negative.emf","plus-raw-texture-indexed-alpha.emf","plus-raw-texture-rgb565-positive.emf","plus-formatted-tabs.emf","plus-formatted-rtl.emf","plus-formatted-vertical.emf","plus-formatted-tracking.emf","plus-formatted-ellipsis.emf","plus-formatted-gradient.emf","classic-clip-region-xor.emf","classic-clip-region-diff.emf","classic-clip-meta-repeated.emf","classic-clip-offset-offcanvas.emf","classic-clip-path-and.emf","classic-clip-rect-world.emf","plus-pen-compound.emf","plus-pen-transform.emf","plus-pen-inset.emf","plus-pen-asymmetric-caps.emf","plus-pen-dash-round.emf","plus-pen-gradient.emf","plus-pen-custom-fill.emf","plus-pen-custom-stroke.emf","plus-pen-custom-both-paths.emf","plus-pen-custom-arrow-filled.emf","plus-pen-custom-arrow-notch.emf","plus-pen-custom-world-clip.emf"]
@@ -33,6 +52,9 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         // Historical names are retained byte-for-byte. Their positive Core
         // checks now prove exact BGRX/self-copy colors and ROP2 cyan/yellow ink.
         let acceptedHistoricalRasterSamples=acceptedLegacyBitmap16Samples.union(["unsupported-rop.emf"])
+        // Core MetafileImageTests establishes ordinary E-without-effect image
+        // fallback, ROP2 XOR, complete BGRX and empty prior-DC WMF positives.
+        let acceptedHistoricalSamples=acceptedHistoricalRasterSamples.union(["unsupported-image-effect.emf"])
         let wmfBitmap16Samples:Set<String>=Set(["wmf-bitmap16-bitblt-native.wmf","wmf-bitmap16-stretch-upscale.wmf","wmf-bitmap16-word-padding17.wmf","wmf-bitmap16-crop.wmf","wmf-bitmap16-mirror-dest-x.wmf","wmf-bitmap16-live-colors.wmf","wmf-bitmap16-save-restore.wmf","wmf-bitmap16-rop-66.wmf","wmf-bitmap16-rop-c0.wmf","wmf-bitmap16-clip.wmf","wmf-bitmap16-mapped.wmf","wmf-bitmap16-source-independent-color24-bitblt.wmf","wmf-bitmap16-embedded-affine.emf","wmf-bitmap16-pattern-bitmap16.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-widthbytes-negative.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-self-stretchblt-copy.wmf","wmf-bitmap16-shrink-mode1.wmf","wmf-bitmap16-shrink-mode2.wmf","wmf-bitmap16-shrink-mode3.wmf","wmf-bitmap16-halftone-integer-box.wmf","wmf-bitmap16-halftone-lanczos-quality.wmf","wmf-bitmap16-self-bitblt-mapped.wmf","wmf-bitmap16-self-stretchblt-outside-preserve.wmf"]).union(acceptedLegacyBitmap16Samples).union(["classic-gdi-empty-prior-bitblt-white-patcopy-control.wmf","classic-gdi-empty-prior-stretchblt-white-patcopy-control.wmf"])
         let wmfTextSamples:Set<String>=["wmf-text-textout-odd.wmf","wmf-text-ext-dx.wmf","wmf-text-ext-clip-opaque.wmf","wmf-text-ext-empty-opaque.wmf","wmf-text-ext-updatecp-dx.wmf","wmf-text-font-decorated.wmf","wmf-text-font-cell.wmf","wmf-text-font-angle.wmf","wmf-text-restore.wmf","wmf-text-translated.wmf","wmf-text-charset-204.wmf","wmf-text-dbcs-128.wmf","wmf-text-embedded-affine.emf","wmf-text-charset-oem437.wmf","wmf-text-dbcs-johab.wmf","wmf-text-extra-dx-positive.wmf","wmf-text-justify-dx-positive.wmf","wmf-text-extra-natural-negative.wmf","wmf-text-embedded-clip-affine.emf","wmf-text-justify-natural-positive.wmf","wmf-text-ext-pdy-ignored.wmf","wmf-text-dbcs-single-johab.wmf","wmf-text-dbcs-repeat-128.wmf"]
         let classicTextSamples:Set<String>=["classic-text-compact-small.emf","classic-text-compact-low-unicode.emf","classic-text-compact-clip-opaque.emf","classic-text-compact-updatecp.emf","classic-text-compact-world.emf","classic-text-poly-wide-dx.emf","classic-text-poly-wide-pdy.emf","classic-text-poly-ansi-clip-opaque.emf","classic-text-poly-ansi-updatecp.emf","classic-text-ext-ansi-cp1252.emf","classic-text-poly-ansi-cp1252.emf","classic-text-ext-charset-204.emf","classic-text-poly-charset-222.emf","classic-text-ext-dbcs-128.emf","classic-text-poly-dbcs-pdy-134.emf","classic-text-compact-no-rect-opaque.emf","classic-text-poly-wide-offdx-zero-updatecp.emf"]
@@ -51,8 +73,8 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             "emf-raster-embedded-linear-rgb-before-icm-on.emf",
             "emf-raster-embedded-linear-rgb-before-icm-save-off-restore-on.emf"])
         let dibProfileRefusals:Set<String>=Set(dibConsumers.map {$0+"-malformed-profile-overlap-bits."+($0.hasPrefix("wmf-") ? "wmf":"emf")}).union(["wmf-raster-embedded-linear-rgb-before.wmf"])
-        let nativeSamples = dibProfiles ? dibProfileSamples : wmfBitmap16 ? wmfBitmap16Samples : wmfText ? wmfTextSamples : classicTextRecords ? classicTextSamples : formattedDigits ? formattedDigitSamples : compressedRaster ? compressedRasterSamples : embeddedMetafiles ? embeddedSamples : classicPatternBrushes ? classicPatternSamples : classicRegions ? classicRegionSamples : classicPens ? classicPenSamples : positionedText ? positionedSamples : compressedPaths ? compressedSamples : legacySamples.union(compressedSamples).union(positionedSamples)
-        var samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {dibProfiles ? dibProfileRefusals.contains($0.lastPathComponent) : wmfBitmap16 ? $0.lastPathComponent.hasPrefix("unsupported-wmf-bitmap16-") : wmfText ? $0.lastPathComponent.hasPrefix("unsupported-wmf-text-") : classicTextRecords ? $0.lastPathComponent.hasPrefix("unsupported-classic-text-") : formattedDigits ? $0.lastPathComponent.hasPrefix("unsupported-formatted-digits-") : compressedRaster ? $0.lastPathComponent.hasPrefix("refused-compressed-raster-") : embeddedMetafiles ? $0.lastPathComponent.hasPrefix("embedded-refused-") : classicPatternBrushes ? $0.lastPathComponent.hasPrefix("unsupported-classic-patternbrush-") : classicRegions ? ($0.lastPathComponent.hasPrefix("unsupported-classic-region-") || $0.lastPathComponent.hasPrefix("unsupported-wmf-classic-region-")) : classicPens ? $0.lastPathComponent.hasPrefix("unsupported-extpen-") : positionedText ? $0.lastPathComponent.hasPrefix("unsupported-positioned-text-") : compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-") && !acceptedHistoricalRasterSamples.contains($0.lastPathComponent)}
+        let nativeSamples = dibProfiles ? dibProfileSamples : wmfBitmap16 ? wmfBitmap16Samples : wmfText ? wmfTextSamples : classicTextRecords ? classicTextSamples : formattedDigits ? formattedDigitSamples : compressedRaster ? compressedRasterSamples : embeddedMetafiles ? embeddedSamples : classicPatternBrushes ? classicPatternSamples : classicRegions ? classicRegionSamples : classicPens ? classicPenSamples : positionedText ? positionedSamples : compressedPaths ? compressedSamples : legacySamples.union(compressedSamples).union(positionedSamples).union(acceptedHistoricalSamples)
+        var samples=corpusFiles.filter {nativeSamples.contains($0.lastPathComponent)},unsupported=corpusFiles.filter {dibProfiles ? dibProfileRefusals.contains($0.lastPathComponent) : wmfBitmap16 ? $0.lastPathComponent.hasPrefix("unsupported-wmf-bitmap16-") : wmfText ? $0.lastPathComponent.hasPrefix("unsupported-wmf-text-") : classicTextRecords ? $0.lastPathComponent.hasPrefix("unsupported-classic-text-") : formattedDigits ? $0.lastPathComponent.hasPrefix("unsupported-formatted-digits-") : compressedRaster ? $0.lastPathComponent.hasPrefix("refused-compressed-raster-") : embeddedMetafiles ? $0.lastPathComponent.hasPrefix("embedded-refused-") : classicPatternBrushes ? $0.lastPathComponent.hasPrefix("unsupported-classic-patternbrush-") : classicRegions ? ($0.lastPathComponent.hasPrefix("unsupported-classic-region-") || $0.lastPathComponent.hasPrefix("unsupported-wmf-classic-region-")) : classicPens ? $0.lastPathComponent.hasPrefix("unsupported-extpen-") : positionedText ? $0.lastPathComponent.hasPrefix("unsupported-positioned-text-") : compressedPaths ? $0.lastPathComponent.hasPrefix("unsupported-compressed-path-") : $0.lastPathComponent.hasPrefix("unsupported-") && !acceptedHistoricalSamples.contains($0.lastPathComponent)}
         if dibProfiles || wmfBitmap16 || wmfText || classicTextRecords || formattedDigits || compressedRaster || embeddedMetafiles || compressedPaths || positionedText || classicPens || classicRegions || classicPatternBrushes {try require(!unsupported.isEmpty,"Requested native metafile refusal corpus missing")}
         try require(samples.count == nativeSamples.count,"Representative native metafile corpus incomplete")
         if !dibProfiles && !wmfBitmap16 && !wmfText && !classicTextRecords && !compressedRaster && !embeddedMetafiles && !compressedPaths && !positionedText && !classicPens && !classicRegions && !classicPatternBrushes {try require(samples.contains {$0.pathExtension.lowercased()=="wmf"} && samples.filter {$0.pathExtension.lowercased()=="emf"}.count >= 2 && samples.contains {$0.lastPathComponent.lowercased().contains("plus")},"Provide representative WMF, EMF and EMF+ corpus files")}
@@ -62,8 +84,40 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 try bytes.write(to:copy);samples.append(copy)
             }
         }
+        var negativeOnly=false,historicalOnly=false
+        let cohort=ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_COHORT"]
+        if let cohort {
+            try require(ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_CASE"]=="consumers","Cohort applied to another workflow")
+            guard let planPath=ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_COHORT_PLAN"] else {throw Failure(message:"Missing complete consumer cohort plan")}
+            let plan=try JSONDecoder().decode(ConsumerCohortPlan.self,from:Data(contentsOf:URL(fileURLWithPath:planPath)))
+            let complete=unsupported.sorted{$0.lastPathComponent.utf8.lexicographicallyPrecedes($1.lastPathComponent.utf8)}
+            let flattened=plan.negative_batches.flatMap{$0},names=complete.map{Data($0.lastPathComponent.utf8)}
+            try require(plan.version==2 && flattened.map{Data($0.utf8)}==names && Set(names).count==names.count && plan.negative_batches.allSatisfy{!$0.isEmpty && $0.count<=64},"Consumer partitions omitted/duplicated/reordered malformed corpus")
+            try require(Set(plan.negative_sha256.keys.map{Data($0.utf8)})==Set(names),"Consumer fingerprint inventory differs from complete malformed corpus")
+            for file in complete {
+                let digest=SHA256.hash(data:try Data(contentsOf:file)).map{String(format:"%02x",$0)}.joined()
+                try require(plan.negative_sha256[file.lastPathComponent]==digest,"Consumer cohort source fingerprint differs: "+file.lastPathComponent)
+            }
+            let historical=corpusFiles.filter{acceptedHistoricalSamples.contains($0.lastPathComponent)}.sorted{$0.lastPathComponent.utf8.lexicographicallyPrecedes($1.lastPathComponent.utf8)}
+            let historicalNames=historical.map{Data($0.lastPathComponent.utf8)}
+            try require(plan.historical_positive.map{Data($0.utf8)}==historicalNames && historicalNames.count==acceptedHistoricalSamples.count && Set(plan.historical_positive_sha256.keys.map{Data($0.utf8)})==Set(historicalNames),"Historical positive inventory differs from independently supported names")
+            for file in historical {
+                let digest=SHA256.hash(data:try Data(contentsOf:file)).map{String(format:"%02x",$0)}.joined()
+                try require(plan.historical_positive_sha256[file.lastPathComponent]==digest,"Historical positive fingerprint differs: "+file.lastPathComponent)
+            }
+            if cohort=="positive" {samples.removeAll{acceptedHistoricalSamples.contains($0.lastPathComponent)};unsupported=[]}
+            else if cohort=="historical-positive" {samples=historical;unsupported=[];historicalOnly=true}
+            else {
+                guard cohort.hasPrefix("negative-"),let index=Int(cohort.dropFirst(9)),cohort=="negative-"+String(index),plan.negative_batches.indices.contains(index) else {throw Failure(message:"Unknown consumer cohort: "+cohort)}
+                negativeOnly=true
+                let selected=Set(plan.negative_batches[index].map{Data($0.utf8)})
+                unsupported=complete.filter{selected.contains(Data($0.lastPathComponent.utf8))}
+                try require(unsupported.count==plan.negative_batches[index].count,"Negative cohort selection is incomplete")
+            }
+            try phase("cohort inventory",state:"cohort=\(cohort) positives=\(samples.count) selectedNegatives=\(unsupported.count) completeNegatives=\(complete.count)")
+        }
         func renderedDimensions(_ sample:URL)->(Int,Int) {
-            let interior=(dibProfiles || wmfBitmap16 || compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? (64,64) : (sample.lastPathComponent.hasPrefix("plus-formatted-") || sample.lastPathComponent.hasPrefix("windows-formatted-")) ? (240,180):(96,64)
+            let interior=(acceptedLegacyBitmap16Samples.contains(sample.lastPathComponent) || dibProfiles || wmfBitmap16 || compressedRaster || embeddedMetafiles || classicPens || classicRegions || classicPatternBrushes) ? (64,64) : (sample.lastPathComponent.hasPrefix("plus-formatted-") || sample.lastPathComponent.hasPrefix("windows-formatted-")) ? (240,180):(96,64)
             // Original Windows recordings use their measured 240x180 canvas;
             // handwritten fixtures retain the inclusive frame profile.
             let border=sample.pathExtension.lowercased()=="emf" && !sample.lastPathComponent.hasPrefix("windows-formatted-") ? 1:0
@@ -93,11 +147,13 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             // Default filename dispatch and explicit IDiff remain image viewers
             // even if one side is empty/unsupported. Source bytes remain intact.
             var first:FileComparisonWindowController?
-            for (index,sample) in samples.enumerated() {
+            for (index,sample) in (negativeOnly ? []:samples).enumerated() {
+                try phase("positive input",sample:sample.lastPathComponent,state:"ordinal=\(index+1)/\(samples.count)")
                 let left=root.appendingPathComponent("sample-\(index)."+sample.pathExtension),right=root.appendingPathComponent("unsupported-\(index)."+sample.pathExtension)
                 try inputs[index].write(to:left);try bad.write(to:right)
                 let owner=track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
-                owner.model.load();try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.document != nil}
+                owner.model.load();try phase("positive native load",sample:sample.lastPathComponent,state:comparisonState(owner))
+                try await wait(diagnostic:{comparisonState(owner)}) {owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.document != nil}
                 if !(owner.model.viewerSelection == .image && owner.model.imageComparison?.base != nil && owner.model.imageComparison?.destination == nil) {
                     let failedState=comparisonState(owner),bytes=inputs[index]
                     let inputMatches=owner.model.document?.base.bytes == bytes && owner.model.document?.destination.bytes == bad
@@ -118,6 +174,20 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 let dimensions=renderedDimensions(sample)
                 try require(owner.model.imageComparison?.base?.pixels.width == dimensions.0 && owner.model.imageComparison?.base?.pixels.height == dimensions.1 && owner.window?.title.hasSuffix("TurtleGitIDiff") == true,"Metafile \(sample.lastPathComponent) was not rendered at its expected \(dimensions.0)x\(dimensions.1) dimensions in native IDiff; actual=\(owner.model.imageComparison?.base?.pixels.width ?? -1)x\(owner.model.imageComparison?.base?.pixels.height ?? -1); title=\(owner.window?.title ?? "none")")
                 try require(owner.model.document?.base.bytes == inputs[index] && owner.model.document?.destination.bytes == bad && (try Data(contentsOf:left)) == inputs[index] && (try Data(contentsOf:right)) == bad,"Metafile rendering rewrote original bytes")
+                if acceptedHistoricalSamples.contains(sample.lastPathComponent),let image=owner.model.imageComparison?.base?.pixels {
+                    let pixels=try textRGBA(image,fullCanvas:true)
+                    func color(_ x:Int,_ y:Int)->[UInt8] {let start=(y*image.width+x)*4;return Array(pixels[start..<(start+4)])}
+                    if sample.lastPathComponent=="unsupported-image-effect.emf" {
+                        for (channel,x,y) in [(0,16,16),(1,32,16),(2,16,32)] {
+                            let rgba=color(x,y)
+                            try require(rgba[channel]>204 && (0..<3).filter{$0 != channel}.allSatisfy{rgba[$0]<64} && rgba[3]==255,"Ordinary image fallback lost independently specified source primary at \(x),\(y): \(rgba)")
+                        }
+                    } else if sample.lastPathComponent=="unsupported-rop.emf" {
+                        try require(color(12,12)==[0,255,255,255] && color(58,12)==[255,255,0,255],"ROP2 XOR against opaque white lost independent cyan/yellow pixels")
+                    } else if sample.lastPathComponent.hasPrefix("unsupported-raster-device-") {
+                        try require(color(2,2)==[204,204,204,255],"Complete legacy BGRX record lost independently specified gray204 pixel")
+                    }
+                }
                 if let expected=classicGDIFullCanvasExpected(sample.lastPathComponent),let image=owner.model.imageComparison?.base?.pixels {
                     try require(image.width==64 && image.height==64,"Classic GDI contract needs the entire native64x64 canvas")
                     try require(try raster(image)==Data(expected),"Native full-canvas original alpha/explicit PATCOPY/wall connectivity differs: \(sample.lastPathComponent)")
@@ -129,6 +199,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     if sample.lastPathComponent.contains("state") || sample.lastPathComponent.contains("palette-select") {try patternRGB(image,8,24,[255,255,0],"Native saved/live brush state")}
                 }
                 if first == nil {first=owner} else {owner.close()}
+                try phase("positive complete",sample:sample.lastPathComponent,state:comparisonState(owner))
             }
             if compressedRaster {
                 for names in [["compressed-raster-image-gif.emf","compressed-raster-control-image-opaque.emf"],["compressed-raster-texture-tiff-alpha.emf","compressed-raster-control-texture-tiff-alpha.emf"],["compressed-raster-alpha-tiff-alpha-copy.emf","compressed-raster-control-tiff-alpha-copy.emf"]] {
@@ -339,13 +410,31 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     pair.close()
                 }
             }
-            for sample in unsupported {
+            if historicalOnly {
+                for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample)==bytes,"Historical positive conversion modified source bytes")}
+                try phase("historical positive cleanup");try await cleanup();try phase("historical positive cohort complete")
+                print("PASS: all supported historical metafile names, independent native pixel/route/byte oracles, closed/drained owners")
+                return
+            }
+            for (ordinal,sample) in unsupported.enumerated() {
+                try phase("negative input",sample:sample.lastPathComponent,state:"ordinal=\(ordinal+1)/\(unsupported.count)")
                 let bytes=try Data(contentsOf:sample),owner=track(FileComparisonWindowController(images:try ImageFileComparison(base:sample,destination:nil),permissions:[],preferences:prefs))
-                owner.model.load();try await wait {!owner.model.busy && owner.model.document != nil}
+                owner.model.load();try phase("negative native load",sample:sample.lastPathComponent,state:comparisonState(owner))
+                try await wait(diagnostic:{comparisonState(owner)}) {!owner.model.busy && owner.model.document != nil}
                 try require(owner.model.viewerSelection == .image && owner.model.imageComparison != nil && owner.model.imageComparison?.base == nil && owner.model.imageComparison?.destination == nil && owner.model.document?.base.bytes == bytes,"Unsupported metafile escaped explicit IDiff or lost original bytes; \(comparisonState(owner))")
                 owner.close()
+                try await wait(diagnostic:{comparisonState(owner)}) {drained() && owner.window?.attachedSheet==nil && owner.window?.isVisible != true}
+                try require(try Data(contentsOf:sample)==bytes,"Malformed-image refusal modified source bytes")
+                try phase("negative complete",sample:sample.lastPathComponent,state:comparisonState(owner))
+            }
+            if negativeOnly {
+                for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample)==bytes,"Negative cohort modified positive corpus bytes")}
+                try phase("negative cleanup");try await cleanup();try phase("negative cohort complete",state:cohort ?? "missing")
+                print("PASS: complete deterministic malformed consumer cohort \(cohort ?? "missing"), \(unsupported.count) native refusals with unchanged bytes and drained owners/helpers")
+                return
             }
             guard let first else {throw Failure(message:"No metafile comparison")}
+            try phase("preview drop and reload")
             let original=first.model.document!,pane=first.model.imageViewerModel,drop=root.appendingPathComponent("preview.emf")
             let preview:URL
             if wmfBitmap16 {preview=corpus.appendingPathComponent("wmf-bitmap16-embedded-affine.emf")}
@@ -369,6 +458,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
 
             // Exercise actual IDiff Open acceptance through its owned chooser,
             // including the native detach before the captured reload is admitted.
+            try phase("owned image Open chooser")
             var loader:ImageLoadWindowController?
             first.model.makeImageLoader={path,permissions in
                 let value=track(ImageLoadWindowController(leftPath:path,permissions:permissions));value.requiresScopes=false;loader=value;return value
@@ -402,6 +492,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             }
             // A noncooperative decoder must not block the main actor or release
             // the captured comparison session before its true completion.
+            try phase("held comparison decoder")
             let late=track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:samples[0],destination:samples[0]),permissions:[],preferences:prefs,deferInitialLoad:true))
             var comparisonToken:OperationCancellation?
             late.model.decodeImages={_,token in comparisonToken=token;return await withCheckedContinuation {comparisonHold=$0}}
@@ -412,6 +503,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try await wait {!late.model.busy && FileListComparisonSession.activeOperations == 0}
             try require(late.model.document == nil && late.model.imageComparison == nil,"Retired comparison published late decoder result; \(comparisonState(late))")
 
+            try phase("held dropped-image decoder")
             let scope=MetafileConsumerScopeLog(),dropModel=ImageComparisonViewModel();previewModels.append(dropModel)
             dropModel.requiresDropScope=true;dropModel.makeDropPermission={RepositoryAccessLease(url:$0,provider:MetafileConsumerBookmarks(scope))}
             var dropToken:OperationCancellation?
@@ -425,6 +517,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
 
             // Replacement/reload cancels only the old preview receipt. A late
             // decoder cannot overwrite the newer accepted drop or its grants.
+            try phase("replacement dropped-image decoder")
             let replacementScope=MetafileConsumerScopeLog(),replacement=ImageComparisonViewModel();previewModels.append(replacement)
             replacement.requiresDropScope=true;replacement.makeDropPermission={RepositoryAccessLease(url:$0,provider:MetafileConsumerBookmarks(replacementScope))}
             let defaultDropDecoder=replacement.decodeDroppedImage
@@ -445,6 +538,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
 
             // Actual three-stage conflict uses the same decoder and keeps every
             // original stage selectable independently of successful rendering.
+            try phase("three-stage conflict fixture")
             let work=root.appendingPathComponent("repository");try FileManager.default.createDirectory(at:work,withIntermediateDirectories:true)
             let repo=GitRepository(root:work,executable:git),path="drawing.emf",file=work.appendingPathComponent(path)
             _ = try await repo.run(["init","-b","main"])
@@ -543,6 +637,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require(try await rawRepo.run(["rev-parse","HEAD"]).stdout==rawHead,"Indexed/16-bit preview moved HEAD")
             try require((try Data(contentsOf:rawWork.appendingPathComponent(".git/index")))==rawIndex && (try Data(contentsOf:rawFile))==rawWorking,"Indexed/16-bit preview mutated conflict index/working bytes")
             }
+            try phase("held conflict reload and retirement")
             let priorImages=conflict.model.images.mapValues(\.id)
             var reloadToken:OperationCancellation?
             conflict.model.decodeImages={_,token in reloadToken=token;return await withCheckedContinuation {conflictHold=$0}}
@@ -564,7 +659,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             try require(try await repo.run(["rev-parse","HEAD"]).stdout == head,"Metafile preview moved HEAD")
             try require((try Data(contentsOf:work.appendingPathComponent(".git/index"))) == index && (try Data(contentsOf:file)) == working,"Metafile preview mutated conflict state")
             for (sample,bytes) in zip(samples,inputs) {try require(try Data(contentsOf:sample) == bytes,"Metafile renderer modified corpus bytes")}
-            try await cleanup()
+            try phase("final cleanup");try await cleanup();try phase("workflow complete")
             if formattedDigits {print("PASS: formatted Windows numeric paint, zero-advance controls and native recordings, hotkey/vertical/wrap/gradient native IDiff, malformed refusal, WMF/classic baselines, preview/reload and actual three-stage conflict with held cancellation/retirement; original bytes and HEAD/index unchanged")}
             else if embeddedMetafiles {print("PASS: embedded WMF/placeable/EMF/EMF+ live image and isolated texture native IDiff, malformed refusal, drop/Open, actual conflict stages and held cancel/retire/Quit ownership; original bytes preserved")}
             else if classicPatternBrushes {print("PASS: classic mono/DDB/DIB pattern brushes native default and explicit IDiff, live/fixed/palette colors, actual three-stage conflict and held owner retirement; original bytes and HEAD/index preserved")}
@@ -576,7 +671,13 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             else if positionedText {print("PASS: positioned Unicode/raw glyph native pairs, malformed refusal, dropped preview, three-stage conflict, chooser/cancel/late-result/grant/Quit ownership; source bytes and HEAD/index unchanged")}
             else if compressedPaths {print("PASS: compressed EMF+ normal/region/custom-cap native IDiff raster controls, malformed refusal, drop/reload, exact Git conflict stages, chooser/cancel/late-result/grant/Quit ownership; original bytes and HEAD/index unchanged")}
             else {print("PASS: actual WMF/EMF/EMF+, indexed/16bit raw and region/hatch/texture default two-side and conflict decode/reload, unsupported-side IDiff and explicit Merge routing, preview-only drop, cancellation/late-result/session/grant/Quit ownership; original corpus/comparison/conflict HEAD/index/working bytes unchanged")}
-        } catch {let original=error;do {try await cleanup()}catch {throw Failure(message:"\(original); cleanup: \(error)")};throw original}
+        } catch {
+            let record:[String:Any]=["phase":currentPhase,"error":String(String(reflecting:error).prefix(16384)),"history":phaseHistory]
+            try? JSONSerialization.data(withJSONObject:record,options:[.prettyPrinted,.sortedKeys]).write(to:root.appendingPathComponent("fixture-failure.json"),options:.atomic)
+            let original=error
+            do {try await cleanup()} catch {throw Failure(message:"\(original); cleanup: \(error)")}
+            throw original
+        }
     }
     private static func rawGlyphCopy(_ original:Data)throws->Data {
         var bytes=original

@@ -222,3 +222,21 @@ two/three-file replacements and supplies the actual input encodings to the share
 engine. The command's original discarded-result status remains failed. The
 follow-up checkpoint is recorded separately; historical results above remain
 scoped to their original source revision.
+
+
+## Current startup-scene admission checks — October 31, 2026
+
+The older hosted scene fixture waited for a Git-configuration continuation on
+bare `--merge-tool`. Current native startup deliberately bypasses that preparation
+for Open, Help and captured local two/three-file readers. The corrected cohort
+checks immediate, exactly-once admission, one owner and no repository/Finder
+restoration across all four inputs. Real patch review and patch generation retain
+the held Git-preparation barrier and exact captured-command order. Existing native
+editor Save/Save All, settings-sheet ownership, stale-menu, Quit and retirement
+assertions remain. This corrects the fixture's admission contract; it does not
+claim a newly demonstrated product startup defect or physical/signed acceptance.
+The [grouped editor checkpoint](qa/editor-ci-family-2026-10-31.json) passes the
+scene family with system and bundled Git. Passing scene checks were not repeated
+after the separate image-classification repair. No product/Core change or new app
+build was required; complete hosted, physical and signed scene acceptance remain
+separate.

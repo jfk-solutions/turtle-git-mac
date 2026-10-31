@@ -1,5 +1,23 @@
 # TurtleGit for Mac — full port tracking
 
+## Connected editor CI admission and image inventory
+
+The [editor CI repair batch](qa/editor-ci-family-2026-10-31.json) corrects stale
+scene admission expectations: local/Open/Help readers bypass unrelated Git setup,
+while real patch review/generation retain their captured preparation barrier.
+The complete native image consumer inventory now runs in bounded serial cohorts
+with exact name/hash plans, per-image state and retained timeout evidence.
+Historically named but supported images use independent positive pixel oracles;
+517 genuine malformed inputs retain their refusal assertions.
+
+Scene checks pass with both Git engines. Combined initial and affected-only system
+runs cover all refusal cases; positive/lifecycle and historical-positive routes
+also pass with bundled Git. Passing cohorts were not repeated. All16 owned
+receivers are absent; no Core suite, app build or installed app launch was needed.
+Build46 is unchanged. Complete hosted CI and the newly observed selected-file
+Services Blame failure remain open; the next source batch reviews nonfatal recent-
+history persistence and captured document ownership together.
+
 ## Installed consolidated local build46
 
 [Signed build46](qa/signed-consolidation-build46-2026-10-31.json), `0.1.0 (46)`,
