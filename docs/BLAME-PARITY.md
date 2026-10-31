@@ -1548,3 +1548,40 @@ replies. It is awaiting the grouped checkpoint recorded in
 [the family receipt](qa/blame-linked-authority-2026-10-31.json). No signed sandbox,
 physical folder gestures, moved external metadata stores or full Blame acceptance
 is established by source implementation or authored fixtures alone.
+
+## Caret search and navigation ownership — October 31, 2026
+
+Pinned `TortoiseGitBlameView.cpp::DoSearch` reads the code caret's logical row,
+then selects the complete found line with its active end at the next line.
+`TortoiseGitBlameData.cpp::FindFirstLineWrapAround` searches that cursor row
+before advancing, with separate initial normalization and traversal-wrap feedback.
+The native UI now supplies that cursor instead of always skipping from the last
+highlighted annotation. Manual caret movement and Go To revoke the accepted-Find
+selection receipt; display-only changes preserve it. Independent callers retain
+the previous explicit prior-hit search API.
+
+The pinned reverse loop can skip its terminal row or fail to reach its stop
+sentinel. The native cursor API retains the source's initial start/direction rules
+but visits each logical row at most once. This is an explicit bounded terminal
+adaptation, including empty and one-line files, rather than reproducing an unsafe
+loop or claiming identical behavior for that bug.
+
+Find remains modeless while open and rebinds to an accepted document. Retired
+Find controllers and pre-rebind callbacks cannot search or flash a replacement.
+Go To and not-found feedback capture their exact model, parent and sheet, fence
+duplicate/late answers and keep operation/Quit ownership through actual native
+detachment. Accepted Go To runs after that fence. Root closure cancels the owned
+request and awaits its child drainage before its completion callback. Closed
+Find/Go To hosts release their model bindings after owned sheets drain.
+
+Static source/history/header captions use the native catalog, including bold
+menu titles. Parent hash/path metadata, authors and copied text remain literal.
+[User instructions](BLAME-MENUS.md#search-line-navigation-and-pane-focus) describe
+the search and dialog behavior. The [grouped checkpoint](qa/blame-caret-navigation-2026-10-31.json)
+passes 12 focused Core methods, Find and commands with both Git engines, and
+source context menus with system Git. An initial rapid-repeat failure exposed
+the asynchronous caret handoff; the repaired native bridge applies and consumes
+navigation synchronously, and actual manual movement cancels deferred intent.
+The immediate-key assertions remain in place. Physical keyboard/menu interaction,
+translated bundled-app acceptance, signed grants and complete source-layout
+parity remain separate.

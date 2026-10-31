@@ -18,6 +18,33 @@ public enum GitBlameSearch {
         public let row: Int
         public let wrapped: Bool
     }
+    /// TortoiseGitBlameView::DoSearch passes the code caret's logical line,
+    /// rather than the previously highlighted attribution row. Its whole-line
+    /// Find selection puts that caret at the next line's start. Initial cursor
+    /// normalization does not flash; only crossing the search boundary does.
+    ///
+    /// Preserve those source start rules, while visiting every logical row at
+    /// most once. The pinned reverse loop's count-2 wrap can skip a row or never
+    /// reach its stop sentinel; an empty/one-line document must remain bounded.
+    public static func findFromCaret(fields:[[String]],text:String,caretRow:Int,previous:Bool,matchCase:Bool,wraparound:()->Void = {})->Match? {
+        guard !text.isEmpty,!fields.isEmpty else{return nil}
+        let count=fields.count,needle=matchCase ? text:text.lowercased()
+        var row:Int
+        if previous {row=caretRow<2 ? count-1:min(caretRow-2,count-1)}
+        else {row=caretRow<0 || caretRow>=count-1 ? 0:caretRow}
+        var wrapped=false
+        for _ in 0..<count {
+            if fields[row].contains(where:{(matchCase ? $0:$0.lowercased()).range(of:needle,options:.literal) != nil}) {return Match(row:row,wrapped:wrapped)}
+            // The pinned reader publishes its boundary transition even when
+            // this failed row completes the scan and Not Found follows.
+            if previous {
+                if row==0{row=count-1;wrapped=true;wraparound()}else{row-=1}
+            } else {
+                if row==count-1{row=0;wrapped=true;wraparound()}else{row+=1}
+            }
+        }
+        return nil
+    }
     /// Search each author/source field independently. Match-case off lowercases
     /// text rather than applying fuzzy or diacritic-insensitive matching.
     public static func find(fields: [[String]], text: String, fromRow: Int?, previous: Bool, matchCase: Bool) -> Match? {

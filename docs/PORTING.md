@@ -6110,3 +6110,31 @@ All five owned receivers were reaped and independently absent. Native validation
 used system Git; Core/Git implementations and unrelated suites were not repeated.
 Localization and bundled Help write/check pass. The checkpoint preserves the
 exact private-menu/fallback scope and remaining physical/signed/full-port gates.
+
+
+## Blame caret search and navigation ownership — October 31, 2026
+
+Blame Find now starts from the actual code caret and retains the accepted
+whole-line selection end for repeated searches. Manual movement and Go To clear
+that receipt. Initial cursor normalization stays silent; real traversal wrapping
+flashes the Find panel, including before a failed search's Not Found message.
+The cursor API preserves source start rules while bounding unsafe terminal
+traversal, and independent prior-hit callers retain their existing API.
+
+Find reuse and current-document rebinding remain modeless. Closed controls and
+stale binding callbacks retire. Go To and feedback own their captured model,
+parent and sheet until actual detachment; accepted Go To follows that boundary.
+Root closure and Quit retain pending requests through drain, with old model flags
+cleared without mutating a replacement. Static history/source/header captions
+consume the catalog while authors, hashes, paths and copied data remain literal.
+
+The [batch record](qa/blame-caret-navigation-2026-10-31.json) separates focused
+Core/native proof, the bounded terminal adaptation and remaining physical,
+translated-app, signed and full-port acceptance. Installed build47 predates
+this continuation.
+
+The grouped checkpoint passes 12 focused Core methods and five native case/engine
+pairs. An initial consecutive-F3 failure led to synchronous native caret receipt
+consumption and manual-movement cancellation; only affected native checks were
+repeated. All recorded owned runtime/compiler processes are independently absent.
+Core and resource checks were retained after the native-only repair.

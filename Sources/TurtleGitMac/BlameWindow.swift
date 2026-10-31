@@ -4,16 +4,43 @@ import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+@MainActor private final class BlameNavigationSheet {
+    let window: NSWindow, parent: NSWindow, model: BlameWindowModel
+    var answered = false, cancelled = false, finished = false
+    var requestedLine: Int?
+    var reply: (NSApplication.ModalResponse) -> Void = { _ in }
+    init(window: NSWindow, parent: NSWindow, model: BlameWindowModel) {
+        self.window = window; self.parent = parent; self.model = model
+    }
+    var attached: Bool { window.sheetParent != nil || parent.attachedSheet === window }
+    func cancel() {
+        cancelled = true
+        if let owner = window.sheetParent { owner.endSheet(window, returnCode: .cancel) }
+        else if parent.attachedSheet === window { parent.endSheet(window, returnCode: .cancel) }
+        window.orderOut(nil)
+        reply(.cancel)
+    }
+}
+
 @MainActor final class BlameWindowController: NSWindowController, NSWindowDelegate {
     private(set) var model: BlameWindowModel
     private(set) var toolbarChrome:BlameToolbarController?
     var onClosed: () -> Void = {}
     private(set) var goToWindow: BlameGoToLineWindowController?
+    static private(set) var activeNavigationOperations = 0
+    private var goToRequest: BlameNavigationSheet?
+    private var feedbackRequest: BlameNavigationSheet?
+    var navigationWorkPending: Bool { goToRequest != nil || feedbackRequest != nil || findWindow?.hasPendingWork == true }
+    var presentGoToLine: (BlameGoToLineWindowController, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { controller, owner, reply in
+        if let panel = controller.window { owner.beginSheet(panel, completionHandler: reply) }
+    }
+    var presentFindFeedback: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { alert, owner, reply in
+        alert.beginSheetModal(for: owner, completionHandler: reply)
+    }
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
     private var focusGeneration = 0
     private(set) var findWindow: BlameFindWindowController?
     private(set) var findAlert:NSAlert?
-    private var feedbackGeneration=0
     private(set) var columnAlert:NSAlert?
     private var columnResetReply:((NSApplication.ModalResponse)->Void)?
     private var columnResetRelease:Task<Void,Never>?
@@ -334,52 +361,78 @@ import TurtleGitCore
     }
     private func showFind() {
         guard commandsAvailable else { return }
-        if let findWindow,findWindow.window?.isVisible==true { findWindow.showWindow(nil);findWindow.window?.makeKeyAndOrderFront(nil);return }
+        if let findWindow,!findWindow.retired { findWindow.showWindow(nil);findWindow.window?.makeKeyAndOrderFront(nil);return }
         let selected=model.selectedSourceText?()
         let draft=BlameFindDraft(text:selected?.isEmpty==false ? selected! : model.find,matchCase:model.matchCase)
         let controller=BlameFindWindowController(model:model,draft:draft)
-        findWindow=controller;controller.window?.appearance=window?.appearance
+        findWindow=controller;controller.window?.appearance=window?.appearance;controller.window?.alphaValue=window?.alphaValue ?? 1
+        controller.onClosing={ [weak self,weak controller] in
+            guard let self,let controller else{return};self.cancelFindFeedback(parent:controller.window)
+        }
         controller.onClosed={ [weak self,weak controller] in
             guard let self,self.findWindow===controller else { return };self.findWindow=nil
         }
         if let window,let panel=controller.window { window.addChildWindow(panel,ordered:.above);panel.center() }
         controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)
     }
+    private func afterNavigationDetach(_ request:BlameNavigationSheet,completion:@escaping()->Void) {
+        if !request.attached {completion();return}
+        Task { @MainActor [self,request] in
+            while request.attached {try? await Task.sleep(nanoseconds:10_000_000)}
+            completion();withExtendedLifetime(self){}
+        }
+    }
+    private func cancelFindFeedback(parent:NSWindow? = nil) {
+        guard let request=feedbackRequest,parent == nil || request.parent === parent else{return}
+        request.cancel()
+    }
     private func feedback(_ result:BlameFindFeedback) {
+        guard !closing else{return}
         switch result {
         case .wrapped:findWindow?.flash()
         case .notFound(let text):
-            guard findAlert==nil,let owner=findWindow?.window ?? window,owner.attachedSheet==nil else { return }
-            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="TurtleGit Blame";alert.informativeText="\"\(text)\" was not found.";alert.addButton(withTitle:"OK")
-            alert.window.appearance=owner.appearance;findAlert=alert;model.searchFeedbackBusy=true;feedbackGeneration += 1;let identity=feedbackGeneration
-            alert.beginSheetModal(for:owner) { [weak self] _ in
-                guard let self,self.feedbackGeneration==identity else { return };self.findAlert=nil;self.model.searchFeedbackBusy=false
+            guard findAlert==nil,feedbackRequest==nil,let owner=(findWindow?.retired == false ? findWindow?.window:nil) ?? window,owner.attachedSheet==nil else { return }
+            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="TurtleGit Blame";alert.informativeText=String(format:NSLocalizedString("\"%@\" was not found.",comment:""),text);alert.addButton(withTitle:String(localized:"OK"))
+            alert.window.appearance=owner.appearance;alert.window.alphaValue=owner.alphaValue
+            let original=model,request=BlameNavigationSheet(window:alert.window,parent:owner,model:model)
+            findAlert=alert;feedbackRequest=request;original.searchFeedbackBusy=true
+            Self.activeNavigationOperations += 1
+            request.reply={ [weak self,weak request] _ in
+                guard let self,let request,!request.answered else{return};request.answered=true
+                self.afterNavigationDetach(request) { [self,request,alert] in
+                    guard !request.finished else{return};request.finished=true;request.reply={_ in}
+                    if self.feedbackRequest === request {
+                        self.feedbackRequest=nil
+                        if self.findAlert === alert {self.findAlert=nil}
+                    }
+                    request.model.searchFeedbackBusy=false
+                    Self.activeNavigationOperations -= 1
+                    alert.window.orderOut(nil)
+                }
             }
+            presentFindFeedback(alert,owner,request.reply)
         }
     }
     func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
     func windowWillClose(_ notification:Notification) {
-        guard !closing else{return};closing=true
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true
         toolbarChrome?.retire();toolbarChrome=nil
         let pendingColumnAlert=columnAlert
         let pendingOpenPanel=openPanel
         cancelGoToLine();focusGeneration += 1
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
-        feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
+        openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close() };columnResetReply?(.cancel)
         Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
         Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
         if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil };model.openingDocument=false
         openPanelReply?(nil)
-        if let alert=findAlert {
-            alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();findAlert=nil
-        }
-        model.searchFeedbackBusy=false
-        findWindow?.close();findWindow=nil
+        cancelFindFeedback()
+        findWindow?.close()
         model.retireSourceView?();model.retireSourceView=nil;model.onFind=nil;model.onFindFeedback=nil;model.retire()
-        if model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {
+        if navigationWorkPending || model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {
             columnResetRelease=Task { [self] in
-                while model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                while navigationWorkPending || model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
                 columnResetRelease=nil;onClosed()
             }
         } else {onClosed()}
@@ -831,11 +884,32 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var firstVisibleSourceRow: (() -> Int?)?
     var scrollSourceRowToTop: ((Int) -> Void)?
     var selectedSourceText: (() -> String)?
+    /// Logical caret used by the source editor, independent of attribution
+    /// selection and of the focused modeless Find field editor.
+    var sourceSearchCaretRow: (() -> Int?)?
+    fileprivate var sourceNavigationHandler: ((Int, Bool, Bool) -> Bool)?
     var retireSourceView: (() -> Void)?
     @Published private(set) var sourceNavigationSerial = 0
     private(set) var sourceNavigation: (line: Int, wholeLine: Bool, includeBreak: Bool)?
+    private var sourceNavigationVersion = 0
     func requestSourceNavigation(line: Int, wholeLine: Bool, includeBreak: Bool = false) {
-        sourceNavigation = (line, wholeLine, includeBreak); sourceNavigationSerial += 1
+        sourceNavigation = (line, wholeLine, includeBreak)
+        sourceNavigationVersion = sourceVersion; sourceNavigationSerial += 1
+        applyPendingSourceNavigation()
+    }
+    fileprivate func applyPendingSourceNavigation() {
+        guard let request = sourceNavigation else { return }
+        guard !retired, sourceNavigationVersion == sourceVersion else { sourceNavigation = nil; return }
+        let serial = sourceNavigationSerial
+        if sourceNavigationHandler?(request.line, request.wholeLine, request.includeBreak) == true,
+           sourceNavigationSerial == serial {
+            // Native Find/Go To moves the caret synchronously. Consume this
+            // receipt so a later SwiftUI projection cannot replay the move.
+            sourceNavigation = nil
+        }
+    }
+    fileprivate func cancelPendingSourceNavigation() {
+        sourceNavigation = nil
     }
     private(set) var appliedOptions = GitBlameOptions()
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
@@ -980,7 +1054,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         retainedDocument=nil;documentNeedsLoadedNotification=false
         retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
-    func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceNavigation = nil }
+    func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceSearchCaretRow = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         guard canFind,lines.contains(where:{$0.number==number}) else {return}
         selection=number;loadParents(completion:completion)
@@ -1120,8 +1194,18 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func findLine(previous: Bool) {
         guard canFind,!find.isEmpty,!lines.isEmpty else { return }
-        guard let result = GitBlameSearch.find(fields: lines.map { [$0.author, $0.source] }, text: find,
-            fromRow: selection.map { $0 - 1 }, previous: previous, matchCase: matchCase) else {
+        let fields=lines.map { [$0.author,$0.source] }
+        let found:GitBlameSearch.Match?
+        var traversedBoundary=false
+        if let caret=sourceSearchCaretRow?() {
+            found=GitBlameSearch.findFromCaret(fields:fields,text:find,caretRow:caret,previous:previous,matchCase:matchCase,wraparound:{traversedBoundary=true})
+        } else {
+            // Independent model consumers retain the earlier previous-hit API;
+            // the mounted native code view supplies the actual caret instead.
+            found=GitBlameSearch.find(fields:fields,text:find,fromRow:selection.map{$0-1},previous:previous,matchCase:matchCase)
+        }
+        guard let result=found else {
+            if traversedBoundary {onFindFeedback?(.wrapped(line:previous ? lines.count:1))}
             navigationMessage = "\"\(find)\" was not found.";onFindFeedback?(.notFound(text:find));return
         }
         selection = lines[result.row].number
@@ -1182,46 +1266,73 @@ private struct BlameDialog: View {
 }
 @MainActor final class BlameFindWindowController:NSWindowController,NSWindowDelegate {
     let draft:BlameFindDraft
-    private(set) var model:BlameWindowModel
+    private(set) var model:BlameWindowModel?
+    private(set) var retired=false
+    private var binding=UUID()
+    private var retirement:Task<Void,Never>?
+    var hasPendingWork:Bool {retirement != nil}
+    var onClosing:()->Void={}
     var onClosed:()->Void={}
     private var flashGeneration=0
     private(set) var flashCount=0
     init(model:BlameWindowModel,draft:BlameFindDraft) {
         self.model=model;self.draft=draft
         let panel=NSPanel(contentRect:NSRect(x:0,y:0,width:460,height:180),styleMask:[.titled,.closable,.utilityWindow],backing:.buffered,defer:false)
-        panel.title="Find – TurtleGit Blame";panel.isReleasedWhenClosed=false;panel.isFloatingPanel=true;panel.hidesOnDeactivate=true
-        super.init(window:panel);panel.delegate=self
-        panel.contentViewController=NSHostingController(rootView:BlameFindDialog(model:model,draft:draft,close:{ [weak self] in self?.window?.performClose(nil) }))
+        panel.title=String(localized:"Find")+" – TurtleGit Blame";panel.isReleasedWhenClosed=false;panel.isFloatingPanel=true;panel.hidesOnDeactivate=true
+        super.init(window:panel);panel.delegate=self;installContent()
         DialogGeometry.attach(panel,identifier:"BlameFindWindowController")
     }
-    func rebind(_ model:BlameWindowModel) {
-        flashGeneration += 1;window?.contentView?.layer?.borderWidth=0;self.model=model
-        window?.contentViewController=NSHostingController(rootView:BlameFindDialog(model:model,draft:draft,close:{ [weak self] in self?.window?.performClose(nil) }))
+    private func installContent() {
+        guard !retired,let model else{return}
+        let identity=binding
+        window?.contentViewController=NSHostingController(rootView:BlameFindDialog(model:model,draft:draft,search:{ [weak self,weak model] in
+            guard let self,let model,!self.retired,self.binding==identity,self.model === model else{return};self.search()
+        },close:{ [weak self,weak model] in
+            guard let self,let model,!self.retired,self.binding==identity,self.model === model else{return};self.window?.performClose(nil)
+        }))
     }
-    func search() { guard !draft.text.isEmpty,model.canFind else { return };model.applyFind(text:draft.text,matchCase:draft.matchCase,previous:draft.previous) }
+    func rebind(_ model:BlameWindowModel) {
+        guard !retired else{return};binding=UUID()
+        flashGeneration += 1;window?.contentView?.layer?.borderWidth=0;self.model=model;installContent()
+    }
+    func search() {guard !retired,let model,!draft.text.isEmpty,model.canFind else{return};model.applyFind(text:draft.text,matchCase:draft.matchCase,previous:draft.previous)}
     func flash() {
-        guard let view=window?.contentView else { return };flashGeneration += 1;let identity=flashGeneration;flashCount += 1
+        guard !retired,let view=window?.contentView else { return };flashGeneration += 1;let identity=flashGeneration;flashCount += 1
         view.wantsLayer=true
         for step in 0..<4 {
             DispatchQueue.main.asyncAfter(deadline:.now()+Double(step)*0.1) { [weak self,weak view] in
-                guard let self,self.flashGeneration==identity,let view else { return }
+                guard let self,!self.retired,self.flashGeneration==identity,let view else { return }
                 view.layer?.borderWidth=step%2==0 ? 2 : 0;view.layer?.borderColor=NSColor.controlAccentColor.cgColor
             }
         }
     }
-    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy }
-    func windowWillClose(_ notification:Notification) {
-        flashGeneration += 1;window?.contentView?.layer?.borderWidth=0
-        if let panel=window { panel.parent?.removeChildWindow(panel) };onClosed()
+    func windowShouldClose(_ sender:NSWindow) -> Bool {!retired && model?.searchFeedbackBusy != true}
+    override func close() {super.close();if !retired {retire()}}
+    func windowWillClose(_ notification:Notification) {guard notification.object as? NSWindow === window else{return};retire()}
+    private func retire() {
+        guard !retired else{return};retired=true;binding=UUID();flashGeneration += 1
+        let panel=window,parent=window?.parent
+        panel?.contentView?.layer?.borderWidth=0
+        if let panel {parent?.removeChildWindow(panel)}
+        let closing=onClosing;onClosing={};closing()
+        let finish={ [self] in
+            panel?.contentViewController=nil;model=nil
+            let done=onClosed;onClosed={};done()
+        }
+        guard panel?.attachedSheet != nil || panel?.sheetParent != nil else{finish();return}
+        retirement=Task { @MainActor [self] in
+            while panel?.attachedSheet != nil || panel?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+            retirement=nil;finish()
+        }
     }
-    required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
+    required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
 }
 private struct BlameFindDialog:View {
     @ObservedObject var model:BlameWindowModel
     @ObservedObject var draft:BlameFindDraft
+    let search:()->Void
     let close:()->Void
     @FocusState private var focused:Bool
-    private func search() { guard !draft.text.isEmpty,model.canFind else { return };model.applyFind(text:draft.text,matchCase:draft.matchCase,previous:draft.previous) }
     var body:some View {
         HStack(alignment:.top,spacing:18) {
             VStack(alignment:.leading,spacing:14) {
@@ -1249,17 +1360,20 @@ private struct BlameFindDialog:View {
     private(set) var requested: Int?
     private(set) var retired = false
     private var submitted = false
-    let ok = NSButton(title: "OK", target: nil, action: nil)
+    private var retirement:Task<Void,Never>?
+    var hasPendingWork:Bool {retirement != nil}
+    var endSheet:(NSWindow,NSWindow,NSApplication.ModalResponse)->Void = {owner,panel,response in owner.endSheet(panel,returnCode:response)}
+    let ok = NSButton(title: String(localized:"OK"), target: nil, action: nil)
     init() {
         let panel = NSPanel(contentRect: NSRect(x:0,y:0,width:340,height:160),styleMask:[.titled],backing:.buffered,defer:false)
-        panel.title = "Go to line"; panel.isReleasedWhenClosed = false
+        panel.title = String(localized:"Go to line"); panel.isReleasedWhenClosed = false
         super.init(window:panel)
-        line.setAccessibilityLabel("Blame line number")
-        let label = NSTextField(labelWithString:"Line number:")
+        line.setAccessibilityLabel(String(localized:"Blame line number"))
+        let label = NSTextField(labelWithString:String(localized:"Line number:"))
         let row = NSStackView(views:[label,line]); row.orientation = .horizontal; row.spacing = 10
-        validation.textColor = .systemRed; validation.setAccessibilityLabel("Line number validation")
+        validation.textColor = .systemRed; validation.setAccessibilityLabel(String(localized:"Line number validation"))
         ok.target = self; ok.action = #selector(accept); ok.keyEquivalent = "\r"
-        let cancel = NSButton(title:"Cancel",target:self,action:#selector(Self.cancel));cancel.keyEquivalent = "\u{1b}"
+        let cancel = NSButton(title:String(localized:"Cancel"),target:self,action:#selector(Self.cancel));cancel.keyEquivalent = "\u{1b}"
         let spacer = NSView()
         let buttons = NSStackView(views:[spacer,ok,cancel]);buttons.orientation = .horizontal;buttons.spacing = 10
         let content = NSStackView(views:[row,validation,buttons]);content.orientation = .vertical;content.alignment = .leading;content.spacing = 14
@@ -1273,10 +1387,27 @@ private struct BlameFindDialog:View {
             validation.stringValue = "Enter a whole number from 0 to \(GitBlameNavigation.maximumGoToLine)."
             window.makeFirstResponder(line);return
         }
-        requested = value;submitted = true;parent.endSheet(window,returnCode:.OK)
+        requested = value;submitted = true;ok.isEnabled=false;endSheet(parent,window,.OK)
     }
-    @objc func cancel() { guard !retired,let window else {return};submitted = true;requested = nil;window.sheetParent?.endSheet(window,returnCode:.cancel) }
-    func retire() { guard !retired else {return};retired = true;requested = nil;if let window { window.sheetParent?.endSheet(window,returnCode:.cancel);window.close() } }
+    @objc func cancel() {
+        guard !retired,!submitted,let window,let parent=window.sheetParent else{return}
+        submitted=true;requested=nil;ok.isEnabled=false;endSheet(parent,window,.cancel)
+    }
+    func retire() {
+        guard !retired else{return};retired=true;requested=nil
+        let panel=window,parent=window?.sheetParent
+        if let panel,let parent {parent.endSheet(panel,returnCode:.cancel)}
+        panel?.orderOut(nil)
+        let finish={ [self] in
+            panel?.contentView=nil;panel?.close()
+            endSheet={owner,panel,response in owner.endSheet(panel,returnCode:response)}
+        }
+        guard panel?.sheetParent != nil || (panel != nil && parent?.attachedSheet === panel) else{finish();return}
+        retirement=Task { @MainActor [self] in
+            while panel?.sheetParent != nil || (panel != nil && parent?.attachedSheet === panel) {try? await Task.sleep(nanoseconds:10_000_000)}
+            retirement=nil;finish()
+        }
+    }
     required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
 }
 
@@ -1611,7 +1742,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             let table=BlameHistoryNativeTable();table.style = .plain;table.setAccessibilityLabel("Blame Log")
             table.rowHeight=24;table.intercellSpacing=NSSize(width:4,height:0);table.allowsMultipleSelection=true;table.columnAutoresizingStyle = .noColumnAutoresizing
             for (id,title,width,_) in BlameHistoryColumns.definitions {
-                let column=NSTableColumn(identifier:.init(id));column.title=title;column.width=width;column.minWidth=24;column.maxWidth=10000;table.addTableColumn(column)
+                let column=NSTableColumn(identifier:.init(id));column.title=NSLocalizedString(title,comment:"");column.width=width;column.minWidth=24;column.maxWidth=10000;table.addTableColumn(column)
             }
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openHistory)
             table.menu=NSMenu();table.menu?.delegate=self
@@ -1720,7 +1851,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             headerEpoch=UUID()
             let menu=NSMenu();menu.autoenablesItems=false
             func item(_ id:String,_ title:String,_ selector:Selector)->NSMenuItem {
-                let item=NSMenuItem(title:title,action:selector,keyEquivalent:"");item.target=self
+                let item=NSMenuItem(title:NSLocalizedString(title,comment:""),action:selector,keyEquivalent:"");item.target=self
                 item.image=(id=="reset" ? MenuIcon.restore:.settingsDialogs).contextImage(defaults:model.labelDefaults)
                 item.representedObject=HeaderInvocation(model,header:headerEpoch,lifetime:lifetime,id:id,style:styleKey);item.isEnabled=available;return item
             }
@@ -1782,22 +1913,23 @@ struct BlameHistoryTable:NSViewRepresentable {
             func item(_ title:String,_ command:String,_ icon:MenuIcon,enabled:Bool=true,into parent:NSMenu? = nil) {
                 let source:HistoryContextCommand = ["log":.showLog,"export":.export,"branch":.createBranch,"tag":.createTag,"switch":.checkout,"browse":.repositoryBrowser,"refs":.showBranches][command] ?? .copyClipboard
                 guard policy.contains(source) else { return }
-                let item=NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");item.target=self;item.image=icon.contextImage(defaults:model.labelDefaults);item.representedObject=Invocation(target,command);item.isEnabled=enabled;(parent ?? menu).addItem(item)
+                let item=NSMenuItem(title:NSLocalizedString(title,comment:""),action:#selector(invoke(_:)),keyEquivalent:"");item.target=self;item.image=icon.contextImage(defaults:model.labelDefaults);item.representedObject=Invocation(target,command);item.isEnabled=enabled;(parent ?? menu).addItem(item)
             }
             if target.entries.count==1 {
                 let choices=model.cachedHistoryParents(target),parents=Dictionary(grouping:choices,by: \.parentNumber)
                 for (title,action,icon,enabled) in [("Blame previous revision",BlameWindowModel.ParentAction.previous,MenuIcon.blame,model.onPrevious != nil),("Show changes as unified diff",.unified,.unifiedDiff,model.hasHistoryUnifiedAction && model.historyHasWorkingTree),("Compare with previous revision",.compare,.compare,model.hasHistoryComparisonAction)] where !parents.isEmpty {
+                    let caption=NSLocalizedString(title,comment:"")
                     let source:HistoryContextCommand = action == .previous ? .blamePrevious : action == .compare ? .comparePrevious : .unifiedDiff
                     guard policy.contains(source), action != .unified || model.historyHasWorkingTree else { continue }
                     func command(_ number:Int,_ title:String)->NSMenuItem {
                         let result=NSMenuItem(title:title,action:#selector(invokeParent(_:)),keyEquivalent:"");result.target=self;result.image=icon.contextImage(defaults:model.labelDefaults);result.isEnabled=enabled;result.representedObject=ParentInvocation(target,parents[number]!,action)
                         if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") && number==parents.keys.min() { result.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };return result
                     }
-                    if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,title)) }
+                    if parents.count==1,let number=parents.keys.first { menu.addItem(command(number,caption)) }
                     else {
-                        let item=NSMenuItem(title:title,action:nil,keyEquivalent:"");item.image=icon.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false
+                        let item=NSMenuItem(title:caption,action:nil,keyEquivalent:"");item.image=icon.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false
                         for (ordinal,number) in parents.keys.sorted().enumerated() { sub.addItem(command(number,parents[number]![0].historyMenuTitle(ordinal:ordinal+1))) };item.submenu=sub
-                        if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { item.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };menu.addItem(item)
+                        if action == .compare && model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { item.attributedTitle=NSAttributedString(string:caption,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) };menu.addItem(item)
                     }
                 }
                 if !parents.isEmpty { menu.addItem(.separator()) }
@@ -1812,7 +1944,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                 menu.addItem(.separator())
             }
             if policy.contains(.copyClipboard) {
-            let parent=NSMenuItem(title:"Copy to clipboard",action:nil,keyEquivalent:"");parent.image=MenuIcon.copy.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false;parent.submenu=sub;menu.addItem(parent)
+            let parent=NSMenuItem(title:NSLocalizedString("Copy to clipboard",comment:""),action:nil,keyEquivalent:"");parent.image=MenuIcon.copy.contextImage(defaults:model.labelDefaults);let sub=NSMenu();sub.autoenablesItems=false;parent.submenu=sub;menu.addItem(parent)
             for (title,command) in [("Full log messages","details"),("Full log messages without changed paths","detailsNoPaths"),("SHA-1","hash"),("Author names and emails","authors"),("Author names","names"),("Author emails","emails"),("Subjects","subjects"),("Messages","messages")] { item(title,command,.copy,into:sub) }
             }
             if target.entries.count==1 { item("Show branches this commit is on","refs",.showBranches,enabled:model.onContainingReferences != nil) }
@@ -1919,7 +2051,7 @@ private struct BlameTable: NSViewRepresentable {
         table.columnAutoresizingStyle = .noColumnAutoresizing; table.allowsMultipleSelection = false
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.showLog)
         for (id, title, width) in [("revision", "Revision", 90.0), ("author", "Author", 130), ("date", "Date", 145), ("filename", "Filename", 180), ("original", "Original line", 65), ("line", "Line", 45)] {
-            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = title; column.width = width; column.minWidth = 40; table.addTableColumn(column)
+            let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(title,comment:""); column.width = width; column.minWidth = 40; table.addTableColumn(column)
         }
         table.setAccessibilityLabel("Annotated source");table.setAccessibilityIdentifier("BlameAttributionTable")
         let menu = NSMenu(); menu.delegate = context.coordinator; table.menu = menu
@@ -2000,10 +2132,7 @@ private struct BlameTable: NSViewRepresentable {
             let row = number - 1
             if table.selectedRow != row { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row) }
         } else { table.deselectAll(nil) }
-        if coordinator.navigationSerial != model.sourceNavigationSerial, let request = model.sourceNavigation {
-            coordinator.navigationSerial = model.sourceNavigationSerial
-            container.selectSourceLine(request.line, wholeLine: request.wholeLine, includeBreak: request.includeBreak)
-        }
+        model.applyPendingSourceNavigation()
         container.locator.presentation = model.presentation
         if coordinator.locatorHistoryVersion != model.sourceVersion {
             coordinator.locatorHistoryVersion=model.sourceVersion
@@ -2022,7 +2151,6 @@ private struct BlameTable: NSViewRepresentable {
         var model: BlameWindowModel
         weak var table: NSTableView?
         weak var container: BlameSourceContainer?
-        var navigationSerial = 0
         var updating = false
         var revision: String?
         var presentation: GitBlamePresentation?
@@ -2063,11 +2191,14 @@ private struct BlameTable: NSViewRepresentable {
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
             guard !updating, let table else { return }; model.selection = table.selectedRow >= 0 ? table.selectedRow + 1 : nil
+            model.cancelPendingSourceNavigation()
             if table.selectedRow >= 0 { container?.selectSourceLine(table.selectedRow + 1, wholeLine: true) }
         }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !updating, let container, !container.settingSelection,
                   let row = container.sourceRow(at: container.editor.selectedRange().location) else { return }
+            container.manualSourceSelectionChanged()
+            model.cancelPendingSourceNavigation()
             if model.selection != row + 1 { model.selection = row + 1 }
         }
         func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
@@ -2120,20 +2251,22 @@ private struct BlameTable: NSViewRepresentable {
             menu.removeAllItems();menu.autoenablesItems=false
             guard let target=contextTarget ?? model.selection.flatMap({model.sourceTarget(number:$0,selectionText:selectedText())}),model.acceptsSource(target) else {return}
             let choices=contextTarget == nil ? model.parentChoices:contextParents
-            func item(_ title:String,_ command:String,_ icon:MenuIcon?,choice:GitBlameParentComparison? = nil,enabled:Bool=true,into parent:NSMenu? = nil) {
-                let value=NSMenuItem(title:title,action:#selector(invokeSource(_:)),keyEquivalent:"");value.target=self
+            func item(_ title:String,_ command:String,_ icon:MenuIcon?,choice:GitBlameParentComparison? = nil,enabled:Bool=true,into parent:NSMenu? = nil,localized:Bool=true) {
+                let caption=localized ? NSLocalizedString(title,comment:""):title
+                let value=NSMenuItem(title:caption,action:#selector(invokeSource(_:)),keyEquivalent:"");value.target=self
                 value.image=icon?.contextImage(defaults:model.labelDefaults);value.representedObject=SourceInvocation(target,command,choice);value.isEnabled=enabled;(parent ?? menu).addItem(value)
-                if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),choice?.id==choices.first?.id { value.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
+                if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog"),choice?.id==choices.first?.id { value.attributedTitle=NSAttributedString(string:caption,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
             }
-            if contextTarget==nil && model.loadingParents {let value=NSMenuItem(title:"Reading previous revisions…",action:nil,keyEquivalent:"");value.isEnabled=false;menu.addItem(value)}
+            if contextTarget==nil && model.loadingParents {let value=NSMenuItem(title:NSLocalizedString("Reading previous revisions…",comment:""),action:nil,keyEquivalent:"");value.isEnabled=false;menu.addItem(value)}
             else if !choices.isEmpty {
                 for (title,command,icon,enabled) in [("Blame previous revision","previous",MenuIcon.blame,model.onPrevious != nil),("Compare with previous revision","compare",.compare,model.hasHistoryComparisonAction),("Show changes as unified diff","unified",.unifiedDiff,model.hasHistoryUnifiedAction)] {
                     if choices.count==1 {item(title,command,icon,choice:choices[0],enabled:enabled)}
                     else {
-                        let parent=NSMenuItem(title:title,action:nil,keyEquivalent:"");parent.image=icon.contextImage(defaults:model.labelDefaults);parent.isEnabled=enabled
-                        if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { parent.attributedTitle=NSAttributedString(string:title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
+                        let caption=NSLocalizedString(title,comment:"")
+                        let parent=NSMenuItem(title:caption,action:nil,keyEquivalent:"");parent.image=icon.contextImage(defaults:model.labelDefaults);parent.isEnabled=enabled
+                        if command=="compare",model.labelDefaults.bool(forKey:"DiffByDoubleClickInLog") { parent.attributedTitle=NSAttributedString(string:caption,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)]) }
                         let sub=NSMenu();sub.autoenablesItems=false;parent.submenu=sub;menu.addItem(parent)
-                        for (ordinal,choice) in choices.enumerated() {item("Parent \(ordinal+1)",command,icon,choice:choice,enabled:enabled,into:sub)}
+                        for (ordinal,choice) in choices.enumerated() {item(NSLocalizedString("Parent",comment:"")+" \(ordinal+1)",command,icon,choice:choice,enabled:enabled,into:sub,localized:false)}
                     }
                 }
             }
@@ -2286,6 +2419,7 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
     private var lineLengths: [Int] = []
     private var synchronizing = false
     private(set) var settingSelection = false
+    private var findSelectionCaret:NSRange?
     private(set) var retired = false
     private var renderedRevision: String?
     private var renderedEncoding: GitBlameEncoding?
@@ -2293,6 +2427,7 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
     private var renderedZoomLevel: Int?
     private var renderedContents: Data?
     private var renderedLineCount = -1
+    private var projectedSourceVersion = -1
     private(set) var renderWork = BlameRenderWork()
     var locatorDrawingCount: Int { locator.drawingCount }
     func attributionReloaded() { if !retired { renderWork.attributionReloads += 1 } }
@@ -2353,6 +2488,7 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func retire() {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
+        findSelectionCaret=nil
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
         baseStyle=nil;hashRows=[:];authorRows=[:]
@@ -2376,6 +2512,17 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
             let range = self.editor.selectedRange(), text = self.editor.string as NSString
             guard range.location != NSNotFound, NSMaxRange(range) <= text.length else { return "" }
             return text.substring(with: range)
+        }
+        model.sourceSearchCaretRow={ [weak self, weak model] in
+            guard let self, let model, self.projectedSourceVersion == model.sourceVersion else { return nil }
+            return self.searchCaretRow()
+        }
+        model.sourceNavigationHandler={ [weak self, weak model] line, wholeLine, includeBreak in
+            guard let self, let model, !self.retired, !model.retired,
+                  self.projectedSourceVersion == model.sourceVersion,
+                  self.ranges.indices.contains(line - 1) else { return false }
+            self.selectSourceLine(line, wholeLine: wholeLine, includeBreak: includeBreak)
+            return true
         }
         editor.keyboardContextRow={ [weak self] in guard let self,!self.retired else {return nil};return self.sourceRow(at:self.editor.selectedRange().location) }
         model.retireSourceView = { [weak self] in self?.retire() }
@@ -2407,10 +2554,25 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
         }
         return max(0, low - 1)
     }
+    func manualSourceSelectionChanged(){findSelectionCaret=nil}
+    private func searchCaretRow()->Int? {
+        guard !retired,!ranges.isEmpty else{return nil}
+        let selected=editor.selectedRange(),length=(editor.string as NSString).length
+        guard selected.location != NSNotFound,selected.location>=0,selected.length>=0,selected.location<=length,selected.length<=length-selected.location else{return nil}
+        // DoSearch's accepted forward whole-line selection sets the active
+        // caret at its end. Preserve that exact receipt until a native manual
+        // selection occurs; ordinary selection/Go To starts at its first row.
+        if findSelectionCaret==selected {
+            let end=NSMaxRange(selected)
+            return end==length && editor.string.hasSuffix("\n") ? ranges.count:sourceRow(at:end)
+        }
+        return sourceRow(at:selected.location)
+    }
     func selectSourceLine(_ number: Int, wholeLine: Bool, includeBreak: Bool = false) {
         let row = number - 1
         guard !retired, ranges.indices.contains(row) else { return }
         let range = NSRange(location: ranges[row].location, length: wholeLine ? (includeBreak ? ranges[row].length : lineLengths[row]) : 0)
+        findSelectionCaret=wholeLine && includeBreak ? range:nil
         settingSelection = true; editor.setSelectedRange(range); settingSelection = false
         editor.window?.makeFirstResponder(editor)
         editor.scrollRangeToVisible(range)
@@ -2461,6 +2623,7 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
                 contents += text + separator; location += count + separator.utf16.count
             }
             let sameText = editor.string == contents
+            if !sameText {findSelectionCaret=nil}
             let paragraph = NSMutableParagraphStyle()
             paragraph.minimumLineHeight = editor.lineHeight; paragraph.maximumLineHeight = editor.lineHeight
             paragraph.tabStops = []
@@ -2569,6 +2732,7 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
         paintedHighlights = highlights; paintedDark = dark; paintedPalette = model.presentation; paintedAge = model.colorAge
         paintedSyntaxGeneration = syntaxGeneration; paintedSyntaxRevision = syntaxRevision
         reflowSource()
+        projectedSourceVersion = model.sourceVersion
         return dirty
     }
     private func reflowSource() {
@@ -3403,25 +3567,43 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
 
 extension BlameWindowController {
     var commandsAvailable:Bool {
-        model.canFind && !hasBlockingHistoryChild && window?.attachedSheet == nil && goToWindow == nil
+        model.canFind && !navigationWorkPending && !hasBlockingHistoryChild && window?.attachedSheet == nil && goToWindow == nil
     }
     private func showGoToLine() {
-        guard commandsAvailable,let window else {return}
-        let original = model,controller = BlameGoToLineWindowController()
-        goToWindow = controller;model.navigationSheetPresented = true;controller.window?.appearance = window.appearance
-        guard let panel = controller.window else {goToWindow = nil;model.navigationSheetPresented = false;return}
-        window.beginSheet(panel) { [weak self,weak controller,weak original] response in
-            guard let self,let controller,self.goToWindow === controller else {return}
-            self.goToWindow = nil;original?.navigationSheetPresented = false
-            let requested = controller.requested
-            controller.retire()
-            guard response == .OK,let original,self.model === original,self.commandsAvailable,let requested else {return}
-            original.goToLine(requested);self.focusSource()
+        guard commandsAvailable,!closing,goToRequest==nil,let window else {return}
+        let original=model,controller=BlameGoToLineWindowController()
+        guard let panel=controller.window else{return}
+        panel.appearance=window.appearance;panel.alphaValue=window.alphaValue
+        let request=BlameNavigationSheet(window:panel,parent:window,model:original)
+        goToWindow=controller;goToRequest=request;original.navigationSheetPresented=true
+        Self.activeNavigationOperations += 1
+        request.reply={ [weak self,weak request,weak controller] response in
+            guard let self,let request,let controller,!request.answered else{return};request.answered=true
+            request.requestedLine=controller.requested
+            self.afterNavigationDetach(request) { [self,request,controller] in
+                controller.retire()
+                Task { @MainActor [self,request,controller] in
+                    while controller.hasPendingWork {try? await Task.sleep(nanoseconds:10_000_000)}
+                    guard !request.finished else{return};request.finished=true;request.reply={_ in}
+                    let current=self.goToRequest === request
+                    if current {
+                        self.goToRequest=nil
+                        if self.goToWindow === controller {self.goToWindow=nil}
+                        request.model.navigationSheetPresented=false
+                    }
+                    Self.activeNavigationOperations -= 1
+                    guard current,!request.cancelled,!self.closing,response == .OK,self.model === original,
+                          !original.retired,self.commandsAvailable,let requested=request.requestedLine else{return}
+                    original.goToLine(requested);self.focusSource()
+                }
+            }
         }
+        presentGoToLine(controller,window,request.reply)
         panel.makeFirstResponder(controller.line)
     }
     private func cancelGoToLine() {
-        let controller = goToWindow;goToWindow = nil;model.navigationSheetPresented = false;controller?.retire()
+        guard let request=goToRequest else{return}
+        request.cancel();goToWindow?.retire()
     }
     private static func commandViews(_ root:NSView?)->[NSView] {
         guard let root else {return []};return [root]+root.subviews.flatMap {commandViews($0)}

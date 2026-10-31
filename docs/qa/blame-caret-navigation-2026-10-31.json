@@ -1,0 +1,116 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-core-and-grouped-native-checkpoint-passed",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseGitBlame/TortoiseGitBlameView.cpp:643-662 DoSearch uses actual code caret and whole-line active end",
+    "src/TortoiseGitBlame/TortoiseGitBlameData.cpp:379 onward FindFirstLineWrapAround start/direction and traversal callback"
+  ],
+  "families": [
+    "Actual caret / Go To / repeated whole-line Find progression, initial normalization and successful or unsuccessful traversal-wrap feedback",
+    "Modeless Find reuse/rebinding and closed control retirement",
+    "Captured Go To / feedback sheet acceptance, cancellation, physical detach and root close/Quit ownership",
+    "Related static history/source/header captions with literal user metadata"
+  ],
+  "adaptations": [
+    "Preserve pinned initial cursor start rules and silent normalization. Replace the unsafe terminal reverse loop with bounded traversal reaching every logical row at most once.",
+    "Retain the independent prior-hit API; the native code view supplies the cursor API and accepted Find selection receipt.",
+    "Initial normalization is silent; a true failed traversal emits a wrap pulse before the owned Not Found message."
+  ],
+  "checkpoint_scope": {
+    "core": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter GitBlamePresentationTests",
+    "native": [
+      "Protected scripts/test-native-reference-batch.py --only blame-find with system and bundled Git (runner unchanged)",
+      "scripts/test-blame-source-menu.py --only commands with system and bundled Git",
+      "scripts/test-blame-source-menu.py --only source-menu with system Git"
+    ]
+  },
+  "limits": [
+    "Private native key/caret and held-sheet injection do not establish physical keyboard/VoiceOver or every document/rebind timing.",
+    "Static caption and English fallback contracts do not prove end-to-end translated bundled-app acceptance.",
+    "The fake permission lease stays started while the fixture intentionally retains its model; it does not prove a final scope stop or signed external permission renewal.",
+    "Installed build47 is unchanged and predates this batch. Full hosted, signed/physical and complete-port acceptance remain open.",
+    "No public binary upload, notarization or App Store submission."
+  ],
+  "core": {
+    "result": "passed",
+    "tests": 12,
+    "log": "build/qa/blame-caret-navigation-core-2026-10-31.log",
+    "scope": "Existing focused GitBlamePresentationTests, including cursor starts, bounded traversal, true/silent wrap feedback and retained prior-hit behavior. Not repeated after native-only atomic navigation repair."
+  },
+  "builds": [
+    {
+      "result": "passed",
+      "log": "build/qa/blame-caret-navigation-debug-2026-10-31.log"
+    },
+    {
+      "result": "passed",
+      "log": "build/qa/blame-caret-navigation-debug-atomic-2026-10-31.log",
+      "scope": "Native synchronous caret navigation repair; no Core changes."
+    }
+  ],
+  "initial_native": {
+    "find": "Passed with system and bundled Git before native atomic navigation repair; log build/qa/blame-caret-navigation-find-2026-10-31.log.",
+    "context": "Passed with system Git before native atomic navigation repair; log build/qa/blame-caret-navigation-context-2026-10-31.log."
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/blame-caret-navigation-commands-2026-10-31.log",
+      "cause": "Existing immediate window-F3 then source-F3 sequence found stale native caret before SwiftUI applied the prior match selection. Native navigation now applies and consumes its exact serial synchronously when ready; genuine manual source/attribution input cancels deferred intent. Original consecutive-key assertion retained."
+    }
+  ],
+  "resources": {
+    "localization": "38 locales / 1326 keys; write/check passed. Label counts are not complete translation evidence.",
+    "help": "64 documents / 53 topics / 98 source members / 9401284 bytes; write/check passed."
+  },
+  "native": [
+    {
+      "case": "find",
+      "exit": 0,
+      "elapsed_seconds": 11.038,
+      "log": "build/qa/blame-caret-navigation-atomic-find-2026-10-31.log"
+    },
+    {
+      "case": "commands",
+      "exit": 0,
+      "elapsed_seconds": 14.419,
+      "log": "build/qa/blame-caret-navigation-atomic-commands-2026-10-31.log"
+    },
+    {
+      "case": "context",
+      "exit": 0,
+      "elapsed_seconds": 5.51,
+      "log": "build/qa/blame-caret-navigation-atomic-context-2026-10-31.log"
+    }
+  ],
+  "cleanup": {
+    "all_recorded_runtime_and_compiler_pids_absent": [
+      27188,
+      27229,
+      27268,
+      27305,
+      27307,
+      27316,
+      27350,
+      27357,
+      28578,
+      28592,
+      28623,
+      28662,
+      28667,
+      28671,
+      28708,
+      28752,
+      28765
+    ],
+    "scope": "Independent ps lookup after grouped driver exited. Protected runner labels its compiler as receiver; initial 27188 and final 28578 are compilers, not app instances. All other attribution follows actual execution ordering."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitBlamePresentation.swift": "58ff3de9a929fb09864beeae785c89375ee4b6fcdc66d57ab9eb1d2693167432",
+    "Sources/TurtleGitMac/BlameWindow.swift": "baa89b16f0260e7e83536f8001cfc8edd73137f7c97d25b9437ce43c8bd6c2ea",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "9f36df9d7684b5d7748b5fe7c332a0650c81d13ff325c34ba81b6eb6b34d2b25",
+    "Tests/TurtleGitCoreTests/GitBlamePresentationTests.swift": "a6cc3cf40e4df0d7be69651ce3399599b6f3742a3eee85302bc71a49e45119ee",
+    "docs/qa/blame-find-native-2026-10-13.swift": "104df8e76bcb09df5a647e5f44a81ea788f1e7adce07e2774ac1e4b500be966e",
+    "docs/qa/blame-command-family-native-2026-10-16.swift": "16554196f4cafb7a2413bd754b14b1358386fdfa98586ffcdd1bce4bf0272e22"
+  }
+}

@@ -115,11 +115,31 @@ applied search forward/backward. **Command-F** (also source **Control-F**) opens
 the modeless Find panel, prefilling the selected source text. Opening Find again
 reuses the panel and its draft.
 
+Search follows the code caret, including a caret you moved manually or placed
+with Go To. Find Next checks that row first; at the final-row/end-of-file boundary
+it restarts at the top, following the upstream viewer. A found match selects the
+whole source line, and repeated searches use the end of that selection. Traversal
+that crosses the file boundary flashes the open Find panel. Initial boundary
+normalization does not show a false wrap. Each search is bounded even for empty
+or one-line files.
+
+If no match exists, the owned message stays blocking until it closes. Closing
+Find retires its controls and pending callbacks; reopening creates a live panel
+for the current document. An open panel keeps its draft when the viewer changes
+documents, while old document callbacks cannot run a search on the replacement.
+
 **Command-L** or source **Control-G** opens **Go To Line**. Enter a decimal from
 0 through 40,000,000. Zero closes without moving; a line beyond the file ends at
 its last line. Invalid input stays in the sheet. **Cancel** preserves selection;
 **OK** returns focus to the source. Other viewer commands and modeless Find
-searches wait until this sheet closes. Closing its viewer also closes the sheet.
+searches wait until this sheet has actually detached. An accepted Go To request
+is applied after detachment, so it is not lost while the sheet is closing.
+Closing its viewer cancels the request and closes the sheet; a late answer cannot
+navigate a different document.
+
+History, source and column context menus use localized static captions and the
+original command icons. Author names, hashes, filenames and copied values keep
+their original text.
 
 **F6 / Shift-F6**, also **Edit → Next/Previous Pane**, move between source text
 and the revision Log. A floating Log keeps its own native window; a tabbed Log

@@ -2,6 +2,64 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitBlamePresentationTests: XCTestCase {
+    func testFindUsesActualCodeCaretAndSourceInitialNormalization() {
+        let fields=[["Alice","first"],["Bob","middle"],["Alice","later"],["Dana","last"]]
+        func find(_ caret:Int,_ previous:Bool=false,_ text:String="Alice")->GitBlameSearch.Match? {
+            GitBlameSearch.findFromCaret(fields:fields,text:text,caretRow:caret,previous:previous,matchCase:true)
+        }
+        // A manual caret/Go To line one is not a previously accepted hit.
+        XCTAssertEqual(find(0)?.row,0);XCTAssertEqual(find(0)?.wrapped,false)
+        // Accepted Find selects its break; the active caret is now row one.
+        XCTAssertEqual(find(1)?.row,2);XCTAssertEqual(find(1)?.wrapped,false)
+        // The pinned initial terminal normalization does not itself flash.
+        for caret in [3,4,Int.max,-1,Int.min] {
+            XCTAssertEqual(find(caret)?.row,0);XCTAssertEqual(find(caret)?.wrapped,false)
+        }
+        // Previous starts two logical rows before the code caret, rather than
+        // one before the attribution's highlighted/previous matched row.
+        XCTAssertEqual(find(3,true)?.row,0);XCTAssertEqual(find(3,true)?.wrapped,false)
+        XCTAssertEqual(find(1,true,"last")?.row,3);XCTAssertEqual(find(1,true,"last")?.wrapped,false)
+        XCTAssertEqual(find(2,true,"last")?.row,3);XCTAssertEqual(find(2,true,"last")?.wrapped,true)
+        XCTAssertEqual(find(2,false,"first")?.row,0);XCTAssertEqual(find(2,false,"first")?.wrapped,true)
+        XCTAssertNil(find(2,true,"missing"))
+    }
+    func testCaretSearchBoundsTerminalReverseTraversalWithoutSkippingRows() {
+        let fields=[["zero"],["one"],["two"],["three"]]
+        for caret in [Int.min,-1,0,1,2,3,4,Int.max] {
+            for previous in [false,true] {
+                for (row,text) in ["zero","one","two","three"].enumerated() {
+                    XCTAssertEqual(GitBlameSearch.findFromCaret(fields:fields,text:text,caretRow:caret,previous:previous,matchCase:true)?.row,row)
+                }
+                XCTAssertNil(GitBlameSearch.findFromCaret(fields:fields,text:"absent",caretRow:caret,previous:previous,matchCase:true))
+            }
+        }
+        for previous in [false,true] {
+            XCTAssertNil(GitBlameSearch.findFromCaret(fields:[],text:"x",caretRow:0,previous:previous,matchCase:false))
+            XCTAssertEqual(GitBlameSearch.findFromCaret(fields:[["only"]],text:"only",caretRow:1,previous:previous,matchCase:true)?.wrapped,false)
+            XCTAssertNil(GitBlameSearch.findFromCaret(fields:[["only"]],text:"absent",caretRow:1,previous:previous,matchCase:true))
+        }
+        XCTAssertEqual(GitBlameSearch.findFromCaret(fields:[["äPFEL","source"]],text:"Äpfel",caretRow:0,previous:false,matchCase:false)?.row,0)
+        XCTAssertNil(GitBlameSearch.findFromCaret(fields:[["ß","source"]],text:"ss",caretRow:0,previous:false,matchCase:false))
+        XCTAssertNil(GitBlameSearch.findFromCaret(fields:[["Alice","first"]],text:"Alice first",caretRow:0,previous:false,matchCase:true))
+    }
+    func testCaretSearchPublishesTraversalWrapEvenWhenNoMatchIsFound() {
+        let fields=[["first"],["middle"],["later"],["last"]]
+        for previous in [false,true] {
+            for caret in [0,1,2,3,4] {
+                var wraps=0
+                let result=GitBlameSearch.findFromCaret(fields:fields,text:"absent",caretRow:caret,previous:previous,matchCase:true,wraparound:{wraps+=1})
+                XCTAssertNil(result);XCTAssertEqual(wraps,1,"A full failed traversal must publish its actual boundary transition")
+            }
+        }
+        var wraps=0
+        let initial=GitBlameSearch.findFromCaret(fields:fields,text:"first",caretRow:4,previous:false,matchCase:true,wraparound:{wraps+=1})
+        XCTAssertEqual(initial?.row,0);XCTAssertEqual(initial?.wrapped,false);XCTAssertEqual(wraps,0,"Initial terminal normalization is not a traversal wrap")
+        let reverse=GitBlameSearch.findFromCaret(fields:fields,text:"last",caretRow:2,previous:true,matchCase:true,wraparound:{wraps+=1})
+        XCTAssertEqual(reverse?.row,3);XCTAssertEqual(reverse?.wrapped,true);XCTAssertEqual(wraps,1)
+        _=GitBlameSearch.findFromCaret(fields:fields,text:"",caretRow:0,previous:false,matchCase:false,wraparound:{wraps+=1})
+        _=GitBlameSearch.findFromCaret(fields:[],text:"absent",caretRow:0,previous:true,matchCase:false,wraparound:{wraps+=1})
+        XCTAssertEqual(wraps,1,"Empty query/document must not publish a wrap")
+    }
     func testFindUsesIndependentAuthorSourceFieldsAndBoundedWrap() {
         let fields = [["Alice", "first 雪"], ["Bob", "Äpfel"], ["ALICE", "last 🐢"]]
         let first = GitBlameSearch.find(fields: fields, text: "alice", fromRow: nil, previous: false, matchCase: false)

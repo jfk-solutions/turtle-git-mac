@@ -1,9 +1,10 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @main struct BlameCommandFamilyVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
-    @MainActor static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
+    @MainActor static func require(_ value:Bool,_ message:String)throws {if !value {print("Blame command assertion: "+message);fflush(stdout);throw Failure(description:message)}}
     @MainActor static func views(_ view:NSView?)->[NSView] {guard let view else {return []};return [view]+view.subviews.flatMap{views($0)}}
     @MainActor static func wait(line:UInt = #line,_ condition:()->Bool) async throws {
         for _ in 0..<1000 {if condition(){return};try await Task.sleep(nanoseconds:10_000_000)}
@@ -20,7 +21,7 @@ import TurtleGitCore
         let suite="TurtleGit.BlameCommands."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(false,forKey:"EnableGravatar");prefs.set(false,forKey:"Blame.EnableLexer");defer{prefs.removePersistentDomain(forName:suite)}
         let owner=BlameWindowController(repository:repo,access:nil,path:file.lastPathComponent,revision:"HEAD",preferences:prefs),model=owner.model,window=owner.window!
-        defer{owner.close()};window.alphaValue=0;window.orderFront(nil)
+        defer{owner.close()};window.alphaValue=0;window.ignoresMouseEvents=true;window.orderFront(nil)
         var focused:NSWindow?=window;owner.commandKeyWindow={focused}
         let context=BlameMenuContext(keyWindow:{focused})
         try await wait {!model.busy && !model.syntaxWorking && model.lines.count==4 && views(window.contentView).contains{($0 as? NSTextView)?.accessibilityLabel()=="Blame source text"}}
@@ -33,8 +34,18 @@ import TurtleGitCore
         try require(window.performKeyEquivalent(with:event(99,.function,"\u{F706}")) && model.selection==2,"Source F3 not dispatched")
         source.keyDown(with:event(99,.function,"\u{F706}"));try require(model.selection==4,"Direct source F3 not dispatched")
         try require(window.performKeyEquivalent(with:event(99,[.shift,.function],"\u{F706}")) && model.selection==2,"Shift-F3 not previous")
+        // A native manual caret move immediately after Find is newer intent
+        // than any queued source projection from that accepted Find result.
+        try require(window.performKeyEquivalent(with:event(99,.function,"\u{F706}")) && model.selection==4,"Immediate repeated F3 lost its accepted source caret")
+        let manualCaret=NSRange(location:(source.string as NSString).range(of:"other").location,length:0)
+        source.setSelectedRange(manualCaret)
+        try require(source.selectedRange()==manualCaret && model.sourceSearchCaretRow?()==2,"Native manual source caret did not replace accepted Find intent")
+        await Task.yield()
+        try require(source.selectedRange()==manualCaret && model.sourceSearchCaretRow?()==2,"Deferred Find projection overwrote newer manual source intent")
+        try require(window.performKeyEquivalent(with:event(99,.function,"\u{F706}")) && model.selection==4,"Find did not resume from newer manual source caret")
+        try require(window.performKeyEquivalent(with:event(99,[.shift,.function],"\u{F706}")) && model.selection==2,"Rapid direction reversal lost native source-caret ownership")
         model.busy=true;try require(window.performKeyEquivalent(with:event(99)) && model.selection==2,"Disabled F3 fell through");model.busy=false
-        let foreign=NSWindow(contentRect:.zero,styleMask:.titled,backing:.buffered,defer:false);defer{foreign.close()}
+        let foreign=NSWindow(contentRect:.zero,styleMask:.titled,backing:.buffered,defer:false);foreign.isReleasedWhenClosed=false;foreign.alphaValue=0;foreign.ignoresMouseEvents=true;defer{foreign.close()}
         focused=foreign;try require(!BlameWindowController.routeCommandKey(event(99),from:window) && model.selection==2,"Background viewer received source command");focused=window
         // Source Ctrl-G opens an owned native sheet; macOS Command-G remains Find Next.
         try require(window.performKeyEquivalent(with:event(5,.control,"g")),"Source Go To shortcut absent")
@@ -66,17 +77,46 @@ import TurtleGitCore
         try require(window.performKeyEquivalent(with:event(37,.command,"l")),"Native Go To shortcut absent")
         try await wait {owner.goToWindow != nil};owner.goToWindow!.line.stringValue="40000000";owner.goToWindow!.accept()
         try await wait {owner.goToWindow==nil && window.attachedSheet==nil};try require(model.selection==4,"Source end clamp changed")
+        let ordinaryGoTo=owner.presentGoToLine
+        var heldGoToReply:((NSApplication.ModalResponse)->Void)?,heldGoToEnd:(()->Void)?
+        defer {owner.presentGoToLine=ordinaryGoTo;heldGoToEnd?();heldGoToEnd=nil;heldGoToReply=nil}
+        owner.presentGoToLine={ controller,parent,reply in
+            heldGoToReply=reply
+            controller.endSheet={parent,sheet,response in heldGoToEnd={parent.endSheet(sheet,returnCode:response)}}
+            parent.beginSheet(controller.window!,completionHandler:{_ in})
+        }
+        context.perform(.goTo);try await wait{owner.goToWindow?.window?.sheetParent === window}
+        let earlyGoTo=owner.goToWindow!,beforeEarlyGoTo=model.selection
+        earlyGoTo.line.stringValue="2";earlyGoTo.ok.performClick(nil)
+        try require(earlyGoTo.requested==2 && heldGoToEnd != nil,"Actual Go To OK did not capture held native acceptance")
+        heldGoToReply?(.OK);heldGoToReply?(.cancel)
+        try require(owner.goToWindow === earlyGoTo && earlyGoTo.window?.sheetParent === window && window.attachedSheet === earlyGoTo.window && owner.navigationWorkPending && BlameWindowController.activeNavigationOperations>0 && model.selection==beforeEarlyGoTo && !model.canFind,"Early/duplicate Go To answer escaped exact native sheet ownership")
+        heldGoToEnd?();heldGoToEnd=nil
+        try await wait{owner.goToWindow==nil && window.attachedSheet==nil && model.selection==2 && (source.string as NSString).substring(with:source.selectedRange())=="needle 雪🦎"}
+        try require(earlyGoTo.retired && !owner.navigationWorkPending && BlameWindowController.activeNavigationOperations==0 && model.sourceSearchCaretRow?()==1,"Accepted Go To lost actual source-caret handoff or navigation drain")
+        heldGoToReply?(.OK);heldGoToReply=nil;earlyGoTo.line.stringValue="1";earlyGoTo.accept()
+        try require(model.selection==2,"Late accepted Go To callback retargeted native selection")
+        owner.presentGoToLine=ordinaryGoTo
+        model.find="needle";model.findLine(previous:false)
+        try await wait{model.selection==2 && (source.string as NSString).substring(with:source.selectedRange())=="needle 雪🦎\n"}
+        model.findLine(previous:false)
+        try await wait{model.selection==4 && (source.string as NSString).substring(with:source.selectedRange())=="needle last\n"}
+        try require(model.sourceSearchCaretRow?()==4,"Accepted terminal Find lost native active-end caret")
+        model.findLine(previous:false)
+        try await wait{model.selection==2 && (source.string as NSString).substring(with:source.selectedRange())=="needle 雪🦎\n"}
+        try require(!model.navigationMessage.contains("Wrapped"),"Terminal source Find normalization invented a traversal wrap")
         // Source Find uses selected text, stays modeless and reuses its draft.
         source.setSelectedRange((source.string as NSString).range(of:"needle"))
         try require(window.performKeyEquivalent(with:event(3,.control,"f")),"Source Find shortcut absent")
         try await wait {owner.findWindow?.window?.isVisible==true}
         let find=owner.findWindow!;try require(find.draft.text=="needle" && window.attachedSheet==nil,"Find prefill/modeless state")
         model.onFind?();try require(owner.findWindow === find,"Find duplicated its panel")
-        let beforeModal=model.selection
+        let beforeModal=model.selection,beforeModalRange=source.selectedRange()
         context.perform(.goTo);try await wait {owner.goToWindow != nil}
         find.search();try require(model.selection==beforeModal && !model.canFind,"Modeless Find escaped modal Go To ownership")
         owner.goToWindow!.cancel();try await wait {owner.goToWindow==nil && model.canFind}
-        find.search();try require(model.selection != beforeModal,"Find did not resume after modal cancellation")
+        find.search();try await wait{model.selection==2 && (source.string as NSString).substring(with:source.selectedRange())=="needle 雪🦎\n"}
+        try require(source.selectedRange() != beforeModalRange,"Find did not resume inclusive current-row selection after modal cancellation")
         find.close();model.goToLine(4)
         // Both menu directions and native F6 reach existing source/Log panes.
         focused=window;window.makeFirstResponder(source)
@@ -106,7 +146,10 @@ import TurtleGitCore
         focused=window
         try require(window.performKeyEquivalent(with:event(5,.command,"g")) && model.selection==2,"Command-G did not remain Find Next")
         context.perform(.goTo);try await wait {owner.goToWindow != nil};let abandoned=owner.goToWindow!
-        owner.close();try require(abandoned.retired && abandoned.window?.sheetParent==nil && owner.goToWindow==nil && model.retired,"Forced owner closure leaked Go To")
+        var closed=0;owner.onClosed={closed+=1}
+        owner.close()
+        try require(model.retired && closed==0 && owner.navigationWorkPending && BlameWindowController.activeNavigationOperations>0,"Root closure released its accepted Go To ownership before native drain")
+        try await wait{abandoned.retired && abandoned.window?.sheetParent==nil && owner.goToWindow==nil && !owner.navigationWorkPending && BlameWindowController.activeNavigationOperations==0 && closed==1}
         abandoned.line.stringValue="1";abandoned.accept();context.perform(.nextPane)
         try require(!BlameWindowController.routeCommandKey(event(99),from:window),"Retired owner accepted a key")
         try require(try await repo.run(["rev-parse","HEAD"]).stdout==head && Data(contentsOf:root.appendingPathComponent(".git/index"))==index && Data(contentsOf:file)==bytes,"Command family changed Git or source bytes")
