@@ -1,5 +1,21 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed consolidated local build46
+
+[Signed build46](qa/signed-consolidation-build46-2026-10-31.json), `0.1.0 (46)`,
+is installed from exact clean `9ebe7e98`, with build45 retained for rollback. It
+consolidates the connected report, account-home and creation/Finder workflows
+below. The universal signed build, strict seals, exact packaged Help, complete
+ZIP/source/install inventories and one sandboxed public-Core/packaged-Git probe
+pass. All owned probe processes exited. No local feature/Core/native suites were
+repeated, no installed UI was launched, and Finder/Dock were not restarted.
+
+Pages for this source succeeded; the macOS run is still pending behind older
+active lanes. Later Merge-scene and metafile-consumer fixture work remains
+separate from this frozen candidate. Owner acceptance, complete hosted CI,
+physical/signed Finder grants, full source/layout/accessibility, Intel/minimum-OS
+and final distribution/Store gates remain open. No public binary was uploaded.
+
 ## Connected creation and Finder lifecycle
 
 The [creation workflow batch](qa/creation-finder-lifecycle-2026-10-31.json) adds
@@ -54,10 +70,10 @@ button. Physical button clicks and signed scopes remain separate. All owned
 receivers drained/closed/reaped. Installed45 predates this source continuation.
 No full Core or unrelated native suites were repeated.
 
-## Installed local testing build45 and guide-first manual
+## Historical local testing build45 and guide-first manual
 
 [Signed build45](qa/signed-consolidation-build45-2026-10-31.json), `0.1.0 (45)`,
-is installed from exact frozen `416fa56b` source; build44 is preserved for rollback.
+was installed from exact frozen `416fa56b` source; build44 is preserved for rollback.
 It includes the retained utility ownership and explicit Store-listing policy.
 The universal signed build, sandboxed packaged Git probe, exact Help and local
 ZIP/source archive inventories passed. Actual About shows build45 and the disabled

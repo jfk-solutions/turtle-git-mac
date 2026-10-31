@@ -7,10 +7,29 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Installed signed local testing build45
+## Installed signed local testing build46
+
+[Signed build46](qa/signed-consolidation-build46-2026-10-31.json), `0.1.0 (46)`,
+is installed from exact clean source `9ebe7e98` and left closed. Build45 is
+preserved for rollback. It consolidates the Report Problem workflow, account-home
+path policy, created-worktree Finder registration/retry and creation-picker
+selection/focus/cancellation changes. The universal signed build, eight own code
+components, 206 runtime entries, 97 Help source members and 6,384-member complete
+ZIP/install inventories pass. One signed sandbox parent exercised public Core and
+packaged Git local tools; this does not exercise the shipping UI or physical Finder.
+
+The local archive is `TurtleGit-for-Mac-0.1.0-build46-signed.zip`, SHA-256
+`f97259804dea6b9cec013cea11321b82fd39c3c8b82a9a460b06a7aded6e7e87`.
+Its exact tracked-source archive and runtime source inputs accompany the package.
+Installation required no running app to quit and did not launch TurtleGit or
+restart Finder/Dock. This is an Apple Development local testing package. No public
+binary upload, notarization or App Store submission was performed. Owner testing,
+complete current-source hosted CI and wider platform/source acceptance remain open.
+
+## Historical installed signed local testing build45
 
 [Signed build45](qa/signed-consolidation-build45-2026-10-31.json), `0.1.0 (45)`,
-is installed from clean source `416fa56b`; build44 is preserved for rollback.
+was installed from clean source `416fa56b`; build44 is preserved for rollback.
 It includes retained utility ownership and explicit Store-listing availability.
 Its measured inputs, strict signatures, eight universal app components, 206 runtime
 code entries, 96 Help source members and 6,383-member ZIP/install inventories pass.
@@ -910,6 +929,6 @@ update-review owners through minimized, deliberate presentation and accepted
 Settings replay gaps. A quiet/automatic background update check without a window
 does not suppress an explicit workspace reopen; a forced pending presentation
 retains its intent until completion/cancellation. Reopen focuses an existing utility or retains its pending owner rather than
-creating a repository workspace. Installed signed45 includes this continuation;
-its scoped About/global Settings observations are recorded above. Complete current
+creating a repository workspace. Installed signed46 retains this continuation;
+scoped About/global Settings observations were recorded on signed45 above. Complete current
 hosted and wider physical acceptance remain separate.
