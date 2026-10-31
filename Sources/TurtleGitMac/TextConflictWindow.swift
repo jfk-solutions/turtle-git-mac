@@ -315,6 +315,8 @@ private enum MergeSourceSide {
     let model: TextConflictWindowModel
     var onClosed: () -> Void = {}
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
+    private var closingEditor = false
+    var mergeToolHasPendingWork: Bool { model.mergeToolHasPendingWork || editorOpenWorkflow?.hasPendingWork == true }
     var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
@@ -323,12 +325,19 @@ private enum MergeSourceSide {
         guard !model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, let window, !model.busy, !model.preparing, !model.confirmingQuit, !model.retired, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
-        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil;self?.externalReload?.resume() }
-        workflow.accept = { [weak self] request, permissions in try self?.replaceEditor(request, permissions: permissions) }
-        workflow.start(dirty: model.hasUnsavedEditorWork, description: model.path, save: { [weak self] completion in self?.model.saveEditorWork(completion: completion) })
+        workflow.onClosed = { [weak self, weak workflow] in
+            guard let self, self.editorOpenWorkflow === workflow else { return }
+            self.editorOpenWorkflow = nil; self.externalReload?.resume()
+        }
+        workflow.accept = { [weak self] request, permissions in
+            guard let self else { throw OperationCancellationFailure.cancelled }; try self.replaceEditor(request, permissions: permissions)
+        }
+        workflow.start(dirty: model.hasUnsavedEditorWork, description: model.path, save: { [weak self] completion in
+            guard let self else { completion(false); return }; self.model.saveEditorWork(completion: completion)
+        })
     }
     func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
-        guard let window,!model.externalReloadBlocksCommands,!model.preservingSourceCopies, !model.busy, !model.confirmingQuit, !model.retired, !model.exportingSource else { return }
+        guard let window,!closingEditor,!model.externalReloadBlocksCommands,!model.preservingSourceCopies, !model.busy, !model.confirmingQuit, !model.retired, !model.exportingSource else { throw OperationCancellationFailure.cancelled }
         let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
@@ -374,7 +383,18 @@ private enum MergeSourceSide {
         presentCloseQuestion(alert,sender) { [weak self,receipt] response in self?.drainCloseChoice(receipt,response:response) }
         return false
     }
-    func windowWillClose(_ notification: Notification) { guard let closing = notification.object as? NSWindow, closing === window else { return };retireActivationObservers();retireCloseChoice();externalReload?.retire(); MergeLineRuler.retire(in:window?.contentView); editorCommandMenu?.retire();editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retire(); onClosed() }
+    func windowWillClose(_ notification: Notification) {
+        guard let closing = notification.object as? NSWindow, closing === window, !closingEditor else { return }; closingEditor = true
+        retireActivationObservers(); retireCloseChoice(); externalReload?.retire(); MergeLineRuler.retire(in:window?.contentView)
+        editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); editorOpenWorkflow?.retire(); model.retire()
+        let replacement = sharedReplacementOwner ?? replacementOwner
+        let closingReplacement = replacement?.current == nil || replacement?.current === self ? replacement : nil
+        guard mergeToolHasPendingWork || closingReplacement?.hasPendingRetiredWork == true else { onClosed(); return }
+        Task { @MainActor [self, closingReplacement] in
+            while mergeToolHasPendingWork || closingReplacement?.hasPendingRetiredWork == true { try? await Task.sleep(nanoseconds: 10_000_000) }
+            onClosed()
+        }
+    }
     func installEditorToolbar() {
         editorCommandMenu?.retire();editorToolbar?.retire();editorToolbar = MergeEditorToolbar.conflict(self)
         editorCommandMenu = MergeEditorCommandMenu.conflict(self)

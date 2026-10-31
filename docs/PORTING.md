@@ -6034,3 +6034,26 @@ transaction gap](qa/text-open-ownership-review-2026-10-31.json), complete hosted
 integration, broader physical/platform/source acceptance and distribution terms
 remain open. The source archive and runtime reconstruction inputs accompany the
 local package; its receipt preserves their exact hashes and build identity.
+
+
+## Continuous text Open transaction — October 31, 2026
+
+Comparison, three-pane merge and patch-review Open now retain one transaction
+through the native Save question, Save, Open, nested Browse and actual sheet
+detachment. Rejected acceptance restores the same form and keeps the original
+document. Cancelled, duplicate and retired replies cannot adopt another editor.
+The original registry and standalone command retain workers, grants and temporary
+inputs until real retirement, including patch target choices before parsing.
+
+Checked patch preparation releases its hosted view after work drains. Its adopted
+review independently retains all permission roles, including auxiliary metadata,
+and forwards them through later Open/conflict transitions. This avoids both a
+preparation retention cycle and premature access release.
+
+The [checkpoint](qa/text-open-transaction-2026-10-31.json) records cumulative
+source/Open, replacement and two-engine Scene passes plus the final affected
+patch pass and Debug build. Existing passes were not repeated after patch-only
+repairs; no Core suite ran. All owned receivers were reaped and independently
+absent. The [source record](MERGE-OPEN-PARITY.md#continuous-native-open-transaction--october-31-2026)
+and user guide describe the behavior and remaining physical/signed/layout gates.
+Installed build47 is unchanged and predates this family.

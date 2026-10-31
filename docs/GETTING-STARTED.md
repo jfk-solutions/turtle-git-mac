@@ -374,6 +374,15 @@ comparison; three open a three-pane merge. You can drop a file onto a path field
 or use **Browse…**. Path suggestions follow accessible folders; App Store builds
 require file/folder authorization for paths outside the app container.
 
+To replace the document in an existing text comparison, merge or patch-review
+window, choose **File → Open** or press **Command-O**. With
+unsaved edits, **Save** uses the normal save flow, **Don’t Save** continues to
+Open, and **Cancel** returns to the current document. Cancelling Browse returns
+to Open; cancelling Open keeps the current document and its remaining edits.
+A failed or cancelled Save also keeps the current document open. If Open cannot
+accept the selected paths, the same form remains available for correction. Patch
+preparation errors keep the original document available.
+
 For two-file comparisons, choose **Classic** or **P4Merge-style** from the compact
 dropdown at the upper right. The selected layout is remembered; changing it does
 not save either file.

@@ -14,9 +14,9 @@ private final class MergeOpenSourceScopes: RepositoryBookmarkProvider {
 struct MergeOpenSourceVerification {
     struct Failure: Error { let message: String }
     @MainActor static func require(_ yes: Bool, _ message: String) throws { if !yes { throw Failure(message: message) } }
-    @MainActor static func wait(_ yes: () -> Bool) async throws {
+    @MainActor static func wait(_ yes:()->Bool,line:UInt=#line)async throws {
         for _ in 0..<2000 { if yes() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(message: "Open source timeout")
+        throw Failure(message:"Open source timeout at caller line \(line); choices=\(MergeOpenWindowController.activeChoices); transactions=\(MergeEditorOpenWorkflow.activeTransactions); saves=\(MergeEditorOpenWorkflow.activeSaves)")
     }
     @MainActor static func views(_ root: NSView?) -> [NSView] { guard let root else { return [] }; return [root] + root.subviews.flatMap { views($0) } }
     @MainActor static func capture(_ window: NSWindow, into folder: URL) async throws {
@@ -105,6 +105,83 @@ struct MergeOpenSourceVerification {
         if let path = ProcessInfo.processInfo.environment["TURTLEGIT_MERGE_OPEN_CAPTURE"], let window = owner.window { try await capture(window, into: URL(fileURLWithPath: path)) }
         try require(try [base, mine, patch].map { try Data(contentsOf: $0) } == original, "Open controls changed input bytes")
         owners.forEach { $0.close() }; try await wait { MergeOpenWindowController.activeChoices == 0 }
+        let physicalScopes=try await physicalSheetChoices(root:root,base:base,mine:mine,preferences:prefs,board:board)
+        try await wait{physicalScopes.released==physicalScopes.acquired}
         print("PASS Merge Open source: configured native panels, captured form/slot, grant-before-metadata with wrong-type release, Cancel/duplicate/retired replies without extra grants, independent Quit drain, reentrant retry/success and unchanged input bytes")
+    }
+}
+
+extension MergeOpenSourceVerification {
+    @MainActor private static func physicalSheetChoices(root:URL,base:URL,mine:URL,preferences:UserDefaults,board:NSPasteboard)async throws->MergeOpenSourceScopes {
+        let parent=NSWindow(contentRect:.init(x:-14000,y:-14000,width:700,height:500),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        parent.isReleasedWhenClosed=false;parent.alphaValue=0;parent.orderFront(nil)
+        let scopes=MergeOpenSourceScopes()
+        var owned=[MergeOpenWindowController](),held:CheckedContinuation<URL?,Never>?,panel:NSOpenPanel?,reply:((NSApplication.ModalResponse)->Void)?
+        func clean()async throws {
+            reply?(.cancel);held?.resume(returning:nil);held=nil
+            for owner in owned {if let child=owner.window?.attachedSheet {owner.window?.endSheet(child,returnCode:.cancel);child.orderOut(nil)};owner.close()}
+            if let child=parent.attachedSheet {parent.endSheet(child,returnCode:.cancel);child.orderOut(nil)}
+            parent.close()
+            try await wait{owned.allSatisfy{!$0.hasPendingWork} && MergeOpenWindowController.activeChoices==0}
+            owned=[];panel=nil;reply=nil
+        }
+        do {
+            print("Merge Open source phase: real nested Browse early response and Open detach");fflush(stdout)
+            let owner=MergeOpenWindowController(preferences:preferences,pasteboard:board)
+            owned.append(owner);owner.window?.alphaValue=0;owner.requiresScopes=true
+            owner.setMode(.merging);owner.base.stringValue=base.path;owner.mine.stringValue=mine.path
+            var leaseCalls=0,accepted=0,endRequests=0,closed=0,acceptedLeases=[RepositoryAccessLease]()
+            weak var witness:RepositoryAccessLease?
+            owner.makeLease={url in leaseCalls+=1;let lease=RepositoryAccessLease(url:url,provider:scopes);witness=lease;return lease}
+            owner.selectedPath={_ in mine}
+            owner.presentPicker={chooser,window,completion in
+                panel=chooser;reply=completion;chooser.alphaValue=0;chooser.setFrameOrigin(.init(x:-14000,y:-14000))
+                window.beginSheet(chooser,completionHandler:{_ in})
+            }
+            owner.onClosed={closed+=1};owner.present(parent:parent)
+            owner.browse(.base);try await wait{panel?.sheetParent === owner.window && reply != nil}
+            let nativePanel=panel!,openSheet=owner.window!
+            try require(nativePanel.alphaValue==0 && openSheet.alphaValue==0,"Hidden sheet ownership exposed native UI")
+            reply?(.OK);reply?(.cancel);reply?(.OK)
+            try await wait{leaseCalls==1}
+            try require(owner.busy && owner.pendingChoices==1 && owner.hasPendingWork && !owner.ok.isEnabled && nativePanel.sheetParent === openSheet && owner.base.stringValue==base.path && witness != nil,"Early picker callback released form/authority before actual detach")
+            owner.accept();owner.browse(.mine);owner.setMode(.applyUnifiedDiff)
+            try require(leaseCalls==1 && owner.mode == .merging && MergeOpenWindowController.activeChoices==1,"Duplicate or competing nested request escaped native sheet")
+            openSheet.endSheet(nativePanel);nativePanel.orderOut(nil)
+            try await wait{!owner.busy && owner.pendingChoices==0 && nativePanel.sheetParent==nil && openSheet.attachedSheet==nil}
+            try require(owner.base.stringValue==mine.path && leaseCalls==1 && witness != nil,"Detached picker did not publish exactly its captured slot and lease")
+            // Authorize the other path through the same selected grant; both
+            // selected slots now name mine, and captured mode remains Merging.
+            owner.onAccepted={request,permissions in
+                accepted+=1;acceptedLeases=permissions
+                try require(parent.attachedSheet==nil && openSheet.sheetParent==nil,"onAccepted ran before real Open detachment")
+                guard case .compare(let left,let right,let single)=request else {throw Failure(message:"Native detached acceptance changed mode")}
+                try require(left==mine && right==mine && !single && permissions.count==1 && permissions[0].permits(mine),"Native acceptance lost captured paths or selected grant")
+                owner.setMode(.applyUnifiedDiff);owner.accept()
+            }
+            owner.presentAcceptedSheetEnd={window,sheet in endRequests+=1;if window !== parent || sheet !== openSheet {accepted = -100}}
+            preferences.set(1,forKey:"TurtleGitMerge.OpenRadio")
+            owner.accept();owner.accept()
+            try require(accepted==0 && endRequests==1 && owner.hasPendingWork && parent.attachedSheet === openSheet,"Open callback ran/reentered before held physical release")
+            parent.endSheet(openSheet);openSheet.orderOut(nil)
+            try await wait{accepted==1 && closed==1 && !owner.hasPendingWork && parent.attachedSheet==nil && openSheet.sheetParent==nil}
+            try require(acceptedLeases.count==1 && leaseCalls==1 && preferences.integer(forKey:"TurtleGitMerge.OpenRadio")==0,"Captured mode/grants weren't retained through detached acceptance")
+            acceptedLeases=[]
+
+            print("Merge Open source phase: forced parent close with held nested worker");fflush(stdout)
+            let pending=MergeOpenWindowController(preferences:preferences,pasteboard:board)
+            owned.append(pending);pending.window?.alphaValue=0;pending.setMode(.merging)
+            var pendingClosed=0,lateLeases=0,lateAccepts=0
+            pending.onClosed={pendingClosed+=1};pending.onAccepted={_,_ in lateAccepts+=1}
+            pending.makeLease={url in lateLeases+=1;return RepositoryAccessLease(url:url,provider:scopes)}
+            pending.choosePath={_,_ in await withCheckedContinuation{held=$0}}
+            pending.present(parent:parent);pending.browse(.mine);try await wait{held != nil}
+            parent.close()
+            try require(pendingClosed==0 && pending.hasPendingWork && pending.pendingChoices==1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Forced parent close abandoned held nested worker/Quit ownership")
+            held?.resume(returning:mine);held=nil
+            try await wait{pendingClosed==1 && !pending.hasPendingWork && MergeOpenWindowController.activeChoices==0}
+            try require(pending.mine.stringValue.isEmpty && lateLeases==0 && lateAccepts==0,"Retired nested worker acquired authority or republished a late result")
+            try await clean();return scopes
+        } catch {let original=error;do {try await clean()} catch {throw Failure(message:"Original failure: \(original); cleanup: \(error)")};throw original}
     }
 }

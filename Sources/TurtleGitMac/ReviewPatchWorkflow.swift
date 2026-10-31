@@ -53,6 +53,8 @@ import TurtleGitCore
     var chooseTarget: (() async -> URL?)?
     var presentation: ((WorkingTreePatchWindowController) -> Void)?
     var preparedPresentation: ((WorkingTreePatchWindowController) throws -> Void)?
+    /// The checked review remains owned while its preparation sheet drains.
+    var presentPreparedSheetEnd: (NSWindow, NSWindow) -> Void = { owner, sheet in owner.endSheet(sheet) }
     var configureReview: (WorkingTreePatchWindowModel) -> Void = { _ in }
     private var pendingReview: WorkingTreePatchWindowController?
     var onFinished: () -> Void = {}
@@ -192,6 +194,9 @@ import TurtleGitCore
             let fileAccess = file.flatMap { file in grants.first { $0.contains(file) && (!GitRuntime.isAppStoreBuild || $0.hasSecurityScope) } }
             let controller = WorkingTreePatchWindowController(repository: repository, access: access, fileAccess: fileAccess,
                 bytes: bytes, title: clipboardBytes == nil ? (file?.lastPathComponent ?? sourceTitle) : sourceTitle, preferences: preferences, directoryMode: true, isGitWorkingTree: isGit, initialStripCount: strip,initialTextEncodingPolicy:textEncodingPolicy, automaticallyRefresh: preparedPresentation == nil)
+            // The adopted review must own every granted role, including related
+            // metadata scopes, independently of this preparation controller.
+            controller.model.retainPermissions(grants)
             pendingReview=controller
             configureReview(controller.model)
             guard !retired,generation == current,!token.isCancelled,controller.canReuse else{controller.close();return}
@@ -204,8 +209,33 @@ import TurtleGitCore
                     controller.close(); pendingReview = nil
                     throw PreparedReviewFailure(message: message)
                 }
+                let preparation = window, parent = window?.sheetParent
+                if let preparation, let parent {
+                    presentPreparedSheetEnd(parent, preparation)
+                    while preparation.sheetParent != nil || parent.attachedSheet === preparation {
+                        try? await Task.sleep(nanoseconds: 5_000_000)
+                    }
+                }
+                guard !retired, generation == current, !token.isCancelled,
+                      window === preparation, pendingReview === controller, controller.canReuse else {
+                    controller.close()
+                    if pendingReview === controller { pendingReview = nil }
+                    return
+                }
+                if parent != nil { preparation?.orderOut(nil) }
                 do { try preparedPresentation(controller); pendingReview = nil }
-                catch { controller.close(); pendingReview = nil; throw error }
+                catch {
+                    controller.close(); pendingReview = nil
+                    // Rejected adoption leaves the original editor untouched and
+                    // exposes the same preparation's diagnostic and Close action.
+                    if !retired, generation == current, !token.isCancelled,
+                       let preparation, let parent, preparation.sheetParent == nil,
+                       parent.attachedSheet == nil {
+                        preparation.alphaValue = parent.alphaValue; preparation.appearance = parent.appearance
+                        parent.beginSheet(preparation, completionHandler: nil)
+                    }
+                    throw error
+                }
             } else {
                 pendingReview=nil
                 ReviewPatchWindows.retain(controller, grants: grants)
@@ -259,6 +289,16 @@ import TurtleGitCore
             while pendingPreparations>0 || choice != nil || targetQuestion != nil || review?.hasPendingWork == true || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) {
                 try? await Task.sleep(nanoseconds:5_000_000)
             }
+            // The preparation's ObservedObject host retains this controller.
+            // Break that cycle only after every worker and sheet has drained;
+            // an adopted review already owns its own full permission receipt.
+            owner?.contentViewController = nil
+            grants = []; clipboardBytes = nil; clipboardLoader = nil
+            chooseFile = nil; chooseTarget = nil; chooseBetterTarget = nil
+            presentation = nil; preparedPresentation = nil
+            presentPicker = nil; selectedPickerURL = { $0.url }
+            presentPreparedSheetEnd = { owner, sheet in owner.endSheet(sheet) }
+            configureReview = { _ in }
             Self.activeReleases -= 1;releaseTask=nil
             let done=onFinished;onFinished={};done()
         }

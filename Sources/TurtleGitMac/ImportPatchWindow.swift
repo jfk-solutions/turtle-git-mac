@@ -875,6 +875,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var editorToolbar:MergeEditorToolbar?
     var commandsAvailable:Bool { !retired && !preparingReplacement && editorOpenWorkflow == nil }
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
+    var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
@@ -888,11 +889,14 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     @objc func openMergeDocument(_ sender: Any?) {
         guard !retired, !activeOperation, !preparingReplacement, let window else { return }
-        let workflow = MergeEditorOpenWorkflow(window: window, permissions: model.openPermissions, preferences: model.openPreferences)
+        let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.openPreferences)
         editorOpenWorkflow = workflow
-        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil }
+        workflow.onClosed = { [weak self, weak workflow] in
+            guard let self, self.editorOpenWorkflow === workflow else { return }
+            self.editorOpenWorkflow = nil
+        }
         workflow.accept = { [weak self] request, permissions in
-            guard let self, let window = self.window, !self.model.busy, !self.model.confirmingQuit else { throw OperationCancellationFailure.cancelled }
+            guard let self, !self.retired, let window = self.window, !self.model.busy, !self.model.confirmingQuit else { throw OperationCancellationFailure.cancelled }
             let owner = self.sharedReplacementOwner ?? self.replacementOwner ?? MergeEditorReplacementOwner(onClosed: self.onClosed)
             if self.sharedReplacementOwner == nil { self.replacementOwner = owner }
             try owner.replace(request, permissions: permissions, preferences: self.model.openPreferences, window: window, previous: self)
@@ -961,9 +965,12 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         let owner=window,parent=window?.sheetParent
         if let sheet=owner?.attachedSheet {owner?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
         if let owner {parent?.endSheet(owner)}
+        let replacement = sharedReplacementOwner ?? replacementOwner
+        // An already replaced editor must not wait on its own retired entry.
+        let closingReplacement = replacement?.current == nil || replacement?.current === self ? replacement : nil
         Self.activeReleases += 1
-        releaseTask=Task{@MainActor [self,opening,editor,conflict] in
-            while model.busy || model.draftDecisionPending || model.previewDocument.busy || editor?.busy == true || editor?.hasPendingEditorChoice == true || conflict?.busy == true || conflict?.preparing == true || conflict?.formatPending == true || conflict?.exportingSource == true || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) {
+        releaseTask=Task{@MainActor [self,opening,editor,conflict,closingReplacement] in
+            while closingReplacement?.hasPendingRetiredWork == true || opening?.hasPendingWork == true || model.busy || model.draftDecisionPending || model.previewDocument.busy || editor?.busy == true || editor?.hasPendingEditorChoice == true || conflict?.busy == true || conflict?.preparing == true || conflict?.formatPending == true || conflict?.exportingSource == true || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) {
                 try? await Task.sleep(nanoseconds:5_000_000)
             }
             withExtendedLifetime(opening){}
@@ -998,7 +1005,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     let directoryMode: Bool
     let isGitWorkingTree: Bool
     var openPreferences: UserDefaults { preferences }
-    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } + (editor?.openPermissions ?? []) + (conflictEditor?.openPermissions ?? []) }
+    private var relatedPermissions: [RepositoryAccessLease] = []
+    func retainPermissions(_ permissions: [RepositoryAccessLease]) { relatedPermissions = permissions }
+    var openPermissions: [RepositoryAccessLease] { [access, fileAccess].compactMap { $0 } + relatedPermissions + (editor?.openPermissions ?? []) + (conflictEditor?.openPermissions ?? []) }
     private let preferences: UserDefaults
     private(set) var reviewEncodingPolicy=MergeTextEncodingPolicy(preferUTF8:false)
     private let access: RepositoryAccessLease?
@@ -1339,7 +1348,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         let next = TextConflictWindowModel(repository:repository,access:access,path:comparison.document.destination.path)
         next.configureMergeToolReadOnly(mergeToolReadOnly)
         next.patchComparison = comparison;next.window = window;next.comparisonDefaults = preferences
-        next.workingMergePermissions = [access,fileAccess].compactMap {$0}
+        next.workingMergePermissions = [access,fileAccess].compactMap {$0} + relatedPermissions
         next.patchResultSaver = { [weak self,weak next] text,encoding,cancellation in
             guard let self,let next,!self.retired,let document = next.document,let cancellation else {throw OperationCancellationFailure.cancelled}
             let autoAdd=MergeEditorPreferences.load(from:self.preferences).autoAdd,backup=MergeFileSaveOptions.backupEnabled(from:self.preferences)

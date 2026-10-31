@@ -1,0 +1,101 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-grouped-validation-passed-cumulatively",
+  "source_reference": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "families": [
+    "Save question → Save/Don’t Save → Open → nested Browse → native document replacement",
+    "Checked patch preparation → review adoption → subsequent Open with complete permission transfer",
+    "Original registry and standalone CLI cancellation/completion/input cleanup through actual retirement"
+  ],
+  "core": "No Core implementation changed; no Core tests repeated.",
+  "implementation": [
+    "Capture exact question/Open/choice owners, fields, mode, clipboard bytes and full permission receipt; await physical sheet detachment before delivering another phase.",
+    "Restore the same Open form after synchronous rejection; preserve original document, paths, mode persistence and grants for retry.",
+    "Retain Save callbacks, nested choices, accepted requests and retired editors through actual pending work; reject duplicate, stale and retired responses.",
+    "Fence prepared patch adoption until its own sheet detaches; wait full preparation retirement, including target choice before parsing, in registry and CLI.",
+    "Break preparation hosted-view retention after work drains; adopted review retains every permission role independently and forwards it through subsequent Open/conflict transitions."
+  ],
+  "retained_passes": [
+    {
+      "case": "source and standalone Open",
+      "log": "build/qa/text-open-transaction-open-family-2026-10-31.log",
+      "scope": "Passed before later patch-only preparation/permission repairs; not repeated."
+    },
+    {
+      "case": "text replacement",
+      "log": "build/qa/text-open-transaction-policy-admission-2026-10-31.log",
+      "scope": "Passed exact native window/frame, Save/Cancel/discard, rejection/restoration and held Save lifetime; later patch-only repairs not included."
+    },
+    {
+      "case": "standalone Scene with system and bundled Git",
+      "log": "build/qa/text-open-transaction-final-scene-2026-10-31.log",
+      "scope": "Both passed, including held preparse target cancellation and full workflow retirement; before final preparation hosted-view/permission custody repair."
+    }
+  ],
+  "retained_failures": [
+    {
+      "log": "build/qa/text-open-transaction-debug-2026-10-31.log",
+      "cause": "Nested strong capture required explicit self; compile-only repair."
+    },
+    {
+      "log": "build/qa/text-open-transaction-open-family-2026-10-31.log",
+      "cause": "Fixture far-offscreen window frame constrained by AppKit during adoption; use alpha-zero native-admissible frame and keep exact geometry assertion."
+    },
+    {
+      "log": "build/qa/text-open-transaction-admissible-frame-2026-10-31.log",
+      "cause": "Fixture submitted intentional policy rejection while real asynchronous comparison alignment was still pending; wait actual readiness before submission."
+    },
+    {
+      "log": "build/qa/text-open-transaction-policy-admission-2026-10-31.log",
+      "cause": "Actual patch adoption encountered its still-attached preparation sheet; added exact preparation detach fence before delivery."
+    },
+    {
+      "log": "build/qa/text-open-transaction-debug-prepared-patch-2026-10-31.log",
+      "cause": "Async context selected async beginSheet overload; explicitly select synchronous completionHandler overload."
+    },
+    {
+      "log": "build/qa/text-open-transaction-final-patch-2026-10-31.log",
+      "cause": "Transitions and cancellation/registry assertions passed, but final scope release timed out: native hosted view retained preparation. Repair breaks cycle after drain and separately preserves all adopted-review grants."
+    }
+  ],
+  "resources": {
+    "help": "Guide/help caption corrected to actual text File → Open; tracked Help generated and check passed in preceding grouped checkpoint, before source-only final repairs.",
+    "localization": "38 locales / 1326 keys check passed; no literal UI labels changed.",
+    "coverage": "Reconciled all 130 pinned dialogs and 1659 controls; partial mappings remain explicit, not a completion measure.",
+    "site": "Rendered successfully after documentation freeze; see build/qa/text-open-transaction-site-2026-10-31.log."
+  },
+  "installed_build": "47 remains installed and closed; it predates this transaction family.",
+  "limits": [
+    "Cumulative focused source boundaries, not a complete final-source/full hosted integration pass.",
+    "Physical keyboard/VoiceOver, exact light/dark source-layout parity, signed external grants, Finder and Intel/minimum-macOS execution are not established by these hidden receivers.",
+    "No public binary upload, notarization or App Store submission. Whole-port completion remains unproven."
+  ],
+  "final_build": {
+    "result": "passed",
+    "log": "build/qa/text-open-transaction-debug-permission-retirement-2026-10-31.log"
+  },
+  "final_affected_native": {
+    "result": "passed",
+    "case": "patch only",
+    "log": "build/qa/text-open-transaction-patch-permission-retirement-2026-10-31.log",
+    "receiver_reaped": 12882,
+    "scope": "Actual Git preparation cancellation; held preparation-sheet detach before adoption; same native window/frame/delegate text→patch→text; auxiliary grant outside target/file retained after weak preparation dies, forwarded through actual next Open and adopted comparison, released after final drain; preparation Cancel and forced-parent close preserve original document; original registry callback waits held preparse target; all captured grant providers balance starts/stops; input bytes unchanged."
+  },
+  "cleanup": {
+    "owned_receiver_pids": [
+      9178,
+      9201,
+      9216,
+      9237,
+      9253,
+      9608,
+      9986,
+      10008,
+      11468,
+      11695,
+      11711,
+      12882
+    ],
+    "independent_ps": "All recorded receiver PIDs absent after final checkpoint; no user process terminated."
+  }
+}

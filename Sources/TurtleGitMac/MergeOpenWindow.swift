@@ -54,6 +54,11 @@ import TurtleGitCore
     private var completionPrefixes: [ObjectIdentifier:String] = [:]
     private var retired = false
     private var accepting = false
+    private var closePending = false
+    private var closeDrain: Task<Void, Never>?
+    private var closingParent: NSWindow?
+    var hasPendingWork: Bool { accepting || pendingChoices > 0 || closePending }
+    var presentAcceptedSheetEnd: (NSWindow, NSWindow) -> Void = { owner, sheet in owner.endSheet(sheet) }
     private var choiceID: UUID?
     private struct Form: Equatable {
         let mode: MergeOpenMode
@@ -235,6 +240,7 @@ import TurtleGitCore
                     let validation = MergeOpenAuthorizationValidation(requested: authorize)
                     pickerValidation = validation; panel.delegate = validation
                 }
+                panel.alphaValue = window.alphaValue; panel.appearance = window.appearance
                 picker = panel
                 let response: NSApplication.ModalResponse = await withCheckedContinuation { continuation in
                     var answered = false
@@ -289,16 +295,51 @@ import TurtleGitCore
             }
             if requiresScopes, let missing = paths.first(where: { item in !grants.contains { $0.hasSecurityScope && $0.contains(item.1) } }) { browse(missing.0, authorize: missing.1); return }
             try request.validateFileSystem()
-            accepting = true; updateGates()
-            defer { accepting = false; updateGates() }
-            try onAccepted(request, grants)
-            preferences.set(acceptedMode.rawValue, forKey: "TurtleGitMerge.OpenRadio")
-            close()
+            guard let window else { return }
+            accepting = true; updateGates(); Self.activeChoices += 1
+            let parent = window.sheetParent
+            let captured = form, permissions = grants
+            let restore = { [self] in
+                if let parent, parent.attachedSheet == nil, window.sheetParent == nil {
+                    parent.beginSheet(window)
+                } else if parent == nil { showWindow(nil) }
+            }
+            let publish = { [self] in
+                defer { accepting = false; Self.activeChoices -= 1; updateGates() }
+                guard !retired, self.window === window else { return }
+                guard form == captured else { restore(); return }
+                // A detached sheet remains our form until preparation succeeds.
+                // Hide it during handoff; rejection restores this same instance.
+                if parent != nil { window.orderOut(nil) }
+                do {
+                    try onAccepted(request, permissions)
+                    preferences.set(acceptedMode.rawValue, forKey: "TurtleGitMerge.OpenRadio")
+                    close()
+                } catch {
+                    guard !retired else { return }
+                    status.stringValue = error.localizedDescription
+                    // Failed preparation preserves the original document and the
+                    // same entered paths and scoped grants.
+                    restore()
+                }
+            }
+            if let parent {
+                presentAcceptedSheetEnd(parent, window)
+                if window.sheetParent != nil || parent.attachedSheet === window {
+                    Task { @MainActor [self, window, parent] in
+                        while window.sheetParent != nil || parent.attachedSheet === window {
+                            try? await Task.sleep(nanoseconds: 10_000_000)
+                        }
+                        publish()
+                    }
+                } else { publish() }
+            } else { publish() }
         } catch { if !retired { status.stringValue = error.localizedDescription } }
     }
     func present(parent: NSWindow?) {
         guard !retired, window?.isVisible != true, window?.sheetParent == nil, parent?.attachedSheet == nil else { return }
         if let parent, let window {
+            window.alphaValue = parent.alphaValue; window.appearance = parent.appearance
             if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }
             ownerObserver = NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:parent,queue:.main) { [weak self] _ in MainActor.assumeIsolated { self?.close() } }
             parent.beginSheet(window)
@@ -309,15 +350,31 @@ import TurtleGitCore
         pollClipboard(); window?.makeFirstResponder(mode == .merging ? base : diff)
     }
     func windowWillClose(_ notification: Notification) {
-        guard !retired else { return }; retired = true
+        guard notification.object as? NSWindow === window, !retired else { return }; retired = true
         clipboardMonitor?.invalidate(); clipboardMonitor = nil
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
         choiceID = nil; busy = false; updateGates()
-        if let picker { (picker.sheetParent ?? window)?.endSheet(picker, returnCode: .cancel); picker.orderOut(nil) }
-        picker = nil
-        pickerValidation = nil
-        if let window, let parent = window.sheetParent { parent.endSheet(window) }
-        let finished = onClosed; onClosed = {}; onAccepted = { _, _ in }; finished()
+        if let picker {
+            if let parent = picker.sheetParent { parent.endSheet(picker, returnCode: .cancel) }
+            else if let window, window.attachedSheet === picker { window.endSheet(picker, returnCode: .cancel) }
+            picker.orderOut(nil)
+        }
+        picker = nil; pickerValidation = nil
+        closingParent = window?.sheetParent
+        if let window, let parent = closingParent { parent.endSheet(window) }
+        closePending = true
+        let settle = { [self] in
+            closePending = false; closingParent = nil
+            let finished = onClosed; onClosed = {}; onAccepted = { _, _ in }; finished()
+        }
+        if accepting || pendingChoices > 0 || window?.sheetParent != nil || (window != nil && closingParent?.attachedSheet === window) {
+            closeDrain = Task { @MainActor [self] in
+                while accepting || pendingChoices > 0 || window?.sheetParent != nil || (window != nil && closingParent?.attachedSheet === window) {
+                    try? await Task.sleep(nanoseconds: 10_000_000)
+                }
+                closeDrain = nil; settle()
+            }
+        } else { settle() }
     }
     @objc private func selectMerging() { setMode(.merging) }
     @objc private func selectApply() { setMode(.applyUnifiedDiff) }

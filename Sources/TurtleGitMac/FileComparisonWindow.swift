@@ -120,6 +120,7 @@ private extension FileComparisonDocument {
     }
     var onClosed: () -> Void = {}
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
+    var mergeToolHasPendingWork: Bool { model.mergeToolHasPendingWork || editorOpenWorkflow?.hasPendingWork == true }
     var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
     var replacementOwner: MergeEditorReplacementOwner?
     weak var sharedReplacementOwner: MergeEditorReplacementOwner?
@@ -129,12 +130,19 @@ private extension FileComparisonDocument {
         guard !preparingReplacement, editorOpenWorkflow == nil, let window, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit, window.attachedSheet == nil else { return }
         let workflow = makeEditorOpenWorkflow(window, model.openPermissions, model.comparisonDefaults)
         editorOpenWorkflow = workflow
-        workflow.onClosed = { [weak self] in self?.editorOpenWorkflow = nil; self?.model.resumeExternalReload() }
-        workflow.accept = { [weak self] request, permissions in try self?.replaceEditor(request, permissions: permissions) }
-        workflow.start(dirty: model.dirty, description: model.unsavedFilesDescription, save: { [weak self] completion in self?.model.saveAll(completion: completion) })
+        workflow.onClosed = { [weak self, weak workflow] in
+            guard let self, self.editorOpenWorkflow === workflow else { return }
+            self.editorOpenWorkflow = nil; self.model.resumeExternalReload()
+        }
+        workflow.accept = { [weak self] request, permissions in
+            guard let self else { throw OperationCancellationFailure.cancelled }; try self.replaceEditor(request, permissions: permissions)
+        }
+        workflow.start(dirty: model.dirty, description: model.unsavedFilesDescription, save: { [weak self] completion in
+            guard let self else { completion(false); return }; self.model.saveAll(completion: completion)
+        })
     }
     func replaceEditor(_ request: MergeOpenRequest, permissions: [RepositoryAccessLease]) throws {
-        guard let window, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit else { return }
+        guard let window, !closingComparison, !model.busy, !model.hasPendingEditorChoice, !model.filtering, !model.confirmingQuit else { throw OperationCancellationFailure.cancelled }
         let owner = sharedReplacementOwner ?? replacementOwner ?? MergeEditorReplacementOwner(onClosed: onClosed)
         if sharedReplacementOwner == nil { replacementOwner = owner }
         try owner.replace(request, permissions: permissions, preferences: model.comparisonDefaults, window: window, previous: self)
@@ -220,10 +228,12 @@ private extension FileComparisonDocument {
         MergeLineRuler.retire(in:window?.contentView)
         imageToolbar?.retire(); editorCommandMenu?.retire(); editorToolbar?.retire(); editorFileMenu.remove(); removePatchMenu()
         if let window = window as? FileComparisonNativeWindow { window.imageKeyModel?.presentation.retire(); window.imageKeyModel?.retire(); window.imageKeysRetired = true; window.imageKeyModel = nil; window.imageKeyOwner = nil }
-        editorOpenWorkflow?.retire(); editorOpenWorkflow = nil; model.retireImageLoader(); model.resetHistory()
-        guard model.mergeToolHasPendingWork || externalReload?.hasPendingWork==true else {onClosed();return}
-        Task { @MainActor [self] in
-            while model.mergeToolHasPendingWork || externalReload?.hasPendingWork==true {try? await Task.sleep(nanoseconds:10_000_000)}
+        editorOpenWorkflow?.retire(); model.retireImageLoader(); model.resetHistory()
+        let replacement = sharedReplacementOwner ?? replacementOwner
+        let closingReplacement = replacement?.current == nil || replacement?.current === self ? replacement : nil
+        guard mergeToolHasPendingWork || externalReload?.hasPendingWork==true || closingReplacement?.hasPendingRetiredWork == true else {onClosed();return}
+        Task { @MainActor [self, closingReplacement] in
+            while mergeToolHasPendingWork || externalReload?.hasPendingWork==true || closingReplacement?.hasPendingRetiredWork == true {try? await Task.sleep(nanoseconds:10_000_000)}
             onClosed()
         }
     }

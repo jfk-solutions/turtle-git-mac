@@ -1,25 +1,28 @@
 {
   "date": "2026-10-31",
-  "status": "demonstrated-open-workflow-gap-awaiting-implementation",
-  "scope": "Read-only current text Compare/Merge Open transaction review; not a completion or validation claim",
+  "status": "implemented-focused-grouped-validation-passed-cumulatively",
+  "scope": "Text Compare/Merge/Patch Open transaction implementation; historical review below identifies its original source boundary, not full-port completion",
   "source_reviewed": "a4e0a32366531c401f5830c91372dc153ddd3a1f",
   "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
   "upstream_anchor": "src/TortoiseMerge/MainFrm.cpp:696-713 completes CheckForSave and DoModal before document replacement",
   "gaps": [
     {
       "source": "Sources/TurtleGitMac/MergeEditorOpenWorkflow.swift:25",
-      "behavior": "Save/Don\u2019t Save advances directly from the alert callback; presentOpen retires if the alert is still physically attached."
+      "behavior": "Save/Don’t Save advances directly from the alert callback; presentOpen retires if the alert is still physically attached.",
+      "resolution": "Implemented in the continuous native Open transaction family; see checkpoint"
     },
     {
       "source": "Sources/TurtleGitMac/MergeOpenWindow.swift:291",
-      "behavior": "Accepted Open dispatches before its editor-attached sheet closes; adoption ends the sheet but immediately replaces native content and begins the next document."
+      "behavior": "Accepted Open dispatches before its editor-attached sheet closes; adoption ends the sheet but immediately replaces native content and begins the next document.",
+      "resolution": "Implemented in the continuous native Open transaction family; see checkpoint"
     },
     {
       "source": "Sources/TurtleGitMac/MergeEditorOpenWorkflow.swift:55",
-      "behavior": "Internal Open retirement clears the opener before nested pendingChoices drain, unlike initial CLI Open retiredOpeners ownership. Global Quit counting is not the same as command/input ownership."
+      "behavior": "Internal Open retirement clears the opener before nested pendingChoices drain, unlike initial CLI Open retiredOpeners ownership. Global Quit counting is not the same as command/input ownership.",
+      "resolution": "Implemented in the continuous native Open transaction family; see checkpoint"
     }
   ],
-  "next_batch": "Capture one Save question\u2192Open\u2192nested Browse\u2192replacement transaction; retain exact scopes/children through actual sheet and worker drain; fence stale/duplicate/retired replies; extend existing hidden editor-Open fixture after complete implementation.",
+  "next_batch": "This demonstrated transaction gap is closed at the focused checkpoint. Remaining source layout, physical/signed/accessibility and whole-port acceptance stay open.",
   "already_present": [
     "Captured Browse form identity and actual Browse-sheet drain",
     "Clipboard snapshotting and scope checks",
@@ -30,5 +33,6 @@
   ],
   "executed_tests_or_builds_for_review": false,
   "source_changes_for_review": false,
-  "signed47_limit": "Signed47 is frozen at the reviewed source; this pending Open transaction continuation is not included."
+  "signed47_limit": "Signed47 is frozen at the reviewed source; this pending Open transaction continuation is not included.",
+  "checkpoint": "text-open-transaction-2026-10-31.json"
 }

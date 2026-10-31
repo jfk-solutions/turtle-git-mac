@@ -50,7 +50,7 @@ private enum MergeToolAuthorizationFailure:LocalizedError {
     private var cleanupInputs: [MergeToolCleanupInput] = []
     private var replacementOwner: MergeEditorReplacementOwner?
     private var retiredOpeners: [MergeOpenWindowController] = []
-    private var hasPendingOpenWork: Bool { (opener?.pendingChoices ?? 0) > 0 || retiredOpeners.contains { $0.pendingChoices > 0 } }
+    private var hasPendingOpenWork: Bool { opener?.hasPendingWork == true || retiredOpeners.contains { $0.hasPendingWork } }
     private var hasReplacement = false, abandonedRequestedResult = false
     private var frameReflectedNames: [String: String] = [:]
     var requiresScopes = GitRuntime.isAppStoreBuild
@@ -62,15 +62,20 @@ private enum MergeToolAuthorizationFailure:LocalizedError {
         else { panel.begin(completionHandler: completion) }
     }
     var selectedOutputURL: (NSSavePanel) -> URL? = { $0.url }
+    var makeOpener: (UserDefaults, [RepositoryAccessLease]) -> MergeOpenWindowController = { MergeOpenWindowController(preferences: $0, permissions: $1) }
     var presentation: ((NSWindowController) -> Void)?
     var configurePatchWorkflow: (ReviewPatchWorkflow) -> Void = { _ in }
     var onError: (String) -> Void = { _ in }
     var onFinished: (Int32) -> Void = { _ in }
-    var hasPendingWork: Bool {
-        preparing || finishing || panel != nil || !retiringPermissionPanels.isEmpty || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.model.mergeToolHasPendingWork == true ||
-        (editor as? TextConflictWindowController)?.model.mergeToolHasPendingWork == true ||
-        (editor as? WorkingTreePatchWindowController)?.activeOperation == true || patch?.loading == true
+    /// The same ownership boundary governs public readiness and final command
+    /// completion. In particular, a closed editor can still be draining its
+    /// Open transaction after its model's read/save work has finished.
+    private var pendingCommandWork: Bool {
+        preparing || panel != nil || !retiringPermissionPanels.isEmpty || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.mergeToolHasPendingWork == true ||
+        (editor as? TextConflictWindowController)?.mergeToolHasPendingWork == true ||
+        (editor as? WorkingTreePatchWindowController)?.hasPendingWork == true || patch?.hasPendingWork == true
     }
+    var hasPendingWork: Bool { finishing || pendingCommandWork }
     var completionStatus: Int32 {
         if abandonedRequestedResult { return 1 }
         if let merge = editor as? TextConflictWindowController {
@@ -260,10 +265,10 @@ private enum MergeToolAuthorizationFailure:LocalizedError {
         present(controller); controller.model.beginTransferredDocument()
     }
     private func showOpen() {
-        let controller = MergeOpenWindowController(preferences: preferences, permissions: grants); opener = controller
+        let controller = makeOpener(preferences, grants); opener = controller
         controller.base.stringValue = invocation.base?.path ?? ""; controller.theirs.stringValue = invocation.theirs?.path ?? ""; controller.mine.stringValue = invocation.mine?.path ?? ""
-        controller.onAccepted = { [weak self] request, permissions in
-            guard let self, !self.retired else { throw OperationCancellationFailure.cancelled }; self.grants += permissions
+        controller.onAccepted = { [weak self,weak controller] request, permissions in
+            guard let self,let controller,!self.retired,self.opener === controller else { throw OperationCancellationFailure.cancelled }; self.grants += permissions
             switch request {
             case .compare(let base, let mine, let single): try self.showComparison(base: base, mine: mine, single: single)
             case .merge(let base, let theirs, let mine): try self.showMerge(base: base, theirs: theirs, mine: mine)
@@ -271,8 +276,8 @@ private enum MergeToolAuthorizationFailure:LocalizedError {
             }
         }
         controller.onClosed = { [weak self, weak controller] in
-            guard let self else { return }
-            if let controller, controller.pendingChoices > 0 { self.retiredOpeners.append(controller) }
+            guard let self,let controller,self.opener === controller else { return }
+            if controller.hasPendingWork { self.retiredOpeners.append(controller) }
             self.opener = nil; if self.editor == nil && self.patch == nil { self.finish(1) }
         }
         if let presentation { presentation(controller) } else { controller.present(parent: owner) }
@@ -343,7 +348,7 @@ private enum MergeToolAuthorizationFailure:LocalizedError {
     private func finish(_ status: Int32) {
         guard !finishing,!completed else { return }; finishing = true; retired = true
         Task {
-            while preparing || panel != nil || !retiringPermissionPanels.isEmpty || hasPendingOpenWork || replacementOwner?.preparingPatch == true || replacementOwner?.hasPendingRetiredWork == true || (editor as? FileComparisonWindowController)?.model.mergeToolHasPendingWork == true || (editor as? TextConflictWindowController)?.model.mergeToolHasPendingWork == true || (editor as? WorkingTreePatchWindowController)?.activeOperation == true || patch?.loading == true {
+            while pendingCommandWork {
                 try? await Task.sleep(nanoseconds: 10_000_000)
             }
             if invocation.deleteInputsOnClose {

@@ -166,3 +166,63 @@ lexical role parsing from post-grant filesystem validation. Existing validating
 callers keep their contract; typed and dropped paths reach their owned chooser
 before inaccessible input metadata can reject them. Its new checkpoint remains
 separate from the historical Open source-control results above.
+
+
+## Continuous native Open transaction — October 31, 2026
+
+The pinned `MainFrm.cpp::OnFileOpen` completes `CheckForSave` and `COpenDlg::DoModal`
+before replacing its views. The native adaptation now retains that complete
+transaction through the asynchronous Save question, ordinary Save/Save As, Open,
+nested Browse, accepted request and actual sheet detachment. An early native
+response cannot retire the current document or attempt to present another sheet
+while the previous one is still attached.
+
+Open captures its mode, lexical request, clipboard snapshot, complete form and
+permissions before acceptance. It hides the detached form before delivering the
+prepared request. A synchronous Open rejection restores the same form and
+retained permissions, with the original document available for retry. The accepted mode
+is remembered only after successful delivery. Cancelled, duplicate, altered-form
+and retired replies cannot launch another document. Question and picker
+cancellation target only their actual parent/child relationship.
+
+Comparison, three-pane merge and patch-review controllers retain their Open owner
+until its real sheet and pending choice work drains. The replacement registry and
+standalone command share that boundary, including initial CLI Open and retired
+Open controllers. A separate global transaction count protects Quit; it does not
+substitute for command completion, retained grants or temporary-input ownership.
+Checked patch preparation has a separate exact-sheet fence before review
+adoption. Its checked review, preparation count and grants remain owned through
+physical detachment; cancellation or a changed owner cannot publish the review.
+A rejected patch handoff restores its preparation diagnostic and keeps the
+original editor. Standalone command completion waits for full patch workflow
+retirement, including target choices before parsing begins, rather than only
+its loading flag.
+
+Preparation retirement also releases its native hosted view after workers and
+sheets drain, breaking the view/controller retention cycle. The adopted patch
+review retains the complete incoming permission set independently, including
+auxiliary metadata grants, and forwards it through subsequent Open and conflict
+editor transitions. Releasing the preparation therefore cannot revoke access
+still needed by the adopted document.
+
+Read-only, one-pane, reflected labels, required merged-result status and abandoned
+result policy retain their existing before-adoption configuration.
+
+The ordinary source Open remains blank rather than inventing historical-file
+prefill. Existing immutable source snapshots, clipboard ownership, path authority,
+patch preparation, source menus and minimum/frame preservation remain in force.
+[The user guide](GETTING-STARTED.md#standalone-comparison-and-merging) describes
+the Save, Browse, correction and Cancel behavior.
+
+The [grouped checkpoint](qa/text-open-transaction-2026-10-31.json) records the
+Debug build and cumulative focused native passes: source/Open, text replacement,
+both Git engines for the standalone Scene, and the final affected patch case.
+The patch case verifies exact native detachment, cancellation and original
+registry drainage, plus auxiliary permission transfer through the next Open and
+release after the final document closes. Passing families were retained rather
+than repeated after patch-only repairs. All recorded receivers were reaped and
+independently absent. Core code was unchanged and no Core suite was repeated.
+The receipt preserves failed attempts and precise source boundaries; this is
+not a full final-source integration matrix. Installed build47 predates this
+family. Physical keyboard/VoiceOver, signed file grants and full upstream
+layout/behavior acceptance remain separate.
