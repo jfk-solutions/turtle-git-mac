@@ -1,0 +1,94 @@
+{
+  "schema": 1,
+  "date": "2026-10-31",
+  "scope": "Positioned EMF text full-canvas fixture repair; one diagnostic, one focused Core check and grouped native checks",
+  "hostedFailure": {
+    "run": 41147246774,
+    "job": 124385294375,
+    "case": "positioned-text/system",
+    "message": "Native positioned/cmap/raw-glyph raster mismatch: plus-driver-positioned and classic-positioned-dx"
+  },
+  "diagnostic": {
+    "directory": "build/qa/positioned-text-diagnostic-2026-10-31",
+    "report": "report.json",
+    "actualComparisonImageDecoder": true,
+    "noWindows": true,
+    "canvas": [
+      97,
+      65
+    ],
+    "differentPixels": 161,
+    "exactDifferenceSet": "x == 96 or y == 64; every other RGBA pixel identical",
+    "originalPlusEdge": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "originalClassicEdge": [
+      255,
+      255,
+      255,
+      255
+    ],
+    "glyphPathIdentical": true,
+    "layout": "full native canvas named-sRGB RGBA8; no crop, matte, tolerance or rescaling",
+    "helperSHA256": "790b1d6a7990e6a2832db204e0d8e5917499f0cffd713b9e920390eabf9fba2f",
+    "rendererSHA256": "f5c8430688a3615b6701987c504c47b54283ed5b7726a07d5a045df427acbe15",
+    "operatingSystem": "Version 27.0.1 (Build 26A434)"
+  },
+  "repair": {
+    "productChanged": false,
+    "rendererChanged": false,
+    "runtimeReconstructionNeeded": false,
+    "derivativeRule": "Only first white EMF+ FillRects width/height96x64 becomes97x65; two bytes change, length/header/glyph records/cmap flags/origins/graphics mapping preserved",
+    "originalControlsUnmodified": true,
+    "native": "Preserve original pair with exact161-edge alpha contract and all remaining pixel equality; derived-vs-original classic pair exact complete97x65 DeviceRGB AND named-sRGB equality; retain Unicode/raw-glyph exact fullcanvas pairs and ownership/cancellation/conflict workflow",
+    "coreFilter": "MetafileImageTests/testPositionedTextFullCanvasBackgroundControlsPreserveOriginalWiresAndGlyphs",
+    "nativeSelector": "python3 scripts/test-metafile-workflows.py --only positioned-text --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+  },
+  "fixtures": {
+    "plus-driver-positioned.emf": {
+      "bytes": 316,
+      "sha256": "f30985648feb7fcf4f4f4c01c436fc45cd7c4cfff0373119b6fb6e57bc29b90a"
+    },
+    "classic-positioned-dx.emf": {
+      "bytes": 668,
+      "sha256": "64ccbdc069fcb56790a4f9729c833034da25d0c1b1e9eaf4916fd9142414effa"
+    },
+    "plus-driver-compatible-dx.emf": {
+      "bytes": 304,
+      "sha256": "7e325a85a674c4dee705302f57bfbb46c764baca59f98c7c2236026338fa6bfa"
+    },
+    "classic-positioned-compatible-dx.emf": {
+      "bytes": 692,
+      "sha256": "67f37689312b9d6f84f6914b4cc65401b2f95c19ee3ab9f1d0f446087774f531"
+    },
+    "plus-driver-positioned-full-background.emf": {
+      "bytes": 316,
+      "sha256": "183ee306e621dd8576510f64dd4d863bfb5054a8fb03755724a272a277d981dc"
+    },
+    "plus-driver-compatible-dx-full-background.emf": {
+      "bytes": 304,
+      "sha256": "f1479d7eb30b4d9919061df0a14d63a21996ddf825133e599b264c71e810454b"
+    }
+  },
+  "validation": {
+    "diagnosticExit": 0,
+    "groupedCore": {
+      "result": "one focused full-canvas test passes",
+      "log": "build/qa/hosted-native-repair-core-2026-10-31.log"
+    },
+    "groupedNative": {
+      "result": "positioned-text passes with system and bundled Git",
+      "log": "build/qa/hosted-native-repair-positioned-text-2026-10-31.log",
+      "receivers_reaped": [
+        98411,
+        98670
+      ]
+    },
+    "physicalUI": "not run",
+    "fullHostedCI": "not established"
+  },
+  "status": "focused-full-canvas-background-contract-passed"
+}

@@ -233,6 +233,7 @@ automatically suitable store marketing material.
 | Log/context icons | `qa/context-registration-2026-10-25/log-context-icons.png` | JPEG despite suffix; 2240×1624 | Viewed: real Log/menu, mixed localization and small sample; recapture richer clean history |
 | History | `qa/signed-consolidation-2026-10-25/log.png` | JPEG despite suffix; 2240×1624 | Historical signed reference, not current release acceptance |
 | Commit | `site/assets/workspace-report-commit-light-2026-10-25.png` | JPEG despite suffix; 2000×1584 | Composition reference; predates later Commit changes |
+| Current Commit and staging, light/dark | [October 31 manual captures](qa/manual-commit-captures-2026-10-31.json) | Four real compositor PNGs, 2320×1744, RGBA | All viewed; current Debug UI with synthetic Harbor data for website/manual. Not a signed release or approved store format; recapture for the final store target |
 | Working Tree | `site/assets/workspace-report-status-light-2026-10-25.png` | JPEG despite suffix; 2200×1324 | Composition reference; refresh behavior has later evidence |
 | Embedded patch appearance | `qa/editor-appearance-2026-10-25/commit-populated-dark.png` | PNG, 2360×1700, RGBA | Viewed: diagnostic/custom high-contrast rendering and incomplete native control composition; **exclude from store assets** |
 
@@ -242,7 +243,8 @@ screenshots at 1280×800, 1440×900, 2560×1600 or 2880×1800, without alpha; on
 screenshots may be provided. Proposed final target: **2560×1600**, consistently
 captured for the selected localization. Final PNG/JPEG files, visual review,
 opaque encoding, dimensions, checksums and matching build provenance remain
-pending. No image was edited or newly captured for this dossier.
+pending. The October 31 manual refresh adds actual current Debug captures; no
+image was edited into a store asset or submitted.
 [Apple screenshot specifications](https://developer.apple.com/help/app-store-connect/reference/app-information/screenshot-specifications),
 [upload requirements](https://developer.apple.com/help/app-store-connect/manage-app-information/upload-app-previews-and-screenshots/).
 

@@ -648,3 +648,16 @@ reader to accept a negative source origin. The source-omitted atlas likewise
 preserves the two deliberately cyan destination columns omitted by clipping.
 A zero-width DDB source has an empty-operation control. These control framing
 repairs retain all original subject bytes and pixel assertions.
+
+The October31 full-canvas controls preserve the original positioned recordings.
+`plus-driver-positioned-full-background.emf` and
+`plus-driver-compatible-dx-full-background.emf` change only the initial white
+EMF+ FillRects width/height from96x64 to97x65 (two bytes each). The original
+EMF+ explicit background leaves its inclusive outer row/column transparent;
+the classic renderer's initial canvas background is opaque across97x65. The
+original pair must differ at exactly those161 pixels and match everywhere else,
+including all glyph coverage. Named derivatives and original classic controls
+must match every full-canvas RGBA pixel; neither cropping nor a white matte
+supplies equality. Original Unicode/raw-glyph controls and source bytes remain
+unchanged. Evidence and grouped-check scope are recorded in
+`docs/qa/metafile-positioned-background-2026-10-31.json`.

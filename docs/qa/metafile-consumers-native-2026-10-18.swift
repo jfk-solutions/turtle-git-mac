@@ -38,7 +38,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         let classicTextSamples:Set<String>=["classic-text-compact-small.emf","classic-text-compact-low-unicode.emf","classic-text-compact-clip-opaque.emf","classic-text-compact-updatecp.emf","classic-text-compact-world.emf","classic-text-poly-wide-dx.emf","classic-text-poly-wide-pdy.emf","classic-text-poly-ansi-clip-opaque.emf","classic-text-poly-ansi-updatecp.emf","classic-text-ext-ansi-cp1252.emf","classic-text-poly-ansi-cp1252.emf","classic-text-ext-charset-204.emf","classic-text-poly-charset-222.emf","classic-text-ext-dbcs-128.emf","classic-text-poly-dbcs-pdy-134.emf","classic-text-compact-no-rect-opaque.emf","classic-text-poly-wide-offdx-zero-updatecp.emf"]
         let formattedDigitSamples:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-formatted-digits-thai-national.emf","plus-formatted-digits-thai-traditional.emf","plus-formatted-digits-arabic-national.emf","plus-formatted-digits-persian-traditional.emf","plus-formatted-digits-thai-hotkey.emf","plus-formatted-digits-thai-vertical.emf","plus-formatted-digits-thai-wrap.emf","plus-formatted-digits-thai-gradient.emf","plus-formatted-controls-lrm-context-display.emf","plus-formatted-controls-zwj-alone-display.emf","plus-formatted-controls-vertical-display.emf","plus-formatted-controls-trim-removed-display.emf","plus-formatted-controls-path-trim-display.emf","windows-formatted-lrm-latin-display.emf","windows-formatted-rlm-alone-display.emf","windows-formatted-zwj-alone-display.emf","windows-formatted-zwnj-latin-display.emf","windows-formatted-digits-thai-traditional-plain.emf","windows-formatted-digits-arabic-national-arabic-rtl.emf","plus-formatted-controls-lrm-gradient-display.emf"]
         let compressedSamples:Set<String> = Set(["fill","region","cap"].flatMap { family in ["relative","float"].map {"plus-compressed-path-"+family+"-"+$0+".emf"} })
-        let positionedSamples:Set<String> = ["plus-driver-positioned.emf","plus-driver-natural.emf","plus-driver-vertical-natural.emf","plus-driver-linear-matrix.emf","plus-driver-vertical-matrix.emf","plus-driver-gradient.emf","classic-positioned-dx.emf","classic-positioned-pdy.emf","classic-positioned-opaque.emf","classic-positioned-compatible-dx.emf","plus-driver-compatible-dx.emf"]
+        let positionedSamples:Set<String> = ["plus-driver-positioned-full-background.emf","plus-driver-compatible-dx-full-background.emf","plus-driver-positioned.emf","plus-driver-natural.emf","plus-driver-vertical-natural.emf","plus-driver-linear-matrix.emf","plus-driver-vertical-matrix.emf","plus-driver-gradient.emf","classic-positioned-dx.emf","classic-positioned-pdy.emf","classic-positioned-opaque.emf","classic-positioned-compatible-dx.emf","plus-driver-compatible-dx.emf"]
         let classicPenSamples:Set<String>=["classic-extpen-custom.emf","classic-extpen-hatch-4.emf","classic-extpen-dib.emf","classic-extpen-state.emf","classic-extpen-inside-rectangle.emf"]
         let classicRegionSamples:Set<String>=["classic-region-fill-preserve.emf","classic-region-frame-union.emf","classic-flood-surface.emf","wmf-classic-region-fill-preserve.wmf","wmf-classic-region-frame-union.wmf","wmf-classic-flood-border.wmf"]
         let classicPatternSamples:Set<String>=["wmf-classic-patternbrush-mono.wmf","wmf-classic-patternbrush-state.wmf","classic-monobrush-dynamic.emf","classic-monobrush-colored.emf","classic-monobrush-palette-select.emf"]
@@ -288,13 +288,47 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 }
             }
             if positionedText {
-                for names in [["plus-driver-positioned","classic-positioned-dx"],["classic-positioned-compatible-dx","plus-driver-compatible-dx"],["plus-driver-positioned","plus-driver-positioned-native-glyphs"],["classic-positioned-dx","classic-positioned-dx-native-glyphs"]] {
+                let pairs=[["plus-driver-positioned","classic-positioned-dx"],["plus-driver-positioned-full-background","classic-positioned-dx"],["classic-positioned-compatible-dx","plus-driver-compatible-dx"],["classic-positioned-compatible-dx","plus-driver-compatible-dx-full-background"],["plus-driver-positioned","plus-driver-positioned-native-glyphs"],["classic-positioned-dx","classic-positioned-dx-native-glyphs"]]
+                for names in pairs {
                     func url(_ name:String)->URL {name.hasSuffix("native-glyphs") ? root.appendingPathComponent(name+".emf") : corpus.appendingPathComponent(name+".emf")}
                     let left=url(names[0]),right=url(names[1]),leftBytes=try Data(contentsOf:left),rightBytes=try Data(contentsOf:right)
                     let pair=track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:prefs))
                     pair.model.load();try await wait{!pair.model.busy && pair.model.document != nil}
                     guard let a=pair.model.imageComparison?.base?.pixels,let b=pair.model.imageComparison?.destination?.pixels else {throw Failure(message:"Positioned glyph native pair failed; \(comparisonState(pair))")}
-                    try require(try raster(a)==raster(b),"Native positioned/cmap/raw-glyph raster mismatch: \(names)")
+                    try require(a.width==97 && a.height==65 && b.width==97 && b.height==65,"Positioned comparisons must retain their entire inclusive97x65 canvas")
+                    let leftOracle=try raster(a),rightOracle=try raster(b),leftRGBA=try textRGBA(a,fullCanvas:true),rightRGBA=try textRGBA(b,fullCanvas:true)
+                    let originalBackgroundPair=names==pairs[0] || names==pairs[2]
+                    if originalBackgroundPair {
+                        @MainActor func requireOriginal(_ condition:Bool,_ message:String)throws {
+                            if !condition {try retainTextMismatch(name:names.joined(separator:"--"),left:a,right:b,leftSource:left,leftBytes:leftBytes,rightSource:right,rightBytes:rightBytes,leftOracle:leftOracle,rightOracle:rightOracle,root:root,fullCanvas:true)}
+                            try require(condition,message)
+                        }
+                        if ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_CAPTURE_TEXT_DIAGNOSTICS"]=="1" {try retainTextMismatch(name:names.joined(separator:"--"),left:a,right:b,leftSource:left,leftBytes:leftBytes,rightSource:right,rightBytes:rightBytes,leftOracle:leftOracle,rightOracle:rightOracle,root:root,fullCanvas:true)}
+                        // Original EMF+ explicitly paints96x64; classic supplies
+                        // an opaque97x65 canvas. Every nonedge pixel, including
+                        // all glyph coverage/antialiasing, must still match.
+                        var differences=0
+                        for y in 0..<65 {for x in 0..<97 {
+                            let p=(y*97+x)*4,l=Array(leftRGBA[p..<(p+4)]),r=Array(rightRGBA[p..<(p+4)])
+                            if x==96 || y==64 {
+                                let transparent:[UInt8]=[0,0,0,0],white:[UInt8]=[255,255,255,255]
+                                try requireOriginal(l==(names==pairs[0] ? transparent:white) && r==(names==pairs[0] ? white:transparent),"Original positioned background alpha contract changed at \(x),\(y)")
+                                differences += 1
+                            } else {try requireOriginal(l==r,"Original positioned glyph/content mismatch at \(x),\(y)")}
+                        }}
+                        try require(differences==161,"Original positioned full-canvas difference must be exactly161 outer edge pixels")
+                    } else {
+                        if leftOracle != rightOracle || leftRGBA != rightRGBA || ProcessInfo.processInfo.environment["TURTLEGIT_METAFILE_CAPTURE_TEXT_DIAGNOSTICS"]=="1" {
+                            try retainTextMismatch(name:names.joined(separator:"--"),left:a,right:b,leftSource:left,leftBytes:leftBytes,rightSource:right,rightBytes:rightBytes,leftOracle:leftOracle,rightOracle:rightOracle,root:root,fullCanvas:true)
+                        }
+                        try require(leftOracle==rightOracle && leftRGBA==rightRGBA,"Native positioned/cmap/raw-glyph full-canvas raster mismatch: \(names)")
+                        if names.contains(where:{$0.hasSuffix("full-background")}) {
+                            for y in 0..<65 {for x in 0..<97 where x==96 || y==64 {
+                                let p=(y*97+x)*4
+                                try require(Array(leftRGBA[p..<(p+4)])==[255,255,255,255] && Array(rightRGBA[p..<(p+4)])==[255,255,255,255],"Matched positioned derivative must paint all161 outer pixels opaque white")
+                            }}
+                        }
+                    }
                     try require(pair.model.document?.base.bytes==leftBytes && pair.model.document?.destination.bytes==rightBytes,"Positioned native comparison changed source bytes")
                     pair.close()
                 }
@@ -588,19 +622,21 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         }
         return result
     }
-    private static func textRGBA(_ image:CGImage)throws->Data {
-        guard let crop=image.cropping(to:CGRect(x:0,y:0,width:96,height:64)),crop.width==96,crop.height==64,let space=CGColorSpace(name:CGColorSpace.sRGB) else {throw Failure(message:"Cannot crop diagnostic native text image")}
-        var bytes=Data(count:96*64*4)
+    private static func textRGBA(_ image:CGImage,fullCanvas:Bool=false)throws->Data {
+        let width=fullCanvas ? image.width:96,height=fullCanvas ? image.height:64
+        guard let crop=fullCanvas ? image:image.cropping(to:CGRect(x:0,y:0,width:width,height:height)),crop.width==width,crop.height==height,let space=CGColorSpace(name:CGColorSpace.sRGB) else {throw Failure(message:"Cannot normalize diagnostic native text image")}
+        var bytes=Data(count:width*height*4)
         let success=bytes.withUnsafeMutableBytes {storage->Bool in
-            guard let context=CGContext(data:storage.baseAddress,width:96,height:64,bitsPerComponent:8,bytesPerRow:96*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{return false}
-            context.interpolationQuality = .none;context.draw(crop,in:CGRect(x:0,y:0,width:96,height:64));return true
+            guard let context=CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{return false}
+            context.interpolationQuality = .none;context.draw(crop,in:CGRect(x:0,y:0,width:width,height:height));return true
         }
         guard success else {throw Failure(message:"Cannot normalize diagnostic native text image")};return bytes
     }
     /// Diagnostic output never replaces the original exact equality oracle.
     /// Native backing bytes and normalized bytes remain separate so a host
     /// color/byte-order difference is not mistaken for a renderer difference.
-    private static func retainTextMismatch(name:String,left:CGImage,right:CGImage,leftSource:URL,leftBytes:Data,rightSource:URL,rightBytes:Data,leftOracle:Data,rightOracle:Data,root:URL)throws {
+    private static func retainTextMismatch(name:String,left:CGImage,right:CGImage,leftSource:URL,leftBytes:Data,rightSource:URL,rightBytes:Data,leftOracle:Data,rightOracle:Data,root:URL,fullCanvas:Bool=false)throws {
+        let width=fullCanvas ? left.width:96,height=fullCanvas ? left.height:64
         let directory=root.appendingPathComponent("metafile-text-mismatch",isDirectory:true).appendingPathComponent(name,isDirectory:true)
         try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         func save(_ bytes:Data,_ leaf:String)throws {try bytes.write(to:directory.appendingPathComponent(leaf),options:.atomic)}
@@ -623,24 +659,24 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             return result
         }
         func difference(_ a:Data,_ b:Data)->[String:Any] {
-            guard a.count==b.count,a.count==96*64*4 else{return ["leftBytes":a.count,"rightBytes":b.count,"sizeMismatch":true]}
-            var pixels=0,channels=0,maxDelta=0,minX=96,minY=64,maxX = -1,maxY = -1,first:[[String:Any]]=[]
-            for pixel in 0..<(96*64) {
+            guard a.count==b.count,a.count==width*height*4 else{return ["leftBytes":a.count,"rightBytes":b.count,"sizeMismatch":true]}
+            var pixels=0,channels=0,maxDelta=0,minX=width,minY=height,maxX = -1,maxY = -1,first:[[String:Any]]=[]
+            for pixel in 0..<(width*height) {
                 var changed=false
                 for channel in 0..<4 {let delta=abs(Int(a[pixel*4+channel])-Int(b[pixel*4+channel]));if delta>0 {changed=true;channels += 1;maxDelta=max(maxDelta,delta)}}
-                if changed {let x=pixel%96,y=pixel/96;pixels += 1;minX=min(minX,x);minY=min(minY,y);maxX=max(maxX,x);maxY=max(maxY,y);if first.count<32 {first.append(["x":x,"y":y,"left":Array(a[(pixel*4)..<(pixel*4+4)]),"right":Array(b[(pixel*4)..<(pixel*4+4)])])}}
+                if changed {let x=pixel%width,y=pixel/width;pixels += 1;minX=min(minX,x);minY=min(minY,y);maxX=max(maxX,x);maxY=max(maxY,y);if first.count<32 {first.append(["x":x,"y":y,"left":Array(a[(pixel*4)..<(pixel*4+4)]),"right":Array(b[(pixel*4)..<(pixel*4+4)])])}}
             }
             return ["equal":a==b,"differentPixels":pixels,"differentChannels":channels,"maximumChannelDelta":maxDelta,"bounds":pixels==0 ? []:[minX,minY,maxX,maxY],"firstDifferentPixels":first,"leftSHA256":hash(a),"rightSHA256":hash(b)]
         }
         try save(leftBytes,"left-source."+leftSource.pathExtension);try save(rightBytes,"right-source."+rightSource.pathExtension)
         try save(leftOracle,"left-original-oracle.rgba");try save(rightOracle,"right-original-oracle.rgba")
-        var report:[String:Any]=["schema":1,"runtime":try textRuntimeIdentity(),"case":name,"operatingSystem":ProcessInfo.processInfo.operatingSystemVersionString,"crop":[0,0,96,64],"sourceFiles":[leftSource.lastPathComponent,rightSource.lastPathComponent],"sourceSHA256":[hash(leftBytes),hash(rightBytes)],"originalOracle":difference(leftOracle,rightOracle),"originalOracleLayout":"Existing DeviceRGB premultipliedLast bitmapInfo; retained without reinterpretation."]
+        var report:[String:Any]=["schema":1,"runtime":try textRuntimeIdentity(),"case":name,"operatingSystem":ProcessInfo.processInfo.operatingSystemVersionString,"inspectionRegion":[0,0,width,height],"fullCanvas":fullCanvas,"sourceFiles":[leftSource.lastPathComponent,rightSource.lastPathComponent],"sourceSHA256":[hash(leftBytes),hash(rightBytes)],"originalOracle":difference(leftOracle,rightOracle),"originalOracleLayout":"Existing DeviceRGB premultipliedLast bitmapInfo; retained without reinterpretation."]
         report["leftNative"]=try metadata(left,"left");report["rightNative"]=try metadata(right,"right")
-        let a=try textRGBA(left),b=try textRGBA(right)
+        let a=try textRGBA(left,fullCanvas:fullCanvas),b=try textRGBA(right,fullCanvas:fullCanvas)
         try save(a,"left-srgb-rgba8.bin");try save(b,"right-srgb-rgba8.bin")
         report["namedSRGBRGBA8"]=difference(a,b)
         report["captureKind"]=leftOracle==rightOracle && a==b ? "requested exact matched comparison evidence":"failed exact comparison evidence"
-        report["normalizedLayout"]="Named sRGB, RGBA8 big-endian, premultiplied alpha, 384 bytes per row, exact top-left crop, no interpolation."
+        report["normalizedLayout"]="Named sRGB, RGBA8 big-endian, premultiplied alpha, \(width*4) bytes per row; \(fullCanvas ? "entire native canvas, no crop":"exact top-left96x64 crop"); no interpolation, matte or tolerance."
         // This probe describes the fixture's common nominal font independently;
         // the retained generated SVG records the actual helper-produced paths.
         let font=CTFontCreateWithName("Helvetica" as CFString,18,nil)
@@ -654,7 +690,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         }
         report["diagnosticReconversion"]=conversions
         try save(try JSONSerialization.data(withJSONObject:report,options:[.prettyPrinted,.sortedKeys]),"report.json")
-        print("WMF text comparison evidence: "+directory.path)
+        print("Metafile text comparison evidence: "+directory.path)
     }
     private static func raster(_ source:CGImage,interior:CGSize?=nil)throws->Data {
         let image:CGImage

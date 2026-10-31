@@ -124,9 +124,9 @@ Use the compact selector at the upper right to choose **Classic** or
 
 Classic Commit keeps the message above its checked-file list:
 
-![Commit message, options and checked files in light appearance](site/assets/mac-commit-classic-light-2026-10-29.png)
+![Commit message, options and checked files in light appearance](site/assets/mac-commit-classic-light-2026-10-31.png)
 
-![Commit controls and file status colors in dark appearance](site/assets/mac-commit-classic-dark-2026-10-29.png)
+![Commit controls and file status colors in dark appearance](site/assets/mac-commit-classic-dark-2026-10-31.png)
 
 The alternative staging workspace separates the index and working tree. Both
 panes retain bordered **Path** and **Status** tables, including when there are no
@@ -162,9 +162,9 @@ selection instructions rather than a blank patch. During a refresh, the visible
 phase and Cancel control explain ongoing work; a failed or cancelled read keeps
 its own result instead of pretending the repository is empty.
 
-![Git Gui-style staging with separate index and working-tree lists](site/assets/mac-commit-staging-light-2026-10-29.png)
+![Git Gui-style staging with separate index and working-tree lists](site/assets/mac-commit-staging-light-2026-10-31.png)
 
-![The staging workspace in dark appearance](site/assets/mac-commit-staging-dark-2026-10-29.png)
+![The staging workspace in dark appearance](site/assets/mac-commit-staging-dark-2026-10-31.png)
 
 The Check links follow the source action categories: **Added** includes copies,
 while **Modified** selects modification/type-change actions rather than every row

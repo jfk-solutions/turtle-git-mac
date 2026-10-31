@@ -1741,6 +1741,44 @@ extension MetafileImageTests {
         XCTAssertEqual(try displayPositionedInkOnWhite(positionedRawGlyphCopy(classicBytes)).points,classic.points)
         XCTAssertEqual(try data("plus-driver-positioned.emf"),original);XCTAssertEqual(try data("classic-positioned-dx.emf"),classicBytes)
     }
+    func testPositionedTextFullCanvasBackgroundControlsPreserveOriginalWiresAndGlyphs()throws {
+        func pixels(_ bytes:Data)throws->[UInt8] {
+            let source=try XCTUnwrap(ComparisonImage(bytes:bytes)).pixels
+            XCTAssertEqual(source.width,97);XCTAssertEqual(source.height,65)
+            var result=[UInt8](repeating:0,count:97*65*4)
+            let rendered=result.withUnsafeMutableBytes {storage->Bool in
+                guard let context=CGContext(data:storage.baseAddress,width:97,height:65,bitsPerComponent:8,bytesPerRow:97*4,space:CGColorSpace(name:CGColorSpace.sRGB)!,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{return false}
+                context.interpolationQuality = .none;context.draw(source,in:CGRect(x:0,y:0,width:97,height:65));return true
+            }
+            XCTAssertTrue(rendered);return result
+        }
+        func words(_ values:[UInt32])->Data {Data(values.flatMap{value in (0..<4).map{UInt8(truncatingIfNeeded:value>>($0*8))}})}
+        let originalPaint=words([0xffffffff,1,0,0,Float(96).bitPattern,Float(64).bitPattern])
+        for (driver,classic) in [("plus-driver-positioned","classic-positioned-dx"),("plus-driver-compatible-dx","classic-positioned-compatible-dx")] {
+            let original=try data(driver+".emf"),control=try data(classic+".emf"),derived=try data(driver+"-full-background.emf")
+            let paint=try XCTUnwrap(original.range(of:originalPaint))
+            XCTAssertNil(original.range(of:originalPaint,in:paint.upperBound..<original.count),"Derivative must identify exactly one explicit initial white paint")
+            var expected=original
+            expected.replaceSubrange((paint.upperBound-8)..<paint.upperBound,with:words([Float(97).bitPattern,Float(65).bitPattern]))
+            XCTAssertEqual(derived,expected,"Only the initial FillRects width/height may change; header, glyphs, cmap flags, origins and graphics mapping must remain exact")
+            XCTAssertEqual(zip(original,derived).filter{pair in pair.0 != pair.1}.count,2)
+            let a=try pixels(original),b=try pixels(control),matched=try pixels(derived)
+            var differences=0
+            for y in 0..<65 {for x in 0..<97 {
+                let p=(y*97+x)*4,originalPixel=Array(a[p..<(p+4)]),controlPixel=Array(b[p..<(p+4)])
+                if x==96 || y==64 {
+                    XCTAssertEqual(originalPixel,[0,0,0,0]);XCTAssertEqual(controlPixel,[255,255,255,255]);differences += 1
+                } else {XCTAssertEqual(originalPixel,controlPixel,"Original glyph/content pixel differs at \(x),\(y)")}
+            }}
+            XCTAssertEqual(differences,161)
+            XCTAssertEqual(matched,b,"Matched explicit background controls must match every97x65 RGBA pixel without crop, matte or tolerance")
+            if driver=="plus-driver-positioned" {
+                XCTAssertEqual(try pixels(positionedRawGlyphCopy(original)),a)
+                XCTAssertEqual(try pixels(positionedRawGlyphCopy(control)),b)
+            }
+            XCTAssertEqual(try data(driver+".emf"),original);XCTAssertEqual(try data(classic+".emf"),control)
+        }
+    }
     func testPositionedDriverRealizedAdvanceAndVerticalUseActualFontMetrics()throws {
         let natural=try displayPositionedInkOnWhite("plus-driver-natural"),unused=try displayPositionedInkOnWhite("plus-driver-natural-unused")
         XCTAssertEqual(natural.points,unused.points,"Unused realized-position slots must not affect paint")

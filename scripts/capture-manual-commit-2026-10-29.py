@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """Capture four current native Commit appearances from an offline Harbor demo."""
+import argparse
+import datetime
 import hashlib
 import json
 import os
@@ -11,12 +13,17 @@ import subprocess
 import tempfile
 from native_receiver import build_receiver, run_receiver
 
+parser=argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--date', default='2026-10-29', type=datetime.date.fromisoformat,
+                    help='Capture date; retain the historical default for existing callers.')
+args=parser.parse_args()
+stamp=args.date.isoformat()
 root=Path(__file__).resolve().parent.parent
 source=root/'docs/qa/manual-commit-captures-2026-10-29.swift'
-out=root/'build/qa/manual-commit-captures-2026-10-29'
+out=root/('build/qa/manual-commit-captures-'+stamp)
 out.mkdir(parents=True,exist_ok=True)
 (out/'sources').mkdir(exist_ok=True)
-prior_receipt=root/'docs/qa/manual-commit-captures-2026-10-29.json'
+prior_receipt=root/('docs/qa/manual-commit-captures-'+stamp+'.json')
 previous=json.loads(prior_receipt.read_text()) if prior_receipt.exists() else {}
 receiver=build_receiver(root,[source],out/'sources')
 with tempfile.TemporaryDirectory(prefix='turtlegit-commit-manual-') as private:
@@ -26,7 +33,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-commit-manual-') as private:
     environment.update(CFFIXED_USER_HOME=str(context/'home'),
                        TMPDIR=str(context/'tmp')+'/',XDG_CONFIG_HOME=str(context/'xdg'),
                        GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',GIT_OPTIONAL_LOCKS='0',
-                       DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),TURTLEGIT_PREVIEW_CAPTURE_DIR=str(out))
+                       DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),TURTLEGIT_PREVIEW_CAPTURE_DIR=str(out),TURTLEGIT_PREVIEW_CAPTURE_STAMP=stamp)
     try:
         result=run_receiver([str(receiver),str(context/'repository'),'/usr/bin/git'],cwd=root,env=environment,
                             capture_output=True,text=True,timeout=150,timeout_sample=out/'timeout.sample.txt')
@@ -48,7 +55,7 @@ def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 
 manifest={
     'source_commit':subprocess.check_output(['git','rev-parse','HEAD'],cwd=root,text=True).strip(),
-    'validation_date':'2026-10-29',
+    'validation_date':stamp,
     'scope':'Four current Commit screenshots: Classic and GitGui staging, each light/dark',
     'build':'Current unsigned Debug objects; independent of the installed user app and signed consolidation',
     'status':'captured-visual-review-pending',
@@ -75,12 +82,12 @@ manifest={
 if len(manifest['window_ids'])!=4:raise RuntimeError('Expected exactly four actual native captures')
 for kind in ('commit-classic','commit-staging'):
     for theme in ('light','dark'):
-        name=f'mac-{kind}-{theme}-2026-10-29.png';raw=out/name;data=raw.read_bytes()
+        name=f'mac-{kind}-{theme}-{stamp}.png';raw=out/name;data=raw.read_bytes()
         if not data.startswith(b'\x89PNG\r\n\x1a\n'):raise RuntimeError('Invalid native PNG: '+name)
         width,height=struct.unpack('>II',data[16:24])
         if min(width,height)<400 or width<=height:raise RuntimeError('Unexpected native frame dimensions: '+name)
         target=root/'docs/site/assets'/name;shutil.copyfile(raw,target)
         manifest['assets'].append({'path':str(target.relative_to(root)),'raw_path':str(raw.relative_to(root)),
                                    'width':width,'height':height,'bytes':len(data),'sha256':sha(raw)})
-(root/'docs/qa/manual-commit-captures-2026-10-29.json').write_text(json.dumps(manifest,indent=2)+'\n')
+prior_receipt.write_text(json.dumps(manifest,indent=2)+'\n')
 print(json.dumps(manifest,indent=2))

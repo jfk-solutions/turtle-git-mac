@@ -374,6 +374,7 @@
         "docs/UI-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/ci-native-ownership-background-2026-10-31.json",
         "docs/qa/comparison-tabs-2026-10-05.json",
         "docs/qa/conflict-encoding-2026-10-05.json",
         "docs/qa/conflict-identities-2026-10-15.json",

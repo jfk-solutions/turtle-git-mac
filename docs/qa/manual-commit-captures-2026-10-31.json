@@ -1,0 +1,74 @@
+{
+  "source_commit": "b14788361e08484d730f5a33cfe8e45df7bd4f11",
+  "validation_date": "2026-10-31",
+  "scope": "Four current Commit screenshots: Classic and GitGui staging, each light/dark; source b1478836, not installed-build43 acceptance",
+  "build": "Current unsigned Debug objects; independent of the installed user app and signed consolidation",
+  "status": "captured-and-visually-reviewed",
+  "prior_capture_attempts": [],
+  "prior_failed_fixture_sha256": null,
+  "prior_failed_runner_sha256": null,
+  "capture_presentation": "Deliberate brief visual acceptance using normal native window class/geometry. Exactly one owned window contained on screen; orderFront without activation or makeKey; compositor capture then immediately orderOut/close. No runtime overrides.",
+  "method": "ScreenCaptureKit SCScreenshotManager desktopIndependentWindow for actual screen-contained alpha-one native window; original PNG bytes, no view.cacheDisplay or postprocessing",
+  "repository": "Private offline Harbor demo with staged/unstaged/deleted/unversioned files and changelists; synthetic author, issue catalog/ID and draft",
+  "native_presentation": "Production compact DialogTitles preference, actual Compact Commit layout dropdown and colored source icons; 1160x840 content points, compositor retains actual native frame aspect ratio",
+  "preserved": "HEAD, index tree, raw index/config and porcelain working status after setup; no Commit/stage/apply/save action during capture",
+  "preferences": "Private suite removed; private CFFIXED_USER_HOME/TMPDIR/XDG and explicit global Git config; no user pasteboard or Keychain",
+  "session_preflight": "CGSessionCopyCurrentDictionary refuses a locked desktop before demo Git repository/window creation; an unlocked desktop is required for ScreenCaptureKit.",
+  "network": false,
+  "desktop": "Deliberate visible visual capture, four own windows one at a time; each screen-contained and sole visible receiver window, then immediately hidden/closed. No app activation, no user-owned app close/Quit/install",
+  "owned_receiver_pids": [
+    97669
+  ],
+  "owned_receiver_reaped_independently": true,
+  "window_ids": [
+    88566,
+    88570,
+    88571,
+    88572
+  ],
+  "fixture_sha256": "5b8923aaf9b4df3a29eeb44ce174ac08520c922ba24dd6bccb0a56f5a29e13b6",
+  "runner_sha256": "6204d0349bd96138b7ef4ac635624e12d47c625f4b71b5dd81946c7cef8d178d",
+  "receiver_sha256": "dff10499f2ad5656c7e4983e5c3faf8f06d78750661013ef341c32b9ff1dfb6b",
+  "stdout_sha256": "ab539487cbaf9c36ff1e064925dcc12f6836512ed7677a7d6ab6bee86ac7b6b7",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "production_sources_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "17ec6e24104e5272c214278886f36c24e28ec593e13c1154bc365866d8a1befc",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "f3cd0aa1969e4f81d07a4a359e2120e3cf947b57e43f134815eacef0c1bf0afb",
+    "Sources/TurtleGitMac/PatchWindow.swift": "99ef9c9f7f0b864011061508512f61ab7a0eae65e46c051216c9a46b6d9a981c"
+  },
+  "review": "All four actual compositor images viewed: Classic and GitGui staging in light/dark. Full native frames, fixed top toolbar/layout selector, message/author controls, colored source statuses and bordered lists are present. Staging patch/message panes are readable. Captured inactive native title bars and source issue-button truncation remain as rendered; no image editing or backing substitution. This is bounded screenshot review, not every dialog or interaction acceptance.",
+  "assets": [
+    {
+      "path": "docs/site/assets/mac-commit-classic-light-2026-10-31.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-31/mac-commit-classic-light-2026-10-31.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 444922,
+      "sha256": "ff145a536bef06787ac9d42cffcb0501c068072f6e48c4b18284ed015af92b07"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-classic-dark-2026-10-31.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-31/mac-commit-classic-dark-2026-10-31.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 458281,
+      "sha256": "2e97c87639ce4fdc06f54ad6d51e3cb1150ce885f9a3c26c4f01b271b0aaf29e"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-light-2026-10-31.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-31/mac-commit-staging-light-2026-10-31.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 511766,
+      "sha256": "f1edef35fc52b5c11ed59c445640998324b23e27019f451015608b1efc5007ec"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-dark-2026-10-31.png",
+      "raw_path": "build/qa/manual-commit-captures-2026-10-31/mac-commit-staging-dark-2026-10-31.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 507828,
+      "sha256": "5551c34e49ba658ebd8346178caa4322b7ba17446b44f86d2a10158e5f34387c"
+    }
+  ]
+}

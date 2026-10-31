@@ -64,5 +64,51 @@
     "build/qa/branch-tag-handoff/store-audit-final.log": "227a4f6d4b2b7697033a121c3b55d00461e0fbcdc5894c06611627d7d2452291",
     "build/qa/branch-tag-handoff/store-final.log": "2ecf38a778cec655cb77ca44d24cb0763cf983a87f7d100c417987dc66637baf",
     "build/qa/branch-tag-handoff/store.log": "7d1b6f762b9bb84eded54f88014a371fed323bd27a0df0930ee7bcc5d0e12056"
+  },
+  "2026-10-31_owned_error_acknowledgment_continuation": {
+    "status": "focused-repair-frozen-awaiting-affected-handoff-retry",
+    "observed_hosted_failure": {
+      "run": 41147246774,
+      "job": 124385294432,
+      "source": "1a09d511",
+      "case": "handoff / system Git",
+      "time_utc": "2026-10-31T00:58:46Z",
+      "assertion": "GitFailure config --get branch.locked.description exit1",
+      "owned_receiver_reaped": 73108
+    },
+    "cause": "The older model-only foreign-config-lock case attempted description retry while the intentional error remained unacknowledged. Production create refuses pending errors and owned questions; the controller clears only the accepted captured error after question release. The newer completion sibling already models acknowledgment. No production guard was removed.",
+    "fixture_repair": [
+      "Use a private-preference, invisible/offscreen real BranchTagWindowController for the config-lock scenario.",
+      "Mount its actual owned one-button error alert through the injected presenter; verify exact parent/sheet ownership and invisible presentation.",
+      "Retain foreign lock bytes and reference identity; prove early retry leaves the description absent, captured error/retry phase intact and Switch/close counts unchanged.",
+      "Answer the production once-only acceptance callback, await actual question/sheet release and captured-error clearance, then retry the captured description.",
+      "Retain exact final reference and captured description, one Switch, one close, duplicate/late-answer rejection, Tag/Push intent, cancellation and owner/Quit assertions."
+    ],
+    "production_changes": "none; no demonstrated connected handoff/retry/cancel defect",
+    "validation": {
+      "result": "handoff passes with system and bundled Git after the retained later lifecycle-fixture repair",
+      "log": "build/qa/hosted-native-repair-handoff-final-2026-10-31.log",
+      "receivers_reaped": [
+        98984,
+        99188
+      ],
+      "source_sha256": "cdf40a3b1f6e2d4c075be92237f0abf52514f66c64d9ce09e977850b2e716963",
+      "runner_sha256": "293756c12a85171668ba6f021b23e3da3f99488e060d4855b7ece6263eb7e383"
+    },
+    "focused_runner": "python3 scripts/test-branch-tag-source.py --only handoff --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+    "scope_limits": "Focused hidden native fixture does not establish physical Finder, keyboard/VoiceOver, signing, all source layouts or complete hosted CI.",
+    "grouped_attempt": {
+      "log": "build/qa/hosted-native-repair-handoff-2026-10-31.log",
+      "case": "system Git",
+      "receiver_reaped": 98096,
+      "result": "failed later at original combined pending-conflict/close/Quit assertion; all new config-lock acknowledgment/retry checks passed"
+    },
+    "additional_fixture_cause": "The old close/Quit scenario called windowShouldClose during initial loading, which now performs real cancellation and retires that controller after reads drain. Reusing that invalidated model for a later name conflict cannot create the pending question.",
+    "additional_repair": [
+      "Separate actual initial-read close/cancel/drain and exact-once closure from a fresh live conflict owner.",
+      "Use named waits with state and distinct pending-conflict, native sheet ownership, ordinary close refusal and Quit refusal assertions.",
+      "Force-close the actual attached conflict question; invoke its captured late Continue twice and retained model create, then require no tag and once-only owner/question drainage.",
+      "Runner clears inherited GIT_* and provides a separate repository plus private HOME, CFFIXED_USER_HOME, XDG_CONFIG_HOME and temporary directory for each case/engine, retaining owned receiver timeout sampling."
+    ]
   }
 }

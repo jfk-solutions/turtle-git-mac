@@ -101,6 +101,7 @@ import TurtleGitCore
         prefs.set(true,forKey:"Commit.SkipCancelConfirmation")
         try NativeIssueAssociations.save([NativeIssueAssociation(path:root.path,parameters:#"{"linkText":"Choose issues…","messageTemplate":"Issue: %BUGID%","requireIssue":false,"issues":[{"id":"42","summary":"Improve native repository status"}]}"#)],to:prefs)
 
+        let captureStamp=ProcessInfo.processInfo.environment["TURTLEGIT_PREVIEW_CAPTURE_STAMP"] ?? "2026-10-29"
         for (appearance,theme) in [(NSAppearance.Name.aqua,"light"),(.darkAqua,"dark")] {
             for (gui,kind) in [(false,"commit-classic"),(true,"commit-staging")] {
                 prefs.set(gui,forKey:"TurtleGit.Commit.GitGuiInterface")
@@ -122,7 +123,7 @@ import TurtleGitCore
                     try await wait{owner.model.guiPatch != nil && owner.model.guiPatch?.busy==false && owner.model.guiPatch?.document.files.isEmpty==false}
                 }
                 owner.model.supersedeFocusIntent()
-                try await png(window,output.appendingPathComponent("mac-"+kind+"-"+theme+"-2026-10-29.png"))
+                try await png(window,output.appendingPathComponent("mac-"+kind+"-"+theme+"-"+captureStamp+".png"))
                 owner.close();try await wait{!owner.canReuse && owner.window?.isVisible != true && drained()}
             }
         }

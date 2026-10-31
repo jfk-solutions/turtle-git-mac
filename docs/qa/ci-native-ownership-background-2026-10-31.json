@@ -1,0 +1,105 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-hosted-fixture-repair-checkpoint-passed",
+  "base_source": "b14788361e08484d730f5a33cfe8e45df7bd4f11",
+  "scope": "Three known hosted failures repaired without changing production dialog, renderer or runtime behavior. This does not establish the full hosted result or whole application completion.",
+  "implementation": {
+    "handoff": "Actual owned error acceptance before retry; initial-close cancellation and conflict/late Continue now have separate native owners; all exact ref/description/single-switch assertions retained. Per-case private process environment.",
+    "encoding": "Order a real invisible/offscreen host before native checkbox edits; reacquire mounted generation-bound control after Cancel; preserve Apply/Cancel, two/three-pane decoding and exact CP1252 Save/unchanged inputs. Per-case private environment.",
+    "positioned": "Preserve original wires and exact161 transparent-vs-white outer-edge contract; derived explicit full-background controls change only two FillRects size bytes; strict full97x65 image equality in DeviceRGB and named sRGB, Unicode/rawglyph mappings preserved."
+  },
+  "validation": {
+    "core": {
+      "result": "one new full-canvas method passes; not full Core",
+      "log": "build/qa/hosted-native-repair-core-2026-10-31.log"
+    },
+    "native": [
+      {
+        "family": "handoff",
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "log": "build/qa/hosted-native-repair-handoff-final-2026-10-31.log",
+        "receivers": [
+          98984,
+          99188
+        ]
+      },
+      {
+        "family": "encoding",
+        "engines": "no Git command required for this native settings/encoding cohort",
+        "log": "build/qa/hosted-native-repair-encoding-2026-10-31.log",
+        "receivers": [
+          98334
+        ]
+      },
+      {
+        "family": "positioned-text",
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "log": "build/qa/hosted-native-repair-positioned-text-2026-10-31.log",
+        "receivers": [
+          98411,
+          98670
+        ]
+      }
+    ],
+    "build": "No app/renderer/runtime source changes: reused current compiled Debug app objects and native receiver compilation caches; no repeat app build. Help regenerated for current screenshot assets.",
+    "limits": "No passing families were rerun after handoff-only repair; no complete hosted suite, signed-installed, physical Finder, minimum-macOS/Intel or full dialog acceptance claimed.",
+    "documentation": {
+      "site": "516 documents rendered with no unresolved fragments; two route/anchor tests passed",
+      "site_log": "build/qa/hosted-native-repair-site-2026-10-31.log",
+      "site_check_log": "build/qa/hosted-native-repair-site-check-2026-10-31.log",
+      "help": "Regenerated and --check passed after guide/image changes",
+      "help_check_log": "build/qa/hosted-native-repair-help-check-2026-10-31.log",
+      "dialog_coverage": "Reconciled pinned resource/control ledger after parity docs freeze; no completion percentage or certified dialog inferred",
+      "coverage_log": "build/qa/hosted-native-repair-dialog-coverage-2026-10-31.log"
+    },
+    "cleanup": "All eight observed diagnostic/capture/check receiver PIDs independently absent after completion; successful fixtures close owned windows and drain work. User-owned apps/extension untouched."
+  },
+  "retained_failures": [
+    {
+      "kind": "encoding diagnostic",
+      "receiver": 97361,
+      "result": "first native checkbox edit never adopted by current binding; unnamed hosted timeout narrowed without weakening production generation guard",
+      "log": "build/qa/merge-encoding-diagnostic-sdk-2026-10-31.log",
+      "isolation_limit": "Private fixture preferences/files but inherited HOME in this diagnostic; repaired final runner supplies private HOME/CFFIXED/XDG/tmp. An earlier SDK preflight failed before receiver launch."
+    },
+    {
+      "kind": "positioned diagnostic",
+      "result": "all glyph paths and all non-edge pixels identical; original fullcanvas161-alpha difference observed, not a renderer defect",
+      "evidence": "build/qa/positioned-text-diagnostic-2026-10-31/report.json"
+    },
+    {
+      "kind": "handoff first grouped attempt",
+      "receiver": 98096,
+      "log": "build/qa/hosted-native-repair-handoff-2026-10-31.log",
+      "result": "new error-ack retry assertions passed; later old fixture tried to reuse an initial-load owner already cancelled/closed. Separate fresh native owner repairs that invalid test lifetime.",
+      "isolation_limit": "This first handoff attempt inherited HOME while using private model preferences/Git global config; final repaired runner isolates each process case."
+    }
+  ],
+  "screenshots": {
+    "record": "manual-commit-captures-2026-10-31.json",
+    "result": "four real current compositor images captured and individually viewed; website/guide/Help references refreshed, not App Store or signed acceptance",
+    "receiver": 97669,
+    "cleanup": "actual four windows closed and worker counters drained; runner reaped and independently checked exact PID",
+    "log": "build/qa/manual-commit-refresh-2026-10-31.log"
+  },
+  "remaining": [
+    "Complete current-source hosted macOS run remains required; prior live run failures are not reclassified as passing.",
+    "Source/layout/keyboard/accessibility and wider signed Finder/recovery/large-repository acceptance remain as in RELEASE-BLOCKERS.md.",
+    "Installed app remains build43; later Log and diagnostics/Blame source updates are not installed by this checkpoint."
+  ],
+  "source_sha256": {
+    "docs/qa/branch-tag-handoff-native-2026-10-08.swift": "cdf40a3b1f6e2d4c075be92237f0abf52514f66c64d9ce09e977850b2e716963",
+    "scripts/test-branch-tag-source.py": "293756c12a85171668ba6f021b23e3da3f99488e060d4855b7ece6263eb7e383",
+    "docs/qa/merge-default-encoding-native-2026-10-12.swift": "78e9915015045fdec710d9201bf9b83e520c8c749e1be9249f0b02639142ff87",
+    "scripts/test-merge-editor-source.py": "8a41dbd839b67fa68e98466b6deb62366b104efe01746013da3a75af184394c9",
+    "docs/qa/metafile-consumers-native-2026-10-18.swift": "3d0e7cec5db37ed19b7151ec72bdb6c0e25d554f793b6bba6d27a5dac15db710",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "9d5448e26b6401d13648eb1203e0d10acd3c8a1f9221ae85b953ac2e6e0a7971",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate.py": "64eb9696434a26857ad6e18b2b22ff53248a88bc6fac5583aa457dbba23e6647"
+  }
+}

@@ -121,11 +121,11 @@ source comparisons, verification and remaining work.
 
 The Classic Commit window in light appearance:
 
-![Commit in light mode: message, author options and checked files](site/assets/mac-commit-classic-light-2026-10-29.png)
+![Commit in light mode: message, author options and checked files](site/assets/mac-commit-classic-light-2026-10-31.png)
 
 The same window in dark appearance:
 
-![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-classic-dark-2026-10-29.png)
+![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-classic-dark-2026-10-31.png)
 
 ## Edit commit and other messages
 
@@ -180,9 +180,9 @@ working contents equal the base. Normally that base is HEAD. While amending,
 first parent, or an empty base for a root commit. This changes what you review;
 it does not stage files or create a commit.
 
-![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-10-29.png)
+![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-10-31.png)
 
-![Git Gui-style Commit in dark appearance](site/assets/mac-commit-staging-dark-2026-10-29.png)
+![Git Gui-style Commit in dark appearance](site/assets/mac-commit-staging-dark-2026-10-31.png)
 
 ## Use the staging area
 

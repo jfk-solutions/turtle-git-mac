@@ -46,3 +46,30 @@ Merge receiver families passed; one fixture compilation linked the existing
 app objects and one process ran the checks. See
 [the batch record](qa/merge-default-encoding-2026-10-12.json).
 Owned windows/helpers closed. No full hosted/signed acceptance is claimed.
+
+## Native owner-readiness continuation — 31 October 2026
+
+Old hosted run41147246774, editors job124385294343, reached the encoding fixture
+following its one-pane checks, then failed its unnamed readiness wait. The one
+focused local diagnostic added phase/owner/control observations without removing
+any assertions. It identified the first native checkbox edit: the mounted and
+captured button were identical, enabled and attached, but the draft stayed false
+and the checkbox reset. The fixture had left its Settings window unordered while
+its owner probe rotated the model's captured edit generation. That generation
+fence intentionally rejects stale bindings; no product admission fence is relaxed.
+
+The fixture now orders only its alpha-zero offscreen Settings owner, waits for
+attachment and the hosting display transaction, and reacquires the mounted control
+after Cancel. Real native `performClick`, transaction Apply/Cancel, unchanged open
+encoding until reload, ASCII/legacy two/three-pane reads and exact CP1252 standalone
+Save assertions remain. Phase failures report the current mounted/captured control,
+model, transaction and three-pane state. The focused source-family runner now
+provides each case its own HOME, CFFIXED preferences, XDG and temporary directory.
+
+The first diagnostic command failed at SDK discovery before compiling/running a
+receiver. With explicit Xcode/SDK selection the diagnostic receiver97361 reached
+the first-edit failure and was reaped. It used the fixture's private preferences
+and files but inherited HOME; it is not proof of fully private launch isolation.
+The repaired encoding case passes in the [grouped checkpoint](qa/ci-native-ownership-background-2026-10-31.json),
+receiver98334 reaped. No product build, Merge Core rerun, physical gesture
+acceptance or hosted green result is claimed here.

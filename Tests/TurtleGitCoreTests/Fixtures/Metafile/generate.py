@@ -1157,6 +1157,34 @@ pt_compatible_reflect=record(35,F(-1,0,0,1,96,0))
 pt_compatible_yreflect=record(35,F(1,0,0,-1,0,64))
 pt_cwrite('compatible-dx',[pt_compatible_x,pt_classic_text(text='HH',dx=(20,20),graphics=1)])
 pt_write('compatible-dx',pt_driver(text='HH',positions=((16,28),(56,28))))
+# Full-canvas equality controls. The original EMF+ records explicitly paint
+# 96x64 in the inclusive97x65 canvas, whereas the classic renderer's initial
+# background is opaque across97x65. Preserve every original wire and glyph;
+# these named derivatives change only the first white FillRects width/height.
+def pt_full_background(name):
+ original=(P/(name+'.emf')).read_bytes();output=bytearray(original)
+ cursor=88;changed=False
+ while cursor+8<=len(original):
+  kind,length=struct.unpack_from('<II',original,cursor)
+  assert length>=8 and cursor+length<=len(original)
+  if kind==70 and original[cursor+12:cursor+16]==b'EMF+':
+   item=cursor+16
+   while item+12<=cursor+length:
+    record_kind,flags,record_length,data_length=struct.unpack_from('<HHII',original,item)
+    assert record_length>=12 and item+record_length<=cursor+length
+    if record_kind==0x400a:
+     assert not changed and flags==0x8000 and original[item+12:item+12+data_length]==U(0xffffffff,1)+F(0,0,96,64)
+     output[item+28:item+36]=F(97,65);changed=True
+     break
+    item+=record_length
+  if changed:break
+  cursor+=length
+ assert changed and len(output)==len(original)
+ assert sum(a!=b for a,b in zip(original,output))==2
+ (P/(name+'-full-background.emf')).write_bytes(output)
+for pt_background_name in ['plus-driver-positioned','plus-driver-compatible-dx']:
+ pt_full_background(pt_background_name)
+
 pt_cwrite('compatible-natural',[pt_compatible_x,pt_classic_text(text='HH',dx=None,graphics=1)])
 pt_write('compatible-natural',pt_driver(text='HH',positions=((16,28),(77,55)),options=1|4))
 pt_cwrite('compatible-reflect-dx',[pt_compatible_reflect,pt_classic_text(text='HH',reference=(60,28),dx=(20,20),graphics=1)])

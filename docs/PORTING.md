@@ -5759,3 +5759,19 @@ limits. User guide, Privacy and bundled Help describe the settings. Installed
 build43 remains unchanged; this source batch is not a signed deployment or whole
 port certification. New failures from an older still-running hosted build remain
 [separately recorded](qa/hosted-native-failures-2026-10-31.json).
+
+
+## Hosted ownership/background fixtures and manual refresh — October 31, 2026
+
+The [grouped repair](qa/ci-native-ownership-background-2026-10-31.json) resolves
+three concrete hosted failures: Branch/Tag error acknowledgment and owner
+retirement, Merge encoding's mounted-control lifetime, and positioned EMF
+background-edge contracts. Production guards, renderer behavior and original
+metafile wires remain unchanged; focused Core and all five native case/engine
+checks pass after the retained handoff fixture repair. This is not full hosted CI.
+
+Four [current Commit compositor captures](qa/manual-commit-captures-2026-10-31.json)
+were individually viewed and now illustrate both layouts/appearances in the
+homepage, Getting Started, Dialog Guide and offline Help. They use synthetic
+Harbor data and current Debug objects; they are not store screenshot approval
+or a signed build43 acceptance claim. All capture/test receivers were reaped.
