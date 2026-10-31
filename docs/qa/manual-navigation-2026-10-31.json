@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-31",
+  "scope": "Guide-first public manual navigation and local search",
+  "base_source": "416fa56b3f128ae456f8ba22d4258eb0ddc6bf86",
+  "implementation": [
+    "Manifest-curated49 user guides by default;73 references and395 source audits stay reachable via explicit filters.",
+    "All517 rendered documents remain indexed; unimplemented/historical source evidence is retained rather than relabelled complete.",
+    "Static49 guide links plus no-JavaScript reference/audit collections; HTTP/network/JSON failures preserve scoped navigation.",
+    "Safe textContent search rendering and escaped generated captions; no remote search service."
+  ],
+  "validation": {
+    "grouped_site_build": "517 documents, no unresolved fragments",
+    "python_checks": "3 passed",
+    "search_checks": "all4 scopes, loading/failure paths, no matches, malicious-text rendering passed",
+    "native_browser": "Local real browser default User guides and49 visible; actual screenshot inspected",
+    "screenshot": "build/qa/manual-guides-default-2026-10-31.png",
+    "cleanup": {
+      "owned_tab": 1053311286,
+      "tab_closed": true,
+      "owned_preview_server_pid": 20815,
+      "server_terminated_and_reaped": true
+    },
+    "app_core_native_tests": "Not repeated: website-only batch"
+  },
+  "source_sha256": {
+    "scripts/site_docs.py": "b22b060fbe627739412d6d0e80423bbde4c8523fa46d0764c1c1eb235252a6d3",
+    "docs/site/manual/search.js": "22ae080e101ef9ec644aa090607efe7d1ad5fb02dc4af9350973970686bc7695",
+    "scripts/test-site-docs.py": "3e448e0de2bc03b2b838655bedfd2bdf04f65f055b582ce8bc186dd7b4744d10",
+    "scripts/test-site-search.cjs": "665b77fd3805b0d09ab0ebd90d1cc4936e383cda8ad1451c1bd886fa53473bef",
+    "docs/WEBSITE.md": "107b4a7f252d716dc252b0bf2eabe2a45d1ac7148a372410011542f55662babf"
+  },
+  "publication": "Not yet deployed at this local checkpoint; separate Pages dispatch required.",
+  "ci_policy": "Website changes are combined with the actual CI contract repair and consolidated candidate receipt; normal source push runs Pages and full native CI. Website checks were run once separately."
+}

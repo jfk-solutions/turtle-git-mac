@@ -42,6 +42,19 @@ METAFILE_FAILURE_EVIDENCE = {
         'if-no-files-found': 'ignore',
     },
 }
+STATISTICS_EXPORT_CONSUMER = 'Statistics source export filters and owned save cancellation'
+STATISTICS_FAILURE_EVIDENCE = {
+    'name': 'Preserve Statistics export failure evidence',
+    'if': "${{ failure() && matrix.lane == 'images-documents' }}",
+    'uses': 'actions/upload-artifact@v4',
+    'with': {
+        'name': 'statistics-export-failure-${{ github.run_id }}-${{ github.run_attempt }}',
+        'path': ('build/qa/statistics-export-failed-*/**\n'
+                 'build/qa/statistics-export-family-native-results.json\n'),
+        'if-no-files-found': 'ignore',
+        'retention-days': 7,
+    },
+}
 ARTIFACT_NAMES = {
     'wrapped-editor-timeout-stacks': 'wrapped-editor-timeout-stacks-${{ matrix.lane }}',
     'unsigned-appstore-distribution-audit': 'unsigned-appstore-distribution-audit-${{ matrix.lane }}',
@@ -100,6 +113,17 @@ def verify(workflow, inventory, originals):
     require(actual[evidence[0]] == METAFILE_FAILURE_EVIDENCE,
             'Changed metafile failure artifact action, owner/condition, name, paths or missing-file policy')
     actual.pop(evidence[0])
+    statistics_evidence = [i for i, step in enumerate(actual)
+                           if step.get('name') == STATISTICS_FAILURE_EVIDENCE['name']]
+    statistics_consumers = [i for i, step in enumerate(actual)
+                            if step.get('name') == STATISTICS_EXPORT_CONSUMER]
+    require(len(statistics_evidence) == 1, 'Missing or duplicate exact Statistics failure-evidence step')
+    require(len(statistics_consumers) == 1, 'Missing or duplicate inventoried Statistics export consumer')
+    require(statistics_evidence[0] == statistics_consumers[0] + 1,
+            'Statistics failure evidence must immediately follow its export producer')
+    require(actual[statistics_evidence[0]] == STATISTICS_FAILURE_EVIDENCE,
+            'Changed Statistics failure artifact action, owner/condition, name, paths, retention or missing-file policy')
+    actual.pop(statistics_evidence[0])
     app_index = next(i for i, step in enumerate(originals) if step.get('name') == 'Application and embedded Finder extension')
     require(actual[app_index + 1] == EDITOR_SETUP,
             'Every lane needs the unconditional SwiftPM executable before native/Core consumers')

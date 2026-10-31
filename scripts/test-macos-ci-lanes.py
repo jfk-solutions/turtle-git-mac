@@ -129,6 +129,65 @@ class MacOSLaneTests(unittest.TestCase):
                         if s.get('name') == ci.METAFILE_CONSUMER)
             step[field] = replacement
             with self.subTest(field=field), self.assertRaises(AssertionError): self.verify(value)
+    def testStatisticsFailureEvidenceHasExactOwnerAndPlacement(self):
+        steps = self.workflow['jobs']['validation']['steps']
+        indexes = [i for i, step in enumerate(steps)
+                   if step.get('name') == ci.STATISTICS_FAILURE_EVIDENCE['name']]
+        self.assertEqual(len(indexes), 1)
+        index = indexes[0]
+        self.assertEqual(steps[index], ci.STATISTICS_FAILURE_EVIDENCE)
+        self.assertEqual(steps[index - 1]['name'], ci.STATISTICS_EXPORT_CONSUMER)
+        self.verify()
+    def testStatisticsFailureEvidenceMissingDuplicateMovedAndRenamedRefused(self):
+        for mutation in ['missing', 'duplicate', 'before-producer', 'late', 'renamed']:
+            value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+            index = next(i for i, step in enumerate(steps)
+                         if step.get('name') == ci.STATISTICS_FAILURE_EVIDENCE['name'])
+            if mutation == 'missing': steps.pop(index)
+            if mutation == 'duplicate': steps.insert(index + 1, copy.deepcopy(steps[index]))
+            if mutation == 'before-producer': steps.insert(index - 1, steps.pop(index))
+            if mutation == 'late': steps.append(steps.pop(index))
+            if mutation == 'renamed': steps[index]['name'] = 'Uninventoried Statistics artifact'
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testStatisticsEvidenceCannotRunForSuccessOrAnotherLane(self):
+        for condition in ["matrix.lane == 'images-documents'", '${{ failure() }}', 'always()',
+                          "${{ failure() && matrix.lane == 'commit-repository' }}",
+                          "${{ success() && matrix.lane == 'images-documents' }}",
+                          "${{ failure() || matrix.lane == 'images-documents' }}"]:
+            value = copy.deepcopy(self.workflow)
+            step = next(s for s in value['jobs']['validation']['steps']
+                        if s.get('name') == ci.STATISTICS_FAILURE_EVIDENCE['name'])
+            step['if'] = condition
+            with self.subTest(condition=condition), self.assertRaises(AssertionError): self.verify(value)
+    def testStatisticsEvidenceActionPathsRetentionAndEnvironmentCannotDrift(self):
+        mutations = {
+            'action-version': lambda s: s.update(uses='actions/upload-artifact@v3'),
+            'another-action': lambda s: s.update(uses='another/upload@v4'),
+            'artifact-name': lambda s: s['with'].update(name='statistics-export-failure'),
+            'broad-path': lambda s: s['with'].update(path='build/**\n'),
+            'extra-path': lambda s: s['with'].update(path=s['with']['path']+'**\n'),
+            'missing-path': lambda s: s['with'].update(path=s['with']['path'].splitlines()[0]+'\n'),
+            'missing-file-policy': lambda s: s['with'].update({'if-no-files-found': 'error'}),
+            'retention': lambda s: s['with'].update({'retention-days': 90}),
+            'missing-retention': lambda s: s['with'].pop('retention-days'),
+            'extra-upload-setting': lambda s: s['with'].update({'include-hidden-files': True}),
+            'extra-command': lambda s: s.update(run='true'),
+            'extra-environment': lambda s: s.update(env={'UNREVIEWED': 'value'}),
+        }
+        for name, mutate in mutations.items():
+            value = copy.deepcopy(self.workflow)
+            step = next(s for s in value['jobs']['validation']['steps']
+                        if s.get('name') == ci.STATISTICS_FAILURE_EVIDENCE['name'])
+            mutate(step)
+            with self.subTest(mutation=name), self.assertRaises(AssertionError): self.verify(value)
+    def testStatisticsDiagnosticAdditionCannotHideProducerChanges(self):
+        for field, replacement in [('run', 'true'), ('if', "matrix.lane == 'distribution'"),
+                                   ('env', {'UNREVIEWED': 'value'})]:
+            value = copy.deepcopy(self.workflow)
+            step = next(s for s in value['jobs']['validation']['steps']
+                        if s.get('name') == ci.STATISTICS_EXPORT_CONSUMER)
+            step[field] = replacement
+            with self.subTest(field=field), self.assertRaises(AssertionError): self.verify(value)
     def testNoFailFastCancellationOrMissingAggregate(self):
         for change in ['fail-fast', 'aggregate', 'cancel', 'timeout']:
             value = copy.deepcopy(self.workflow)

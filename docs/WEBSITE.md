@@ -22,8 +22,14 @@ python3 -m http.server 8768 --bind 127.0.0.1 --directory build/site
 The build reads `GITHUB_REPOSITORY` in Actions and derives it from `origin` locally.
 Repository links therefore follow a later rename. The manual keeps local Markdown links on the published site; source files and
 QA records link to GitHub. Search reads a static index and performs matching in
-the browser. No query is sent to an external search service. The full document
-list remains available when JavaScript or index loading fails.
+the browser. No query is sent to an external search service. The manual opens
+with user guides curated from `help-topics.json` (topics and additional guides).
+Source-parity appendices remain source audits, including those bundled in Help;
+other documents are references. Explicit document-type filters expose references,
+audits or every document, and search retains the complete index. Without JavaScript,
+user-guide links remain visible and collapsed References / Source audits collections
+retain all other links. If the index fails to load, type filtering and static links
+still work; the page reports the failure instead of hiding navigation.
 
 No analytics, third-party scripts
 or remote fonts are included. All screenshots use a disposable sample repository.

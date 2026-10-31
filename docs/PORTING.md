@@ -1,5 +1,31 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed local testing build45 and guide-first manual
+
+[Signed build45](qa/signed-consolidation-build45-2026-10-31.json), `0.1.0 (45)`,
+is installed from exact frozen `416fa56b` source; build44 is preserved for rollback.
+It includes the retained utility ownership and explicit Store-listing policy.
+The universal signed build, sandboxed packaged Git probe, exact Help and local
+ZIP/source archive inventories passed. Actual About shows build45 and the disabled
+Store action. Actual About and global Settings retain their utility on reopen;
+Settings Cancel/normal Quit and selective geometry cleanup completed. The Updates
+process exited normally before inspection, so that installed acceptance is not
+claimed. All three owned app processes are absent and both preference dictionaries
+match their launch snapshots. No repository was selected or new grant issued.
+
+The full `416fa56b` CI run stopped every lane at the shared workflow guard before
+compilation: the new Statistics evidence upload had not been registered. The
+[exact contract repair](qa/statistics-evidence-lane-contract-2026-10-31.json)
+keeps the immutable original inventory and passes20 focused methods; corrected
+hosted integration remains required. No further app/Core/native checks were run.
+
+The [manual navigation batch](qa/manual-navigation-2026-10-31.json) opens with49
+user guides, retaining73 references and395 source audits through explicit scopes.
+All517 documents remain searchable, with static no-JavaScript navigation and
+loading/error fallbacks. One grouped site checkpoint and local browser review
+passed. Historical gaps remain in the audit documents. Public deployment is
+tracked separately; this website and CI-only continuation is not a rebuilt app.
+
 ## Current consolidation and utility ownership — October 31, 2026
 
 [Signed local build44](qa/signed-consolidation-build44-2026-10-31.json),

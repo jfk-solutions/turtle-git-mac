@@ -1,0 +1,136 @@
+{
+  "kind": "TurtleGitSignedConsolidationCheckpoint",
+  "date": "2026-10-31",
+  "version": "0.1.0",
+  "source_commit": "416fa56b3f128ae456f8ba22d4258eb0ddc6bf86",
+  "source_input_sha256": "b1e2dee4edae18576dd631ca9751a181d6cb189e902e04f591f8608ba0ce7e99",
+  "main_sha256": "e1143e6671fb601ae9cfecb86dee39b7c03078da94bd2e4615ad55e6298acaac",
+  "installed": true,
+  "changes": [
+    "Retained/pending utility ownership through startup and Cocoa reopen",
+    "Explicit optional Store listing availability separate from build configuration",
+    "Previous44 Log/Commit/diagnostics/Blame and bundled Help retained"
+  ],
+  "verification": {
+    "owned_universal_components": 8,
+    "runtime_code_entries": 206,
+    "help_source_members": 96,
+    "inventory_members": 6383,
+    "strict_deep_seals": true,
+    "copy_zip_extract_install_inventory_equal": true,
+    "signed_runtime": "One local-tools sandbox parent passed public Core and packaged Git; no shipping GUI/App Group/Finder proof inferred",
+    "runtime_probe_receiver": 23215,
+    "runtime_git_child": 23281
+  },
+  "package": {
+    "archive": "TurtleGit-for-Mac-0.1.0-build45-signed.zip",
+    "archive_bytes": 423452604,
+    "archive_sha256": "22f294f848ba58a494e21084de0877c5261c489453bf761abd794634ee82e7f9",
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-416fa56b3f128ae456f8ba22d4258eb0ddc6bf86.tar.gz",
+      "source_commit": "416fa56b3f128ae456f8ba22d4258eb0ddc6bf86",
+      "sha256": "ec9d6194a25e5d0d5815e69f1113a140760e5fb09f5e675d3efdf2310a975ba6",
+      "bytes": 200751192,
+      "tracked_files": 10375,
+      "exact_tracked_tree": true,
+      "bundled_runtime_sources": "Retained separately inside application runtime payloads"
+    }
+  },
+  "installation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "rollback": "build/local-testing/TurtleGit-build44-before45-2026-10-31.app",
+    "user_app_was_running": false,
+    "Finder_Dock_restarted": false,
+    "launch_services_registration_exit": 0,
+    "own_frozen_bundle_unregistered": true
+  },
+  "installed_observations": {
+    "about": {
+      "pid": 62685,
+      "actual_version": "0.1.0 (45)",
+      "Store_action": "disabled with unavailable-listing tooltip",
+      "reopen": "Actual open -a while About remains open; existing-utility system log with hasVisibleWindows=true and unchanged visible About tree",
+      "screenshot": "build/qa/signed45-installed-about-2026-10-31.png",
+      "post_close": "Closing About then observing AX showed workspace; control-tool/post-close reopen timing is not evidence of active-owner failure."
+    },
+    "settings": {
+      "pid": 63022,
+      "entry": "turtlegit://action?command=settings (no path)",
+      "actual_window": "Global Settings",
+      "reopen": "Unchanged Settings tree after actual open -a; Cancel then normal Quit without edits"
+    },
+    "updates": {
+      "pid": 63073,
+      "entry": [
+        "/command:updatecheck",
+        "/visible"
+      ],
+      "result": "Exited normally before native inspection; unavailable-listing window/reopen acceptance not established. No product cause inferred and no retry performed."
+    },
+    "cleanup": {
+      "owned_pids": [
+        62685,
+        63022,
+        63073
+      ],
+      "owned_processes_absent": true,
+      "changes": [
+        {
+          "domain": "/Users/jkuehner/Library/Containers/org.turtlegit.macos/Data/Library/Preferences/org.turtlegit.macos",
+          "key": "TurtleGit.DialogGeometry.CheckForUpdatesDlg",
+          "restored": true
+        },
+        {
+          "domain": "/Users/jkuehner/Library/Containers/org.turtlegit.macos/Data/Library/Preferences/org.turtlegit.macos",
+          "key": "TurtleGit.DialogGeometry.workspace",
+          "restored": true
+        }
+      ],
+      "domains": [
+        {
+          "domain": "/Users/jkuehner/Library/Containers/org.turtlegit.macos/Data/Library/Preferences/org.turtlegit.macos",
+          "equal_to_launch_baseline": true
+        },
+        {
+          "domain": "/Users/jkuehner/Library/Preferences/org.turtlegit.macos",
+          "equal_to_launch_baseline": true
+        }
+      ],
+      "new_repository_grants_issued": false,
+      "private_preferences_claimed": false,
+      "further_acceptance": "Stopped at owner request; no further app launches or tests."
+    },
+    "limits": "Actual container preferences were snapshotted; no CFFIXED isolation claim. No repository selected or new grants issued. Automatic background activity not comprehensively audited."
+  },
+  "retained_failures": [
+    {
+      "scope": "package driver",
+      "cause": "First invocation expected static receipt in frozen qa directory; existing successful receipt copied byte-for-byte to that location before packaging retry. No app rebuild or verification rerun."
+    },
+    {
+      "scope": "hosted416fa56b",
+      "cause": "New Statistics upload step unregistered in lane guard; all8 lanes stopped at preflight before compilation. Separate exact contract repair passes20 focused methods and awaits hosted confirmation."
+    }
+  ],
+  "public_upload_notarization_app_store_submission": false,
+  "remaining": [
+    "Complete corrected-source hosted CI",
+    "Wider installed recovery/Finder/grants and representative large-repository acceptance",
+    "Full source/layout/keyboard/accessibility acceptance and Intel/minimum-macOS execution",
+    "Distribution signing and license/App Store terms review before publication"
+  ],
+  "local_rechecks": "No further local builds or test runs after owner request; next implementation batch precedes another grouped checkpoint.",
+  "build_result": {
+    "configuration": "AppStore",
+    "signature": "Existing Apple Development identity for local testing",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 558.882,
+    "source_inputs_unchanged": true,
+    "compilation_cache": "Independent APFS clone of44; frozen clean416fa56b source"
+  },
+  "build": "45"
+}

@@ -28,6 +28,13 @@ def render_documents(root, destination, repository):
     for old_page in output.glob('*.html'):
         old_page.unlink()
     catalog, local_links = [], []
+    # Help topics are maintained with the user documentation. Bundled technical
+    # appendices remain audits rather than becoming default manual chapters.
+    manifest_path = docs / 'help-topics.json'
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.exists() else {}
+    guide_names = {topic['document'] for topic in manifest.get('topics', [])}
+    guide_names.update(manifest.get('additional_guides', []))
+    labels = {'guide': 'User guide', 'reference': 'Reference', 'audit': 'Source audit'}
     files = sorted(docs.glob('*.md'))
     page_names = {p.resolve(): p.stem + '.html' for p in files}
     for source in files:
@@ -69,7 +76,8 @@ def render_documents(root, destination, repository):
         toc = '<a href="index.html">← All documentation</a><h2>On this page</h2><ul>' + ''.join(f'<li><a href="#{escape(anchor, quote=True)}">{escape(text)}</a></li>' for tag, text, anchor in headings if tag == 'h2') + '</ul>'
         body = f'<p class="manual-source"><a href="https://github.com/{repository}/blob/main/docs/{quote(source.name)}">View Markdown source ↗</a></p>' + body
         (output / page_names[source.resolve()]).write_text(page_shell(title, body, repository, toc))
-        category = 'audit' if source.stem.endswith('PARITY') or source.stem == 'IMPLEMENTATION-NOTES' else 'guide'
+        category = ('audit' if source.stem.endswith('PARITY') or source.stem == 'IMPLEMENTATION-NOTES'
+                    else 'guide' if source.name in guide_names else 'reference')
         catalog.append({'title': title, 'url': page_names[source.resolve()], 'kind': category, 'text': '\n'.join(text_parts), 'anchors': [h[2] for h in headings]})
     lookup = {p.resolve(): item for p, item in zip(files, catalog)}
     unresolved = [{'source': source, 'target': path.name, 'fragment': fragment} for source, path, fragment in local_links if fragment and unquote(fragment) not in lookup[path]['anchors']]
@@ -77,10 +85,18 @@ def render_documents(root, destination, repository):
     for item in catalog:
         item.pop('anchors')
     (output / 'search-index.json').write_text(json.dumps(catalog, ensure_ascii=False) + '\n')
-    rows = ''.join(f'<li data-kind="{item["kind"]}"><a href="{escape(item["url"], quote=True)}">{escape(item["title"])}</a><span class="doc-kind">{"Source audit" if item["kind"] == "audit" else "Guide / reference"}</span></li>' for item in catalog)
+    def navigation_row(item, scoped=False):
+        hidden = ' hidden' if scoped and item['kind'] != 'guide' else ''
+        return (f'<li data-kind="{item["kind"]}"{hidden}><a href="{escape(item["url"], quote=True)}">'
+                f'{escape(item["title"])}</a><span class="doc-kind">{labels[item["kind"]]}</span></li>')
+    rows = ''.join(navigation_row(item, scoped=True) for item in catalog)
+    guides = sum(item['kind'] == 'guide' for item in catalog)
+    fallback = ''.join(f'<details><summary>{label}</summary><ul class="doc-list">' +
+                       ''.join(navigation_row(item) for item in catalog if item['kind'] == category) +
+                       '</ul></details>' for category, label in [('reference', 'References'), ('audit', 'Source audits')])
     body = f'''<h1>TurtleGit user manual</h1><p>Work with Git in native Mac windows and Finder. Learn how to open a repository, choose changes for a commit, explore history and resolve conflicts.</p>
-<p><a href="GETTING-STARTED.html">Getting started →</a> · <a href="GETTING-STARTED.html#start-from-finder">Finder commands →</a> · <a href="GETTING-STARTED.html#commit-with-checked-files">Commit changes →</a> · <a href="MERGE-TOOL.html">Compare and merge →</a> · <a href="README.html">All guides and references →</a></p>
-<form id="doc-search" role="search"><label for="search">Search documentation</label><input id="search" name="q" type="search" placeholder="Commit, Finder, staging…" autocomplete="off"><label for="kind">Document type</label><select id="kind"><option value="all">All documents</option><option value="guide">Guides and references</option><option value="audit">Source audits</option></select></form>
-<p id="search-status" role="status">{len(catalog)} documents. Search loads locally in your browser.</p><ol id="search-results" class="doc-results" hidden></ol><ul id="document-list" class="doc-list">{rows}</ul><script src="search.js" defer></script>'''
+<p><a href="GETTING-STARTED.html">Getting started →</a> · <a href="GETTING-STARTED.html#start-from-finder">Finder commands →</a> · <a href="GETTING-STARTED.html#commit-with-checked-files">Commit changes →</a> · <a href="MERGE-TOOL.html">Compare and merge →</a> · <a href="#doc-search">Browse documentation →</a></p>
+<form id="doc-search" role="search"><label for="search">Search documentation</label><input id="search" name="q" type="search" placeholder="Commit, Finder, staging…" autocomplete="off"><label for="kind">Document type</label><select id="kind"><option value="guide" selected>User guides</option><option value="reference">References</option><option value="audit">Source audits</option><option value="all">All documents</option></select></form>
+<p id="search-status" role="status">{guides} user guides. Search loads locally in your browser.</p><ol id="search-results" class="doc-results" hidden></ol><ul id="document-list" class="doc-list">{rows}</ul><noscript><p>Search and type filtering need JavaScript. Browse user guides above or open the reference collections below.</p>{fallback}</noscript><script src="search.js" defer></script>'''
     (output / 'index.html').write_text(page_shell('Documentation', body, repository, '<a href="../index.html">← Screenshots and project</a>'))
     return {'documents': len(catalog), 'unresolved_fragments': unresolved}

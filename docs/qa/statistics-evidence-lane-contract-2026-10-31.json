@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-31",
+  "source_with_failure": "416fa56b3f128ae456f8ba22d4258eb0ddc6bf86",
+  "run": 41163935426,
+  "failure": "All eight validation lanes failed shared workflow coverage preflight before compilation: Statistics failure-upload step was not registered among explicit reviewed additions.",
+  "repair": "Exact Statistics upload schema, images-documents failure-only owner, immediate producer adjacency, run-attempt artifact identity, constrained paths/retention; unchanged immutable original inventory and producer contracts.",
+  "validation": {
+    "focused": "20 lane-contract methods pass in0.429s",
+    "log": "build/qa/statistics-evidence-lane-contract-2026-10-31.log",
+    "no_core_native_rerun": true,
+    "hosted": "Corrected hosted run not yet started."
+  },
+  "limits": [
+    "This preflight repair does not establish a full native hosted pass or repair the older unlocalized Statistics ownership timeout.",
+    "The signed45 app is from exact416 source; this later repair affects CI scripts only."
+  ],
+  "source_sha256": {
+    "scripts/check-macos-ci-lanes.py": "fa98fc7d1ce5fe398cb1e29b84ebd442f6ab7d89cc2d538bfc74e3fb2f695ba3",
+    "scripts/test-macos-ci-lanes.py": "6333c2b5e3849a199fdffd585c738b917b6dcf20fc32ad1077fd65474c24cc8f"
+  }
+}

@@ -40,6 +40,35 @@ class SiteDocsTests(unittest.TestCase):
             self.assertNotIn('<script>alert', page)
             self.assertEqual(len(json.loads((destination / 'manual/search-index.json').read_text())), 2)
 
+    def test_curated_manual_keeps_complete_index_and_no_script_collections(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder); docs = root / 'docs'; docs.mkdir()
+            manifest = {'topics': [{'id': 'overview', 'document': 'START.md'},
+                                    {'id': 'same', 'document': 'START.md'}],
+                        'additional_guides': ['EXTRA.md', 'APPENDIX-PARITY.md']}
+            (docs / 'help-topics.json').write_text(json.dumps(manifest))
+            for name in ['START', 'EXTRA', 'APPENDIX-PARITY', 'DISTRIBUTION', 'IMPLEMENTATION-NOTES']:
+                (docs / (name + '.md')).write_text('# ' + name + ' <unsafe>')
+            destination = root / 'out'; destination.mkdir()
+            render_documents(root, destination, 'owner/repo')
+            catalog = json.loads((destination / 'manual/search-index.json').read_text())
+            kinds = {item['url']: item['kind'] for item in catalog}
+            self.assertEqual(kinds, {'START.html': 'guide', 'EXTRA.html': 'guide',
+                                    'APPENDIX-PARITY.html': 'audit', 'DISTRIBUTION.html': 'reference',
+                                    'IMPLEMENTATION-NOTES.html': 'audit'})
+            index = (destination / 'manual/index.html').read_text()
+            self.assertIn('<option value="guide" selected>User guides</option>', index)
+            self.assertIn('2 user guides.', index)
+            default = index.split('<ul id="document-list" class="doc-list">')[1].split('</ul>')[0]
+            self.assertEqual(default.count(' hidden>'), 3)
+            self.assertEqual(default.count('data-kind="guide"><a'), 2)
+            fallback = index.split('<noscript>')[1].split('</noscript>')[0]
+            self.assertIn('<summary>References</summary>', fallback)
+            self.assertIn('<summary>Source audits</summary>', fallback)
+            for name in ['DISTRIBUTION', 'APPENDIX-PARITY', 'IMPLEMENTATION-NOTES']:
+                self.assertIn('href="' + name + '.html"', fallback)
+            self.assertNotIn('<unsafe>', index)
+
     def test_generated_site_routes_and_fragments(self):
         site = Path(__file__).resolve().parent.parent / 'build/site'
         pages = list(site.rglob('*.html'))
