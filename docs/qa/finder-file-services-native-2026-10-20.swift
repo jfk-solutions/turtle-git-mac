@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 import Darwin
+import CryptoKit
 import TurtleGitCore
 
 // This legacy workflow receiver injects its instrumented action owner through
@@ -22,6 +23,16 @@ private struct FileServiceScopes: RepositoryBookmarkProvider {
     func resolve(_ data: Data) throws -> ResolvedBookmark { .init(url: URL(fileURLWithPath: String(decoding: data, as: UTF8.self)), stale: false) }
     func startAccessing(_ url: URL) -> Bool { true }
     func stopAccessing(_ url: URL) {}
+}
+private final class FileServiceRecentScopes: RepositoryBookmarkProvider {
+    var rejectRemember=false
+    func create(for url:URL)throws->Data {
+        if rejectRemember {throw NSError(domain:"TurtleGit.PrivateServicesRecentFailure",code:27,userInfo:[NSLocalizedDescriptionKey:"Injected selected-file recent persistence failure"])}
+        return try FileServiceScopes().create(for:url)
+    }
+    func resolve(_ data:Data)throws->ResolvedBookmark {try FileServiceScopes().resolve(data)}
+    func startAccessing(_ url:URL)->Bool {true}
+    func stopAccessing(_ url:URL) {}
 }
 private actor FileServiceReadGate {
     var token: OperationCancellation?
@@ -84,10 +95,26 @@ private actor FileServiceReadGate {
         default: return false
         }
     }
+    @MainActor private static func blameEvidence(_ controller: NSWindowController?, expected: String) -> String {
+        func identity(_ path: String) -> String {
+            let bytes = Data(path.utf8)
+            let hex = bytes.map { String(format:"%02x",$0) }.joined()
+            let digest = SHA256.hash(data:bytes).map { String(format:"%02x",$0) }.joined()
+            return "text=\(String(reflecting:path)), utf8=\(hex), sha256=\(digest)"
+        }
+        guard let owner = controller as? BlameWindowController else {
+            return "controller=\(String(describing:controller.map{String(reflecting:type(of:$0))})), expected{\(identity(expected))}"
+        }
+        let model = owner.model, repository = model.repository
+        let snapshotPath = model.snapshot.map { identity($0.path) } ?? "absent"
+        return "expected{\(identity(expected))}, actual{\(identity(model.path))}, snapshot=\(model.snapshot != nil), snapshotPath{\(snapshotPath)}, error=\(String(reflecting:model.error)), recentHistoryError=\(String(reflecting:model.recentHistoryError)), busy=\(model.busy), loadingParents=\(model.loadingParents), activeHistoryOperations=\(BlameWindowModel.activeHistoryOperations), retired=\(model.retired), executable=\(repository.executable.path), backend=\(String(describing:repository.libgit2Configuration)), repository=\(repository.root.path), scope=\(String(describing:model.repositoryAccess?.url.path)), scoped=\(model.repositoryAccess?.hasSecurityScope == true), containsRoot=\(model.repositoryAccess?.contains(repository.root) == true)"
+    }
     @MainActor final class Context {
         let root: URL, git: URL, defaults: UserDefaults, suite: String
         let store: RepositoryAccessStore
         let workspace: RepositoryModel
+        fileprivate let recentScopes=FileServiceRecentScopes()
+        let recentHistory:BlameRecentDocuments
         let host: NSWindow
         let delegate = TurtleGitApplicationDelegate()
         var windows: [(RepositoryAction, NSWindowController, GitRepository, RepositoryAccessLease?)] = []
@@ -97,7 +124,9 @@ private actor FileServiceReadGate {
             phase("private context construction")
             self.root = root; self.git = git; suite = "TurtleGit.FileServices.QA." + UUID().uuidString; defaults = UserDefaults(suiteName: suite)!
             store = try RepositoryAccessStore(storageURL: root.appendingPathComponent("access.json"), provider: FileServiceScopes())
+            recentHistory=try BlameRecentDocuments(url:root.appendingPathComponent("private-blame-files.json"),provider:recentScopes)
             workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, repositoryFactory: { GitRepository(root: $0, executable: git) }, snapshotWriter: { _ in false }, savedAccessStore: store, comparisonMarks: WorkingComparisonMarkStore(storageURL: root.appendingPathComponent("marks.json")))
+            workspace.blameRecentDocuments=recentHistory
             workspace.repositoryBookmarkProvider = FileServiceScopes(); workspace.requiresRepositoryScope = true; workspace.fileComparisonPreferences = defaults
             host = NSWindow(contentRect: NSRect(x: -20000, y: -20000, width: 500, height: 300), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             host.alphaValue = 0; host.isReleasedWhenClosed = false; host.orderFront(nil); workspace.workspaceWindow = host
@@ -179,7 +208,11 @@ private actor FileServiceReadGate {
             let captured = windows[prior]
             try require(captured.0.rawValue == command && captured.1.window?.alphaValue == 0 && captured.3?.hasSecurityScope == true, "\(command) lost action, hidden window or scope")
             try require(captured.2.root.path == workspace.root?.path && captured.3?.contains(captured.2.root) == true, "\(command) captured wrong repository or scope")
-            try await wait("\(command) native read/action") { !busy(captured.1) && !self.workspace.busy }
+            do { try await wait("\(command) native read/action") { !busy(captured.1) && !self.workspace.busy } }
+            catch {
+                if command == "blame" { throw Failure(description:String(describing:error)+"; "+blameEvidence(captured.1,expected:literal)) }
+                throw error
+            }
             return captured.1
         }
     }
@@ -198,13 +231,23 @@ private actor FileServiceReadGate {
         for command in ["revert", "blame", "previousDiff"] {
             try await context.open(b)
             let beforeIndex = try Data(contentsOf: a.root.appendingPathComponent(".git/index"))
+            context.recentScopes.rejectRemember=command=="blame"
             let controller = try await context.launch(command, paths: [a.root.appendingPathComponent(literal)])
             try require(context.workspace.root?.path == a.root.path, "\(command) used workspace B")
             switch command {
             case "revert":
                 let model = (controller as? RevertWindowController)?.model
                 try require(model?.entries.map(\.path) == [literal], "Revert lost selected literal scope")
-            case "blame": try require((controller as? BlameWindowController)?.model.path == literal && (controller as? BlameWindowController)?.model.snapshot != nil && (controller as? BlameWindowController)?.model.error == nil, "Blame lost selected literal path")
+            case "blame":
+                let evidence = blameEvidence(controller, expected:literal)
+                guard let blame = controller as? BlameWindowController else { try require(false,"Blame controller missing: "+evidence); break }
+                try require(blame.model.path.utf8.elementsEqual(literal.utf8), "Blame selected literal path bytes changed: "+evidence)
+                try require(blame.model.snapshot != nil, "Blame selected-file snapshot missing: "+evidence)
+                try require(blame.model.error == nil, "Blame selected-file load/publication failed: "+evidence)
+                try require(blame.model.recentHistoryError?.contains("Injected selected-file recent persistence failure")==true && context.recentHistory.entries.isEmpty,"Blame Services did not retain nonfatal recent warning: "+evidence)
+                context.recentScopes.rejectRemember=false;blame.model.reload()
+                try await wait("Blame Services retry recent persistence") {!busy(blame) && context.recentHistory.entries.count==1}
+                try require(blame.model.error==nil && blame.model.recentHistoryError==nil && context.recentHistory.entries.first?.path.utf8.elementsEqual(literal.utf8)==true,"Blame Services reload did not retain literal history identity: "+blameEvidence(blame,expected:literal))
             default: try require((controller as? FileComparisonWindowController)?.model.path == literal && (controller as? FileComparisonWindowController)?.model.document != nil && (controller as? FileComparisonWindowController)?.model.error == nil, "PreviousDiff lost selected literal path")
             }
             controller?.close()

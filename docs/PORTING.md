@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Blame document-owned recent-history publication
+
+The [Blame workflow batch](qa/blame-recent-publication-2026-10-31.json) keeps
+successful initial/replacement annotations usable when recent-bookmark or archive
+storage fails. Save warnings are separate from real Git/decoding errors. Reload
+retries registration for the exact loaded model, path, revision, grant and archive;
+closed/replaced callbacks refuse publication. Retained undecoded data joins MRU
+only after a successful readable HEAD projection, and historical entries remain
+excluded. The user guide and offline Help now lead with native usage; source and
+historical check details have their separate [reference](BLAME-FILE-OPEN-PARITY.md).
+
+The Debug build and four native case/engine pairs pass. Only Services repeated
+after a fixture access-level compiler repair; no Core suite or passing Open/build
+cohort was repeated. All five owned receivers are absent. Installed46 predates
+this continuation. Complete hosted/physical/signed acceptance and the separate
+narrow linked-worktree metadata-authority gap remain open.
+
 ## Connected editor CI admission and image inventory
 
 The [editor CI repair batch](qa/editor-ci-family-2026-10-31.json) corrects stale

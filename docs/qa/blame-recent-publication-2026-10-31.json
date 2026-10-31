@@ -1,0 +1,95 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-private-native-group-passed",
+  "family": "Selected-file Blame and document-owned recent-history publication",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "src/TortoiseGitBlame/TortoiseGitBlame.cpp LoadStdProfileSettings(4)",
+      "src/TortoiseGitBlame/TortoiseGitBlameDoc.cpp OnOpenDocument"
+    ]
+  },
+  "demonstrated_source_defects": [
+    "Initial and replacement successful document loads published recent-bookmark persistence failures as fatal model.error.",
+    "Initial onLoaded resolved self.model dynamically rather than retaining the loaded document's identity; replacements lacked an onLoaded persistence retry callback."
+  ],
+  "implementation": [
+    "One exact-model, repository, literal-path, revision, access and archive publisher serves initial and replacement loads.",
+    "Persistence failures use the existing nonfatal recentHistoryError presentation; genuine document errors remain separate.",
+    "Reload retries persistence, clearing only the same owner's recorded save warning on success.",
+    "Replaced/retired callbacks refuse publication and cannot alter the current archive or warning.",
+    "Open preparation captures the replacement recent ID and verifies its original model remains current before adoption or failure publication.",
+    "Undecoded retained documents keep their actual decoding error and defer MRU registration until successful codec recovery; historical revisions remain excluded."
+  ],
+  "fixtures": [
+    "blame-file-open-native-2026-10-13.swift: injected initial/replacement bookmark failure, real parent-not-directory filesystem failures, successful reload retry, historical no-MRU with unchanged archive bytes, undecoded retained-document refusal and CP1252 recovery, unrelated warning preservation, genuine Git error preservation, stale replaced/retired callbacks and existing source/grant/worker checks",
+    "finder-file-services-native-2026-10-20.swift: private recent archive/provider, actual selected literal-file Services route with nonfatal persistence failure and successful retry, byte/hash/backend/grant/readiness diagnostics"
+  ],
+  "hosted_observation": {
+    "run": 41214222844,
+    "source": "5432abbb2d2b8233d8a196e50489675dc0c0b8e2",
+    "job": 124575607219,
+    "failure": "207: Blame lost selected literal path",
+    "limit": "Old composite predicate did not distinguish path, snapshot or error. The actual failing conjunct and relation to persistence remain unproven."
+  },
+  "validation": {
+    "debug_build": {
+      "exit": 0,
+      "compiler_errors": 0,
+      "log": "build/qa/blame-recent-publication-debug-2026-10-31.log"
+    },
+    "initial_native": [
+      {
+        "case": "open",
+        "exit": 0,
+        "elapsed_seconds": 27.337,
+        "log": "build/qa/blame-recent-publication-native-open-2026-10-31.log"
+      },
+      {
+        "case": "services",
+        "exit": 1,
+        "elapsed_seconds": 1.597,
+        "log": "build/qa/blame-recent-publication-native-services-2026-10-31.log"
+      }
+    ],
+    "affected_services_recheck": {
+      "exit": 0,
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "log": "build/qa/blame-recent-publication-native-services-access-2026-10-31.log"
+    },
+    "native_scope": "File Open/recent-history and literal-file Services paths passed with both Git engines; original grant/cancel/replace/retire/source-byte assertions retained.",
+    "retained_failure": "First Services attempt failed fixture compilation: a property exposed its private helper type at internal access. Property made fileprivate; no receiver executed in that failed attempt. Only Services repeated; passing app build/File Open/Core checks not repeated.",
+    "core": "Unchanged; no Core suite run.",
+    "docs": {
+      "localization_languages": 38,
+      "localization_keys": 1326,
+      "help_documents": 63,
+      "help_topics": 52,
+      "help_source_members": 97,
+      "site_documents": 519,
+      "unresolved_fragments": [],
+      "log": "build/qa/blame-recent-publication-docs-2026-10-31.log"
+    },
+    "owned_receiver_pids": [
+      85157,
+      85164,
+      85454,
+      85903,
+      86971
+    ],
+    "owned_receivers_reaped_and_independently_absent": true,
+    "installed_build": "46 unchanged; no installed app launched"
+  },
+  "limits": [
+    "No complete hosted, signed bookmark, physical Finder/picker or full Blame parity acceptance claimed.",
+    "Stored bookmark contents and raw Git input bytes retain their existing policy.",
+    "Recent bookmark resolution remains synchronous; no separate slow-volume benchmark or asynchronous-acquisition refactor is claimed."
+  ],
+  "base_commit": "303825c7",
+  "remaining_implementation": [
+    "Linked-worktree recent entries currently omit composite related metadata bookmarks, and narrow-root File Open/Recent lacks a missing-metadata-folder gate before Git discovery. Confirmed source gap scheduled as a separate complete authority workflow batch."
+  ]
+}

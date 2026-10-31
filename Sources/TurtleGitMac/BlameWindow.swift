@@ -31,6 +31,7 @@ import TurtleGitCore
     private(set) var openPanel:NSOpenPanel?
     private var openingGeneration=0
     private var recentID:UUID?
+    private var recentSaveWarning:(owner:ObjectIdentifier,message:String)?
     var onDocumentChanged:()->Void={}
     var chooseFile:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
     var chooseScope:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
@@ -44,17 +45,39 @@ import TurtleGitCore
         window.minSize = NSSize(width: 820, height: 400); window.isReleasedWhenClosed = false
         window.acceptsMouseMovedEvents = true
         window.contentViewController = NSHostingController(rootView: BlameDialog(model: model))
-        super.init(window: window); window.delegate = self; TurtleGitHelp.attach(window, topic: .blame); window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onGoTo = { [weak self] in self?.showGoToLine() }; model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) };model.onOpenDocument={ [weak self] in self?.openDocument() };model.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };model.onOpenRecent={ [weak self] in self?.openRecent($0) };model.recentDocuments=recentDocuments;model.onLoaded={ [weak self] in
-            guard let self,revision=="HEAD",(try? RepositoryBrowserGitPath(key:self.model.path).isRepresentable)==true,let recentDocuments=self.recentDocuments else { return }
-            let lease=self.model.repositoryAccess ?? RepositoryAccessLease(url:self.model.repository.root,provider:self.scopeProvider)
-            do { try recentDocuments.remember(root:self.model.repository.root,path:self.model.path,lease:lease) } catch { self.model.error=error.localizedDescription }
-        };model.reload()
+        super.init(window: window); window.delegate = self; TurtleGitHelp.attach(window, topic: .blame); window.setContentSize(NSSize(width: 1120, height: 700)); window.center(); model.onGoTo = { [weak self] in self?.showGoToLine() }; model.onFind = { [weak self] in self?.showFind() }; model.onFindFeedback = { [weak self] in self?.feedback($0) };model.onOpenDocument={ [weak self] in self?.openDocument() };model.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };model.onOpenRecent={ [weak self] in self?.openRecent($0) };model.recentDocuments=recentDocuments
+        configureRecentHistory(for:model,revision:revision);model.reload()
 
         configureHistoryActions()
         configurePaneLayout()
         applyWindowAppearance()
         installToolbarChrome()
         DialogGeometry.attach(window, identifier: "BlameWindowController")
+    }
+    private func configureRecentHistory(for loaded:BlameWindowModel,revision:String,replacing:UUID? = nil) {
+        let root=loaded.repository.root,path=loaded.path,access=loaded.repositoryAccess
+        let provider=scopeProvider,history=recentDocuments
+        loaded.onLoaded={ [weak self,weak loaded] in
+            guard let self,let loaded,!self.closing,!loaded.retired,self.model === loaded,
+                  !loaded.busy,loaded.hasRetainedDocument,let snapshot=loaded.snapshot,revision=="HEAD",
+                  snapshot.path.utf8.elementsEqual(path.utf8),
+                  loaded.path.utf8.elementsEqual(path.utf8),loaded.repository.root.path.utf8.elementsEqual(root.path.utf8),
+                  (try? RepositoryBrowserGitPath(key:path).isRepresentable)==true,let history,
+                  self.recentDocuments === history else{return}
+            let lease=access ?? RepositoryAccessLease(url:root,provider:provider)
+            do {
+                try history.remember(root:root,path:path,lease:lease,replacing:replacing)
+                guard !self.closing,!loaded.retired,self.model === loaded else{return}
+                if let warning=self.recentSaveWarning,warning.owner==ObjectIdentifier(loaded),loaded.recentHistoryError==warning.message {
+                    loaded.recentHistoryError=nil
+                }
+                self.recentSaveWarning=nil
+            } catch {
+                guard !self.closing,!loaded.retired,self.model === loaded else{return}
+                let message="Recent-file access could not be saved: "+error.localizedDescription
+                self.recentSaveWarning=(ObjectIdentifier(loaded),message);loaded.recentHistoryError=message
+            }
+        }
     }
     private func installToolbarChrome(){
         guard let window else{return}
@@ -104,11 +127,11 @@ import TurtleGitCore
         catch { model.openingDocument=false;model.error=error.localizedDescription }
     }
     private func prepare(_ file:URL,scope:RepositoryAccessLease?) {
-        let old=model,identity=openingGeneration,options=GitBlamePreferences.load(from:preferences)
+        let old=model,identity=openingGeneration,options=GitBlamePreferences.load(from:preferences),replacing=recentID
         Task {
             do {
                 let document=try await documentOpener.prepare(file:file,scope:scope,options:options,regexExecutable:old.historyRegexExecutable)
-                guard openingGeneration==identity,!old.retired else { return }
+                guard openingGeneration==identity,!closing,!old.retired,model === old else { return }
                 cancelGoToLine();focusGeneration += 1
                 toolbarChrome?.retire();toolbarChrome=nil
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
@@ -119,6 +142,8 @@ import TurtleGitCore
                     replacement.install(document.snapshot,history:document.history,options:document.options,details:document.details,document:document.annotationDocument)
                 }
                 replacement.recentHistoryError=old.recentHistoryError
+                if let warning=recentSaveWarning,warning.owner==ObjectIdentifier(old),replacement.recentHistoryError==warning.message {replacement.recentHistoryError=nil}
+                recentSaveWarning=nil
                 retireFloatingPanes();model=replacement;replacement.onGoTo={ [weak self] in self?.showGoToLine() };replacement.onFind={ [weak self] in self?.showFind() };replacement.onFindFeedback={ [weak self] in self?.feedback($0) };replacement.onOpenDocument={ [weak self] in self?.openDocument() };replacement.onCancelDocumentOpen={ [weak self] in self?.cancelOpenDocument() };replacement.onOpenRecent={ [weak self] in self?.openRecent($0) };replacement.recentDocuments=recentDocuments
                 window?.contentViewController=NSHostingController(rootView:BlameDialog(model:replacement))
                 Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
@@ -126,11 +151,11 @@ import TurtleGitCore
                 configureHistoryActions();configurePaneLayout();findWindow?.rebind(replacement);applyWindowAppearance();installToolbarChrome()
                 NotificationCenter.default.post(name:NSNotification.Name("TurtleGit.BlameDocumentChanged"),object:window)
                 window?.title="\(RepositoryBrowserGitPath.display(key:document.snapshot.path)) at HEAD – Blame – TurtleGit";replacement.goToLine(1)
-                do { try recentDocuments?.remember(root:document.repository.root,path:document.snapshot.path,lease:document.access,replacing:recentID) }
-                catch { replacement.error="Opened file; recent-file access could not be saved: "+error.localizedDescription }
+                configureRecentHistory(for:replacement,revision:"HEAD",replacing:replacing)
+                replacement.onLoaded?()
                 onDocumentChanged()
             } catch {
-                guard openingGeneration==identity,!old.retired else { return };old.openingDocument=false
+                guard openingGeneration==identity,!closing,!old.retired,model === old else { return };old.openingDocument=false
                 if !(error is OperationCancellationFailure) { old.error=error.localizedDescription }
             }
         }

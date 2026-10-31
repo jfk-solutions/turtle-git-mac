@@ -1,62 +1,41 @@
 # Blame File Open and recent files
 
-See [Blame menus and panes](BLAME-MENUS.md) for annotation context menus,
-keyboard access, navigation and pane layout.
+Use **File → Open** in Blame to inspect another tracked file in the same window.
+**Recent Files** lists up to four successfully opened HEAD documents. Opening a
+file starts at line one and retains an existing Find panel and its search text.
+**Settings** opens the Blame settings page; **Close** closes the current window.
+See [Blame menus and panes](BLAME-MENUS.md) for annotation menus, navigation and
+pane layout.
 
-The pinned `TortoiseGitBlameENG.rc` File menu has Open, four recent files, Settings
-and Exit. `TortoiseGitBlameDoc::OnOpenDocument` reuses the SDI document, defaults
-subsequent Open to HEAD and adds only HEAD documents to MRU. Save/Save As strings
-are unused standard resources; there is no active Blame Save/Export menu to port.
+## Files, revisions and folder access
 
-The native File menu now offers Open, Recent Files, Settings and Close. Open uses
-an owned file sheet. A sandboxed file outside the current grant requests an owned
-repository-folder sheet before Git discovery. Cancel or failed permission/Git reads
-retain the current document, window and recent list. Preparing another document
-blocks ordinary close and is counted for Quit. Cancel waits for owned readers to
-settle before allowing another Open. Forced owner retirement cancels
-owned Git processes, fences picker replies and releases prepared replacement data.
+File Open displays the committed file at HEAD. **Reload** refreshes that HEAD
+version after another commit. To inspect an older revision, open Blame from Log;
+historical documents do not replace the Recent Files list.
 
-Successful preparation captures a pinned HEAD blob, blame annotations and history
-before replacing the existing native window's content. Old source callbacks
-retire; an existing modeless Find panel/draft rebinds to the replacement. The new model starts at line one and binds context commands to the newly
-opened repository/access lease. The repository-model registry updates its identity,
-retaining any other existing window for the same file.
+A file outside the currently authorized repository may require a repository-folder
+permission sheet. Choose the root containing the file and its Git metadata.
+Cancelling that sheet or a failed Git read keeps the current document available.
+While another document is preparing, cancel the opening operation before starting
+another Open or closing normally. Cancellation retains ownership until the read
+finishes; Quit waits for that work too.
 
-The private four-file archive contains a scoped bookmark, relative repository/file
-locations and a display path. It is atomically replaced with mode 0600. Only usable
-successful HEAD documents are registered; historical entrypoints do not add to MRU.
-A restored/moved scope is revalidated before reads, and successful reopening renews
-its bookmark and keeps its record ID. Unavailable/corrupt registrations report errors
-rather than permitting filesystem access or overwriting a corrupt archive.
+Recent Files retains the selected file's own name and repository access, including
+Unicode and control characters. A moved repository can be reopened through its
+saved permission when macOS resolves it. An unavailable or invalid entry reports
+an error and retains the current document.
 
-Blame now reads the selected blob with rev-parse, literal NUL-delimited ls-tree and
-cat-file, avoiding a diff of the entire repository tree for a single source file.
-All blob/blame/history commands accept cancellation and retain exact source bytes.
-HEAD documents retain their requested HEAD identity for Reload; their snapshots
-remain pinned for displayed history. This keeps historical file reads and existing encodings while reducing work for
-large repositories. Read-only commands never modify HEAD, index or working files.
+## Recent-file warnings
 
-Verification uses private roots/grants, typed native chooser replies and owned Git
-helper processes. Physical picker input, real security-scope/MRU relocation and
-signed sandbox/App Store acceptance remain open. Full File/Edit/View menu, recent
-label fitting, native global menu responder routing and accessibility parity remain
-unverified. This batch does not certify the complete Blame viewer.
+If a bookmark or the private recent-file archive cannot be saved after a file
+loads, the annotation and embedded history remain usable. A separate recent-file
+warning explains the storage problem. After correcting access or storage, Reload
+retries registration and clears that save warning when it succeeds.
 
-Debug and AppStore builds and both distribution audits passed. The focused Core
-scope passed collectively: 27 existing Blame/presentation checks passed in the
-initial run, and the new direct-read/cancellation test passed after its fixture
-accepted the established Git cancellation error type. That test holds/reaps each
-of rev-parse, ls-tree, cat-file, blame and history reads and refuses a whole-tree
-diff dependency. Only the failed Core case was repeated.
-
-Eight grouped native File Open/Find/source/wrap cases passed with system and
-packaged Git. Initial File Open verification compared directory URL strings with
-and without a trailing slash; canonical-path comparison repaired the fixture while
-retaining all replacement/permission assertions. Native coverage includes retained
-Find drafts, HEAD Reload after a new commit, two owned paused-read Cancel/retirement
-paths and simulated moved recent grants. Process/window ownership and detailed
-limits are in [batch evidence](qa/blame-file-open-2026-10-13.json). No new screenshot
-or complete global-menu/registry/signed acceptance is inferred from these checks.
+When Git data is available but its text cannot be decoded, choose a suitable
+encoding to recover the retained bytes. The file joins Recents after a readable
+HEAD snapshot is available. Reopening or closing a document retires its old
+callbacks, so they cannot change the new document or its warnings.
 
 ## Zooming and reading a line's revision
 
@@ -129,3 +108,6 @@ selection. Replacing or closing that document retires those actions rather than
 applying them to the newly opened file. See the [embedded Log source comparison](BLAME-HISTORY-PRESENTATION-PARITY.md)
 for the implemented scope, grouped checkpoint and remaining physical/signed
 acceptance.
+
+See [File Open source comparison and checkpoint history](BLAME-FILE-OPEN-PARITY.md)
+for implementation evidence and platform acceptance limits.
