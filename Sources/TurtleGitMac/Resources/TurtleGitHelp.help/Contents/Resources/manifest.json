@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "1ed3a2c96fd91de11cf736e8a3e81c0436e530ea26e5da2e64b3207c17d54b6d",
+    "Contents/Info.plist": "668c8c80c9d9e9cd04deedc6400520d9c165560fa2d3e8ec3566c00176269237",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "25d04d51dec9a0e28cf188aef74042ab05e86f586b11216e9de757a1ed6f2ac2",
@@ -31,7 +31,7 @@
     "Contents/Resources/en.lproj/LOG-FIND.html": "5bc1d9757a6584f642cfaabdf2389bc962453f7a92004bf46dd61a7d3cadbdd0",
     "Contents/Resources/en.lproj/MERGE-FILTERS.html": "5c992970839b6d5ac7ca55aa4600c49fc1605afeb7f2088778c40cd8f9351cea",
     "Contents/Resources/en.lproj/MERGE-PANE-PRESENTATION-PARITY.html": "0e261188fe16841e5823513299043584bc9b7835b5f635fc5a409ca2ea6e6ae8",
-    "Contents/Resources/en.lproj/MERGE-TOOL.html": "91807cae9d236597a34362d6f8083499d2604bc88874fdb9849ec5dde5af22ba",
+    "Contents/Resources/en.lproj/MERGE-TOOL.html": "7c6ef081546b84151f8b7875a24d3df1ea50ffb25e091f89b3e6d8717caaee16",
     "Contents/Resources/en.lproj/METAFILE-DRAWING-STATE-PARITY.html": "ecdc87236c2222acfc6da16cd3dce4f09e38ab4216ea6927456667913bc31f6c",
     "Contents/Resources/en.lproj/METAFILE-IMAGE-EFFECTS-PARITY.html": "cd01a4eaf6d374bc3330c3a6e3f60923fddcff8f4fd1ac569d3c2e9117210ec8",
     "Contents/Resources/en.lproj/METAFILE-POINTWISE-EFFECTS-PARITY.html": "b5a0ab961e2fc7b5350758a56cac34cb44b1f5eda7a8132d0f78b016ed2eb6b7",
@@ -128,7 +128,7 @@
     "docs/LOG-FIND.md": "76d55d6d65a79e6bb066468bddd465e81c3a038b4289e2db84a3ded13c5d7e9e",
     "docs/MERGE-FILTERS.md": "c32dbedd77e3f6903bb05bac9d9edc9efbdfad6942bdaad57752a27c7107f028",
     "docs/MERGE-PANE-PRESENTATION-PARITY.md": "d665f3e7123c76ffc62de335c9d446528fc76836e6fbcba80d0c3a2324090357",
-    "docs/MERGE-TOOL.md": "f5b2505d90b9884d5f72b90ea49e10b72492de86f3aa997bb049fd4d4f67de68",
+    "docs/MERGE-TOOL.md": "804b5e5d0aaa7981b572728ad32e022fe19d66fa0219d248bc7475874ea8b002",
     "docs/METAFILE-DRAWING-STATE-PARITY.md": "a96e020674d715ff6862134d0708c9241dc5f821ee9fe8c618fb4a13fe25a1fa",
     "docs/METAFILE-IMAGE-EFFECTS-PARITY.md": "a8aab7aff18366d3490fd0a99a7b886b36e10fe35f802804993c84870fc40faa",
     "docs/METAFILE-POINTWISE-EFFECTS-PARITY.md": "c588acb00aebb1e160686fa251514bb61067398d7538ce2fbf50f87f61edb4bd",

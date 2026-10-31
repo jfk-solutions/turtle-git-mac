@@ -5,7 +5,7 @@ struct MergeMenuLifecycleVerification {
     struct Failure: Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String) throws {if !value {throw Failure(description:message)}}
     @MainActor static func rows(_ menu:NSMenu)->[NSMenuItem] {menu.items.flatMap{[$0]+($0.submenu.map(rows) ?? [])}}
-    @MainActor static func item(_ name:String,_ menu:NSMenu)throws->NSMenuItem {guard let found=rows(menu).first(where:{$0.title==name}) else {throw Failure(description:"Missing menu "+name)};return found}
+    @MainActor static func item(_ name:String,_ menu:NSMenu)throws->NSMenuItem {let title=Bundle.main.localizedString(forKey:name,value:name,table:nil);guard let found=rows(menu).first(where:{$0.title==title}) else {throw Failure(description:"Missing menu "+name)};return found}
     @MainActor static func send(_ item:NSMenuItem) {if let action=item.action {_=NSApp.sendAction(action,to:item.target,from:item)}}
     @MainActor static func key(_ scalar:Int,_ code:UInt16,_ flags:NSEvent.ModifierFlags=[],_ window:NSWindow)->Bool {
         let character=String(UnicodeScalar(scalar)!)
@@ -21,7 +21,7 @@ struct MergeMenuLifecycleVerification {
         let old=Data("head\nold1\nkeep\nold2\ntail\n".utf8),mine=Data("head\nmine1\nkeep\nmine2\ntail\n".utf8),theirs=Data("head\ntheirs1\nkeep\ntheirs2\ntail\n".utf8)
         try old.write(to:a);try mine.write(to:b);try theirs.write(to:t)
         let owner=FileComparisonWindowController(comparison:try WorkingFileComparison(base:a,destination:b),permissions:[],preferences:prefs),model=owner.model,window=owner.window!
-        defer {owner.close()};window.alphaValue=0;window.orderFront(nil);model.load();try await TwoPaneEngineVerification.settled(model)
+        defer {owner.close()};window.alphaValue=0;window.ignoresMouseEvents=true;window.orderFront(nil);model.load();try await TwoPaneEngineVerification.settled(model)
         var focused:NSWindow?=window,current=NSMenu(title:"first root")
         let menu=owner.editorCommandMenu!;menu.keyWindow={focused};menu.applicationMenu={current};menu.install(in:current)
         let editors=MergeMarkedWordInterface.panes(in:window.contentView),right=editors.first{$0.string.contains("mine1")}!
@@ -32,24 +32,25 @@ struct MergeMenuLifecycleVerification {
         let sentinel=NSMenuItem(title:"Unrelated sentinel",action:nil,keyEquivalent:"");file.submenu!.addItem(sentinel)
         send(staleWrap);try require(!model.wrapLines,"Detached whole-root item dispatched before repair")
         NotificationCenter.default.post(name:NSApplication.didUpdateNotification,object:NSApp)
-        try await TwoPaneEngineVerification.wait{rows(current).contains{$0.title=="Wrap long lines"}}
+        try await TwoPaneEngineVerification.wait{rows(current).contains{$0.title==Bundle.main.localizedString(forKey:"Wrap long lines",value:"Wrap long lines",table:nil)}}
         try require(rows(first).allSatisfy{!($0.target is MergeEditorCommandMenu)},"Old main root kept editor targets")
         let view=try item("View",current),detached=try item("Wrap long lines",current)
         let viewSentinel=NSMenuItem(title:"External View sentinel",action:nil,keyEquivalent:"")
         view.submenu=NSMenu(title:"rebuilt View");view.submenu!.addItem(viewSentinel)
         send(detached);try require(!model.wrapLines,"Detached submenu item dispatched before repair")
         NotificationCenter.default.post(name:NSApplication.didUpdateNotification,object:NSApp)
-        try await TwoPaneEngineVerification.wait{view.submenu!.items.contains{$0.title=="Wrap long lines"}}
+        try await TwoPaneEngineVerification.wait{view.submenu!.items.contains{$0.title==Bundle.main.localizedString(forKey:"Wrap long lines",value:"Wrap long lines",table:nil)}}
         let identities=rows(current).map(ObjectIdentifier.init)
         for _ in 0..<12 {NotificationCenter.default.post(name:NSApplication.didUpdateNotification,object:NSApp)}
         try await Task.sleep(nanoseconds:80_000_000)
         try require(rows(current).map(ObjectIdentifier.init)==identities,"Unchanged application updates rebuilt menus")
-        let filters=try item("Filter Regexes",current).submenu!
+        guard let filterRoot=rows(current).first(where:{$0.identifier?.rawValue=="TurtleGitMerge.FilterRegexes"}),let filters=filterRoot.submenu else{throw Failure(description:"Missing semantic filter root")}
+        filterRoot.title="PRIVATE USER FILTER ROOT"
         NotificationCenter.default.post(name:NSMenu.didBeginTrackingNotification,object:filters)
         let originalRows=filters.items.map(ObjectIdentifier.init)
         try MergeRegexFilters.save([.init(name:"New filter",expression:"[0-9]+",replacement:"")],defaults:prefs)
         model.regexDefaults=prefs;model.refreshRegexFilters();menu.refresh()
-        try require(filters.items.map(ObjectIdentifier.init)==originalRows,"Tracked filter menu mutated structurally")
+        try require(filters.items.map(ObjectIdentifier.init)==originalRows && filterRoot.title=="PRIVATE USER FILTER ROOT","Tracked filter menu mutated structurally or localized title used as identity")
         NotificationCenter.default.post(name:NSMenu.didEndTrackingNotification,object:filters)
         try await TwoPaneEngineVerification.wait{filters.items.contains{$0.title=="New filter"}}
         let tracked=view.submenu!,oldTracked=try item("Wrap long lines",current)
@@ -60,7 +61,7 @@ struct MergeMenuLifecycleVerification {
         try require(current.items.isEmpty,"Root rebuilt while a menu was tracking")
         send(oldTracked);try require(!model.wrapLines,"Old tracked root action accepted")
         NotificationCenter.default.post(name:NSMenu.didEndTrackingNotification,object:tracked)
-        try await TwoPaneEngineVerification.wait{rows(current).contains{$0.title=="Wrap long lines"}}
+        try await TwoPaneEngineVerification.wait{rows(current).contains{$0.title==Bundle.main.localizedString(forKey:"Wrap long lines",value:"Wrap long lines",table:nil)}}
         // F11 and its reverse aliases follow the same ready native block target.
         window.makeFirstResponder(right);right.setSelectedRange(.init(location:0,length:0))
         try require(key(NSF11FunctionKey,103,[],window) && model.difference==0,"F11 did not enter first difference once")
@@ -82,7 +83,7 @@ struct MergeMenuLifecycleVerification {
         send(try item("Clear Search Highlights",current));try require((right as! MergeFindProviding).mergeFindHighlights.query.isEmpty,"Main menu clear search")
         menu.remove();focused=nil
         let merge=TextConflictWindowController(repository:GitRepository(root:folder,executable:URL(fileURLWithPath:CommandLine.arguments[2])),access:nil,path:b.path,workingMerge:try WorkingTextMerge(base:a,theirs:t,mine:b),preferences:prefs)
-        defer {merge.close()};merge.window!.alphaValue=0;merge.window!.orderFront(nil);merge.model.load()
+        defer {merge.close()};merge.window!.alphaValue=0;merge.window!.ignoresMouseEvents=true;merge.window!.orderFront(nil);merge.model.load()
         try await ThreePaneEngineVerification.wait{!merge.model.busy && merge.model.document != nil && merge.model.nativeEditorReady}
         focused=merge.window;let triple=merge.editorCommandMenu!;triple.keyWindow={focused};triple.applicationMenu={current};triple.install(in:current)
         let original=merge.model.result

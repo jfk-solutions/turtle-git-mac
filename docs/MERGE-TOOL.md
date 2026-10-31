@@ -47,6 +47,29 @@ engine regions and destroys their exact result mapping, that region's source
 buttons are disabled; Undo or reload restores the mapping. P4Merge-style is a
 TurtleGit presentation inspired by Perforce's tool, not the Perforce application.
 
+## Choose source rows
+
+In a Classic three-way merge, select rows in Theirs, Mine or the aligned result. Use
+**Edit → Use Theirs block**, **Use Mine block**, or either source order to apply
+that selection. The toolbar and footer's **Use text block** menu use the same
+selection. These choices also work on ordinary changed rows and rows you have
+already resolved; they are not limited to remaining conflict markers.
+
+Control-F9 chooses Theirs, Control-F10 chooses Mine, Control-Shift-F9 uses
+Theirs before Mine, and Control-Shift-F10 uses Mine before Theirs. A selection
+ending at the start of the next line affects only the preceding selected rows.
+Without an explicit row selection, these controls use the current unresolved
+conflict. Undo and Redo restore the result and its row state together. If an edit
+has made the selected rows' source mapping unavailable, the choices stay disabled
+until a valid selection or mapping is available.
+
+The active text editor supplies its own File, Edit, Navigate and View commands.
+Their captions follow the app language; your file paths and named regex filters
+keep their original text. Normal text-field editing shortcuts remain available
+when you enter text in a field.
+
+## Configure Git
+
 Use the wrapper's absolute path in your Git configuration. For example, after
 placing it at `~/bin/turtlegit-merge`:
 

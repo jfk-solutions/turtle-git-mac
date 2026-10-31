@@ -6082,3 +6082,31 @@ records native shortcut-priority, disabled-key and owner-gate discoveries,
 remaining physical/OS-key-ordering limits and each failed attempt. All recorded
 receivers are reaped and independently absent; validation is closed for this
 family without repeating unrelated image or Core suites.
+
+
+## Native text command selection — October 31, 2026
+
+Classic three-way Merge now routes selected ordinary, resolved and gap rows
+through the same captured aligned edit from toolbar, Edit, source shortcuts,
+footer and context commands. Half-open selections exclude the next row. Exact
+row identity is retained across source gaps and both-order edits, with native
+history and save provenance unchanged. Unsupported Base/P4 selections refuse
+an unrelated conflict fallback; the existing no-selection conflict path remains.
+
+Compare, Merge and patch-review menu captions use the localization catalog while
+user filter names remain literal. Semantic filter identifiers replace caption
+lookups. A shared image/text shortcut receipt preserves native actions and
+conditionally restores their bindings when the editor leaves; busy Open stays
+scoped and native text editing remains available.
+
+The [batch record](qa/text-command-selection-2026-10-31.json) keeps the grouped
+checkpoint and remaining physical, translated-app, signed and full-source limits
+separate. Existing Core producers supply these edits; no Core rewrite was added
+from superseded historical gap statements. Installed build47 predates this batch.
+
+The Debug build and five existing native cases pass on the first grouped run.
+The source identifier wrapper needed one compile repair before checks began.
+All five owned receivers were reaped and independently absent. Native validation
+used system Git; Core/Git implementations and unrelated suites were not repeated.
+Localization and bundled Help write/check pass. The checkpoint preserves the
+exact private-menu/fallback scope and remaining physical/signed/full-port gates.

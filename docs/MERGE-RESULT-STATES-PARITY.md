@@ -1,5 +1,13 @@
 # Merge resolved and edited presentation
 
+Current source note (October 31): the October 16 aligned edit and projection
+continuations already produce resolved-empty rows, source whitespace aliases,
+both-order source states and retained history metadata. Earlier dated statements
+below that these producers remain missing describe their earlier checkpoints.
+The current demonstrated gap is their [native selected-row command routing](MERGE-NAVIGATION-PARITY.md#selected-source-commands-across-native-controls--october-31-2026),
+not another Core producer rewrite. Complete physical/layout and signed acceptance
+remain separate.
+
 ## Aligned formatting and operation ownership — October 16, 2026
 
 Result line-ending and whitespace commands now transform view records rather than

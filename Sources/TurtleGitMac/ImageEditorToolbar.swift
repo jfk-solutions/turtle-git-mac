@@ -224,12 +224,11 @@ extension ImageEditorToolbar {
 
 /// Contributions belong to one key image owner. Native File/Close, Window,
 /// application Quit and Help retain their existing responders and placement.
-@MainActor final class ImageEditorCommandMenu: NSObject, NSMenuItemValidation {
-    private final class Invocation {
-        let command: ImageEditorCommand, epoch: UUID
-        init(_ command: ImageEditorCommand, _ epoch: UUID) { self.command = command; self.epoch = epoch }
-    }
-    private final class ShortcutLease {
+/// Shared exact-owner shortcut custody for native image/text command menus.
+/// Restore only the same item in the same menu with unchanged target/action,
+/// modifiers and our still-empty key. A host edit relinquishes that receipt.
+@MainActor final class NativeMenuShortcutCustody {
+    private final class Lease {
         weak var item: NSMenuItem?
         weak var parent: NSMenu?
         let key: String, mask: NSEvent.ModifierFlags, action: Selector?, target: ObjectIdentifier?
@@ -255,7 +254,34 @@ extension ImageEditorToolbar {
             item.keyEquivalent = key
         }
     }
-    private var shortcutLeases: [ShortcutLease] = []
+    private var leases: [Lease] = []
+    private func descendants(_ menu: NSMenu) -> [NSMenuItem] {
+        menu.items.flatMap { item in [item] + (item.submenu.map(descendants) ?? []) }
+    }
+    func capture(in main: NSMenu, excluding owned: Set<ObjectIdentifier>, chords: [(String,NSEvent.ModifierFlags)], suppress: Bool) {
+        let items = descendants(main), flags: NSEvent.ModifierFlags = [.command,.control,.option,.shift]
+        // Clearing one AppKit winner may expose another item with the same key.
+        for _ in 0...items.count {
+            var discovered = false
+            for item in items where !owned.contains(ObjectIdentifier(item)) && !leases.contains(where: { $0.item === item }) {
+                guard chords.contains(where: { $0.0 == item.keyEquivalent && $0.1.intersection(flags) == item.keyEquivalentModifierMask.intersection(flags) }) else { continue }
+                let lease = Lease(item); leases.append(lease); discovered = true
+                if suppress { lease.suppress() }
+            }
+            if !suppress || !discovered { break }
+        }
+    }
+    func suppress() { for lease in leases { lease.suppress() } }
+    func restore() { for lease in leases { lease.restore() } }
+    func remove() { restore(); leases = [] }
+}
+
+@MainActor final class ImageEditorCommandMenu: NSObject, NSMenuItemValidation {
+    private final class Invocation {
+        let command: ImageEditorCommand, epoch: UUID
+        init(_ command: ImageEditorCommand, _ epoch: UUID) { self.command = command; self.epoch = epoch }
+    }
+    private let shortcutCustody = NativeMenuShortcutCustody()
     private var shortcutsClaimed = false
     private weak var window: NSWindow?
     private weak var mainMenu: NSMenu?
@@ -302,23 +328,8 @@ extension ImageEditorToolbar {
         [ImageEditorCommand.fileMenu, .viewMenu].flatMap { ImageEditorCommand.menuCommands($0, selection: selection).compactMap { $0 } }
             .filter { state($0) != nil }.map(\.menuKey).filter { !$0.0.isEmpty }
     }
-    private func hostItems(_ menu: NSMenu) -> [NSMenuItem] {
-        menu.items.flatMap { item in [item] + (item.submenu.map(hostItems) ?? []) }
-    }
     private func captureHostShortcuts(in main: NSMenu, suppress: Bool) {
-        let owned = Set(contributed.map(ObjectIdentifier.init)), items = hostItems(main)
-        let flags: NSEvent.ModifierFlags = [.command, .control, .option, .shift]
-        // Clearing one native winner may expose another native item with the
-        // same chord. Capture each before our own shortcut enters the menu.
-        for _ in 0...items.count {
-            var discovered = false
-            for item in items where !owned.contains(ObjectIdentifier(item)) && !shortcutLeases.contains(where: { $0.item === item }) {
-                guard sourceChords.contains(where: { $0.0 == item.keyEquivalent && $0.1.intersection(flags) == item.keyEquivalentModifierMask.intersection(flags) }) else { continue }
-                let lease = ShortcutLease(item); shortcutLeases.append(lease); discovered = true
-                if suppress { lease.suppress() }
-            }
-            if !suppress || !discovered { break }
-        }
+        shortcutCustody.capture(in: main, excluding: Set(contributed.map(ObjectIdentifier.init)), chords: sourceChords, suppress: suppress)
     }
     private func reconcileShortcuts() {
         guard let mainMenu else { return }
@@ -327,9 +338,9 @@ extension ImageEditorToolbar {
             // Release our exact chords first so AppKit exposes the restored
             // native Open/Paste keys instead of suppressing their public value.
             for item in contributed where item.representedObject is Invocation { item.keyEquivalent = "" }
-            for lease in shortcutLeases { lease.restore() }
+            shortcutCustody.restore()
         } else {
-            for lease in shortcutLeases { lease.suppress() }
+            shortcutCustody.suppress()
             captureHostShortcuts(in: mainMenu, suppress: true)
             for item in contributed {
                 guard let invocation = item.representedObject as? Invocation, invocation.epoch == epoch else { continue }
@@ -420,8 +431,8 @@ extension ImageEditorToolbar {
     func remove() {
         epoch = UUID()
         for item in contributed { item.isEnabled = false; item.keyEquivalent = ""; item.menu?.removeItem(item) }
-        for lease in shortcutLeases { lease.restore() }
-        shortcutLeases = []; shortcutsClaimed = false
+        shortcutCustody.restore()
+        shortcutCustody.remove(); shortcutsClaimed = false
         if let mainMenu { for root in createdRoots where root.submenu?.items.isEmpty == true && mainMenu.items.contains(root) { mainMenu.removeItem(root) } }
         contributed = []; createdRoots = []; mainMenu = nil; tracked.removeAll()
     }

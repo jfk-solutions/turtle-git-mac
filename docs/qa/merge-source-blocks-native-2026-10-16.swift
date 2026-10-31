@@ -1,9 +1,10 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 struct MergeSourceBlocksVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
-    static func require(_ condition: Bool, _ message: String) throws { if !condition { throw Failure(description:message) } }
+    static func require(_ condition: Bool, _ message: String) throws { if !condition {print("Source block assertion: "+message);fflush(stdout); throw Failure(description:message) } }
     @MainActor static func verify() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitSourceBlocks-" + UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
@@ -14,10 +15,11 @@ struct MergeSourceBlocksVerification {
         let original = "head 🐢\nold1\nold2\ntail\n", modified = "head 🐢\nnew1\nnew2\ntail\n"
         try Data(original.utf8).write(to:base); try Data(modified.utf8).write(to:mine); try Data(original.utf8).write(to:theirs)
         let owner = TextConflictWindowController(repository:GitRepository(root:root),access:nil,path:"mine",workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs), model = owner.model
-        defer { owner.close() }; model.chooseReload = { .discard }; owner.window!.alphaValue = 0; owner.window!.orderFront(nil); model.load()
-        func wait(_ ready: () -> Bool) async throws {
+        defer { owner.close() }; model.chooseReload = { .discard }; owner.window!.alphaValue = 0; owner.window!.ignoresMouseEvents=true;owner.window!.orderFront(nil); model.load()
+        var phase="initial native source rows"
+        func wait(_ ready: () -> Bool,line:Int = #line) async throws {
             for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() && ThreePaneEngineVerification.textViews(owner.window?.contentView).compactMap { $0 as? MergeContextMenuProviding }.allSatisfy(\.mergeSourceRowsReady) { return }; try await Task.sleep(nanoseconds:10_000_000) }
-            throw Failure(description:"Timed out waiting for source block operation")
+            throw Failure(description:"Source block wait line=\(line) phase=\(phase) busy=\(model.busy) preparing=\(model.preparing) result=\(String(reflecting:model.result)) error=\(String(describing:model.error))")
         }
         try await wait { !model.busy && !model.preparing && model.document != nil && ThreePaneEngineVerification.textViews(owner.window?.contentView).filter { !$0.isFieldEditor }.count >= 3 }
         let views = ThreePaneEngineVerification.textViews(owner.window?.contentView), result = views.first { $0.isEditable }!, right = views.first { !$0.isEditable && $0.string.contains("new1") }!, left = views.first { !$0.isEditable && !$0.string.contains("new1") }!
@@ -38,6 +40,82 @@ struct MergeSourceBlocksVerification {
         }
         func invoke(_ item: NSMenuItem) throws { try require(NSApplication.shared.sendAction(item.action!,to:item.target,from:item),"Native block dispatch") }
         func undoInitial() async throws { model.undo(); try await wait { model.resultPresentation == initial && result.string == model.resultDisplayText } }
+        let nativeMenu=NSMenu(title:"Private ordinary-row choice menu"),previousMenu=NSApp.mainMenu,commands=owner.editorCommandMenu!
+        let previousMenuSource=commands.applicationMenu,previousKey=commands.keyWindow
+        defer {commands.remove();commands.applicationMenu=previousMenuSource;commands.keyWindow=previousKey;NSApp.mainMenu=previousMenu;withExtendedLifetime(nativeMenu){}}
+        NSApp.mainMenu=nativeMenu;commands.applicationMenu={nativeMenu};commands.keyWindow={owner.window};commands.install(in:nativeMenu)
+        func command(_ choice:MergeBlockChoice)->MergeToolbarCommand {
+            switch choice {case .mine:return .useMine;case .theirs:return .useTheirs;case .mineThenTheirs:return .mineThenTheirs;case .theirsThenMine:return .theirsThenMine}
+        }
+        func globalItem(_ choice:MergeBlockChoice)throws->NSMenuItem {
+            let title=Bundle.main.localizedString(forKey:command(choice).title,value:command(choice).title,table:nil)
+            func descendants(_ menu:NSMenu)->[NSMenuItem]{menu.items.flatMap{[$0]+($0.submenu.map(descendants) ?? [])}}
+            guard let item=descendants(nativeMenu).first(where:{$0.title==title}),commands.validateMenuItem(item),item.image != nil else {throw Failure(description:"Ordinary-row global choice unavailable: "+title)}
+            return item
+        }
+        func dispatch(_ choice:MergeBlockChoice,route:Int)throws {
+            commands.refresh();owner.editorToolbar!.refresh()
+            switch route {
+            case 0:model.choose(choice) // The same action used by the native footer.
+            case 1:try require(owner.editorToolbar!.commandState(command(choice))?.enabled==true,"Ordinary-row toolbar disabled");owner.editorToolbar!.perform(command(choice))
+            case 2:try invoke(globalItem(choice))
+            default:
+                let scalar=choice == .mine || choice == .mineThenTheirs ? NSF10FunctionKey:NSF9FunctionKey
+                let flags:NSEvent.ModifierFlags=choice == .mineThenTheirs || choice == .theirsThenMine ? [.control,.shift]:.control
+                let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:String(UnicodeScalar(scalar)!),charactersIgnoringModifiers:String(UnicodeScalar(scalar)!),isARepeat:false,keyCode:0)!
+                try require(commands.performKeyEquivalent(event),"Ordinary-row source shortcut not routed")
+            }
+        }
+        // Global/footer/toolbar/key choices work without unresolved conflicts,
+        // and a half-open selection ending at the next row excludes that row.
+        for (route,choice) in MergeBlockChoice.allCases.enumerated() {
+            phase="generic half-open row / route \(route) / \(choice.rawValue)";print(phase);fflush(stdout)
+            try select("new1",in:right)
+            let start=(right.string as NSString).range(of:"new1").location,next=(right.string as NSString).range(of:"new2").location
+            right.setSelectedRange(NSRange(location:start,length:next-start))
+            try dispatch(choice,route:route)
+            let expected=choice == .theirs ? "head 🐢\nnew2\ntail\n":modified
+            try await wait{model.result==expected && model.canUndo}
+            try require(model.blocks.isEmpty && model.result.contains("new2\n"),"Half-open generic choice consumed following row")
+            let chosen=model.resultPresentation
+            model.undo();try await wait{model.resultPresentation==initial};model.redo();try await wait{model.resultPresentation==chosen};try await undoInitial()
+        }
+        for (route,choice) in [MergeBlockChoice.mineThenTheirs,.theirsThenMine].enumerated() {
+            phase="ordinary common-row ordering / \(choice.rawValue)"
+            try select("head 🐢",in:right);try dispatch(choice,route:route+1)
+            try await wait{model.result=="head 🐢\n"+modified && model.canUndo};try await undoInitial()
+        }
+        phase="generic multiline boundary and exact Save bytes";print(phase);fflush(stdout)
+        try select("new1",in:right)
+        let multiStart=(right.string as NSString).range(of:"new1").location,multiEnd=(right.string as NSString).range(of:"tail").location
+        right.setSelectedRange(NSRange(location:multiStart,length:multiEnd-multiStart));try dispatch(.theirs,route:2)
+        try await wait{model.result=="head 🐢\ntail\n" && model.canUndo}
+        let output=root.appendingPathComponent("generic-selected-result")
+        model.chooseStandaloneOutput={_,_ in output};model.changeEncoding(.utf8);model.save(markResolved:false)
+        try await wait{!model.busy}
+        try require(model.error==nil && (try Data(contentsOf:output))==Data("head 🐢\ntail\n".utf8),"Generic multi-row Save bytes or trailing boundary changed")
+        try await undoInitial()
+        phase="explicit native Base selection refuses previous mapped source"
+        try select("new1",in:right)
+        model.showBase=true
+        func basePane()->NSTextView? {
+            ThreePaneEngineVerification.textViews(owner.window?.contentView).first{!$0.isFieldEditor && !$0.isEditable && ($0 as? MergeLineNavigationProviding)?.navigationCells==nil && $0.string==original}
+        }
+        try await wait{basePane() != nil && model.nativeEditorReady}
+        let baseView=basePane()!,beforeBase=model.resultPresentation,beforeBaseUndo=model.canUndo,beforeBaseRedo=model.canRedo
+        try select("old1",in:baseView);commands.refresh();owner.editorToolbar!.refresh()
+        try require(!model.canChooseSourceBlock && model.currentSourceBlockCommand(choice:.theirs)==nil,"Explicit Base selection reused a previous mapped source choice")
+        model.choose(.theirs);owner.editorToolbar!.perform(.useTheirs)
+        try require(model.resultPresentation==beforeBase && model.canUndo==beforeBaseUndo && model.canRedo==beforeBaseRedo,"Unmapped Base choice changed result/history")
+        try require(owner.window!.makeFirstResponder(nil),"Native Base focus did not release")
+        try require(!model.canChooseSourceBlock && model.currentSourceBlockCommand(choice:.theirs)==nil,"Toolbar focus departure revived the mapped source behind Base selection")
+        model.showBase=false
+        try await wait{basePane()==nil && model.nativeEditorReady}
+        try select("new1",in:right);let busyChoice=try globalItem(.theirs)
+        model.busy=true;commands.refresh();owner.editorToolbar!.refresh();try invoke(busyChoice);model.choose(.theirs);owner.editorToolbar!.perform(.useTheirs)
+        try require(!commands.validateMenuItem(busyChoice) && owner.editorToolbar!.commandState(.useTheirs)?.enabled==false && model.resultPresentation==initial,"Busy generic choices mutated ordinary rows")
+        model.busy=false;commands.refresh()
+        phase="retained original captured context/history/stale cases";print(phase);fflush(stdout)
         // Selecting one addition must leave its adjacent addition intact.
         for choice in MergeBlockChoice.allCases {
             try select("new1",in:right); let item = try entry(choice,in:right)

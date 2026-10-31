@@ -108,3 +108,35 @@ replays exact data/row metadata and caret through the current viewport. Existing
 Undo/Redo icons, keyboard routes, window menu ownership and operation/sheet/closed
 fences remain the command interface. Hosted acceptance is recorded separately
 from local focused passes in the batch evidence.
+
+## Selected blocks, localized captions and shortcut ownership — October 31, 2026
+
+The connected native command batch unifies Mine, Theirs and both source orders
+with the existing captured aligned-row edit. Toolbar, Edit, keyboard and footer
+choices therefore use an ordinary or already resolved selection as well as an
+unresolved conflict. [Selection ownership](MERGE-NAVIGATION-PARITY.md#selected-source-commands-across-native-controls--october-31-2026)
+records the source enablement rule and half-open row boundary.
+
+Static command captions follow the native localization catalog. User regex names
+remain literal, and filter-list maintenance uses semantic identity rather than
+an English menu caption. Native menu icons follow the same application preference
+as the other editor command surfaces.
+
+Compare, three-way Merge and patch review share shortcut ownership with the image
+editor implementation. The focused editor temporarily claims conflicting native
+bindings while preserving host actions and item identities. Busy commands remain
+disabled without dispatching the same shortcut to a workspace action. Field
+editing retains native text commands; removal releases editor registrations
+before conditionally restoring unchanged native bindings. Menu replacement,
+tracking, retirement and stale command epochs retain their existing guards.
+
+The [grouped checkpoint](qa/text-command-selection-2026-10-31.json) records the
+Debug build and all five selected existing native cases passing. Static captions
+are checked against the receiver's English fallback and renamed native roots;
+this does not establish end-to-end translated-app acceptance. User filter names
+retain literal captions and distinct semantic identities. Actual native menu and
+window-event routes, private field-editor Paste, source choices/history,
+rebuild/tracking and conditional shortcut restoration pass. All owned receivers
+were reaped and independently absent. Core and unrelated suites were not repeated.
+Physical menu tracking/keyboard, VoiceOver, signed grants and full source-menu/
+layout acceptance remain separate.

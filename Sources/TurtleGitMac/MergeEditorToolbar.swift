@@ -51,6 +51,7 @@ enum MergeToolbarCommand: String, CaseIterable {
         }
     }
     var toggle: Bool { [.showBase, .whitespace, .wrap, .inline, .inlineWord, .onePane, .collapsed].contains(self) }
+    var caption:String {NSLocalizedString(title,comment:"")}
     var identifier: NSToolbarItem.Identifier { .init("TurtleGit.Merge." + rawValue) }
 }
 struct MergeToolbarState {
@@ -163,20 +164,20 @@ struct MergeToolbarState {
         guard !retired, let command = command(identifier), commands.contains(command) else { return nil }
         let item: NSToolbarItem = menus[command] == nil ? NSToolbarItem(itemIdentifier: identifier) : NSMenuToolbarItem(itemIdentifier: identifier)
         item.autovalidates = false
-        item.label = command.title; item.paletteLabel = command.title; item.toolTip = command.title
+        item.label = command.caption; item.paletteLabel = command.caption; item.toolTip = command.caption
         item.image = command.icon.image(size: 20); item.target = self; item.action = #selector(invoke(_:))
         item.tag = MergeToolbarCommand.allCases.firstIndex(of: command)!
         if command.toggle {
             let button = NSButton(image: command.icon.image(size: 20) ?? NSImage(), target: self, action: #selector(invoke(_:)))
             button.tag = item.tag; button.setButtonType(.pushOnPushOff); button.bezelStyle = .texturedRounded
-            button.toolTip = command.title; button.setAccessibilityLabel(command.title); item.view = button
+            button.toolTip = command.caption; button.setAccessibilityLabel(command.caption); item.view = button
         }
         update(item); return item
     }
     private func menu(_ commands: [MergeToolbarCommand]) -> NSMenu {
         let menu = NSMenu(); menu.autoenablesItems = false
         for command in commands where states(command) != nil {
-            let item = NSMenuItem(title: command.title, action: #selector(invoke(_:)), keyEquivalent: "")
+            let item = NSMenuItem(title: command.caption, action: #selector(invoke(_:)), keyEquivalent: "")
             item.target = self; item.tag = MergeToolbarCommand.allCases.firstIndex(of: command)!
             item.image = command.icon.contextImage(defaults:preferences); item.isEnabled = !retired && states(command)?.enabled == true
             item.state = states(command)?.checked == true ? .on : .off; menu.addItem(item)
@@ -188,7 +189,7 @@ struct MergeToolbarState {
         let state = states(command); item.isEnabled = !retired && state?.enabled == true
         if let button = item.view as? NSButton { button.isEnabled = item.isEnabled; button.state = state?.checked == true ? .on : .off }
         if let group = item as? NSMenuToolbarItem, let choices = menus[command] { group.menu = menu(choices) }
-        let overflow = NSMenuItem(title: command.title, action: #selector(invoke(_:)), keyEquivalent: "")
+        let overflow = NSMenuItem(title: command.caption, action: #selector(invoke(_:)), keyEquivalent: "")
         overflow.target = self; overflow.tag = item.tag; overflow.image = command.icon.contextImage(defaults:preferences); overflow.isEnabled = item.isEnabled
         overflow.state = state?.checked == true ? .on : .off
         if let choices = menus[command] { overflow.submenu = menu(choices) }
@@ -313,7 +314,7 @@ extension MergeEditorToolbar {
                 case .nextDifference: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:false))
                 case .previousConflict: return .init(enabled: text && model.canNavigateBlock(-1,conflictsOnly:true))
                 case .nextConflict: return .init(enabled: text && model.canNavigateBlock(1,conflictsOnly:true))
-                case .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs: return .init(enabled: text && model.canChooseConflict)
+                case .useTheirs, .useMine, .theirsThenMine, .mineThenTheirs: return .init(enabled: text && model.canChooseSourceBlock)
                 case .resolved: return .init(enabled: text && model.repositoryResolutionAllowed)
                 case .find: return .init(enabled: text)
                 case .showBase: return .init(enabled: text, checked: model.showBase)
@@ -496,6 +497,13 @@ struct MergePointerScrollIdentity:Hashable {
 /// Native menu contributions have a focus lifetime independent of the editor.
 /// A previously retained item never becomes live again on a later focus cycle.
 @MainActor final class MergeEditorCommandMenu: NSObject, NSMenuItemValidation {
+    static let filterRegexIdentifier = NSUserInterfaceItemIdentifier("TurtleGitMerge.FilterRegexes")
+    static let scrollIdentifier = NSUserInterfaceItemIdentifier("TurtleGitMerge.Viewport.Scroll")
+    static let noFilterIdentifier = NSUserInterfaceItemIdentifier("TurtleGitMerge.FilterRegex.None")
+    static let configureFiltersIdentifier = NSUserInterfaceItemIdentifier("TurtleGitMerge.FilterRegex.Configure")
+    static func namedFilterIdentifier(_ name:String)->NSUserInterfaceItemIdentifier {
+        .init("TurtleGitMerge.FilterRegex.Named."+Data(name.utf8).base64EncodedString())
+    }
     enum Command: Hashable {
         case toolbar(MergeToolbarCommand), saveAs, enableEdit, useFile, useBothFirst, useBothLast
         case nextInline, previousInline, nextPane, previousPane, gotoLine, findNext, findPrevious, findSelectionNext, findSelectionPrevious, clearSearch
@@ -519,6 +527,8 @@ struct MergePointerScrollIdentity:Hashable {
     private var lifetimeObservations: [AnyCancellable] = []
     private var trackedMenus = Set<ObjectIdentifier>()
     private var synchronizing = false, synchronizationQueued = false
+    private let shortcutCustody = NativeMenuShortcutCustody()
+    private var shortcutsClaimed = false
     var applicationMenu: () -> NSMenu? = { NSApp.mainMenu }
     var viewportPreferences:UserDefaults = .standard
     private var available: () -> Bool
@@ -534,7 +544,13 @@ struct MergePointerScrollIdentity:Hashable {
             guard let self,!self.queued,!self.retired else { return };self.queued = true
             DispatchQueue.main.async { [weak self] in guard let self else { return };self.queued = false;self.refresh() }
         }
-        lifetimeObservations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in self?.scheduleSynchronizationIfNeeded() })
+        lifetimeObservations.append(NotificationCenter.default.publisher(for:NSApplication.didUpdateNotification).sink { [weak self] _ in
+            guard let self else{return};self.scheduleSynchronizationIfNeeded()
+            if self.shortcutsClaimed != self.shouldClaimShortcuts {self.scheduleStateRefresh()}
+        })
+        for name in [NSControl.textDidBeginEditingNotification,NSControl.textDidEndEditingNotification,NSWindow.willBeginSheetNotification,NSWindow.didEndSheetNotification] {
+            lifetimeObservations.append(NotificationCenter.default.publisher(for:name).sink { [weak self] _ in self?.scheduleStateRefresh() })
+        }
         lifetimeObservations.append(NotificationCenter.default.publisher(for:NSMenu.didBeginTrackingNotification).sink { [weak self] note in
             guard let self,let menu = note.object as? NSMenu,self.belongsToApplicationMenu(menu) else { return }
             self.trackedMenus.insert(ObjectIdentifier(menu))
@@ -551,7 +567,31 @@ struct MergePointerScrollIdentity:Hashable {
     }
     private var active: Bool {
         guard !retired,let window,let mainMenu else { return false }
-        return mainMenu === applicationMenu() && keyWindow() === window && available()
+        return mainMenu === applicationMenu() && keyWindow() === window && available() && window.attachedSheet==nil && NSApp.modalWindow==nil && (window.firstResponder as? NSTextView)?.isFieldEditor != true
+    }
+    private var ownsWindow:Bool {!retired && window != nil && keyWindow() === window && available()}
+    // A busy editor/owned sheet still owns Open. Releasing a disabled source
+    // key would otherwise dispatch SwiftUI's unrelated workspace Open instead.
+    private var shouldClaimShortcuts:Bool {ownsWindow && mainMenu === applicationMenu()}
+    private func leaves(_ items:[NSMenuItem])->[NSMenuItem] {items.flatMap{[$0]+leaves($0.submenu?.items ?? [])}}
+    private func reconcileShortcuts() {
+        guard let mainMenu else{return}
+        let items=leaves(contributed),claim=shouldClaimShortcuts
+        if !claim {
+            for item in items where item.representedObject is Invocation{item.keyEquivalent=""}
+            shortcutCustody.restore()
+        } else {
+            shortcutCustody.suppress()
+            let chords=items.compactMap{$0.representedObject as? Invocation}.flatMap{(shortcut($0.command).map{[$0]} ?? [])+aliases($0.command)}
+            shortcutCustody.capture(in:mainMenu,excluding:Set(items.map(ObjectIdentifier.init)),chords:chords,suppress:true)
+            for item in items {
+                guard let invocation=item.representedObject as? Invocation,invocation.epoch==epoch else{continue}
+                let key=shortcut(invocation.command) ?? ("",[])
+                if item.keyEquivalentModifierMask != key.1 {item.keyEquivalentModifierMask=key.1}
+                if item.keyEquivalent != key.0 {item.keyEquivalent=key.0}
+            }
+        }
+        shortcutsClaimed=claim
     }
     private func belongsToApplicationMenu(_ candidate:NSMenu) -> Bool {
         guard let mainMenu else { return false }
@@ -590,15 +630,18 @@ struct MergePointerScrollIdentity:Hashable {
         append([.toolbarVisible,.statusVisible,.lineDiff,.locator,.fishEye,.toolbar(.wrap),.moved,.toolbar(.inline),.toolbar(.inlineWord),
                 .whitespace(.compare),.whitespace(.ignoreChanges),.whitespace(.ignoreAll),.ignoreEndings,.ignoreCase,.ignoreComments,
                 .toolbar(.whitespace),.lineNumbers,.toolbar(.onePane),.toolbar(.switchSides),.toolbar(.collapsed),.toolbar(.showBase),.patchFileList,.settings],to:view)
-        let scroll=NSMenuItem(title:"Scroll",action:nil,keyEquivalent:"")
-        scroll.identifier=NSUserInterfaceItemIdentifier("TurtleGitMerge.Viewport.Scroll")
-        scroll.submenu=NSMenu(title:"Scroll")
-        scroll.image=viewportImage("scroll",label:"Scroll")
+        let scrollCaption=NSLocalizedString("Scroll",comment:"")
+        let scroll=NSMenuItem(title:scrollCaption,action:nil,keyEquivalent:"")
+        scroll.identifier=Self.scrollIdentifier
+        scroll.submenu=NSMenu(title:scrollCaption)
+        scroll.image=viewportImage("scroll",label:scrollCaption)
         append(MergeViewportScrollCommand.allCases.map{.viewport($0)},to:scroll.submenu!)
         if scroll.submenu?.items.isEmpty==false {view.addItem(scroll);contributed.append(scroll)}
         if state(.regex(nil)) != nil || state(.configureRegex) != nil {
-        let filters = NSMenuItem(title:"Filter Regexes",action:nil,keyEquivalent:"")
-        filters.image=MenuIcon.historyFind.image();filters.submenu = NSMenu(title:"Filter Regexes");view.addItem(filters);contributed.append(filters)
+        let filterCaption=NSLocalizedString("Filter Regexes",comment:"")
+        let filters = NSMenuItem(title:filterCaption,action:nil,keyEquivalent:"")
+        filters.identifier=Self.filterRegexIdentifier
+        filters.image=MenuIcon.historyFind.contextImage(defaults:viewportPreferences);filters.submenu = NSMenu(title:filterCaption);view.addItem(filters);contributed.append(filters)
         rebuildFilters(filters.submenu!)
         }
         append([.toolbar(.help),.about],to:root("Help",in:main))
@@ -675,8 +718,9 @@ struct MergePointerScrollIdentity:Hashable {
     private func root(_ name: String, in main: NSMenu) -> NSMenu {
         let role = RootRole(rawValue: name)!
         if let found = rootItem(role, in: main)?.submenu { return found }
-        let item = NSMenuItem(title: name, action: nil, keyEquivalent: "")
-        item.identifier = role.identifier; item.submenu = NSMenu(title: name)
+        let caption=NSLocalizedString(name,comment:"")
+        let item = NSMenuItem(title: caption, action: nil, keyEquivalent: "")
+        item.identifier = role.identifier; item.submenu = NSMenu(title: caption)
         let following = RootRole.allCases.filter { $0.order > role.order }.compactMap { rootItem($0, in: main) }
         let index = following.compactMap { main.items.firstIndex(of: $0) }.min() ?? main.items.count
         main.insertItem(item, at: index); createdRoots.append(item); return item.submenu!
@@ -689,8 +733,15 @@ struct MergePointerScrollIdentity:Hashable {
     }
     private func makeItem(_ command: Command) -> NSMenuItem {
         let item = NSMenuItem(title:title(command),action:#selector(invokeEditorMenu(_:)),keyEquivalent:"")
-        item.target = self;item.representedObject = Invocation(command,epoch);item.image = icon(command)?.image()
-        if let shortcut = shortcut(command) { item.keyEquivalent = shortcut.0;item.keyEquivalentModifierMask = shortcut.1 }
+        item.target = self;item.representedObject = Invocation(command,epoch);item.image = icon(command)?.contextImage(defaults:viewportPreferences)
+        switch command {
+        case .regex(let name):item.identifier=name.map(Self.namedFilterIdentifier) ?? Self.noFilterIdentifier
+        case .configureRegex:item.identifier=Self.configureFiltersIdentifier
+        case .toolbar(let value):item.identifier = .init(value.identifier.rawValue)
+        case .viewport(let value):item.identifier = .init("TurtleGitMerge.Viewport."+value.rawValue)
+        default:break
+        }
+        if let shortcut = shortcut(command) { item.keyEquivalentModifierMask = shortcut.1 }
         update(item);return item
     }
     private func rebuildFilters(_ menu: NSMenu) {
@@ -704,19 +755,22 @@ struct MergePointerScrollIdentity:Hashable {
         return NSImage(systemSymbolName:symbol,accessibilityDescription:label)
     }
     private func update(_ item: NSMenuItem) {
-        if item.identifier?.rawValue=="TurtleGitMerge.Viewport.Scroll" {item.image=viewportImage("scroll",label:"Scroll")}
+        if item.identifier==Self.scrollIdentifier {item.image=viewportImage("scroll",label:NSLocalizedString("Scroll",comment:""))}
+        if item.identifier==Self.filterRegexIdentifier {item.image=MenuIcon.historyFind.contextImage(defaults:viewportPreferences)}
         guard let invocation = item.representedObject as? Invocation else { return }
         let value = state(invocation.command)
-        if case let .viewport(direction)=invocation.command {item.image=viewportImage("arrow."+direction.rawValue,label:direction.title)}
+        item.image=icon(invocation.command)?.contextImage(defaults:viewportPreferences)
+        if case let .viewport(direction)=invocation.command {item.image=viewportImage("arrow."+direction.rawValue,label:NSLocalizedString(direction.title,comment:""))}
         item.isEnabled = active && attached(item) && invocation.epoch == epoch && value?.enabled == true
         item.state = value?.checked == true ? .on : .off
     }
     func refresh() {
         guard !retired else { return }
-        if !available() { remove();return }
+        if !ownsWindow { remove();return }
         scheduleSynchronizationIfNeeded()
+        reconcileShortcuts()
         for item in contributed {
-            if item.title == "Filter Regexes",let submenu = item.submenu {
+            if item.identifier==Self.filterRegexIdentifier,let submenu = item.submenu {
                 if renderedFilterNames != filterNames(),trackedMenus.isEmpty { rebuildFilters(submenu) }
                 for child in submenu.items { update(child) }
             }
@@ -725,8 +779,9 @@ struct MergePointerScrollIdentity:Hashable {
     }
     func remove() {
         epoch = UUID()
-        func disable(_ item: NSMenuItem) { item.isEnabled = false;for child in item.submenu?.items ?? [] { disable(child) } }
+        func disable(_ item: NSMenuItem) { item.isEnabled = false;item.keyEquivalent="";for child in item.submenu?.items ?? [] { disable(child) } }
         for item in contributed { disable(item);item.menu?.removeItem(item) }
+        shortcutCustody.remove();shortcutsClaimed=false
         if let mainMenu { for item in createdRoots where item.submenu?.items.isEmpty == true && mainMenu.items.contains(item) { mainMenu.removeItem(item) } }
         mainMenu = nil;contributed = [];createdRoots = [];renderedFilterNames = nil;trackedMenus.removeAll()
     }
@@ -738,7 +793,8 @@ struct MergePointerScrollIdentity:Hashable {
     }
     func performKeyEquivalent(_ event: NSEvent) -> Bool {
         synchronize()
-        guard active,(window?.firstResponder as? NSTextView)?.isFieldEditor != true else { return false }
+        reconcileShortcuts()
+        guard active,event.window === window else { return false }
         let modifiers = event.modifierFlags.intersection([.command,.control,.option,.shift])
         guard let text = event.charactersIgnoringModifiers?.lowercased() else { return false }
         for item in contributed {
@@ -767,6 +823,10 @@ struct MergePointerScrollIdentity:Hashable {
         }
     }
     private func title(_ command: Command) -> String {
+        if case let .regex(name)=command,let name{return name}
+        return NSLocalizedString(sourceTitle(command),comment:"")
+    }
+    private func sourceTitle(_ command: Command) -> String {
         switch command {
         case .toolbar(.help):return "TurtleGitMerge Help"
         case .toolbar(let value):return value.title
@@ -804,6 +864,9 @@ struct MergePointerScrollIdentity:Hashable {
         case .toolbarVisible,.statusVisible,.lineNumbers:return .settingsDialogs
         case .lineDiff:return .mergeInline;case .locator,.fishEye:return .mergeFind
         case .moved:return .mergeMoved;case .whitespace,.ignoreComments,.ignoreEndings,.ignoreCase:return .compare
+        case .findNext,.findPrevious,.findSelectionNext,.findSelectionPrevious,.clearSearch,.gotoLine:return .mergeFind
+        case .nextInline:return .mergeNextDifference;case .previousInline:return .mergePreviousDifference
+        case .regex:return .historyFind;case .configureRegex,.settings:return .settings;case .about:return .help
         default:return nil
         }
     }

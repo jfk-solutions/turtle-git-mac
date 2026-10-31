@@ -25,7 +25,7 @@ missing source behavior, reported defect or failing check.
   workspace check does not establish every Finder/grant combination.
 - [ ] Obtain a complete hosted macOS CI pass on the release source and repair
   concrete failures without repeatedly running unrelated local suites.
-- [ ] Complete the [text-editor Open transaction](qa/text-open-ownership-review-2026-10-31.json): Save question, Open, nested Browse and replacement must retain ownership through actual sheet/worker drainage.
+- [x] Implement and locally validate the [text-editor Open transaction](qa/text-open-transaction-2026-10-31.json): Save question, Open, nested Browse and replacement retain ownership through actual sheet/worker drainage. Installed build47 predates this family; physical and signed acceptance remain separate.
 - [ ] Close the explicit source/layout gaps in the family records and establish
   the remaining dialog states, keyboard and accessibility acceptance. Resource
   counts alone do not complete this requirement.

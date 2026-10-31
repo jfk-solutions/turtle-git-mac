@@ -81,10 +81,10 @@ choices remain disabled. There is no text-based guess to restore missing maps.
 
 The native toolbar exposes Previous/Next difference and conflict. Context menus
 use the original source icons. Control/Option-Up/Down and F7/F11 navigate differences;
-Shift-F7/F11 reverses direction, and F8/Shift-F8 navigates conflicts. Source-pane
-block choices locate the corresponding unresolved result conflict. Selecting an
-unrelated common line disables those choices; it cannot resolve a stale footer
-selection. Busy, preparation, export, Quit and attached-sheet gates apply to the
+Shift-F7/F11 reverses direction, and F8/Shift-F8 navigates conflicts. The earlier
+toolbar/footer path required a corresponding unresolved result conflict; the
+October 31 continuation below unifies it with ordinary selected-row context
+choices. Busy, preparation, export, Quit and attached-sheet gates apply to the
 new navigation and choice routes. Mark as resolved also treats ignored conflicts
 as unresolved, even when no literal markers are present.
 
@@ -240,3 +240,37 @@ state, then exercises appearance, dirty preservation, foreign registration,
 explicit Reload and retirement. The Debug build and six grouped native families have passing runs: deterministic ownership, initial navigation, wrapping, margin, folding and Find. The first margin run timed out at editability; the unchanged assertion passed after adding diagnostics, without an app change. That intermittent timeout remains open. All seven owned receivers were reaped and independently absent. Core was unchanged and not repeated. See [batch evidence](qa/merge-viewport-ownership-2026-10-17.json) for the exact attempts and limits. Physical gestures,
 all host/replacement timing, large-file performance and signed acceptance remain
 open; no dialog certification is added.
+
+## Selected source commands across native controls — October 31, 2026
+
+Pinned `MainFrm.cpp::OnUpdateEditUsetheirblock` enables a source choice when the
+bottom view has a selection. `BottomView.cpp::UseViewBlock` forwards its selected
+rows to `UseBlock`; it does not require an unresolved conflict. The existing Core
+aligned edit already handles ordinary, resolved and gap rows, both source orders,
+line endings, source-state changes and result-history metadata.
+
+The native continuation connects that captured row command to the toolbar, Edit
+menu, source accelerators and footer. Explicit source or result selections take
+precedence over the legacy current-conflict fallback. A half-open text selection
+ending at the next row's start does not include that next row. Exact row identity
+is retained where several empty source rows share a result byte anchor; an
+ambiguous or retired mapping cannot borrow the previous conflict selection.
+The optional Base pane and P4Merge presentation do not acquire guessed aligned
+row coordinates; their existing whole-source and chunk controls retain their
+own paths.
+
+Choices retain the existing presentation/generation guards and native history
+path. Undo/Redo restores source and result state together. Whole-source and
+captured context-menu actions keep their existing ownership and target semantics.
+This batch also connects the related [native command surface](MERGE-COMMAND-MENUS-PARITY.md)
+and [user instructions](MERGE-TOOL.md#choose-source-rows).
+
+The [grouped checkpoint](qa/text-command-selection-2026-10-31.json) records the
+Debug build and five existing native cases passing on the first grouped run.
+Selected-row and both-order cases cover exact data/state/history and save bytes;
+menu, lifecycle and affected image cases cover command custody and ownership.
+All five owned receivers were reaped and independently absent. A menu identifier
+wrapper compile error was corrected before native checks. Core implementation
+was unchanged and its suite was not repeated. Physical input, VoiceOver, signed
+external grants and complete source-layout acceptance remain separate; this
+continuation does not certify the whole merge editor.

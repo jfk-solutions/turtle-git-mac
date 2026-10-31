@@ -1,12 +1,20 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
+@MainActor private final class MergeMenuNativeTarget:NSObject {
+    var opens=0,pastes=0
+    var pasteAction:()->Void={}
+    @objc func openDocument(_ sender:Any?){opens+=1}
+    @objc func paste(_ sender:Any?){pastes+=1;pasteAction()}
+}
 struct MergeCommandMenusVerification {
     struct Failure: Error,CustomStringConvertible { let description:String }
-    static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
+    static func require(_ value:Bool,_ message:String) throws { if !value {print("Text command menu assertion: "+message);fflush(stdout); throw Failure(description:message) } }
     @MainActor static func items(_ menu:NSMenu) -> [NSMenuItem] { menu.items.flatMap{[$0]+($0.submenu.map(items) ?? [])} }
     @MainActor static func item(_ title:String,in menu:NSMenu) throws -> NSMenuItem {
-        guard let found=items(menu).first(where:{$0.title==title}) else { throw Failure(description:"Missing editor menu: "+title) };return found
+        let localized=Bundle.main.localizedString(forKey:title,value:title,table:nil)
+        guard let found=items(menu).first(where:{$0.title==localized}) else { throw Failure(description:"Missing editor menu: "+title) };return found
     }
     @MainActor static func send(_ item:NSMenuItem) throws { try require(item.action != nil && NSApp.sendAction(item.action!,to:item.target,from:item),"Native menu dispatch missing: "+item.title) }
     @MainActor static func event(_ key:String,code:UInt16=0,flags:NSEvent.ModifierFlags=[],window:NSWindow) -> NSEvent {
@@ -20,21 +28,29 @@ struct MergeCommandMenusVerification {
         prefs.set(false,forKey:"TurtleGitMerge.WrapLines")
         let main=NSMenu(title:"Owned editor menu fixture"),previous=NSApp.mainMenu
         let app=NSMenuItem(title:"TurtleGitMerge Fixture",action:nil,keyEquivalent:"");app.submenu=NSMenu(title:"Fixture");main.addItem(app)
-        let fileRoot=NSMenuItem(title:"File",action:nil,keyEquivalent:"");fileRoot.submenu=NSMenu(title:"File");main.addItem(fileRoot)
+        let nativeTarget=MergeMenuNativeTarget()
+        let fileRoot=NSMenuItem(title:"Dateien QA",action:nil,keyEquivalent:"");fileRoot.submenu=NSMenu(title:"Dateien QA");main.addItem(fileRoot)
         let sentinel=NSMenuItem(title:"Repository sentinel",action:nil,keyEquivalent:"");fileRoot.submenu!.addItem(sentinel)
-        let editRoot=NSMenuItem(title:"Edit",action:nil,keyEquivalent:"");editRoot.submenu=NSMenu(title:"Edit");main.addItem(editRoot)
+        let nativeOpen=NSMenuItem(title:"QA native Open",action:#selector(MergeMenuNativeTarget.openDocument(_:)),keyEquivalent:"o");nativeOpen.target=nativeTarget;nativeOpen.keyEquivalentModifierMask = .command;fileRoot.submenu!.addItem(nativeOpen)
+        let editRoot=NSMenuItem(title:"Bearbeiten QA",action:nil,keyEquivalent:"");editRoot.submenu=NSMenu(title:"Bearbeiten QA");main.addItem(editRoot)
         let undo=NSMenuItem(title:"Undo",action:NSSelectorFromString("undo:"),keyEquivalent:"z"),copy=NSMenuItem(title:"Copy",action:NSSelectorFromString("copy:"),keyEquivalent:"c")
         editRoot.submenu!.addItem(undo);editRoot.submenu!.addItem(copy)
-        NSApp.mainMenu=main;defer {NSApp.mainMenu=previous}
+        let nativePaste=NSMenuItem(title:"QA native Paste",action:#selector(MergeMenuNativeTarget.paste(_:)),keyEquivalent:"v");nativePaste.target=nativeTarget;nativePaste.keyEquivalentModifierMask = .command;editRoot.submenu!.addItem(nativePaste)
+        let viewRoot=NSMenuItem(title:"Ansicht QA",action:nil,keyEquivalent:"");viewRoot.submenu=NSMenu(title:"Ansicht QA");viewRoot.submenu!.addItem(NSMenuItem(title:"QA full screen",action:#selector(NSWindow.toggleFullScreen(_:)),keyEquivalent:""));main.addItem(viewRoot)
+        var ownedMenus:[MergeEditorCommandMenu]=[]
+        NSApp.mainMenu=main;defer {for menu in ownedMenus{menu.retire()};NSApp.mainMenu=previous;withExtendedLifetime((nativeTarget,main)){}}
+        let baselineFile=fileRoot.submenu!.items.map(ObjectIdentifier.init),baselineEdit=editRoot.submenu!.items.map(ObjectIdentifier.init),baselineView=viewRoot.submenu!.items.map(ObjectIdentifier.init)
         let a=folder.appendingPathComponent("base.txt"),b=folder.appendingPathComponent("mine.txt"),t=folder.appendingPathComponent("theirs.txt"),output=folder.appendingPathComponent("menu-export.txt")
         let old=Data("stamp 1\nold one\nstay\nold two\ntail\n".utf8),new=Data("stamp 2\nnew one\nstay\nnew two\ntail\n".utf8)
         try old.write(to:a);try new.write(to:b);try Data("stamp 2\ntheirs one\nstay\ntheirs two\ntail\n".utf8).write(to:t)
         let owner=FileComparisonWindowController(comparison:try WorkingFileComparison(base:a,destination:b),permissions:[],preferences:prefs),model=owner.model,window=owner.window!
         defer { (owner.replacementOwner?.current ?? owner).close() }
-        window.alphaValue=0;window.orderFront(nil);model.load();try await TwoPaneEngineVerification.settled(model)
+        window.alphaValue=0;window.ignoresMouseEvents=true;window.orderFront(nil);model.load();try await TwoPaneEngineVerification.settled(model)
         var focused:NSWindow?=window
-        let menu=owner.editorCommandMenu!;menu.keyWindow={focused};menu.install(in:main)
-        try require(main.items.map(\.title)==["TurtleGitMerge Fixture","File","Edit","Navigate","View","Help"],"Native menu root order")
+        let menu=owner.editorCommandMenu!;ownedMenus.append(menu);menu.keyWindow={focused};menu.install(in:main)
+        try require(main.items.map{$0.identifier?.rawValue ?? "application"}==["application","org.turtlegit.merge.menu.file","org.turtlegit.merge.menu.edit","org.turtlegit.merge.menu.navigate","org.turtlegit.merge.menu.view","org.turtlegit.merge.menu.help"],"Native semantic menu root order")
+        try require(fileRoot.title=="Dateien QA" && editRoot.title=="Bearbeiten QA" && viewRoot.title=="Ansicht QA","Native root localization overwritten")
+        try require(try item("Open",in:main).keyEquivalent=="o" && nativeOpen.keyEquivalent.isEmpty && nativeOpen.target === nativeTarget && nativePaste.keyEquivalent=="v","Scoped editor Open shortcut did not retain native host/Paste ownership")
         try require(try item("Next difference",in:main).image?.isTemplate==false && item("Switch left and right view",in:main).image != nil,"Source-colored menu artwork")
         let editors=MergeMarkedWordInterface.panes(in:window.contentView),right=editors.first{$0.string.contains("new one")}!
         window.makeFirstResponder(right)
@@ -46,27 +62,47 @@ struct MergeCommandMenusVerification {
         let staleWrap=try item("Wrap long lines",in:main)
         try send(staleWrap);try require(model.wrapLines,"View Wrap did not dispatch")
         try require(staleWrap.state == .on,"View checkmark not refreshed")
-        menu.remove();try require(fileRoot.submenu!.items==[sentinel] && editRoot.submenu!.items.contains(undo) && editRoot.submenu!.items.contains(copy) && !editRoot.submenu!.items.contains{($0.target as AnyObject?) === menu},"Removal changed unrelated menu items: file=\(fileRoot.submenu!.items.map(\.title)), edit=\(editRoot.submenu!.items.map(\.title))")
+        menu.remove();try require(fileRoot.submenu!.items.map(ObjectIdentifier.init)==baselineFile && editRoot.submenu!.items.map(ObjectIdentifier.init)==baselineEdit && viewRoot.submenu!.items.map(ObjectIdentifier.init)==baselineView && nativeOpen.keyEquivalent=="o" && nativePaste.keyEquivalent=="v" && !editRoot.submenu!.items.contains{($0.target as AnyObject?) === menu},"Removal changed unrelated menu items: file=\(fileRoot.submenu!.items.map(\.title)), edit=\(editRoot.submenu!.items.map(\.title))")
         menu.install(in:main);try send(staleWrap);try require(model.wrapLines,"Old focus-epoch menu action accepted")
         let liveWrap=try item("Wrap long lines",in:main)
         model.busy=true;try require(!menu.validateMenuItem(liveWrap),"Busy menu reenabled")
         try send(liveWrap);try require(model.wrapLines,"Busy menu action mutated preference")
+        menu.refresh()
+        try require(main.performKeyEquivalent(with:event("o",flags:.command,window:window)) && !menu.validateMenuItem(try item("Open",in:main)) && nativeOpen.keyEquivalent.isEmpty && nativeTarget.opens==0 && window.attachedSheet==nil,"Busy scoped Open fell through to native workspace")
         model.busy=false
         let held=MergeEditorOpenWorkflow(window:window,permissions:[],preferences:prefs);owner.editorOpenWorkflow=held
         try send(liveWrap);try require(model.wrapLines,"File/Open owner allowed menu action")
         held.retire();owner.editorOpenWorkflow=nil
         focused=nil;try send(liveWrap);try require(model.wrapLines,"Background owner accepted menu action")
         focused=window;menu.refresh()
-        let field=NSTextField(frame:.init(x:0,y:0,width:180,height:24));window.contentView!.addSubview(field);window.makeFirstResponder(field)
+        let clipboard=NSPasteboard.withUniqueName();defer{clipboard.releaseGlobally()};try require(clipboard.setString("PRIVATE-TEXT-PASTE",forType:.string),"Private text pasteboard")
+        let field=NSTextField(frame:.init(x:0,y:0,width:180,height:24));field.stringValue="PRIVATE-FIELD";window.contentView!.addSubview(field);window.makeFirstResponder(field);field.selectText(nil)
+        defer{_ = window.makeFirstResponder(nil);field.removeFromSuperview();nativeTarget.pasteAction={}}
         try await TwoPaneEngineVerification.wait{(window.firstResponder as? NSTextView)?.isFieldEditor==true}
+        let fieldEditor=window.firstResponder as! NSTextView
+        nativeTarget.pasteAction={ [weak fieldEditor] in guard let fieldEditor,let value=clipboard.string(forType:.string) else{return};fieldEditor.insertText(value,replacementRange:fieldEditor.selectedRange())}
+        menu.refresh()
         try require(!menu.performKeyEquivalent(event("p",flags:.control,window:window)) && model.wrapLines,"Editor shortcut stole field input")
-        field.removeFromSuperview();window.makeFirstResponder(right)
+        try require(nativePaste.keyEquivalent=="v" && nativePaste.target === nativeTarget && main.performKeyEquivalent(with:event("v",flags:.command,window:window)) && nativeTarget.pastes==1 && fieldEditor.string.contains("PRIVATE-TEXT-PASTE") && model.wrapLines,"Native field-editor Paste did not preserve text/command ownership")
+        field.removeFromSuperview();window.makeFirstResponder(right);nativeTarget.pasteAction={};menu.refresh()
         try send(try item("Wrap long lines",in:main));try require(!model.wrapLines,"Fresh menu did not resume")
         let filter=MergeRegexFilter(name:"Numbers",expression:"[0-9]+",replacement:"")
-        try MergeRegexFilters.save([filter],defaults:prefs);model.regexDefaults=prefs;model.refreshRegexFilters();menu.refresh()
+        let userNames=["No Filter","Configure Filter Regexes…","PRIVATE 🐢 Filter"]
+        try MergeRegexFilters.save([filter]+userNames.map{MergeRegexFilter(name:$0,expression:"[0-9]+",replacement:"")},defaults:prefs);model.regexDefaults=prefs;model.refreshRegexFilters();menu.refresh()
+        guard let filterRoot=items(main).first(where:{$0.identifier?.rawValue=="TurtleGitMerge.FilterRegexes"}),let filterMenu=filterRoot.submenu else{throw Failure(description:"Missing semantic regex menu")}
+        let staticNone=Bundle.main.localizedString(forKey:"No Filter",value:"No Filter",table:nil),staticSettings=Bundle.main.localizedString(forKey:"Configure Filter Regexes…",value:"Configure Filter Regexes…",table:nil)
+        try require(filterRoot.title==Bundle.main.localizedString(forKey:"Filter Regexes",value:"Filter Regexes",table:nil) && filterMenu.items.map(\.title)==[staticNone,"Numbers"]+userNames+[staticSettings],"Static menu captions or user regex names lost localization boundary")
+        func regexItem(_ id:NSUserInterfaceItemIdentifier)throws->NSMenuItem {guard let value=filterMenu.items.first(where:{$0.identifier==id}) else{throw Failure(description:"Missing semantic regex leaf "+id.rawValue)};return value}
+        let staticClear=try regexItem(MergeEditorCommandMenu.noFilterIdentifier),namedClear=try regexItem(MergeEditorCommandMenu.namedFilterIdentifier("No Filter")),namedSettings=try regexItem(MergeEditorCommandMenu.namedFilterIdentifier("Configure Filter Regexes…"))
+        try require(try regexItem(MergeEditorCommandMenu.configureFiltersIdentifier).title==staticSettings && namedClear !== staticClear,"Regex settings/clear identities collided with user names")
         try send(try item("Numbers",in:main));try await TwoPaneEngineVerification.settled(model);menu.refresh()
         try require(model.regexFilterName=="Numbers" && (try item("Numbers",in:main)).state == .on,"Regex submenu did not use owned model")
         try send(try item("No Filter",in:main));try await TwoPaneEngineVerification.settled(model)
+        try send(namedClear);try await TwoPaneEngineVerification.settled(model);menu.refresh()
+        try require(model.regexFilterName=="No Filter" && namedClear.state == .on && staticClear.state == .off,"User regex named No Filter dispatched static clear action")
+        try send(namedSettings);try await TwoPaneEngineVerification.settled(model);menu.refresh()
+        try require(model.regexFilterName=="Configure Filter Regexes…" && namedSettings.title=="Configure Filter Regexes…" && namedSettings.state == .on,"User regex named Configure Filter Regexes dispatched static configure action")
+        try send(staticClear);try await TwoPaneEngineVerification.settled(model)
         try send(try item("Ignore case changes",in:main));try await TwoPaneEngineVerification.settled(model)
         try require(model.comparisonOptions.ignoreCase && MergeComparisonOptions.load(from:prefs).ignoreCase,"Comparison menu persistence")
         try require(!menu.validateMenuItem(try item("Ignore Comments",in:main)),"Unsupported comment profile enabled")
@@ -87,12 +123,13 @@ struct MergeCommandMenusVerification {
         try send(try item("Toolbar",in:main));owner.editorToolbar!.refresh();try require(window.toolbar?.isVisible==true,"Menu cannot restore hidden toolbar")
         try require(model.draftText(base:false)==before && model.canUndo==history,"Presentation menu changed text/history")
         let merge=TextConflictWindowController(repository:GitRepository(root:folder,executable:git),access:nil,path:b.path,workingMerge:try WorkingTextMerge(base:a,theirs:t,mine:b),preferences:prefs)
-        defer{merge.close()};merge.window!.alphaValue=0;merge.window!.orderFront(nil);merge.model.load()
+        defer{merge.close()};merge.window!.alphaValue=0;merge.window!.ignoresMouseEvents=true;merge.window!.orderFront(nil);merge.model.load()
         try await ThreePaneEngineVerification.wait{!merge.model.busy && merge.model.document != nil && merge.model.nativeEditorReady}
-        menu.remove();focused=merge.window;let triple=merge.editorCommandMenu!;triple.keyWindow={focused};triple.install(in:main)
+        menu.remove();focused=merge.window;let triple=merge.editorCommandMenu!;ownedMenus.append(triple);triple.keyWindow={focused};triple.install(in:main)
         merge.model.continueResolving();triple.refresh()
         let resultView=MergeMarkedWordInterface.panes(in:merge.window!.contentView).first{$0.isEditable}!
         let original=merge.model.result, initialPresentation=merge.model.resultPresentation
+        try require(!triple.performKeyEquivalent(event(String(UnicodeScalar(NSF10FunctionKey)!),code:109,flags:.control,window:window)) && merge.model.resultPresentation==initialPresentation,"Foreign-window shortcut reached current Merge selection")
         let mineView=MergeMarkedWordInterface.panes(in:merge.window!.contentView).first{!$0.isEditable && $0.string.contains("new one")}!
         let sourceClipboard=NSPasteboard.withUniqueName();defer{sourceClipboard.releaseGlobally()}
         let sourceMenu=(mineView as! MergeContextMenuProviding).mergeContextMenu(defaults:prefs,pasteboard:sourceClipboard)
@@ -148,7 +185,7 @@ struct MergeCommandMenusVerification {
         try owner.replaceEditor(.compare(base:a,mine:b,single:false),permissions:[])
         let replacement=window.delegate as! FileComparisonWindowController
         try await TwoPaneEngineVerification.settled(replacement.model)
-        let fresh=replacement.editorCommandMenu!;fresh.keyWindow={focused};fresh.install(in:main)
+        let fresh=replacement.editorCommandMenu!;ownedMenus.append(fresh);fresh.keyWindow={focused};fresh.install(in:main)
         try send(retained);try require(!replacement.model.wrapLines,"Retired menu reached replacement")
         replacement.model.setToolbarVisible(true);replacement.editorToolbar!.refresh();replacement.editorToolbar!.toolbar.validateVisibleItems()
         let open=replacement.editorToolbar!.toolbar.items.first{$0.itemIdentifier==MergeToolbarCommand.open.identifier}!
@@ -163,8 +200,13 @@ struct MergeCommandMenusVerification {
                 print("Captured toolbar: active=\(NSApp.isActive), key=\(window.isKeyWindow), open=\(open.isEnabled)")
             }
         }
+        nativeOpen.keyEquivalent="x";nativeOpen.keyEquivalentModifierMask = .command;fresh.refresh();fresh.remove()
+        try require(nativeOpen.keyEquivalent=="x" && nativeOpen.target === nativeTarget && nativePaste.keyEquivalent=="v","Editor custody overwrote an external native shortcut edit")
+        // Only restore our fixture's deliberate host edit after proving custody
+        // refused to overwrite it and after every scoped entry was removed.
+        nativeOpen.keyEquivalent="o";nativeOpen.keyEquivalentModifierMask = .command
         replacement.close();triple.retire();fresh.retire()
-        try require(fileRoot.submenu!.items==[sentinel] && editRoot.submenu!.items.contains(undo) && editRoot.submenu!.items.contains(copy) && !items(main).contains{($0.target as AnyObject?) === menu || ($0.target as AnyObject?) === triple || ($0.target as AnyObject?) === fresh},"Final retirement changed unrelated app menus")
+        try require(fileRoot.submenu!.items.map(ObjectIdentifier.init)==baselineFile && editRoot.submenu!.items.map(ObjectIdentifier.init)==baselineEdit && viewRoot.submenu!.items.map(ObjectIdentifier.init)==baselineView && nativeOpen.keyEquivalent=="o" && nativePaste.keyEquivalent=="v" && !items(main).contains{($0.target as AnyObject?) === menu || ($0.target as AnyObject?) === triple || ($0.target as AnyObject?) === fresh},"Final retirement changed unrelated app menus")
         try require(try Data(contentsOf:a)==old && Data(contentsOf:b)==new,"Menu workflow changed input files")
         print("PASS: native File/Edit/Navigate/View/Help scope, source icons/shortcuts, F6 focus, state/persistence, regex, active Save As, Find/conflict Undo, busy/field/Open/background/epoch/retired gates and unchanged files; owned windows closed")
     }

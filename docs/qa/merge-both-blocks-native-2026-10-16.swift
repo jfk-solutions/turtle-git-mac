@@ -14,7 +14,7 @@ struct MergeBothBlocksVerification {
         let base = root.appendingPathComponent("base"), mine = root.appendingPathComponent("mine"), theirs = root.appendingPathComponent("theirs"), output = root.appendingPathComponent("result")
         for (url,text) in [(base,b),(mine,m),(theirs,t)] { try Data(text.utf8).write(to:url) }
         let owner = TextConflictWindowController(repository:GitRepository(root:root),access:nil,path:"mine",workingMerge:try WorkingTextMerge(base:base,theirs:theirs,mine:mine),preferences:prefs), model = owner.model
-        defer { owner.close() }; owner.window!.alphaValue = 0; owner.window!.orderFront(nil); model.load()
+        defer { owner.close() }; owner.window!.alphaValue = 0;owner.window!.ignoresMouseEvents=true; owner.window!.orderFront(nil); model.load()
         func views() -> [NSTextView] { ThreePaneEngineVerification.textViews(owner.window?.contentView).filter { !$0.isFieldEditor } }
         func ready() -> Bool { views().compactMap { $0 as? MergeContextMenuProviding }.allSatisfy(\.mergeSourceRowsReady) }
         func wait(_ condition:()->Bool,line:Int = #line) async throws {
@@ -39,6 +39,7 @@ struct MergeBothBlocksVerification {
         func invoke(_ item:NSMenuItem) throws { try require(NSApplication.shared.sendAction(item.action!,to:item.target,from:item),"Block dispatch") }
         for choice in [MergeBlockChoice.mineThenTheirs,.theirsThenMine] {
             let stale = try menu(right,.theirs,text:"mine1")
+            model.clearNavigationBlockSelection(clearTextSelections:true)
             model.selectConflict(0); model.choose(choice)
             let expected = choice == .mineThenTheirs ? "head 🐢\nmine1\nmine2\ntheirs\ntail\n" : "head 🐢\ntheirs\nmine1\nmine2\ntail\n"
             try await wait { model.result == expected && model.blocks.isEmpty && model.sourceComparison?.rows.count == count + 2 && result.string == model.resultDisplayText }
@@ -57,6 +58,15 @@ struct MergeBothBlocksVerification {
             model.undo(); try await wait { model.result == expected && model.sourceComparison?.rows.count == count + 2 }
             model.redo(); try await wait { model.result == partial }
             model.undo(); try await wait { model.result == expected }
+            // The global toolbar shares the same exact resolved-row selection
+            // operation as the context menu, even with no conflicts remaining.
+            _ = try menu(result,other,text:firstText)
+            owner.editorToolbar!.refresh()
+            let generic:MergeToolbarCommand=other == .mine ? .useMine:.useTheirs
+            try require(owner.editorToolbar!.commandState(generic)?.enabled==true,"Resolved-row generic choice disabled")
+            owner.editorToolbar!.perform(generic)
+            try await wait{model.result==partial && model.blocks.isEmpty && model.alignedResultProjection != nil}
+            model.undo();try await wait{model.result==expected}
             model.undo(); try await wait { model.resultPresentation == initial && model.sourceComparison?.rows.count == count && result.string == model.resultDisplayText }
             try invoke(stale); try require(model.resultPresentation == initial,"Undo revived a context command from an earlier source layout revision")
         }
@@ -76,6 +86,14 @@ struct MergeBothBlocksVerification {
         try invoke(menu(right,.mine,offset:headEnd + 1))
         try await wait { model.sourceComparison?.rows.count == count && model.result == initial.text && model.alignedResultProjection != nil }
         model.undo(); try await wait { model.resultPresentation == pasted && model.sourceComparison?.rows.count == count + 1 }
+        _ = try menu(right,.mine,offset:headEnd + 1)
+        let gapRanges=MergeSourceComparison.navigationRanges(text:right.string),gapRow=gapRanges.lastIndex{$0.location<=headEnd+1}!
+        let margin=right as! MergeMarginSelecting
+        margin.beginMarginSelection();margin.selectMargin(rows:gapRow..<(gapRow+1),selection:NSRange(location:headEnd+1,length:0),caret:headEnd+1)
+        try require((right as! MergeBlockSelecting).mergeSelectedBlockRange != nil && model.canChooseSourceBlock,"Native source gap margin did not own an explicit generic choice")
+        model.choose(.mine)
+        try await wait{model.sourceComparison?.rows.count==count && model.result==initial.text && model.alignedResultProjection != nil}
+        model.undo();try await wait{model.resultPresentation==pasted && model.sourceComparison?.rows.count==count+1}
         model.undo(); try await wait { model.resultPresentation == initial && model.sourceComparison?.rows.count == count }
         try require(try String(contentsOf:base,encoding:.utf8) == b && String(contentsOf:mine,encoding:.utf8) == m && String(contentsOf:theirs,encoding:.utf8) == t,"Block layouts rewrote an input file")
         owner.close(); try await wait { MergeRegexOperations.activeRequests == 0 }

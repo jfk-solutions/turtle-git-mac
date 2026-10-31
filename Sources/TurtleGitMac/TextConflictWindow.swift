@@ -1376,6 +1376,48 @@ private enum MergeSourceSide {
         guard let edit = MergeSourceBlockEdit(comparison:comparison,presentation:resultPresentation,rows:rows,choice:choice) else { return nil }
         return SourceBlockCommand(owner:sourceCommandOwner,generation:loadGeneration,layoutRevision:sourceLayoutRevision,expected:resultPresentation,conflict:nil,edit:edit,choice:choice,lineEnding:resultLineEnding)
     }
+    private var sourceChoiceUsesSelection: Bool {
+        // An explicit selection in our unmapped Base/P4 pane is still intent:
+        // refuse it instead of applying an unrelated current conflict. Keep the
+        // last focused pane across a toolbar taking first responder.
+        if let view = (window?.firstResponder as? MergeTextView) ?? lastNavigationView,
+           view.model === self, view.window === window, !view.isHiddenOrHasHiddenAncestor,
+           (view.sourceSide == nil && !view.mergeEditable || view.p4Pane != nil),
+           view.mergeSelectedBlockRange != nil || view.selectedRange().length > 0 { return true }
+        return navigationOwnsChoice || (selectionRequest == nil && activeNavigationView.map {
+            ownsPaneInput($0) && ($0.mergeSelectedBlockRange != nil || $0.selectedRange().length > 0)
+        } == true)
+    }
+    private var currentSourceChoiceRows: Range<Int>? {
+        guard let view = activeNavigationView, ownsPaneInput(view), !view.isHiddenOrHasHiddenAncestor,
+              view.p4Pane == nil, view.mergeSourceRowsReady else { return nil }
+        return view.sourceChoiceRows
+    }
+    /// All native source-choice surfaces share the same captured aligned edit.
+    /// An explicit selection never falls back to an unrelated current conflict.
+    func currentSourceBlockCommand(choice: MergeBlockChoice) -> SourceBlockCommand? {
+        guard sourceMutationsAllowed else { return nil }
+        if sourceChoiceUsesSelection {
+            return currentSourceChoiceRows.flatMap { sourceBlockCommand(rows: $0, choice: choice) }
+        }
+        guard !blocks.isEmpty else { return nil }
+        let conflict = blocks[min(selectedConflict, blocks.count - 1)]
+        let alignedRows = alignedResultProjection?.sourceRows(intersecting: conflict.range)
+        let rows = alignedRows.flatMap { rows in rows.min().flatMap { first in rows.max().map { first..<($0 + 1) } } } ?? resultPresentation.navigationMap.sourceRows(resultRange: conflict.range)
+        if let rows, let command = sourceBlockCommand(rows: rows, choice: choice) { return command }
+        return SourceBlockCommand(owner: sourceCommandOwner, generation: loadGeneration, layoutRevision: sourceLayoutRevision,
+                                  expected: resultPresentation, conflict: conflict, edit: nil, choice: choice, lineEnding: resultLineEnding)
+    }
+    var canChooseSourceBlock: Bool {
+        guard sourceMutationsAllowed else { return false }
+        guard sourceChoiceUsesSelection else { return !blocks.isEmpty }
+        guard let rows = currentSourceChoiceRows, let comparison = sourceComparison,
+              !rows.isEmpty, rows.lowerBound >= 0, rows.upperBound <= comparison.rows.count,
+              resultPresentation.navigationMap.resultRange(sourceRows: rows) != nil else { return false }
+        // An aligned projection and bounded rows satisfy the Core edit's input
+        // contract without rebuilding the whole edit during menu validation.
+        return alignedResultProjection != nil || sourceBlockCommand(rows: rows, choice: .mine) != nil
+    }
     fileprivate func wholeSourceFileCommand(side: MergeSourceSide) -> SourceBlockCommand? {
         guard sourceMutationsAllowed, let comparison = sourceComparison else { return nil }
         let edit = MergeAlignedSourceBlockEdit(wholeFileFrom: comparison, presentation: resultPresentation, mine: side == .mine, lineEnding: resultLineEnding)
@@ -1386,6 +1428,9 @@ private enum MergeSourceSide {
         if let aligned = command.aligned {
             if let applyAlignedSourceBlock { applyAlignedSourceBlock(aligned) }
             else { sourceComparison = aligned.comparison; resultPresentation = aligned.presentation; result = aligned.presentation.text }
+            if sourceLayoutRevision != command.layoutRevision, resultPresentation == aligned.presentation {
+                retainSourceChoiceSelection(rows: aligned.selectedRows)
+            }
         } else if let conflict = command.conflict {
             if let applyBlock { applyBlock(conflict.range,conflict.replacement(command.choice)) }
             else if let next = resultPresentation.replacing(conflict.range,with:conflict.replacement(command.choice),state:.resolved) { resultPresentation = next; result = next.text }
@@ -1890,6 +1935,7 @@ private enum MergeSourceSide {
         commentProfiles = profiles
         comparisonOptions = options; if changingOptions { options.save(to: comparisonDefaults) }; pendingComparisonOptions = nil
         regexFilterName = filter?.name
+        sourceChoiceSelection = nil
         navigationOwnsChoice = false; navigationChoiceRange = nil
         selectedConflict = 0; caret = NSRange(location: 0, length: 0); selectionRequest = nil
         wrapLines = comparisonDefaults.bool(forKey: "TurtleGitMerge.WrapLines")
@@ -1907,12 +1953,34 @@ private enum MergeSourceSide {
     private(set) var selectingNavigationBlock = false
     private var navigationOwnsChoice = false
     private var navigationChoiceRange: NSRange?
+    private struct SourceChoiceSelection {
+        let generation: Int, layout: Int, presentation: Int
+        let rows: Range<Int>
+    }
+    private var sourceChoiceSelection: SourceChoiceSelection?
+    fileprivate func clearSourceChoiceSelection() { sourceChoiceSelection = nil }
+    private func retainSourceChoiceSelection(rows: Range<Int>) {
+        guard !rows.isEmpty else { sourceChoiceSelection = nil; return }
+        sourceChoiceSelection = .init(generation: loadGeneration, layout: sourceLayoutRevision, presentation: resultPresentationRevision, rows: rows)
+        navigationOwnsChoice = true
+        navigationChoiceRange = resultPresentation.navigationMap.resultRange(sourceRows: rows)
+        for view in navigationViews { applySourceChoiceSelection(in: view) }
+    }
+    fileprivate func applySourceChoiceSelection(in view: MergeTextView) {
+        guard let selection = sourceChoiceSelection, selection.generation == loadGeneration,
+              selection.layout == sourceLayoutRevision, selection.presentation == resultPresentationRevision,
+              ownsPaneInput(view), view.p4Pane == nil, view.mergeSourceRowsReady,
+              let range = navigationRange(rows: selection.rows, in: view) else { return }
+        selectingNavigationBlock = true; defer { selectingNavigationBlock = false }
+        view.installBlock(range, caret: range.location, trimFinalEnding: view.mergeEditable && view.sourceCells == nil)
+    }
     fileprivate var navigationViews: [MergeTextView] {
         var views = sourceScrolls.values.compactMap { $0.view?.documentView as? MergeTextView }.filter { $0.sourceSide != nil }
         if let result = locatorResultScroll?.documentView as? MergeTextView { views.append(result) }
         return views
     }
     func clearNavigationBlockSelection(clearTextSelections: Bool = false) {
+        sourceChoiceSelection = nil
         for view in navigationViews {
             view.blockSelection.clear(in:view)
             if clearTextSelections { view.setSelectedRange(NSRange(location:view.selectedRange().location,length:0)) }
@@ -1928,8 +1996,9 @@ private enum MergeSourceSide {
     fileprivate func ownsPaneInput(_ view:MergeTextView)->Bool {view.window === window && navigationViews.contains{$0 === view}}
     fileprivate func focusNavigation(_ view: MergeTextView) {
         schedulePanePresentation()
-        guard view.mergeEditable || view.sourceSide != nil else { return }
+        guard view.model === self, view.window === window else { return }
         if lastNavigationView !== view { lastNavigationView = view; objectWillChange.send() }
+        guard view.mergeEditable || view.sourceSide != nil else { return }
         previewLine(in:view,offset:view.selectedRange().location)
     }
     private func navigationStates(_ view: MergeTextView) -> [MergeSourceState] {
@@ -1971,6 +2040,11 @@ private enum MergeSourceSide {
         guard !retired, !selectingNavigationBlock, window?.firstResponder === view,
               view.sourceCells == nil || view.sourceLayoutRevision == sourceLayoutRevision else { return }
         previewLine(in:view,offset:view.selectedRange().location)
+        if let selection = sourceChoiceSelection,
+           selection.layout != sourceLayoutRevision || selection.presentation != resultPresentationRevision ||
+           navigationRange(rows: selection.rows, in: view) != view.mergeSelectedBlockRange {
+            sourceChoiceSelection = nil
+        }
         if view.mergeEditable {
             let nextCaret = view.serializedSelection(view.selectedRange()) ?? view.selectedRange()
             if caret != nextCaret { caret = nextCaret }
@@ -1982,10 +2056,17 @@ private enum MergeSourceSide {
         let mapped: NSRange?
         if view.mergeEditable { mapped = view.serializedSelection(selected) }
         else if view.sourceSide != nil {
-            let ranges = navigationRanges(view), selection = selected
-            let start = ranges.lastIndex(where: { $0.location <= selection.location }) ?? 0
-            let end = ranges.lastIndex(where: { $0.location <= NSMaxRange(selection) }) ?? start
-            mapped = resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1))
+            if let rows = view.sourceChoiceRows {
+                // Block markers include a final empty display row; ordinary
+                // text selections remain half-open at the next row's start.
+                mapped = resultPresentation.navigationMap.resultRange(sourceRows: rows)
+            } else {
+                let ranges = navigationRanges(view), selection = selected
+                let start = ranges.lastIndex(where: { $0.location <= selection.location }) ?? 0
+                let last = selection.length > 0 ? NSMaxRange(selection) - 1 : selection.location
+                let end = ranges.lastIndex(where: { $0.location <= last }) ?? start
+                mapped = resultPresentation.navigationMap.resultRange(sourceRows:start..<(end + 1))
+            }
         } else { return }
         let changed = !navigationOwnsChoice || navigationChoiceRange != mapped
         navigationOwnsChoice = true; navigationChoiceRange = mapped
@@ -2076,22 +2157,17 @@ private enum MergeSourceSide {
     }
     func selectConflict(_ index: Int) {
         let blocks = blocks; guard !externalReloadBlocksCommands,!preservingSourceCopies,!retired, !blocks.isEmpty else { return }
+        sourceChoiceSelection = nil
         navigationOwnsChoice = false; navigationChoiceRange = nil
         selectedConflict = min(max(index, 0), blocks.count - 1); selectionRequest = blocks[selectedConflict].range
     }
     func choose(_ choice: MergeBlockChoice) {
-        guard sourceMutationsAllowed, canChooseConflict else { return }
-        let index = navigationOwnsChoice ? conflictIndex(in:navigationChoiceRange)! : min(selectedConflict, blocks.count - 1)
-        do {
-            let block = blocks[index]
-            let alignedRows = alignedResultProjection?.sourceRows(intersecting:block.range)
-            let rows = alignedRows.flatMap { rows in rows.min().flatMap { first in rows.max().map { first..<($0 + 1) } } } ?? resultPresentation.navigationMap.sourceRows(resultRange:block.range)
-            if let rows, let command = sourceBlockCommand(rows:rows,choice:choice) { performSourceBlock(command) }
-            else if let applyBlock { applyBlock(block.range, block.replacement(choice)) }
-            else { let block = blocks[index], replacement = block.replacement(choice); if let presentation = resultPresentation.replacing(block.range, with: replacement, state: .resolved) { resultPresentation = presentation; result = presentation.text } }
-            selectConflict(index)
-        }
-        catch { self.error = error.localizedDescription }
+        let explicit = sourceChoiceUsesSelection, index = selectedConflict
+        guard let command = currentSourceBlockCommand(choice: choice) else { return }
+        performSourceBlock(command)
+        // Keep the old current-conflict fallback for callers without an explicit
+        // selection; aligned selected-row edits retain their new result block.
+        if !explicit { selectConflict(index) }
     }
     fileprivate func useFile(_ side: MergeSourceSide) {
         guard let command = wholeSourceFileCommand(side: side) else { return }
@@ -2725,7 +2801,7 @@ private struct TextConflictDialog: View {
                     Button { model.redo() } label: { CommandLabel(title: "Redo", icon: .mergeRedo) }.keyboardShortcut("z", modifiers: [.command, .shift]).disabled(!model.sourceMutationsAllowed || !model.canRedo)
                     Menu("Use text block") {
                         ForEach(MergeBlockChoice.allCases, id: \.self) { choice in Button { model.choose(choice) } label: { CommandLabel(title: choice.rawValue, icon: choice.icon) } }
-                    }.disabled(!model.canChooseConflict)
+                    }.disabled(!model.canChooseSourceBlock)
                     MergeTypingModeControl(overwrite:model.overwriteMode,enabled:model.sourceMutationsAllowed,toggle:{model.overwriteMode.toggle()})
                     MergePaneStatus(column:model.presentationColumn,marked:model.presentationMarkedCounts)
                     Text("Line \(model.resultLineNumber)").font(.caption).foregroundStyle(.secondary)
@@ -2935,6 +3011,7 @@ private struct MergeEditor: NSViewRepresentable {
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         if presentationChanged { scroll.verticalRulerView?.needsDisplay = true }
         if p4Pane != nil {view.applyP4Colors()}
+        model.applySourceChoiceSelection(in: view)
         if editable { model.nativeEditorDidUpdate(view) }
         if sourceSide == .mine { DispatchQueue.main.async { [weak view, weak model] in guard let view, let model else { return }; model.applyMergeToolInitialLine(view) } }
     }
@@ -3035,7 +3112,7 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     var navigationAllowed: Bool { model?.sourceToolsAllowed == true && mergeSourceRowsReady }
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
-    func beginUserNavigation() { model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.selectionRequest = nil }
+    func beginUserNavigation() { model?.clearSourceChoiceSelection(); model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.selectionRequest = nil }
     override func scrollWheel(with event: NSEvent) {
         // Route through the scroll view's gesture-identity latch exactly once.
         // Calling super here as well would apply native wheel deltas a second time.
@@ -3609,6 +3686,13 @@ private final class MergeTextView: MergePaneInputTextView, MergeLineDiffHoverPro
     @objc private func changeWhitespace(_ sender:NSMenuItem) {
         guard historyAllowed, MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
         model?.changeWhitespace(MergeWhitespaceCommand.allCases[sender.tag],tabWidth:mergeTabWidth)
+    }
+    fileprivate var sourceChoiceRows: Range<Int>? {
+        guard mergeSourceRowsReady, mergeSelectedBlockRange != nil || selectedRange().length > 0 else { return nil }
+        if sourceCells != nil { return selectedSourceRows }
+        guard mergeEditable, let model,
+              let selection = serializedSelection(mergeSelectedBlockRange ?? selectedRange()) else { return nil }
+        return model.resultPresentation.navigationMap.sourceRows(resultRange: selection)
     }
     private var selectedSourceRows: Range<Int>? {
         guard let cells = sourceCells, mergeSourceRowsReady else { return nil }

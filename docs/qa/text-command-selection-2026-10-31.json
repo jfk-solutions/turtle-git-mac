@@ -1,0 +1,123 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-grouped-native-checkpoint-passed",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_anchors": [
+    "src/TortoiseMerge/MainFrm.cpp:2039-2063 source choice enablement uses Bottom.HasSelection",
+    "src/TortoiseMerge/BottomView.cpp:180-202 selected view rows route to UseBlock"
+  ],
+  "families": [
+    "Shared selected aligned-row Mine/Theirs/both-order commands across toolbar, Edit, keys, footer and existing context actions",
+    "Exact half-open and gap-row selection, retained post-choice rows, history/save and unsupported-pane refusal",
+    "Native text-editor caption/filter identity and shared image/text shortcut ownership"
+  ],
+  "implementation": [
+    "Reuse existing Core aligned source edit producers; no speculative resolved-empty or whitespace enum implementation.",
+    "Explicit mapped selections take precedence over current-conflict fallback. Unsupported Base/P4 selections cannot target another conflict.",
+    "Captured generation/layout/presentation guards and existing native history remain authoritative.",
+    "Localized static captions and semantic regex IDs preserve arbitrary user names.",
+    "One shared shortcut receipt preserves native actions, exact identity and conditional restore; busy editors retain disabled owned Open, while native text editing remains available."
+  ],
+  "checkpoint_scope": [
+    "scripts/test-merge-ignored.py --only blocks --only copies",
+    "scripts/test-merge-view-family.py --only menus --only lifecycle",
+    "scripts/test-image-command-family.py --only toolbar --git /usr/bin/git"
+  ],
+  "core": "Core implementation unchanged. No Core suite planned for native-only routing; native cases exercise existing aligned edits and exact history/save bytes.",
+  "limits": [
+    "Classic aligned row selection does not invent coordinates for raw Base/P4 panes; existing whole-source/P4 chunk controls retain their own paths.",
+    "An unbundled receiver uses English fallback; renamed-root and static-label contracts do not prove end-to-end translated-app acceptance.",
+    "Private key-owner/menu injection does not establish physical keyboard/menu tracking, VoiceOver, signed grants or all source-layout states.",
+    "Installed build47 remains unchanged and predates this batch. Full hosted integration and full-port acceptance remain open.",
+    "No public binary upload, notarization or App Store submission."
+  ],
+  "retained_failures": [
+    {
+      "log": "build/qa/text-command-selection-debug-2026-10-31.log",
+      "cause": "Menu identifier used NSToolbarItem.Identifier instead of NSUserInterfaceItemIdentifier. Corrected wrapper preserves its raw semantic identifier; no native receiver ran."
+    }
+  ],
+  "resources": {
+    "localization": "38 locales / 1326 keys; write and check passed. Counts do not prove complete translation.",
+    "help": "64 documents / 53 topics / 98 source members / 9400080 bytes; write and check passed.",
+    "coverage": "Reconciled all 130 pinned dialog/id pairs and 1659 static controls. Partial mappings and 85 pending control reviews remain explicit; these are not feature completion percentages.",
+    "site": "Rendered 520 documents with zero unresolved fragments; build/qa/text-command-selection-site-2026-10-31.log."
+  },
+  "build": {
+    "result": "passed",
+    "log": "build/qa/text-command-selection-debug-identifier-2026-10-31.log"
+  },
+  "native": {
+    "result": "all-five-existing-cases-passed-on-first-grouped-native-run",
+    "engines": "System Git only; no Core or Git implementation changed. Hosted CI retains the complete engine matrix.",
+    "groups": [
+      {
+        "case": "choices",
+        "exit": 0,
+        "elapsed_seconds": 11.316,
+        "log": "build/qa/text-command-selection-choices-2026-10-31.log"
+      },
+      {
+        "case": "menus",
+        "exit": 0,
+        "elapsed_seconds": 13.006,
+        "log": "build/qa/text-command-selection-menus-2026-10-31.log"
+      },
+      {
+        "case": "images",
+        "exit": 0,
+        "elapsed_seconds": 15.583,
+        "log": "build/qa/text-command-selection-images-2026-10-31.log"
+      }
+    ],
+    "cases": [
+      {
+        "selector": "blocks",
+        "receiver_reaped": 22573,
+        "scope": "Ordinary selected source/result rows; all four model/footer, toolbar, menu and key routes; exact half-open boundaries, gap ownership, common/both-order choices, history/save bytes, stale/busy gates; explicit unsupported Base selection cannot use a different conflict."
+      },
+      {
+        "selector": "copies",
+        "receiver_reaped": 22579,
+        "scope": "Generic resolved row and source gap choices, original both-order/all-pane state and numbering, partial resolution, resolved-empty identity, exact UTF-8 Save and complete Undo/Redo."
+      },
+      {
+        "selector": "menus",
+        "receiver_reaped": 22601,
+        "scope": "Renamed semantic native roots, static-caption fallback and literal user regex names, source Cmd-O custody, busy disabled-key consumption without action, real native field-editor private Paste, semantic filter IDs and conditional external shortcut restoration."
+      },
+      {
+        "selector": "lifecycle",
+        "receiver_reaped": 22626,
+        "scope": "Whole/submenu reconstruction, tracking-deferred semantic filter/root changes, source aliases, five conflict block keys with one-step Undo, stale and retired refusal."
+      },
+      {
+        "selector": "toolbar (images)",
+        "receiver_reaped": 22651,
+        "scope": "Affected shared custody extraction: comparison/conflict/standalone image menus, source recipes/artwork/keys, field-editor Paste, exact host restoration, immutable source bytes/HEAD/index and owner cleanup."
+      }
+    ]
+  },
+  "cleanup": {
+    "owned_receiver_pids": [
+      22573,
+      22579,
+      22601,
+      22626,
+      22651
+    ],
+    "independent_ps": "All five recorded receiver PIDs absent after successful terminal completion. Private repositories/preferences/pasteboards and invisible windows were used; no unrelated user app was signalled."
+  },
+  "production_sources_sha256": {
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "546454157ac098806c89e6ccf2d5e6773c5041b19fdbd175358e086f419ad461",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "d6db2e57bb3b8cfeae31b320f888a97ad1b1914c82136c0eef15c481dfe451ee",
+    "Sources/TurtleGitMac/ImageEditorToolbar.swift": "ed765c761a53a1162feae31cee9528a3e561ed96156ecbc891d8ce31a1af27e4"
+  },
+  "source_parent_commit": "14590ece27257b6ae18c5f5b2fc034879307d543",
+  "fixtures_sha256": {
+    "docs/qa/merge-source-blocks-native-2026-10-16.swift": "41d0632aade8f4711ec26b22a5026eb6a5e2420290929545f61460bd318d5e62",
+    "docs/qa/merge-both-blocks-native-2026-10-16.swift": "69ba7482224f33a2aae6fecd540409a86e7de343036356d278b706eba7cf6d83",
+    "docs/qa/merge-command-menus-native-2026-10-16.swift": "1778cb8cd967dee5162dd4b669e247956fcf164550b523a8743d31039e87ba10",
+    "docs/qa/merge-menu-lifecycle-native-2026-10-16.swift": "8e82369808eb5efda3d8fa643fcff972b2b12859cc8236816a81f9c02b5cd668"
+  }
+}
