@@ -1,5 +1,28 @@
 # TurtleGit for Mac — full port tracking
 
+## Utility and local-tool startup continuation
+
+The [utility startup batch](qa/utility-startup-2026-10-31.json) opens About, Help,
+other application utilities, global Settings and local Merge Open/two/three-way
+inputs without unrelated Git configuration or saved-repository preparation.
+Context Settings, Git-backed patch review/generation and Git-first FIFO retain
+their existing readiness and authority. About and engine Settings use an isolated
+owned version probe; ordinary Git commands, including generic `--version`, keep
+their configuration barrier.
+
+Two focused Core methods and four native case/engine pairs pass after the recorded
+malformed-configuration repair. All owned native receivers are reaped. The
+screenshot refresh could not obtain native computer-control state; the private
+preview was terminated and verified absent, with no new images published. The
+existing light/dark screenshots remain. Installed build42 predates both this
+and the preceding local-document source batch.
+
+The older build41-source hosted Core failure is the already repaired WMF text
+background mismatch; its [earlier scoped checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)
+remains the evidence, without another local rerun. That run's distribution lane
+is still active. A complete corrected-source hosted pass, fresh physical
+acceptance and the remaining full-port/release requirements remain open.
+
 ## Installed local testing build42
 
 [Signed build42](qa/signed-consolidation-build42-2026-10-31.json), `0.1.0 (42)`,

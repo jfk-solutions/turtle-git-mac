@@ -188,3 +188,52 @@ The sandboxed Finder caller's OpenConfiguration arguments are ignored according
 to the installed AppKit SDK, so URL routing must also work without a sentinel
 argument. A separate earlier writer-lock timeout remains an unresolved cache
 contention observation; visible transient badges alone do not certify Add success.
+
+
+## Repository-independent utility admission — 31 October 2026
+
+About, Help, introduction (`rtfm`), autotext test, update check and first-start
+wizard CLI/URL requests no longer restore Git configuration grants or saved
+repository/watch state before their native utility handler. A Settings URL with
+no paths opens the global property sheet through the same lightweight owner.
+Settings with a captured path, including CLI Settings' current-directory default,
+retains repository preparation. Existing borrowed workspace state is retained.
+A utility behind an earlier queued Git request still waits for that FIFO owner;
+Quit/retirement and late-read fences remain unchanged.
+
+The standalone Merge Open dialog and captured local two/three-way file inputs
+also bypass initial configuration restoration. Their native readers capture local
+bytes with the existing input grants and use bundled MergeDiff. Patch review
+retains the gate because it discovers a Git target; patch generation retains it
+because it runs Git `diff --no-index`. These boundaries follow the pinned
+TortoiseMerge command-entry behavior documented in
+[Merge tool entry parity](MERGE-TOOL-ENTRY-PARITY.md). The image/Unified Diff
+local-tool exceptions remain intact.
+
+About and engine Settings use an explicit `executableVersion` metadata API with
+the existing cancellable owned process runner. Git initializes configuration even
+for `--version`; the initial grouped Core check exposed malformed global config
+failures against both engines. The metadata API therefore runs in its fresh owned
+temporary directory and neutralizes inherited/caller Git config and repository
+context after all environment merges. It also skips SSH preference resolution.
+Generic `run`, including plain `--version`, raw argv and alternate executors,
+always retains configuration preparation. No repository command is exempted.
+
+The [grouped validation record](qa/utility-startup-2026-10-31.json) retains the
+initial malformed-configuration failure and its isolated metadata repair. Both
+focused Core methods pass against system/bundled Git; the affected Debug build
+and all four native case/engine pairs pass. The dedicated
+[utility receiver](qa/utility-startup-native-2026-10-31.swift) covers real About
+and global Settings, captured external utility handlers, saved-state initialization
+boundaries, held Git-first FIFO, context Settings and actual local Merge Open,
+two-way and three-way editors. Core assertions cover poisoned config/repository
+environment, nonexistent caller root, cancellation and retained ordinary-command
+preparation. All four offscreen native receivers were reaped.
+
+The attempted documentation screenshot refresh produced no captures: computer
+control timed out twice, and the owned preview process was terminated and
+independently absent. Launch Services retained private CFFIXED preferences and
+Git config overrides but replaced HOME/TMPDIR, so that attempt does not prove a
+fully private launch environment. Existing screenshot assets were not replaced.
+These checks establish neither physical focus, updated signed deployment,
+complete hosted CI nor visual parity of every utility layout.

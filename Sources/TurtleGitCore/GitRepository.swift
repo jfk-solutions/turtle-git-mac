@@ -55,6 +55,15 @@ public actor GitRepository {
     /// It carries Git path bytes that have no UTF-8 spelling; the corresponding
     /// String is a diagnostic caption, never a replacement filesystem pathname.
     public func run(_ arguments: [String], argumentBytes: [Int: Data] = [:], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, executorOverride: URL? = nil) throws -> GitResult {
+        try execute(arguments, argumentBytes:argumentBytes, environmentOverrides:environmentOverrides, literalPathspecs:literalPathspecs, successfulExitCodes:successfulExitCodes, cancellation:cancellation, input:input, retainStandardOutput:retainStandardOutput, consumeOutput:consumeOutput, onOutput:onOutput, executorOverride:executorOverride)
+    }
+    /// Inspect the selected executable without repository/configuration authority.
+    /// This owned metadata operation uses a fresh directory and neutralizes Git
+    /// configuration and repository environment after merging caller overrides.
+    public func executableVersion(environmentOverrides:[String:String] = [:], cancellation:OperationCancellation? = nil) throws -> GitResult {
+        try execute(["--version"],environmentOverrides:environmentOverrides,cancellation:cancellation,executableMetadata:true)
+    }
+    private func execute(_ arguments: [String], argumentBytes: [Int: Data] = [:], environmentOverrides: [String: String] = [:], literalPathspecs: Bool = true, successfulExitCodes: ClosedRange<Int32> = 0...0, cancellation: OperationCancellation? = nil, input: Data? = nil, retainStandardOutput: Bool = true, consumeOutput: ((GitOutputChunk) throws -> Void)? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, executorOverride: URL? = nil, executableMetadata:Bool = false) throws -> GitResult {
         guard argumentBytes.keys.allSatisfy(arguments.indices.contains), argumentBytes.values.allSatisfy({ !$0.contains(0) }) else {
             throw NSError(domain: NSPOSIXErrorDomain, code: Int(EINVAL))
         }
@@ -64,7 +73,9 @@ public actor GitRepository {
         try cancellation?.check()
         // Both CLI and optional libgit2 executors use this boundary. Saved
         // config/include directory scopes must precede either engine's reads.
-        try GitRuntime.prepareForGitReads(cancellation: cancellation)
+        // Only the dedicated metadata API isolates configuration/repository
+        // inputs; generic run, including plain --version, retains preparation.
+        if !executableMetadata {try GitRuntime.prepareForGitReads(cancellation:cancellation)}
         // The parent retains the global Shell-status fence through process
         // cancellation and drain. It is deliberately close-on-exec and does not
         // turn a GUI window or an idle app into a permanent cache blocker.
@@ -78,7 +89,7 @@ public actor GitRepository {
         FileManager.default.createFile(atPath: err.path, contents: nil)
         let output = try FileHandle(forWritingTo: out), error = try FileHandle(forWritingTo: err)
         defer { try? output.close(); try? error.close() }
-        let commandArguments = commandInvocation(arguments, literalPathspecs: literalPathspecs, executorOverride: executorOverride).arguments
+        let commandArguments = executableMetadata ? ["--literal-pathspecs","-C",temporary.path,"--version"] : commandInvocation(arguments, literalPathspecs: literalPathspecs, executorOverride: executorOverride).arguments
         let prefixCount = commandArguments.count - arguments.count
         let commandArgumentBytes = Dictionary(uniqueKeysWithValues: argumentBytes.map { ($0.key + prefixCount, $0.value) })
         let promptCancellation = try executorOverride.map { _ in try GitRemotePromptCancellation(directory: temporary) }
@@ -96,13 +107,21 @@ public actor GitRepository {
         environment["GIT_PAGER"] = "cat"
         environment["LC_ALL"] = "C"
         environment.merge(GitRuntime.environment(executable: executable)) { _, runtime in runtime }
-        environment.merge(SSHClientPreferences.load().environment(existing: environment)) { _, selected in selected }
+        if !executableMetadata {environment.merge(SSHClientPreferences.load().environment(existing: environment)) { _, selected in selected }}
         environment.merge(environmentOverrides) { _, override in override }
+        if executableMetadata {
+            // Git initializes config even for --version. Do not let inherited
+            // or caller-provided repository/config paths turn About into a
+            // repository operation. PATH and bundled binary runtime stay intact.
+            let contextKeys:Set<String>=["GIT_DIR","GIT_WORK_TREE","GIT_COMMON_DIR","GIT_INDEX_FILE","GIT_OBJECT_DIRECTORY","GIT_ALTERNATE_OBJECT_DIRECTORIES","GIT_SHALLOW_FILE","GIT_GRAFT_FILE","GIT_NAMESPACE","GIT_PREFIX","GIT_CONFIG"]
+            for key in Array(environment.keys) where contextKeys.contains(key) || key.hasPrefix("GIT_CONFIG_") {environment.removeValue(forKey:key)}
+            environment.merge(["GIT_CONFIG_GLOBAL":"/dev/null","GIT_CONFIG_SYSTEM":"/dev/null","GIT_CONFIG_NOSYSTEM":"1","GIT_CONFIG_COUNT":"0","GIT_CONFIG_PARAMETERS":""]) {_, own in own}
+        }
         environment.removeValue(forKey: "TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES")
-        let sshPrompt = GitAskpassRuntime.sshEnvironment(arguments: arguments, environment: environment, helper: askpass)
+        let sshPrompt = executableMetadata ? [:] : GitAskpassRuntime.sshEnvironment(arguments: arguments, environment: environment, helper: askpass)
         environment.merge(sshPrompt) { _, selected in selected }
         if !sshPrompt.isEmpty { environment["TURTLEGIT_ASKPASS_APPEARANCE"] = UserDefaults.standard.string(forKey: "appearance") ?? "system" }
-        if GitAskpassRuntime.shouldInstall(arguments: arguments, environment: environment, helper: askpass), let askpass {
+        if !executableMetadata, GitAskpassRuntime.shouldInstall(arguments: arguments, environment: environment, helper: askpass), let askpass {
             // Preserve explicit core.askPass, including an explicitly empty value.
             let configured = try run(["config", "--get", "core.askPass"], environmentOverrides: environmentOverrides, successfulExitCodes: 0...1, cancellation: cancellation)
             if configured.exitCode == 1 {

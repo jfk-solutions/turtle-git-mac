@@ -508,6 +508,9 @@ jobs:
       - name: First Start SSH selection and owned inspection
         if: matrix.lane == 'settings-finder'
         run: python3 scripts/test-first-start-ssh.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Repository-independent utility and local tool startup
+        if: matrix.lane == 'settings-finder'
+        run: python3 scripts/test-utility-startup.py
       - name: Source reference refresh and remote-manager return ownership
         if: matrix.lane == 'history-references'
         run: python3 scripts/test-reference-refresh.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

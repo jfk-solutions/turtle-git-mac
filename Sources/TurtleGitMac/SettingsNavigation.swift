@@ -923,7 +923,7 @@ enum TurtleGitAboutTool: String, CaseIterable {
                 if let inspect {result=try await inspect(engine,environment,token)}
                 else {
                     let repository=try GitRepository(root:TurtleGitTemporaryStorage.root,executable:engine)
-                    result=try await repository.run(["--version"],environmentOverrides:environment,cancellation:token).text.trimmingCharacters(in:.whitespacesAndNewlines)
+                    result=try await repository.executableVersion(environmentOverrides:environment,cancellation:token).text.trimmingCharacters(in:.whitespacesAndNewlines)
                 }
                 try token.check()
                 guard !retired,runtimeRequest==request else{return}

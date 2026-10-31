@@ -280,6 +280,28 @@ import TurtleGitCore
             deliverPendingOpenURLs(); deliverPendingFinderService()
         }
     }
+    /// Only typed utility requests which do not capture a repository context
+    /// can open before Git configuration and saved authority are prepared.
+    /// CLI Settings always carries its current/explicit path; an empty-path
+    /// Settings URL deliberately asks for the global native property sheet.
+    static func isRepositoryIndependentUtility(_ request:FinderRequest)->Bool {
+        request.action.isApplicationUtility && (request.action != .settings || request.paths.isEmpty)
+    }
+    private var repositoryIndependentStartup:Bool {
+        switch startupLaunchMode {
+        case .imageTool,.unifiedDiff:return true
+        case .mergeTool:
+            guard let input=try? MergeToolInvocation.parse(arguments:startupArguments,currentDirectory:startupDirectory) else{return false}
+            // Open and two/three-way readers use only captured local files and
+            // the bundled MergeDiff engine. Patch review discovers a Git target;
+            // patch generation runs Git diff --no-index, so retain their gate.
+            return input.help || input.diff == nil && input.patchPath == nil && !input.createUnifiedDiff
+        case .workspace:return false
+        case .actionOnly:
+            guard let invocation=try? PrimaryCommandInvocation.parse(arguments:startupArguments,currentDirectory:startupDirectory) else{return false}
+            return Self.isRepositoryIndependentUtility(invocation.request)
+        }
+    }
     private func deliverPendingOpenURLs() {
         guard acceptingOpenURLs, !confirmingQuit, !deliveringOpenURLs, startupReady, startupDelivered,
               let repositoryModel else { return }
@@ -296,12 +318,14 @@ import TurtleGitCore
             // read lifetime. It needs no Git configuration until Apply; an
             // earlier queued Git request still owns FIFO admission before it.
             let localPatchDocument=WorkspaceOpenHandoff.acceptsPatchDocument(url)
-            if !workspaceRequest && !localPatchDocument {guard configurationReadsReady() else{return}}
+            let finderRequest=FinderRequest(url:url)
+            let independentUtility=finderRequest.map(Self.isRepositoryIndependentUtility) ?? false
+            if !workspaceRequest && !localPatchDocument && !independentUtility {guard configurationReadsReady() else{return}}
             if workspaceRequest {
                 pendingOpenURLs.removeFirst()
                 requestWorkspace(openRepository: url.query == "open=repository")
             } else if FinderRequest(url: url) != nil || url.isFileURL {
-                let target = actionRoutingModel(loadSavedAccess:!localPatchDocument)
+                let target = actionRoutingModel(loadSavedAccess:!localPatchDocument && !independentUtility)
                 guard !target.busy, !target.finderActionAuthorityPending else { return }
                 pendingOpenURLs.removeFirst()
                 if FinderRequest(url: url)?.action != .registerRepository { activateStandaloneApplication() }
@@ -595,9 +619,9 @@ import TurtleGitCore
               generalApplicationConfigured || startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
         // Empty/default workspace launch can present its native host first.
         // Repository CLI/tool reads wait without blocking the application loop.
-        // Image and Unified Diff documents acquire their own input permissions;
-        // opening those editors must not restore unrelated Git configuration.
-        if startupLaunchMode != .imageTool && startupLaunchMode != .unifiedDiff && !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
+        // Local image/Unified Diff inputs and typed repository-independent
+        // utilities own their own admission; none needs unrelated Git grants.
+        if !repositoryIndependentStartup && !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
             guard configurationReadsReady() else { return }
         }
         startupDelivered = true

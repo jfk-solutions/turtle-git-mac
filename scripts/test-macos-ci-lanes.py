@@ -22,6 +22,16 @@ class MacOSLaneTests(unittest.TestCase):
         return ci.verify(workflow or self.workflow, inventory or self.inventory, self.originals)
     def testCurrentSyntaxAndExactOriginalCoverage(self):
         self.verify()
+    def testUtilityStartupCannotBeLostMovedOrChanged(self):
+        for mutation in ['missing', 'duplicate', 'late', 'command', 'lane']:
+            value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+            index = next(i for i, step in enumerate(steps) if step.get('name') == ci.UTILITY_STARTUP['name'])
+            if mutation == 'missing': steps.pop(index)
+            if mutation == 'duplicate': steps.insert(index + 1, copy.deepcopy(steps[index]))
+            if mutation == 'late': steps.append(steps.pop(index))
+            if mutation == 'command': steps[index]['run'] = 'true'
+            if mutation == 'lane': steps[index]['if'] = "matrix.lane == 'editors'"
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
     def testMissingDuplicateAndUnknownStepsRefused(self):
         for operation in ['remove', 'duplicate', 'unknown']:
             value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']

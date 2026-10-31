@@ -86,6 +86,21 @@ production alpha and original wires, and passes the matched-background checks
 locally. Hosted confirmation remains open. Neither local batch establishes a
 full hosted or installed pass.
 
+## Utility and local-tool startup continuation
+
+The [utility readiness checkpoint](qa/utility-startup-2026-10-31.json) covers
+repository-independent About/Help/global Settings and local Merge admission,
+with an isolated selected-Git version probe. Context Settings and real repository
+commands retain their permission barrier and FIFO order. Two focused Core tests
+and four native case/engine pairs pass after the retained initial failure and
+repair. This source continuation is not installed in build42.
+
+A planned screenshot refresh failed to obtain native computer-control state;
+the owned preview was terminated and independently absent. No replacement images
+or physical acceptance are claimed. The existing screenshots remain published.
+The old hosted Core failure identified at this checkpoint matches the previously
+repaired WMF background fixture; full corrected-source CI remains required.
+
 ## Current startup/document readiness continuation
 
 The [connected source batch](qa/startup-document-delivery-2026-10-31.json)

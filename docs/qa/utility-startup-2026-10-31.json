@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-31",
+  "status": "implemented-focused-core-and-grouped-debug-native-passed-physical-signed-hosted-open",
+  "family": "Repository-independent utilities, local Merge admission and isolated executable metadata",
+  "implementation": [
+    "Typed About, Help, rtfm, autotext test, update check and first-start CLI/URL handlers avoid unrelated Git configuration restoration and new saved-access/Finder-watch initialization.",
+    "Empty-path Settings URLs admit the global property sheet; captured-path Settings including CLI current-directory default retain Git readiness. Earlier queued Git requests retain FIFO ownership.",
+    "Local Merge Open/two-way/three-way admit captured local readers and bundled MergeDiff without initial Git configuration restoration; Git-target patch review and Git diff --no-index generation retain preparation.",
+    "About and engine Settings use explicit GitRepository.executableVersion; generic run always retains preparation, including ordinary --version/raw argument/executor override forms.",
+    "Metadata execution reuses existing cancellable process/output/drain ownership, uses its fresh owned temporary directory, neutralizes merged Git configuration/repository context and skips SSH preference/prompt resolution."
+  ],
+  "validation": {
+    "initial_core_failure": {
+      "log": "build/qa/utility-startup-core-2026-10-31.log",
+      "failures": 2,
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "diagnosis": "Git initializes global config even for --version; an exact-argument preparation bypass was insufficient with malformed global config.",
+      "repair": "Restore unconditional generic-run preparation; expose only the isolated executableVersion API and switch the two native consumers."
+    },
+    "initial_debug": {
+      "passed": true,
+      "note": "Initial utility startup Debug build passed before the Core failure; this was not evidence for the metadata behavior."
+    },
+    "core": {
+      "log": "build/qa/utility-startup-core-isolated-version-2026-10-31.log",
+      "passed": true,
+      "test_file": "Tests/TurtleGitCoreTests/GitReadPreparationTests.swift",
+      "methods": [
+        "testSystemVersionProbeIsIndependentButConfigurationRequiresReadPreparation",
+        "testBundledVersionProbeIsIndependentButConfigurationRequiresReadPreparation"
+      ],
+      "scope": [
+        "metadata succeeds without preparation despite poisoned global/system/config-count/parameters/repository context and nonexistent caller root",
+        "caller root/context paths remain absent",
+        "precancelled metadata does not spawn",
+        "ordinary/plain-version/raw/prefixed/override commands retain preparation",
+        "held actual config command waits while separate metadata completes"
+      ]
+    },
+    "affected_debug": {
+      "log": "build/qa/utility-startup-debug-isolated-version-2026-10-31.log",
+      "exit": 0
+    },
+    "native": {
+      "log": "build/qa/utility-startup-native-2026-10-31.log",
+      "passed": true,
+      "runner": "scripts/test-utility-startup.py",
+      "executions": [
+        {
+          "case": "utilities",
+          "engine": "system",
+          "reaped_pid": 71941
+        },
+        {
+          "case": "utilities",
+          "engine": "bundled",
+          "reaped_pid": 71946
+        },
+        {
+          "case": "merge",
+          "engine": "system",
+          "reaped_pid": 71949
+        },
+        {
+          "case": "merge",
+          "engine": "bundled",
+          "reaped_pid": 71955
+        }
+      ],
+      "scope": [
+        "actual About runtime version and global Settings",
+        "pure CLI utility handlers with external actions captured",
+        "saved authority/watch initialization boundary",
+        "held Git-first URL FIFO and later utility admission",
+        "CLI/URL captured-path Settings gate",
+        "actual local Merge Open/two-way/three-way read-only documents and unchanged input bytes",
+        "patch/generator gate admission",
+        "owned worker/window cleanup"
+      ],
+      "isolation": "Private HOME/CFFIXED preferences/XDG/temp and malformed unrelated Git config; prohibited activation and offscreen windows."
+    },
+    "repeat_scope": "After initial Core failure, affected Core and Debug rebuilt; completed native family ran once against both engines. No full Core or hosted suite claim."
+  },
+  "screenshot_refresh": {
+    "result": "No new captures; no source images replaced.",
+    "cua_attempts_seconds": [
+      30,
+      10
+    ],
+    "owned_pid": 71660,
+    "SIGTERM": true,
+    "SIGKILL_required": false,
+    "independently_absent": true,
+    "user_app_terminated": false,
+    "environment_observation": {
+      "private_CFFIXED_USER_HOME": true,
+      "private_GIT_CONFIG_GLOBAL": true,
+      "private_HOME": false,
+      "private_TMPDIR": false
+    },
+    "local_evidence": [
+      "build/qa/documentation-refresh-launch-observation-2026-10-31.json",
+      "build/qa/documentation-refresh-cleanup-2026-10-31.json"
+    ],
+    "limit": "Launch Services replaced HOME/TMPDIR; the unsuccessful preview attempt does not establish a fully private launch environment or current visual acceptance."
+  },
+  "limits": [
+    "No physical Finder/Launch Services focus or native key acceptance is established by offscreen fixtures.",
+    "No updated signed build, installation, exhaustive utility visual parity or complete current-source hosted CI pass is certified."
+  ],
+  "CI_regression": {
+    "lane": "settings-finder",
+    "step": "Repository-independent utility and local tool startup",
+    "command": "python3 scripts/test-utility-startup.py",
+    "contract": "Exact owner/command/placement enforced while preserving every original inventoried step",
+    "focused_contract_check": "passed",
+    "log": "build/qa/utility-startup-ci-contract-2026-10-31.log"
+  },
+  "old_hosted_Core_failure": {
+    "run": 41129980751,
+    "job": 124326670624,
+    "method": "MetafileImageTests.testWMFTextFamilyOutlinedPaintMatchesIndependentUnicodeEMFControls",
+    "already_repaired_checkpoint": "metafile-wmf-text-background-2026-10-30.json",
+    "current_source_full_green": false
+  },
+  "documentation_check": {
+    "website_build": "passed",
+    "website_document_checks": "passed",
+    "log": "build/qa/utility-startup-site-check-2026-10-31.log",
+    "bundled_Help_guides_changed": false,
+    "native_literal_labels_changed": false
+  }
+}

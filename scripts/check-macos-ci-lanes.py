@@ -20,10 +20,16 @@ LANES = ['core', 'commit-repository', 'history-references', 'replay-transport',
 GUARD = {'name': 'Check workflow lane contracts', 'run': 'python3 scripts/test-macos-ci-lanes.py'}
 EDITOR_SETUP = {'name': 'Prepare SwiftPM editor for native and Core consumers',
                 'run': 'swift build --product TurtleGitMac'}
-# This one diagnostic addition is checked in full, then removed before the
+# Explicit additions are checked in full, then removed before the
 # immutable pre-split inventory comparison. It cannot excuse any producer or
 # other artifact drift, nor introduce a generic class of untracked steps.
 METAFILE_CONSUMER = 'WMF and EMF native comparison consumers and colors'
+UTILITY_STARTUP_ANCHOR = 'First Start SSH selection and owned inspection'
+UTILITY_STARTUP = {
+    'name': 'Repository-independent utility and local tool startup',
+    'if': "matrix.lane == 'settings-finder'",
+    'run': 'python3 scripts/test-utility-startup.py',
+}
 METAFILE_FAILURE_EVIDENCE = {
     'name': 'Retain failed metafile source and pixel evidence',
     'if': "matrix.lane == 'commit-repository' && failure()",
@@ -77,6 +83,12 @@ def verify(workflow, inventory, originals):
     actual = list(worker['steps'])
     require(actual[1] == GUARD, 'Missing initial fail-closed coverage check')
     actual.pop(1)
+    utility = [i for i, step in enumerate(actual) if step.get('name') == UTILITY_STARTUP['name']]
+    anchors = [i for i, step in enumerate(actual) if step.get('name') == UTILITY_STARTUP_ANCHOR]
+    require(len(utility) == 1 and len(anchors) == 1, 'Missing or duplicate utility startup check/anchor')
+    require(utility[0] == anchors[0] + 1 and actual[utility[0]] == UTILITY_STARTUP,
+            'Utility startup command, owner, condition or placement changed')
+    actual.pop(utility[0])
     evidence = [i for i, step in enumerate(actual)
                 if step.get('name') == METAFILE_FAILURE_EVIDENCE['name']]
     consumers = [i for i, step in enumerate(actual)

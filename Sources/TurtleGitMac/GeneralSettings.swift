@@ -169,7 +169,7 @@ import TurtleGitCore
         if environment["PATH"] == nil { environment["PATH"] = ProcessInfo.processInfo.environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin" }
         let directory = try TurtleGitTemporaryStorage.root
         let repository = GitRepository(root: directory, executable: engine)
-        let response = try await repository.run(["--version"], environmentOverrides: environment, cancellation: cancellation)
+        let response = try await repository.executableVersion(environmentOverrides: environment, cancellation: cancellation)
         let version = response.text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard version.hasPrefix("git version ") else { throw GitRuntimeFailure.customGitInvalid }
         return version
