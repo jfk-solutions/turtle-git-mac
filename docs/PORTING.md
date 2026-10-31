@@ -1,5 +1,27 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed local testing build43
+
+[Signed build43](qa/signed-consolidation-build43-2026-10-31.json), `0.1.0 (43)`,
+is installed from clean source `e2c1f19c`. It consolidates the local patch-document
+and utility/local Merge startup continuations below, including the isolated
+selected-Git metadata probe. Context Settings and repository commands retain
+actual configuration and authority preparation; every build42 workflow remains.
+
+The universal signed build, strict seals, eight owned code components, 206 runtime
+layout entries, 96 Help source members and all 6,382 ZIP/install members pass.
+One private sandbox parent executes the packaged Git/public-Core local-tools
+workflow and the new poisoned-config/context metadata probe. Ordinary Git calls
+reach their preparation barrier; cancellation and temporary cleanup pass.
+No unchanged native/Core family suite was repeated for packaging.
+
+Build42 is retained for rollback. The app was closed at installation and left
+closed; Launch Services registration succeeded without a Finder/Dock restart.
+This is a local development signature, with no notarization, public binary
+release or Store submission. Physical Finder/current UI, wider source parity,
+minimum-OS/Intel and complete corrected-source hosted CI remain separate gates.
+
+
 ## Utility and local-tool startup continuation
 
 The [utility startup batch](qa/utility-startup-2026-10-31.json) opens About, Help,
@@ -14,8 +36,8 @@ Two focused Core methods and four native case/engine pairs pass after the record
 malformed-configuration repair. All owned native receivers are reaped. The
 screenshot refresh could not obtain native computer-control state; the private
 preview was terminated and verified absent, with no new images published. The
-existing light/dark screenshots remain. Installed build42 predates both this
-and the preceding local-document source batch.
+existing light/dark screenshots remain. Both source batches are now included in installed build43; build42 predated
+them.
 
 The older build41-source hosted Core failure is the already repaired WMF text
 background mismatch; its [earlier scoped checkpoint](qa/metafile-wmf-text-background-2026-10-30.json)
@@ -23,7 +45,7 @@ remains the evidence, without another local rerun. That run's distribution lane
 is still active. A complete corrected-source hosted pass, fresh physical
 acceptance and the remaining full-port/release requirements remain open.
 
-## Installed local testing build42
+## Historical installed local testing build42
 
 [Signed build42](qa/signed-consolidation-build42-2026-10-31.json), `0.1.0 (42)`,
 is installed from clean source `5eda4182`. It consolidates the Finder snapshot/
@@ -49,8 +71,8 @@ patch viewing. Git requests retain ordered readiness and authority. It also
 repairs the older hosted first-use Services and chart-export fixture expectations.
 Eleven distinct native case/engine pairs pass cumulatively after the recorded
 affected-only repairs. Public and bundled Finder documentation now agrees with
-the single Open Service. This continuation is source-only; installed build42
-predates it, and complete corrected-source hosted CI remains required.
+the single Open Service. Installed build43 now includes this continuation; complete corrected-source
+hosted CI remains required.
 
 ## Historical source continuations included in build42
 

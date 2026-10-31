@@ -1,0 +1,74 @@
+{
+  "kind": "TurtleGitSignedConsolidationCheckpoint",
+  "date": "2026-10-31",
+  "version": "0.1.0",
+  "build": "43",
+  "source_commit": "e2c1f19cf12c86d94061967cb3bb6753e3d4f7e3",
+  "source_input_sha256": "00c384f92a79b646c11bf54ecf95c69aa468ef1a417745e5e12a5d2c0c93fd5a",
+  "main_sha256": "cd76f5087c32164e909e11ee4be7643278f6c0d7405d9b352c9297a2f7cb77f1",
+  "installed": true,
+  "changes": [
+    "Local patch documents open without unrelated Git configuration or saved-repository initialization",
+    "About/Help/global Settings and local Merge Open/two/three-way admission retain lightweight utility ownership",
+    "Isolated selected-Git version metadata uses fresh directory and neutral configuration; ordinary Git requests retain preparation",
+    "Current single-Service Finder manual and offline Help; all build42 workflows retained"
+  ],
+  "build_result": {
+    "configuration": "AppStore",
+    "signing": "Existing Apple Development identity for local testing",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 507.513,
+    "source_inputs_unchanged": true,
+    "cache_reuse": "Independent APFS clone of prior derived data and cached runtime inputs; prior build42 preserved"
+  },
+  "verification": {
+    "strict_deep_seal": true,
+    "owned_code_components": 8,
+    "runtime_layout_entries": 206,
+    "packaged_help_source_members": 96,
+    "zip_and_installed_inventory_members": 6382,
+    "copied_extracted_and_installed_inventory_equal": true,
+    "signed_runtime_phases": [
+      "local-tools"
+    ],
+    "signed_runtime_passed": true,
+    "executable_metadata_isolation": true,
+    "metadata_generic_run_barrier_calls": 2,
+    "metadata_pre_cancelled": true,
+    "metadata_temporary_requests_cleaned": true,
+    "scope": "Actual packaged Git/public Core in one private sandbox parent without App Group entitlement; no shipping GUI or physical Finder execution inferred"
+  },
+  "package": {
+    "archive": "TurtleGit-for-Mac-0.1.0-build43-signed.zip",
+    "archive_bytes": 423354786,
+    "archive_sha256": "e8e56f051256636554070ee59c90bc2b2984939655decf4d9f0673370eb45dcc"
+  },
+  "installation": {
+    "previous_build": "42",
+    "rollback_retained": true,
+    "user_app_was_running": false,
+    "shipping_app_launched": false,
+    "Finder_or_Dock_restart": false,
+    "launch_services_registration_exit": 0
+  },
+  "related_checkpoints": [
+    "utility-startup-2026-10-31.json",
+    "startup-document-delivery-2026-10-31.json",
+    "signed-consolidation-build42-2026-10-31.json"
+  ],
+  "physical_limits": "Native computer control failed during the preceding screenshot attempt; owned preview bundles were unregistered/removed after their process exited. Existing screenshots retained. Build41 physical and build38 owner Finder checks remain scoped to those builds.",
+  "remaining": [
+    "Complete corrected-source hosted CI pass",
+    "Current installed physical Finder and representative large-repository latency acceptance",
+    "Remaining source/layout/keyboard/accessibility acceptance",
+    "Minimum macOS and physical Intel execution",
+    "Later distribution signing/notarization and GPL/App Store terms review"
+  ],
+  "public_binary_upload": false,
+  "notarization": false,
+  "App_Store_submission": false
+}

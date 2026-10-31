@@ -30,9 +30,9 @@ missing source behavior, reported defect or failing check.
   counts alone do not complete this requirement.
 - [ ] Check the accepted build's README, license/source notices, manual, offline
   Help and screenshot website together; keep publisher credit unobtrusive.
-- [x] Deliver and install the [signed local testing build42](qa/signed-consolidation-build42-2026-10-31.json).
-  Build41 is preserved for rollback. Build42 includes the later Finder/Sync/file
-  activation continuation and fixed Commit feedback geometry. Owner testing, public distribution and the
+- [x] Deliver and install the [signed local testing build43](qa/signed-consolidation-build43-2026-10-31.json).
+  Build42 is preserved for rollback. Build43 also includes local-document and
+  utility/local Merge startup, with isolated Git metadata and current offline Help. Owner testing, public distribution and the
   later App Store submission remain separate, including distribution signing
   and the unresolved GPL/App Store terms gate.
 
@@ -93,7 +93,8 @@ repository-independent About/Help/global Settings and local Merge admission,
 with an isolated selected-Git version probe. Context Settings and real repository
 commands retain their permission barrier and FIFO order. Two focused Core tests
 and four native case/engine pairs pass after the retained initial failure and
-repair. This source continuation is not installed in build42.
+repair. Installed build43 now includes this source continuation; physical and full
+hosted acceptance remain separate.
 
 A planned screenshot refresh failed to obtain native computer-control state;
 the owned preview was terminated and independently absent. No replacement images
@@ -114,7 +115,7 @@ stale synchronous-startup and metafile-canvas expectations. Their fixtures now
 retain real readiness, source viewport/vector records and exact saved bytes.
 Eleven distinct native case/engine pairs pass cumulatively after the documented
 NUL and explicit-CLI held-process repairs. The manual and bundled Help describe
-the actual single Open Service. Installed build42 predates this continuation;
+the actual single Open Service. Installed build43 includes this continuation;
 physical/signed acceptance and a complete corrected-source hosted pass remain open.
 
 ## Installed local testing build39
