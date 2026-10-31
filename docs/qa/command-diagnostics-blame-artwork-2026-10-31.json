@@ -1,0 +1,118 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-command-diagnostics-and-blame-artwork-family-passed",
+  "base_source": "d286fb6ceec342f404a9746157ccb22222b38ee0",
+  "installed_app": "Build43 unchanged; this source batch has not been installed or signed for distribution.",
+  "implementation": [
+    "Informational primary Debug previews preserve captured startup/decoded Finder URL/Service admission; OK/Close/Escape continue, accepted Quit retires callbacks, refused Quit retains ownership. Separate Merge startup Debug namespace.",
+    "Live opt-in DebugOutputString Console sink uses bounded sanitized metadata, no process input/environment/output payloads; Advanced Apply/reset connects actual consumers.",
+    "Pinned original Blame strip bytes/rectangular transparent tiles, source menu order and text-only command policy; own About mascot, observed focused Open, persistent toolbar composition/overflow/docking and icon preference semantics preserved.",
+    "User guide, Privacy/offline Help and source parity docs updated. Current Apple primary-source terms worksheet added to future distribution draft without changing GPL or submitting an app."
+  ],
+  "validation": {
+    "core": {
+      "initial_log": "build/qa/diagnostics-blame-core-2026-10-31.log",
+      "initial_result": "16 icon/toolbar-model tests pass; 3 diagnostics methods execute, with 5 sanitizer assertions failing in one pure method.",
+      "affected_recheck_log": "build/qa/diagnostics-core-redaction-repair-2026-10-31.log",
+      "affected_recheck": "All 3 diagnostics tests pass after exact-option classification repair; real system and bundled Git argv/stdin preservation, disabled sink, failure, isolated version, pre-cancel and held-child cancellation/drain covered. No full Core suite rerun."
+    },
+    "debug_build": {
+      "log": "build/qa/diagnostics-blame-debug-final-2026-10-31.log",
+      "exit_code": 0,
+      "warnings": "Existing Swift concurrency, CoreSimulator SDK mismatch and runtime install-name/signature diagnostics remain in logs; not a warning-free or signed acceptance claim."
+    },
+    "native_diagnostics": {
+      "log": "build/qa/diagnostics-blame-native-diagnostics-final-2026-10-31.log",
+      "result": "passed",
+      "receiver": 95181,
+      "scope": "Private offscreen native preview/default-off/OK/Close/FIFO/cross-key disable/config gate/distinct Service slots/retirement/immediate and asynchronous Quit/tool namespaces/Advanced Apply-reset/redaction. No Git process in this native cohort; real command lifecycle separately covered by Core."
+    },
+    "native_blame": {
+      "log": "build/qa/diagnostics-blame-native-blame-repair-2026-10-31.log",
+      "result": "composition and placement both pass with system and bundled Git",
+      "receivers": [
+        96146,
+        96283,
+        96408,
+        96508
+      ],
+      "scope": "Actual controls, exact per-command images-or-text, actions/overflow/palette, persistence, captured/retired owner authority, docks/floating/quick customization; HEAD/index/working files unchanged."
+    },
+    "generators": [
+      "xcodegen generation passed for new Core/native files",
+      "Localization --write and --check passed (38 languages/1326 existing label keys; not complete localization)",
+      "Help regenerated for Privacy and Dialog Guide; --check passed"
+    ],
+    "cleanup": "All observed native receivers reaped by runner; assertions close owned windows and drain owned work. No user-owned app/extension terminated. All six observed receiver PIDs independently absent after completion.",
+    "documentation": {
+      "site_log": "build/qa/diagnostics-blame-site-2026-10-31.log",
+      "site_result": "516 documents rendered; no unresolved fragments",
+      "site_check_log": "build/qa/diagnostics-blame-site-check-2026-10-31.log",
+      "coverage_log": "build/qa/diagnostics-blame-dialog-coverage-final-2026-10-31.log",
+      "coverage_result": "Reconciled pinned dialog/control ledger; no dialog completion claim or feature percentage.",
+      "help_check_log": "build/qa/diagnostics-blame-help-check-2026-10-31.log",
+      "localization_check_log": "build/qa/diagnostics-blame-localizations-check-2026-10-31.log"
+    }
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/diagnostics-blame-core-2026-10-31.log",
+      "cause": "Generic sensitivity match examined complete argv before short-option/URL sanitation, leaking synthetic payloads. Exact-option fallback repaired; assertions unchanged."
+    },
+    {
+      "logs": [
+        "build/qa/diagnostics-blame-debug-2026-10-31.log",
+        "build/qa/diagnostics-blame-debug-repair-2026-10-31.log"
+      ],
+      "cause": "NOTICE attribution changed pinned Metafile then LibGit2 source receipts. Reconstructed both recognized runtimes through their builders; final build succeeds. No validator bypass.",
+      "reconstruction_logs": [
+        "build/qa/diagnostics-blame-metafile-notice-2026-10-31.log",
+        "build/qa/diagnostics-blame-libgit2-notice-2026-10-31.log"
+      ]
+    },
+    {
+      "logs": [
+        "build/qa/diagnostics-blame-native-diagnostics-2026-10-31.log",
+        "build/qa/diagnostics-blame-native-blame-2026-10-31.log"
+      ],
+      "cause": "Initial native group omitted explicit Xcode SDK environment; failed before any receiver launched. Both affected families retried with explicit DEVELOPER_DIR/SDKROOT."
+    },
+    {
+      "log": "build/qa/diagnostics-blame-native-blame-final-2026-10-31.log",
+      "receiver": 95401,
+      "cause": "Old blanket named/overflow icon assertions contradicted source text-only commands. Replaced with exact per-command image-or-nil, visible text and existing live-action/authority assertions; did not add invented source artwork."
+    }
+  ],
+  "visual_observation": {
+    "images": [
+      "build/qa/blame-toolbar-placement-captures/106aa88494/dock-left.png",
+      "build/qa/blame-toolbar-placement-captures/106aa88494/floating-custom.png"
+    ],
+    "review": "Viewed actual offscreen diagnostic images: source Open/Previous/Next/Copy colors, branded About and text-only Find/Wrap controls visible. Transparent/incomplete offscreen backing and existing zero-sized split-layout warnings prevent whole-window physical visual acceptance; these images were not published as website screenshots."
+  },
+  "remaining": [
+    "Physical Console log visibility, preview keyboard/accessibility and full Blame visual acceptance remain unverified.",
+    "No complete current-source hosted macOS pass, signed-installed batch acceptance, clean-Mac/minimum-OS/Intel execution or App Store license/terms clearance.",
+    "Older hosted run new failures retained separately in hosted-native-failures-2026-10-31.json; not fixed or retested by this batch.",
+    "Whole application and all pinned dialogs remain a larger incomplete goal."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/GitCommandDiagnostics.swift": "7e130fddc1a710a15e8e827ca55e674ef522d459c297e7cdd1b7a81ce1884604",
+    "Sources/TurtleGitCore/GitRepository.swift": "816ec00926df6b0eec82041edaaebc34f2727c148f5e07731d5a59becc8f19b3",
+    "Sources/TurtleGitCore/MenuIcons.swift": "8867ee9505cfdc4dd9b1d865010a2866d2ccf7266fe675d3178d4c0dd71c0acc",
+    "Sources/TurtleGitCore/BlameToolbarConfiguration.swift": "d230b6f000dfe06312221b47e68d4205255c972cbf7ff812fc36a3596262696c",
+    "Sources/TurtleGitMac/CommandDiagnostics.swift": "3911043f4544830ad71079aae870be1828db25570f60bef00b320944fd2e340e",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "7c3a8f1ea5a139c8bd837ae91881be95293feb64bd0bc05c0d63ad2296d183c2",
+    "Sources/TurtleGitMac/AdvancedSettings.swift": "46c6f4d804642054d91fedb9045b3adf5e10a0e774b5fa794d4a86478b746ea5",
+    "Sources/TurtleGitMac/BlameMenuCommands.swift": "364e84e40091a5080d98e6cff50247a5d6d4ee1921e47a986c617e04374c7ca0",
+    "Sources/TurtleGitMac/BlameToolbar.swift": "3bd34b2d24e4aed2cd432553c7c5ac82aadd32bcb14e32ab510a7f179017cf03",
+    "Sources/TurtleGitMac/BlameToolbarDocking.swift": "22d7274300549e8b072d1e621c79fc8b43c21b79612c921c1d9799a9a8b54f3a",
+    "Sources/TurtleGitMac/BlameToolbarViews.swift": "9fdbd625e2bc2d0c2443a86a0d748d2dde03fa8ff1e8fed2e089781b997b5f8f",
+    "Sources/TurtleGitMac/CommandLabel.swift": "9c45ae4b923e8e750dc95eba1a1254b511d463f12df39783e185eab096b167f8",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "3f68dacfb9a7c33b482244f89cce45f3e7c44432789c860fc30b86436f21eba8",
+    "Tests/TurtleGitCoreTests/GitCommandDiagnosticsTests.swift": "d7671188a99b7ea3a02b4f90d3bd693af11a69b9420aff01dd303cda9f1ec93b",
+    "docs/qa/command-diagnostics-native-2026-10-31.swift": "987ee07fd249949e6446c6afd3744e1a1668b1dbec4c3e11baebb52ab54a98de",
+    "docs/qa/blame-toolbar-native-2026-10-26.swift": "a3af651ec47c46ecb2f63ff79b18339cb497ab971d0552dfb2036d93ae4d35d3",
+    "scripts/test-command-diagnostics.py": "2912f4b3165f5cea68289299ce8d03ebf0958357cdd04d0e4244d2c5d23cb06d"
+  }
+}

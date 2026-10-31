@@ -251,14 +251,14 @@ pending. No image was edited or newly captured for this dossier.
 | Deliverable | State / owner |
 | --- | --- |
 | Listing copy/category/localizations and support contact | Draft above; account owner approves |
-| Seller identity, rights, license/distribution terms | Unresolved review gate in `DISTRIBUTION.md`; no permission/clearance inferred from this draft |
+| Seller identity, rights, license/distribution terms | Jochen Kühner is the intended seller; the [dated terms worksheet](DISTRIBUTION.md#terms-review-worksheet--october-31-2026) identifies the unresolved agreement/source/permissions decisions. No permission or clearance is inferred from this draft |
 | Privacy/export/age questionnaire | Evidence worksheet; owner answers and documents decisions |
 | Price/territories/tax/banking/agreements | Account-owner decisions; not queried or changed |
 | App identifier/SKU/version/build admission | Confirm in the actual Connect record; do not infer from local build values |
 | Distribution certificate/profile and App Group entitlement | Final channel/account verification; Apple Development signatures are not a submitted distribution export |
 | Exact final archive/package/source+notice set | Match measured inputs, actual signed binary, symbols and corresponding source/reconstruction inputs; prior receipts remain historical |
 | Final screenshots and sample review attachment | Offline synthetic attachment prepared with checksums/reset instructions; final screenshots and owner/submission approval remain pending |
-| Hosted CI | macOS run40225297562 at `c47640a3` failed during Swift 6.1.2 test compilation, before behavioral tests. Explicitly typed equivalent assertion is repaired in the next source batch and passes the focused local check; a complete hosted pass remains unproven |
+| Hosted CI | [macOS run41155217003](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41155217003) at `d286fb6c` is pending as observed October 31, 2026; a complete current-source hosted pass remains unproven. [Pages run41155216941](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41155216941) succeeded for that source; website deployment does not prove native workflow coverage |
 | Upload/validation/App Review/release | Not performed; only after owner approval and remaining gates |
 
 Existing [distribution engineering](DISTRIBUTION.md), [privacy](PRIVACY.md),

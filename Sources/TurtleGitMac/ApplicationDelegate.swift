@@ -75,6 +75,35 @@ import TurtleGitCore
     private var pendingDefaultWorkspaceLaunch = false
     private var reopenTraceCount = 0
     private static let launchLog = Logger(subsystem: "org.turtlegit.macos", category: "LaunchRouting")
+    var diagnosticPreferences:UserDefaults = .standard
+    var presentCommandDiagnostic:(CommandDiagnosticPreviewController)->Void = {$0.present()}
+    private(set) var commandDiagnosticController:CommandDiagnosticPreviewController?
+    private enum DiagnosticDecision {case pending,accepted,cancelled}
+    private var diagnosticKey:String?,diagnosticAnswer:Bool?
+    private func debugEnabled(startup:Bool=false)->Bool {
+        if startupLaunchMode == .mergeTool {return startup && (diagnosticPreferences.object(forKey:"TurtleGitMerge.Debug") as? NSNumber)?.uint32Value == 1}
+        guard isGeneralApplication else{return false}
+        return (diagnosticPreferences.object(forKey:"Debug") as? NSNumber)?.uint32Value == 1
+    }
+    private func diagnosticDecision(_ key:String,arguments:[String],startup:Bool=false)->DiagnosticDecision {
+        if diagnosticKey==key {guard let answer=diagnosticAnswer else{return .pending};return answer ? .accepted:.cancelled}
+        guard diagnosticKey==nil else{return .pending}
+        guard debugEnabled(startup:startup) else{return .accepted}
+        diagnosticKey=key;diagnosticAnswer=nil
+        let controller=CommandDiagnosticPreviewController(arguments:arguments) {[weak self] accepted in
+            guard let self,self.acceptingOpenURLs,self.diagnosticKey==key else{return}
+            self.commandDiagnosticController=nil;self.diagnosticAnswer=accepted
+            NativeCommandDiagnostics.trace(accepted ? "command acknowledged":"command cancelled",arguments:arguments,preferences:self.diagnosticPreferences)
+            DispatchQueue.main.async {[weak self] in self?.deliverStartupCommand();self?.deliverPendingOpenURLs();self?.deliverPendingFinderService()}
+        }
+        commandDiagnosticController=controller;activateStandaloneApplication();presentCommandDiagnostic(controller)
+        return .pending
+    }
+    private func consumeDiagnostic(){diagnosticKey=nil;diagnosticAnswer=nil}
+    func retireCommandDiagnostics(){commandDiagnosticController?.retire();commandDiagnosticController=nil;consumeDiagnostic()}
+
+
+
     func applicationWillFinishLaunching(_ notification: Notification) {
         installInboundURLBridge()
     }
@@ -129,6 +158,7 @@ import TurtleGitCore
     }
     private var previousFinderServicesProvider: Any?
     private var finderServicesInstalled = false
+    private var deliveringFinderService=false
     var workspaceServiceHandler: (RepositoryModel, FinderRequest) -> Bool = { $0.handleFinderService($1) }
     private(set) var pendingFinderServiceRequest: FinderRequest?
     private(set) var pendingOpenServiceSelection:[URL]?
@@ -141,6 +171,7 @@ import TurtleGitCore
         NSApp.servicesProvider = finderServicesProvider
     }
     func retireFinderServices() {
+        if diagnosticKey?.hasPrefix("service") == true {retireCommandDiagnostics()}
         finderServicesProvider.retire()
         pendingFinderServiceRequest = nil; pendingOpenServiceSelection=nil; pendingFinderServiceError = nil
         guard finderServicesInstalled else { return }
@@ -170,22 +201,36 @@ import TurtleGitCore
         guard pendingFinderServiceRequest == nil else {throw TurtleGitFinderServicesProvider.Failure.busy}
         receivedExternalLaunchIntent=true
         if captured.action != .registerRepository {activateStandaloneApplication()}
-        if startupReady,startupDelivered,configurationReadsReady() {
+        if startupReady,startupDelivered,!deliveringFinderService,pendingOpenServiceSelection==nil,!debugEnabled(),diagnosticKey==nil,configurationReadsReady() {
             let target=actionRoutingModel()
             guard !target.busy,!target.hasPendingRepositoryWork,!target.confirmingQuit,workspaceServiceHandler(target,captured) else {throw TurtleGitFinderServicesProvider.Failure.busy}
-        } else {pendingFinderServiceRequest=captured}
+        } else {pendingFinderServiceRequest=captured;deliverPendingFinderService()}
     }
     private func deliverPendingFinderService() {
-        guard acceptingOpenURLs,startupReady,startupDelivered,repositoryModel != nil else{return}
+        guard acceptingOpenURLs,!confirmingQuit,!deliveringFinderService,startupReady,startupDelivered,repositoryModel != nil else{return}
+        deliveringFinderService=true
+        var consumed=false
+        defer {
+            deliveringFinderService=false
+            if consumed,(pendingOpenServiceSelection != nil || pendingFinderServiceRequest != nil) {
+                DispatchQueue.main.async {[weak self] in self?.deliverPendingFinderService()}
+            }
+        }
         if pendingOpenServiceSelection != nil || pendingFinderServiceRequest != nil {
+            let arguments=pendingOpenServiceSelection.map{["Service: Open"]+$0.map(\.path)} ?? pendingFinderServiceRequest.map{["Service: "+$0.action.rawValue]+$0.paths.map(\.path)} ?? []
+            switch diagnosticDecision(pendingOpenServiceSelection != nil ? "service-open":"service",arguments:arguments) {
+            case .pending:return
+            case .cancelled:pendingOpenServiceSelection=nil;pendingFinderServiceRequest=nil;consumeDiagnostic();return
+            case .accepted:break
+            }
             guard configurationReadsReady() else { return }
         }
-        if pendingOpenServiceSelection != nil,isGeneralApplication,workspaceDeliveryReady(),let paths=pendingOpenServiceSelection,let currentWorkspace=repositoryModel {
-            pendingOpenServiceSelection=nil
+        if let paths=pendingOpenServiceSelection {
+            guard isGeneralApplication,workspaceDeliveryReady(),let currentWorkspace=repositoryModel else{return}
+            pendingOpenServiceSelection=nil;consumeDiagnostic();consumed=true
             if confirmingQuit || !workspaceOpenSelectionHandler(currentWorkspace,paths) {pendingFinderServiceError=TurtleGitFinderServicesProvider.Failure.busy.localizedDescription}
-        }
-        if let request=pendingFinderServiceRequest {
-            pendingFinderServiceRequest=nil
+        } else if let request=pendingFinderServiceRequest {
+            pendingFinderServiceRequest=nil;consumeDiagnostic();consumed=true
             let target=actionRoutingModel()
             if confirmingQuit || target.confirmingQuit || target.busy || target.hasPendingRepositoryWork || !workspaceServiceHandler(target,request) {pendingFinderServiceError="TurtleGit could not begin the queued service. Finish or cancel the current operation, then invoke the service again."}
         }
@@ -313,6 +358,12 @@ import TurtleGitCore
             // an open draft dialog alone does not hold this routing queue.
             if let action = actionRepositoryModel,
                action.busy || action.finderActionAuthorityPending { return }
+            let diagnosticArguments=FinderRequest(url:url).map{["/command:"+$0.action.rawValue]+$0.paths.map{"/path:"+$0.path}} ?? [url.absoluteString]
+            switch diagnosticDecision("url:"+url.absoluteString,arguments:diagnosticArguments) {
+            case .pending:return
+            case .cancelled:pendingOpenURLs.removeFirst();consumeDiagnostic();continue
+            case .accepted:break
+            }
             let workspaceRequest = ["turtlegit://workspace", "turtlegit://workspace?open=repository"].contains(url.absoluteString)
             // A typed local patch document retains its own file permission and
             // read lifetime. It needs no Git configuration until Apply; an
@@ -334,6 +385,8 @@ import TurtleGitCore
                 pendingOpenURLs.removeFirst()
                 workspaceOpenHandler(repositoryModel, url)
             }
+            consumeDiagnostic()
+            NativeCommandDiagnostics.trace("URL admitted",arguments:diagnosticArguments,preferences:diagnosticPreferences)
             // Reentrant handlers append behind the remaining original URLs.
             // Recheck readiness after every admission instead of removing a
             // whole cohort that the next asynchronous owner could refuse.
@@ -527,6 +580,7 @@ import TurtleGitCore
         repositoryModel = workspace
     }
     func startupDidFinishLaunching(defaultLaunch:Bool? = nil) {
+        NativeCommandDiagnostics.configure(preferences:diagnosticPreferences)
         configureGeneralApplicationIfNeeded()
         bootstrapStandaloneToolIfNeeded(); startupReady = true
         if standaloneWorkspace != nil, startupLaunchMode != .workspace, !headlessRegistrationStartup, !standaloneActivationRequested {
@@ -615,8 +669,15 @@ import TurtleGitCore
         return false
     }
     private func deliverStartupCommand() {
-        guard startupReady, !startupDelivered, let repositoryModel,
+        guard acceptingOpenURLs,!confirmingQuit,startupReady, !startupDelivered, let repositoryModel,
               generalApplicationConfigured || startupLaunchMode != .workspace || workspaceDeliveryReady(), !startupDelivered else { return }
+        if startupArguments != ["--turtlegit-action-only"],!startupArguments.contains(FinderActionDelivery.argumentFlag) {
+            switch diagnosticDecision("startup",arguments:startupArguments,startup:true) {
+            case .pending:return
+            case .cancelled:consumeDiagnostic();startupDelivered=true;deliverPendingOpenURLs();deliverPendingFinderService();return
+            case .accepted:break
+            }
+        }
         // Empty/default workspace launch can present its native host first.
         // Repository CLI/tool reads wait without blocking the application loop.
         // Local image/Unified Diff inputs and typed repository-independent
@@ -624,7 +685,8 @@ import TurtleGitCore
         if !repositoryIndependentStartup && !startupArguments.isEmpty && !startupArguments.contains(FinderActionDelivery.argumentFlag) && startupArguments != ["--turtlegit-action-only"] {
             guard configurationReadsReady() else { return }
         }
-        startupDelivered = true
+        consumeDiagnostic();startupDelivered = true
+        NativeCommandDiagnostics.trace("startup admitted",arguments:startupArguments,preferences:diagnosticPreferences)
         if startupArguments.contains(FinderActionDelivery.argumentFlag) {
             receivedExternalLaunchIntent = true
             if let delivery = FinderActionDelivery.parse(arguments: startupArguments) {
@@ -658,7 +720,7 @@ import TurtleGitCore
     private var confirmingQuit = false
     private var drainingUnifiedDiffQuit = false
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
-    func applicationWillTerminate(_ notification: Notification) { gitConfigurationPreparation?.cancel(); gitConfigurationPreparation=nil; retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; retireInboundURLBridge(); presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); finderActionReceipts.removeAll(); finderActionReceiptOrder.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionReadiness=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
+    func applicationWillTerminate(_ notification: Notification) { retireCommandDiagnostics();gitConfigurationPreparation?.cancel(); gitConfigurationPreparation=nil; retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; retireInboundURLBridge(); presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); finderActionReceipts.removeAll(); finderActionReceiptOrder.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionReadiness=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
         for window in sender.windows {
             (window.delegate as? FileDropTransferWindowController)?.model.confirmingQuit = value
@@ -675,6 +737,11 @@ import TurtleGitCore
         }
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let decision=terminationDecision(sender)
+        if decision == .terminateNow {retireCommandDiagnostics()}
+        return decision
+    }
+    private func terminationDecision(_ sender:NSApplication)->NSApplication.TerminateReply {
         // A scoped action Settings owner retains drafts just like the workspace
         // service. Refuse Quit and focus its existing owner until it is settled.
         for service in [SettingsPresentationService.shared,actionSettingsService].compactMap({$0}) {
@@ -697,7 +764,7 @@ import TurtleGitCore
             }
             return .terminateLater
         }
-        if pendingFinderServiceRequest != nil || pendingOpenServiceSelection != nil { return .terminateCancel }
+        if (pendingFinderServiceRequest != nil || pendingOpenServiceSelection != nil),!(diagnosticKey?.hasPrefix("service") == true && commandDiagnosticController != nil) { return .terminateCancel }
         if MergeExternalReloadCoordinator.activeRequests > 0 { return .terminateCancel }
         if SettingsSheetController.activeSheets > 0 || workspaceOpenHandoff.hasPendingWork || RepositoryModel.activeCommandFileOperations > 0 || routingModels.contains(where:{$0.hasPendingRepositoryWork}) { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? RepositoryAccessWindowController }).contains(where:{ $0.model.busy || $0.window?.attachedSheet != nil }) { return .terminateCancel }
@@ -1107,6 +1174,7 @@ import TurtleGitCore
             for controller in resets { controller.model.confirmingQuit = false }
             for controller in resetProgress { controller.model.confirmingQuit = false }
             for controller in bisects { controller.model.confirmingQuit = false }
+            if allowQuit {retireCommandDiagnostics()}
             confirmingQuit = false
             if allowQuit,finishDedicatedUnifiedDiffAfterApprovedQuit(){return}
             replyToTermination(sender, allowQuit)
@@ -1260,7 +1328,7 @@ import TurtleGitCore
             for controller in updateProgress { controller.model.confirmingQuit = false }
             for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = false }
             setTransferQuitConfirmation(sender, false); setRoutingQuitConfirmation(false)
-            confirmingQuit=false;replyToTermination(sender,true)
+            retireCommandDiagnostics();confirmingQuit=false;replyToTermination(sender,true)
         }
         return .terminateLater
     }

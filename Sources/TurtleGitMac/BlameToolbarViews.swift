@@ -16,7 +16,7 @@ struct BlameToolbarDockLayout<Content:View>:View {
     }
     @ViewBuilder private func edge(_ placement:BlameToolbarPlacement)->some View {
         if placement == .left || placement == .right {
-            HStack(spacing:2){ForEach(chrome.bars(at:placement)){bar in BlameToolbarStripView(chrome:chrome,bar:bar).frame(width:bar.displayMode == .icons ? 38:170)}}
+            HStack(spacing:2){ForEach(chrome.bars(at:placement)){bar in BlameToolbarStripView(chrome:chrome,bar:bar).frame(width:bar.displayMode == .icons && bar.items.allSatisfy({$0 == "space" || $0 == "flexibleSpace" || BlameToolbarController.icon($0) != nil}) ? 38:170)}}
         }else{
             VStack(spacing:2){ForEach(chrome.bars(at:placement)){bar in BlameToolbarStripView(chrome:chrome,bar:bar).frame(height:bar.displayMode == .iconsAndLabels ? 34:30)}}
         }

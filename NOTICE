@@ -37,6 +37,13 @@ The original resource license, source paths and SHA-256 hashes are retained in
 Sources/TurtleGitCore/Resources/Icons/ and bundled with the shared framework.
 Copyright (c) 2006-2007 The TortoiseSVN Project. All rights reserved.
 
+The unchanged Blame high-color toolbar strip is retained as
+Icons/blame-toolbar256.bmp from src/Resources/blameres/Toolbar256.bmp at
+TortoiseGit commit 7338078f8ddd924b8cddee35f512f2286072136d, under the same GPL
+resource-license alternative. Icons/provenance.json records its Git blob and
+SHA-256. Native drawing preserves the four Open/Previous/Next/Copy tiles and
+the gray transparency key; About retains the TurtleGit mascot.
+
 AppStore preparation bundles a pinned Git engine built from its unmodified
 upstream source archive (https://www.kernel.org/pub/software/scm/git/). Git is
 licensed under GPL v2. Its corresponding source archive, COPYING, retained

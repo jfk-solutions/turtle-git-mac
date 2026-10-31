@@ -54,6 +54,7 @@ public enum MenuIcon: String, CaseIterable {
     case certificate = "certcheck"
     case turtle = "TurtleGitApplication", status = "menushowchanged", commit = "menucommit", log = "menulog"
     case blame = "TurtleGitBlame"
+    case blameOpen = "blame-toolbar-open", blamePrevious = "blame-toolbar-previous", blameNext = "blame-toolbar-next", blameCopy = "blame-toolbar-copy"
     case daemon = "menudaemon"
     case revisionGraph = "menurevisiongraph", showBranches = "showbranches"
     case historyFind = "filteredit"
@@ -112,6 +113,14 @@ public enum MenuIcon: String, CaseIterable {
     case normal = "status-normal", modified = "status-modified", added = "status-added", deleted = "status-deleted"
     case conflicted = "status-conflict", ignored = "status-ignored", untracked = "status-unversioned"
     public func image(size: CGFloat = 16) -> NSImage? {
+        // IDR_TORTOISE_GIT_BLAME_MAINFRAME_256: five 16×15 source tiles.
+        // About uses TurtleGit branding; the other four retain their exact artwork.
+        let blameTiles: [MenuIcon: Int] = [.blameOpen:0, .blamePrevious:1, .blameNext:2, .blameCopy:3]
+        if let tile = blameTiles[self] {
+            guard let image = ColorKeyIconStrip.image(resource: "blame-toolbar256", tile: tile, size: 16, height: 15, colorKey: [192,192,192]) else { return nil }
+            image.size = NSSize(width: size, height: size * 15 / 16)
+            return image
+        }
         #if SWIFT_PACKAGE
         let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
         #else
@@ -193,7 +202,7 @@ public enum ReferenceTypeIcon: Int, CaseIterable {
 }
 
 private enum ColorKeyIconStrip {
-    static func image(resource: String, tile: Int, size: Int, colorKey: [UInt8]? = nil) -> NSImage? {
+    static func image(resource: String, tile: Int, size: Int, height: Int? = nil, colorKey: [UInt8]? = nil) -> NSImage? {
         #if SWIFT_PACKAGE
         let bundle = Bundle.main.resourceURL.flatMap { Bundle(url: $0.appendingPathComponent("TurtleGitMac_TurtleGitCore.bundle")) } ?? Bundle.module
         #else
@@ -205,25 +214,26 @@ private enum ColorKeyIconStrip {
             (0..<4).reduce(0) { $0 | (UInt32(data[offset + $1]) << ($1 * 8)) }
         }
         let width = Int(Int32(bitPattern: u32(18))), signedHeight = Int(Int32(bitPattern: u32(22)))
-        guard u32(14) >= 40, width > 0, width <= 4096, signedHeight == size,
+        let height = height ?? size
+        guard u32(14) >= 40, width > 0, width <= 4096, height > 0, signedHeight == height,
               data[26] == 1, data[27] == 0, data[28] == 24, data[29] == 0, u32(30) == 0,
               tile >= 0, (tile + 1) * size <= width else { return nil }
         let offset = Int(u32(10)), stride = (width * 3 + 3) & ~3
-        guard offset >= 54, offset <= data.count, stride * size <= data.count - offset,
-              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: size, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bitmapFormat: .alphaNonpremultiplied, bytesPerRow: size * 4, bitsPerPixel: 32),
+        guard offset >= 54, offset <= data.count, stride * height <= data.count - offset,
+              let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: size, pixelsHigh: height, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bitmapFormat: .alphaNonpremultiplied, bytesPerRow: size * 4, bitsPerPixel: 32),
               let pixels = bitmap.bitmapData else { return nil }
         // CImageList::Add uses the first BMP pixel as its exact RGB color key.
         let mask = colorKey ?? Array(data[offset..<offset + 3])
         guard mask.count == 3 else { return nil }
-        for y in 0..<size {
+        for y in 0..<height {
             for x in 0..<size {
-                let source = offset + (size - y - 1) * stride + (tile * size + x) * 3
+                let source = offset + (height - y - 1) * stride + (tile * size + x) * 3
                 let target = y * size * 4 + x * 4
                 pixels[target] = data[source + 2]; pixels[target + 1] = data[source + 1]; pixels[target + 2] = data[source]
                 pixels[target + 3] = data[source] == mask[0] && data[source + 1] == mask[1] && data[source + 2] == mask[2] ? 0 : 255
             }
         }
-        let image = NSImage(size: NSSize(width: size, height: size)); image.addRepresentation(bitmap)
+        let image = NSImage(size: NSSize(width: size, height: height)); image.addRepresentation(bitmap)
         image.isTemplate = false
         return image
     }

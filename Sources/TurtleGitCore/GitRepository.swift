@@ -151,6 +151,11 @@ public actor GitRepository {
         }
         // Disk-backed streams avoid pipe deadlock with large diffs and command output.
         let status: Int32
+        var diagnosticExitCode:Int32?
+        let diagnosticSpan=GitCommandDiagnostics.begin(executable:executorOverride ?? executable,arguments:commandArguments,opaqueArgumentIndices:Set(commandArgumentBytes.keys))
+        // The runner returns only after its child is reaped; emit the terminal
+        // event here, never when cancellation is merely requested.
+        defer {GitCommandDiagnostics.finish(diagnosticSpan,exitCode:diagnosticExitCode,cancelled:cancellation?.isCancelled==true)}
         var outputWasDelivered=false
         if cancellation != nil || onOutput != nil || consumeOutput != nil || replayObservation != nil {
             let outputReader = try FileHandle(forReadingFrom: out), errorReader = try FileHandle(forReadingFrom: err)
@@ -184,11 +189,13 @@ public actor GitRepository {
                 if cancellation?.isCancelled==true { processCancellation.cancel() }
                 read(outputReader, stream:.stdout);read(errorReader, stream:.stderr)
             }, cancellationReady: promptCancellation.map { gate in { gate.cancellationReady() } })
+            diagnosticExitCode=status
             read(outputReader, stream: .stdout, drain: true); read(errorReader, stream: .stderr, drain: true)
             if let consumerError { throw consumerError }
         } else {
             status = try CancellableGitProcess.run(executable: executorOverride ?? executable, arguments: commandArguments, argumentBytes: commandArgumentBytes, environment: environment, output: output.fileDescriptor, error: error.fileDescriptor,input:inputReader?.fileDescriptor)
         }
+        diagnosticExitCode=status
         let result = GitResult(exitCode: status, stdout: retainStandardOutput ? try Data(contentsOf: out) : Data(), stderr: try Data(contentsOf: err))
         if cancellation?.isCancelled == true { throw GitCommandCancellationFailure(result: result,outputWasDelivered:outputWasDelivered) }
         guard successfulExitCodes.contains(status) else {

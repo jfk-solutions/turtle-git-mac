@@ -200,6 +200,7 @@
 		564344059CE4E64FF08A09FF /* FileMoveWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70196B2A8593EF35543D4620 /* FileMoveWindow.swift */; };
 		566929EB924A146E09618757 /* StatusListSelection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48ED07A9B4D7F1E9FB4E87B3 /* StatusListSelection.swift */; };
 		56B94B831C0F93189FCA10AB /* SubmoduleProgressCompletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3285697EA8FA321AA94C400 /* SubmoduleProgressCompletion.swift */; };
+		56FBC591CE93F497C43B8018 /* CommandDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8272F27E6DBD891293E937F1 /* CommandDiagnostics.swift */; };
 		57A3CC473244D8F6303B22FB /* MergeEditorToolbar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A40F17F43A03D5EC6A0AA92 /* MergeEditorToolbar.swift */; };
 		57D0F31F4AA8A43D27C48511 /* SMTP.c in Sources */ = {isa = PBXBuildFile; fileRef = 205A616C02EABD9EE7DB57A2 /* SMTP.c */; };
 		57F5458D5F380EC55CF581E3 /* ReplayRowDrag.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DEE4FE7D1D60DD01647E285 /* ReplayRowDrag.swift */; };
@@ -356,6 +357,7 @@
 		A6B48099B1D35ECDB24B6A1D /* PatchMailSMTP.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42F8407D25DCE9BFAD2E1297 /* PatchMailSMTP.swift */; };
 		A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69C742F936FA4A0276A54856 /* CleanWindow.swift */; };
 		A74A3FE8744154EDF768C63C /* SwitchWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 977DAB97DBBB903654C73A78 /* SwitchWindow.swift */; };
+		A799F35535C79E3D5BB1AB48 /* GitCommandDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13AA2C8D362FA2C5522FCA0B /* GitCommandDiagnostics.swift */; };
 		A79BF60CDBEDA5B4F781B0A5 /* PatchClipboard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A257C0CA956E0F3CCCBD435C /* PatchClipboard.swift */; };
 		A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C67F27BFB40588DC92B4F276 /* SMTPCertificateTransport.swift */; };
 		A7F9B61AFDD2F69ADE7A35C7 /* AddProgressWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8F84A36C85062FC9FF018CB1 /* AddProgressWindow.swift */; };
@@ -684,6 +686,7 @@
 		1171B2BA353FE1424EB5B04F /* RevertProgressWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RevertProgressWindow.swift; sourceTree = "<group>"; };
 		11C14DF0DFBA0B8AC513278E /* NOTICE */ = {isa = PBXFileReference; path = NOTICE; sourceTree = "<group>"; };
 		136F4D60A5ED1BD907C0F4FF /* BranchTagWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BranchTagWindow.swift; sourceTree = "<group>"; };
+		13AA2C8D362FA2C5522FCA0B /* GitCommandDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitCommandDiagnostics.swift; sourceTree = "<group>"; };
 		13FB95E04DD4B3286401A46C /* IssueProviderCredentials.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderCredentials.swift; sourceTree = "<group>"; };
 		1461AE9BD8BFDBA1939F33FF /* AlternativeEditorPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlternativeEditorPreferences.swift; sourceTree = "<group>"; };
 		147C1880748CAF195D6A19CA /* BlameWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BlameWindow.swift; sourceTree = "<group>"; };
@@ -895,6 +898,7 @@
 		809D37BDD2634840B77F0A85 /* EmailSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EmailSettings.swift; sourceTree = "<group>"; };
 		814E543BEB0736B84A50B21B /* SavedData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedData.swift; sourceTree = "<group>"; };
 		81E52787ACF6315F812EA290 /* MessageSnippets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MessageSnippets.swift; sourceTree = "<group>"; };
+		8272F27E6DBD891293E937F1 /* CommandDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandDiagnostics.swift; sourceTree = "<group>"; };
 		82FB7B20C3A6B906931A7659 /* PresentationRevision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PresentationRevision.swift; sourceTree = "<group>"; };
 		83395323FFA0860A52795F9F /* Stash.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stash.swift; sourceTree = "<group>"; };
 		837C5F7103FADCDAC3F99EC1 /* RemoteSettingsWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSettingsWindow.swift; sourceTree = "<group>"; };
@@ -1270,6 +1274,7 @@
 				69C742F936FA4A0276A54856 /* CleanWindow.swift */,
 				0B5CA377E560923FE6C0F849 /* ClientHookRuntime.swift */,
 				7A4B370EB64932B2909A8228 /* CloneWindow.swift */,
+				8272F27E6DBD891293E937F1 /* CommandDiagnostics.swift */,
 				0ABAD60A21F60D01816B9D64 /* CommandLabel.swift */,
 				CE7B3CD3572506CF17DB3A1F /* CommandProgressContext.swift */,
 				34412922B6BCF1419CB12530 /* CommitActionControl.swift */,
@@ -1635,6 +1640,7 @@
 				3BE14912ACD87B35508C186F /* GitBlamePresentation.swift */,
 				E2B98C30D7BBA3C23B6F0643 /* GitBlamePresentationInteraction.swift */,
 				05D106E240B26C603304CF20 /* GitCliOutputParser.swift */,
+				13AA2C8D362FA2C5522FCA0B /* GitCommandDiagnostics.swift */,
 				7FCFCDB728C608CE307F104D /* GitCommandPresentation.swift */,
 				C75E958EB60D00CC4B682456 /* GitConfiguration.swift */,
 				B4DE08A2852733DA440A85CB /* GitCredentials.swift */,
@@ -2309,6 +2315,7 @@
 				EFF9A599551FEE689010B300 /* GitBlamePresentation.swift in Sources */,
 				B6D197C224C21635D6ADDD58 /* GitBlamePresentationInteraction.swift in Sources */,
 				F4EFA7E104D7F5B9615C331C /* GitCliOutputParser.swift in Sources */,
+				A799F35535C79E3D5BB1AB48 /* GitCommandDiagnostics.swift in Sources */,
 				87AF3D06D475C0FE3C5542C5 /* GitCommandPresentation.swift in Sources */,
 				8A5F285FDAD77236D13388DD /* GitConfiguration.swift in Sources */,
 				D6F21D6B466FBBA5484A3C2F /* GitCredentials.swift in Sources */,
@@ -2536,6 +2543,7 @@
 				A70DDFADDD5CE64F95764E53 /* CleanWindow.swift in Sources */,
 				11E2CC727FCB9A795D663F7F /* ClientHookRuntime.swift in Sources */,
 				5E1F0466AB4AB402921ADF5F /* CloneWindow.swift in Sources */,
+				56FBC591CE93F497C43B8018 /* CommandDiagnostics.swift in Sources */,
 				A9E14DE01BAAD7CF54993E51 /* CommandLabel.swift in Sources */,
 				1D896E9305E224B85A439443 /* CommandProgressContext.swift in Sources */,
 				720B8916E52A02E15673122A /* CommitActionControl.swift in Sources */,

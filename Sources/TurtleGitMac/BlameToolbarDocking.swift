@@ -141,10 +141,10 @@ struct BlameToolbarDockDrag {
     func hideBar(_ barID:UUID){guard var bar=store.load().allBars.first(where:{$0.id==barID}) else{return};bar.isVisible=false;update(bar)}
     func contextMenu(barID:UUID)->NSMenu {
         let menu=NSMenu();menu.autoenablesItems=false
-        func item(_ title:String,_ action:String,_ icon:MenuIcon,_ checked:Bool=false){let entry=NSMenuItem(title:NSLocalizedString(title,comment:""),action:#selector(toolbarContextAction(_:)),keyEquivalent:"");entry.target=self;entry.representedObject=BlameToolbarContextReceipt(barID:barID,generation:configuration.generation,action:action);entry.image=icon.contextImage(defaults:owner?.model.labelDefaults ?? .standard);entry.isEnabled=available;entry.state=checked ? .on:.off;menu.addItem(entry)}
-        item("Customize Toolbar…","customize",.settings);item("Manage Toolbars…","manage",.settings);item("Reset All Toolbars","reset",.refresh);menu.addItem(.separator())
-        for placement in BlameToolbarPlacement.allCases {item(placement.title,"place."+placement.rawValue,placement == .top ? .jumpUp:placement == .bottom ? .jumpDown:.settings,configuration.allBars.first{$0.id==barID}?.placement==placement)}
-        menu.addItem(.separator());item("Hide Toolbar","hide",.settings);return menu
+        func item(_ title:String,_ action:String,_ checked:Bool=false){let entry=NSMenuItem(title:NSLocalizedString(title,comment:""),action:#selector(toolbarContextAction(_:)),keyEquivalent:"");entry.target=self;entry.representedObject=BlameToolbarContextReceipt(barID:barID,generation:configuration.generation,action:action);entry.isEnabled=available;entry.state=checked ? .on:.off;menu.addItem(entry)}
+        item("Customize Toolbar…","customize");item("Manage Toolbars…","manage");item("Reset All Toolbars","reset");menu.addItem(.separator())
+        for placement in BlameToolbarPlacement.allCases {item(placement.title,"place."+placement.rawValue,configuration.allBars.first{$0.id==barID}?.placement==placement)}
+        menu.addItem(.separator());item("Hide Toolbar","hide");return menu
     }
     @objc private func toolbarContextAction(_ sender:NSMenuItem){
         guard let receipt=sender.representedObject as? BlameToolbarContextReceipt,receipt.generation==configuration.generation,available else{return}

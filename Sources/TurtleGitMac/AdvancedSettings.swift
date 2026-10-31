@@ -144,6 +144,7 @@ import TurtleGitCore
             if !changes.isEmpty {
                 try store.apply(changes)
                 original=accepted;values=accepted;error=nil;refreshPublicationPending()
+                if changes["DebugOutputString"] != nil {NativeCommandDiagnostics.configure(preferences:defaults)}
                 RepositoryWindowTitles.refreshAll();onApplied()
             }else{error=nil}
             guard !retired else{return}
@@ -262,6 +263,8 @@ struct AdvancedSettingsTable: NSViewRepresentable {
             guard AdvancedSettingDefinition.all.indices.contains(row) else { return "" }
             let setting = AdvancedSettingDefinition.all[row]
             let effective: Set<String> = ["FullRowSelect", "OverlaysCaseSensitive", "TGitCacheCheckContentMaxSize", "BlockStatus", "CacheSave", "UseCustomWordBreak", "RefreshFileListAfterResolvingConflict", "ReaddUnselectedAddedFilesAfterCommit", "CacheTrayIcon", "DialogTitles", "ShowListFullPathTooltip", "ShortHashLengthForHyperLinkInLogMessage", "DownloadAnimation", "FetchVerbose", "ConflictDontGuessBranchNames", "MaxRefHistoryItems", "DiffSimilarityIndexThreshold", "AutoCompleteMinChars", "AutocompleteParseMaxSize", "AutocompleteParseUnversioned", "AutocompleteRemovesExtensions", "StyleCommitMessages", "ShowListBackgroundImage", "ShowAppContextMenuIcons", "ShowContextMenuIcons", "LogIncludeBoundaryCommits", "LogIncludeWorkingTreeChanges", "LogFontForLogCtrl", "LogFontForFileListCtrl", "NoSortLocalBranchesFirst", "LogTooManyItemsThreshold", "NumDiffWarning", "LogShowSuperProjectSubmodulePointer", "NamedRemoteFetchAll", "RememberFileListPosition", "SanitizeCommitMsg", "SquashDate", "StyleGitOutput", "VersionCheck", "VersionCheckPreview"]
+            if setting.name=="Debug" {return "Preview captured application commands before they run. OK or closing the informational preview continues the command."}
+            if setting.name=="DebugOutputString" {return "Write bounded, sanitized command lifecycle diagnostics to this Mac's Console. No command output, input, environment or automatic report upload is recorded."}
             if setting.name=="FullRowSelect" {return "Highlight the whole row in file, reference and progress lists. Disabling highlights the primary label only. Revision history always keeps full-row selection."}
             if setting.name=="OverlaysCaseSensitive" {return "Match Finder status paths with exact case when enabled. Disabling compares path case without combining different Unicode spellings."}
             if setting.name=="TGitCacheCheckContentMaxSize" {return "Maximum file size in KiB for Finder's content check when index stat data changes. Larger files retain stat-based status."}

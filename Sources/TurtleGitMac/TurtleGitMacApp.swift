@@ -81,7 +81,7 @@ struct TurtleGitMacApp: App {
         .commands {
             AppUtilityCommands()
             EditorFileCommands(blame: blameMenuContext, patch: patchMenuContext, statistics: statisticsMenuContext, message: messageMenuContext)
-            RepositoryCommands(model: workspaceScene.commandModel, hookProcesses: hookProcesses,
+            RepositoryCommands(model: workspaceScene.commandModel, hookProcesses: hookProcesses, blame: blameMenuContext,
                                openRepository: { applicationDelegate.requestWorkspace(openRepository: true) },
                                openRecent: { saved in
                                    guard let model = workspaceScene.presentWorkspace() else { return }
@@ -136,6 +136,7 @@ struct TurtleGitMacApp: App {
 @MainActor private struct RepositoryCommands: Commands {
     @ObservedObject var model: RepositoryModel
     @ObservedObject var hookProcesses: ClientHookProcessPool
+    @ObservedObject var blame: BlameMenuContext
     var openRepository: () -> Void
     var openRecent: (SavedRepository) -> Void
     var body: some Commands {
@@ -145,7 +146,7 @@ struct TurtleGitMacApp: App {
             Button { model.showFileTransfer(copy: false) } label: { CommandLabel(title: "Paste Move…", icon: .rename) }.disabled(model.root == nil || model.bare || model.busy)
         }
         CommandGroup(after: .newItem) {
-            Button { if let owner = PatchWindowController.focusedOwner(NSApp.keyWindow ?? NSApp.mainWindow), owner.documentSession.enabled { owner.documentSession.openDocument() } else { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { openRepository() } } } label: { CommandLabel(title:"Open…",icon:.open) }.keyboardShortcut("o")
+            Button { if let owner = PatchWindowController.focusedOwner(NSApp.keyWindow ?? NSApp.mainWindow), owner.documentSession.enabled { owner.documentSession.openDocument() } else { BlameWindowController.openFocused(NSApp.keyWindow ?? NSApp.mainWindow) { openRepository() } } } label: { CommandLabel(title:"Open…",icon:blame.focused ? .blameOpen:.open) }.keyboardShortcut("o")
             Button { model.showClipboardPatch() } label: { CommandLabel(title: "Review Clipboard Patch…", icon: .patch) }.disabled(model.busy || model.confirmingQuit)
             Button { model.showReviewPatch(files: []) } label: { CommandLabel(title: RepositoryAction.reviewPatch.title, icon: RepositoryAction.reviewPatch.icon) }.disabled(model.busy || model.confirmingQuit)
             Button { model.showMergeOpen() } label: { CommandLabel(title: "Open in TurtleGitMerge…", icon: .open) }.disabled(model.busy || model.confirmingQuit)

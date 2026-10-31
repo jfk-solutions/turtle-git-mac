@@ -5744,3 +5744,18 @@ retained actions while preserving draft Undo and zoom.
 The [dated checkpoint](qa/message-editor-commands-family-2026-10-27.json) records
 actual validation, failures and remaining physical/signed/full-source acceptance.
 The installed build14 remains the separately measured earlier source snapshot.
+
+
+## Command diagnostics and Blame artwork — October 31, 2026
+
+Advanced Debug/DebugOutputString now have native informational-preview and local
+Console consumers, with captured command ownership, shared sanitized arguments,
+separate Merge startup scope and live Apply/reset. Blame now uses its exact
+pinned toolbar tiles, source menu order and text-only command policy while
+retaining TurtleGit About branding, saved toolbar layouts and owner-bound actions.
+The [grouped checkpoint](qa/command-diagnostics-blame-artwork-2026-10-31.json)
+records focused Core, Debug and private native passes, actual repairs and visual
+limits. User guide, Privacy and bundled Help describe the settings. Installed
+build43 remains unchanged; this source batch is not a signed deployment or whole
+port certification. New failures from an older still-running hosted build remain
+[separately recorded](qa/hosted-native-failures-2026-10-31.json).

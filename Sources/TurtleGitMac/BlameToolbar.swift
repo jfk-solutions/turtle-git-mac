@@ -56,7 +56,7 @@ import TurtleGitCore
         let prefix="TurtleGit.Blame.Command.";return id.rawValue.hasPrefix(prefix) ? String(id.rawValue.dropFirst(prefix.count)):nil
     }
     static func title(_ id:String)->String {NSLocalizedString(BlameToolbarCommand.title(for:id),comment:"")}
-    static func icon(_ id:String)->MenuIcon {MenuIcon(rawValue:BlameToolbarCommand.iconName(for:id)) ?? .settings}
+    static func icon(_ id:String)->MenuIcon? {BlameToolbarCommand.iconName(for:id).flatMap(MenuIcon.init(rawValue:))}
     private func restoreStandard(){
         restoring=true;standardGeneration=UUID();defer{restoring=false}
         for index in toolbar.items.indices.reversed(){toolbar.removeItem(at:index)}
@@ -106,7 +106,7 @@ import TurtleGitCore
     func toolbar(_ toolbar:NSToolbar,itemForItemIdentifier identifier:NSToolbarItem.Identifier,willBeInsertedIntoToolbar flag:Bool)->NSToolbarItem? {
         guard live,let id=Self.itemID(identifier),BlameToolbarCommand.isKnownItem(id),id != "space",id != "flexibleSpace" else{return nil}
         let item=NSToolbarItem(itemIdentifier:identifier);item.label=Self.title(id);item.paletteLabel=item.label;item.toolTip=item.label
-        item.image=Self.icon(id).image(size:20);item.target=self;item.action=#selector(invoke(_:));item.autovalidates=false
+        item.image=Self.icon(id)?.image(size:20);item.target=self;item.action=#selector(invoke(_:));item.autovalidates=false
         item.view=button(id,mode:.icons,barID:BlameToolbarConfiguration.standardID)
         update(item);return item
     }
@@ -118,7 +118,7 @@ import TurtleGitCore
     }
     func menuItem(_ id:String,barID:UUID? = nil,standalone:Bool=false)->NSMenuItem {
         let item=NSMenuItem(title:Self.title(id),action:#selector(invoke(_:)),keyEquivalent:"");item.target=self;item.representedObject=BlameToolbarReceipt(id:id,barID:barID ?? BlameToolbarConfiguration.standardID,generation:barID==nil || barID==BlameToolbarConfiguration.standardID ? standardGeneration:configurationGeneration,standalone:standalone)
-        item.image=Self.icon(id).contextImage(defaults:owner?.model.labelDefaults ?? .standard);item.isEnabled=enabled(id);item.state=checked(id) ? .on:.off;return item
+        item.image=Self.icon(id)?.contextImage(defaults:owner?.model.labelDefaults ?? .standard);item.isEnabled=enabled(id);item.state=checked(id) ? .on:.off;return item
     }
     private func receiptAvailable(_ receipt:BlameToolbarReceipt)->Bool {
         guard available else{return false}
@@ -140,8 +140,9 @@ import TurtleGitCore
     }
     private static func toggle(_ id:String)->Bool {let toggles:Set<String>=["toolbar","log","properties","statusBar","logID","author","date","filename","original","ignoreWhitespace","completeLog","followRenames","firstParent","colorAge","syntax","dark","wrap","followSystemAppearance","detectDisabled","detectWithinFile","detectModifiedFiles","detectFileCreation","detectExistingFiles"];return toggles.contains(id) || id.hasPrefix("encoding.")}
     func button(_ id:String,mode:BlameToolbarDisplayMode,barID:UUID)->NSButton {
-        let button=BlameToolbarButton(title:mode == .icons ? "":Self.title(id),target:self,action:#selector(invoke(_:)));button.chrome=self;button.barID=barID;button.commandID=id;button.receipt=BlameToolbarReceipt(id:id,barID:barID,generation:barID==BlameToolbarConfiguration.standardID ? standardGeneration:configurationGeneration)
-        button.image=mode == .labels ? nil:Self.icon(id).image(size:20);button.imagePosition=mode == .icons ? .imageOnly:.imageLeading
+        let hasIcon=Self.icon(id) != nil
+        let button=BlameToolbarButton(title:mode == .icons && hasIcon ? "":Self.title(id),target:self,action:#selector(invoke(_:)));button.chrome=self;button.barID=barID;button.commandID=id;button.receipt=BlameToolbarReceipt(id:id,barID:barID,generation:barID==BlameToolbarConfiguration.standardID ? standardGeneration:configurationGeneration)
+        button.image=mode == .labels ? nil:Self.icon(id)?.image(size:20);button.imagePosition = !hasIcon || mode == .labels ? .noImage : mode == .icons ? .imageOnly : .imageLeading
         button.setButtonType(Self.toggle(id) ? .toggle:.momentaryPushIn);button.state=checked(id) ? .on:.off;button.bezelStyle = .texturedRounded;button.toolTip=Self.title(id);button.setAccessibilityLabel(Self.title(id));button.setAccessibilityIdentifier("TurtleGit.Blame.Toolbar."+id);button.isEnabled=enabled(id);button.sizeToFit();return button
     }
     func validateToolbarItem(_ item:NSToolbarItem)->Bool {Self.itemID(item.itemIdentifier).map(enabled) ?? false}

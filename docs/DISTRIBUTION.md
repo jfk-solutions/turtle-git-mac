@@ -557,7 +557,7 @@ windows in Swift does not remove licensing obligations for a derived port.
 No upstream licensing exception or permission has been obtained.
 
 GPL v2 section 6 prohibits imposing additional restrictions on recipients. Apple's
-[current standard application EULA](https://www.apple.com/legal/macapps/stdeula/)
+[current standard application EULA](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/)
 contains usage and redistribution limitations and also recognizes separate EULAs
 and open-source component terms. Whether a particular distribution arrangement
 satisfies all relevant terms must be resolved before an App Store submission.
@@ -570,6 +570,19 @@ retained upstream code, new code, assets and bundled dependencies, obtain any
 necessary rightsholder permissions, and verify the proposed distribution terms.
 Direct distribution remains an engineering path, subject to the same source and
 license obligations. The App Store target is retained while this is investigated.
+
+### Terms review worksheet — October 31, 2026
+
+| Primary source | Observed requirement | Decision still needed |
+| --- | --- | --- |
+| [Apple custom EULA setup](https://developer.apple.com/help/app-store-connect/manage-app-information/provide-a-custom-license-agreement) | Connect accepts a plain-text custom agreement for selected territories; otherwise the standard agreement applies. | Record exact proposed text and territories. The configuration option itself does not establish GPL compatibility. |
+| [Apple minimum custom EULA terms](https://www.apple.com/legal/internet-services/itunes/dev/minterms/), sections 2 and 8 | License scope includes nontransferable use on owned or controlled Apple products under Usage Rules; developer contact particulars are required. | Resolve that scope against GPL section 6 and verify the final publisher contact particulars. |
+| [Apple standard EULA](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/), section a | Usage/redistribution restrictions coexist with an open-source exception to specified copying/modification restrictions. | Review the complete proposed arrangement; do not assume that exception settles every restriction. |
+| [Project GPL](../LICENSE), sections 3 and 6 | Corresponding-source obligations and recipients' rights remain applicable. | Match the exact distributed code/assets/dependencies to source, notices, reconstruction inputs and any necessary permissions. |
+
+This worksheet records questions for the distribution review, not a replacement
+license or a clearance decision. No custom EULA has been entered in Connect and
+no application has been submitted. Local testing proceeds independently.
 
 ## Release evidence still required
 

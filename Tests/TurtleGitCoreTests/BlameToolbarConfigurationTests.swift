@@ -13,7 +13,7 @@ final class BlameToolbarConfigurationTests: XCTestCase {
         for command in BlameToolbarCommand.allCases {
             XCTAssertTrue(BlameToolbarCommand.isKnownItem(command.rawValue))
             XCTAssertFalse(command.title.isEmpty)
-            XCTAssertNotNil(MenuIcon(rawValue: command.iconName), command.rawValue)
+            if let iconName=command.iconName { XCTAssertNotNil(MenuIcon(rawValue: iconName), command.rawValue) }
             XCTAssertEqual(command.accessibilityIdentifier, "Blame.Toolbar.Command." + command.rawValue)
         }
         for choice in GitBlameEncodingMenu.unicode + GitBlameEncodingMenu.groups.flatMap(\.choices) where choice.encoding != nil {
@@ -22,6 +22,15 @@ final class BlameToolbarConfigurationTests: XCTestCase {
             XCTAssertEqual(BlameToolbarCommand.encoding(for: id), choice.encoding)
             XCTAssertEqual(BlameToolbarCommand.title(for: id), "Encoding: " + choice.title)
         }
+        XCTAssertEqual(BlameToolbarCommand.open.iconName, MenuIcon.blameOpen.rawValue)
+        XCTAssertEqual(BlameToolbarCommand.previousChange.iconName, MenuIcon.blamePrevious.rawValue)
+        XCTAssertEqual(BlameToolbarCommand.nextChange.iconName, MenuIcon.blameNext.rawValue)
+        XCTAssertEqual(BlameToolbarCommand.copy.iconName, MenuIcon.blameCopy.rawValue)
+        XCTAssertEqual(BlameToolbarCommand.about.iconName, MenuIcon.turtle.rawValue)
+        for command in [BlameToolbarCommand.find, .findNext, .findPrevious, .goTo, .settings, .author, .wrap, .encoding] {
+            XCTAssertNil(command.iconName, "Do not invent a Settings image for source text-only commands")
+        }
+        XCTAssertNil(BlameToolbarCommand.iconName(for:"encoding.65001"))
         XCTAssertFalse(BlameToolbarCommand.isKnownItem("encoding.999999"))
         XCTAssertFalse(BlameToolbarCommand.isKnownItem("runArbitraryCommand"))
     }

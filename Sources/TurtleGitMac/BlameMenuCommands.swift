@@ -20,14 +20,10 @@ enum BlameMenuAction:String,CaseIterable {
         case .colorAge:return "Color by age, continuous";case .syntax:return "Enable syntax highlighting";case .dark:return "Dark Mode";case .wrap:return "Wrap long lines"
         }
     }
-    var icon:MenuIcon {
-        switch self {
-        case .zoomIn:return .imageZoomIn;case .zoomOut:return .imageZoomOut;case .actualSize:return .imageOriginal
-        case .find:return .mergeFind;case .findNext,.nextChange:return .jumpDown;case .findPrevious,.previousChange:return .jumpUp
-        case .goTo,.log,.logID:return .log;case .nextPane,.previousPane:return .imageInfo;case .properties:return .imageInfo
-        default:return .settings
-        }
+    var icon:MenuIcon? {
+        BlameToolbarCommand.iconName(for:rawValue).flatMap(MenuIcon.init(rawValue:))
     }
+
 }
 private struct BlameMenuState:Equatable {
     var owner:ObjectIdentifier?,model:ObjectIdentifier?
@@ -86,15 +82,21 @@ private struct BlameMenuState:Equatable {
 }
 struct BlameCommands:Commands {
     @ObservedObject var context:BlameMenuContext
+    @ViewBuilder private func label(_ action:BlameMenuAction)->some View {
+        if let icon=action.icon {CommandLabel(title:action.title,icon:icon)}
+        else {Text(LocalizedStringKey(action.title))}
+    }
     private func item(_ action:BlameMenuAction)->some View {
-        Button { context.perform(action) } label: { CommandLabel(title:action.title,icon:action.icon) }.disabled(!context.allowed(action))
+        Button { context.perform(action) } label: { label(action) }.disabled(!context.allowed(action))
     }
     private func toggle(_ action:BlameMenuAction)->some View {
-        Toggle(isOn:Binding(get:{context.checked(action)},set:{ _ in context.perform(action) })) { CommandLabel(title:action.title,icon:action.icon) }.disabled(!context.allowed(action))
+        Toggle(isOn:Binding(get:{context.checked(action)},set:{ _ in context.perform(action) })) { label(action) }.disabled(!context.allowed(action))
     }
     // Keep each builder fragment small for the hosted SDK while preserving the
     // View menu's relative order and resolving the focused owner on every action.
     @ViewBuilder private var paneAndZoomChoices:some View {
+        item(.nextChange);item(.previousChange)
+        Divider()
         Menu("Toolbars and Panes") {
             toggle(.toolbar)
             Button("Customize Toolbar…"){context.owner?.toolbarChrome?.customize()}.disabled(!context.available)
@@ -104,8 +106,10 @@ struct BlameCommands:Commands {
             if let model=context.owner?.model {Divider();BlamePaneLayoutMenu(model:model)}
         }
         toggle(.statusBar)
-        item(.nextChange);item(.previousChange)
         Divider()
+        zoomChoices
+    }
+    @ViewBuilder private var zoomChoices:some View {
         item(.zoomIn).keyboardShortcut("+",modifiers:.command)
         item(.zoomOut).keyboardShortcut("-",modifiers:.command)
         item(.actualSize).keyboardShortcut("0",modifiers:.command)

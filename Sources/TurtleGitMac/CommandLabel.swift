@@ -18,7 +18,7 @@ struct CommandLabel: View {
                 caption
             } icon: {
                 if let image = icon.image() {
-                    Image(nsImage: image).renderingMode(image.isTemplate ? .template : .original).resizable().frame(width: 16, height: 16)
+                    Image(nsImage: image).renderingMode(image.isTemplate ? .template : .original).resizable().scaledToFit().frame(width: 16, height: 16)
                 }
             }
         }

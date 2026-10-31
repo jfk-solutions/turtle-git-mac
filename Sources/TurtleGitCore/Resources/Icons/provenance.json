@@ -1636,6 +1636,13 @@
       "asset": "CFMBackground.ico",
       "source": "src/Resources/CFMBackground.ico",
       "sha256": "c4dac848a21502a529dae41e554592cb35e042fe51cc9013b666aa4a74615f94"
+    },
+    {
+      "asset": "blame-toolbar256.bmp",
+      "source": "src/Resources/blameres/Toolbar256.bmp",
+      "sha256": "35747671f17c47908657f121da62834086aeeff2a098864b4986de6bfb18f164",
+      "git_blob": "29895926753123d889390f12485a14416bdc6e19",
+      "license": "GPL-2.0-or-later (upstream resource license alternative)"
     }
   ]
 }

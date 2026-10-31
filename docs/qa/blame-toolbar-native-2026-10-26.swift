@@ -112,17 +112,29 @@ private extension NSWindow {
         try require(chrome.toolbar.items.map(\.itemIdentifier)==expected.map(identifier),"Pinned source five-button order/separators changed")
         try require(chrome.toolbarDefaultItemIdentifiers(chrome.toolbar)==expected.map(identifier),"Native palette default composition differs from source")
         try require(chrome.toolbar.allowsUserCustomization && !chrome.toolbar.autosavesConfiguration,"Native customization or private configuration ownership missing")
-        let sourceIcons:[String:MenuIcon]=["open":.open,"previousChange":.jumpUp,"nextChange":.jumpDown,"copy":.copy,"about":.turtle]
+        let sourceIcons:[String:MenuIcon]=["open":.blameOpen,"previousChange":.blamePrevious,"nextChange":.blameNext,"copy":.blameCopy,"about":.turtle]
         for id in ["open","previousChange","nextChange","copy","about"] {
             let native=try item(id,in:chrome)
             try require(native.image != nil && native.image?.tiffRepresentation==sourceIcons[id]!.image(size:20)?.tiffRepresentation,"Wrong source icon for \(id)")
             try require(native.menuFormRepresentation?.image != nil && native.menuFormRepresentation?.action != nil,"Overflow command missing native icon/action: \(id)")
         }
+        try require(BlameMenuAction.nextChange.icon == .blameNext && BlameMenuAction.previousChange.icon == .blamePrevious,"Main-menu navigation did not share pinned toolbar artwork")
+        for action in [BlameMenuAction.find,.findNext,.findPrevious,.goTo,.toolbar,.author,.date,.wrap] {
+            try require(action.icon == nil,"Text-only source main-menu command acquired invented artwork: \(action.rawValue)")
+        }
+        let placementMenu=chrome.contextMenu(barID:BlameToolbarConfiguration.standardID)
+        try require(placementMenu.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image == nil},"Toolbar customization context invented source images")
+        prefs.set(false,forKey:"ShowAppContextMenuIcons")
+        try require(chrome.menuItem("nextChange",standalone:true).image == nil,"Source overflow ignored context icon preference")
+        try require(chrome.button("nextChange",mode:.icons,barID:BlameToolbarConfiguration.standardID).image != nil,"Context icon preference incorrectly removed toolbar image")
+        prefs.set(true,forKey:"ShowAppContextMenuIcons")
         let allowed=chrome.toolbarAllowedItemIdentifiers(chrome.toolbar)
         try require(BlameToolbarCommand.availableItemIDs.allSatisfy{allowed.contains(identifier($0))} && allowed.contains(.flexibleSpace),"Customization palette omits commands/encoding/spacers")
         for id in ["find","encoding.65001","wrap"] {
             let palette=chrome.toolbar(chrome.toolbar,itemForItemIdentifier:identifier(id),willBeInsertedIntoToolbar:false)
-            try require(palette?.image != nil && palette?.paletteLabel.isEmpty==false,"Palette command/icon missing: \(id)")
+            let button=palette?.view as? NSButton
+            try require(palette?.image == nil && palette?.paletteLabel.isEmpty==false && button?.image == nil && button?.title==BlameToolbarController.title(id),"Source text-only palette command lost its visible label: \(id)")
+            try require(palette?.menuFormRepresentation?.image == nil,"Source text-only overflow acquired an unrelated icon: \(id)")
         }
         // Exercise the real AppKit customization palette. NSWindow ordering is
         // intercepted before AppKit can put its panel onto the user's desktop.
@@ -190,12 +202,22 @@ private extension NSWindow {
         strip.configure(chrome:chrome,bar:reviewBar);strip.layoutSubtreeIfNeeded()
         let namedButtons=strip.subviews.compactMap{$0 as? NSButton}.filter{!($0 is NSPopUpButton)}
         try require(namedButtons.map(\.title)==["find","wrap","copy","about"].map(BlameToolbarController.title),"Named native controls lost composition/order")
-        try require(namedButtons.allSatisfy{$0.image != nil},"Named icon-and-label controls lack icons")
+        let namedCommands=["find","wrap","copy","about"]
+        for (button,id) in zip(namedButtons,namedCommands) {
+            let expectedImage=sourceIcons[id]?.image(size:20)
+            try require(button.image?.tiffRepresentation==expectedImage?.tiffRepresentation && button.title==BlameToolbarController.title(id),"Named icon-and-label command has wrong source artwork/text: \(id)")
+            try require(button.imagePosition == (expectedImage == nil ? .noImage:.imageLeading),"Named source text-only command lost its label layout: \(id)")
+        }
         guard let attachedStrip=views(window.contentView).compactMap({$0 as? BlameToolbarStrip}).first(where:{$0.barID==review && $0.window === window}) else {throw Failure(description:"Actual attached named toolbar missing")}
         let attachedSize=attachedStrip.frame.size
         attachedStrip.setFrameSize(NSSize(width:180,height:34));attachedStrip.needsLayout=true;attachedStrip.layoutSubtreeIfNeeded()
         guard let overflow=attachedStrip.subviews.compactMap({$0 as? NSPopUpButton}).first,let overflowMenu=overflow.menu else {throw Failure(description:"Actual named overflow menu missing")}
-        try require(!overflow.isHidden && overflowMenu.items.count>1 && overflowMenu.items.dropFirst().allSatisfy{$0.image != nil && $0.action != nil},"Narrow named bar lost native overflow icons/actions")
+        try require(!overflow.isHidden && overflowMenu.items.count>1,"Narrow named bar lost native overflow")
+        for entry in overflowMenu.items.dropFirst() {
+            guard let id=namedCommands.first(where:{BlameToolbarController.title($0)==entry.title}) else {throw Failure(description:"Unexpected named overflow command: \(entry.title)")}
+            let expectedImage=sourceIcons[id]?.contextImage(defaults:prefs)
+            try require(entry.image?.tiffRepresentation==expectedImage?.tiffRepresentation && entry.action != nil && !entry.title.isEmpty,"Named overflow lost source artwork/text/action: \(id)")
+        }
         var aboutCalls=0;chrome.showAbout={aboutCalls += 1}
         let overflowAbout=overflowMenu.items.first{$0.title==BlameToolbarController.title("about")}!
         try invoke(overflowAbout);try require(aboutCalls==1,"Named overflow About failed bound-owner dispatch")
@@ -210,7 +232,11 @@ private extension NSWindow {
         }
         try await wait("Attached current icon-only named button") {currentNamedButton() != nil}
         guard let currentButton=currentNamedButton() else {throw Failure(description:"Current attached named button missing")}
-        try require(currentButton.title.isEmpty && currentButton.image != nil && currentButton.window === window,"Icon-only named control lost native ownership/display mode")
+        try require(currentButton.title.isEmpty && currentButton.image?.tiffRepresentation==MenuIcon.turtle.image(size:20)?.tiffRepresentation && currentButton.window === window,"Icon-only named control lost mascot/native ownership/display mode")
+        for id in ["find","wrap"] {
+            let textOnly=views(window.contentView).compactMap{$0 as? BlameToolbarStrip}.filter{$0.barID==review && $0.window === window}.flatMap{$0.subviews.compactMap{$0 as? NSButton}}.first{$0.toolTip==BlameToolbarController.title(id) && chrome.authenticatedPointerSource($0)}
+            try require(textOnly?.title==BlameToolbarController.title(id) && textOnly?.image == nil && textOnly?.imagePosition == .noImage,"Icons Only hid a source text-only named command: \(id)")
+        }
         try require(NSApp.sendAction(currentButton.action!,to:currentButton.target,from:currentButton),"Custom button target missing")
         try require(aboutCalls==2,"Current named button failed dispatch")
         chrome.removeBar(inspect)

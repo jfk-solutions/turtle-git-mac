@@ -42,6 +42,17 @@ retention is 4000 lines, with the complete newest operation always retained.
 Settings → Saved Data lets users show or clear it; setting the line count to 0
 disables new entries without deleting old ones. TurtleGit does not upload it.
 
+Advanced → `DebugOutputString` optionally writes command lifecycle metadata to
+this Mac's Console. It is off by default. Records include bounded, sanitized
+arguments, executable paths, elapsed time and completion/cancellation status;
+ordinary repository and file paths can remain visible. Message/configuration
+payloads and URL credentials are redacted. Command input, environment and output
+are not passed to this diagnostic sink. Disabling the setting stops new records;
+existing records follow the operating system's log retention. These diagnostics
+are not automatically uploaded or attached to support reports. The separate
+`Debug` option shows a local informational preview before command admission,
+using the same argument sanitizer.
+
 Saved repository bookmarks, display names and last-known paths live in the app's
 private Application Support directory. The bookmark file uses owner-only file
 permissions. Sandboxed builds place that directory inside their application

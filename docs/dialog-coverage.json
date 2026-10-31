@@ -2430,6 +2430,7 @@
       "qa_records": [
         "docs/qa/advanced-list-consumers-2026-10-14.json",
         "docs/qa/advanced-settings-2026-10-06.json",
+        "docs/qa/command-diagnostics-blame-artwork-2026-10-31.json",
         "docs/qa/commit-message-file-2026-10-07.json",
         "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/history-boundaries-2026-10-09.json",

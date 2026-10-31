@@ -55,22 +55,21 @@ public enum BlameToolbarCommand: String, Codable, CaseIterable, Identifiable, Se
         case .encoding: return "Encoding"
         }
     }
-    /// Source asset names, resolved to MenuIcon by the native presentation layer.
-    public var iconName: String {
+    /// Only commands with pinned Blame toolbar artwork receive an image.
+    /// Native-only zoom/reload commands keep their established matching artwork;
+    /// source text-only choices must not acquire an unrelated Settings gear.
+    public var iconName: String? {
         switch self {
-        case .open: return "open"
-        case .reload: return "refresh"
-        case .previousChange, .findPrevious, .previousPane: return "jumpup"
-        case .nextChange, .findNext, .nextPane: return "jumpdown"
-        case .copy: return "copy"
+        case .open: return "blame-toolbar-open"
+        case .previousChange: return "blame-toolbar-previous"
+        case .nextChange: return "blame-toolbar-next"
+        case .copy: return "blame-toolbar-copy"
         case .about: return "TurtleGitApplication"
-        case .find: return "Search"
-        case .goTo, .log, .logID: return "menulog"
+        case .reload: return "refresh"
         case .zoomIn: return "zoomin"
         case .zoomOut: return "zoomout"
         case .actualSize: return "origsize"
-        case .properties: return "imginfo"
-        default: return "menusettings"
+        default: return nil
         }
     }
     public var accessibilityIdentifier: String { "Blame.Toolbar.Command." + rawValue }
@@ -95,7 +94,7 @@ public enum BlameToolbarCommand: String, Codable, CaseIterable, Identifiable, Se
         if id.hasPrefix("encoding."), let codePage = UInt32(id.dropFirst(9)), let choice = encodingChoices.first(where: { $0.codePage == codePage }) { return "Encoding: " + choice.title }
         return id
     }
-    public static func iconName(for id: String) -> String { Self(rawValue: id)?.iconName ?? "menusettings" }
+    public static func iconName(for id: String) -> String? { Self(rawValue: id)?.iconName }
 }
 
 public enum BlameToolbarDisplayMode: String, Codable, CaseIterable, Sendable {

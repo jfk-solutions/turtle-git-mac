@@ -1138,6 +1138,21 @@ replaces shipped adapter rules while retaining your other associations. See the
 [tool configuration comparison](LITERAL-TOOL-CONFIGURATION-PARITY.md) for matching
 precedence and current acceptance limits.
 
+### Local command diagnostics
+
+In Settings → Advanced, enable **Debug** and Apply to preview application commands
+before they run. The informational window contains selectable, sanitized command
+arguments. **OK**, Escape or closing it continues the captured command. It does
+not grant folder access or open a workspace for an About/Help command. Disable
+Debug and Apply to stop previews for subsequent commands.
+
+**DebugOutputString** separately enables command lifecycle records in macOS
+Console under subsystem `org.turtlegit.macos`, category `CommandDiagnostics`.
+Records show sanitized arguments and completion timing/status. Both settings
+default to off; Apply takes effect immediately and clearing the value restores
+the default. See [Privacy](PRIVACY.md) for retained metadata and redaction limits.
+Console records are not automatically attached to a support report.
+
 ### Hook Scripts
 
 Settings → Hook Scripts lists hook type, path, command, Wait and Show. Check a

@@ -1,0 +1,34 @@
+{
+  "date": "2026-10-31",
+  "scope": "Read-only triage of failed jobs in an older still-active hosted run; not a new local execution or complete CI result",
+  "run": 41147246774,
+  "source": "1a09d511",
+  "next_source_batches": [
+    {
+      "workflow": "Branch/Tag handoff",
+      "job": 124385294432,
+      "failure": "GitFailure: config --get branch.locked.description, exit 1",
+      "evidence": "Branch/Tag source and completion cases passed both engines before system-Git handoff failed. Receiver 73108 reaped.",
+      "classification": "Stale fixture retry without acknowledging intentional error",
+      "next_action": "Preserve production error-admission guard. Acknowledge captured error through the existing accepted error-sheet path before retry; retain exact description/ref/single-switch assertions.",
+      "source_reference": "BranchTagWindow.create error guard; handoff fixture line45; sibling completion fixture already acknowledges error."
+    },
+    {
+      "workflow": "Positioned EMF text",
+      "job": 124385294375,
+      "failure": "Native positioned/cmap/raw-glyph raster mismatch: plus-driver-positioned and classic-positioned-dx",
+      "evidence": "System-Git positioned-text case; receiver88272 reaped; retained hosted fixture positioned-text-0-_74vqoen.",
+      "classification": "New unresolved full-canvas raster mismatch",
+      "next_action": "Inspect retained SVG/pixels and exact viewport/backgrounds before choosing renderer or fixture repair. Existing cropped black-ink Core oracle and WMF background repair do not prove this pair."
+    },
+    {
+      "workflow": "Merge default encoding",
+      "job": 124385294343,
+      "failure": "Default encoding did not settle, Code1",
+      "evidence": "MergeOnePaneContext passed before MergeDefaultEncodingVerification timed out; receiver10107 reaped.",
+      "classification": "Unresolved unnamed readiness timeout",
+      "next_action": "Name the existing predicates and retain phase/model/native-control state. Establish which owner/transition failed before changing product behavior or assertions."
+    }
+  ],
+  "workflow_mutations": "None: no cancelled or retried runs; current d286fb6c run41155217003 remains pending behind older run."
+}

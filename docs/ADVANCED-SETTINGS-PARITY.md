@@ -278,3 +278,61 @@ current-value replay, source editor-text retention, property-sheet retry gating
 and startup/retirement settlement. Its [dated record](qa/settings-publication-recovery-2026-10-29.json)
 separates the actual grouped checkpoint from physical/signed and complete source
 acceptance. Installed build34 predates this continuation.
+
+
+## Opt-in command diagnostic consumers — October 31, 2026
+
+`Debug` now owns an informational, selectable command preview before the primary
+CLI or persistent-app Finder URL/Service invocation is admitted. Pinned
+`TortoiseProc.cpp:159–163` displays the process command line and ignores the
+MessageBox return value: native OK, Close and Escape therefore continue the
+captured command; there is no added approval/Cancel workflow. Default false opens
+no preview. Closing a preview never grants filesystem access. The asynchronous
+acknowledgment precedes unrelated Git configuration restoration, retains FIFO
+heads, and does not create a repository workspace for utilities. Opaque Finder
+argv envelopes are previewed only after decoding to avoid duplicate prompts.
+Repeating a legitimate same-URL invocation still owns a new preview.
+
+A declined Quit retains the paused command/preview. An approved immediate Quit
+retires its callback; normal termination also retires it. Acknowledgment during
+another owner's asynchronous Quit confirmation resumes only after a refused Quit.
+Turning off Debug affects subsequent commands while the already captured preview
+keeps its owner until acknowledgment. This adapts upstream's process-per-command
+message box to the persistent Mac application.
+
+The separate `TortoiseMerge.cpp:152–153` reads `TortoiseGitMerge\\Debug`. Native
+Merge startup uses the separate `TurtleGitMerge.Debug` defaults key; the app-wide
+Advanced Debug setting does not decorate Merge, IDiff, Unified Diff or Blame
+standalone startup. The pinned latter three have no corresponding Debug reader.
+The separate Merge key is not added to the 52-row primary Advanced catalogue.
+
+`DebugOutputString` now installs an opt-in local macOS Console sink for bounded,
+sanitized command start/end/cancellation and native admission events. This is the
+Mac adaptation of `Utils/DebugOutput.h:65,106` and `Git.cpp:345,484` execution/exit
+traces. The Core process hook retains actual process ownership and cancellation
+drain; no stdin, environment, output or error contents are passed to the sink.
+Arguments use the shared typed sanitizer, including primary message/config/URL
+credentials and Git message/push-option/credential payloads. The preview uses the
+same sanitizer; sensitive source command text is deliberately not reproduced.
+Advanced Apply installs/disables the current sink immediately, and blank reset
+removes the override and disables it. Nothing automatically uploads diagnostics
+or appends them to support reports.
+
+The native fixture is
+[command diagnostics](qa/command-diagnostics-native-2026-10-31.swift), run by
+`python3 scripts/test-command-diagnostics.py`. The
+[grouped checkpoint](qa/command-diagnostics-blame-artwork-2026-10-31.json) records
+passing focused Core, Debug and native checks after the complete consumer family
+and connected Blame menu work froze, including retained failures and repairs. The
+private offscreen fixture covers default-off and utility no-Git admission, real
+OK/native Close, duplicate URL FIFO, live Debug edits, held Git configuration,
+Services, declined/accepted Quit, standalone namespaces, force retirement,
+Advanced Apply/reset and redacted preview text. Core tracing tests separately
+cover owned real Git processes, cancellation and live sink changes.
+
+Dormant catalogue rows are not all missing portable consumers: the pinned
+`ProgressDlgLinesLimit` has no reader beyond its declaration; Cygwin/MSYS,
+Direct2D/Win8 spell engine, Explorer title, Windows taskbar grouping and shell
+mnemonic flags remain platform-specific. Their source behavior is not invented
+as a new Mac preference. Full diagnostics physical Console/keyboard/visual
+acceptance, every utility layout and complete application parity remain open.

@@ -3,6 +3,30 @@ import AppKit
 @testable import TurtleGitCore
 
 final class MenuIconTests: XCTestCase {
+    func testBlameToolbarTilesPreserveOriginalRectangularPixelsAndMask() throws {
+        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+        let path = "Sources/TurtleGitCore/Resources/Icons/blame-toolbar256.bmp"
+        let data = try Data(contentsOf: root.appendingPathComponent(path))
+        XCTAssertEqual(data.count, 3654) // Original 80×15 BGR; 240-byte rows, offset 54.
+        let upstream = root.appendingPathComponent(".upstream/TortoiseGit/src/Resources/blameres/Toolbar256.bmp")
+        if FileManager.default.fileExists(atPath:upstream.path) { XCTAssertEqual(data,try Data(contentsOf:upstream)) }
+        for (icon,tile) in [(MenuIcon.blameOpen,0),(.blamePrevious,1),(.blameNext,2),(.blameCopy,3)] {
+            let image=try XCTUnwrap(icon.image()), large=try XCTUnwrap(icon.image(size:32))
+            XCTAssertEqual(image.size,NSSize(width:16,height:15));XCTAssertEqual(large.size,NSSize(width:32,height:30))
+            XCTAssertFalse(image.isTemplate)
+            let bitmap=try XCTUnwrap(image.representations.first as? NSBitmapImageRep), pixels=try XCTUnwrap(bitmap.bitmapData)
+            XCTAssertEqual(bitmap.pixelsWide,16);XCTAssertEqual(bitmap.pixelsHigh,15)
+            var transparent=0,opaque=0
+            for y in 0..<15 {for x in 0..<16 {
+                let source=54+(14-y)*240+(tile*16+x)*3,target=y*bitmap.bytesPerRow+x*4
+                XCTAssertEqual(pixels[target],data[source+2]);XCTAssertEqual(pixels[target+1],data[source+1]);XCTAssertEqual(pixels[target+2],data[source])
+                let masked=data[source]==192 && data[source+1]==192 && data[source+2]==192
+                XCTAssertEqual(pixels[target+3],masked ? 0:255)
+                if masked {transparent += 1}else{opaque += 1}
+            }}
+            XCTAssertGreaterThan(transparent,0);XCTAssertGreaterThan(opaque,0)
+        }
+    }
     func testFindReferenceTilesPreserveOriginalPixelsAndWhiteMask() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
         let data = try Data(contentsOf: root.appendingPathComponent("Sources/TurtleGitCore/Resources/Icons/reftype.bmp"))
@@ -53,7 +77,8 @@ final class MenuIconTests: XCTestCase {
     func testAllBundledUpstreamIconsDecodeAtMenuAndRetinaSizes() throws {
         for icon in MenuIcon.allCases {
             guard let image = icon.image() else { XCTFail("Missing or unreadable icon: \(icon.rawValue)"); continue }
-            XCTAssertEqual(image.size, NSSize(width: 16, height: 16))
+            let isBlameTile:Bool = [.blameOpen,.blamePrevious,.blameNext,.blameCopy].contains(icon)
+            XCTAssertEqual(image.size, NSSize(width: 16, height: isBlameTile ? 15:16))
             XCTAssertEqual(image.isTemplate, [.cherryPick, .log, .help, .settingsHooks].contains(icon), "Preserve colors; tint the monochrome glyphs: \(icon.rawValue)")
             XCTAssertFalse(image.representations.isEmpty)
             // Ask AppKit for actual pixels rather than accepting an ICO file that

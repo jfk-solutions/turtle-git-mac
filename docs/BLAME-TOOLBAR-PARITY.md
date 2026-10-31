@@ -56,3 +56,35 @@ Implementation checks are scoped to this family. Physical palette dragging,
 keyboard and VoiceOver behavior, small-screen overflow, multiple displays,
 signed execution, complete Blame parity and full hosted integration remain
 separate acceptance work. The installed build12 predates this source batch.
+
+## Menu and source artwork continuation — October 31, 2026
+
+The original high-color toolbar resource is now bundled unchanged as
+`Icons/blame-toolbar256.bmp`. Its source is
+`src/Resources/blameres/Toolbar256.bmp`, Git blob
+`29895926753123d889390f12485a14416bdc6e19` at the pinned commit above;
+`Icons/provenance.json` retains its SHA-256 and license choice. The four
+Open/Previous/Next/Copy tiles preserve their 16-by-15 pixel rectangles, colors
+and gray transparency mask. About continues to use the TurtleGit mascot as
+requested. This corrects the earlier use of unrelated shell/navigation artwork.
+
+The main Blame View menu now puts Next and Previous before Toolbars and Panes,
+matching `TortoiseGitBlameENG.rc:250–259`. The shared macOS File Open command
+uses the same source tile while Blame owns focus. Main navigation, the standard
+and named toolbars, customization and overflow share the same mapping. Source
+commands with no toolbar image retain their text instead of acquiring a Settings
+gear. Such custom toolbar commands keep a visible text button even in Icons Only
+mode; side bars make room for those labels. Native-only zoom/reload commands
+retain their established artwork. Source-line and history popups retain their
+separate explicit resource mappings, including `IDI_BLAME_POPUP_*`.
+
+Command IDs, saved layouts, action/shortcut bindings, checked states, captured
+ownership and retirement guards are unchanged. Context icon preferences still
+control menu images without hiding toolbar artwork. The rectangular strip scales
+with its aspect ratio intact. The existing focused icon/toolbar fixtures now
+cover source bytes, transparency, mapped navigation, text-only palette/overflow
+commands and private icon preferences. The
+[grouped checkpoint](qa/command-diagnostics-blame-artwork-2026-10-31.json) records
+passing icon/model checks and native composition/placement with both Git engines,
+including repaired stale blanket-icon assertions and offscreen rendering limits.
+No physical, signed or whole-Blame acceptance is inferred.
