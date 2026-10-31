@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "083f032222ec7788651a5f8fe88e330c98ec1f3d8b79e0e2d0713c6e0de5595a",
+    "Contents/Info.plist": "69f27aba22f4c1056a420bf68a3d275b288f81cb507caf45e896249811fa0b00",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "25d04d51dec9a0e28cf188aef74042ab05e86f586b11216e9de757a1ed6f2ac2",
@@ -47,6 +47,7 @@
     "Contents/Resources/en.lproj/REBASE-CONFLICT-FILES.html": "e38dd2778dc67302677c0bf2d5a2f2fd73f7c7f88b1f7742dfdc00677bf428b8",
     "Contents/Resources/en.lproj/REBASE-REFERENCE-RECOVERY.html": "6cc78c7567ce53660b59763a99c021c47e30bc049bbd948bb7d553b8acc84dba",
     "Contents/Resources/en.lproj/REBASE-SPLIT.html": "a58a45acd0a5a523d49491e6d784660fce7df792462d82418c1356588d4f41bd",
+    "Contents/Resources/en.lproj/RELEASE-UPDATES.html": "1e780a1c7fc262bf2178ceff8a577425f04a6a29522514f431dff32b99bbba1b",
     "Contents/Resources/en.lproj/REPORT-PROBLEM.html": "0df059cfed0c4ead4822a12d3ddbdd4a67e96977c6454815c883ac1c5b3f140b",
     "Contents/Resources/en.lproj/REPOSITORY-FOLDER-ACCESS.html": "d11e62aeb77d6e79a8b7da8b01398538ecb7d9b1cd180ad9bdf1362951f2cbed",
     "Contents/Resources/en.lproj/REVERT-COMMIT.html": "e495b9815015bf6bb3913634bf3e6d08308764d1c5957d4a852e299eb1941522",
@@ -94,8 +95,8 @@
     "Contents/Resources/en.lproj/images/f49a195c8c35-cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",
     "Contents/Resources/en.lproj/images/f7856202ab6a-commit-file-groups-language-de-dark.png": "e7f075b32f6ff02494ead9db85a9da57039ad1a108cda57cadbe40c895f988ed",
     "Contents/Resources/en.lproj/images/fcbe4c554065-mac-compare-compact-light-classic-2026-10-25.png": "358bec7828323603bc6768fe17b794336fbf3fe156c34614458fc202c796b70a",
-    "Contents/Resources/en.lproj/index.html": "efa82241ccf7f7d3071b44ce6ba4492109dbf519e310d25385bbb216ecb2ff98",
-    "Contents/Resources/en.lproj/topics.json": "b3c4efe39237d03c89f209165b52121f405b5e00ea609822348a7bd3e982274f"
+    "Contents/Resources/en.lproj/index.html": "b17c28566cb75a4c7c6690cdb8a8416a4c92e44178e9938837b5aac2aa05f0ae",
+    "Contents/Resources/en.lproj/topics.json": "53ca29f0fde6c14a13c8ab057fd7920a85e841d9d07d4f96262b57753b67dd3c"
   },
   "source_hashes": {
     "docs/ACTION-LOG.md": "9937342a24f0941393f484dc511cb570e5d2711a6f218bfab54324c76fb586d8",
@@ -143,6 +144,7 @@
     "docs/REBASE-CONFLICT-FILES.md": "7b11f025bc53d82d8c6ccb625b56700f9819a0b4806b475b196f931a16c670e2",
     "docs/REBASE-REFERENCE-RECOVERY.md": "a2449e9c3daf72665f7bf001a92da2adab69b53439230e4c0575161ed7863a2b",
     "docs/REBASE-SPLIT.md": "11ea421246285742e24b961d108cffefb2e12ea6e579c6f563aaa29001eb99be",
+    "docs/RELEASE-UPDATES.md": "92bf306983cd90624cc9e6fb1ba947401919a0483af0f340362fa60f8decfb28",
     "docs/REPORT-PROBLEM.md": "b946999890457db6f28b68d28efcf361d6307b2e296b9bd4b5d5a6aafc7b2cb3",
     "docs/REPOSITORY-FOLDER-ACCESS.md": "403c7b08f6de01a471885f158d4bd5c2eb37b719f83fd2fef3dbd2c3644cb2df",
     "docs/REVERT-COMMIT.md": "f3876bf700da4933a754e2f6b40b6c1bb2d144634182717cbc99ef29bd84b879",
@@ -161,7 +163,7 @@
     "docs/WORD-COMPARISON.md": "922b2e8a5f12bc40b8475bbf73cb558e87a0e692625139b3cc34502f4923663d",
     "docs/WORD-MERGE.md": "dc11fee38f848ddda8201163da223235c9adeaecfe74beaad1ff75d91ff702d7",
     "docs/ZIP-COMPARISON.md": "1fa7085d96970e6cc85ef8edb5e94f12277617d5c91614f1fd05c92362576241",
-    "docs/help-topics.json": "b3c4efe39237d03c89f209165b52121f405b5e00ea609822348a7bd3e982274f",
+    "docs/help-topics.json": "53ca29f0fde6c14a13c8ab057fd7920a85e841d9d07d4f96262b57753b67dd3c",
     "docs/site/assets/binary-comparison-dark.png": "13944fd1b3128d1a46cadfabc89f4245a0008a379a7b1ad18e8b77365e618c8d",
     "docs/site/assets/binary-comparison-light.png": "0dda7bddf5a03dbf5bad64e6481f89121752721f2d4bb16995f29a406f2bb04b",
     "docs/site/assets/cache-activity-dark.png": "4020e7811fc0ef9deecce31bf531b8c5c5150dff95987f6a0fd9db5d547a1766",

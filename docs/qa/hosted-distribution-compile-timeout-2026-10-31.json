@@ -1,0 +1,77 @@
+{
+  "date": "2026-10-31",
+  "scope": "Bounded read-only hosted snapshot and exact older Distribution failure; no local validation or new CI execution",
+  "repository": "jfk-solutions/turtle-git-mac",
+  "latest_main_snapshot": {
+    "source": "9e5a18aafb72fb63b04745f39730fb829afa52c4",
+    "macos": {
+      "run": 41228270812,
+      "status": "pending",
+      "conclusion": null,
+      "jobs": [],
+      "updated_at": "2026-10-31T18:12:43Z"
+    },
+    "pages": {
+      "run": 41228270893,
+      "status": "completed",
+      "conclusion": "success",
+      "updated_at": "2026-10-31T18:13:41Z"
+    },
+    "limit": "Status at the bounded connector observation, not a subsequent poll or prediction of hosted completion"
+  },
+  "older_distribution_failure": {
+    "source": "5432abbb2d2b8233d8a196e50489675dc0c0b8e2",
+    "run": 41214222844,
+    "job": 124575607215,
+    "job_name": "validation (distribution)",
+    "status": "completed",
+    "conclusion": "failure",
+    "step": 429,
+    "step_name": "Native Cherry Pick and Rebase recovery across Git versions",
+    "step_duration": "5m 2s",
+    "evidence_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41214222844/job/124575607215#step:429:32",
+    "source_call_chain": [
+      "scripts/check-cherry-pick-native.py:44 build_receiver",
+      "scripts/native_receiver.py:103 subprocess.run swiftc, timeout=300"
+    ],
+    "exception": "subprocess.TimeoutExpired: swiftc fixture compilation timed out after 300 seconds",
+    "compiler": "swift-driver version: 1.120.5",
+    "target": "x86_64-apple-macos13.0",
+    "compile_flags": ["-whole-module-optimization", "-Onone", "-parse-as-library", "-swift-version", "5"],
+    "fixture_sources": [
+      "build/qa/cherry-pick-native-sources/LinkedFixture0.swift",
+      "build/qa/cherry-pick-native-sources/LinkedMain.swift"
+    ],
+    "linked_native_library_cache": "7b8723bd90edd163ff3b78a8f6dae0cfc299126baf6e2c83b2c447dd44811499",
+    "intended_output": "build/qa/cherry-pick-native-sources/linked-receiver",
+    "receiver_launched": false,
+    "receiver_evidence": "Failure occurs while building the fixture executable, before run_receiver; no recovery assertion or receiver PID appears in this failed step",
+    "classification": "Older-source Intel fixture-compilation verification blocker; not evidence of a current Cherry Pick/Rebase product failure",
+    "next_action": "Investigate this receiver's compilation boundary and preserve its behavioral assertions before selecting a bounded verification repair; no timeout or harness change was made in this observation"
+  },
+  "other_older_run_status": {
+    "svn_runtime": "success",
+    "core": "success",
+    "previously_known_failures_unchanged": [
+      {"job": 124575607143, "lane": "history-references"},
+      {"job": 124575607176, "lane": "replay-transport"},
+      {"job": 124575607183, "lane": "commit-repository"},
+      {"job": 124575607219, "lane": "settings-finder"},
+      {"job": 124575607236, "lane": "editors"},
+      {"job": 124575607290, "lane": "images-documents"}
+    ],
+    "aggregate_build_and_test": "failure",
+    "limit": "Existing failed lanes were not rerun or re-diagnosed in this snapshot; their current repair batches are separate evidence"
+  },
+  "observation_and_cleanup": {
+    "status_source": "Read-only GitHub connector run/job metadata",
+    "log_fallback": "After connector job-log retrieval failed, inspected the already-expanded step in one authenticated task-owned Chrome tab; no login or credentials accessed",
+    "owned_tab": "1053311381",
+    "owned_tab_closed": true,
+    "owned_tab_absent_after_close": true,
+    "tests_or_builds_run": false,
+    "workflow_reruns_or_cancellations": false,
+    "source_or_harness_changes": false,
+    "app_launches": false
+  }
+}

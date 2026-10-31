@@ -790,6 +790,40 @@ Full Windows/native menu painting and physical shortcut acceptance remain separa
 
 Actual grouped build/check outcomes: [history action batch evidence](qa/history-actions-2026-10-18.json).
 
+## Nested Reflog revision workflows — October 31, 2026
+
+The pinned `BrowseRefsDlg.cpp:1181–1186` opens the same `CRefLogDlg` used by
+the standalone Reflog command. Its revision context commands remain available
+when entered from Browse References. The native browser previously created the
+right child window but omitted the application's revision-action configuration:
+Show Log/double-click had no callback, and Compare, Browse, Branch/Tag, Export,
+Reset/Checkout and the connected history/transport handoffs were unavailable.
+
+The browser now configures its retained Reflog before presentation through the
+same `RepositoryModel.configureReferenceLog` used by the standalone entry point.
+Each command retains the requesting repository, executable, access lease and
+preference store. Branch/Tag forms also inherit their source window's appearance
+and visibility. Existing source menu eligibility, captured selection, native
+deletion/note ownership and Git cancellation remain authoritative; this does not
+enable commands which the source excludes for a particular selection.
+
+Normal Reflog Close releases the browser's child gate after the actual child
+drain, then reloads the reference catalog so newly created branches/tags appear.
+Browser retirement cancels its child and waits for owned reads before delivering
+Close. Retained revision callbacks refuse new windows after child/application
+retirement. Independently opened standalone Reflog windows retain their own
+reference, reuse key and close callback.
+
+The existing `reference-action-family-native-2026-10-18.swift` now exercises the
+actual browser popup, nested native revision menus and application handoffs,
+actual Branch/Tag creation and return/catalog refill, independent standalone
+identity, and a held Cherry Pick metadata read cancelled by browser closure.
+The [grouped checkpoint](qa/utility-workflow-batch-2026-10-31.json) passes the
+reference-action family with both Git engines. The hidden Reset presentation hook
+needed to perform its actual on-appearance load; exact context checks remain.
+These results do not certify physical keyboard/VoiceOver, signed Finder access
+or complete Windows/native visual parity.
+
 
 ## Optional remote-reference engine — October 19, 2026
 

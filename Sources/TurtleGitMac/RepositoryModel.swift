@@ -490,17 +490,27 @@ private enum TransportBatchPresentationContext {
         opener.present(parent: workspaceWindow)
     }
     func showLoadImages() {
-        guard !busy, !confirmingQuit, imageLoader == nil, workspaceWindow?.attachedSheet == nil else { return }
+        guard !retired,!busy,!confirmingQuit,imageLoader==nil,workspaceWindow?.attachedSheet==nil else {return}
+        let requestingWindow=workspaceWindow.map(ObjectIdentifier.init)
         let loader = ImageLoadWindowController(leftPath: "", permissions: [])
         imageLoader = loader
-        loader.onAccepted = CommandProgressContext.capture { [weak self] images, permissions in
-            guard let self else { return }
+        var accepted:(ImageLoadReceipt,[RepositoryAccessLease])?
+        loader.onAcceptedReceipt = CommandProgressContext.capture { [weak self,weak loader] receipt,permissions in
+            guard let self,let loader,self.imageLoader === loader,!self.retired,!self.confirmingQuit,
+                  self.workspaceWindow.map(ObjectIdentifier.init)==requestingWindow else {throw OperationCancellationFailure.cancelled}
+            accepted=(receipt,permissions)
+        }
+        loader.onClosed = CommandProgressContext.capture { [weak self,weak loader] in
+            guard let self,let loader,self.imageLoader === loader else {accepted=nil;return}
+            self.imageLoader=nil
+            guard !self.retired,!self.confirmingQuit,self.workspaceWindow.map(ObjectIdentifier.init)==requestingWindow else {accepted=nil;return}
+            guard let (receipt,permissions)=accepted else{return};accepted=nil
             let key = "images-" + UUID().uuidString
-            let controller = FileComparisonWindowController(images: images, permissions: permissions)
+            let controller:FileComparisonWindowController
+            do {controller=try FileComparisonWindowController(imageReceipt:receipt,permissions:permissions)} catch {self.error=error.localizedDescription;return}
             controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.fileComparisonWindows[key] === controller else { return }; self.fileComparisonWindows.removeValue(forKey: key) }
             self.fileComparisonWindows[key] = controller; controller.showWindow(nil)
         }
-        loader.onClosed = CommandProgressContext.capture { [weak self] in self?.imageLoader = nil }
         loader.present(parent: workspaceWindow)
     }
     weak var workspaceWindow: NSWindow? { didSet { retireWorkspaceMenus() } }
@@ -3850,21 +3860,37 @@ private enum TransportBatchPresentationContext {
         }
         let key=reusable?.key ?? (referenceLogWindows[root.path]==nil ? root.path:root.path+"\0context\0"+UUID().uuidString)
         let controller=reusable?.value ?? ReferenceLogWindowController(repository:repository,access:access,reference:reference,preferences:requestedPreferences)
-        let operationPreferences=controller.model.preferences
         controller.onClosed = CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.referenceLogWindows[key] === controller else{return};self.referenceLogWindows.removeValue(forKey:key) }
+        configureReferenceLog(controller,repository:repository,access:access)
+        referenceLogWindows[key] = controller
+        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{if reusable==nil {controller.close()};return}
+        controller.model.reference=reference;controller.model.reload()
+        if let referenceLogWindowPresentation {referenceLogWindowPresentation(controller)} else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
+    }
+    /// Shared command wiring for standalone logs and the modal log reached from
+    /// Browse References. Presentation/close ownership stays with the caller.
+    func configureReferenceLog(_ controller:ReferenceLogWindowController,repository:GitRepository,access:RepositoryAccessLease?) {
+        let root=repository.root
+        let operationPreferences=controller.model.preferences
         let serviceContext=finderServiceDispatch
-        let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
+        // Child RefLog windows use the same revision commands as standalone ones.
+        // Retained callbacks may outlive their native parent; never launch a new
+        // workflow from a retired child or application owner.
+        let show:(()->Void)->Void={ [weak self,weak controller] body in
+            guard let self,!self.retired,!self.confirmingQuit,controller?.canReuse==true else{return}
+            FinderServicePresentationContext.$current.withValue(serviceContext){body()}
+        }
         controller.model.onLog = CommandProgressContext.capture { [weak self,weak controller] hash in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: hash, selectedRevision: hash, preferences: operationPreferences, sourceWindow: controller?.window)} }
         controller.model.onLogRange = CommandProgressContext.capture { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: operationPreferences)} }
         controller.model.onBrowseRepository = CommandProgressContext.capture { [weak self] hash in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
-        controller.model.onCreateReference = CommandProgressContext.capture { [weak self] isTag, hash in show {self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash, preferences: operationPreferences)} }
+        controller.model.onCreateReference = CommandProgressContext.capture { [weak self,weak controller] isTag, hash in show {self?.showReference(repository: repository, access: access, isTag: isTag, revision: hash, preferences: operationPreferences, presentation: controller?.window.map {MergeWindowPresentation($0)})} }
         controller.model.onExport = CommandProgressContext.capture { [weak self] hash in show {self?.showExport(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
         controller.model.onCompare = CommandProgressContext.capture { [weak self] from, to in show {self?.showRevisionComparison(repository: repository, access: access, from: from, to: to, preferences: operationPreferences)} }
         controller.model.onCheckout = CommandProgressContext.capture { [weak self] hash in show {self?.showSwitch(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
         controller.model.onReset = CommandProgressContext.capture { [weak self] hash in show {self?.showReset(repository: repository, access: access, revision: hash, preferences: operationPreferences)} }
         controller.model.onSwitchBranch = CommandProgressContext.capture { [weak self, weak controller] reference in
             guard let parent = controller?.window, parent.attachedSheet == nil else { return }
-            self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: operationPreferences)
+            show {self?.showSwitchProgress(repository: repository, access: access, reference: reference, parent: parent, preferences: operationPreferences)}
         }
         controller.model.onTransport = CommandProgressContext.capture { [weak self] request in
             show {switch request.command {
@@ -3885,10 +3911,6 @@ private enum TransportBatchPresentationContext {
             self?.refreshRepositoryLogs(root)
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        referenceLogWindows[key] = controller
-        guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{if reusable==nil {controller.close()};return}
-        controller.model.reference=reference;controller.model.reload()
-        if let referenceLogWindowPresentation {referenceLogWindowPresentation(controller)} else {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
     }
     private func showStashRestore(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
@@ -5071,6 +5093,7 @@ private enum TransportBatchPresentationContext {
         let preferences=model.preferences,serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
         model.configureComparison = CommandProgressContext.capture { [weak self] comparison in show {self?.configureRevisionComparisonInteractions(comparison, repository: repository, access: access)} }
+        model.configureReflog = CommandProgressContext.capture { [weak self] child in show {self?.configureReferenceLog(child,repository:repository,access:access)} }
         model.onLogRange = CommandProgressContext.capture { [weak self] range in show {self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: preferences)} }
         model.onLog = CommandProgressContext.capture { [weak self] name in show {self?.showLog(repository: repository, access: access, paths: [], endRevision: name, preferences: preferences)} }
         model.onBrowse = CommandProgressContext.capture { [weak self] name in show {self?.showRepositoryBrowser(repository: repository, access: access, revision: name, preferences: preferences)} }

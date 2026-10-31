@@ -7,8 +7,11 @@ TortoiseIDiff.rc `IDD_OPEN`, MainWindow.cpp `OpenDlgProc`, `AskForFile` and
 The app File menu offers Load Images without requiring a repository. Image
 comparison windows have File → Open and scoped Cmd+O. The owned native chooser
 has Left image and Right image path fields, individual Browse buttons, OK and
-Cancel. Only the left usable working-file path is pre-filled; the right field
-starts blank, matching the source dialog. Both empty sides, a single image and
+Cancel. The left current input is pre-filled; the right field starts blank,
+matching the source dialog. A historical input is materialized from its captured
+original bytes into a private immutable file, retaining its original path,
+revision and object identity. Its filename is a bounded UUID plus a safe format
+extension; repository names never become unchecked local filenames. Both empty sides, a single image and
 two identical paths are accepted. Browse uses native single-file Open panels
 with an image filter and other file types allowed. Typed paths support tilde
 expansion; nonexistent/unreadable files display an inline error and retain the
@@ -21,8 +24,9 @@ transparency background. Unsupported data remains in the image viewer with an
 explicit decode message in ordinary panes; automatic Git text/binary routing remains unchanged.
 Image inputs are read-only and follow file symlinks after access validation.
 
-For AppStore, each nonempty input requires a live file grant covering its
-canonical location before reading. Browse retains the selected file lease. A
+For AppStore, each nonempty external input requires a live file grant covering
+its canonical location before reading. Only the exact app-owned historical copy
+is exempt; the copy grants no authority to the repository or neighboring files. Browse retains the selected file lease. A
 typed path without a suitable grant opens a file authorization picker, and its
 cancellation prevents acceptance. Grants remain alive in the receiving viewer.
 Owned chooser/picker cancellation and close/Quit fences retain modal ownership.
@@ -50,11 +54,12 @@ icons and required AppStore runtimes. This does not establish signing,
 sandbox runtime acceptance or App Review eligibility. See the
 [QA record](qa/image-open-2026-10-10.json).
 
-Physical Browse selection and text-entry gestures, VoiceOver, signed file grants,
-all image formats and overlay decode errors, retained layout and
-historical-blob left-path prefill remain incomplete. A historical comparison
-without a usable absolute filesystem path currently starts with an empty left
-field. Full image and application parity and App Store acceptance remain open.
+That dated checkpoint did not cover historical-blob prefill; the October 31
+implementation below supersedes the earlier empty-left behavior, with its own
+validation scope. Physical Browse selection and text-entry gestures, VoiceOver,
+signed file grants, all image formats/overlay decode states and retained layout
+acceptance remain incomplete. Full image/application parity and App Store
+acceptance remain open.
 
 ## Width/height matching on replacement
 
@@ -77,3 +82,64 @@ all external associations, both on initial opening and replacement. Automatic
 comparison now uses the source image extension/tool policy; arbitrary-extension
 image inputs belong to this explicit chooser. Explicit Merge Open and editor
 replacement similarly retain the Merge route. See [tool dispatch](DIFF-TOOLS-PARITY.md#connected-imagetool-dispatch--october-16-2026).
+
+
+## Captured inputs and asynchronous admission (2026-10-31)
+
+Pinned `MainWindow.cpp:1197–1198` seeds Left from the current `leftpicpath`;
+`ID_FILE_OPEN:441–461` replaces the pictures while retaining the window's mode
+flags and fits them afterward. The native revision comparison stores repository
+paths and bytes rather than an upstream temporary filesystem path. Open now
+creates an owned read-only copy of those exact accepted bytes, instead of
+leaving Left empty or resolving the historical path against today's checkout.
+Original path/ref captions and the blob identity remain separate from private
+storage authority. Cancelling Open deletes an unused copy; acceptance retains
+it through subsequent Open/Reload and through any outstanding worker after
+window retirement. Changed bytes, identical-byte inode replacement and symlink substitution are refused. Save and
+Save As cannot overwrite the immutable seed, including existing hard-link or case aliases.
+
+Seed preparation and authorized file reads run off the UI actor. A fixed
+feedback band reports loading or an inline error without moving the path fields
+or buttons; a long error remains available through help text. OK and Browse
+cannot replace inputs while a read is owned. Cancel closes the chooser and
+cancels its token; the requesting owner, permissions and Quit blocker remain
+until the real read and native sheet release drain. Retired/cancelled callbacks
+cannot accept a late result, display a late error or reopen a viewer.
+
+Acceptance carries the exact validated document into the first viewer load;
+it does not discard the read and reopen paths after chooser closure. Explicit
+Reload subsequently reads live external files again, while verifying any
+retained historical copy. The existing viewer, workspace command and standalone
+image-tool Open all use this receipt handoff. Standalone replacement now seeds
+from its current input and retains the current orientation, overlay/blend,
+linking, alpha, dimension matching, image-info and appearance choices. Opening
+new inputs fits them and requires a fresh Play command. Busy chooser admission
+also blocks its existing viewer's frame controls.
+
+The extended native Open fixture retains the prior dialog/picker/lease tests
+and adds a real private revision comparison with different checkout bytes,
+historical Cancel/accept/repeated Open, a non-native historical filename and protected-copy/inode/alias rejection, held reads
+with external replacement before handoff, Cancel/drain/retry, late seed
+retirement, stable control geometry under loading/long errors, and the actual
+standalone Open replacement path. All original repository/index/source checks
+remain.
+
+The grouped Debug build passed. The complete Open fixture passed with system Git
+(receiver 97963) after receipt installation moved before native host attachment.
+The bundled-Git attempt then exposed an appearance ownership race; after the
+explicit native-window attachment repair, the complete bundled fixture passed
+(receiver 98556), including all retained mode flags, Dark Mode and decoded pixels.
+The system pass predates that final attachment change and was retained without
+repeating its unchanged input/read/receipt checks. This is cumulative scoped
+evidence, not a claim that both engines ran the final source revision.
+
+The retained failures led to three production repairs: an absent left side stays
+blank instead of creating an unnecessary seed; accepted receipt bytes are
+installed before the hosting view can admit its first appearance read; and image
+presentation owns its native window before rendering, so appearance inheritance
+does not depend on a later key-bridge mount. Native diagnostics retain caller
+lines, named phases, read/owner state and individual source/replacement mode
+values. Owned receivers were reaped and test windows/workers drained. The final
+Debug rebuild passed. The combined dated QA record retains the original failures
+and exact recheck scope. These checks do not establish signed deployment,
+physical gestures, complete-format parity or a complete hosted CI pass.

@@ -20,6 +20,7 @@ for baseline and update rules.
 
 ## Guides and project status
 
+- [Checking for updates and downloading published files](RELEASE-UPDATES.md)
 - [Report a problem and review an Apple crash report](REPORT-PROBLEM.md)
 
 - [Blame embedded Log presentation and interactions](BLAME-HISTORY-PRESENTATION-PARITY.md)

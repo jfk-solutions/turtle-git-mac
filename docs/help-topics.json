@@ -238,6 +238,10 @@
     {
       "id": "reportProblem",
       "document": "REPORT-PROBLEM.md"
+    },
+    {
+      "id": "updates",
+      "document": "RELEASE-UPDATES.md"
     }
   ],
   "additional_guides": [

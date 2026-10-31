@@ -144,28 +144,49 @@ import TurtleGitCore
         if let presentation{presentation(controller)}else{controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
         ImageToolMenuContext.shared.refresh()
     }
-    private func showComparison(_ comparison:ImageFileComparison,initial:Bool=true)throws{
+    private func imageCommands(_ controller:FileComparisonWindowController)->()->Bool {controller.model.imageViewerModel.commandsAllowed}
+    private func showComparison(_ comparison:ImageFileComparison,initial:Bool=true,receipt:ImageLoadReceipt?=nil)throws{
         guard !retired else{return}
-        let controller=FileComparisonWindowController(images:comparison,permissions:grants,preferences:preferences)
-        let image=controller.model.imageViewerModel
+        let previousModel=initial ? nil:(editor as? FileComparisonWindowController)?.model
+        let controller:FileComparisonWindowController
+        if let receipt {controller=try FileComparisonWindowController(imageReceipt:receipt,permissions:grants,preferences:preferences)}
+        else {controller=FileComparisonWindowController(images:comparison,permissions:grants,preferences:preferences)}
+        let image=controller.model.imageViewerModel,ownerAllows=imageCommands(controller)
+        image.commandsAllowed = { [weak self] in self?.retired==false && self?.opener==nil && ownerAllows() }
         controller.model.configureStandaloneImageTool(leftTitle:initial ? invocation.leftTitle:nil,rightTitle:initial ? invocation.rightTitle:nil,openImages:{[weak self] in self?.showOpenImages()})
-        image.overlay=invocation.overlay;image.showInfo=invocation.showInfo
-        if invocation.fitWidths{image.toggleWidths()};if invocation.fitHeights{image.toggleHeights()}
+        if let previousModel {
+            let previous=previousModel.imageViewerModel
+            image.overlay=previous.overlay;image.blendAlpha=previous.blendAlpha;image.linked=previous.linked
+            image.vertical=previous.vertical;image.showInfo=previous.showInfo;image.alpha=previous.alpha
+            if previous.fitWidths {image.toggleWidths()};if previous.fitHeights {image.toggleHeights()}
+            controller.model.imagePresentation.inherit(from:previousModel.imagePresentation)
+        } else {
+            image.overlay=invocation.overlay;image.showInfo=invocation.showInfo
+            if invocation.fitWidths{image.toggleWidths()};if invocation.fitHeights{image.toggleHeights()}
+        }
         controller.onClosed={[weak self,weak controller] in guard let self else{return};if self.editor === controller,!self.replacing{self.finish(0)}}
         if let previous=editor{retiredEditors.append(previous);editor=nil;previous.close()}
         present(controller)
     }
     func showOpenImages(){
         guard !retired,opener==nil,panel==nil,!invocation.isSelection,!editorPending,(!preparing || editor==nil) else{return}
-        let chooser=ImageLoadWindowController(leftPath:invocation.left?.path ?? "",permissions:grants);opener=chooser
-        chooser.requiresScopes=requiresScopes
-        chooser.onAccepted={[weak self,weak chooser] comparison,permissions in
+        let current=editor as? FileComparisonWindowController
+        let chooser=ImageLoadWindowController(leftPath:current?.model.document?.base.path ?? invocation.left?.path ?? "",permissions:grants);opener=chooser
+        chooser.requiresScopes=requiresScopes;current?.model.seedImageChooser(chooser)
+        current?.model.imageViewerModel.refreshCommandOwnerAvailability();current?.model.objectWillChange.send()
+        var accepted:(ImageLoadReceipt,[RepositoryAccessLease])?
+        chooser.onAcceptedReceipt={[weak self,weak chooser] receipt,permissions in
             guard let self,!self.retired,self.opener === chooser else{throw OperationCancellationFailure.cancelled}
-            self.grants=permissions;self.replacing=true;defer{self.replacing=false}
-            try self.showComparison(comparison,initial:false)
+            accepted=(receipt,permissions)
         }
         chooser.onClosed={[weak self,weak chooser] in
-            guard let self,self.opener === chooser else{return};self.opener=nil
+            guard let self,self.opener === chooser else{accepted=nil;return};self.opener=nil
+            if let (receipt,permissions)=accepted,!self.retired {
+                accepted=nil;self.grants=permissions;self.replacing=true
+                defer{self.replacing=false}
+                do {try self.showComparison(receipt.comparison,initial:false,receipt:receipt)} catch {self.onError(error.localizedDescription)}
+            } else {accepted=nil}
+            if let current=self.editor as? FileComparisonWindowController {current.model.imageViewerModel.refreshCommandOwnerAvailability();current.model.objectWillChange.send()}
             if self.editor==nil{self.finish(0)};ImageToolMenuContext.shared.refresh()
         }
         if let presentation{presentation(chooser)}else{chooser.showWindow(nil);chooser.window?.makeKeyAndOrderFront(nil)}

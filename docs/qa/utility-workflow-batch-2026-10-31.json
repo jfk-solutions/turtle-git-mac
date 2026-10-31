@@ -1,0 +1,125 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-grouped-validation-passed-cumulatively",
+  "families": [
+    "Browse References nested Reflog revision commands and owned return",
+    "Captured historical and live Load Images receipts across editor/workspace/standalone entry",
+    "Native Updates download list, stable feedback and chooser/download retirement"
+  ],
+  "source_reference": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "core": "No Core implementation changed; no Core suite run",
+  "builds": [
+    {
+      "log": "build/qa/utility-workflow-batch-debug-2026-10-31.log",
+      "result": "passed"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-debug-empty-input-repair-2026-10-31.log",
+      "result": "passed",
+      "reason": "Actual absent-left image seed repair"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-debug-receipt-before-host-2026-10-31.log",
+      "result": "passed",
+      "reason": "Install exact image receipt before native hosting first appearance"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-debug-image-presentation-attach-2026-10-31.log",
+      "result": "passed",
+      "reason": "Explicit image appearance attachment before host mount"
+    }
+  ],
+  "native": {
+    "references": {
+      "result": "passed-system-and-bundled",
+      "log": "build/qa/utility-workflow-batch-repair-references-2026-10-31.log",
+      "receivers_reaped": [
+        96897,
+        97159
+      ]
+    },
+    "images": {
+      "result": "cumulative-system-and-bundled-passes-with-explicit-source-boundary",
+      "system": {
+        "log": "build/qa/utility-workflow-batch-images-receipt-before-host-2026-10-31.log",
+        "receiver_reaped": 97963,
+        "result": "passed full Open family before final explicit native presentation attachment"
+      },
+      "bundled": {
+        "log": "build/qa/utility-workflow-batch-images-presentation-attach-2026-10-31.log",
+        "receiver_reaped": 98556,
+        "result": "passed full Open family after final explicit attachment, including all mode/appearance assertions"
+      },
+      "limit": "System Git was not repeated after the final native-only attachment repair; this is cumulative coverage, not a full final-source two-engine pass."
+    },
+    "updates": {
+      "result": "source-and-lifetime-passed",
+      "log": "build/qa/utility-workflow-batch-updates-host-classification-2026-10-31.log",
+      "receivers_reaped": [
+        99044,
+        99058
+      ],
+      "observed": "Native alternating file rows and actual feedback/list/Download-group/window geometry remain stable across held chooser, completion and multiline error. Real hidden folder sheet exact-once/early-reply/Abort/forced-close, verified file publication, previous-progress refusal and fresh-owner identity pass.",
+      "limit": "Prohibited receiver exposes no SwiftUI semantic AX tree or native row toggle buttons; public labels/IDs, native checkbox gestures and VoiceOver are unverified. Original captured asset/selection/context/integrity assertions remain."
+    }
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/utility-workflow-batch-images-2026-10-31.log",
+      "cause": "Unexpected async seed for an absent empty left side disabled native OK; preserve blank input and await real draft readiness"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-references-2026-10-31.log",
+      "cause": "Hidden Reset presentation did not execute SwiftUI onAppear/load; private hook now performs the actual load and retains exact context checks"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-updates-2026-10-31.log",
+      "cause": "Fixture failed to observe new public layout IDs"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-repair-images-2026-10-31.log",
+      "cause": "Receipt installed after native host could start first load; constructor now installs it before view attachment"
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-repair-updates-2026-10-31.log",
+      "cause": "Rich diagnostics show no SwiftUI AX children or identifiers in prohibited receiver; native alternating list and row count passed. Native geometry/controls fallback pending."
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-images-receipt-before-host-2026-10-31.log",
+      "cause": "Bundled full Open reached the display-mode conjunction; presentation inheritance could run before key-bridge window attachment. Explicit controller-owned attachment fixes admission; final bundled pass confirms all mode bits."
+    },
+    {
+      "log": "build/qa/utility-workflow-batch-updates-native-geometry-2026-10-31.log",
+      "cause": "Fixture absent-host classification used legacy AXChildren, mistaking mounted AppKit descendants for the missing SwiftUI semantic tree. Direct modern-host classification now selects native geometry observations without claiming AX acceptance."
+    }
+  ],
+  "resources": {
+    "localization": "38 locales,1326 keys; write/check passed",
+    "help": "64 documents,53 topics,98 source members; write/check passed"
+  },
+  "limits": [
+    "Focused local evidence does not establish complete hosted CI",
+    "No physical Finder, signed UI or complete source/visual acceptance",
+    "Installed build46 unchanged",
+    "No App Store submission/notarization/public binary upload"
+  ],
+  "cleanup": {
+    "all_owned_receivers_reaped_and_independently_absent": [
+      96053,
+      96085,
+      96217,
+      96787,
+      96897,
+      97159,
+      97437,
+      97963,
+      98044,
+      98556,
+      98840,
+      99044,
+      99058
+    ],
+    "shipping_app_launched": false
+  },
+  "local_validation_closed": true
+}

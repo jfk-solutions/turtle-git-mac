@@ -589,3 +589,21 @@ The [native command/header continuation](REFLOG-COMMAND-FAMILY-PARITY.md) connec
 scoped F3/F5/Find/Escape, focused table shortcuts, keyboard/accessibility popups,
 single-use action snapshots and owned column reset. The full port and physical/
 signed acceptance remain incomplete.
+
+## Browse References caller continuation — October 31, 2026
+
+The [nested browser Reflog continuation](REFERENCE-BROWSER-PARITY.md)
+connects the application's existing revision-command family to the Reflog opened
+by Browse References. Its shared configuration retains the requesting repository,
+executable, lease and preferences; standalone and nested controllers keep separate
+presentation/close ownership. Closing the nested log drains its work before the
+browser refills the catalog. Parent retirement cancels and drains the child and
+refuses late command callbacks. Existing source selection/type/working-tree gates
+remain in force.
+
+The expanded existing reference-action receiver covers native nested command
+dispatch, real Branch/Tag creation and return, captured application handoffs,
+standalone coexistence and held-read retirement. The [grouped checkpoint](qa/utility-workflow-batch-2026-10-31.json) passes this
+family with both Git engines. Its hidden Reset hook needed to perform the actual
+on-appearance load; exact revision/preferences/access checks remain. Physical,
+signed and full-dialog visual acceptance remain separate.

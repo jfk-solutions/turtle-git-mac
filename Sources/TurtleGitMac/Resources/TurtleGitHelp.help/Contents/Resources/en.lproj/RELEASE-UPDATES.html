@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Checking for updates</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-updates"></a><h1 id="checking-for-updates">Checking for updates</h1>
+<p>Open <strong>TurtleGit → Check for Updates…</strong>, or use <strong>Settings → General → Check now</strong>.
+The window shows your installed version, the published version and release notes.
+Weekly checks use the same preference in General and Advanced. Turning them off
+leaves manual checks available.</p>
+<p>A local test build can be newer than the latest public release, and this project
+may have no public release yet. An empty release feed is reported separately
+from a failed request. <strong>Click here to go to the website</strong> opens the configured
+repository's release page.</p>
+<h2 id="downloading-published-files">Downloading published files</h2>
+<p>For a release with download files, choose the checkboxes in the bordered file
+list and click <strong>Download</strong>. The Mac application archive starts checked when
+available. Files without a usable published SHA-256 digest remain visible but
+cannot be downloaded inside TurtleGit.</p>
+<p>Choose one destination folder in the macOS sheet. It starts at your account's
+Downloads folder. This selection grants access to that destination for the
+accepted operation; it does not register the folder as a Git repository.</p>
+<p>The list shows each file's status while the progress bar tracks the batch.
+<strong>Abort</strong> stops the current request. Files that finished downloading are retained;
+remaining checked files can be retried. An existing destination file is preserved
+and reported as an error. Choose another folder or resolve that filename before
+retrying.</p>
+<p>A file is published to the selected folder after its size and SHA-256 digest have
+been verified. <strong>Show in Finder</strong> reveals completed downloads. Install an update
+yourself after reviewing the release; TurtleGit does not unpack or launch a
+downloaded installer.</p>
+<h2 id="store-builds-and-local-testing">Store builds and local testing</h2>
+<p>Store builds use their configured App Store listing and do not fetch replacement
+applications from GitHub. A local test build without a public listing says that
+no listing is available and disables <strong>View in App Store…</strong>. That state does not
+require an Apple account or purchase to continue testing the installed app.</p>
+<p>Press <strong>F1</strong> or <strong>Help</strong> in the update window to open this guide.</p>
+</main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

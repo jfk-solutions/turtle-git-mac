@@ -5960,3 +5960,40 @@ records the Debug build and six native case/engine passes, including the retaine
 fixture-only compilation repair. No Core suite or passing native scope was
 repeated. Installed build46 is unchanged; signed, physical, complete hosted and
 whole-port acceptance remain separate.
+
+
+## Connected Reflog, image loading and update downloads — October 31, 2026
+
+Browse References now configures its nested Reflog through the same captured
+revision-command wiring as standalone Reflog. Log, Browser, Compare, Reset,
+Export, creation and the other existing revision workflows retain their
+requesting repository, executable, lease and preferences. Actual child release
+refills the parent reference catalog; late callbacks cannot launch new work after
+retirement.
+
+Load Images retains historical inputs as immutable private files with original
+source identity. Cancellable reads happen away from the UI actor, and exact
+accepted bytes transfer through all three entry routes before native view
+attachment can start the first load. Reload retains live-file behavior while
+protecting historical copies. Open preserves image view modes and appearance,
+with fixed feedback geometry and owned read/chooser/close drainage.
+
+Updates now presents a bordered alternating file list and stable feedback and
+operation bands. Its native destination chooser retains exact-once ownership
+through physical detachment; Abort, stale progress, forced close and a fresh
+request remain independent. Help/F1 opens the new bundled [update guide](RELEASE-UPDATES.md).
+
+The [combined checkpoint](qa/utility-workflow-batch-2026-10-31.json) records
+cumulative native passes, actual source and fixture repairs, precise source
+boundaries and all 13 receiver cleanups. Reflog passes both engines. Image Open
+passes system Git before the final native presentation attachment and bundled Git
+after it; the complete final-source two-engine matrix was not repeated locally.
+Updates source/lifetime pass with actual native geometry; its prohibited
+receiver exposes no SwiftUI semantic accessibility tree, so toggle gestures,
+labels/IDs and VoiceOver remain unverified. No Core code changed or Core suite
+ran. Local validation is closed. Installed build46 is unchanged; full hosted,
+signed/physical and complete-port acceptance remain separate.
+
+The older hosted Distribution failure is an [Intel fixture compilation timeout](qa/hosted-distribution-compile-timeout-2026-10-31.json),
+before any Cherry Pick/Rebase receiver ran. It does not establish a current
+recovery workflow defect.

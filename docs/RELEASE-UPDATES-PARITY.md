@@ -1,50 +1,28 @@
-# Release update checking — implementation in progress
+# Release update checking and downloads
 
-Reference: pinned SetMainPage/CheckForUpdatesDlg at
+Partial source review against pinned SetMainPage/CheckForUpdatesDlg at
 `7338078f8ddd924b8cddee35f512f2286072136d`. macOS release metadata uses the
-[GitHub Releases API](https://docs.github.com/en/rest/releases/releases), rather
-than TortoiseGit's Windows version feed and installers.
+[GitHub Releases API](https://docs.github.com/en/rest/releases/releases),
+adapting the Windows version feed and installer workflow.
 
-General now exposes the source weekly automatic-check preference and Check now;
-the application menu also offers Check for Updates. Disabling automatic checks
-uses an owned confirmation with Abort as the default key action. The preference
-shares the existing VersionCheck key with Advanced. Automatic checks run at
-startup when due, and a lightweight six-hour timer checks the seven-day deadline
-while the app remains open. Failed attempts are throttled too; manual checks
-remain available. Documentation-preview app bundles skip automatic checks.
+General and the application menu expose Check for Updates. The source weekly
+automatic preference shares VersionCheck with Advanced; startup and a six-hour
+timer check the seven-day deadline. Manual checks can promote an existing
+background request without duplicating it. Explicit quiet, visible and Force
+commands retain their separate presentation policies.
 
-The repository is read from optional TurtleGitUpdateRepository bundle metadata,
-defaulting to the verified current origin jfk-solutions/turtle-git-mac. Only
-public release metadata is requested, without an authorization token or active
-repository data. Stable mode filters draft/prerelease entries; the existing
-VersionCheckPreview preference includes published prereleases. Numeric version
-components, prerelease ordering and optional v/build suffixes are compared.
-Malformed versions produce a visible comparison error rather than an up-to-date
-claim. Release links must use HTTPS on GitHub and point to this repository's
-release-tag path. Response size and request time are bounded. HTTP/feed failure
-and an empty release list have distinct results.
+The configured public repository supplies bounded release metadata and validated
+GitHub release links. Stable/preview preferences, numeric version comparison,
+malformed versions, empty feeds and request failures have distinct results.
+Changelog text, a checked file list, per-file status, progress, Abort, retry and
+Finder reveal adapt the source result/download hierarchy. Verified files publish
+without overwriting existing files; completed files survive a later failure or
+Abort. No installer or downloaded executable is launched.
 
-Manual checks reuse one native result window. A manual request during the
-background check promotes that request instead of creating a second network
-request/window. The result shows installed/available versions, status, changelog,
-errors and Open release page. Closing cancels the task and fences stale callbacks.
-An automatic check opens a result only for a newer version; it offers Remind me
-later and Do not ask again. Changelog content is displayed as plain selectable
-text. No executable is downloaded, unpacked or installed by this implementation;
-release assets and signed installer/download parity remain to be mapped.
-
-AppStore builds skip GitHub checks and disable the weekly checkbox. Manual Check
-now displays the App Store result and opens the installed App Store application.
-No undocumented deep-link or unconfigured product ID is assumed.
-
-This continuation is **uncompiled and untested**. The preceding General runtime
-controls are also outside the prior passing Settings/Tools checkpoint. Version/
-prerelease/feed/rate/error/cancellation tests, actual repository public releases,
-window reuse/close/confirmation, timer/date changes, preview preference behavior,
-installed App Store opening, native keyboard/visual acceptance and signed sandbox
-network execution remain in the next grouped General validation. A production
-release feed, release assets/signatures, localization and complete First Start
-Wizard remain open. Inventory counts are unchanged; no dialog is newly certified.
+App Store builds do not check or download GitHub releases. Only a configured
+public Store listing enables the Store action; local test builds do not imply
+published Store availability. The dated continuations below distinguish focused
+validation from public-network, installed, signed and complete-source acceptance.
 
 ## Grouped General/Updates/Wizard checkpoint — 2026-10-11
 
@@ -167,3 +145,41 @@ presentation intent immediately while the actual fetch remains in worker/Quit
 accounting until it returns. The lifetime fixture holds quiet/forced checks,
 asserts the negative/positive ownership distinction, then cancels/drains both
 without a late window.
+
+
+## Download list, stable feedback and chooser drainage — October 31, 2026
+
+The pinned CheckForUpdatesDlg initializes a two-column report list without
+column headings, with checkboxes and a visible border (`CheckForUpdatesDlg.cpp`
+115–117; `IDD_CHECKFORUPDATES/IDC_LIST_DOWNLOADS`). The native result now uses a
+bordered alternating file list, keeping filename/selection and per-file status
+aligned. Exact asset IDs, captured selection generations, unavailable digest
+rows and already-downloaded files retain their existing eligibility rules.
+Long filenames keep a full-name tooltip.
+
+Feedback has a reserved scrollable area, and Download/Abort/Show in Finder share
+a fixed-height operation band. Loading, errors, verification status and retry
+do not insert rows above the list or change its operation band's height. The
+window's minimum size accounts for those controls.
+
+The native destination chooser starts at the account's Downloads folder, uses
+the owner's appearance and supports exactly one directory. Its completion is
+single-use and retains the request until both panel and parent report physical
+sheet detachment. Abort and forced owner close cancel accepted work without
+launching a transfer from a late chooser reply. Controller retirement waits for
+its actual feed, chooser or download worker; reopening Updates during that drain
+creates a fresh owner rather than reviving a retired one. Existing per-request
+progress fences and non-overwriting file verification/publication are unchanged.
+
+Help and F1 now open the bundled [update guide](RELEASE-UPDATES.md), covering
+manual/weekly checks, checked files, destination permission, Abort/retry, Finder
+reveal and the separate unpublished Store-build state.
+
+The [combined checkpoint](qa/utility-workflow-batch-2026-10-31.json) passes the
+Debug build and source/lifetime native cases. Actual native list/scroll/group
+geometry remains stable across operation states; hidden chooser, retirement,
+verification and stale-callback checks pass. The prohibited receiver has no
+SwiftUI semantic accessibility tree: native toggle gestures, labels/IDs and
+VoiceOver are unverified. Retained fixture observation failures and the final
+native-geometry fallback are recorded explicitly. Public CDN behavior, signed
+delivery, physical acceptance and complete source parity remain open.

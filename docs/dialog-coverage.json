@@ -1510,7 +1510,8 @@
         "docs/qa/general-setup-batch-2026-10-11.json",
         "docs/qa/release-download-family-2026-10-17.json",
         "docs/qa/service-commands-2026-10-18.json",
-        "docs/qa/utility-distribution-ownership-2026-10-31.json"
+        "docs/qa/utility-distribution-ownership-2026-10-31.json",
+        "docs/qa/utility-workflow-batch-2026-10-31.json"
       ]
     },
     {
@@ -3299,7 +3300,8 @@
         "docs/qa/reflog-search-2026-10-08.json",
         "docs/qa/reflog-unified-diff-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
-        "docs/qa/temporary-files-2026-10-08.json"
+        "docs/qa/temporary-files-2026-10-08.json",
+        "docs/qa/utility-workflow-batch-2026-10-31.json"
       ]
     },
     {
@@ -4046,7 +4048,8 @@
         "docs/qa/remote-reference-engine-2026-10-19.json",
         "docs/qa/remote-tags-2026-10-09.json",
         "docs/qa/rename-reference-management-2026-10-14.json",
-        "docs/qa/unified-byte-buffer-2026-10-17.json"
+        "docs/qa/unified-byte-buffer-2026-10-17.json",
+        "docs/qa/utility-workflow-batch-2026-10-31.json"
       ]
     },
     {

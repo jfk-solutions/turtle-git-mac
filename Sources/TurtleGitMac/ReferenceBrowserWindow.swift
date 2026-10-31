@@ -198,9 +198,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         model.hasChild = true
         let child = ReferenceLogWindowController(repository: model.repository, access: model.access, reference: reference, preferences: model.preferences)
         reflog = child
+        model.configureReflog(child)
         child.onClosed = { [weak self, weak child] in
             guard let self, let child, self.reflog === child else { return }
-            self.releaseChild(child.window, refresh: false) { [weak self, weak child] in
+            self.releaseChild(child.window, refresh: true) { [weak self, weak child] in
                 if self?.reflog === child { self?.reflog = nil }
             }
         }
@@ -688,6 +689,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var onComparePair: ((ReferenceBrowserComparison) -> Void)?
     var onUnifiedPair: ((ReferenceBrowserComparison, Bool) -> Void)?
     var configureComparison: (RevisionComparisonWindowModel) -> Void = { _ in }
+    var configureReflog: (ReferenceLogWindowController) -> Void = { _ in }
     var readUnifiedComparison: ((ReferenceBrowserComparison, OperationCancellation) async throws -> Data)?
     func comparePair(unified: Bool, alternate: Bool = false) {
         guard canComparePair, let pair = comparisonPair else { return }

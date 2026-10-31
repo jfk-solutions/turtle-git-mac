@@ -29,9 +29,14 @@ import TurtleGitCore
     weak var window: NSWindow?
     private var panel: NSOpenPanel?
     private var folderReply: ((URL?) -> Void)?
+    private var pendingOperations=0
+    var hasPendingWork:Bool {pendingOperations>0}
     var fetch: (String,Bool) async throws -> [PublishedRelease] = { try await ReleaseUpdateFeed.fetch(repository: $0, includePreview: $1) }
     var transfer: (ReleaseAsset,URL,@escaping @Sendable (Int64) -> Void) async throws -> Void = { try await ReleaseAssetDownload.fetch($0, to: $1, progress: $2) }
     var chooseFolder: ((NSWindow) async -> URL?)?
+    var presentFolder:(NSOpenPanel,NSWindow,@escaping(URL?)->Void)->Void = {panel,owner,reply in
+        panel.beginSheetModal(for:owner){reply($0 == .OK ? panel.url:nil)}
+    }
     var openURL: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     var reveal: ([URL]) -> Void = { NSWorkspace.shared.activateFileViewerSelecting($0) }
     var openStore:(URL)->Bool = {NSWorkspace.shared.open($0)}
@@ -72,10 +77,11 @@ import TurtleGitCore
         if force { manualPresentation = true }
         let preview = preferences.bool(forKey: "VersionCheckPreview"), fetch = fetch
         busy = true; release = nil; selected = []; statuses = [:]; downloaded = []; downloadedIDs = []
-        available = false; error = nil; message = "Checking for updates…"; Self.activeOperations += 1
+        available = false; error = nil; message = "Checking for updates…"; Self.activeOperations += 1;pendingOperations += 1
         task = Task {
-            defer { Self.activeOperations -= 1; if generation == request { busy = false; task = nil } }
+            defer { Self.activeOperations -= 1;pendingOperations -= 1;task=nil; if generation == request { busy = false } }
             do {
+                guard !retired,generation==request,!Task.isCancelled else{return}
                 let list = try await fetch(repository,preview)
                 guard !retired, generation == request, !Task.isCancelled else { return }
                 preferences.set(Date(), forKey: "TurtleGit.LastVersionCheck")
@@ -99,17 +105,29 @@ import TurtleGitCore
     private func destination(in owner: NSWindow) async -> URL? {
         if let chooseFolder { return await chooseFolder(owner) }
         let chooser = NSOpenPanel(); chooser.canChooseFiles = false; chooser.canChooseDirectories = true; chooser.canCreateDirectories = true
+        chooser.allowsMultipleSelection=false;chooser.appearance=owner.appearance;chooser.alphaValue=owner.alphaValue
+        chooser.directoryURL=UserAccountPaths.homeDirectory.appendingPathComponent("Downloads",isDirectory:true)
         chooser.prompt = "Download"; chooser.message = "Choose a folder for the checked release files. Existing files will be preserved."
         panel = chooser
         return await withCheckedContinuation { reply in
             var answered = false
-            let finish: (URL?) -> Void = { value in guard !answered else { return }; answered = true; reply.resume(returning: value) }
-            folderReply = finish
-            chooser.beginSheetModal(for: owner) { [weak self] response in
-                guard let self, self.panel === chooser else { finish(nil); return }
-                self.panel = nil; self.folderReply = nil
-                finish(response == .OK && !self.retired ? chooser.url : nil)
+            let settle:(URL?)->Void = {[weak self] value in
+                if self?.panel === chooser {self?.panel=nil;self?.folderReply=nil}
+                reply.resume(returning:value)
             }
+            let finish: (URL?) -> Void = { value in
+                guard !answered else { return }; answered = true
+                // A response can precede AppKit's physical detachment. Keep
+                // this request, its chooser and its Quit ownership until both
+                // sides of the sheet relationship have actually drained.
+                if chooser.sheetParent==nil && owner.attachedSheet !== chooser {settle(value);return}
+                Task { @MainActor [chooser,owner] in
+                    while chooser.sheetParent != nil || owner.attachedSheet === chooser {try? await Task.sleep(nanoseconds:5_000_000)}
+                    settle(value)
+                }
+            }
+            folderReply = finish
+            presentFolder(chooser,owner,finish)
         }
     }
     func download() {
@@ -117,10 +135,10 @@ import TurtleGitCore
         let files = assets.filter { selected.contains($0.id) && $0.downloadable && !downloadedIDs.contains($0.id) }
         let request = UUID(), identity = generation, transfer = transfer
         downloadRequest = request; downloadPending = true; busy = true; cancelling = false; progress = 0; error = nil
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         downloadTask = Task {
             defer {
-                Self.activeOperations -= 1
+                Self.activeOperations -= 1;pendingOperations -= 1
                 if downloadRequest == request { downloadRequest = nil; downloadPending = false; busy = false; cancelling = false; downloadTask = nil }
             }
             var current: Int64?
@@ -172,8 +190,8 @@ import TurtleGitCore
         }
     }
     private func cancelPanel() {
-        if let panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.orderOut(nil) }
-        panel = nil; let reply = folderReply; folderReply = nil; reply?(nil)
+        if let panel { panel.sheetParent?.endSheet(panel, returnCode: .cancel); panel.close() }
+        folderReply?(nil)
     }
     func abort() { guard downloadPending, !cancelling else { return }; cancelling = true; downloadTask?.cancel(); cancelPanel() }
     func cancel() {
@@ -195,18 +213,31 @@ import TurtleGitCore
     private let initiallyAutomatic: Bool
     var automatic: Bool { initiallyAutomatic && !model.manualPresentation }
     var onClosed: () -> Void = {}
+    private var closeDrain:Task<Void,Never>?
+    private var closing=false
     init(model suppliedModel: ReleaseUpdateModel? = nil, automatic: Bool = false) {
         self.initiallyAutomatic = automatic
         let model = suppliedModel ?? ReleaseUpdateModel(); self.model = model
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 720, height: 650), styleMask: [.titled,.closable,.resizable], backing: .buffered, defer: false)
-        window.title = "Check For Updates – TurtleGit for Mac"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 520)
+        window.title = "Check For Updates – TurtleGit for Mac"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 600, height: 620)
         super.init(window: window); window.delegate = self; model.window = window
+        TurtleGitHelp.attach(window,topic:.updates)
         let host = NSHostingController(rootView: ReleaseUpdateDialog(model: model, automatic: automatic)); host.sizingOptions = []; window.contentViewController = host
         window.setContentSize(.init(width: 720, height: 650)); window.center(); DialogGeometry.attach(window, identifier: "CheckForUpdatesDlg")
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.downloadPending }
-    func windowWillClose(_ notification: Notification) { model.cancel(); let callback = onClosed; onClosed = {}; callback() }
+    func windowWillClose(_ notification: Notification) {
+        guard !closing,(notification.object as? NSWindow) === window else{return};closing=true
+        let sheet=window?.attachedSheet
+        model.cancel();let callback=onClosed;onClosed={}
+        if model.hasPendingWork || sheet?.sheetParent != nil || window?.attachedSheet != nil {
+            closeDrain=Task { [self,sheet] in
+                while model.hasPendingWork || sheet?.sheetParent != nil || window?.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+                closeDrain=nil;callback()
+            }
+        } else {callback()}
+    }
 }
 private struct ReleaseUpdateDialog: View {
     @ObservedObject var model: ReleaseUpdateModel
@@ -217,9 +248,17 @@ private struct ReleaseUpdateDialog: View {
             Text(model.updateSourceDescription).font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
             Text("Your version is: " + model.installed).textSelection(.enabled)
             Text("Current version is: " + (model.release?.tag ?? "—")).textSelection(.enabled)
-            Text(model.message).foregroundStyle(model.available ? Color.green : Color.primary).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-            if model.busy && !model.downloadPending { ProgressView().controlSize(.small) }
-            if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal: false, vertical: true) }
+            HStack(alignment:.top,spacing:8) {
+                ScrollView {
+                    VStack(alignment:.leading,spacing:4) {
+                        Text(model.message).foregroundStyle(model.available ? Color.green : Color.primary).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)
+                        if let error=model.error {Text(error).foregroundStyle(.red).textSelection(.enabled).fixedSize(horizontal:false,vertical:true)}
+                    }.frame(maxWidth:.infinity,alignment:.leading)
+                }
+                ProgressView().controlSize(.small).frame(height:16)
+                    .opacity(model.busy && !model.downloadPending ? 1:0)
+                    .accessibilityHidden(!model.busy || model.downloadPending)
+            }.frame(height:48,alignment:.topLeading).accessibilityElement(children:.contain).accessibilityIdentifier("release-update-feedback")
             if !model.appStore { HStack { Spacer(); Button("Click here to go to the website", action: model.openRelease).buttonStyle(.link).disabled(model.busy); Spacer() } }
             GroupBox("Change log") {
                 ScrollView { Text(model.release?.notes ?? model.releaseNotesPlaceholder).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading).padding(8) }.frame(minHeight: 100)
@@ -227,19 +266,22 @@ private struct ReleaseUpdateDialog: View {
             if !model.appStore && model.available {
                 GroupBox("Download") {
                     VStack(alignment: .leading, spacing: 8) {
-                        ScrollView {
-                            VStack(alignment: .leading, spacing: 8) {
-                                ForEach(model.assets) { asset in
-                                    HStack(alignment: .top) {
-                                        Toggle(isOn: Binding(get: { model.selected.contains(asset.id) }, set: { model.select(asset, checked: $0, context: context) })) { CommandLabel(title: asset.name, icon: .export, localized: false) }.disabled(!model.canSelect(asset))
-                                        Spacer()
-                                        Text(model.statuses[asset.id] ?? (asset.downloadable ? ByteCountFormatter.string(fromByteCount: asset.size, countStyle: .file) : "SHA-256 download unavailable"))
-                                            .font(.caption).foregroundStyle(model.statuses[asset.id]?.hasPrefix("Downloaded") == true ? Color.green : Color.secondary)
-                                    }
-                                }
-                                if model.assets.isEmpty { Text("No downloadable release files are published for this version.").foregroundStyle(.secondary) }
-                            }.frame(maxWidth: .infinity, alignment: .leading)
-                        }.frame(height: 110)
+                        List {
+                            ForEach(model.assets) { asset in
+                                HStack(alignment:.center,spacing:12) {
+                                    Toggle(isOn:Binding(get:{model.selected.contains(asset.id)},set:{model.select(asset,checked:$0,context:context)})) {
+                                        CommandLabel(title:asset.name,icon:.export,localized:false).lineLimit(1).help(asset.name)
+                                    }.toggleStyle(.checkbox).disabled(!model.canSelect(asset)).accessibilityIdentifier("release-asset-\(asset.id)")
+                                    Spacer(minLength:8)
+                                    Text(model.statuses[asset.id] ?? (asset.downloadable ? ByteCountFormatter.string(fromByteCount:asset.size,countStyle:.file):"SHA-256 download unavailable"))
+                                        .font(.caption).foregroundStyle(model.statuses[asset.id]?.hasPrefix("Downloaded")==true ? Color.green:Color.secondary)
+                                        .lineLimit(2).frame(width:190,alignment:.leading)
+                                }.frame(height:32)
+                            }
+                            if model.assets.isEmpty {Text("No downloadable release files are published for this version.").foregroundStyle(.secondary)}
+                        }.listStyle(.inset(alternatesRowBackgrounds:true)).frame(height:130)
+                            .overlay(Rectangle().stroke(Color(nsColor:.separatorColor),lineWidth:1))
+                            .accessibilityLabel("Release files").accessibilityIdentifier("release-assets-list")
                         HStack {
                             if model.downloadPending { ProgressView(value: model.progress).frame(maxWidth: .infinity) }
                             else { Text("Downloads are checked against GitHub’s SHA-256 digest. macOS signing and installation remain separate.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true) }
@@ -247,11 +289,12 @@ private struct ReleaseUpdateDialog: View {
                             if model.downloadPending { Button(model.cancelling ? "Aborting…" : "Abort", action: model.abort).disabled(model.cancelling) }
                             else if !model.downloaded.isEmpty && !model.canDownload { Button("Show in Finder", action: model.showDownloads) }
                             else { Button("Download", action: model.download).disabled(!model.canDownload) }
-                        }
+                        }.frame(height:44).accessibilityElement(children:.contain).accessibilityIdentifier("release-download-operations")
                     }.padding(8)
                 }
             }
             HStack {
+                Button("Help") {TurtleGitHelp.show(.updates)}
                 Spacer()
                 if automatic { Button("Don’t ask me again") { if !model.manualPresentation { model.disableAutomatic() } }.disabled(model.busy) }
                 if model.appStore {Button("View in App Store…",action:model.openAppStore).disabled(!model.canOpenAppStore)}
@@ -290,6 +333,9 @@ private struct ReleaseUpdateDialog: View {
     func showCommand(visible: Bool, force: Bool, preferences: UserDefaults = .standard) {
         let ownsPresentation=visible || force
         if ownsPresentation {presentations += 1};defer{if ownsPresentation {presentations -= 1}}
+        // The old controller retains its own close-drain task. Its detached
+        // worker must not intercept a new explicit update request.
+        if controller?.model.retired==true {controller=nil}
         if let controller {
             controller.model.promote(force: force, visible: visible)
             if visible || force { display(controller) }; return

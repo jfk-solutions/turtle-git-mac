@@ -12,6 +12,10 @@ import SwiftUI
 
     func attach(_ window: NSWindow) { self.window = window }
     var darkMode: Bool { window?.effectiveAppearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua }
+    func inherit(from source:ImageWindowPresentation) {
+        guard let window,window.attachedSheet==nil,colorPrompt==nil else{return}
+        window.appearance=source.window?.appearance;transparentColor=source.transparentColor;appearanceRevision += 1
+    }
     func toggleDarkMode() {
         guard let window, window.attachedSheet == nil else { return }
         window.appearance = NSAppearance(named: darkMode ? .aqua : .darkAqua)

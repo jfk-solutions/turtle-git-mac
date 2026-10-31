@@ -152,6 +152,13 @@ private extension FileComparisonDocument {
         let model = FileComparisonWindowModel(images: images, permissions: permissions); model.comparisonDefaults = preferences
         self.init(model: model)
     }
+    /// Install accepted bytes before hosting attachment can synchronously admit
+    /// the view's first appearance read. The strict model admission stays intact.
+    convenience init(imageReceipt:ImageLoadReceipt,permissions:[RepositoryAccessLease],preferences:UserDefaults = .standard)throws {
+        let model=FileComparisonWindowModel(images:imageReceipt.comparison,permissions:permissions)
+        model.comparisonDefaults=preferences;try model.prepareImageReceipt(imageReceipt)
+        self.init(model:model)
+    }
     convenience init(comparison: WorkingFileComparison, permissions: [RepositoryAccessLease], preferences: UserDefaults = .standard, deferInitialLoad: Bool = false, line: Int? = nil) {
         let model = FileComparisonWindowModel(comparison: comparison, permissions: permissions)
         model.comparisonDefaults = preferences; model.initialLoadDeferred = deferInitialLoad; model.configureSourceLine(line)
@@ -175,6 +182,9 @@ private extension FileComparisonDocument {
         self.model = model
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = model.windowTitle; window.isReleasedWhenClosed = false
+        // Appearance inheritance can precede image decoding and bridge mount.
+        // This controller already owns the exact window for that whole lifetime.
+        model.imagePresentation.attach(window)
         let host = FileComparisonHostingController(rootView: FileComparisonDialog(model: model))
         host.sizingOptions = []
         window.contentViewController = host
@@ -229,6 +239,8 @@ private extension FileComparisonDocument {
     private var historicalWorkingComparison: HistoricalWorkingFileComparison?
     private var workingComparison: WorkingFileComparison?
     private var standaloneImages: ImageFileComparison?
+    private var imageInputSeeds=[ImageLoadSeed]()
+    private var initialImageDocument:FileComparisonDocument?
     private var imageLoader: ImageLoadWindowController?
     var retainedImageModel: ImageComparisonViewModel?
     var imageCommandsAllowed: Bool { contextCommandsAllowed && imageComparison != nil && imageLoader == nil }
@@ -282,7 +294,11 @@ private extension FileComparisonDocument {
     }
     private var originalPaneDocument: FileComparisonDocument?
     func savedPaneURL(base: Bool) -> URL? { paneTargets[base]?.url }
-    private func mutablePane(_ base: Bool) -> Bool { !mergeToolReadOnly && (sourceSnapshotRoot == nil || paneTargets[base] != nil) }
+    private func mutablePane(_ base: Bool) -> Bool {
+        let content=base ? document?.base:document?.destination
+        let protected=content.map{value in imageInputSeeds.contains{$0.url.path==value.path}} ?? false
+        return !mergeToolReadOnly && (sourceSnapshotRoot==nil && !protected || paneTargets[base] != nil)
+    }
     private func savingContext(_ document: FileComparisonDocument) -> FileComparisonDocument {
         guard let originalPaneDocument else { return document }
         return paneTargets.keys.reduce(document) { $0.replacingPane(base: $1, content: $1 ? originalPaneDocument.base : originalPaneDocument.destination) }
@@ -1377,6 +1393,7 @@ private extension FileComparisonDocument {
                 guard acceptsOutput(request), let url = await chooser(window, name, directory), acceptsOutput(request) else { return }
                 let permission = RepositoryAccessLease(url: url)
                 do {
+                    guard !imageInputSeeds.contains(where:{$0.protects(url)}) else {throw FileComparisonEditFailure.unsupported}
                     if rebind, let sourceSnapshotRoot,
                        url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") { throw FileComparisonEditFailure.unsupported }
                     guard try await authorizeWorkingReplacement(at:url,cancellation:request.cancellation),acceptsOutput(request) else {return}
@@ -1631,25 +1648,47 @@ private extension FileComparisonDocument {
         onExportStateChanged = {}
         retired = true; movedBlockRecords = []; retainedMoveLinks = nil; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
+        imageInputSeeds=[];initialImageDocument=nil
         retainedImageModel?.retire(); retainedImageModel?.presentation.retire()
+    }
+    private func retainImageReceipt(_ receipt:ImageLoadReceipt) {
+        imageInputSeeds=receipt.seeds;initialImageDocument=receipt.document
+        sidesReversed=false;paneTargets=[:];inputEncodingOverrides=[:]
+        imageToolTitles=[:]
+        for (base,url) in [(true,receipt.comparison.base),(false,receipt.comparison.destination)] {
+            if let url,let seed=receipt.seeds.first(where:{$0.contains(url)}) {imageToolTitles[base]=displayedComparisonPath(seed.original.path)+" — "+seed.original.revision.label}
+        }
+        retainedImageModel?.titleOverrides=imageToolTitles
+    }
+    func prepareImageReceipt(_ receipt:ImageLoadReceipt)throws {
+        guard !retired,!busy,document==nil,!attemptedAppearanceLoad,let inputs=standaloneImages,
+              inputs.base==receipt.comparison.base,inputs.destination==receipt.comparison.destination,
+              receipt.document.base.path==(inputs.base?.path ?? ""),receipt.document.destination.path==(inputs.destination?.path ?? "") else {throw FileComparisonEditFailure.changed}
+        retainImageReceipt(receipt)
+    }
+    func seedImageChooser(_ loader:ImageLoadWindowController) {
+        loader.retainSeeds(imageInputSeeds)
+        if let base=document?.base,!base.path.isEmpty,base.revision != .workingTree || !base.path.hasPrefix("/") || sourceSnapshotRoot != nil {loader.prepareSeed(base)}
     }
     func chooseImageFiles() {
         guard !retired, !busy, !confirmingQuit, imageLoader == nil, let window, window.attachedSheet == nil else { return }
         let left = document?.base.path ?? ""
         let loader = makeImageLoader(left.hasPrefix("/") ? left : "", workingPermissions + [access].compactMap { $0 })
         objectWillChange.send(); imageLoader = loader
-        var accepted: (ImageFileComparison, [RepositoryAccessLease])?
-        loader.onAccepted = { [weak self, weak loader] comparison, permissions in
-            guard let self, let loader, !self.retired, self.imageLoader === loader else { throw CocoaError(.userCancelled) }
-            accepted = (comparison, permissions)
+        seedImageChooser(loader)
+        var accepted:(ImageLoadReceipt,[RepositoryAccessLease])?
+        loader.onAcceptedReceipt = { [weak self,weak loader] receipt,permissions in
+            guard let self,let loader,!self.retired,!self.confirmingQuit,self.imageLoader === loader else {throw CocoaError(.userCancelled)}
+            accepted=(receipt,permissions)
         }
         loader.onClosed = { [weak self, weak loader] in
             guard let self, let loader, self.imageLoader === loader else { accepted = nil; return }
             self.objectWillChange.send(); self.imageLoader = nil
-            guard let request = accepted, !self.retired else { accepted = nil; return }
+            guard let request=accepted,!self.retired,!self.confirmingQuit else {accepted=nil;return}
             accepted = nil
             self.imageViewerModel.fit = true
-            self.standaloneImages = request.0; self.workingPermissions = request.1
+            self.standaloneImages=request.0.comparison;self.workingPermissions=request.1
+            self.retainImageReceipt(request.0)
             self.externalAttempted = true; self.viewerSelection = .image
             // The chooser must end its sheet before the ordinary reload guards
             // can admit this captured replacement. Cancel never supplies input.
@@ -1744,6 +1783,8 @@ private extension FileComparisonDocument {
         let acceptedInputEpoch=paneTabEpoch
         let capturedPermissions=workingPermissions,decodeImages=decodeImages
         let preparedWorkingDocument=initialWorkingDocument;initialWorkingDocument=nil
+        let preparedImageDocument=initialImageDocument;initialImageDocument=nil
+        let capturedImageSeeds=imageInputSeeds
         Task {
             var externalOpened = false
             defer {
@@ -1752,7 +1793,7 @@ private extension FileComparisonDocument {
                     if externalOpened { externalDidOpen() }
                     else if closeAfterLoad { closeAfterLoad = false; window?.performClose(nil) }
                 }
-                withExtendedLifetime(access) {}; withExtendedLifetime(capturedPermissions) {}
+                withExtendedLifetime(access) {}; withExtendedLifetime(capturedPermissions) {};withExtendedLifetime(capturedImageSeeds) {}
             }
             do {
                 try await session.run(selectedCount: 0) { [self] token in
@@ -1765,14 +1806,21 @@ private extension FileComparisonDocument {
                     let storageReplacements = Dictionary(uniqueKeysWithValues:replacements.map { (storageSide($0.key),$0.value) })
                     var value: FileComparisonDocument
                     if replacements.count == 2, let originalPaneDocument { value = oriented(originalPaneDocument) }
-                    else if let conflictBaseEntry, let repository {
+                    else if standaloneImages==nil,let conflictBaseEntry,let repository {
                         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                         value = try await repository.conflictBaseComparison(conflictBaseEntry, cancellation: token).document
-                    } else if let changeSetDocument {
+                    } else if standaloneImages==nil,let changeSetDocument {
                         value = changeSetDocument
                     } else if let standaloneImages {
-                        guard !GitRuntime.isAppStoreBuild || [standaloneImages.base, standaloneImages.destination].compactMap({ $0 }).allSatisfy({ file in workingPermissions.contains { $0.hasSecurityScope && $0.contains(file) } }) else { throw ImageFileComparisonFailure.filePermissionRequired }
-                        value = try standaloneImages.read()
+                        guard !GitRuntime.isAppStoreBuild || [standaloneImages.base,standaloneImages.destination].compactMap({$0}).allSatisfy({file in capturedImageSeeds.contains{$0.contains(file)} || capturedPermissions.contains{$0.permits(file)}}) else {throw ImageFileComparisonFailure.filePermissionRequired}
+                        if let preparedImageDocument {value=preparedImageDocument}
+                        else {
+                            value=try await Task.detached {
+                                try token.check();let document=try standaloneImages.read()
+                                for seed in capturedImageSeeds {try seed.validate(document)}
+                                try token.check();return document
+                            }.value
+                        }
                     } else if let historicalWorkingComparison, let repository {
                         try validateHistoricalWorkingAccess(historicalWorkingComparison)
                         value = try await repository.comparisonFile(historicalWorkingComparison, replacements: storageReplacements, cancellation: token)
@@ -2021,6 +2069,7 @@ private extension FileComparisonDocument {
         guard let url=await chooseExportLocation(window,name,directory) else {return false}
         try ensurePaneSave(request)
         let permission=RepositoryAccessLease(url:url)
+        guard !imageInputSeeds.contains(where:{$0.protects(url)}) else {throw FileComparisonEditFailure.unsupported}
         if let sourceSnapshotRoot,url.resolvingSymlinksInPath().standardizedFileURL.path.hasPrefix(sourceSnapshotRoot.path + "/") {throw FileComparisonEditFailure.unsupported}
         let encoding=drafts?.encoding(base:base) ?? content.encoding
         let bytes=try encoding?.encode(text) ?? FileComparisonEditing.encoded(text,like:content)
