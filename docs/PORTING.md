@@ -6138,3 +6138,22 @@ pairs. An initial consecutive-F3 failure led to synchronous native caret receipt
 consumption and manual-movement cancellation; only affected native checks were
 repeated. All recorded owned runtime/compiler processes are independently absent.
 Core and resource checks were retained after the native-only repair.
+
+
+## History and reference caption consumers — October 31, 2026
+
+Log, Browse References and RefLog now translate their native context/column
+menus and headers together with runtime filter, ordering and choice captions.
+Raw references, hashes, paths, metadata, action payloads and persisted identifiers
+remain literal. Shared parent captions and native named-field templates insert
+metadata only after validating the translated field set, without C format strings
+or recursive replacement. German and French native adaptations cover the new
+composed captions; other unsafe or missing source entries retain English.
+
+The [language guide](LANGUAGES.md#history-and-reference-menus) describes the
+scope. The [grouped checkpoint](qa/history-languages-2026-10-31.json) passes all four
+German/French and system/bundled Git combinations after one fixture-framing repair.
+The app build passes after a property/action name collision repair. All recorded
+owned processes are independently absent. No Core suite was needed or repeated.
+Core-produced information prose, shared deletion-message prose, complete
+physical/VoiceOver and signed translated-app acceptance remain separate.

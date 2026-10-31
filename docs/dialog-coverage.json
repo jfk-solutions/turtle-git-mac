@@ -740,6 +740,7 @@
         "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-languages-2026-10-31.json",
         "docs/qa/history-projection-2026-10-09.json",
         "docs/qa/installed-current-family-2026-10-24.json",
         "docs/qa/log-actions-2026-10-06.json",
@@ -1933,6 +1934,7 @@
         "docs/qa/historical-window-identity-2026-10-23.json",
         "docs/qa/history-boundaries-2026-10-09.json",
         "docs/qa/history-lanes-2026-10-09.json",
+        "docs/qa/history-languages-2026-10-31.json",
         "docs/qa/history-projection-2026-10-09.json",
         "docs/qa/log-actions-2026-10-06.json",
         "docs/qa/log-bugs-2026-10-06.json",
@@ -3285,6 +3287,7 @@
       "qa_records": [
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
+        "docs/qa/history-languages-2026-10-31.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/reflog-actions-2026-10-08.json",
@@ -4027,6 +4030,7 @@
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
         "docs/qa/history-actions-2026-10-18.json",
+        "docs/qa/history-languages-2026-10-31.json",
         "docs/qa/merge-cleanup-2026-10-09.json",
         "docs/qa/reference-batch-delete-2026-10-09.json",
         "docs/qa/reference-browser-2026-10-09.json",

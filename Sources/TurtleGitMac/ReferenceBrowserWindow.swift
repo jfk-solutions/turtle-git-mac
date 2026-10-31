@@ -87,12 +87,12 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         super.init(window: window); window.delegate = self; window.center()
         window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
         window.handleCommand = { [weak self] event in self?.handleCommand(event) ?? false }
-        model.confirmResetColumns = { [weak self] in await self?.ask(message:"Reset column order?",detail:"Restore the default column order, widths and visibility?",warning:false) ?? false }
+        model.confirmResetColumns = { [weak self] in await self?.ask(message:HistoryLabels.caption("Reset column order?"),detail:HistoryLabels.caption("Restore the default column order, widths and visibility?"),warning:false) ?? false }
         model.confirmDeletion = { [weak self] confirmation in
             await self?.ask(message: "TurtleGit", detail: confirmation.message, warning: confirmation.warning) ?? false
         }
         model.confirmCancellation = { [weak self] in
-            await self?.ask(message: "The process is still running.", detail: "Stop the current reference operation? Review the resulting references and configuration before retrying.", warning: true) ?? false
+            await self?.ask(message: HistoryLabels.caption("The process is still running."), detail: HistoryLabels.caption("Stop the current reference operation? Review the resulting references and configuration before retrying."), warning: true) ?? false
         }
         model.sshSettings.present = { [weak window] prompt in
             guard let window, window.attachedSheet == nil, let child = prompt.window else { return false }
@@ -119,7 +119,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private func ask(message: String, detail: String, warning: Bool) async -> Bool {
         guard !model.closed, !model.confirmingQuit, question == nil, let window, window.attachedSheet == nil else { return false }
         let alert = NSAlert(); alert.messageText = message; alert.informativeText = detail; alert.alertStyle = warning ? .warning : .informational
-        let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
+        let yes = alert.addButton(withTitle: HistoryLabels.caption("Yes")); alert.addButton(withTitle: HistoryLabels.caption("No"))
         yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
         let id = UUID()
         return await withCheckedContinuation { continuation in
@@ -516,7 +516,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private func accepts(_ context: FormContext) -> Bool { canEditPresentation && context == formContext }
     var filterCue: String {
         let names: [(HistorySearchFields,String)] = [(.referenceNames,"Refname"),(.subject,"Subject"),(.authors,"Authors"),(.revisions,"SHA-1")]
-        return "Filter by " + names.filter { fields.contains($0.0) }.map { $0.1 }.joined(separator:", ")
+        return HistoryLabels.text("Filter by {fields}", values: ["fields": names.filter { fields.contains($0.0) }.map { HistoryLabels.caption($0.1) }.joined(separator:", ")])
     }
     func queryBinding(context: FormContext) -> Binding<String> {
         Binding(get:{self.query},set:{value in guard self.accepts(context) else {return};self.query=value;self.refilter()})
@@ -641,11 +641,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     var canCreateBranch: Bool { canAccept && chosen.map { GitReferenceName.removingPrefix("refs/remotes/", from: $0.name.rawValue) != nil } == true }
     var onMerge: (() -> Void)?
     var configureMerge: (MergeWindowController) -> Void = { _ in }
-    var currentBranchName: String {
+    private var currentBranchValue: String? {
         guard let path = snapshot?.headFile, let head = try? String(contentsOf: path, encoding: .utf8),
-              let branch = GitReferenceName.removingPrefix("ref: refs/heads/", from: head) else { return "(no branch)" }
+              let branch = GitReferenceName.removingPrefix("ref: refs/heads/", from: head) else { return nil }
         return branch.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+    var currentBranchName: String { currentBranchValue ?? "(no branch)" }
+    var currentBranchCaption: String { currentBranchValue ?? HistoryLabels.caption("(no branch)") }
     var mergeTitle: String { "Merge to \"" + currentBranchName + "\"…" }
     var canMerge: Bool { canSwitch && chosen?.name != GitReferenceName("refs/heads/" + currentBranchName) }
     var onSwitch: (() -> Void)?
@@ -891,26 +893,26 @@ struct ReferenceBrowserDialog: View {
                 Text("Filter:")
                 ReferenceBrowserSearchField(text: model.queryBinding(context:context), cue:model.filterCue)
                 Menu { ForEach([(HistorySearchFields.referenceNames, "Refname"), (.subject, "Subject"), (.authors, "Authors"), (.revisions, "SHA-1")], id: \.0.rawValue) { field, title in
-                    Toggle(title, isOn: model.searchField(field,context:context))
+                    Toggle(HistoryLabels.caption(title), isOn: model.searchField(field,context:context))
                 }; Divider(); Button("Toggle filters") { model.toggleSearchFields(context:context) }
                 } label: { CommandLabel(title: "Filter by", icon: .log) }
-                Picker("Branch filter", selection: model.mergeFilterBinding(context:context)) { ForEach(ReferenceBrowserMergeFilter.allCases, id: \.self) { Text($0.rawValue).tag($0) } }.labelsHidden().frame(width: 170)
+                Picker("Branch filter", selection: model.mergeFilterBinding(context:context)) { ForEach(ReferenceBrowserMergeFilter.allCases, id: \.self) { Text(verbatim: HistoryLabels.caption($0.rawValue)).tag($0) } }.labelsHidden().frame(width: 170)
             }.disabled(!model.canEditPresentation)
             ReferenceBrowserNativeView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
             if model.mutationActive || !model.renameOutput.isEmpty {
                 SubmoduleProgressOutputView(text: model.renameOutput, completed: !model.mutationActive, success: !model.mutationFailed && !model.mutationCancelled, preferences: model.preferences).frame(height: 100)
-                HStack { Spacer(); if model.mutationActive { Button(model.cancellingRename ? "Cancelling…" : "Cancel " + model.mutationTitle) { model.cancelRenameOperation() }.disabled(model.cancellingRename || model.awaitingConfirmation || model.confirmingCancellation) } else { Button("Dismiss output") { model.dismissOutput() } } }
+                HStack { Spacer(); if model.mutationActive { Button(model.cancellingRename ? HistoryLabels.caption("Cancelling…") : HistoryLabels.text("Cancel {operation}", values: ["operation": HistoryLabels.caption(model.mutationTitle)])) { model.cancelRenameOperation() }.disabled(model.cancellingRename || model.awaitingConfirmation || model.confirmingCancellation) } else { Button("Dismiss output") { model.dismissOutput() } } }
             }
             HStack {
                 Toggle("Show nested refs", isOn: model.nestedBinding(context:context)).disabled(!model.canEditPresentation)
-                Text("Showing \(model.rows.count) ref(s), \(model.selectedRows.count) ref(s) selected").font(.system(size: 11)).foregroundStyle(.secondary)
+                Text(verbatim: HistoryLabels.text("Showing {shown} ref(s), {selected} ref(s) selected", values: ["shown": String(model.rows.count), "selected": String(model.selectedRows.count)])).font(.system(size: 11)).foregroundStyle(.secondary)
                 if model.busy { ProgressView().controlSize(.small) }; Spacer()
                 Button("Current Branch") { model.currentBranch() }.disabled(!model.canChooseCurrentBranch)
                 if !model.pickRangeChoices.isEmpty {
                     Menu("OK") {
                         Button { if let rangeContext { model.accept(context:rangeContext) } } label: { CommandLabel(title: model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " "), icon: .log, localized: false) }
                         ForEach(Array(model.pickRangeChoices.enumerated()), id: \.offset) { index, range in
-                            Button { if let rangeContext { model.acceptRange(index,context:rangeContext) } } label: { CommandLabel(title: range.expression, icon: .log) }
+                            Button { if let rangeContext { model.acceptRange(index,context:rangeContext) } } label: { CommandLabel(title: range.expression, icon: .log, localized: false) }
                         }
                     }.disabled(!model.canAccept)
                 } else { Button("OK") { model.accept() }.keyboardShortcut(.defaultAction).disabled(!model.canFinish) }
@@ -931,7 +933,7 @@ struct ReferenceBrowserSearchField: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSSearchField {
-        let field = ReferenceBrowserOwnedSearchField();field.identifier = .init("BrowseRefs.Filter"); field.placeholderString = "Filter references"; field.setAccessibilityLabel("Filter references")
+        let field = ReferenceBrowserOwnedSearchField();field.identifier = .init("BrowseRefs.Filter"); field.placeholderString = HistoryLabels.caption("Filter references"); field.setAccessibilityLabel(HistoryLabels.caption("Filter references"))
         field.sendsSearchStringImmediately = true; field.sendsWholeSearchString = false
         field.target = context.coordinator; field.action = #selector(Coordinator.changed(_:)); return field
     }
@@ -949,12 +951,12 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator(model: model) }
     func makeNSView(context: Context) -> NSSplitView {
         let split = NSSplitView(); split.delegate = context.coordinator; split.isVertical = true; split.dividerStyle = .thin
-        let tree = ReferenceBrowserNamespaceOutline(); tree.headerView = nil; tree.setAccessibilityLabel("Reference namespaces")
+        let tree = ReferenceBrowserNamespaceOutline(); tree.headerView = nil; tree.setAccessibilityLabel(HistoryLabels.caption("Reference namespaces"))
         let folder = NSTableColumn(identifier: .init("folder")); folder.width = 185; tree.addTableColumn(folder); tree.outlineTableColumn = folder; tree.rowHeight = 22
-        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename(keyboard:true) }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking || model.pickMultiple; table.setAccessibilityLabel("References");table.identifier = .init("BrowseRefs.References")
+        let table = ReferenceBrowserRenameTable(); table.rename = { [weak coordinator = context.coordinator] in coordinator?.beginRename(keyboard:true) }; table.rowHeight = 23; table.allowsMultipleSelection = !model.picking || model.pickMultiple; table.setAccessibilityLabel(HistoryLabels.caption("References"));table.identifier = .init("BrowseRefs.References")
         table.columnAutoresizingStyle = .noColumnAutoresizing;table.allowsColumnResizing = true;table.allowsColumnReordering = true
         for (id, title, width) in ReferenceBrowserColumnLayout.definitions {
-            let column = NSTableColumn(identifier: .init(id)); column.title = title; column.width = width; column.minWidth = 40;column.maxWidth = 10000; table.addTableColumn(column)
+            let column = NSTableColumn(identifier: .init(id)); column.title = HistoryLabels.caption(title); column.width = width; column.minWidth = 40;column.maxWidth = 10000; table.addTableColumn(column)
         }
         let header = RepositoryBrowserColumnHeader(frame:.init(x:0,y:0,width:0,height:24))
         header.buildMenu = { [weak coordinator = context.coordinator] in coordinator?.columnMenu() }
@@ -1025,7 +1027,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             let revision = model.layoutRevision
             func add(_ title:String,enabled:Bool,state:NSControl.StateValue = .off,icon:MenuIcon?=nil,action:@escaping (Coordinator)->Void) {
                 let command = ReferenceBrowserMenuCommand { [weak self] in guard let self,self.presentationAvailable,self.model.layoutRevision == revision else { return };action(self) }
-                let item = NSMenuItem(title:title,action:#selector(ReferenceBrowserMenuCommand.invoke(_:)),keyEquivalent:"")
+                let item = NSMenuItem(title:HistoryLabels.caption(title),action:#selector(ReferenceBrowserMenuCommand.invoke(_:)),keyEquivalent:"")
                 item.image=icon?.contextImage(defaults:model.preferences);item.target = command;item.representedObject = command;item.isEnabled = enabled && presentationAvailable;item.state = state;menu.addItem(item)
             }
             add("Reset column order",enabled:true,icon:.reset) { $0.model.resetColumns() };menu.addItem(.separator())
@@ -1121,7 +1123,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             guard let cell = table.view(atColumn: table.column(withIdentifier: .init("name")), row: row, makeIfNecessary: true) as? NSTableCellView,
                   let field = cell.textField else { model.cancelRename(); return }
             renameField = field; field.stringValue = label; field.isEditable = true; field.isSelectable = true; field.isBordered = true; field.drawsBackground = true; field.backgroundColor = .textBackgroundColor; field.delegate = self
-            field.setAccessibilityLabel("Rename branch")
+            field.setAccessibilityLabel(HistoryLabels.caption("Rename branch"))
             if table.window?.makeFirstResponder(field) == true { field.currentEditor()?.selectAll(nil) }
         }
         func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
@@ -1177,7 +1179,7 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 }
             }
             menu.autoenablesItems = false
-            func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool) { let entry = NSMenuItem(title: title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
+            func item(_ title: String, _ action: Selector, _ icon: MenuIcon, _ enabled: Bool, localized: Bool = true) { let entry = NSMenuItem(title: localized ? HistoryLabels.caption(title) : title, action: action, keyEquivalent: ""); entry.target = self; entry.image = icon.contextImage(defaults: model.preferences); entry.isEnabled = enabled; menu.addItem(entry) }
             if fromTree || model.selectedRows.isEmpty {
                 guard model.canUseFolder else { return }
                 if model.canCreateFolder(isTag: false) { item("Create Branch…", #selector(createFolderBranch), .branch, model.onCreateFolder != nil) }
@@ -1188,28 +1190,38 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 if model.folder.browserIsFrom("refs/tags"), let remotes = model.snapshot?.remotes, !remotes.isEmpty {
                     menu.addItem(.separator())
                     for remote in remotes {
-                        let entry = NSMenuItem(title: "Delete remote tags on \"" + remote + "\"…", action: #selector(deleteRemoteTags(_:)), keyEquivalent: "")
+                        let entry = NSMenuItem(title: HistoryLabels.text("Delete remote tags on \"{remote}\"…", values: ["remote": remote]), action: #selector(deleteRemoteTags(_:)), keyEquivalent: "")
                         entry.target = self; entry.image = MenuIcon.remove.contextImage(defaults: model.preferences); entry.isEnabled = model.onDeleteRemoteTags != nil; entry.representedObject = remote; menu.addItem(entry)
                     }
                 }
                 if model.folder.browserIsFrom("refs/remotes") { item("Add Remote…", #selector(addRemote), .add, model.onAddRemote != nil); item("Manage Remotes", #selector(manageRemotes), .settings, model.onManageRemotes != nil) }
                 if let remote = model.folderRemote {
-                    let fetch = NSMenuItem(title: "Fetch from \"" + remote + "\"", action: #selector(fetchFolder(_:)), keyEquivalent: "")
+                    let fetch = NSMenuItem(title: HistoryLabels.text("Fetch from \"{remote}\"", values: ["remote": remote]), action: #selector(fetchFolder(_:)), keyEquivalent: "")
                     fetch.target = self; fetch.image = MenuIcon.fetch.contextImage(defaults: model.preferences); fetch.representedObject = remote; fetch.isEnabled = model.onFetchFolder != nil; menu.addItem(fetch)
-                    let tags = NSMenuItem(title: "Delete remote tags…", action: #selector(deleteRemoteTags(_:)), keyEquivalent: "")
+                    let tags = NSMenuItem(title: HistoryLabels.caption("Delete remote tags…"), action: #selector(deleteRemoteTags(_:)), keyEquivalent: "")
                     tags.target = self; tags.image = MenuIcon.remove.contextImage(defaults: model.preferences); tags.representedObject = remote; tags.isEnabled = model.onDeleteRemoteTags != nil; menu.addItem(tags)
                 }
                 if !menu.items.isEmpty { menu.addItem(.separator()) }
                 item("Copy ref names", #selector(copyFolder), .copy, true); return
             }
+            func deletionTitle(_ kind: ReferenceBrowserDeletionKind, count: Int) -> String {
+                guard count != 1 else { return HistoryLabels.caption(kind.title) }
+                let template: String
+                switch kind {
+                case .branch: template = "Delete {count} branches"
+                case .remoteBranch: template = "Delete {count} remote branches"
+                case .tag: template = "Delete {count} tags"
+                }
+                return HistoryLabels.text(template, values: ["count": String(count)])
+            }
             func deletion() {
-                if model.canDelete, let kind = model.deletionKind { if !menu.items.isEmpty { menu.addItem(.separator()) }; item(kind.title(count: model.selectedRows.count), #selector(deleteReference), .remove, model.confirmDeletion != nil) }
+                if model.canDelete, let kind = model.deletionKind { if !menu.items.isEmpty { menu.addItem(.separator()) }; item(deletionTitle(kind, count: model.selectedRows.count), #selector(deleteReference), .remove, model.confirmDeletion != nil, localized: false) }
             }
             if let range = model.range {
                 item("Compare selected refs", #selector(comparePair), .unifiedDiff, model.onComparePair != nil)
                 item("Show changes as unified diff", #selector(unifiedPair), .unifiedDiff, model.onUnifiedPair != nil)
-                item("Show log of " + range.label(), #selector(logRange), .log, model.onLogRange != nil)
-                item("Show log of " + range.label(symmetric: true), #selector(logSymmetricRange), .log, model.onLogRange != nil)
+                item(HistoryLabels.text("Show log of {range}", values: ["range": range.label()]), #selector(logRange), .log, model.onLogRange != nil, localized: false)
+                item(HistoryLabels.text("Show log of {range}", values: ["range": range.label(symmetric: true)]), #selector(logSymmetricRange), .log, model.onLogRange != nil, localized: false)
                 deletion(); menu.addItem(.separator()); item("Copy ref names", #selector(copyName), .copy, true); return
             }
             guard let chosen = model.chosen else { deletion(); if !menu.items.isEmpty { menu.addItem(.separator()) }; item("Copy ref names", #selector(copyName), .copy, true); return }
@@ -1220,8 +1232,8 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if branch { item("Show Reflog", #selector(reflog), .log, model.onReflog != nil) }
             if !model.bare && chosen.objectType == "commit" { menu.addItem(.separator()); item("Compare with working tree", #selector(compare), .compare, model.canCompareWorkingTree) }
             menu.addItem(.separator())
-            if model.canFetch, let remote = model.fetchRemote { item("Fetch from \"" + remote + "\"", #selector(fetch), .fetch, model.onFetch != nil); menu.addItem(.separator()) }
-            if model.canMerge { item(model.mergeTitle, #selector(mergeRevision), .merge, model.onMerge != nil) }
+            if model.canFetch, let remote = model.fetchRemote { item(HistoryLabels.text("Fetch from \"{remote}\"", values: ["remote": remote]), #selector(fetch), .fetch, model.onFetch != nil, localized: false); menu.addItem(.separator()) }
+            if model.canMerge { item(HistoryLabels.text("Merge to \"{branch}\"…", values: ["branch": model.currentBranchCaption]), #selector(mergeRevision), .merge, model.onMerge != nil, localized: false) }
             if model.canSwitch { item("Switch/Checkout to this…", #selector(switchRevision), .checkout, model.onSwitch != nil) }
             if model.canSwitch { menu.addItem(.separator()) }
             if model.canCreateBranch { item("Create Branch…", #selector(createBranch), .branch, model.onCreateBranch != nil) }

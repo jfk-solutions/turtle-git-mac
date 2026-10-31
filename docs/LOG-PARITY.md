@@ -3013,3 +3013,12 @@ child reads and native destination choices. Independent activity and real worker
 drain retain busy/Close/Quit ownership; working-tree mutation admission remains
 separate. The linked checkpoint records actual validation and its boundaries,
 rather than establishing complete Log or signed acceptance from implementation.
+
+
+## Native menu language consumers — October 31, 2026
+
+The [connected history/reference language family](HISTORY-LANGUAGE-PARITY.md)
+connects native menu/header/filter captions with literal metadata and unchanged
+command ownership. Its [grouped checkpoint](qa/history-languages-2026-10-31.json)
+keeps actual German/French menu evidence separate from complete localization,
+physical/VoiceOver and signed acceptance. Installed build47 predates this family.

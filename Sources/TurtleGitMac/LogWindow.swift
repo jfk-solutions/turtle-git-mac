@@ -165,7 +165,7 @@ final class LogHistoryWindow: NSWindow {
             await Task.yield(); try cancellation.check(); guard current else { return }
             var application: URL?
             if action == .openWith {
-                let panel = NSOpenPanel(); panel.title = "Open With"; panel.prompt = "Open"
+                let panel = NSOpenPanel(); panel.title = HistoryLabels.caption("Open With"); panel.prompt = HistoryLabels.caption("Open")
                 panel.allowedContentTypes = [.applicationBundle]; panel.canChooseDirectories = false
                 panel.allowsMultipleSelection = false; panel.directoryURL = URL(fileURLWithPath: "/Applications", isDirectory: true)
                 if let chooseApplication { application = await chooseApplication(panel) }
@@ -308,19 +308,19 @@ final class LogHistoryWindow: NSWindow {
         model.confirmWorkingFlags = { action in confirmIndexFlags(action) }
         model.confirmWorkingDelete = { count, permanently in
             let alert = NSAlert(); alert.alertStyle = .warning
-            alert.messageText = permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?"
-            alert.informativeText = "\(count) selected item(s). Their exact index entries will also be removed." + (permanently ? " This cannot be undone." : " Files moved to Trash can be recovered in Finder.")
-            alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
+            alert.messageText = HistoryLabels.caption(permanently ? "Permanently delete the selected paths?" : "Move the selected paths to Trash?")
+            alert.informativeText = HistoryLabels.text("{count} selected item(s). Their exact index entries will also be removed.", values: ["count": String(count)]) + " " + HistoryLabels.caption(permanently ? "This cannot be undone." : "Files moved to Trash can be recovered in Finder.")
+            alert.addButton(withTitle: HistoryLabels.caption("No")); alert.addButton(withTitle: HistoryLabels.caption("Yes"))
             return alert.runModal() == .alertSecondButtonReturn
         }
         model.handleHistoricalRevertFailure = { message in
-            let alert = NSAlert(); alert.messageText = "Could not revert file"; alert.informativeText = message
-            alert.addButton(withTitle: "Ignore"); alert.addButton(withTitle: "Abort")
+            let alert = NSAlert(); alert.messageText = HistoryLabels.caption("Could not revert file"); alert.informativeText = message
+            alert.addButton(withTitle: HistoryLabels.caption("Ignore")); alert.addButton(withTitle: HistoryLabels.caption("Abort"))
             return alert.runModal() == .alertFirstButtonReturn
         }
         model.showHistoricalRevertResult = { message in
-            let alert = NSAlert(); alert.messageText = "Revert files"; alert.informativeText = message
-            alert.addButton(withTitle: "OK"); alert.runModal()
+            let alert = NSAlert(); alert.messageText = HistoryLabels.caption("Revert files"); alert.informativeText = message
+            alert.addButton(withTitle: HistoryLabels.caption("OK")); alert.runModal()
         }
         window.delegate = self
         window.setContentSize(NSSize(width: 1120, height: 780))
@@ -340,17 +340,17 @@ final class LogHistoryWindow: NSWindow {
         model.acknowledgeReferenceDeletionFailure = { [weak window] message in
             guard let window, window.attachedSheet == nil else { return }
             await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not delete reference."; alert.informativeText = message; alert.addButton(withTitle: "OK")
+                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = HistoryLabels.caption("Could not delete reference."); alert.informativeText = message; alert.addButton(withTitle: HistoryLabels.caption("OK"))
                 alert.beginSheetModal(for: window) { _ in continuation.resume() }
             }
         }
         model.confirmRevert = { [weak self] request in
             guard let window = self?.window, window.attachedSheet == nil else { return false }
             return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.messageText = "Revert the selected commit(s)?"; alert.alertStyle = .warning
-                if let parent = request.mainline { alert.informativeText = self?.model.parentChoices(for: request.revision).first(where: { $0.number == parent })?.title ?? "Parent \(parent)" }
-                alert.addButton(withTitle: "Yes").keyEquivalent = ""
-                let no = alert.addButton(withTitle: "No"); no.keyEquivalent = "\r"
+                let alert = NSAlert(); alert.messageText = HistoryLabels.caption("Revert the selected commit(s)?"); alert.alertStyle = .warning
+                if let parent = request.mainline { alert.informativeText = self?.model.parentChoices(for: request.revision).first(where: { $0.number == parent }).map(LogWorkflowLocalization.parent) ?? HistoryLabels.text("Parent {number}", values: ["number": String(parent)]) }
+                alert.addButton(withTitle: HistoryLabels.caption("Yes")).keyEquivalent = ""
+                let no = alert.addButton(withTitle: HistoryLabels.caption("No")); no.keyEquivalent = "\r"
                 alert.window.defaultButtonCell = no.cell as? NSButtonCell
                 alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertFirstButtonReturn) }
             }
@@ -358,8 +358,8 @@ final class LogHistoryWindow: NSWindow {
         model.offerRevertCommit = { [weak self] in
             guard let window = self?.window, window.attachedSheet == nil else { return false }
             return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.messageText = "Revision(s) reverted. All changes are integrated into your working tree now."
-                alert.addButton(withTitle: "OK"); alert.addButton(withTitle: "Commit")
+                let alert = NSAlert(); alert.messageText = HistoryLabels.caption("Revision(s) reverted. All changes are integrated into your working tree now.")
+                alert.addButton(withTitle: HistoryLabels.caption("OK")); alert.addButton(withTitle: HistoryLabels.caption("Commit"))
                 alert.beginSheetModal(for: window) { response in continuation.resume(returning: response == .alertSecondButtonReturn) }
             }
         }
@@ -392,8 +392,8 @@ final class LogHistoryWindow: NSWindow {
         model.confirmExportFailure = { [weak self] message in
             guard let self,let window = self.window,!self.model.isInvalidated,!self.model.confirmingQuit,self.exportFailureAlert==nil,window.attachedSheet==nil else { return false }
             let alert=NSAlert();self.exportFailureAlert=alert
-            alert.messageText="Could not export historical file";alert.informativeText=message;alert.alertStyle = .warning
-            alert.addButton(withTitle:"Ignore");alert.addButton(withTitle:"Abort")
+            alert.messageText=HistoryLabels.caption("Could not export historical file");alert.informativeText=message;alert.alertStyle = .warning
+            alert.addButton(withTitle:HistoryLabels.caption("Ignore"));alert.addButton(withTitle:HistoryLabels.caption("Abort"))
             let answer=await withCheckedContinuation { continuation in
                 alert.beginSheetModal(for:window) {continuation.resume(returning:$0)}
             }
@@ -467,7 +467,7 @@ final class LogHistoryWindow: NSWindow {
     }
     private func chooseHistoricalExport(revision: String, files: [CommitFile],backend:GitLibGit2Configuration?) {
         guard let window, window.attachedSheet == nil else { return }
-        let panel = NSOpenPanel(); panel.title = "Export selected files"; panel.prompt = "Export"
+        let panel = NSOpenPanel(); panel.title = HistoryLabels.caption("Export selected files"); panel.prompt = HistoryLabels.caption("Export")
         panel.canChooseFiles = false; panel.canChooseDirectories = true
         panel.canCreateDirectories = true; panel.allowsMultipleSelection = false
         chooseFile(panel) { [weak model] folder in
@@ -478,13 +478,13 @@ final class LogHistoryWindow: NSWindow {
         guard let window, window.attachedSheet == nil, !model.busy, !model.isInvalidated else { return }
         let panel: NSSavePanel
         if save {
-            let savePanel = NSSavePanel(); savePanel.title = "Save As"
+            let savePanel = NSSavePanel(); savePanel.title = HistoryLabels.caption("Save As")
             let source = model.repository.root.appendingPathComponent(paths[0])
             savePanel.nameFieldStringValue = source.lastPathComponent
             savePanel.directoryURL = source.deletingLastPathComponent()
             savePanel.allowsOtherFileTypes = true; panel = savePanel
         } else {
-            let openPanel = NSOpenPanel(); openPanel.title = "Export selected files"; openPanel.prompt = "Export"
+            let openPanel = NSOpenPanel(); openPanel.title = HistoryLabels.caption("Export selected files"); openPanel.prompt = HistoryLabels.caption("Export")
             openPanel.canChooseFiles = false; openPanel.canChooseDirectories = true
             openPanel.allowsMultipleSelection = false; panel = openPanel
         }
@@ -509,7 +509,7 @@ final class LogHistoryWindow: NSWindow {
         do{leaf=try HistoricalFileDeliveryName.leaf(for:content)}catch{model.error=error.localizedDescription;return}
         let name = leaf as NSString
         let ext = name.pathExtension
-        let panel = NSSavePanel(); panel.title = "Save file at revision " + short
+        let panel = NSSavePanel(); panel.title = HistoryLabels.text("Save file at revision {revision}", values: ["revision": short])
         panel.nameFieldStringValue = name.deletingPathExtension + "-" + short + (ext.isEmpty ? "" : "." + ext)
         panel.allowedContentTypes = [UTType(filenameExtension: ext) ?? .data]; panel.allowsOtherFileTypes = true
         panel.canCreateDirectories = true
@@ -694,9 +694,9 @@ final class LogHistoryWindow: NSWindow {
         guard patchPreviewWindow == nil, let window else { return }
         let child = PatchWindowController(repository: model.repository, access: nil)
         child.model.readOnly = true; child.model.refreshAvailable = false
-        child.model.comparisonTitle = "Log Patch"; child.model.readOnlyInformation = "Patch follows the selected revision and changed files."
+        child.model.comparisonTitle = HistoryLabels.caption("Log Patch"); child.model.readOnlyInformation = HistoryLabels.caption("Patch follows the selected revision and changed files.")
         child.model.setReadOnlyDiff(model.patchPreviewData)
-        child.window?.title = "Log Patch – TurtleGit"
+        child.window?.title = HistoryLabels.caption("Log Patch – TurtleGit")
         child.onClosed = { [weak self] in self?.patchPreviewWindow = nil; self?.model.patchPreviewClosed() }
         child.onMoved = { [weak self] in self?.snapPatchPreview() }
         if let preview = child.window {
@@ -763,6 +763,27 @@ struct LogIntegrationPreparation {
             guard resolved.objectID == hash else { throw LogIntegrationFailure.stale }
         }
         try cancellation.check(); return revision
+    }
+}
+enum LogWorkflowLocalization {
+    static func parent(_ choice: LogParentChoice) -> String {
+        let values = ["number": String(choice.number), "hash": String(choice.hash.prefix(8))]
+        guard let subject = choice.subject else {
+            return HistoryLabels.text("Parent {number} ({hash})", values: values)
+        }
+        let short = subject.utf16.count > 20 ? String(decoding: Array(subject.utf16.prefix(20)), as: UTF16.self) + "..." : subject
+        return HistoryLabels.text("Parent {number}: \"{subject}\" ({hash})", values: values.merging(["subject": short]) { _, new in new })
+    }
+    static func limit(_ scale: HistoryLimitScale, number: UInt32) -> String {
+        let template: String
+        switch scale {
+        case .commits: template = "Last {number} commit(s)"
+        case .years: template = "Last {number} year(s)"
+        case .months: template = "Last {number} month(s)"
+        case .weeks: template = "Last {number} week(s)"
+        default: return HistoryLabels.caption(scale.title)
+        }
+        return HistoryLabels.text(template, values: ["number": String(Int32(bitPattern: number))])
     }
 }
 enum LogBisectCommand: CaseIterable {
@@ -1312,8 +1333,8 @@ struct LogCommandRequest: Identifiable {
     var effectiveReferenceScope: HistoryReferenceScope { allBranches ? .all : referenceScope }
     var referenceExpression: String { revisionRange?.expression ?? endRevision ?? (startRevisions.isEmpty ? "HEAD" : startRevisions.joined(separator: " ")) }
     var startReferenceTitle: String {
-        if effectiveReferenceScope != .current { return effectiveReferenceScope.title }
-        if referenceExpression == "HEAD" { return currentBranch.isEmpty ? "No branch" : currentBranch }
+        if effectiveReferenceScope != .current { return HistoryLabels.caption(effectiveReferenceScope.title) }
+        if referenceExpression == "HEAD" { return currentBranch.isEmpty ? HistoryLabels.caption("No branch") : currentBranch }
         if startRevisions.isEmpty, revisionRange == nil { return HistoryReferenceLabel.shortName(referenceExpression).text }
         return referenceExpression
     }
@@ -1787,7 +1808,7 @@ struct LogCommandRequest: Identifiable {
     }
     func integrationTitle(_ command: LogIntegrationCommand) -> String {
         let branch = currentBranch.isEmpty ? "HEAD" : currentBranch
-        return command == .merge ? "Merge to \"\(branch)\"…" : "Rebase \"\(branch)\" onto this…"
+        return HistoryLabels.text(command == .merge ? "Merge to \"{branch}\"…" : "Rebase \"{branch}\" onto this…", values: ["branch": branch])
     }
     private(set) var acceptedNavigationRepository:GitRepository?
     private var integrationCancellation:OperationCancellation?
@@ -2012,10 +2033,10 @@ struct LogCommandRequest: Identifiable {
     private var jumpAlert: NSAlert?
     private func showJumpNotFound() {
         guard !isInvalidated, jumpAlert == nil, !labelDefaults.bool(forKey: "NoJumpNotFoundWarning") else { return }
-        guard let window, window.attachedSheet == nil else { navigationNotice = "No more revisions found."; return }
-        let alert = NSAlert(); alert.messageText = "No more revisions found."; alert.alertStyle = .informational
-        alert.addButton(withTitle: "OK"); alert.showsSuppressionButton = true
-        alert.suppressionButton?.title = "Do not show this message again"
+        guard let window, window.attachedSheet == nil else { navigationNotice = HistoryLabels.caption("No more revisions found."); return }
+        let alert = NSAlert(); alert.messageText = HistoryLabels.caption("No more revisions found."); alert.alertStyle = .informational
+        alert.addButton(withTitle: HistoryLabels.caption("OK")); alert.showsSuppressionButton = true
+        alert.suppressionButton?.title = HistoryLabels.caption("Do not show this message again")
         jumpAlert = alert
         alert.beginSheetModal(for: window) { [weak self] _ in
             guard let self, !self.isInvalidated, self.jumpAlert === alert else { return }; self.jumpAlert = nil
@@ -2042,7 +2063,7 @@ struct LogCommandRequest: Identifiable {
             else { historyLimit.from = nil; historyLimit.until = nil; if historyLimit.scale != .commits { historyLimit.scale = .noLimit } }
         }
     }
-    var historyLimitTitle: String { historyLimit.scale.requiresNumber ? historyLimit.scale.title(number: historyLimit.number) : "From:" }
+    var historyLimitTitle: String { historyLimit.scale.requiresNumber ? LogWorkflowLocalization.limit(historyLimit.scale, number: historyLimit.number) : HistoryLabels.caption("From:") }
     var defaultHistoryLimitScale: HistoryLimitScale { HistoryLimitDefaults.load(defaults: labelDefaults).scale }
     func chooseHistoryLimit(_ scale: HistoryLimitScale) {
         guard canChangeLogControls else { return }; initializedHistoryLimit = true; historyLimit.scale = scale
@@ -3005,9 +3026,9 @@ struct LogCommandRequest: Identifiable {
                         navigationNotice="No extra changes after merge.";return
                     }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: HistoryLabels.caption("Selected revision changes"), permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
-                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: HistoryLabels.caption("Selected revision changes"), preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -3724,9 +3745,9 @@ struct LogCommandRequest: Identifiable {
                     else { return }
                     guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: working ? "Selected working-tree changes" : "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: HistoryLabels.caption(working ? "Selected working-tree changes" : "Selected revision changes"), permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !token.isCancelled else { return }
-                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: working ? "Selected working-tree changes" : "Selected revision changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: HistoryLabels.caption(working ? "Selected working-tree changes" : "Selected revision changes"), preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -3752,12 +3773,12 @@ struct LogCommandRequest: Identifiable {
         guard chosen.count == 2, chosen.allSatisfy({ !$0.isSubmodule }) else { return }
         onFilePairCompare(revision.hash, chosen)
     }
-    func fileParentComparisonTitle(_ ids: some Sequence<String>) -> String? {
+    func fileParentComparisonTitle(_ ids: some Sequence<String>, revert: Bool = false) -> String? {
         let ids = GitPathSet(ids)
         guard !selectedWorkingTree, let revision else { return nil }
         let index = markedFile(ids)?.parentIndex ?? 0
         guard let parent = parentChoices(for: revision).first(where: { $0.number == index + 1 }) else { return nil }
-        return "Compare parent with working tree: " + parent.title
+        return HistoryLabels.text(revert ? "Revert to parent revision: {parent}" : "Compare parent with working tree: {parent}", values: ["parent": LogWorkflowLocalization.parent(parent)])
     }
     func canCompareFilesWithParent(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
@@ -3793,7 +3814,7 @@ struct LogCommandRequest: Identifiable {
             let message = "No previous version."
             if let window, window.attachedSheet == nil {
                 let alert = NSAlert(); alert.messageText = message; alert.alertStyle = .informational
-                alert.addButton(withTitle: "OK"); alert.beginSheetModal(for: window)
+                alert.addButton(withTitle: HistoryLabels.caption("OK")); alert.beginSheetModal(for: window)
             } else { navigationNotice = message }
             return
         }
@@ -3845,9 +3866,9 @@ struct LogCommandRequest: Identifiable {
                     }
                     guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
-                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Working tree changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
+                    else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: HistoryLabels.caption("Working tree changes"), permissions: access.map { [$0] } ?? [], cancellation: token) {
                         guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
-                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
+                        unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: HistoryLabels.caption("Working tree changes"), preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
             } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
@@ -3903,7 +3924,7 @@ extension LogWindowModel {
         return fileGroups.flatMap { group -> [LogFileTableRow] in
             let visible = visibleFiles.filter { $0.parentIndex == group.id }
             if (!filterPaths.isEmpty || unrelatedPathMode == .hide) && visible.isEmpty { return [] }
-            let title = "Diff with parent \(group.id + 1): " + (group.parent.map { String($0.prefix(8)) } ?? "Empty tree")
+            let title = HistoryLabels.text("Diff with parent {number}: {revision}", values: ["number": String(group.id + 1), "revision": group.parent.map { String($0.prefix(8)) } ?? HistoryLabels.caption("Empty tree")])
             return [LogFileTableRow(rawID: "\0header\(group.id)", file: nil, header: title)] + sortedChangedFiles(visible)
         }
     }
@@ -3932,7 +3953,7 @@ struct LogDialog: View {
                 LogFilterField(model: model).frame(minWidth:140,idealWidth:180).layoutValue(key:DialogCommandRows.Flexible.self,value:true)
                 HStack(spacing:6) {
                 Picker("Jump", selection: Binding(get:{model.jumpKind},set:model.chooseJumpKind)) {
-                    ForEach(HistoryJumpKind.allCases, id: \.self) { Text($0.rawValue).tag($0) }
+                    ForEach(HistoryJumpKind.allCases, id: \.self) { Text(HistoryLabels.caption($0.rawValue)).tag($0) }
                 }.labelsHidden().frame(width: 150).disabled(!model.canNavigateLog).help("Jump to revision · Option-Left/Right goes Back/Forward")
                 .contextMenu { TurtleGitContextMenu {
                     Button {model.moveSelectionHistory(up:true,selectTarget:true)} label: {CommandLabel(title:"Back",icon:.jumpUp)}.disabled(!model.canMoveHistory(up:true))
@@ -3962,7 +3983,7 @@ struct LogDialog: View {
                         if let header = row.header {
                             Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
                         } else if let file = row.file {
-                            HStack(spacing:4) { if let icon=model.changedFileIcon(file) {Image(nsImage:icon)};Text(model.changedFileText(file,column:.path)).background(NativeListSelectionLabelMarker()) }.foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { "Renamed from " + RepositoryBrowserGitPath.display(key:$0) } ?? "", preferences: model.colorPreferences)
+                            HStack(spacing:4) { if let icon=model.changedFileIcon(file) {Image(nsImage:icon)};Text(model.changedFileText(file,column:.path)).background(NativeListSelectionLabelMarker()) }.foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { HistoryLabels.text("Renamed from {path}", values: ["path": RepositoryBrowserGitPath.display(key:$0)]) } ?? "", preferences: model.colorPreferences)
                         }
                     }.width(min: 260, ideal: 460)
                     TableColumn("Extension",sortUsing:LogChangedFileSort(column:.fileExtension)) { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(80)
@@ -4108,7 +4129,7 @@ struct LogDialog: View {
         Button { model.withFileMenu(snapshot, inspection: true) { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || !model.canInspectHistory || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
         Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, workingTree: true) } } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || !model.canInspectHistory)
         if !model.bare, let title = model.fileParentComparisonTitle(ids) {
-            Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare) }.disabled(!model.canCompareFilesWithParent(ids))
+            Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare, localized: false) }.disabled(!model.canCompareFilesWithParent(ids))
         }
         if model.canCompareFilePair(ids) {
             Button { model.withFileMenu(snapshot, inspection: true) { model.compareFilePair(ids) } } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(!model.canInspectHistory || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
@@ -4117,8 +4138,8 @@ struct LogDialog: View {
             if model.canRevertHistoricalFiles(ids, parent: false) || model.busy {
                 Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: false) } } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: false))
             }
-            if let parentTitle = model.fileParentComparisonTitle(ids) {
-                Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: true) } } label: { CommandLabel(title: parentTitle.replacingOccurrences(of: "Compare parent with working tree", with: "Revert to parent revision"), icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: true))
+            if let parentTitle = model.fileParentComparisonTitle(ids, revert: true) {
+                Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: true) } } label: { CommandLabel(title: parentTitle, icon: .revert, localized: false) }.disabled(!model.canRevertHistoricalFiles(ids, parent: true))
             }
         }
         Divider()
@@ -4239,7 +4260,7 @@ enum LogControlMenuKind: String { case reference, limit, walk, view }
             let scale = model.defaultHistoryLimitScale
             if scale.requiresNumber && model.historyLimit.number > 0 {
                 menu.addItem(.separator())
-                item(scale.title(number:model.historyLimit.number), icon:.log, checked:model.historyLimit.scale == scale, localized:false) { $0.chooseHistoryLimit(scale) }
+                item(LogWorkflowLocalization.limit(scale, number:model.historyLimit.number), icon:.log, checked:model.historyLimit.scale == scale, localized:false) { $0.chooseHistoryLimit(scale) }
             }
             menu.addItem(.separator())
             item("Configure default", icon:.settings) { $0.configureHistoryDefaults = true }
@@ -4307,10 +4328,10 @@ struct LogControlMenuButton: NSViewRepresentable {
         switch kind {
         case .reference:
             button.title = model.startReferenceTitle; button.toolTip = model.referenceExpression
-            button.contentTintColor = .linkColor; button.setAccessibilityLabel("Start reference: " + model.startReferenceTitle)
+            button.contentTintColor = .linkColor; button.setAccessibilityLabel(HistoryLabels.text("Start reference: {reference}", values: ["reference": model.startReferenceTitle]))
             button.primary = { [weak model] in model?.browseStartReference() }
         case .limit:
-            button.title = model.historyLimitTitle == "From:" ? NSLocalizedString("From:",comment:""):model.historyLimitTitle
+            button.title = model.historyLimitTitle
             button.setAccessibilityLabel(button.title); button.toolTip = NSLocalizedString("History limitation",comment:""); button.primary = nil
         case .walk:
             button.title = (model.historyWalk.isActive ? "✓ ":"") + NSLocalizedString("Walk Behavior",comment:"")
@@ -4606,7 +4627,7 @@ struct LogDialogSettings: View {
                         VStack(alignment: .leading, spacing: 8) {
                             Toggle("Show describe in log", isOn: $showDescribe)
                             Picker("Describe Strategy", selection: $describeStrategy) {
-                                ForEach(HistoryDescribeStrategy.allCases, id: \.rawValue) { Text($0.title).tag($0.rawValue) }
+                                ForEach(HistoryDescribeStrategy.allCases, id: \.rawValue) { Text(HistoryLabels.caption($0.title)).tag($0.rawValue) }
                             }
                             HStack {
                                 Text("Abbreviated size")
@@ -4658,7 +4679,7 @@ struct HistoryLimitSettings: View {
         GroupBox("Default number of log messages") {
             VStack(alignment: .leading, spacing: 8) {
                 Picker("Default limitation", selection: Binding(get: { model.scale }, set: { model.choose($0) })) {
-                    ForEach(HistoryLimitScale.allCases, id: \.self) { Text($0.title).tag($0) }
+                    ForEach(HistoryLimitScale.allCases, id: \.self) { Text(HistoryLabels.caption($0.title)).tag($0) }
                 }
                 TextField("Number of", text: $model.numberText).disabled(!model.scale.requiresNumber)
                     .help("The number for Last N options. Should be greater than zero.")
@@ -5124,13 +5145,13 @@ struct RevisionTable: NSViewRepresentable {
             if menu === headerMenu {
                 menu.autoenablesItems = false
                 columnReceipt?.consumed=true;columnReceipt=captureColumns()
-                let reset=NSMenuItem(title:"Reset columns",action:#selector(columnCommand(_:)),keyEquivalent:"")
+                let reset=NSMenuItem(title:HistoryLabels.caption("Reset columns"),action:#selector(columnCommand(_:)),keyEquivalent:"")
                 reset.image=MenuIcon.reset.contextImage(defaults:model.colorPreferences);reset.target=self;reset.identifier = .init("Log.Columns.Reset");reset.isEnabled=columnReceipt != nil
                 if let columnReceipt{reset.representedObject=ColumnCommand(columnReceipt,nil)}
                 menu.addItem(reset);menu.addItem(.separator())
                 for definition in LogRevisionColumns.definitions where definition.id != "graph" {
                     if definition.id=="bugs" && !model.issueProperties.showsBugIDColumn || definition.id=="svn" && !model.hasGitSVN {continue}
-                    let item=NSMenuItem(title:definition.title,action:#selector(columnCommand(_:)),keyEquivalent:"")
+                    let item=NSMenuItem(title:HistoryLabels.caption(definition.title),action:#selector(columnCommand(_:)),keyEquivalent:"")
                     item.image=MenuIcon.settingsDialogs.contextImage(defaults:model.colorPreferences)
                     item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil
                     if let columnReceipt{item.representedObject=ColumnCommand(columnReceipt,definition.id)}
@@ -5143,8 +5164,8 @@ struct RevisionTable: NSViewRepresentable {
             // relay until the next revision popup replaces it.
             defer { applyConsumerPolicy(menu);normalizeSeparators(menu);emphasizeDefaultComparison(menu);bind(menu,to:actionTarget) }
             guard !model.selected.isEmpty,model.entries.filter({model.selected.contains($0.hash)}).count==model.selected.count else{return}
-            @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true) -> NSMenuItem {
-                let item = NSMenuItem(title: title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(defaults: model.colorPreferences); item.target = self; item.isEnabled = enabled; menu.addItem(item)
+            @discardableResult func item(_ title: String, _ selector: Selector, icon: MenuIcon, enabled: Bool = true, localized: Bool = true) -> NSMenuItem {
+                let item = NSMenuItem(title: localized ? HistoryLabels.caption(title) : title, action: selector, keyEquivalent: ""); item.image = icon.contextImage(defaults: model.colorPreferences); item.target = self; item.isEnabled = enabled; menu.addItem(item)
                 return item
             }
             let pointed: LogReferenceMenuTarget? = {
@@ -5187,7 +5208,7 @@ struct RevisionTable: NSViewRepresentable {
                 } else if !model.bare,revision.parents.count>1 {
                     let unified=item("Unified diff with",#selector(showDiff),icon:.unifiedDiff,enabled:model.canInspectHistory)
                     let choices=NSMenu();choices.autoenablesItems=false;unified.submenu=choices
-                    let modes:[(String,LogRevisionDiffMode)]=[("All Parents",.allParents),("Only Merged Files",.combined),("Show extra changes after merge",.extraMergeChanges)] + model.parentChoices(for:revision).map{($0.title,.parent($0.number))}
+                    let modes:[(String,LogRevisionDiffMode)]=[(HistoryLabels.caption("All Parents"),.allParents),(HistoryLabels.caption("Only Merged Files"),.combined),(HistoryLabels.caption("Show extra changes after merge"),.extraMergeChanges)] + model.parentChoices(for:revision).map{(LogWorkflowLocalization.parent($0),.parent($0.number))}
                     for(title,mode) in modes {
                         let child=NSMenuItem(title:title,action:#selector(showParentDiff(_:)),keyEquivalent:"")
                         child.image=MenuIcon.unifiedDiff.contextImage(defaults:model.colorPreferences);child.target=self;child.isEnabled=unified.isEnabled;child.representedObject=mode;choices.addItem(child)
@@ -5199,7 +5220,7 @@ struct RevisionTable: NSViewRepresentable {
                     let previous=item("Compare with previous revision",#selector(compare),icon:.compare,enabled:model.canInspectHistory && model.onCompare != nil)
                     let parents=NSMenu();parents.autoenablesItems=false;previous.submenu=parents
                     for choice in model.parentChoices(for:revision) {
-                        let child=NSMenuItem(title:choice.title,action:#selector(compareParent(_:)),keyEquivalent:"")
+                        let child=NSMenuItem(title:LogWorkflowLocalization.parent(choice),action:#selector(compareParent(_:)),keyEquivalent:"")
                         child.image=MenuIcon.compare.contextImage(defaults:model.colorPreferences);child.target=self;child.isEnabled=previous.isEnabled;child.representedObject=NSNumber(value:choice.number);parents.addItem(child)
                     }
                 }
@@ -5212,7 +5233,7 @@ struct RevisionTable: NSViewRepresentable {
             if two,!model.includesWorkingTree {
                 for range in model.selectedHistoryRanges {
                     let label=String(range.from.prefix(8))+range.separator+String(range.to.prefix(8))
-                    item("Show log of "+label,#selector(showHistoryRange(_:)),icon:.log,enabled:!model.busy && model.onShowHistoryRange != nil).representedObject=range
+                    item(HistoryLabels.text("Show log of {range}", values:["range":label]),#selector(showHistoryRange(_:)),icon:.log,enabled:!model.busy && model.onShowHistoryRange != nil,localized:false).representedObject=range
                 }
                 item("Compare change sets",#selector(compareChangeSets(_:)),icon:.compare,enabled:!model.busy && model.onCommitChangeSets != nil)
             }
@@ -5228,14 +5249,14 @@ struct RevisionTable: NSViewRepresentable {
             }
             if one {item("Browse repository", #selector(browseRepository), icon: .repositoryBrowser, enabled: !model.busy && model.onBrowseRepository != nil)}
             if model.integrationAvailable {
-                item(model.integrationTitle(.merge), #selector(mergeReference(_:)), icon: .merge, enabled: model.canIntegrate(.merge)).representedObject = pointed
+                item(model.integrationTitle(.merge), #selector(mergeReference(_:)), icon: .merge, enabled: model.canIntegrate(.merge), localized: false).representedObject = pointed
             }
             if model.resetAvailable { item("Reset current branch to this…", #selector(reset), icon: .reset, enabled: !model.busy) }
             let switchBranches = model.switchBranchCandidates(target: pointed)
             if let revision = model.revision, !switchBranches.isEmpty {
                 if switchBranches.count == 1 {
                     let reference = switchBranches[0]
-                    item("Switch branch \"" + reference.label + "\"", #selector(switchBranchReference(_:)), icon: .checkout, enabled: !model.busy && model.onSwitchBranch != nil).representedObject = LogReferenceMenuTarget(hash: revision.hash, name: reference.name)
+                    item(HistoryLabels.text("Switch branch \"{branch}\"", values:["branch":reference.label]), #selector(switchBranchReference(_:)), icon: .checkout, enabled: !model.busy && model.onSwitchBranch != nil, localized: false).representedObject = LogReferenceMenuTarget(hash: revision.hash, name: reference.name)
                 } else {
                     let parent = item("Switch branch", #selector(switchBranchReference(_:)), icon: .checkout, enabled: !model.busy && model.onSwitchBranch != nil)
                     let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
@@ -5254,7 +5275,7 @@ struct RevisionTable: NSViewRepresentable {
                 item("Create tag at this version…", #selector(tagReference(_:)), icon: .tag, enabled: !model.busy)
             }
             if model.integrationAvailable {
-                item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase))
+                item(model.integrationTitle(.rebase), #selector(rebaseRevision), icon: .rebase, enabled: model.canIntegrate(.rebase), localized: false)
             }
             if one { item("Export this version…", #selector(exportRevision), icon: .export, enabled: model.canExportRevision) }
             if model.onRevertRevisions != nil || model.onPreparedRevert != nil {
@@ -5265,11 +5286,11 @@ struct RevisionTable: NSViewRepresentable {
                     item("Revert changes by these commits",#selector(revertCaptured(_:)),icon:.revert,enabled:available).representedObject=RevertTarget(chosen,selectedRows:selectedRows)
                 } else if model.revertAvailable,let revision=model.revision {
                     if revision.parents.count > 1 {
-                        let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
+                        let parent = NSMenuItem(title: HistoryLabels.caption("Revert change by this commit"), action: nil, keyEquivalent: "")
                         parent.image = MenuIcon.revert.contextImage(defaults: model.colorPreferences); parent.isEnabled = available && model.canRevertRevision
                         let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
                         for choice in model.parentChoices(for: revision) {
-                            let child = NSMenuItem(title: choice.title, action: #selector(revertCaptured(_:)), keyEquivalent: "")
+                            let child = NSMenuItem(title: LogWorkflowLocalization.parent(choice), action: #selector(revertCaptured(_:)), keyEquivalent: "")
                             child.image=MenuIcon.revert.contextImage(defaults:model.colorPreferences);child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = RevertTarget([revision], mainline: choice.number); submenu.addItem(child)
                         }
                         parent.submenu = submenu; menu.addItem(parent)
@@ -5281,11 +5302,11 @@ struct RevisionTable: NSViewRepresentable {
                 // Keep the existing direct-model consumer for callers without a
                 // native workflow factory, including the focused model fixture.
                 if let revision = model.revision, revision.parents.count > 1 {
-                    let parent = NSMenuItem(title: "Revert change by this commit", action: nil, keyEquivalent: "")
+                    let parent = NSMenuItem(title: HistoryLabels.caption("Revert change by this commit"), action: nil, keyEquivalent: "")
                     parent.image = MenuIcon.revert.contextImage(defaults:model.colorPreferences); parent.isEnabled = model.canRevertRevision
                     let submenu = NSMenu(title: parent.title); submenu.autoenablesItems = false
                     for choice in model.parentChoices(for: revision) {
-                        let child = NSMenuItem(title: choice.title, action: #selector(revertParent), keyEquivalent: "")
+                        let child = NSMenuItem(title: LogWorkflowLocalization.parent(choice), action: #selector(revertParent), keyEquivalent: "")
                         child.image=MenuIcon.revert.contextImage(defaults:model.colorPreferences);child.tag = choice.number; child.target = self; child.isEnabled = model.canRevertRevision; submenu.addItem(child)
                     }
                     parent.submenu = submenu; menu.addItem(parent)
@@ -5328,9 +5349,9 @@ struct RevisionTable: NSViewRepresentable {
                 if model.historyPushAvailable(extended:extended) {
                     let label = pointed.flatMap { model.reference(for: $0) }.flatMap { ref -> String? in
                         let kind = ref.kind ?? HistoryReferenceLabel.shortName(ref.name).kind
-                        return [.localBranch, .tag, .annotatedTag].contains(kind) ? "Push \"" + HistoryReferenceLabel.shortName(ref.name).text + "\"…" : nil
-                    } ?? "Push…"
-                    item(label, #selector(pushCaptured(_:)), icon: .push, enabled: !model.busy).representedObject = PushTarget(entry, pointedName: pointed?.name)
+                        return [.localBranch, .tag, .annotatedTag].contains(kind) ? HistoryLabels.text("Push \"{reference}\"…", values:["reference":HistoryReferenceLabel.shortName(ref.name).text]) : nil
+                    } ?? HistoryLabels.caption("Push…")
+                    item(label, #selector(pushCaptured(_:)), icon: .push, enabled: !model.busy, localized: false).representedObject = PushTarget(entry, pointedName: pointed?.name)
                     if model.hasGitSVN,!model.bare {
                         item(RepositoryAction.svnDCommit.title,#selector(svnDCommitFromHistory(_:)),icon:.commit,enabled:!model.busy && model.onHistorySVNDCommit != nil).representedObject=NSNumber(value:extended)
                     }
@@ -5343,19 +5364,19 @@ struct RevisionTable: NSViewRepresentable {
             if let revision = model.revision, !deletable.isEmpty {
                 func target(_ ref: RevisionReference) -> LogReferenceMenuTarget { LogReferenceMenuTarget(hash: revision.hash, name: ref.name) }
                 if deletable.count == 1 {
-                    item("Delete " + deletable[0].name, #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy).representedObject = [target(deletable[0])]
+                    item(HistoryLabels.text("Delete {reference}", values:["reference":deletable[0].name]), #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy, localized: false).representedObject = [target(deletable[0])]
                 } else {
                     let parent = item("Delete branch/tag", #selector(deleteReferenceItems(_:)), icon: .remove, enabled: !model.busy)
                     let submenu = NSMenu(); submenu.autoenablesItems = false; parent.submenu = submenu
                     for ref in deletable {
                         let child = NSMenuItem(title: ref.name, action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); child.image=MenuIcon.remove.contextImage(defaults:model.colorPreferences);child.target = self; child.isEnabled = parent.isEnabled; child.representedObject = [target(ref)]; submenu.addItem(child)
                     }
-                    let all = NSMenuItem(title: "All", action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.image=MenuIcon.remove.contextImage(defaults:model.colorPreferences);all.target = self; all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
+                    let all = NSMenuItem(title: HistoryLabels.caption("All"), action: #selector(deleteReferenceItems(_:)), keyEquivalent: ""); all.image=MenuIcon.remove.contextImage(defaults:model.colorPreferences);all.target = self; all.isEnabled = parent.isEnabled; all.representedObject = deletable.map(target); submenu.addItem(all)
                 }
             }
             if one { menu.addItem(.separator()) }
             if model.canToggleRollup {
-                let rollup = NSMenuItem(title: model.rollupTitle, action: #selector(toggleRollup), keyEquivalent: ""); rollup.image=MenuIcon.log.contextImage(defaults:model.colorPreferences);rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
+                let rollup = NSMenuItem(title: HistoryLabels.caption(model.rollupTitle), action: #selector(toggleRollup), keyEquivalent: ""); rollup.image=MenuIcon.log.contextImage(defaults:model.colorPreferences);rollup.target = self; menu.addItem(rollup); menu.addItem(.separator())
             }
             appendClipboardAndFind(menu,pointed:pointed,one:one)
             if one { item("Show branches this commit is on", #selector(showContainingReferences), icon: .showBranches, enabled: !model.busy && model.onShowContainingReferences != nil) }
@@ -5366,18 +5387,18 @@ struct RevisionTable: NSViewRepresentable {
             for (title, selector) in [("Full log details", #selector(copyDetails)), ("Full log details without changed paths", #selector(copyDetailsWithoutPaths)), ("Hashes", #selector(copyHashes)),
                 ("Authors", #selector(copyAuthors)), ("Author names", #selector(copyAuthorNames)),
                 ("Author emails", #selector(copyAuthorEmails)), ("Subjects", #selector(copySubjects)), ("Messages", #selector(copyMessages))] {
-                let child = NSMenuItem(title: title, action: selector, keyEquivalent: "")
+                let child = NSMenuItem(title: HistoryLabels.caption(title), action: selector, keyEquivalent: "")
                 child.target = self; child.image = MenuIcon.copy.contextImage(defaults:model.colorPreferences); child.isEnabled = !model.selected.isEmpty
                 clipboard.addItem(child)
             }
-            let parent = NSMenuItem(title: "Copy to clipboard", action: nil, keyEquivalent: "")
+            let parent = NSMenuItem(title: HistoryLabels.caption("Copy to clipboard"), action: nil, keyEquivalent: "")
             if one, model.revision?.references.isEmpty == false {
-                let refs = NSMenuItem(title: "Tag/branch names", action: #selector(copyReferenceNames(_:)), keyEquivalent: "")
+                let refs = NSMenuItem(title: HistoryLabels.caption("Tag/branch names"), action: #selector(copyReferenceNames(_:)), keyEquivalent: "")
                 refs.target = self; refs.image = MenuIcon.copy.contextImage(defaults:model.colorPreferences); refs.representedObject = pointed; refs.isEnabled = !model.busy
                 clipboard.addItem(refs)
             }
             parent.image = MenuIcon.copy.contextImage(defaults:model.colorPreferences); parent.submenu = clipboard; menu.addItem(parent)
-            let find=NSMenuItem(title:"Find…",action:#selector(findEntry(_:)),keyEquivalent:"")
+            let find=NSMenuItem(title:HistoryLabels.caption("Find…"),action:#selector(findEntry(_:)),keyEquivalent:"")
             find.target=self;find.image=MenuIcon.historyFind.contextImage(defaults:model.colorPreferences)
             find.isEnabled = !model.isInvalidated && !model.busy && !model.findBlocked && !model.orderingBlocked && !model.referencePickerBlocked && (table?.window as? LogHistoryWindow) != nil
             find.representedObject=NSNumber(value:(table as? HistoryTableView)?.contextRow ?? table?.selectedRow ?? 0)
@@ -5520,8 +5541,8 @@ struct RevisionTable: NSViewRepresentable {
         }
         @objc func requestResetColumns() {
             guard let receipt=captureColumns(),let window=table?.window else{return}
-            let alert=NSAlert();alert.messageText="Are you sure to reset columns?"
-            alert.addButton(withTitle:"Yes").keyEquivalent="\r";alert.addButton(withTitle:"No").keyEquivalent="\u{1b}"
+            let alert=NSAlert();alert.messageText=HistoryLabels.caption("Are you sure to reset columns?")
+            alert.addButton(withTitle:HistoryLabels.caption("Yes")).keyEquivalent="\r";alert.addButton(withTitle:HistoryLabels.caption("No")).keyEquivalent="\u{1b}"
             alert.window.alphaValue=window.alphaValue
             // The separate receipt is checked after the actual reply and detach.
             let owner=model
@@ -5630,7 +5651,7 @@ struct RevisionTable: NSViewRepresentable {
             else { model.onCommit() }
         }
         private func workingItem(_ action: RepositoryAction, menu: NSMenu) {
-            let item = NSMenuItem(title: action.title, action: #selector(workingCommand), keyEquivalent: "")
+            let item = NSMenuItem(title: HistoryLabels.caption(action.title), action: #selector(workingCommand), keyEquivalent: "")
             item.image = action.icon.contextImage(defaults:model.colorPreferences); item.target = self; item.representedObject = action.rawValue
             item.isEnabled = model.canWorkingCommand(action); menu.addItem(item)
         }
@@ -5851,12 +5872,12 @@ struct LogRevisionDialog: View {
     @State private var value = ""
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(request.command.rawValue.replacingOccurrences(of: "…", with: "")).font(.title2)
+            Text(HistoryLabels.caption(request.command.rawValue.replacingOccurrences(of: "…", with: ""))).font(.title2)
             Text(model.repository.root.path).font(.caption).textSelection(.enabled)
-            Text("Version: \(request.revision.hash)").font(.system(.caption, design: .monospaced)).textSelection(.enabled)
+            Text(HistoryLabels.text("Version: {revision}", values: ["revision": request.revision.hash])).font(.system(.caption, design: .monospaced)).textSelection(.enabled)
             Text(request.revision.subject)
             if request.command == .branch || request.command == .tag {
-                TextField(request.command == .branch ? "Branch name" : "Tag name", text: $value).textFieldStyle(.roundedBorder)
+                TextField(HistoryLabels.caption(request.command == .branch ? "Branch name" : "Tag name"), text: $value).textFieldStyle(.roundedBorder)
             }
             if request.command == .revert {
                 Text("Apply the reverse changes to the index and working tree without committing. Review and commit them from the Commit dialog.").foregroundStyle(.secondary)
@@ -5902,7 +5923,7 @@ struct LogReferenceScopeCheckbox: NSViewRepresentable {
     let change: (Bool) -> Void
     func makeCoordinator() -> Coordinator { Coordinator(change: change) }
     func makeNSView(context: Context) -> NSButton {
-        let button = LogScopeCheckboxButton(checkboxWithTitle: "All Branches", target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
+        let button = LogScopeCheckboxButton(checkboxWithTitle: HistoryLabels.caption("All Branches"), target: context.coordinator, action: #selector(Coordinator.clicked(_:)))
         button.allowsMixedState = true
         button.setContentHuggingPriority(.required,for:.vertical)
         button.setContentCompressionResistancePriority(.required,for:.vertical)
@@ -5911,7 +5932,7 @@ struct LogReferenceScopeCheckbox: NSViewRepresentable {
     func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSButton,context:Context)->CGSize? {nsView.fittingSize}
     func updateNSView(_ button: NSButton, context: Context) {
         button.state = scope == .current ? .off : scope == .all ? .on : .mixed
-        button.isEnabled = enabled; button.toolTip = scope.title
+        button.isEnabled = enabled; button.toolTip = HistoryLabels.caption(scope.title)
         (button as? LogScopeCheckboxButton)?.buildMenu = { [weak model] in model.map { LogControlMenus.make(model:$0,kind:.reference) } }
         context.coordinator.change = change; context.coordinator.next = scope == .current
     }

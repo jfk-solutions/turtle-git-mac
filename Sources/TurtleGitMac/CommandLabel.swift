@@ -1,6 +1,36 @@
 import SwiftUI
 import TurtleGitCore
 
+/// History captions are presentation only. Insert repository values after
+/// translating a checked template; never look up or reinterpret those values.
+enum HistoryLabels {
+    private static let tokenExpression = try! NSRegularExpression(pattern: "\\{([a-z_]+)\\}")
+    static func caption(_ key: String, bundle: Bundle = .main) -> String {
+        bundle.localizedString(forKey: key, value: key, table: nil)
+    }
+    static func text(_ key: String, values: [String: String], bundle: Bundle = .main) -> String {
+        let expression = tokenExpression
+        func fields(_ text: String) -> [String]? {
+            let source = text as NSString
+            let matches = expression.matches(in: text, range: NSRange(location: 0, length: source.length))
+            let remainder = expression.stringByReplacingMatches(in: text, range: NSRange(location: 0, length: source.length), withTemplate: "")
+            guard !remainder.contains("{"), !remainder.contains("}") else { return nil }
+            return matches.map { source.substring(with: $0.range(at: 1)) }
+        }
+        guard let expected = fields(key), Set(expected) == Set(values.keys), Set(expected).count == expected.count else { return key }
+        let translated = caption(key, bundle: bundle)
+        let template = fields(translated).map { $0.sorted() == expected.sorted() } == true ? translated : key
+        let source = template as NSString
+        var result = "", end = 0
+        for match in expression.matches(in: template, range: NSRange(location: 0, length: source.length)) {
+            result += source.substring(with: NSRange(location: end, length: match.range.location - end))
+            result += values[source.substring(with: match.range(at: 1))]!
+            end = NSMaxRange(match.range)
+        }
+        return result + source.substring(from: end)
+    }
+}
+
 struct CommandLabel: View {
     let title: String
     let icon: MenuIcon

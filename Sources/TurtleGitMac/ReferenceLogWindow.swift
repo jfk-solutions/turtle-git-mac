@@ -71,15 +71,15 @@ import TurtleGitCore
             guard let window, window.attachedSheet == nil else { return }
             await withCheckedContinuation { continuation in
                 let alert = NSAlert(); alert.alertStyle = .critical
-                alert.messageText = "Could not delete reference."; alert.informativeText = message; alert.addButton(withTitle: "OK")
+                alert.messageText = HistoryLabels.caption("Could not delete reference."); alert.informativeText = message; alert.addButton(withTitle: HistoryLabels.caption("OK"))
                 alert.beginSheetModal(for: window) { _ in continuation.resume() }
             }
         }
         model.openFind = { [weak self] in self?.openFind() }
         model.confirmColumnReset = { [weak self] in
             guard let self else {return false}
-            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText="Are you sure to reset columns?"
-            alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No")
+            let alert=NSAlert();alert.alertStyle = .informational;alert.messageText=HistoryLabels.caption("Are you sure to reset columns?")
+            alert.addButton(withTitle:HistoryLabels.caption("Yes"));alert.addButton(withTitle:HistoryLabels.caption("No"))
             return await self.askOwned(alert) == .alertFirstButtonReturn
         }
         window.commandKeyWindow = { [weak self] in self?.commandKeyWindow() }
@@ -98,11 +98,11 @@ import TurtleGitCore
     }
     private func showDeletionFailure(_ issue:ReferenceLogDeleteIssue) async {
         let alert=NSAlert();alert.alertStyle = .critical;alert.messageText=issue.details;alert.informativeText=issue.selector
-        alert.addButton(withTitle:"OK");_ = await askOwned(alert)
+        alert.addButton(withTitle:HistoryLabels.caption("OK"));_ = await askOwned(alert)
     }
     static func deletionAlert(message: String, clear: Bool) -> NSAlert {
         let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = message
-        let delete = alert.addButton(withTitle: "Delete"), abort = alert.addButton(withTitle: "Abort")
+        let delete = alert.addButton(withTitle: HistoryLabels.caption("Delete")), abort = alert.addButton(withTitle: HistoryLabels.caption("Abort"))
         delete.keyEquivalent = clear ? "" : "\r"; abort.keyEquivalent = clear ? "\r" : ""
         alert.window.defaultButtonCell = (clear ? abort : delete).cell as? NSButtonCell
         return alert
@@ -327,10 +327,10 @@ import TurtleGitCore
               clear ? reference=="refs/stash":(!ids.isEmpty && ids.isSubset(of:Set(entries.map(\.id)))) else {return}
         let expected=entries,reference=reference,request=generation
         let message:String
-        if clear {message="Do you really want to delete ALL \(entries.count) stash?"}
+        if clear {message=HistoryLabels.text("Do you really want to delete ALL {count} stash?",values:["count":String(entries.count)])}
         else if ids.count==1,let entry=entries.first(where:{ids.contains($0.id)}) {
-            message="\"\(entry.selector)\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?"
-        } else {message="Do you really want to permanently delete the \(ids.count) selected refs? It can NOT be recovered!"}
+            message=HistoryLabels.text("\"{reference}\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?",values:["reference":entry.selector])
+        } else {message=HistoryLabels.text("Do you really want to permanently delete the {count} selected refs? It can NOT be recovered!",values:["count":String(ids.count)])}
         let proceed:()->Void = { [weak self] in
             guard let self,self.commandSurfaceAvailable,self.generation==request else {return}
             guard GitReferenceName.equal(self.reference,reference),self.entries==expected else {self.error=ReferenceLogFailure.stale.localizedDescription;return}
@@ -378,7 +378,7 @@ import TurtleGitCore
                 searchIndex = index + 1; return
             }
         }
-        error = "\"\(find)\" was not found."
+        error = HistoryLabels.text("\"{query}\" was not found.",values:["query":find])
     }
     func isOnStash(_ entry: ReferenceLogEntry) -> Bool {
         if entry.hash == currentStashHash { return true }
@@ -759,7 +759,7 @@ import TurtleGitCore
                 else {
                     let result = try await repository.referenceLogUnifiedDiff(chosen[0].hash,mode:mode,cancellation:token)
                     guard !invalidated,!token.isCancelled,request==generation else { return }
-                    if result.noExtraChanges { information = "No extra changes after merge"; return }
+                    if result.noExtraChanges { information = HistoryLabels.caption("No extra changes after merge"); return }
                     bytes = result.bytes
                 }
                 guard !invalidated,!token.isCancelled,request==generation else { return }
@@ -777,7 +777,9 @@ enum ReferenceLogCopyFormat { case full, hashes, messages }
 enum ReferenceLogHistoryCommand: CaseIterable, Hashable {
     case reset, checkout
     var icon: MenuIcon { self == .reset ? .reset : .checkout }
-    func title(branch: String) -> String { self == .reset ? "Reset \"" + (branch.isEmpty ? "(no branch)" : branch) + "\" to this…" : "Switch/Checkout to this…" }
+    func title(branch: String) -> String {
+        self == .reset ? HistoryLabels.text("Reset \"{branch}\" to this…",values:["branch":branch.isEmpty ? HistoryLabels.caption("(no branch)"):branch]):HistoryLabels.caption("Switch/Checkout to this…")
+    }
 }
 enum ReferenceLogRangeCommand: CaseIterable, Hashable { case forward, reverse, symmetric }
 enum ReferenceLogComparisonCommand {
@@ -870,7 +872,7 @@ private struct ReferenceLogPicker:NSViewRepresentable {
     @ObservedObject var model:ReferenceLogWindowModel
     func makeNSView(context:Context)->ReferenceLogReferencePopup {
         let button=ReferenceLogReferencePopup(frame:.zero,pullsDown:false)
-        button.setContentHuggingPriority(.defaultLow,for:.horizontal);button.setAccessibilityLabel("Ref:")
+        button.setContentHuggingPriority(.defaultLow,for:.horizontal);button.setAccessibilityLabel(HistoryLabels.caption("Ref:"))
         return button
     }
     func updateNSView(_ button:ReferenceLogReferencePopup,context:Context) {
@@ -917,7 +919,7 @@ private struct ReferenceLogPicker:NSViewRepresentable {
     var onClosed: () -> Void = {}
     init(model: ReferenceLogWindowModel) {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 380, height: 170), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Find – RefLog – TurtleGit"; window.isReleasedWhenClosed = false
+        window.title = HistoryLabels.caption("Find – RefLog – TurtleGit"); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: ReferenceLogFindDialog(model: model, close: { [weak window] in window?.close() }))
         super.init(window: window); window.delegate = self; window.center()
     }
@@ -945,12 +947,12 @@ enum ReferenceLogRevisionOperation: CaseIterable {
     var icon: MenuIcon { switch self { case .merge: return .merge; case .rebase: return .rebase; case .cherryPick: return .cherryPick; case .revert: return .revert; case .editNotes: return .rebaseEdit; case .formatPatch: return .patch } }
     func title(branch: String, count: Int) -> String {
         switch self {
-        case .editNotes: return "Edit Notes…"
-        case .formatPatch: return "Create patch…"
-        case .merge: return "Merge into \"" + branch + "\"…"
-        case .rebase: return "Rebase \"" + branch + "\" onto this…"
-        case .cherryPick: return count == 1 ? "Cherry pick this commit…" : "Cherry pick selected commits…"
-        case .revert: return count == 1 ? "Revert change by this commit" : "Revert changes by these commits"
+        case .editNotes: return HistoryLabels.caption("Edit Notes…")
+        case .formatPatch: return HistoryLabels.caption("Create patch…")
+        case .merge: return HistoryLabels.text("Merge into \"{branch}\"…",values:["branch":branch])
+        case .rebase: return HistoryLabels.text("Rebase \"{branch}\" onto this…",values:["branch":branch])
+        case .cherryPick: return HistoryLabels.caption(count == 1 ? "Cherry pick this commit…" : "Cherry pick selected commits…")
+        case .revert: return HistoryLabels.caption(count == 1 ? "Revert change by this commit" : "Revert changes by these commits")
         }
     }
 }

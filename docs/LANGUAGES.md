@@ -144,3 +144,23 @@ accessibility captions are registered again after a language change.
 Missing source labels still fall back to English. These are native menu-builder
 and resource checks; activation, distributed notification delivery and badge
 announcements in a signed installed Finder extension remain release gates.
+
+
+## History and reference menus
+
+Log, Browse References and RefLog use the selected app language for native command
+menus, submenus, column headings and column menus. Runtime filter and ordering
+choices use the same catalog. German and French also include reviewed captions
+containing a branch, revision, parent or reference range. Other languages retain
+English when a matching safe translation is unavailable.
+
+Reference names, paths, hashes, commit subjects, author text and copied values
+stay exactly as supplied by the repository. A branch named `Delete` is still
+`Delete`, even if the Delete command itself is translated. Named caption fields
+are checked before substitution and inserted once; braces or percent signs in a
+name remain literal. Menu actions, sorting and saved column identifiers are
+independent of the visible caption.
+
+This extends native menu coverage; it does not establish complete translation of
+Git diagnostics, the history information footer, every dialog, or the English
+Help book. Restart after applying a language change, as described above.

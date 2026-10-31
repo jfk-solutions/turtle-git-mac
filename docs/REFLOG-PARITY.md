@@ -607,3 +607,12 @@ standalone coexistence and held-read retirement. The [grouped checkpoint](qa/uti
 family with both Git engines. Its hidden Reset hook needed to perform the actual
 on-appearance load; exact revision/preferences/access checks remain. Physical,
 signed and full-dialog visual acceptance remain separate.
+
+
+## Native menu language consumers — October 31, 2026
+
+The [connected history/reference language family](HISTORY-LANGUAGE-PARITY.md)
+connects native menu/header/filter captions with literal metadata and unchanged
+command ownership. Its [grouped checkpoint](qa/history-languages-2026-10-31.json)
+keeps actual German/French menu evidence separate from complete localization,
+physical/VoiceOver and signed acceptance. Installed build47 predates this family.

@@ -13,7 +13,7 @@ struct LogMessageView: NSViewRepresentable {
         editor.linkTextAttributes = [.foregroundColor:NSColor.linkColor,.cursor:NSCursor.pointingHand]
         editor.textContainerInset = NSSize(width:12,height:12); editor.autoresizingMask = [.width]
         editor.isVerticallyResizable = true; editor.textContainer?.widthTracksTextView = true
-        editor.setAccessibilityLabel("Log message")
+        editor.setAccessibilityLabel(HistoryLabels.caption("Log message"))
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.documentView = editor
         context.coordinator.attach(editor); return scroll
     }
@@ -141,7 +141,7 @@ struct LogMessageView: NSViewRepresentable {
                     self.model?.selected == selection && self.model?.messageLoadGeneration == generation && self.model?.logControlsEpoch == controls
             }
             func add(_ title: String, icon: MenuIcon, enabled: Bool = true, _ action: @escaping () -> Void) {
-                let item = MessageLinkMenuItem(title:title, icon:icon, defaults:model?.colorPreferences ?? .standard, available: { available() && enabled }) {
+                let item = MessageLinkMenuItem(title:HistoryLabels.caption(title), icon:icon, defaults:model?.colorPreferences ?? .standard, available: { available() && enabled }) {
                     guard available(), enabled else { return }; used = true; action()
                 }
                 menu.addItem(item)

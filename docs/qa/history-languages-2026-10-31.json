@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-31",
+  "status": "grouped-native-checkpoint-passed",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Log revision/working/stash/multiple/parent/context/column menus and runtime filters/limits/ordering",
+    "Browse References row/folder/pair/column menus, headers and runtime filter choices",
+    "RefLog row/pair/parent/reference/column menus and headers",
+    "Validated named-field native captions with literal metadata; reviewed German/French adaptations"
+  ],
+  "core": "No Core algorithms changed; no Core suite is required for native caption consumers.",
+  "limits": [
+    "No complete translation, physical keyboard/menu/VoiceOver, signed translated-app or full hosted pass claim.",
+    "Core-produced history/footer/graph accessibility prose and shared deletion-message formatting remain outside this batch.",
+    "Installed build47 predates this family; no binary upload, notarization or App Store submission."
+  ],
+  "resource_generation": {
+    "localizations": "38 locales / 1361 keys; counts are not complete translation evidence.",
+    "help": "64 documents / 53 topics / 98 members / 9402437 bytes; English Help."
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/history-languages-debug-2026-10-31.log",
+      "cause": "Root optional branch-caption property collided with pre-existing currentBranch() action. Renamed property currentBranchValue; no behavior or catalog change."
+    },
+    {
+      "log": "build/qa/history-languages-native-2026-10-31.log",
+      "cause": "New fixture compared full raw Reflog subject (commit: message) to parsed commit message. Assertion repaired to require exact subject, parsed action and message plus unchanged native cell values; production source unchanged."
+    }
+  ],
+  "build": {
+    "result": "passed-after-name-collision-repair",
+    "log": "build/qa/history-languages-debug-repaired-2026-10-31.log",
+    "limits": "Existing unrelated Swift warnings and runtime-signature replacement diagnostics remain in the log; not a warning-free build claim."
+  },
+  "native": {
+    "result": "passed",
+    "log": "build/qa/history-languages-native-repaired-2026-10-31.log",
+    "cases": [
+      "history de /usr/bin/git",
+      "history de build/git-runtime/Git/bin/git",
+      "history fr /usr/bin/git",
+      "history fr build/git-runtime/Git/bin/git"
+    ],
+    "receiver_passes": 4,
+    "scope": "Actual resource-backed Log, References and Reflog headers, context/column menus, filter/limit captions, literal branch/author/subject/hash/cells, nonmutating dispatch, retired actions and HEAD/index/input preservation. Hostile named-field template cases exercise single-pass insertion and invalid translation fallback.",
+    "diagnostics": "Native QA reports sandbox-extension issue_file_to_process permission diagnostics and initial zero-size NSSplitView layout warnings. Passes do not establish signed grants or full visual layout."
+  },
+  "cleanup": {
+    "all_recorded_runtime_and_compiler_pids_independently_absent": [
+      32266,
+      32274,
+      32317,
+      32502,
+      32513,
+      32602,
+      32684,
+      32770
+    ],
+    "scope": "Private repos/preferences/pasteboards and isolated process HOME/CFFIXED_USER_HOME/TMPDIR/XDG; owned invisible windows closed; run_receiver reaped owned processes on success/failure."
+  },
+  "resource_checks": {
+    "localizations": "write/check passed;38locales1361keys",
+    "help": "write/check passed;64documents53topics98members9402437bytes"
+  },
+  "source_sha256": {
+    "Configuration/NativeTranslations.json": "8df2766a3598a5f28af39e860ce7d6d093b1845c61fff45715c5636c605e7c1a",
+    "Sources/TurtleGitMac/CommandLabel.swift": "2132dde5f067dc2dd81d2bd55941a688f1dba5c8dad1e183220cb05156a5f476",
+    "Sources/TurtleGitMac/LogWindow.swift": "bb57d56a787ec5c291f43214335b8cad49fcc8444fbd1ec77c7c7f9912522742",
+    "Sources/TurtleGitMac/LogFilterField.swift": "f5968e936d65499025d9273cf15814956315309ccf82209730476d6a1d5d9831",
+    "Sources/TurtleGitMac/LogMessageView.swift": "34b884bd0705e20be435a0875064e7d504deb59e0b6517f8a38bda78085cfa42",
+    "Sources/TurtleGitMac/LogOrderingWindow.swift": "0aee507e00a959e8f1994264fde0171f7be5065690b28552bfa4293e0d5cf47a",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "08238b628285f9494e035f9ba1b3525cba00fbe03f215afe383b4899a0aca529",
+    "Sources/TurtleGitMac/ReferenceLogNativeTable.swift": "42e2dcee8e757b02491b6ef562517419c4dd64f559cfd73de6e955a1ba67f31a",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "4f6665af964935b696edebf4f32319bf58775c3c8c2d461a428ff9f6635722c6",
+    "scripts/test-language-family.py": "66f80fb6de4c414f9060d80b345bae37908ded55c6cbab8e1322b2418420c7a2",
+    "docs/qa/history-localization-native-2026-11-01.swift": "dc959910fc5bf429721fb6bc314b12df1f489dfb7d098106f10e5a108b414eba"
+  },
+  "documentation_checks": {
+    "site": "521 documents; no unresolved fragments.",
+    "coverage": "Reconciled pinned130dialog/1659static-control ledger;120partialfamily audits,85pendingcontrol reviews,0certifiedcomplete. These are audit counts, not feature completion."
+  }
+}

@@ -1,6 +1,52 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "\"{query}\" was not found.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„{query}“ wurde nicht gefunden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"{query}\" was not found."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "« {query} » est introuvable."
+          }
+        }
+      }
+    },
+    "\"{reference}\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„{reference}“ wird dauerhaft gelöscht und kann NICHT wiederhergestellt werden!\n\nMöchten Sie wirklich fortfahren?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "\"{reference}\" will be permanently deleted. It can NOT be recovered!\n\nDo you really want to continue?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "« {reference} » sera supprimé définitivement. Il ne pourra PAS être récupéré !\n\nVoulez-vous vraiment continuer ?"
+          }
+        }
+      }
+    },
     "# authors shown individually:": {
       "extractionState": "manual",
       "localizations": {
@@ -21451,6 +21497,29 @@
         }
       }
     },
+    "Cancel {operation}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{operation} abbrechen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel {operation}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler : {operation}"
+          }
+        }
+      }
+    },
     "Case-sensitive": {
       "extractionState": "manual",
       "localizations": {
@@ -32656,67 +32725,25 @@
         }
       }
     },
-    "Compare parent with working tree": {
+    "Compare parent with working tree: {parent}": {
       "extractionState": "manual",
       "localizations": {
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Compara el pare amb el directori de treball"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Vergleiche Vorgänger mit Arbeitsbaum"
+            "value": "Elternrevision mit Arbeitsverzeichnis vergleichen: {parent}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Compare parent with working tree"
+            "value": "Compare parent with working tree: {parent}"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Comparer le parent avec l'arborescence de travail"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "親と作業ツリーを比較"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Comparar pai com diretório de trabalho"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Сравнить родительскую и рабочую копии"
-          }
-        },
-        "ta": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "பணிபுரியும் மரத்துடன் பெற்றோரை ஒப்பிடு"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "比较父级与工作树"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "比對親代與工作目錄"
+            "value": "Comparer le parent avec la copie de travail : {parent}"
           }
         }
       }
@@ -46268,6 +46295,29 @@
         }
       }
     },
+    "Delete remote tags on \"{remote}\"…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remote-Tags auf „{remote}“ löschen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete remote tags on \"{remote}\"…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer les étiquettes distantes sur « {remote} »…"
+          }
+        }
+      }
+    },
     "Delete remote tags…": {
       "extractionState": "manual",
       "localizations": {
@@ -46806,6 +46856,98 @@
           "stringUnit": {
             "state": "translated",
             "value": "刪除遠端上的標籤"
+          }
+        }
+      }
+    },
+    "Delete {count} branches": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Branches löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete {count} branches"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer {count} branches"
+          }
+        }
+      }
+    },
+    "Delete {count} remote branches": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Remote-Branches löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete {count} remote branches"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer {count} branches distantes"
+          }
+        }
+      }
+    },
+    "Delete {count} tags": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Tags löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete {count} tags"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer {count} étiquettes"
+          }
+        }
+      }
+    },
+    "Delete {reference}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{reference} löschen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete {reference}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer {reference}"
           }
         }
       }
@@ -50071,6 +50213,29 @@
         }
       }
     },
+    "Diff with parent {number}: {revision}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vergleich mit Elternrevision {number}: {revision}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diff with parent {number}: {revision}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comparer avec le parent {number} : {revision}"
+          }
+        }
+      }
+    },
     "Diff with previous version": {
       "extractionState": "manual",
       "localizations": {
@@ -52437,6 +52602,29 @@
         }
       }
     },
+    "Do you really want to delete ALL {count} stash?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möchten Sie wirklich ALLE {count} Stash-Einträge löschen?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you really want to delete ALL {count} stash?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulez-vous vraiment supprimer les {count} entrées de remisage ?"
+          }
+        }
+      }
+    },
     "Do you really want to mark the selected file(s) as assume-valid?": {
       "extractionState": "manual",
       "localizations": {
@@ -52659,6 +52847,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "確定要把已選的檔案標記為 skip-worktree 嗎？"
+          }
+        }
+      }
+    },
+    "Do you really want to permanently delete the {count} selected refs? It can NOT be recovered!": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möchten Sie die {count} ausgewählten Referenzen wirklich dauerhaft löschen? Sie können NICHT wiederhergestellt werden!"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you really want to permanently delete the {count} selected refs? It can NOT be recovered!"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulez-vous vraiment supprimer définitivement les {count} références sélectionnées ? Elles ne pourront PAS être récupérées !"
           }
         }
       }
@@ -64694,6 +64905,29 @@
         }
       }
     },
+    "Fetch from \"{remote}\"": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Von „{remote}“ abrufen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fetch from \"{remote}\""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Récupérer depuis « {remote} »"
+          }
+        }
+      }
+    },
     "Fetch...": {
       "extractionState": "manual",
       "localizations": {
@@ -66659,6 +66893,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "目前篩選:"
+          }
+        }
+      }
+    },
+    "Filter by {fields}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtern nach {fields}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter by {fields}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtrer par {fields}"
+          }
+        }
+      }
+    },
+    "Filter by: {fields}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtern nach: {fields}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filter by: {fields}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Filtrer par : {fields}"
           }
         }
       }
@@ -92228,6 +92508,98 @@
         }
       }
     },
+    "Last {number} commit(s)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzte {number} Commits"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last {number} commit(s)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{number} derniers commits"
+          }
+        }
+      }
+    },
+    "Last {number} month(s)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzte {number} Monate"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last {number} month(s)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{number} derniers mois"
+          }
+        }
+      }
+    },
+    "Last {number} week(s)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzte {number} Wochen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last {number} week(s)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{number} dernières semaines"
+          }
+        }
+      }
+    },
+    "Last {number} year(s)": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Letzte {number} Jahre"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last {number} year(s)"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{number} dernières années"
+          }
+        }
+      }
+    },
     "Launch Rebase After Fetch": {
       "extractionState": "manual",
       "localizations": {
@@ -100567,6 +100939,52 @@
           "stringUnit": {
             "state": "translated",
             "value": "合併工具"
+          }
+        }
+      }
+    },
+    "Merge into \"{branch}\"…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit „{branch}“ zusammenführen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge into \"{branch}\"…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fusionner dans « {branch} »…"
+          }
+        }
+      }
+    },
+    "Merge to \"{branch}\"…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mit „{branch}“ zusammenführen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge to \"{branch}\"…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fusionner dans « {branch} »…"
           }
         }
       }
@@ -120630,6 +121048,75 @@
         }
       }
     },
+    "Parent {number}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elternrevision {number}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent {number}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent {number}"
+          }
+        }
+      }
+    },
+    "Parent {number} ({hash})": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elternrevision {number} ({hash})"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent {number} ({hash})"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent {number} ({hash})"
+          }
+        }
+      }
+    },
+    "Parent {number}: \"{subject}\" ({hash})": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Elternrevision {number}: „{subject}“ ({hash})"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent {number}: \"{subject}\" ({hash})"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Parent {number} : « {subject} » ({hash})"
+          }
+        }
+      }
+    },
     "Partial Staging »": {
       "extractionState": "manual",
       "localizations": {
@@ -128896,6 +129383,29 @@
         }
       }
     },
+    "Push \"{reference}\"…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„{reference}“ pushen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Push \"{reference}\"…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pousser « {reference} »…"
+          }
+        }
+      }
+    },
     "Push Default": {
       "extractionState": "manual",
       "localizations": {
@@ -131069,6 +131579,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "Перебазування"
+          }
+        }
+      }
+    },
+    "Rebase \"{branch}\" onto this…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„{branch}“ auf diese Revision umbasieren…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebase \"{branch}\" onto this…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rebaser « {branch} » sur cette révision…"
           }
         }
       }
@@ -138496,6 +139029,29 @@
         }
       }
     },
+    "Renamed from {path}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Umbenannt von {path}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renamed from {path}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Renommé depuis {path}"
+          }
+        }
+      }
+    },
     "Rename…": {
       "extractionState": "manual",
       "localizations": {
@@ -140634,6 +141190,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "重設"
+          }
+        }
+      }
+    },
+    "Reset \"{branch}\" to this…": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "„{branch}“ auf diese Revision zurücksetzen…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset \"{branch}\" to this…"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réinitialiser « {branch} » à cette révision…"
           }
         }
       }
@@ -144238,103 +144817,25 @@
         }
       }
     },
-    "Revert to parent revision": {
+    "Revert to parent revision: {parent}": {
       "extractionState": "manual",
       "localizations": {
-        "ca": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Restitueix a la revisió pare"
-          }
-        },
-        "cs": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Vrátit na rodičovskou revizi"
-          }
-        },
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Auf Eltern-Revision zurücksetzen"
+            "value": "Auf Elternrevision zurücksetzen: {parent}"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Revert to parent revision"
-          }
-        },
-        "es": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Recuperar a la revisión anterior"
+            "value": "Revert to parent revision: {parent}"
           }
         },
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Annuler vers la révision originale"
-          }
-        },
-        "ja": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "親リビジョンに変更の取り消し"
-          }
-        },
-        "ko": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Revert to parent revision"
-          }
-        },
-        "nl": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Herstel naar bovenliggende revisie"
-          }
-        },
-        "pt-BR": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Reverter para a revisão pai"
-          }
-        },
-        "ro": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Inversează la versiunea părintelui"
-          }
-        },
-        "ru": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Откатить к родительской ревизии"
-          }
-        },
-        "sv": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Återställ till föräldrarevisionen"
-          }
-        },
-        "ta": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "பெற்றோர் திருத்தத்திற்கு திரும்பப் பெறவும்"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "还原到父版本"
-          }
-        },
-        "zh-Hant": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "還原到父版本"
+            "value": "Revenir à la révision parente : {parent}"
           }
         }
       }
@@ -150937,6 +151438,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "儲存認證(S)"
+          }
+        }
+      }
+    },
+    "Save file at revision {revision}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei in Revision {revision} speichern"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save file at revision {revision}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer le fichier à la révision {revision}"
           }
         }
       }
@@ -160401,6 +160925,52 @@
         }
       }
     },
+    "Show log of {from}{separator}{to}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log für {from}{separator}{to} anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show log of {from}{separator}{to}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le journal de {from}{separator}{to}"
+          }
+        }
+      }
+    },
+    "Show log of {range}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Log für {range} anzeigen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show log of {range}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher le journal de {range}"
+          }
+        }
+      }
+    },
     "Show log…": {
       "extractionState": "manual",
       "localizations": {
@@ -161098,6 +161668,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "顯示無版本控制的檔案(V)"
+          }
+        }
+      }
+    },
+    "Showing {shown} ref(s), {selected} ref(s) selected": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{shown} Referenzen angezeigt, {selected} Referenzen ausgewählt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing {shown} ref(s), {selected} ref(s) selected"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{shown} références affichées, {selected} références sélectionnées"
           }
         }
       }
@@ -164778,6 +165371,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "開始變基"
+          }
+        }
+      }
+    },
+    "Start reference: {reference}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Startreferenz: {reference}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start reference: {reference}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Référence de départ : {reference}"
           }
         }
       }
@@ -169500,6 +170116,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "切換至"
+          }
+        }
+      }
+    },
+    "Switch branch \"{branch}\"": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zu Branch „{branch}“ wechseln"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Switch branch \"{branch}\""
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Basculer sur la branche « {branch} »"
           }
         }
       }
@@ -186089,6 +186728,29 @@
         }
       }
     },
+    "Version: {revision}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version: {revision}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version: {revision}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version : {revision}"
+          }
+        }
+      }
+    },
     "Versioned": {
       "extractionState": "manual",
       "localizations": {
@@ -201326,6 +201988,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "{checked} fichiers cochés, {shown} fichiers affichés"
+          }
+        }
+      }
+    },
+    "{count} selected item(s). Their exact index entries will also be removed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} ausgewählte Einträge. Ihre exakten Indexeinträge werden ebenfalls entfernt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} selected item(s). Their exact index entries will also be removed."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} éléments sélectionnés. Leurs entrées exactes seront également supprimées de l’index."
           }
         }
       }

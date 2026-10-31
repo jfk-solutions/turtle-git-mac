@@ -44,9 +44,9 @@ struct LogFilterField: NSViewRepresentable {
             guard !retired, let field else { return }
             if field.stringValue != text { field.stringValue = text }
             field.isEnabled = available
-            field.placeholderString = kind == .history ? cue : "Filter paths"
-            field.setAccessibilityLabel(kind == .history ? "Filter revisions" : "Filter changed paths")
-            field.toolTip = kind == .history ? (model.searchFilterError ?? (model.searchRegex ? "ECMAScript regular expression; begin with ! to invert. Invalid expressions keep the current history." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert.")) : "Filter current and old paths: require words, exclude with -word, add alternatives with +word, quote phrases, or begin with ! to invert. Return applies immediately; Escape clears."
+            field.placeholderString = kind == .history ? cue : HistoryLabels.caption("Filter paths")
+            field.setAccessibilityLabel(HistoryLabels.caption(kind == .history ? "Filter revisions" : "Filter changed paths"))
+            field.toolTip = kind == .history ? (model.searchFilterError ?? HistoryLabels.caption(model.searchRegex ? "ECMAScript regular expression; begin with ! to invert. Invalid expressions keep the current history." : "Require words, exclude with -word, offer alternatives with +word, quote phrases, or begin with ! to invert.")) : HistoryLabels.caption("Filter current and old paths: require words, exclude with -word, add alternatives with +word, quote phrases, or begin with ! to invert. Return applies immediately; Escape clears.")
             field.textColor = kind == .history && model.searchFilterError != nil ? .systemRed : .labelColor
             field.setAccessibilityHelp(field.toolTip)
             if kind == .history {
@@ -56,7 +56,7 @@ struct LogFilterField: NSViewRepresentable {
         }
         private static let fields: [(String, HistorySearchFields)] = [("Subject", .subject), ("Messages", .messages), ("Paths", .paths), ("Authors", .authors), ("Emails", .emails), ("Revisions", .revisions), ("Refname", .referenceNames), ("Tag Info", .tagInfo), ("Notes", .notes), ("Bug IDs", .bugIDs)]
         var cue: String {
-            "Filter by: " + Self.fields.filter { model.searchFields.contains($0.1) && ($0.1 != .bugIDs || model.issueProperties.showsBugIDColumn) }.map(\.0).joined(separator: ", ")
+            HistoryLabels.text("Filter by: {fields}", values: ["fields": Self.fields.filter { model.searchFields.contains($0.1) && ($0.1 != .bugIDs || model.issueProperties.showsBugIDColumn) }.map { HistoryLabels.caption($0.0) }.joined(separator: ", ")])
         }
         func makeMenu() -> NSMenu {
             menuGeneration = UUID(); let generation = menuGeneration
@@ -66,7 +66,7 @@ struct LogFilterField: NSViewRepresentable {
                     guard let self, available, menuGeneration == generation else { return }
                     menuGeneration = UUID(); action(model)
                 }
-                let item = NSMenuItem(title: title, action: #selector(LogFilterMenuTarget.invoke(_:)), keyEquivalent: "")
+                let item = NSMenuItem(title: HistoryLabels.caption(title), action: #selector(LogFilterMenuTarget.invoke(_:)), keyEquivalent: "")
                 item.target = target; item.representedObject = target; item.isEnabled = available
                 item.image = MenuIcon.historyFind.contextImage(defaults: model.colorPreferences)
                 if let checked { item.state = checked ? .on : .off }; menu.addItem(item)

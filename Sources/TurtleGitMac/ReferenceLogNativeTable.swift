@@ -20,10 +20,10 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
         table.allowsColumnReordering = true; table.columnAutoresizingStyle = .noColumnAutoresizing
         table.usesAlternatingRowBackgroundColors = true; table.rowHeight = 22
         table.target = context.coordinator; table.doubleAction = #selector(Coordinator.activate(_:))
-        table.setAccessibilityLabel("Reference log entries")
+        table.setAccessibilityLabel(HistoryLabels.caption("Reference log entries"))
         let names = ["Hash", "Ref", "Action", "Message", "Date"], widths: [CGFloat] = [120,145,100,360,175]
         for (name, width) in zip(names, widths) {
-            let column = NSTableColumn(identifier: .init(name)); column.title = name
+            let column = NSTableColumn(identifier: .init(name)); column.title = HistoryLabels.caption(name)
             column.width = width; column.minWidth = 40; column.maxWidth = 10000
             table.addTableColumn(column)
         }
@@ -121,9 +121,9 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 guard let self else {return false}
                 return !consumed && self.available && self.popupEpoch==epoch && self.layoutRevision==revision && self.model.generation==generation
             }
-            func add(_ title:String,state:NSControl.StateValue = .off,icon:MenuIcon = .settingsDialogs,action:@escaping () -> Void) {
+            func add(_ title:String,state:NSControl.StateValue = .off,icon:MenuIcon = .settingsDialogs,localized:Bool = true,action:@escaping () -> Void) {
                 let target=ReferenceLogTableCommand(allowed:live) {consumed=true;action()}
-                let item=NSMenuItem(title:title,action:#selector(ReferenceLogTableCommand.invokeCommand(_:)),keyEquivalent:"")
+                let item=NSMenuItem(title:localized ? HistoryLabels.caption(title):title,action:#selector(ReferenceLogTableCommand.invokeCommand(_:)),keyEquivalent:"")
                 item.image=icon.contextImage(defaults:model.preferences);item.target=target;item.representedObject=target;item.state=state;item.isEnabled=live();menu.addItem(item)
             }
             add("Reset column order",icon:.reset) { [weak self] in
@@ -145,7 +145,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             // ColumnManager excludes logical column zero (Hash) from hiding.
             for name in ["Ref","Action","Message","Date"] {
                 guard let column=table.tableColumn(withIdentifier:.init(name)) else {continue}
-                add(column.title,state:column.isHidden ? .off:.on) { [weak self,weak column] in
+                add(column.title,state:column.isHidden ? .off:.on,localized:false) { [weak self,weak column] in
                     guard let self,let column else {return};column.isHidden.toggle();self.saveColumns()
                 }
             }
@@ -159,15 +159,16 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 guard let self,!consumed,self.popupEpoch==epoch,self.model.generation==generation,self.available,GitReferenceName.equal(self.model.reference,reference) else { return false }
                 return self.model.entries.filter { ids.contains($0.id) } == snapshot
             }
-            func add(_ title: String, _ icon: MenuIcon, to parent: NSMenu? = nil, enabled: Bool = true, action: @escaping () -> Void) {
+            func add(_ title: String, _ icon: MenuIcon, to parent: NSMenu? = nil, enabled: Bool = true, localized:Bool = true, action: @escaping () -> Void) {
                 let target = ReferenceLogTableCommand(allowed: {live() && enabled}) {consumed=true;action()}
-                let item = NSMenuItem(title: title, action: #selector(ReferenceLogTableCommand.invokeCommand(_:)), keyEquivalent: "")
+                let item = NSMenuItem(title: localized ? HistoryLabels.caption(title):title, action: #selector(ReferenceLogTableCommand.invokeCommand(_:)), keyEquivalent: "")
                 item.target = target; item.representedObject = target; item.image = icon.contextImage(defaults: model.preferences)
                 item.isEnabled = live() && enabled; (parent ?? menu).addItem(item)
             }
-            func submenu(_ title: String, _ icon: MenuIcon) -> NSMenu {
-                let child = NSMenu(title: title); child.autoenablesItems = false
-                let item = NSMenuItem(title: title, action: nil, keyEquivalent: ""); item.submenu = child; item.image = icon.contextImage(defaults: model.preferences); item.isEnabled = live(); menu.addItem(item); return child
+            func submenu(_ title: String, _ icon: MenuIcon, localized:Bool = true) -> NSMenu {
+                let caption=localized ? HistoryLabels.caption(title):title
+                let child = NSMenu(title: caption); child.autoenablesItems = false
+                let item = NSMenuItem(title: caption, action: nil, keyEquivalent: ""); item.submenu = child; item.image = icon.contextImage(defaults: model.preferences); item.isEnabled = live(); menu.addItem(item); return child
             }
             let model = self.model
             if ids.count == 1 {
@@ -178,13 +179,13 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                         for (title, mode) in [("All Parents", ReferenceLogDiffMode.allParents), ("Only Merged Files", .onlyMergedFiles), ("Show extra changes after merge", .extraChanges)] {
                             add(title, .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: mode)) { model.inspect(ids, mode: mode, alternate: extended) }
                         }
-                        for parent in parents { add(parent.title, .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: .parent(parent.number))) { model.inspect(ids, mode: .parent(parent.number), alternate: extended) } }
+                        for parent in parents { add(LogWorkflowLocalization.parent(parent), .unifiedDiff, to: child, enabled: model.canInspect(ids, mode: .parent(parent.number)),localized:false) { model.inspect(ids, mode: .parent(parent.number), alternate: extended) } }
                     } else if model.hasWorkingTree, parents.count == 1 {
                         add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: extended) }
                     }
                     if parents.count > 1 {
                         let child = submenu("Compare with previous revision", .compare)
-                        for parent in parents { add(parent.title, .compare, to: child, enabled: model.canCompareParent(ids, number: parent.number)) { model.compareParent(ids, number: parent.number) } }
+                        for parent in parents { add(LogWorkflowLocalization.parent(parent), .compare, to: child, enabled: model.canCompareParent(ids, number: parent.number),localized:false) { model.compareParent(ids, number: parent.number) } }
                     } else if parents.count == 1 { add("Compare with previous revision", .compare, enabled: model.canCompareParent(ids)) { model.compareParent(ids) } }
                 }
                 menu.addItem(.separator())
@@ -196,19 +197,19 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             add(ReferenceLogRevisionCommand.browseRepository.title, .repositoryBrowser, enabled: model.canPerform(.browseRepository, ids: ids)) { model.perform(.browseRepository, ids: ids) }
             func operation(_ command: ReferenceLogRevisionOperation) {
                 if model.operationAvailable(command, ids: ids) {
-                    add(command.title(branch: model.currentBranch, count: ids.count), command.icon) { model.performOperation(command, ids: ids) }
+                    add(command.title(branch: model.currentBranch, count: ids.count), command.icon,localized:false) { model.performOperation(command, ids: ids) }
                 }
             }
             if ids.count == 1 { operation(.merge) }
             if !model.selecting, model.hasWorkingTree, ids.count == 1 {
-                add(ReferenceLogHistoryCommand.reset.title(branch: model.currentBranch), .reset, enabled: model.canPerformHistory(.reset, ids: ids)) { model.performHistory(.reset, ids: ids) }
+                add(ReferenceLogHistoryCommand.reset.title(branch: model.currentBranch), .reset, enabled: model.canPerformHistory(.reset, ids: ids),localized:false) { model.performHistory(.reset, ids: ids) }
                 let branches = model.switchBranches(ids)
-                if branches.count == 1, let ref = branches.first { add("Switch branch \"" + ref.dropFirst(11) + "\"", .checkout, enabled: model.onSwitchBranch != nil) { model.switchBranch(ref, ids: ids) } }
+                if branches.count == 1, let ref = branches.first { add(HistoryLabels.text("Switch branch \"{branch}\"",values:["branch":String(ref.dropFirst(11))]), .checkout, enabled: model.onSwitchBranch != nil,localized:false) { model.switchBranch(ref, ids: ids) } }
                 else if branches.count > 1 {
                     let child = submenu("Switch branch", .checkout)
-                    for ref in branches { add(String(ref.dropFirst(11)), .checkout, to: child, enabled: model.onSwitchBranch != nil) { model.switchBranch(ref, ids: ids) } }
+                    for ref in branches { add(String(ref.dropFirst(11)), .checkout, to: child, enabled: model.onSwitchBranch != nil,localized:false) { model.switchBranch(ref, ids: ids) } }
                 }
-                add(ReferenceLogHistoryCommand.checkout.title(branch: model.currentBranch), .checkout, enabled: model.canPerformHistory(.checkout, ids: ids)) { model.performHistory(.checkout, ids: ids) }
+                add(ReferenceLogHistoryCommand.checkout.title(branch: model.currentBranch), .checkout, enabled: model.canPerformHistory(.checkout, ids: ids),localized:false) { model.performHistory(.checkout, ids: ids) }
             }
             for command in [ReferenceLogRevisionCommand.createBranch, .createTag] { add(command.title, command.icon, enabled: model.canPerform(command, ids: ids)) { model.perform(command, ids: ids) } }
             if ids.count == 1 { operation(.rebase) }
@@ -216,11 +217,11 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             if !model.selecting {
                 if ids.count == 1, let entry = snapshot.first, let parents = model.diffParents[entry.hash], parents.count > 1 {
                     if parents.contains(where: { model.operationAvailable(.revert, ids: ids, mainline: $0.number) }) {
-                        let child = submenu(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: 1), .revert)
-                        for parent in parents { add(parent.title, .revert, to: child, enabled: model.operationAvailable(.revert, ids: ids, mainline: parent.number)) { model.performOperation(.revert, ids: ids, mainline: parent.number) } }
+                        let child = submenu(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: 1), .revert,localized:false)
+                        for parent in parents { add(LogWorkflowLocalization.parent(parent), .revert, to: child, enabled: model.operationAvailable(.revert, ids: ids, mainline: parent.number),localized:false) { model.performOperation(.revert, ids: ids, mainline: parent.number) } }
                     }
                 } else if ids.count == 1, model.operationAvailable(.revert, ids: ids) {
-                    add(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: ids.count), .revert) { model.performOperation(.revert, ids: ids) }
+                    add(ReferenceLogRevisionOperation.revert.title(branch: model.currentBranch, count: ids.count), .revert,localized:false) { model.performOperation(.revert, ids: ids) }
                 }
                 if ids.count == 1 { operation(.editNotes) }
             }
@@ -234,7 +235,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
                 if ids.count == 2 {
                     if model.hasWorkingTree { add("Show changes as unified diff", .unifiedDiff, enabled: model.canInspect(ids)) { model.inspect(ids, alternate: extended) } }
                     for command in ReferenceLogRangeCommand.allCases {
-                        if let range = model.logRange(command, ids: ids) { add("Show log of " + range.from.prefix(7) + range.separator + range.to.prefix(7), .log, enabled: model.onLogRange != nil) { model.showLogRange(command, ids: ids) } }
+                        if let range = model.logRange(command, ids: ids) { add(HistoryLabels.text("Show log of {from}{separator}{to}",values:["from":String(range.from.prefix(7)),"separator":range.separator,"to":String(range.to.prefix(7))]), .log, enabled: model.onLogRange != nil,localized:false) { model.showLogRange(command, ids: ids) } }
                     }
                 }
                 menu.addItem(.separator())
@@ -242,7 +243,7 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             if !model.selecting, !ids.isEmpty {
                 for operation in [ReferenceLogRevisionOperation.cherryPick, .formatPatch] {
                     if model.operationAvailable(operation, ids: ids) {
-                        add(operation.title(branch: model.currentBranch, count: ids.count), operation.icon) { model.performOperation(operation, ids: ids) }
+                        add(operation.title(branch: model.currentBranch, count: ids.count), operation.icon,localized:false) { model.performOperation(operation, ids: ids) }
                     }
                 }
                 if ids.count > 1 { operation(.revert) }
@@ -260,11 +261,11 @@ struct ReferenceLogNativeTable: NSViewRepresentable {
             }
             let deletable = model.referenceDeletionCandidates(ids)
             if deletable.count == 1 {
-                add("Delete " + deletable[0], .remove) { model.deleteNamedReferences(deletable, ids: ids) }
+                add(HistoryLabels.text("Delete {reference}",values:["reference":deletable[0]]), .remove,localized:false) { model.deleteNamedReferences(deletable, ids: ids) }
                 menu.addItem(.separator())
             } else if deletable.count > 1 {
                 let child = submenu("Delete branch/tag", .remove)
-                for name in deletable { add(name, .remove, to: child) { model.deleteNamedReferences([name], ids: ids) } }
+                for name in deletable { add(name, .remove, to: child,localized:false) { model.deleteNamedReferences([name], ids: ids) } }
                 add("All", .remove, to: child) { model.deleteNamedReferences(deletable, ids: ids) }
                 menu.addItem(.separator())
             }

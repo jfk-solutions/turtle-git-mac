@@ -23,25 +23,25 @@ private final class OrderingWindow: NSWindow {
 
 @MainActor final class LogOrderingWindowController: NSWindowController, NSWindowDelegate {
     let ordering = NSPopUpButton(frame: .zero, pullsDown: false)
-    let ok = NSButton(title: "OK", target: nil, action: nil)
-    let cancel = NSButton(title: "Cancel", target: nil, action: nil)
+    let ok = NSButton(title: HistoryLabels.caption("OK"), target: nil, action: nil)
+    let cancel = NSButton(title: HistoryLabels.caption("Cancel"), target: nil, action: nil)
     let preferences: UserDefaults
     private(set) var finished = false
     var completion: (HistoryOrdering?) -> Void = { _ in }
     init(preferences: UserDefaults = .standard) {
         self.preferences = preferences
         let window = OrderingWindow(contentRect: .init(x: 0, y: 0, width: 480, height: 100), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-        window.title = "Log commit ordering – TurtleGit"; window.isReleasedWhenClosed = false
+        window.title = HistoryLabels.caption("Log commit ordering – TurtleGit"); window.isReleasedWhenClosed = false
         window.contentView = OrderingSurface(frame: window.contentView!.frame)
         super.init(window: window); window.delegate = self
-        for value in HistoryOrdering.allCases { ordering.addItem(withTitle: value.title); ordering.lastItem?.tag = value.rawValue }
+        for value in HistoryOrdering.allCases { ordering.addItem(withTitle: HistoryLabels.caption(value.title)); ordering.lastItem?.tag = value.rawValue }
         ordering.selectItem(withTag: HistoryOrdering.load(defaults: preferences).rawValue)
         ok.target = self; ok.action = #selector(accept); ok.keyEquivalent = "\r"
         cancel.target = self; cancel.action = #selector(cancelSelection); cancel.keyEquivalent = "\u{1b}"
         window.defaultButtonCell = ok.cell as? NSButtonCell
         window.cancel = { [weak self] in self?.finish(nil) }
         window.acceptSelection = { [weak self] in self?.accept() }
-        let label = NSTextField(labelWithString: "Commit Ordering:")
+        let label = NSTextField(labelWithString: HistoryLabels.caption("Commit Ordering:"))
         let row = NSStackView(views: [label, ordering]); row.orientation = .horizontal; row.distribution = .fill
         let buttons = NSStackView(views: [ok, cancel]); buttons.orientation = .horizontal; buttons.spacing = 8
         for view in [row, buttons] { view.translatesAutoresizingMaskIntoConstraints = false; window.contentView!.addSubview(view) }
@@ -51,7 +51,7 @@ private final class OrderingWindow: NSWindow {
             buttons.trailingAnchor.constraint(equalTo: row.trailingAnchor), buttons.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor, constant: -14),
             ok.widthAnchor.constraint(equalToConstant: 80), cancel.widthAnchor.constraint(equalToConstant: 80)
         ])
-        ordering.setAccessibilityLabel("Commit Ordering")
+        ordering.setAccessibilityLabel(HistoryLabels.caption("Commit Ordering"))
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     @objc private func accept() {

@@ -833,3 +833,12 @@ including the branch picker's source-specific HEAD choice, captured native
 preferences and post-delete refill. Ordinary Push stays on its CLI source path.
 Actual grouped evidence and remaining certificate-cache, public/signed/physical
 and complete source acceptance are recorded with that family.
+
+
+## Native menu language consumers — October 31, 2026
+
+The [connected history/reference language family](HISTORY-LANGUAGE-PARITY.md)
+connects native menu/header/filter captions with literal metadata and unchanged
+command ownership. Its [grouped checkpoint](qa/history-languages-2026-10-31.json)
+keeps actual German/French menu evidence separate from complete localization,
+physical/VoiceOver and signed acceptance. Installed build47 predates this family.

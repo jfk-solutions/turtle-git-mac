@@ -119,4 +119,19 @@ accessibility captions are registered again after a language change.</p>
 <p>Missing source labels still fall back to English. These are native menu-builder
 and resource checks; activation, distributed notification delivery and badge
 announcements in a signed installed Finder extension remain release gates.</p>
+<h2 id="history-and-reference-menus">History and reference menus</h2>
+<p>Log, Browse References and RefLog use the selected app language for native command
+menus, submenus, column headings and column menus. Runtime filter and ordering
+choices use the same catalog. German and French also include reviewed captions
+containing a branch, revision, parent or reference range. Other languages retain
+English when a matching safe translation is unavailable.</p>
+<p>Reference names, paths, hashes, commit subjects, author text and copied values
+stay exactly as supplied by the repository. A branch named <code>Delete</code> is still
+<code>Delete</code>, even if the Delete command itself is translated. Named caption fields
+are checked before substitution and inserted once; braces or percent signs in a
+name remain literal. Menu actions, sorting and saved column identifiers are
+independent of the visible caption.</p>
+<p>This extends native menu coverage; it does not establish complete translation of
+Git diagnostics, the history information footer, every dialog, or the English
+Help book. Restart after applying a language change, as described above.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>
