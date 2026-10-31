@@ -5997,3 +5997,22 @@ signed/physical and complete-port acceptance remain separate.
 The older hosted Distribution failure is an [Intel fixture compilation timeout](qa/hosted-distribution-compile-timeout-2026-10-31.json),
 before any Cherry Pick/Rebase receiver ran. It does not establish a current
 recovery workflow defect.
+
+
+## Hosted native compilation boundary — October 31, 2026
+
+The older Intel Distribution failure occurred while compiling the complete
+Cherry Pick/Rebase receiver, before launching a recovery test. Its runner now
+partitions the unchanged 2,940-line source into ten cohesive primary files and
+checks exact byte reassembly, declaration order and its sole entry point. The
+shared native helper supports an opt-in per-file mode capped at two compiler
+workers; other fixture modes and the full default runtime order remain intact.
+Exact compilation flags enter the cache key. Compiler processes use the existing
+owned group cleanup with distinct compiler receipts.
+
+The [focused checkpoint](qa/native-receiver-compilation-boundary-2026-10-31.json)
+records ten helper contracts, a complete arm64 compile-only pass within the
+existing limit, and both Git engines passing the focused Log workflow while
+reusing that executable. App code/Core did not change and their passing checks
+were not repeated. Older Intel compiler timing and full release-source hosted
+integration remain open; this is not a full local recovery-suite pass.

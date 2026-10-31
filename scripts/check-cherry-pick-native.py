@@ -2,14 +2,16 @@
 """Native Cherry Pick/replay assertions with cached Debug app objects.
 
 The full default suite still requires its SwiftPM editor. The focused Log family
-uses no editor. Receivers use private repositories/preferences and hidden owners;
+and compile-only mode use no editor. Receivers use private repositories/preferences and hidden owners;
 this does not establish physical keyboard, accessibility or signed acceptance.
 """
 import argparse
 import ast
+import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import subprocess
@@ -19,6 +21,7 @@ from native_receiver import build_receiver,run_receiver
 
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append',help='Git to test; may be repeated (default: /usr/bin/git).')
+parser.add_argument('--compile-only',action='store_true',help='Compile/link the complete partitioned receiver without launching it or requiring the unused SwiftPM editor.')
 focus=parser.add_mutually_exclusive_group()
 focus.add_argument('--references-only',action='store_true',help='Run only native Rebase reference-update fixtures.')
 focus.add_argument('--menus-only',action='store_true',help='Run only native Rebase revision-menu fixtures.')
@@ -29,7 +32,7 @@ args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 products=root/'build/Build/Products/Debug'
 editor=root/'.build/debug/TurtleGitMac'
-if not (products/'TurtleGitCore.framework').is_dir() or (args.only is None and not editor.is_file()):
+if not (products/'TurtleGitCore.framework').is_dir() or (not args.compile_only and args.only is None and not editor.is_file()):
     parser.error('Build the unsigned Debug Xcode product and, for the full/default modes, the SwiftPM editor first.')
 gits=args.git or [Path('/usr/bin/git')]
 for git in gits:
@@ -41,7 +44,63 @@ namespace=dict(os=os,signal=signal,time=time,subprocess=subprocess,Path=Path)
 exec(compile(ast.Module(body=[cleanup],type_ignores=[]),'<owned native Cherry Pick/Log helper cleanup>','exec'),namespace)
 retire_owned_helpers=namespace['retire_owned_helpers']
 generated=root/'build/qa/cherry-pick-native-sources';generated.mkdir(parents=True,exist_ok=True)
-receiver=build_receiver(root,[root/'docs/qa/cherry-pick-native-receiver-2026-10-06.swift'],generated)
+# The complete receiver used to be one 2,940-line WMO primary file. Hosted
+# Intel swiftc exhausted its 300-second fixture compile budget before launching
+# any tests. Preserve the exact source bodies and one runtime entry point, but
+# give the non-WMO driver bounded, cohesive primary files. This does not select
+# or omit assertions based on the requested runtime focus.
+fixture=root/'docs/qa/cherry-pick-native-receiver-2026-10-06.swift'
+source=fixture.read_bytes().decode('utf-8')
+boundaries=[
+    ('ReplayRecovery','verifyNativeSplit'),
+    ('RebaseInteractions','verifyLogIntegration'),
+    ('LogFileCommands','verifyNativeLogRevertFlags'),
+    ('CommitPresentation','verifyNativeCommitVisibleSelection'),
+    ('LogNavigation','verifyNativeLogHistoryWalk'),
+    ('LogComparisons','verifyNativeLogParentWorkingComparison'),
+    ('LogConflicts','verifyNativeLogWorkingConflicts'),
+    ('Bisect','verifyNativeBisect'),
+    ('Main','verify'),
+]
+starts=[('Shared',0)]
+for name,function in boundaries:
+    matches=list(re.finditer(r'^@MainActor func '+re.escape(function)+r'\(',source,re.MULTILINE))
+    if len(matches)!=1:raise RuntimeError('Expected exactly one fixture partition boundary: '+function)
+    starts.append((name,matches[0].start()))
+if [offset for _,offset in starts]!=sorted(set(offset for _,offset in starts)):
+    raise RuntimeError('Fixture partition boundaries changed order or overlap.')
+imports=source[:source.index('@MainActor func settle(')]
+parts=[];partition_sources=[];partition_receipts=[]
+for index,(name,start) in enumerate(starts):
+    end=starts[index+1][1] if index+1<len(starts) else len(source)
+    body=source[start:end];parts.append(body)
+    line=source.count('\n',0,start)+1
+    path=generated/('CherryPick'+name+'.swift')
+    text=(imports if index else '')+'#sourceLocation(file: '+json.dumps(str(fixture))+', line: '+str(line)+')\n'+body
+    path.write_bytes(text.encode('utf-8'));partition_sources.append(path)
+    partition_receipts.append(dict(name=name,source=str(path.relative_to(root)),original_line=line,
+                                   lines=body.count('\n'),body_sha256=hashlib.sha256(body.encode('utf-8')).hexdigest(),
+                                   generated_sha256=hashlib.sha256(text.encode('utf-8')).hexdigest()))
+reassembled=''.join(parts)
+source_hash=hashlib.sha256(source.encode('utf-8')).hexdigest()
+declarations=re.findall(r'^@MainActor func (\w+)\(',source,re.MULTILINE)
+partition_declarations=[name for part in parts for name in re.findall(r'^@MainActor func (\w+)\(',part,re.MULTILINE)]
+if reassembled!=source or partition_declarations!=declarations or reassembled.count('@main struct Receiver')!=1:
+    raise RuntimeError('Partitioned fixture did not preserve every original byte, declaration and sole entry point.')
+compilation_receipt=dict(source=str(fixture.relative_to(root)),source_sha256=source_hash,
+                         reassembled_sha256=hashlib.sha256(reassembled.encode('utf-8')).hexdigest(),
+                         exact_reassembly=True,source_lines=source.count('\n'),partition_count=len(parts),
+                         declaration_count=len(declarations),entry_point_count=1,
+                         ordered_declarations=declarations,partitions=partition_receipts,
+                         fixture_mode='per-file',compile_only=args.compile_only,receiver_launched=False,compiled=False)
+receipt_path=root/'build/qa/cherry-pick-native-compilation.json'
+receipt_path.write_text(json.dumps(compilation_receipt,indent=2)+'\n')
+receiver=build_receiver(root,partition_sources,generated,fixture_mode='per-file')
+compilation_receipt.update(compiled=True,receiver=str(receiver))
+receipt_path.write_text(json.dumps(compilation_receipt,indent=2)+'\n')
+if args.compile_only:
+    print('PASS: complete Cherry Pick receiver compiled/linked from exact source-preserving partitions; no receiver launched.',flush=True)
+    raise SystemExit(0)
 # Do not replace the formerly unbounded full suite with the receiver helper's
 # five-minute default. Its complete assertion set has a separate three-hour cap.
 timeout=240 if args.only else 3*60*60
@@ -68,6 +127,8 @@ for index,git in enumerate(gits):
         passed=False
         print('Checking native '+(args.only or 'Cherry Pick/replay selection')+' with '+str(git),flush=True)
         try:
+            compilation_receipt['receiver_launched']=True
+            receipt_path.write_text(json.dumps(compilation_receipt,indent=2)+'\n')
             result=run_receiver([str(receiver)],cwd=root,env=environment,capture_output=True,text=True,timeout=timeout,timeout_sample=directory/'timeout.sample.txt')
             (directory/'receiver.stdout.log').write_text(result.stdout);(directory/'receiver.stderr.log').write_text(result.stderr)
             print(result.stdout,end='');print(result.stderr,end='')

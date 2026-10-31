@@ -1,0 +1,195 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-local-compile-and-runtime-validation-passed",
+  "blocker": "Older5432 Intel Distribution step429 fixture swiftc timed out after300 seconds before receiver execution",
+  "implementation": {
+    "master_fixture_changed": false,
+    "partitions": 10,
+    "source_lines": 2940,
+    "declarations": 31,
+    "entry_points": 1,
+    "exact_reassembly_sha256": "19eb40efbdfdc823236ec2d9be0dc8cfd769307ab788117d9679ea4204677adc",
+    "runtime_assertions_order_selectors_unchanged": true,
+    "fixture_mode": "per-file",
+    "flags": [
+      "-disable-batch-mode",
+      "-j",
+      "2",
+      "-Onone",
+      "-parse-as-library",
+      "-swift-version",
+      "5"
+    ],
+    "default_other_fixtures": "whole-module unchanged",
+    "cache": "Exact fixture flags are part of the recipe; app sources/objects, imported frameworks/modules, architecture, SDK and compiler remain inputs",
+    "ownership": "Compiler/linker subprocesses now use owned process-group cleanup on success/failure/timeout, with compiler labels distinct from receiver labels",
+    "compile_timeout_seconds": 300,
+    "default_full_runtime_timeout_seconds": 10800
+  },
+  "validation": {
+    "helper_contracts": {
+      "tests": 10,
+      "result": "passed",
+      "log": "build/qa/native-compile-boundary-contracts-2026-10-31.log"
+    },
+    "complete_receiver_compile": {
+      "result": "passed without receiver launch",
+      "log": "build/qa/native-compile-boundary-build-2026-10-31.log"
+    },
+    "focused_runtime": {
+      "case": "log-deferred-refresh",
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "result": "passed; reused unchanged compiled receiver",
+      "log": "build/qa/native-compile-boundary-focused-2026-10-31.log"
+    },
+    "partition_receipt": {
+      "source": "docs/qa/cherry-pick-native-receiver-2026-10-06.swift",
+      "source_sha256": "19eb40efbdfdc823236ec2d9be0dc8cfd769307ab788117d9679ea4204677adc",
+      "reassembled_sha256": "19eb40efbdfdc823236ec2d9be0dc8cfd769307ab788117d9679ea4204677adc",
+      "exact_reassembly": true,
+      "source_lines": 2940,
+      "partition_count": 10,
+      "declaration_count": 31,
+      "entry_point_count": 1,
+      "ordered_declarations": [
+        "settle",
+        "findTable",
+        "findRebaseProbe",
+        "settleCommit",
+        "verifyNativeSplit",
+        "verifyNativeRecoveryFiles",
+        "verifyNativeSquashConflict",
+        "verifyNativeEmptySquash",
+        "verifyNativeSquashReferenceUpdates",
+        "verifyNativeRepeatedAndOmittedReferences",
+        "verifyLogIntegration",
+        "verifyNativeRebaseMenus",
+        "verifyListInteraction",
+        "verifyNativeLogRevertFlags",
+        "verifyNativeLogSubmodule",
+        "verifyNativeLogDelete",
+        "verifyNativeLogIgnore",
+        "verifyNativeLogAddModes",
+        "verifyNativeLogPatchPreview",
+        "verifyNativeLogUnrelatedPaths",
+        "verifyNativeCommitVisibleSelection",
+        "verifyNativeSharedUnversionedPreference",
+        "verifyNativeLogLabelVisibility",
+        "verifyNativeLogHistoryWalk",
+        "verifyNativeLogWorkingAddCommit",
+        "verifyNativeLogParentWorkingComparison",
+        "verifyNativeLogUnifiedViewerRouting",
+        "verifyNativeLogDeferredRefresh",
+        "verifyNativeLogWorkingConflicts",
+        "verifyNativeBisect",
+        "verify"
+      ],
+      "partitions": [
+        {
+          "name": "Shared",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickShared.swift",
+          "original_line": 1,
+          "lines": 25,
+          "body_sha256": "a9605bf3f3a6ae21db58a82de67a355dbc35a9165201b005e0efd108d95e034c",
+          "generated_sha256": "b86e6d71692879a384011e3d906c33cb14df0215420b9cb60219a91f5a430370"
+        },
+        {
+          "name": "ReplayRecovery",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickReplayRecovery.swift",
+          "original_line": 26,
+          "lines": 367,
+          "body_sha256": "3fb360b20b77fa57c295fbe2016f6eb20cf29f794e8300d614c24abea0f41f04",
+          "generated_sha256": "13deb4534b161a266921a0d1e40a276c2ac7f6fa369d28fff28941fbd69a3665"
+        },
+        {
+          "name": "RebaseInteractions",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickRebaseInteractions.swift",
+          "original_line": 393,
+          "lines": 320,
+          "body_sha256": "4ba9135c473443bc26eb876e7bae20c3e165cbb3029980eb33441ca57d3d6d8e",
+          "generated_sha256": "47d12f720108761ce498f7b6cda2a87a36d0935a3a2e909c661c3bf71df904f4"
+        },
+        {
+          "name": "LogFileCommands",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickLogFileCommands.swift",
+          "original_line": 713,
+          "lines": 602,
+          "body_sha256": "e24ab73156ba9dde765d8022b053dbfed8346f6ea1b19e212cdcf6dd58868288",
+          "generated_sha256": "42df95ef7cd65cd44573058f8b0894920921e562b33bdc00a51e0953f26effd9"
+        },
+        {
+          "name": "CommitPresentation",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickCommitPresentation.swift",
+          "original_line": 1315,
+          "lines": 173,
+          "body_sha256": "7de40df237eee9a38e1a465a58ff78751495b322e11a026afa2915b7a6b68864",
+          "generated_sha256": "66a9ac4f5caf0b3935fc3b6da4d1a3657173aaa211470d3897c06b55a9762422"
+        },
+        {
+          "name": "LogNavigation",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickLogNavigation.swift",
+          "original_line": 1488,
+          "lines": 142,
+          "body_sha256": "45f8bf5b2fd2f7c98380d6a8f4cbfcb08d1023f6c356f1e69dacc8dd602b2d9c",
+          "generated_sha256": "334b48519d7d0d82aa607ffe3bd856a90484a72371cb79d8a989de9cd9f2ece8"
+        },
+        {
+          "name": "LogComparisons",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickLogComparisons.swift",
+          "original_line": 1630,
+          "lines": 361,
+          "body_sha256": "22843c15d786ae7b9759cef1d554f2958fadcb8fa076eba6bf054522d5b15c51",
+          "generated_sha256": "d070cc09b95706c7238180272402d1325511ad1cd08e04fe1c31bdab3b376185"
+        },
+        {
+          "name": "LogConflicts",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickLogConflicts.swift",
+          "original_line": 1991,
+          "lines": 129,
+          "body_sha256": "92abe5026278501821fef662975892a5deb86703d3277a174ddfd07800e268a8",
+          "generated_sha256": "e747fb42b863f8f24ed2deae190163fe02cee93f1e79c768dce5f7efb824ec62"
+        },
+        {
+          "name": "Bisect",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickBisect.swift",
+          "original_line": 2120,
+          "lines": 537,
+          "body_sha256": "62081341bbc0167f0bd54fe171699a0875c99221bc484416cb33451a2d309552",
+          "generated_sha256": "9a0ef654231e82c5220fcda3512ce8a15f6c0cd5c22620e1fd2a47ebbb4d92c4"
+        },
+        {
+          "name": "Main",
+          "source": "build/qa/cherry-pick-native-sources/CherryPickMain.swift",
+          "original_line": 2657,
+          "lines": 284,
+          "body_sha256": "8d09e9ec7fb239deb4c3a4ff6ce4d6b14d916e4171a3f55b0fd95d197f82f5b9",
+          "generated_sha256": "54a3b1b84043f88702c4daf7fd6aef2ff6d118d4063edb78273bfc8e9d4f5e52"
+        }
+      ],
+      "fixture_mode": "per-file",
+      "compile_only": false,
+      "receiver_launched": true,
+      "compiled": true,
+      "receiver": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/13949355592eab46ea989eca3fa2f6f9243b2e9a5d79e8a353ce12aba01ad06c/receiver-52addac61adfa760c85d68e9bee02e2ba72e4ae77bd624936bb2817bb2ef6041"
+    }
+  },
+  "cleanup": {
+    "owned_compilers_reaped_and_absent": [
+      221,
+      227
+    ],
+    "owned_receivers_reaped_and_absent": [
+      339,
+      1426
+    ]
+  },
+  "limits": [
+    "Local arm64/Xcode27.2 swift-driver1.168.6 does not prove older Intel swift-driver1.120.5 compilation timing",
+    "Full default Cherry Pick/Rebase runtime suite not repeated locally; CI retains every assertion",
+    "No new Debug app build/Core suite because application implementation is unchanged",
+    "No signed UI/Finder or full hosted acceptance claim"
+  ]
+}

@@ -29,7 +29,14 @@ def fingerprint(files, settings, relative_to=None):
     return digest.hexdigest()
 
 
-def build_receiver(root: Path, fixtures: list[Path], directory: Path) -> Path:
+def build_receiver(root: Path, fixtures: list[Path], directory: Path, *, fixture_mode='whole-module') -> Path:
+    fixture_modes = {
+        'whole-module': ['-whole-module-optimization'],
+        'per-file': ['-disable-batch-mode', '-j', '2'],
+    }
+    if fixture_mode not in fixture_modes:
+        raise ValueError('Unknown native fixture compilation mode: ' + str(fixture_mode))
+    fixture_flags = [*fixture_modes[fixture_mode], '-Onone', '-parse-as-library', '-swift-version', '5']
     root = root.resolve(); fixtures = [path.resolve() for path in fixtures]
     products = root / 'build/Build/Products/Debug'
     objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
@@ -56,11 +63,11 @@ def build_receiver(root: Path, fixtures: list[Path], directory: Path) -> Path:
     if not library.is_file():
         with tempfile.TemporaryDirectory(prefix='link-', dir=generation) as staging:
             output = Path(staging) / library.name
-            subprocess.run(['xcrun', 'swiftc', '-emit-library', '-module-name', 'TurtleGitNativeQALink',
+            run_receiver(['xcrun', 'swiftc', '-emit-library', '-module-name', 'TurtleGitNativeQALink',
                             '-target', settings['target'], '-F', str(products), *map(str, objects),
                             '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products),
                             '-Xlinker', '-install_name', '-Xlinker', '@rpath/' + library.name,
-                            '-o', str(output)], cwd=root, check=True, timeout=300)
+                            '-o', str(output)], cwd=root, check=True, timeout=300, process_role='compiler')
             output.replace(library)
         print('Native QA: linked current Debug app objects once.', flush=True)
     sources = []
@@ -96,17 +103,17 @@ def build_receiver(root: Path, fixtures: list[Path], directory: Path) -> Path:
     else:
         body = 'return MainActor.assumeIsolated { ' + action + ' }'
     main.write_text('import AppKit\n@_cdecl("turtlegit_native_qa_main") func nativeBootstrap() -> Int32 {\n    ' + body + '\n}\n')
-    recipe = fingerprint([*sources, main], settings, relative_to=directory)
+    recipe = fingerprint([*sources, main], dict(settings, fixture_flags=fixture_flags), relative_to=directory)
     executable = generation / ('receiver-' + recipe)
     if not executable.is_file():
         output = directory / 'linked-receiver'
-        subprocess.run(['xcrun', 'swiftc', '-whole-module-optimization', '-Onone', '-parse-as-library',
-                        '-swift-version', '5', '-target', settings['target'], '-I', str(products), '-F', str(products),
+        run_receiver(['xcrun', 'swiftc', *fixture_flags,
+                        '-target', settings['target'], '-I', str(products), '-F', str(products),
                         *map(str, sources), str(main), '-L', str(generation), '-lTurtleGitNativeQA',
                         '-framework', 'TurtleGitCore', '-Xlinker', '-rpath', '-Xlinker', str(products),
                         '-Xlinker', '-rpath', '-Xlinker', str(generation),
                         '-Xlinker', '-e', '-Xlinker', '_turtlegit_native_qa_main', '-o', str(output)],
-                       cwd=root, check=True, timeout=300)
+                       cwd=root, check=True, timeout=300, process_role='compiler')
         output.replace(executable)
         print('Native QA: compiled fixture only: ' + ', '.join(path.name for path in fixtures), flush=True)
     else:
@@ -174,8 +181,10 @@ def sample_receiver(pid, destination):
         print('Owned receiver stack sample unavailable: ' + str(error), flush=True)
 
 
-def run_receiver(command, *, timeout=300, timeout_sample=None, **kwargs):
+def run_receiver(command, *, timeout=300, timeout_sample=None, process_role='receiver', **kwargs):
     """subprocess.run-compatible native execution with owned bounded cleanup."""
+    if process_role not in ('receiver', 'compiler'):
+        raise ValueError('Unknown native process role: ' + str(process_role))
     check = kwargs.pop('check', False)
     input_data = kwargs.pop('input', None)
     if input_data is not None:
@@ -202,7 +211,7 @@ def run_receiver(command, *, timeout=300, timeout_sample=None, **kwargs):
         for name, payload in [('stdout', error.stdout), ('stderr', error.stderr)]:
             if payload:
                 message = payload if isinstance(payload, str) else payload.decode('utf-8', errors='replace')
-                print('Native receiver timeout ' + name + ' (last 65536 characters):\n' + message[-65536:], flush=True)
+                print('Native ' + process_role + ' timeout ' + name + ' (last 65536 characters):\n' + message[-65536:], flush=True)
         raise
     finally:
         try:
@@ -216,4 +225,4 @@ def run_receiver(command, *, timeout=300, timeout_sample=None, **kwargs):
                         stream.close()
                     except OSError:
                         pass
-        print('Owned receiver reaped: ' + str(receiver.pid), flush=True)
+        print('Owned ' + process_role + ' reaped: ' + str(receiver.pid), flush=True)

@@ -69,6 +69,15 @@ class ReceiverContracts(unittest.TestCase):
             with self.assertRaises(ChildProcessError):
                 os.waitpid(pid, os.WNOHANG)
 
+    def test_compiler_timeout_retains_failure_and_reaps_owned_driver(self):
+        output=io.StringIO()
+        with contextlib.redirect_stdout(output), self.assertRaises(subprocess.TimeoutExpired):
+            run_receiver([sys.executable,'-c','import time; time.sleep(60)'],timeout=1,process_role='compiler')
+        self.assertNotIn('Owned receiver reaped:',output.getvalue())
+        pid=int(output.getvalue().split('Owned compiler reaped: ')[-1].strip())
+        with self.assertRaises(ProcessLookupError):os.kill(pid,0)
+        with self.assertRaises(ChildProcessError):os.waitpid(pid,os.WNOHANG)
+
     def test_success_terminates_owned_descendant(self):
         with tempfile.TemporaryDirectory() as temporary:
             pidfile = Path(temporary) / 'pid'
