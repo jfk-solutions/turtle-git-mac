@@ -475,3 +475,45 @@ explicit Submodule Update request remains available for a verified checkout.
 Verification warnings retain the accepted outcome without enabling an unsafe
 handoff. See the [grouped evidence](qa/creation-outcome-2026-10-29.json) for the
 actual validation scope. Installed build34 predates this continuation.
+
+## Created checkout registration and captured creation controls — October 31, 2026
+
+The source `AppUtils.cpp::CreateWorktree` connects the accepted checkout to its
+post-create actions, while Explorer discovers repository folders directly. On
+macOS, that discovery requires a persisted user-authorized Finder root. Both
+New Worktree entry points (standalone/Finder and manager-owned Add) now await
+registration of a verified accepted checkout before automatic close. They retain
+the accepted destination grant together with source/common metadata authority,
+verify the current checkout and source worktree record, compare their common Git
+directories, then publish the durable root, precise additional metadata grants,
+initial status cache and recent-repository record. They do not switch or open the
+main repository workspace, request a new grant, or change the background-service
+opt-in.
+
+Git creation success remains successful if optional Finder registration fails.
+The progress output retains the failure and offers **Retry Finder registration**.
+Retry uses the same accepted checkout receipt and existing scopes; it never runs
+`worktree add` again. Late cancellation after creation suppresses automatic
+registration and keeps the completed checkout, with an explicit registration
+retry available after drain. A cancellation that arrives with an already
+completed registration does not undo its durable publication. Scope and Quit
+ownership remain until the real registration/cache work returns; forced owner
+retirement cancels pending work and refuses late warnings, footers and follow-up
+windows. A replaced checkout, changed accepted revision, unavailable metadata or
+insufficient captured permission is refused rather than silently registered.
+
+Creation's mounted revision, radio, directory and option callbacks also carry a
+captured parent/chooser context. Busy progress, accepted creation, picker/reload
+replacement, a changed draft, Quit and retirement reject old setters and focus
+callbacks. These guards preserve native text entry and existing picker semantics;
+they do not replace the source's HEAD/branch/tag/commit and checkout/force/detach
+choices.
+
+The [connected lifecycle checkpoint](qa/creation-finder-lifecycle-2026-10-31.json)
+records the Debug build and actual private native creation/registration passes
+with system Git. Both direct and actual manager-dispatch paths publish durable
+roots, restorable metadata grants and initial status. Failure/retry, late Cancel,
+forced retirement and unchanged source HEAD/index/working bytes are checked.
+Only failing scopes repeated; Daemon and Core suites were not rerun. These are
+private native fixtures, not physical Finder badges, signed external grants,
+full accessibility or complete port acceptance.

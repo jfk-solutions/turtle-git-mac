@@ -1917,6 +1917,55 @@ private enum TransportBatchPresentationContext {
             } catch {if !retired,!token.isCancelled {self.error="Could not add this repository to TurtleGit.\n"+error.localizedDescription}}
         }
     }
+    /// Configure every creation entry point, including the manager-owned child.
+    /// The checkout grant is primary; common/source metadata is retained related
+    /// authority, never authority to silently select another checkout.
+    func configureWorktreeInteractions(_ controller:WorktreeCreateWindowController) {
+        let source=controller.model.chooser.repository
+        controller.model.registerCreatedWorktree = CommandProgressContext.capture { [weak self,weak model=controller.model] receipt,access,token in
+            guard let self,let model,!self.retired,!self.confirmingQuit,model.active,model.externalAvailability() else {throw OperationCancellationFailure.cancelled}
+            guard receipt.verified,let expected=receipt.worktree,!expected.isMain,!expected.isBare else {throw WorktreeFinderRegistrationFailure.unverified}
+            guard access.contains(receipt.path),!self.requiresRepositoryScope || access.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+            let id=UUID();self.finderRegistrations[id]=token
+            defer {self.finderRegistrations.removeValue(forKey:id);withExtendedLifetime(access) {}}
+            try token.check()
+            let allowed=access.permittedFolders(requireSecurityScope:self.requiresRepositoryScope)
+            // No post-create chooser: only metadata already authorized for the
+            // accepted source/destination is eligible for durable registration.
+            let missing=try await Task.detached {try RepositoryMetadataAccess.next(at:receipt.path,authorizedFolders:allowed,cancellation:token)}.value
+            if let missing {throw RepositoryAccessFailure.repositoryRootOutsidePermission(missing.folder.path)}
+            let child=GitRepository(root:receipt.path,executable:source.executable,askpass:source.askpass,diffDetection:source.diffDetection,libgit2Configuration:source.libgit2Configuration)
+            let actual=try await child.discoverRoot(cancellation:token)
+            guard GitReferenceName.equal(actual.standardizedFileURL.resolvingSymlinksInPath().path,receipt.path.standardizedFileURL.resolvingSymlinksInPath().path),!(try await child.isBare(cancellation:token)) else {throw WorktreeFinderRegistrationFailure.identityChanged}
+            let rows=try await source.worktrees(cancellation:token)
+            guard rows.contains(where:{row in !row.isMain && !row.isBare && GitReferenceName.equal(row.path.standardizedFileURL.resolvingSymlinksInPath().path,receipt.path.standardizedFileURL.resolvingSymlinksInPath().path) && row.head==expected.head && row.branch.map{Data($0.utf8)}==expected.branch.map{Data($0.utf8)} && row.isDetached==expected.isDetached}) else {throw WorktreeFinderRegistrationFailure.identityChanged}
+            func commonDirectory(_ repository:GitRepository) async throws -> URL {
+                var bytes=try await repository.run(["rev-parse","--path-format=absolute","--git-common-dir"],cancellation:token).stdout
+                if bytes.last==10 {bytes.removeLast()}
+                guard let path=String(data:bytes,encoding:.utf8),path.hasPrefix("/"),!path.contains("\0") else {throw WorktreeFinderRegistrationFailure.identityChanged}
+                return URL(fileURLWithPath:path,isDirectory:true).standardizedFileURL.resolvingSymlinksInPath()
+            }
+            let sourceMetadata=try await commonDirectory(source),childMetadata=try await commonDirectory(child)
+            guard GitReferenceName.equal(sourceMetadata.path,childMetadata.path) else {throw WorktreeFinderRegistrationFailure.identityChanged}
+            try token.check();guard !self.retired,!self.confirmingQuit,model.active,model.externalAvailability() else {throw OperationCancellationFailure.cancelled}
+            // The durable primary bookmark is narrowed to the checkout itself.
+            // Discover precisely which metadata folders that narrower bookmark
+            // needs, rather than dropping a broad accepted parent that happened
+            // to cover both the checkout and the source common Git directory.
+            let folders=try await Task.detached { () throws -> [URL] in
+                var folders=[URL]()
+                for _ in 0..<256 {
+                    try token.check()
+                    guard let next=try RepositoryMetadataAccess.next(at:receipt.path,authorizedFolders:[receipt.path]+folders,cancellation:token) else{return folders}
+                    guard allowed.contains(where:{RepositoryAccessLease.pathIsContained(next.folder,by:$0)}),!folders.contains(where:{GitReferenceName.equal($0.path,next.folder.path)}) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(next.folder.path)}
+                    folders.append(next.folder)
+                }
+                throw RepositoryMetadataAccessFailure.tooManyDependencies
+            }.value
+            try token.check();guard !self.retired,!self.confirmingQuit,model.active,model.externalAvailability() else {throw OperationCancellationFailure.cancelled}
+            try await self.saveFinderRegistration(child,access:access,additionalFolders:folders,cancellation:token)
+        }
+    }
     private func registerCompletedClone(_ repository:GitRepository,access:RepositoryAccessLease,model:CloneWindowModel?,completed:@escaping ()->Void) {
         let id=UUID(),token=OperationCancellation();finderRegistrations[id]=token
         Task { [self,access,repository,weak model] in
@@ -3887,6 +3936,7 @@ private enum TransportBatchPresentationContext {
                 self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:inherited,sourceWindow:controller?.window)
             }
         }
+        controller.configureCreateInteractions=CommandProgressContext.capture { [weak self] child in self?.configureWorktreeInteractions(child) }
         controller.onCreatePresentation=CommandProgressContext.capture { [weak self] child in
             guard let self else{return false}
             return FinderServicePresentationContext.$current.withValue(serviceContext){self.prepareFinderServiceWorkflow(child,repository:repository,access:access)}
@@ -3928,6 +3978,7 @@ private enum TransportBatchPresentationContext {
                 self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:presentedPreferences,sourceWindow:controller?.window)
             }
         }
+        configureWorktreeInteractions(controller)
         controller.configureCommitPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         controller.configureReferencePicker = CommandProgressContext.capture { [weak self] model in
             self?.configureReferenceBrowser(model, repository: repository, access: access)

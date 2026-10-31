@@ -9,13 +9,52 @@ import TurtleGitCore
         if let result=view as? T,label==nil || result.accessibilityLabel()==label { return result }
         for child in view.subviews { if let result=find(type,child,label:label) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows:[NSWindow],_ ready:()->Bool,line:UInt = #line) async throws {
-        for _ in 0..<3000 { windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()}; if ready(){return}; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Timed out at line \(line)")
+    @MainActor static func wait(_ windows:[NSWindow],_ ready:()->Bool,line:UInt = #line,diagnostic:()->String={""}) async throws {
+        for _ in 0..<3000 { windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()}; if ready(){return}; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Timed out at line \(line); \(diagnostic())")
     }
     static func phase(_ message:String) { print("PHASE: "+message); fflush(stdout) }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
+    @MainActor static func verifySharedReferenceFocus()async throws {
+        phase("shared reference control attachment/enablement/retirement")
+        let window=NSWindow(contentRect:.init(x:-24000,y:-24000,width:420,height:160),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        window.alphaValue=0;window.isReleasedWhenClosed=false;defer{window.close()}
+        let popup=ReferencePopupControl(frame:.init(x:10,y:90,width:180,height:26),pullsDown:false)
+        popup.addItems(withTitles:["one","two"]);popup.isEnabled=false
+        let delivery=ReferenceControlFocusDelivery();popup.referenceFocusDelivery=delivery
+        var popupCalls=0
+        delivery.update(popup,request:1){control in popupCalls += 1;_ = control.window?.makeFirstResponder(control)}
+        window.contentView?.addSubview(popup);await Task.yield()
+        try require(popupCalls==0,"Disabled reference popup received focus")
+        popup.isEnabled=true
+        try await wait([window]){window.firstResponder === popup}
+        try require(popupCalls==1 && popup.acceptsFirstResponder,"Enabled reference popup did not deliver its pending explicit focus")
+        let combo=ReferenceRevisionControl(frame:.init(x:10,y:40,width:180,height:26));combo.isEditable=true;combo.isEnabled=true
+        let fieldDelivery=ReferenceControlFocusDelivery();combo.referenceFocusDelivery=fieldDelivery
+        var fieldCalls=0
+        fieldDelivery.update(combo,request:1){control in fieldCalls += 1;_ = control.window?.makeFirstResponder(control)}
+        window.contentView?.addSubview(combo)
+        try await wait([window]){window.firstResponder === combo || combo.currentEditor().map{window.firstResponder === $0}==true}
+        let retained=window.firstResponder
+        delivery.update(popup,request:1){control in popupCalls += 1;_ = control.window?.makeFirstResponder(control)}
+        await Task.yield();try require(window.firstResponder === retained && popupCalls==1 && fieldCalls==1,"Consumed native reference intent replayed")
+        let detached=ReferenceRevisionControl(frame:.init(x:210,y:40,width:180,height:26));detached.isEditable=true
+        let detachedDelivery=ReferenceControlFocusDelivery();detached.referenceFocusDelivery=detachedDelivery
+        var detachedCalls=0
+        detachedDelivery.update(detached,request:1){control in detachedCalls += 1;_ = control.window?.makeFirstResponder(control)}
+        await Task.yield();try require(detachedCalls==0,"Unattached reference control received focus")
+        window.contentView?.addSubview(detached)
+        try await wait([window]){detachedCalls==1}
+        let replacement=NSWindow(contentRect:.init(x:-24000,y:-24000,width:240,height:100),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        replacement.alphaValue=0;replacement.isReleasedWhenClosed=false;defer{replacement.close()}
+        detached.removeFromSuperview();replacement.contentView?.addSubview(detached)
+        detachedDelivery.update(detached,request:2){_ in detachedCalls += 1}
+        await Task.yield();try require(detachedCalls==1,"Reference focus migrated to a replacement native window")
+        window.close();delivery.update(popup,request:2){_ in popupCalls += 1};fieldDelivery.update(combo,request:2){_ in fieldCalls += 1}
+        await Task.yield();try require(popupCalls==1 && fieldCalls==1,"Closed native reference controls revived a queued focus intent")
+    }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        try await verifySharedReferenceFocus()
         let suite="TurtleGit.CreationPickers.QA."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer { prefs.removePersistentDomain(forName:suite); prefs.synchronize() }
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:URL(fileURLWithPath:CommandLine.arguments[1]),executable:URL(fileURLWithPath:CommandLine.arguments[2]))
@@ -54,7 +93,14 @@ import TurtleGitCore
             chooser.browse(.branch); try require(ref()==nil && chooser.pickerTarget==nil,"HEAD base opened reference browser")
             setHead(false); chooser.commitRevision="saved draft"
             for (name,target,label) in [("refs/heads/nested/topic",CheckoutTarget.branch,"Base branch revision"),(nfc,.branch,"Base branch revision"),(nfd,.branch,"Base branch revision"),("refs/tags/release",.tag,"Base tag revision"),("refs/remotes/origin/HEAD",.branch,"Base branch revision"),("refs/notes/custom",.commit,"Base commit revision")] {
-                chooser.options.target = .branch; chooser.browse(.branch)
+                chooser.options.target = .branch
+                let oldBaseContext=worktree?.model.baseContext
+                let oldBaseBinding=worktree.map{$0.model.baseRevision(.branch,context:$0.model.baseContext)}
+                let beforeAcceptedFocus=chooser.referenceFocusRequest
+                chooser.browse(.branch)
+                let pendingRevision=chooser.branchRevision
+                if let oldBaseBinding {oldBaseBinding.wrappedValue="refs/heads/stale-during-picker"}
+                try require(GitReferenceName.equal(chooser.branchRevision,pendingRevision),"Mounted Worktree base control edited through picker ownership")
                 guard let child=ref() else { throw Failure(description:"Reference child missing") }; try await wait([child.window!]) { !child.model.busy && child.model.snapshot != nil }
                 let count=presentations; create(); chooser.browse(.branch); chooser.browse(.commit)
                 if let worktree { worktree.model.chooseDirectory(); worktree.model.load() }
@@ -67,9 +113,27 @@ import TurtleGitCore
                 }
                 let choice=child.model.snapshot!.initialSelection(name); child.model.setFolder(choice.folder); child.model.selected=choice.reference; child.model.accept()
                 try await wait([window]) { chooser.pickerTarget==nil && !chooser.busy && chooser.options.target==target }
+                try require(chooser.referenceFocusRequest==beforeAcceptedFocus+1 && GitReferenceName.equal(chooser.revision,name),"Owned picker result was refused before canonical selection/focus publication: \(kind)/\(name)")
                 guard let control=find(NSControl.self,window.contentView!,label:label) else { throw Failure(description:"Base revision control missing") }
-                try await wait([window]) { if window.firstResponder === control { return true }; if let editor=(control as? NSTextField)?.currentEditor(){return window.firstResponder === editor}; return false }
+                try await wait([window],{ if window.firstResponder === control { return true }; if let editor=(control as? NSTextField)?.currentEditor(){return window.firstResponder === editor}; return false },diagnostic:{"accepted-picker focus kind=\(kind) reference=\(name) target=\(target) label=\(label) enabled=\(control.isEnabled) accepts=\(control.acceptsFirstResponder) responder=\(String(describing:window.firstResponder)) controlWindow=\(control.window === window) sheet=\(window.attachedSheet != nil) request=\(chooser.referenceFocusRequest) chooserBusy=\(chooser.busy) parentBusy=\(branch?.model.busy ?? worktree!.model.busy) picker=\(String(describing:chooser.pickerTarget)) error=\(String(describing:chooser.error))"})
+                try require(control.acceptsFirstResponder,"Enabled explicit reference focus depends on keyboard-navigation policy: \(kind)/\(name)/\(label)")
+                // A later publication of the already-consumed request must not
+                // steal focus back from another control in this same owner.
+                // SwiftUI TextField is not guaranteed to expose NSTextField
+                // subviews on every SDK. Use an explicit private native edit
+                // target in the same owned window for this focus transition.
+                let other=NSTextField(frame:.init(x:0,y:0,width:120,height:22))
+                window.contentView?.addSubview(other)
+                try require(window.makeFirstResponder(other),"Private edit control refused deliberate user focus")
+                let responder=window.firstResponder;chooser.objectWillChange.send();window.contentView?.layoutSubtreeIfNeeded();await Task.yield()
+                try require(window.firstResponder === responder,"Consumed picker focus replayed after a later form publication")
+                window.makeFirstResponder(nil);other.removeFromSuperview()
                 try require(ref()==nil && GitReferenceName.equal(chooser.revision,name),"Canonical base handoff differs")
+                if let worktree,let oldBaseContext {
+                    let accepted=chooser.revision
+                    worktree.model.baseRevision(target,context:oldBaseContext).wrappedValue="refs/heads/stale-after-picker"
+                    try require(GitReferenceName.equal(chooser.revision,accepted),"Mounted Worktree base receipt edited accepted successor revision")
+                }
                 if target != .commit { try require(chooser.commitRevision=="saved draft","Unused draft overwritten") }
                 if let branch { try require(branch.model.options.name=="made-\(kind)" && branch.model.options.message=="creation message" && branch.model.options.force && !branch.model.switchAfterCreation && !branch.model.pushAfterCreation,"Branch/Tag creation options overwritten") }
                 if let worktree {
@@ -77,9 +141,12 @@ import TurtleGitCore
                     try require(GitReferenceName.equal(worktree.model.branchName,expected) && worktree.model.createBranch==(target != .branch || chooser.remote) && !worktree.model.detach && worktree.model.force && !worktree.model.checkout,"Worktree base suggestions/options differ")
                 }
             }
-            chooser.options.target = .branch; chooser.branchRevision="refs/heads/nested/topic"; chooser.browse(.branch)
+            chooser.options.target = .branch;chooser.branchRevision="refs/heads/nested/topic"
+            chooser.options.tracking = .noTrack;chooser.options.overrideBranch=true
+            let cancelDraft=chooser.versionPickerDraft,cancelFocus=chooser.referenceFocusRequest
+            chooser.browse(.branch)
             guard let canceled=ref() else { throw Failure(description:"Cancel child missing") }; try await wait([canceled.window!]) { !canceled.model.busy }; canceled.model.cancel(); try await wait([window]) { chooser.pickerTarget==nil && !chooser.busy }
-            try require(chooser.revision=="refs/heads/nested/topic","Cancel changed branch base")
+            try require(chooser.revision=="refs/heads/nested/topic" && chooser.versionPickerDraft==cancelDraft && chooser.options.tracking == .noTrack && chooser.options.overrideBranch && chooser.referenceFocusRequest==cancelFocus,"Cancel changed branch base/options or invented another focus request")
             chooser.options.target = .commit; chooser.commitRevision=prior; chooser.browse(.commit)
             guard let first=log() else { throw Failure(description:"Full Log missing") }; try await wait([first.window!]) { !first.model.busy && first.model.entries.count==2 }
             guard let table=find(HistoryTableView.self,first.window!.contentView!) else { throw Failure(description:"Log table missing") }

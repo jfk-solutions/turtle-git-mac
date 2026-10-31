@@ -118,3 +118,18 @@ and only accepted Proceed stores it. Source serving defaults remain unchanged.
 [The service command evidence](qa/service-commands-2026-10-18.json) records the
 command checks and retained real private-loopback/progress checks. Public default
 listeners, firewall/LAN/IPv6 behavior and signed sandbox deployment remain open.
+
+
+## Close settlement in grouped verification — October 31, 2026
+
+The older hosted grouped receiver checked `onClosed` after waiting only for the
+process counter to reach zero. Native owner release deliberately waits for both
+worker drainage and sheet/window settlement, so the callback can arrive on a
+later turn. The corrected fixture waits for that exact owner's pending work and
+single close callback before checking the unchanged stopped status. Held workers
+also cover Cancel/duplicate requests, Quit blocking and forced-close drainage;
+retired owners must not publish late output or errors. No Daemon production
+status defect was demonstrated by the earlier assertion. The [connected creation/Finder lifecycle checkpoint](qa/creation-finder-lifecycle-2026-10-31.json)
+records its grouped native pass, including real private loopback serving. That
+passing cohort was not repeated after unrelated picker repairs. Signed/LAN and
+physical acceptance remain separate.

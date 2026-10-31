@@ -142,7 +142,7 @@ private extension NSWindow {
             for manager in additionalManagers {await manager.shutdown()}
             for clone in clones {clone.progressController?.model.invalidate();clone.progressController?.close();clone.model.invalidate();clone.close()}
             await manager.shutdown();fputs("Finder registration cleanup: manager drained\n",stderr);parent.close()
-            try await FinderRegistrationVerification.wait {!workspace.hasPendingFinderServiceWork && !workspace.busy && manager.pendingOperations==0 && CloneWindowModel.activeOperations==0 && CloneProgressWindowModel.activeOperations==0 && CloneWindowController.activeChildReleases==0}
+            try await FinderRegistrationVerification.wait {!workspace.hasPendingFinderServiceWork && !workspace.busy && manager.pendingOperations==0 && CloneWindowModel.activeOperations==0 && CloneProgressWindowModel.activeOperations==0 && CloneWindowController.activeChildReleases==0 && WorktreeCreateWindowModel.activeOperations==0 && WorktreeListWindowModel.activeOperations==0 && SwitchWindowModel.activeReads==0}
             prefs.removePersistentDomain(forName:suite)
             fputs("Finder registration cleanup: complete\n",stderr)
         }
@@ -330,6 +330,104 @@ private extension NSWindow {
         await cancelled.shutdown()
         try require(cancelledGrants==0 && cancelled.pendingOperations==0 && !cancelledService.busy,"Cancelled authority preparation transferred partial grants or retained owned work")
         try require(FinderSnapshot.readLive(from:cancelledCache.url)?.roots.contains(target.root.path) != true,"Cancelled authority preparation published target after retirement")
+    }
+    static func worktree(_ c:Context)async throws {
+        let sourceGrant=RepositoryAccessLease(url:c.source.root,provider:c.provider)
+        let destinationParent=c.root.appendingPathComponent("worktree destinations")
+        try FileManager.default.createDirectory(at:destinationParent,withIntermediateDirectories:true)
+        let destinationGrant=RepositoryAccessLease(url:destinationParent,provider:c.provider)
+        let originalWatch=c.watched.repositories[0],originalHead=try await c.source.run(["rev-parse","HEAD"]).stdout
+        let originalIndex=try Data(contentsOf:c.source.root.appendingPathComponent(".git/index"))
+        let originalWorking=try Data(contentsOf:c.source.root.appendingPathComponent("file"))
+        var owners=[WorktreeCreateWindowController]()
+        defer {c.unblock();owners.forEach{$0.close()}}
+        func owner(_ leaf:String)async throws->WorktreeCreateWindowController {
+            let value=WorktreeCreateWindowController(repository:c.source,access:sourceGrant,preferences:c.prefs,initialDirectory:destinationParent.appendingPathComponent(leaf))
+            owners.append(value);c.additionalWindows.append(value);value.window?.alphaValue=0
+            c.workspace.configureWorktreeInteractions(value)
+            try await wait{!value.model.busy && !value.model.chooser.busy}
+            value.model.destinationAccess=destinationGrant;value.model.requiresSecurityScope=true
+            value.model.detach=true;value.model.createBranch=false
+            return value
+        }
+        let first=try await owner("created café"),path=URL(fileURLWithPath:first.model.directory)
+        let hold=c.root.appendingPathComponent("hold-status")
+        try Data().write(to:hold);defer{try? FileManager.default.removeItem(at:hold)}
+        first.model.create()
+        try await wait{first.model.acceptedCreation != nil && FileManager.default.fileExists(atPath:c.started.path)}
+        try require(first.model.busy && WorktreeCreateWindowModel.activeOperations>0 && first.finderServiceWorkPending,"Worktree released owner before initial Finder publication")
+        c.unblock();try? FileManager.default.removeItem(at:hold)
+        try await wait{!first.model.busy && c.manager.pendingOperations==0}
+        try require(first.model.success && first.model.acceptedCreation?.verified==true && first.model.finderRegistrationWarning==nil,"Successful worktree lost creation/registration result")
+        guard let saved=c.recent.repositories.first(where:{$0.lastKnownPath==path.path}) else{throw Failure(description:"Created worktree missing durable recent record")}
+        try require(c.watched.repositories.contains{$0.lastKnownPath==path.path} && c.watched.repositories.contains{$0.id==originalWatch.id},"Created worktree lost captured watch or unrelated root")
+        try require(saved.additionalPermissions?.contains{RepositoryAccessLease.pathIsContained(c.source.root.appendingPathComponent(".git"),by:URL(fileURLWithPath:$0.path))}==true,"Linked checkout lost source/common metadata grant")
+        let restored=try RepositoryAccessStore(storageURL:c.recent.storageURL,provider:c.provider)
+        let metadata=try restored.acquireAdditionalPermissions(saved.id,requireSecurityScope:true)
+        try require(metadata.contains{$0.contains(c.source.root.appendingPathComponent(".git"))},"Saved worktree metadata authority cannot be restored")
+        let snapshot=FinderSnapshot.readLive(from:c.cache.url)
+        try require(snapshot?.roots.contains(path.path)==true && snapshot?.states[path.appendingPathComponent("file").path] == .normal,"Created checkout has no initial Finder status")
+        try require(c.panels==0 && c.workspace.root==nil && c.workspace.workspaceWindow===c.parent && c.manager.backgroundService==nil,"Worktree registration opened permission/workspace or enabled service")
+
+        // Enter through the actual repository dispatcher and manager Add action,
+        // so a configured direct-create owner cannot hide a missing child route.
+        _=try c.recent.remember(c.source.root)
+        var managerOwner:WorktreeListWindowController?
+        c.workspace.worktreeListWindowFactory={repo,access,prefs in
+            let value=WorktreeListWindowController(repository:repo,access:access,preferences:prefs)
+            managerOwner=value;c.additionalWindows.append(value);return value
+        }
+        try require(c.workspace.handleFinderService(.init(action:.worktreeList,paths:[c.source.root])),"Worktree manager entry refused")
+        try await wait{managerOwner?.model.canInteract==true}
+        guard let managerOwner else{throw Failure(description:"Worktree manager was not presented")}
+        managerOwner.model.add()
+        try await wait{managerOwner.createWindow != nil && managerOwner.createWindow?.model.busy==false && managerOwner.createWindow?.model.chooser.busy==false}
+        guard let child=managerOwner.createWindow else{throw Failure(description:"Manager Add child missing")}
+        owners.append(child)
+        let childPath=destinationParent.appendingPathComponent("manager child")
+        child.model.directory=childPath.path;child.model.destinationAccess=destinationGrant
+        child.model.requiresSecurityScope=true;child.model.detach=true;child.model.createBranch=false
+        child.model.create();try await wait{!child.model.busy && child.model.acceptedCreation != nil && c.manager.pendingOperations==0}
+        try require(child.model.success && child.model.finderRegistrationWarning==nil && c.watched.repositories.contains{$0.lastKnownPath==childPath.path} && c.recent.repositories.contains{$0.lastKnownPath==childPath.path},"Manager-created worktree bypassed Finder registration")
+        child.close();try await wait{managerOwner.createWindow==nil && !child.finderServiceWorkPending}
+        managerOwner.close();try await wait{!managerOwner.finderServiceWorkPending && !c.workspace.hasPendingFinderServiceWork}
+
+        let failed=try await owner("registration retry")
+        guard let register=failed.model.registerCreatedWorktree else{throw Failure(description:"Production worktree registration callback missing")}
+        var attempts=0,mutations=0
+        failed.model.performCreation={repo,path,options,token in mutations += 1;return try await repo.createWorktreeAccepted(at:path,options:options,cancellation:token)}
+        failed.model.registerCreatedWorktree={receipt,access,token in
+            attempts += 1
+            if attempts==1 {throw NSError(domain:"TurtleGit.PrivateWorktreeRegistration",code:73,userInfo:[NSLocalizedDescriptionKey:"controlled worktree registration failure"])}
+            try await register(receipt,access,token)
+        }
+        failed.model.create();try await wait{!failed.model.busy && failed.model.acceptedCreation != nil}
+        try require(failed.model.success && failed.model.finderRegistrationWarning?.contains("controlled worktree registration failure")==true && mutations==1,"Registration failure discarded accepted worktree or hid warning")
+        let accepted=failed.model.acceptedCreation
+        failed.model.retryFinderRegistration();failed.model.retryFinderRegistration()
+        try await wait{!failed.model.busy && c.manager.pendingOperations==0}
+        try require(failed.model.success && failed.model.finderRegistrationWarning==nil && attempts==2 && mutations==1 && failed.model.acceptedCreation?.path==accepted?.path,"Registration retry recreated checkout or lost receipt")
+
+        let late=try await owner("late cancelled"),latePath=URL(fileURLWithPath:late.model.directory)
+        late.model.performCreation={repo,path,options,token in let receipt=try await repo.createWorktreeAccepted(at:path,options:options,cancellation:token);token.cancel();return receipt}
+        late.model.create();try await wait{!late.model.busy && late.model.acceptedCreation != nil}
+        try require(late.model.success && !c.watched.repositories.contains{$0.lastKnownPath==latePath.path},"Late cancellation started optional Finder registration or lost accepted worktree")
+        late.model.retryFinderRegistration();try await wait{!late.model.busy && c.manager.pendingOperations==0}
+        try require(c.recent.repositories.contains{$0.lastKnownPath==latePath.path} && late.model.finderRegistrationWarning==nil,"Explicit registration after late Cancel lost accepted worktree")
+
+        let retired=try await owner("retired registration")
+        var entered=false,released=false
+        defer{released=true}
+        retired.model.registerCreatedWorktree={_,_,token in entered=true;while !released {try await Task.sleep(nanoseconds:5_000_000)};try token.check()}
+        retired.model.create();try await wait{entered}
+        retired.close();let output=retired.model.output
+        try require(retired.finderServiceWorkPending && WorktreeCreateWindowModel.activeOperations>0,"Retired worktree released pending registration early")
+        released=true;try await wait{!retired.finderServiceWorkPending}
+        try require(retired.model.output==output && retired.model.finderRegistrationWarning==nil,"Retired registration published a late result")
+        owners.forEach{$0.close()};try await wait{owners.allSatisfy{!$0.finderServiceWorkPending} && WorktreeCreateWindowModel.activeOperations==0}
+        let head=try await c.source.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:c.source.root.appendingPathComponent(".git/index"))
+        let working=try Data(contentsOf:c.source.root.appendingPathComponent("file"))
+        try require(head==originalHead && index==originalIndex && working==originalWorking,"Worktree registration changed source HEAD/index/working bytes")
     }
     static func clone(_ c:Context)async throws {
         try c.block();let mutating=Task {await c.manager.add(c.other.root)}
@@ -597,7 +695,7 @@ private extension NSWindow {
         defer{NSApp.delegate=originalDelegate;withExtendedLifetime(lifetime){}}
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.registrationOrder(_:relativeTo:))) {method_exchangeImplementations(original,replacement)}
         var context:Context?
-        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "publication":try await publication(c);case "registration":try await registration(c);case "clone":try await clone(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "authority":try await authority(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
+        do {let c=try Context();context=c;try await c.prepare();switch CommandLine.arguments[3] {case "publication":try await publication(c);case "registration":try await registration(c);case "clone":try await clone(c);case "worktree":try await worktree(c);case "ownership":try await ownership(c);case "warm":try await warmRegistration(c);case "authority":try await authority(c);case "services":try await services(c);case "launch":try await launch(c);default:throw Failure(description:"Unknown case")};try await c.cleanup();print("PASS: Finder registration \(CommandLine.arguments[3])")}
         catch {try? await context?.cleanup();fputs("Finder registration failed: \(error)\n",stderr);exit(1)}
     }
 }

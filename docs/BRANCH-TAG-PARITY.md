@@ -293,3 +293,60 @@ Captured parents refresh once, completed refs are retained before owner guards,
 and explicit continuation does not repeat creation. Fresh direct/peeled identity
 reads keep successful diagnostics separate. See the [grouped evidence](qa/creation-outcome-2026-10-29.json);
 this continuation does not establish full physical or signed dialog acceptance.
+
+## Shared creation-picker focus ownership
+
+The hosted creation-picker receiver timed out while waiting for the parent base
+reference control to regain focus after an accepted reference. Its old generic
+line71 timeout did not distinguish disabled/missing controls, a rejected form
+receipt, native responder eligibility or sheet detachment. That timeout alone
+does not establish which readiness condition failed on the hosted machine.
+The first focused native recheck passed the shared control lifecycle assertions
+but reported an enabled, focusable parent control with `referenceFocusRequest=0`.
+That localized a separate acceptance defect: the coordinator reused the parent's
+new-picker gate when accepting its already-owned child. Branch/Tag and Worktree
+new-picker gates correctly require no current picker, so that guard rejected every
+valid return before selection or a focus intent could be published.
+
+The coordinator now distinguishes new-picker admission from accepted-child
+admission. Creation parents retain the same lifetime, error, busy, operation and
+context guards while allowing their current owned picker to return. The captured
+request, chooser draft and parent draft still refuse stale/replaced results.
+Switch's existing lifecycle-only predicate and Merge/Export's model-owned
+admission do not have that no-picker contradiction and retain their behavior.
+A cancelled reference child now finishes its owned picker directly, without a
+reference reread, chooser defaults, parent selection callback or new focus intent;
+base text, custom tracking/override options and unused drafts remain intact.
+
+The shared reference popup and editable revision combo now explicitly accept
+programmatic focus while enabled, independent of ordinary Full Keyboard Access
+Tab-navigation policy. A control-bound delivery keeps the existing model's
+accepted focus request pending through native attachment, enablement and sheet
+completion. It retries only on those native lifecycle events and SwiftUI updates;
+there is no timer or continuous retry loop. A consumed request does not replay,
+and dismantling, window Close or moving the same native control into another
+window retires delivery. Existing model target, form-context, busy, sheet, Quit
+and retirement guards remain authoritative.
+
+Branch/Tag uses its existing captured form context. Worktree's connected base
+controls now use the parent creation-form receipt as well as the chooser context,
+so mounted controls cannot bypass parent ownership during or after a picker.
+The chooser still owns canonical reference/commit selection, asynchronous reads,
+child release and the one accepted return intent. Picker cancellation and rejected
+presentation retain the draft and do not invent a new focus request.
+
+The existing creation-picker receiver retains its real Branch/Tag/Worktree,
+canonical Unicode/reference, Log, creation and stale/closed-child assertions. It
+adds native delayed attachment/enablement, one-shot focus, replacement-window
+refusal and old Worktree base-receipt checks. Accepted focus waits now report the
+specific kind/reference/target, native eligibility/responder, sheet, request,
+busy and error state. Canonical accepted revision and exactly one new focus intent
+are required before the native focus wait; Cancel retains the exact draft/options
+and focus counter. The actual `firstResponder` assertion is retained.
+
+The [connected lifecycle checkpoint](qa/creation-finder-lifecycle-2026-10-31.json)
+records the Debug build and final native pass with system Git, including actual
+private Branch/Tag/Worktree creation and exact first-responder checks. It retains
+the initial acceptance failure and the later SwiftUI-subview fixture repair; only
+affected checks repeated. No complete hosted, signed or physical keyboard
+acceptance is claimed. The protected shared reference-batch runner is unchanged.

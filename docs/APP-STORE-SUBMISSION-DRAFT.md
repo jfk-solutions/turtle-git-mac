@@ -260,7 +260,7 @@ image was edited into a store asset or submitted.
 | Distribution certificate/profile and App Group entitlement | Final channel/account verification; Apple Development signatures are not a submitted distribution export |
 | Exact final archive/package/source+notice set | Match measured inputs, actual signed binary, symbols and corresponding source/reconstruction inputs; prior receipts remain historical |
 | Final screenshots and sample review attachment | Offline synthetic attachment prepared with checksums/reset instructions; final screenshots and owner/submission approval remain pending |
-| Hosted CI | [macOS run41155217003](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41155217003) at `d286fb6c` is pending as observed October 31, 2026; a complete current-source hosted pass remains unproven. [Pages run41155216941](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41155216941) succeeded for that source; website deployment does not prove native workflow coverage |
+| Hosted CI | [macOS run41219331855](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41219331855) at `961daf9d` is pending as observed October 31, 2026, behind active older workflow lanes. Older `5432abbb` reported picker-focus and Daemon owner-completion assertions; repairs and a complete current-source hosted pass remain required. [Pages run41219331856](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41219331856) succeeded for `961daf9d`; website deployment does not prove native workflow coverage |
 | Upload/validation/App Review/release | Not performed; only after owner approval and remaining gates |
 
 Existing [distribution engineering](DISTRIBUTION.md), [privacy](PRIVACY.md),

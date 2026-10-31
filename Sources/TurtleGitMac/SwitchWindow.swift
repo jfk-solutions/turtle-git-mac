@@ -30,6 +30,7 @@ extension UserDefaults {
     private let access: RepositoryAccessLease?
     private let preferences: UserDefaults
     private let allowed: () -> Bool
+    private let resultAllowed:()->Bool
     private var invalidated = false
     var onSelection: () -> Void = {}
     var contextualDraft: () -> [GitReferenceName] = { [] }
@@ -43,8 +44,12 @@ extension UserDefaults {
     var makeCommitPicker: (GitRepository, RepositoryAccessLease?, @escaping (LogEntry?) -> Void, UserDefaults, String?) -> LogWindowController = { repository, access, choose, preferences, revision in
         LogWindowController(repository: repository, access: access, onChoose: choose, labelDefaults: preferences, initialRevision: revision)
     }
-    init(window: NSWindow, model: any VersionPickerModel, access: RepositoryAccessLease?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true }) {
+    init(window: NSWindow, model: any VersionPickerModel, access: RepositoryAccessLease?, preferences: UserDefaults, allowed: @escaping () -> Bool = { true },resultAllowed:(()->Bool)? = nil) {
         self.window = window; self.model = model; self.access = access; self.preferences = preferences; self.allowed = allowed
+        // Starting a new picker and returning from the currently owned picker
+        // have different admission states. A parent's no-picker edit gate must
+        // not reject the very child result whose ownership it is preserving.
+        self.resultAllowed=resultAllowed ?? allowed
         model.onBrowsePicker = { [weak self] target in self?.showPicker(target) }
         NotificationCenter.default.addObserver(self, selector: #selector(sheetEnded), name: NSWindow.didEndSheetNotification, object: window)
     }
@@ -61,7 +66,8 @@ extension UserDefaults {
                 guard let self, !self.invalidated, self.pickerRequest == request, self.pendingResult == nil else { return }
                 self.pendingResult = { [weak self] in
                     guard let self, self.pickerRequest == request else { return }
-                    guard self.allowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.pickerRequest = nil; self.model.finishPicker(); return }
+                    guard self.resultAllowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.pickerRequest = nil; self.model.finishPicker(); return }
+                    guard name != nil else {self.pickerRequest=nil;self.model.finishPicker();return}
                     self.model.acceptReferenceSelection(name) { [weak self] in
                         guard let self, !self.invalidated, self.pickerRequest == request else { return }
                         self.pickerRequest = nil; if self.model.error == nil { self.onSelection() }
@@ -85,7 +91,7 @@ extension UserDefaults {
                 guard let self, !self.invalidated, self.pickerRequest == request, self.pendingResult == nil else { return }
                 self.pendingResult = { [weak self] in
                     guard let self, self.pickerRequest == request else { return }; self.pickerRequest = nil
-                    guard self.allowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.model.finishPicker(); return }
+                    guard self.resultAllowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.model.finishPicker(); return }
                     self.model.acceptCommitSelection(entry); if entry != nil { self.onSelection() }
                 }
                 self.drainResult()
@@ -650,6 +656,64 @@ struct SwitchRadio: NSViewRepresentable {
     }
 }
 
+/// Delivers a model-owned reference focus intent only through its live native
+/// control. Attachment, SwiftUI enablement and actual sheet detachment can be
+/// separate turns; none requires a new model mutation to retry the intent.
+@MainActor final class ReferenceControlFocusDelivery {
+    private weak var control:NSControl?,observedWindow:NSWindow?,firstWindow:NSWindow?
+    private var request=0,completed=0,queued=false,retired=false,boundWindow=false
+    private var focus:((NSControl)->Void)?,observers=[NSObjectProtocol]()
+    func update(_ control:NSControl,request:Int,focus:@escaping(NSControl)->Void) {
+        guard !retired else{return};self.control=control;self.focus=focus
+        if request==0 {self.request=0;completed=0}
+        else {self.request=request}
+        attach(control);schedule()
+    }
+    func attach(_ control:NSControl) {
+        guard !retired else{return};self.control=control
+        if let window=control.window {
+            if boundWindow {guard firstWindow === window else{retire();return}}
+            else {firstWindow=window;boundWindow=true}
+        }
+        if observedWindow !== control.window {
+            observers.forEach{NotificationCenter.default.removeObserver($0)};observers=[];observedWindow=control.window
+            if let window=control.window {
+                for name in [NSWindow.didEndSheetNotification,NSWindow.didBecomeKeyNotification,NSWindow.willCloseNotification] {
+                    observers.append(NotificationCenter.default.addObserver(forName:name,object:window,queue:.main){[weak self] note in MainActor.assumeIsolated {
+                        if note.name==NSWindow.willCloseNotification {self?.retire()}else{self?.schedule()}
+                    }})
+                }
+            }
+        }
+        schedule()
+    }
+    private func schedule() {
+        guard !retired,!queued,request>completed,request>0 else{return};queued=true
+        DispatchQueue.main.async {[weak self] in guard let self else{return};self.queued=false;self.deliver()}
+    }
+    private func deliver() {
+        guard !retired,request>completed,let control,control.isEnabled,let window=control.window,
+              window === observedWindow,window.attachedSheet==nil,let focus else{return}
+        let captured=request;focus(control)
+        let editor=(control as? NSTextField)?.currentEditor()
+        if window.firstResponder === control || editor.map({window.firstResponder === $0})==true {completed=captured}
+    }
+    func retire() {retired=true;focus=nil;control=nil;observers.forEach{NotificationCenter.default.removeObserver($0)};observers=[];observedWindow=nil}
+}
+@MainActor final class ReferencePopupControl:NSPopUpButton {
+    var referenceFocusDelivery:ReferenceControlFocusDelivery?
+    // Explicit picker-return/programmatic focus must not depend on the user's
+    // Full Keyboard Access policy for ordinary Tab navigation.
+    override var acceptsFirstResponder:Bool {isEnabled}
+    override var isEnabled:Bool {get{super.isEnabled}set{super.isEnabled=newValue;referenceFocusDelivery?.attach(self)}}
+    override func viewDidMoveToWindow(){super.viewDidMoveToWindow();referenceFocusDelivery?.attach(self)}
+}
+@MainActor final class ReferenceRevisionControl:NSComboBox {
+    var referenceFocusDelivery:ReferenceControlFocusDelivery?
+    override var acceptsFirstResponder:Bool {isEnabled}
+    override var isEnabled:Bool {get{super.isEnabled}set{super.isEnabled=newValue;referenceFocusDelivery?.attach(self)}}
+    override func viewDidMoveToWindow(){super.viewDidMoveToWindow();referenceFocusDelivery?.attach(self)}
+}
 struct ReferencePopup: NSViewRepresentable {
     let references: [CheckoutReference]
     @Binding var selection: String
@@ -661,7 +725,8 @@ struct ReferencePopup: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSPopUpButton {
-        let button = NSPopUpButton(frame: .zero, pullsDown: false)
+        let button = ReferencePopupControl(frame:.zero,pullsDown:false)
+        button.referenceFocusDelivery=context.coordinator.focusDelivery
         if let accessibilityLabel { button.setAccessibilityLabel(accessibilityLabel);button.identifier = .init(accessibilityLabel) }
         button.target = context.coordinator; button.action = #selector(Coordinator.changed(_:))
         button.setContentHuggingPriority(.defaultLow, for: .horizontal)
@@ -689,12 +754,16 @@ struct ReferencePopup: NSViewRepresentable {
         button.toolTip=tooltip ?? selection
         button.isEnabled = enabled && !references.isEmpty
         context.coordinator.change = { selection = $0 }
-        if focusRequest > 0, let onFocus { DispatchQueue.main.async { [weak button, weak coordinator = context.coordinator] in if let button, coordinator?.live == true, button.isEnabled { onFocus(button) } } }
+        if let onFocus {context.coordinator.focusDelivery.update(button,request:focusRequest) {[weak coordinator=context.coordinator] control in
+            guard coordinator?.live==true,let button=control as? NSPopUpButton else{return};onFocus(button)
+        }}
     }
     static func dismantleNSView(_ button: NSPopUpButton, coordinator: Coordinator) {
+        coordinator.focusDelivery.retire();(button as? ReferencePopupControl)?.referenceFocusDelivery=nil
         coordinator.live = false; coordinator.change = { _ in }; button.target = nil; button.action = nil; button.isEnabled = false
     }
-    final class Coordinator: NSObject {
+    @MainActor final class Coordinator: NSObject {
+        let focusDelivery=ReferenceControlFocusDelivery()
         var live = true
         var names: [String] = []; var change: (String) -> Void = { _ in }
         @MainActor @objc func changed(_ sender: NSPopUpButton) {
@@ -1124,7 +1193,7 @@ struct VersionRevisionField: NSViewRepresentable {
     @Environment(\.isEnabled) private var enabled
     func makeCoordinator() -> Coordinator { Coordinator() }
     func makeNSView(context: Context) -> NSComboBox {
-        let field = NSComboBox(); field.isEditable = true; field.completes = false
+        let field = ReferenceRevisionControl();field.referenceFocusDelivery=context.coordinator.focusDelivery;field.isEditable = true; field.completes = false
         field.font = .systemFont(ofSize: NSFont.systemFontSize); field.placeholderString = "Commit"; field.setAccessibilityLabel(accessibilityLabel);field.identifier = .init(accessibilityLabel)
         field.setContentCompressionResistancePriority(.defaultLow,for:.horizontal);field.setContentHuggingPriority(.defaultLow,for:.horizontal);field.cell?.lineBreakMode = .byTruncatingMiddle
         field.delegate = context.coordinator; return field
@@ -1133,12 +1202,13 @@ struct VersionRevisionField: NSViewRepresentable {
     func updateNSView(_ field: NSComboBox, context: Context) {
         context.coordinator.wordCommands.policy=GitInputWordBreak(mode:UInt32(truncatingIfNeeded:wordBreakMode))
         context.coordinator.configure(field, text: text, choices: choices, enabled: enabled) { text = $0 }
-        if focusRequest > 0 { DispatchQueue.main.async { [weak field, weak coordinator = context.coordinator] in
-            guard let field, let coordinator, !coordinator.retired, field.isEnabled else { return }; onFocus(field)
-        } }
+        context.coordinator.focusDelivery.update(field,request:focusRequest) {[weak coordinator=context.coordinator] control in
+            guard coordinator?.retired==false,let field=control as? NSTextField else{return};onFocus(field)
+        }
     }
     static func dismantleNSView(_ field: NSComboBox, coordinator: Coordinator) { coordinator.retire(field) }
     @MainActor final class Coordinator: NSObject, NSComboBoxDelegate {
+        let focusDelivery=ReferenceControlFocusDelivery()
         let wordCommands=GitInputWordCommands()
         func control(_ control:NSControl,textView:NSTextView,doCommandBy selector:Selector)->Bool {
             guard !retired else{return false}
@@ -1161,7 +1231,7 @@ struct VersionRevisionField: NSViewRepresentable {
             }
             field.toolTip=text;field.isEnabled = enabled
         }
-        func retire(_ field: NSComboBox) { retired = true; field.delegate = nil; change = { _ in } }
+        func retire(_ field: NSComboBox) {retired=true;focusDelivery.retire();(field as? ReferenceRevisionControl)?.referenceFocusDelivery=nil;field.delegate=nil;change={_ in}}
         func controlTextDidChange(_ notification: Notification) {
             if !retired, let field = notification.object as? NSComboBox, field.isEnabled { change(field.stringValue) }
         }

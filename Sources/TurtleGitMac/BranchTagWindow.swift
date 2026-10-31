@@ -39,7 +39,7 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
         window.referenceMinimumContentSize = NSSize(width: 650, height: 530); window.isReleasedWhenClosed = false
         let host = NSHostingController(rootView: BranchTagDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences)); host.sizingOptions = []; window.contentViewController = host
         super.init(window: window); window.delegate = self
-        pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true })
+        pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true },resultAllowed:{[weak model] in model?.canAcceptBasePicker==true})
         pickers.contextualDraft = { [weak model] in guard let model else { return [] }; return [String(model.useHead), model.options.name, model.options.message, String(model.options.force), String(model.options.sign), model.options.tracking.rawValue, String(model.switchAfterCreation), String(model.pushAfterCreation)].map { GitReferenceName($0) } }
         pickers.onSelection = { [weak model] in if model?.useHead == false { model?.changedBase() } }
         window.setContentSize(NSSize(width: 660, height: 560)); window.center()
@@ -350,7 +350,9 @@ enum BranchTagQuestion: Equatable { case nameConflict, error(String), cancellati
     var onPushTag: (String) -> Void = { _ in }
     struct FormContext: Equatable { let owner: ObjectIdentifier; let revision: UUID }
     var formContext: FormContext { .init(owner: ObjectIdentifier(self), revision: formRevision) }
-    var canEditForm: Bool { !confirmingQuit && presentationAvailable() && error == nil && chooser.error == nil && !busy && !hasPendingWork && !chooser.busy && chooser.pickerTarget == nil && !hasPendingNameConflict && createdBranch == nil && !invalidated && !finished && !confirmingCancellation && !cancelling && !awaitingSwitch }
+    private var formAvailableIgnoringOwnedPicker:Bool {!confirmingQuit && presentationAvailable() && error==nil && chooser.error==nil && !busy && !hasPendingWork && !chooser.busy && !hasPendingNameConflict && createdBranch==nil && !invalidated && !finished && !confirmingCancellation && !cancelling && !awaitingSwitch}
+    var canEditForm:Bool {formAvailableIgnoringOwnedPicker && chooser.pickerTarget==nil}
+    var canAcceptBasePicker:Bool {formAvailableIgnoringOwnedPicker && !useHead && chooser.pickerTarget != nil}
     private func accepts(_ context: FormContext) -> Bool { canEditForm && context == formContext }
     func option<Value>(_ key: WritableKeyPath<ReferenceCreationOptions,Value>, context: FormContext) -> Binding<Value> {
         Binding(get: { self.options[keyPath:key] }, set: { if self.accepts(context) { self.options[keyPath:key] = $0 } })

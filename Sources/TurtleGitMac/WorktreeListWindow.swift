@@ -15,6 +15,7 @@ import TurtleGitCore
     private var release:FinderFilesystemWorkflowRelease?
     private var retiringChildren:[NSWindow]=[]
     var onCreatePresentation:(WorktreeCreateWindowController)->Bool={_ in true}
+    var configureCreateInteractions:(WorktreeCreateWindowController)->Void={_ in}
     var finderServiceCanPresent:Bool {!closing && model.active}
     private var underlyingWorkPending:Bool {model.pendingOperations>0 || !ownedSheets.isEmpty || createWindow != nil || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
@@ -107,6 +108,7 @@ import TurtleGitCore
         let controller = WorktreeCreateWindowController(repository: model.repository, access: model.access,preferences:model.preferences)
         controller.externalAvailability = { [weak self] in self?.model.active == true && self?.externalAvailability() == true }
         controller.model.onCreated = { [weak self] _ in self?.model.requestReload() }
+        configureCreateInteractions(controller)
         controller.model.onSubmodules = { [weak self] path, lease in guard let self, self.model.active, self.externalAvailability() else { return }; self.onSubmodules(path, lease) }
         controller.onClosed = { [weak self, weak controller] in
             if let child = controller?.window { self?.window?.endSheet(child) }

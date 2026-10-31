@@ -1,0 +1,128 @@
+{
+  "kind": "TurtleGitCreationFinderLifecycleCheckpoint",
+  "date": "2026-10-31",
+  "base_commit": "961daf9da2a6b3dd241b654f0b55c56ee1bbd222",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "implementation": [
+    "Verified created worktree registration through direct and manager-owned creation; captured destination and precise shared metadata permissions, first status publication and recents, without workspace adoption",
+    "Accepted Git creation retained across registration failure and late cancellation; explicit registration-only retry, owned process/scope/Quit drainage and retired publication fencing",
+    "Shared native reference popup/revision focus delivery across attachment, enablement and sheet completion; one-shot and retired-window guards",
+    "Captured Worktree form bindings, options and picker callbacks refuse stale drafts and owned/retired states",
+    "Separate new-picker admission from exact owned-result admission in Branch/Tag and Worktree; all five shared coordinator consumers reviewed",
+    "Reference-browser Cancel preserves drafts, tracking/override and focus counters without a selection read or defaulting"
+  ],
+  "initial_checkpoint": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/creation-finder-lifecycle-debug-2026-10-31.log"
+    },
+    "native": [
+      {
+        "case": "pickers",
+        "exit": 1,
+        "elapsed_seconds": 48.529,
+        "log": "build/qa/creation-finder-lifecycle-native-pickers-2026-10-31.log"
+      },
+      {
+        "case": "registration",
+        "exit": 1,
+        "elapsed_seconds": 11.018,
+        "log": "build/qa/creation-finder-lifecycle-native-registration-2026-10-31.log"
+      },
+      {
+        "case": "daemon",
+        "exit": 0,
+        "elapsed_seconds": 3.144,
+        "log": "build/qa/creation-finder-lifecycle-native-daemon-2026-10-31.log"
+      }
+    ],
+    "retained_failures": [
+      {
+        "case": "pickers",
+        "cause": "Actual accepted result produced focusRequest=0. Parent new-picker admission was also used for its already-owned picker result, refusing acceptance before selection/focus publication. Shared native control focus checks had passed; exact firstResponder assertion retained."
+      },
+      {
+        "case": "registration",
+        "cause": "Real direct and manager-created worktree persistence passed. Later injected Error conformed to CustomStringConvertible but supplied no localizedDescription; diagnostic-string assertion was invalid. Injection now uses NSError with explicit NSLocalizedDescriptionKey; all success/warning/mutation assertions retained."
+      }
+    ]
+  },
+  "daemon": {
+    "production_change": false,
+    "old_hosted_failure": "Generated source line included prepended import; failure was combined owner-close assertion before the following stopped-status assertion. Waiting only for activeOperations=0 did not await deferred onClosed.",
+    "corrected_fixture": "Exact owner pending work plus single close callback; held worker cancellation, duplicate requests, warning Abort, forced-close drain and retired output guards.",
+    "grouped_result": "passed",
+    "receiver_pid": 74116,
+    "real_loopback": true
+  },
+  "docs": {
+    "localization_languages": 38,
+    "localization_keys": 1326,
+    "help_documents": 63,
+    "help_topics": 52,
+    "help_source_members": 97,
+    "site_documents": 518,
+    "unresolved_fragments": [],
+    "log": "build/qa/creation-finder-lifecycle-docs-2026-10-31.log"
+  },
+  "owned_initial_receivers": [
+    73629,
+    73636,
+    73929,
+    74116
+  ],
+  "initial_receivers_reaped_and_independently_absent": true,
+  "affected_repair_checkpoint": {
+    "debug_build": {
+      "exit": 0,
+      "log": "build/qa/creation-finder-lifecycle-debug-repaired-2026-10-31.log"
+    },
+    "native": [
+      {
+        "case": "pickers",
+        "exit": 1,
+        "elapsed_seconds": 5.747,
+        "log": "build/qa/creation-finder-lifecycle-native-pickers-repaired-2026-10-31.log"
+      },
+      {
+        "case": "registration",
+        "exit": 0,
+        "elapsed_seconds": 11.913,
+        "log": "build/qa/creation-finder-lifecycle-native-registration-repaired-2026-10-31.log"
+      }
+    ],
+    "fixture_only_picker_recheck": {
+      "exit": 0,
+      "log": "build/qa/creation-finder-lifecycle-native-pickers-edit-target-2026-10-31.log",
+      "receiver_pids": [
+        75218,
+        75231
+      ]
+    },
+    "retained_fixture_failure": "The repaired acceptance and native focus passed, but a new consumed-focus assertion assumed SwiftUI TextField exposes an NSTextField subview. It now uses an explicit private native edit target in the same owned window and retains the exact no-focus-steal assertion. Only the picker fixture repeated; no app rebuild, Daemon, registration, Core or documentation-suite rerun."
+  },
+  "core": "unchanged; no Core suite run for native/fixture changes",
+  "installed_build": "45 unchanged; no installed application launched",
+  "remaining": [
+    "Complete corrected-source hosted CI",
+    "Signed/physical Finder grants and badges for new worktrees",
+    "Physical keyboard, VoiceOver, both-appearance source layout acceptance",
+    "Intel/minimum-macOS execution and wider port/distribution gates"
+  ],
+  "public_binary_upload_notarization_store_submission": false,
+  "final_passes": [
+    "Debug build after source repair",
+    "Creation picker family with real private Git creations, original exact firstResponder assertions and shared native focus lifecycle",
+    "Finder worktree registration through direct and actual manager dispatch, durable metadata grants/cache/recents, accepted failure/retry/late cancellation and forced retirement",
+    "Daemon progress/questions/output/real loopback lifecycle from initial grouped checkpoint"
+  ],
+  "owned_repair_receivers": [
+    74731,
+    74739,
+    74811,
+    75218,
+    75231
+  ],
+  "cleanup": "All owned receivers reaped by their runners and independently absent; private preferences/repos/owned windows closed. No installed app launched.",
+  "validation_policy": "One batch checkpoint, then only source-failure-affected Debug/picker/registration checks and one fixture-only picker recheck. Passing Daemon and Core suites not repeated; Core unchanged."
+}

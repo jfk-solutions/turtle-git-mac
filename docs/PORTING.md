@@ -1,5 +1,26 @@
 # TurtleGit for Mac — full port tracking
 
+## Connected creation and Finder lifecycle
+
+The [creation workflow batch](qa/creation-finder-lifecycle-2026-10-31.json) adds
+automatic Finder registration for verified new worktrees through both direct
+creation and Worktree List Add. It retains captured destination/common metadata
+authority, waits for durable cache/recents publication and offers registration-only
+retry without repeating accepted Git creation. Cancellation and retirement retain
+real worker/scope ownership and refuse late UI publication.
+
+Shared reference controls now deliver one accepted focus request through native
+attachment/enablement/sheet completion. Branch/Tag and Worktree separately admit
+new pickers and results from the exact picker they own; the old shared predicate
+rejected valid results. Reference Cancel preserves drafts/options without a new
+read or focus request, and captured Worktree controls refuse stale form callbacks.
+
+The Debug build and three affected native cohorts pass with system Git after the
+recorded source and fixture repairs. Passing cohorts and the unchanged Core suite
+were not repeated. All owned receivers are absent. Installed45 is unchanged; this
+does not prove current-source hosted CI, physical/signed Finder grants, complete
+source parity or App Store readiness.
+
 ## Account-home defaults and path interpretation
 
 The [connected path batch](qa/account-home-workflows-2026-10-31.json) gives report

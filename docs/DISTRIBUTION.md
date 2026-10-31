@@ -7,10 +7,31 @@ The full port, signed runtime tests and licensing clearance remain incomplete.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Installed signed local testing build41
+## Installed signed local testing build45
+
+[Signed build45](qa/signed-consolidation-build45-2026-10-31.json), `0.1.0 (45)`,
+is installed from clean source `416fa56b`; build44 is preserved for rollback.
+It includes retained utility ownership and explicit Store-listing availability.
+Its measured inputs, strict signatures, eight universal app components, 206 runtime
+code entries, 96 Help source members and 6,383-member ZIP/install inventories pass.
+One signed sandbox parent exercised public Core and packaged Git local tools.
+Installed About and global Settings retained their windows on reopen. The Updates
+process exited before inspection, so its installed presentation remains unverified.
+All owned processes exited and attributable preference changes were restored.
+
+The local archive is `TurtleGit-for-Mac-0.1.0-build45-signed.zip`, SHA-256
+`22f294f848ba58a494e21084de0877c5261c489453bf761abd794634ee82e7f9`.
+Its exact tracked-source archive and runtime source payloads accompany the local
+package. This is an Apple Development testing build; no public binary upload,
+notarization or App Store submission was performed. The later Report Problem and
+account-home workflow batches are source continuations and are not installed in
+build45. Complete current-source hosted CI and wider installed acceptance remain
+open; focused checks do not certify full application parity.
+
+## Historical installed signed local testing build41
 
 [Signed build41](qa/signed-consolidation-build41-2026-10-30.json), `0.1.0 (41)`,
-is installed from clean source `87701028`, with a complete build39 rollback copy.
+was installed from clean source `87701028`, with a complete build39 rollback copy.
 Its frozen inputs, strict signatures, eight universal app components, 206 runtime
 entries, exact Help resources and 6,382-member ZIP/install inventories pass.
 A focused signed sandbox check executes the actual packaged Core/Git local-tools
@@ -889,6 +910,6 @@ update-review owners through minimized, deliberate presentation and accepted
 Settings replay gaps. A quiet/automatic background update check without a window
 does not suppress an explicit workspace reopen; a forced pending presentation
 retains its intent until completion/cancellation. Reopen focuses an existing utility or retains its pending owner rather than
-creating a repository workspace. This continuation is not yet part of installed
-signed44, whose frozen source predates this family; complete current hosted and physical
-acceptance remain separate.
+creating a repository workspace. Installed signed45 includes this continuation;
+its scoped About/global Settings observations are recorded above. Complete current
+hosted and wider physical acceptance remain separate.

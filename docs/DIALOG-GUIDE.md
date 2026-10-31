@@ -904,8 +904,9 @@ Revert can mark a submodule for comparison. With working-copy marks, Submodule D
 when the superproject reports a change.
 
 New Worktree creates another checkout attached to the same repository storage.
-In Finder, select the watched repository's root folder (or a bare repository)
-and choose **TurtleGit → New Worktree…**. Choose a destination parent outside a
+In Finder, select the watched repository's root folder (or a bare repository),
+open **TurtleGit → Worktrees**, and choose **Add**. The app also provides
+**New Worktree…** in its Git menu. Choose a destination parent outside a
 working tree; the creation dialog appends the repository name and removes a
 trailing `.git`. Review the path and options before OK creates anything.
 Completed progress keeps its status and elapsed time visible. If the checkout
@@ -915,6 +916,16 @@ that Git finished creating. Its completed result remains visible; no automatic
 follow-up starts. A new explicit **Submodule Update…** request uses that verified
 checkout and retained access. Failed identity verification is reported separately
 and does not silently retry worktree creation.
+
+After verified creation, TurtleGit registers the new checkout for Finder badges
+and context menus, including its retained permission for the shared Git metadata.
+It uses the destination and repository access already authorized for creation;
+it does not open another workspace. The progress window stays busy until initial
+Finder publication finishes. If registration fails, the checkout is still created:
+review the warning and use **Retry Finder registration** to retry that step without
+creating the worktree again. Cancellation after creation stops automatic follow-up;
+registration can be retried explicitly from the retained result.
+
 Choose its path, target revision and branch options. Worktree List offers the
 applicable management actions. macOS may require additional parent-folder access
 for creation, movement or removal. See [repository folder access](REPOSITORY-FOLDER-ACCESS.md).

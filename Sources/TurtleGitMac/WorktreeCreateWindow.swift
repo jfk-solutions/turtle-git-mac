@@ -2,6 +2,16 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+enum WorktreeFinderRegistrationFailure:LocalizedError {
+    case unverified,identityChanged
+    var errorDescription:String? {
+        switch self {
+        case .unverified:return "The created worktree has not been verified. Review it before adding it to TurtleGit."
+        case .identityChanged:return "The created worktree no longer matches its accepted repository and revision. Review it before adding it to TurtleGit."
+        }
+    }
+}
+
 @MainActor final class WorktreeCreateWindowController: NSWindowController, NSWindowDelegate {
     var commandProgressScope: CommandProgressScope? { model.commandProgressScope }
     let model: WorktreeCreateWindowModel
@@ -39,7 +49,7 @@ import TurtleGitCore
         window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView: WorktreeCreateDialog(model: model, chooser: model.chooser).defaultAppStorage(preferences))
         super.init(window: window); window.delegate = self
-        pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true })
+        pickers = VersionPickerCoordinator(window: window, model: model.chooser, access: access, preferences: preferences, allowed: { [weak model] in model?.canPickBase == true },resultAllowed:{[weak model] in model?.canAcceptBasePicker==true})
         pickers.contextualDraft = { [weak model] in guard let model else { return [] }; return [String(model.useHead), model.directory, model.branchName, String(model.createBranch), String(model.detach), String(model.force), String(model.checkout)].map { GitReferenceName($0) } }
         pickers.onSelection = { [weak model] in if model?.useHead == false { model?.changedBase() } }
         window.setContentSize(NSSize(width: 660, height: 420)); window.contentMinSize = NSSize(width: 640, height: 420)
@@ -205,13 +215,84 @@ import TurtleGitCore
     @Published var hasSubmodules = false
     @Published var cancelled = false
     private var invalidated = false
-    var canPickBase: Bool { commandsAvailable && !busy && !progress && !useHead }
-    func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; chooser.invalidate() }
+    struct BaseContext:Equatable {
+        let owner:ObjectIdentifier
+        let chooser:SwitchWindowModel.FormContext
+        let draft:[GitReferenceName]
+    }
+    var baseContext:BaseContext {
+        .init(owner:ObjectIdentifier(self),chooser:chooser.formContext,draft:[String(useHead),directory,branchName,String(createBranch),String(detach),String(force),String(checkout)].map{GitReferenceName($0)})
+    }
+    private var baseAvailableIgnoringOwnedPicker:Bool {commandsAvailable && acceptedCreation==nil && !busy && !progress && !chooser.busy}
+    var canEditBase:Bool {baseAvailableIgnoringOwnedPicker && chooser.pickerTarget==nil}
+    // Begin requires no picker; its immutable accepted result necessarily
+    // returns while the same owned picker is still attached/draining.
+    var canAcceptBasePicker:Bool {baseAvailableIgnoringOwnedPicker && !useHead && chooser.pickerTarget != nil}
+    private func acceptsBase(_ context:BaseContext)->Bool {canEditBase && context==baseContext}
+    func field<Value>(_ key:ReferenceWritableKeyPath<WorktreeCreateWindowModel,Value>,context:BaseContext,changed:(()->Void)?=nil)->Binding<Value> {
+        Binding(get:{self[keyPath:key]},set:{if self.acceptsBase(context) {self[keyPath:key]=$0;changed?()}})
+    }
+    func baseRevision(_ target:CheckoutTarget,context:BaseContext)->Binding<String> {
+        Binding(get:{switch target {case .branch:return self.chooser.branchRevision;case .tag:return self.chooser.tagRevision;case .commit:return self.chooser.commitRevision}},set:{
+            guard self.acceptsBase(context),!self.useHead,self.chooser.options.target==target else{return}
+            switch target {case .branch:self.chooser.branchRevision=$0;case .tag:self.chooser.tagRevision=$0;case .commit:self.chooser.commitRevision=$0}
+        })
+    }
+    func selectBase(_ target:CheckoutTarget?,context:BaseContext) {
+        guard acceptsBase(context) else{return};useHead=target==nil
+        if let target {chooser.options.target=target};changedBase()
+    }
+    func browseBase(_ target:CheckoutTarget,context:BaseContext) {
+        guard acceptsBase(context),!useHead,chooser.options.target==target else{return};chooser.browse(target)
+    }
+    func focusBase(_ reference:NSControl,target:CheckoutTarget,context:BaseContext) {
+        guard acceptsBase(context),!useHead,chooser.options.target==target else{return};chooser.focusReference(reference,target:target)
+    }
+    func browseDirectory(context:BaseContext) {guard acceptsBase(context) else{return};chooseDirectory()}
+    var canPickBase: Bool { canEditBase && !useHead }
+    func invalidate() { invalidated = true; cancellation?.cancel(); finderRegistrationRequest=nil; confirmingCancellation = false; chooser.invalidate() }
     private var cancellation: OperationCancellation?
     private(set) var createdPath: URL?
     private(set) var acceptedCreation:WorktreeCreationReceipt?
     private var notifiedCreation=false,acceptedLateCancellation=false
     var performCreation:((GitRepository,URL,WorktreeCreationOptions,OperationCancellation)async throws->WorktreeCreationReceipt)?
+    /// The accepted checkout remains successful even if optional Finder setup
+    /// fails. A retry uses this same receipt/grant, never another worktree add.
+    var registerCreatedWorktree:((WorktreeCreationReceipt,RepositoryAccessLease,OperationCancellation) async throws->Void)?
+    @Published private(set) var finderRegistrationWarning:String?
+    @Published private(set) var finderRegistrationComplete=false
+    private var finderRegistrationRequest:(WorktreeCreationReceipt,RepositoryAccessLease)?
+    var canRetryFinderRegistration:Bool {commandsAvailable && success && !busy && !confirmingCancellation && !chooser.busy && chooser.pickerTarget==nil && finderRegistrationWarning != nil && finderRegistrationRequest != nil && registerCreatedWorktree != nil && !finderRegistrationComplete}
+    private func registerAcceptedWorktree(_ receipt:WorktreeCreationReceipt,lease:RepositoryAccessLease?,token:OperationCancellation) async {
+        guard let register=registerCreatedWorktree else{return}
+        guard receipt.verified else{return}
+        guard let lease else {
+            if active {finderRegistrationWarning="The worktree was created, but its accepted folder permission is unavailable. Add this repository in Icon Overlays settings.";output += "\n"+finderRegistrationWarning!+"\n"}
+            return
+        }
+        finderRegistrationRequest=(receipt,lease)
+        do {
+            try token.check();guard active,externalAvailability(),!confirmingQuit else{throw OperationCancellationFailure.cancelled}
+            currentWork="Adding worktree to TurtleGit…"
+            try await register(receipt,lease,token)
+            // A completed durable publication remains completed when Cancel
+            // arrives with its receipt; do not offer a duplicate registration.
+            if active {finderRegistrationComplete=true;finderRegistrationRequest=nil;finderRegistrationWarning=nil}
+        } catch {
+            guard active,externalAvailability() else{return}
+            let warning=token.isCancelled ? "The worktree was created. Finder registration was stopped. Retry to add this checkout to TurtleGit.":"The worktree was created, but its Finder registration could not be saved. Retry without recreating the worktree.\n"+error.localizedDescription
+            finderRegistrationWarning=warning;output += "\n"+warning+"\n"
+        }
+    }
+    func retryFinderRegistration() {
+        guard canRetryFinderRegistration,let (receipt,lease)=finderRegistrationRequest else{return}
+        let token=OperationCancellation(),startedAt=ProcessInfo.processInfo.systemUptime
+        cancellation=token;busy=true;cancelling=false;completionRange=nil;output += "\nRetrying Finder registration…\n";Self.activeOperations += 1
+        Task { [self,lease] in
+            defer {busy=false;cancellation=nil;cancelling=false;Self.activeOperations -= 1;withExtendedLifetime(lease) {};if active {finishOutput(startedAt:startedAt);finishAutomaticClose()}}
+            await registerAcceptedWorktree(receipt,lease:lease,token:token)
+        }
+    }
     private var shortHashLength = 7
     var close: () -> Void = {}
     var chooseDirectory: () -> Void = {}
@@ -327,6 +408,12 @@ import TurtleGitCore
                 hasSubmodules=receipt.verified && capturedOptions.checkout && FileManager.default.fileExists(atPath:path.appendingPathComponent(".gitmodules").path)
                 if !receipt.verified {output += "\nWorktree created, but its current identity could not be verified. Review the repository before continuing.\n"+(receipt.verificationError ?? "")}
                 else if acceptedLateCancellation {output += "\nWorktree created. Cancellation stopped further actions.\n"}
+                let primary=destinationLease?.contains(receipt.path)==true ? destinationLease:(access?.contains(receipt.path)==true ? access:nil)
+                let acceptedPrimary=primary ?? (requiresSecurityScope ? nil:RepositoryAccessLease(url:receipt.path))
+                let acceptedLease=acceptedPrimary?.retainingRelatedScopes(access.map{[$0]} ?? [])
+                if acceptedLateCancellation {token.cancel()}
+                await registerAcceptedWorktree(receipt,lease:acceptedLease,token:token)
+                guard active else{return}
                 finishOutput(startedAt:startedAt)
             } catch let failure as GitCommandCancellationFailure { guard active else { return }; cancelled = true; output = LocalGitCommandProgress.failure(failure, existing: output, preferences: preferences); finishOutput(startedAt: startedAt) }
             catch OperationCancellationFailure.cancelled { guard active else { return }; cancelled = true; output = "Cancelled before worktree creation."; if startedProgress { finishOutput(startedAt: startedAt) } }
@@ -339,7 +426,7 @@ import TurtleGitCore
         currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
     }
     private func finishAutomaticClose() {
-        guard commandsAvailable,!busy,!confirmingCancellation,success,!acceptedLateCancellation,acceptedCreation?.verified == true else{return}
+        guard commandsAvailable,!busy,!confirmingCancellation,success,!acceptedLateCancellation,acceptedCreation?.verified == true,finderRegistrationWarning==nil else{return}
         if autoClosePolicy.shouldClose(success: true, postActionCount: hasSubmodules ? 1 : 0) { saveActionLog(); close() }
     }
     func cancel() {
@@ -354,7 +441,7 @@ import TurtleGitCore
                 if self.busy, self.cancellation === token, accepted { self.cancelling = true; token.cancel() }
                 self.finishAutomaticClose()
             }
-        } else { cancelling = true; token.cancel() }
+        } else { if acceptedCreation != nil {acceptedLateCancellation=true};cancelling = true; token.cancel() }
     }
     func returnToOptions() { guard commandsAvailable,acceptedCreation==nil,!busy,!confirmingCancellation else { return }; saveActionLog(); progress = false }
     func updateSubmodules() {
@@ -381,41 +468,42 @@ import TurtleGitCore
 private struct WorktreeCreateDialog: View {
     @ObservedObject var model: WorktreeCreateWindowModel
     @ObservedObject var chooser: SwitchWindowModel
-    func radio(_ title: String, target: CheckoutTarget) -> some View {
+    func radio(_ title: String, target: CheckoutTarget, context:WorktreeCreateWindowModel.BaseContext) -> some View {
         BaseRadio(title: title, selected: !model.useHead && chooser.options.target == target) {
-            model.useHead = false; chooser.options.target = target; model.changedBase()
+            model.selectBase(target,context:context)
         }.frame(width: 100)
     }
     var body: some View {
+        let context=model.baseContext
         VStack(spacing: 12) {
             if model.progress { progress }
             else {
                 GroupBox("Location") { HStack {
                     Text("Directory:").frame(width: 100, alignment: .leading)
-                    PathEntryField(text: $model.directory, label: "Worktree directory", permissions: [model.access, model.destinationAccess].compactMap { $0 }, preferences: model.preferences, mayEdit: { !model.busy && !chooser.busy && chooser.pickerTarget == nil }).frame(height: 22)
-                    Button("Browse…") { model.chooseDirectory() }
+                    PathEntryField(text: model.field(\.directory,context:context), label: "Worktree directory", permissions: [model.access, model.destinationAccess].compactMap { $0 }, preferences: model.preferences, mayEdit: { model.canEditBase }).frame(height: 22)
+                    Button("Browse…") { model.browseDirectory(context:context) }
                 }.padding(8) }
                 GroupBox("Base On") { VStack(spacing: 6) {
-                    BaseRadio(title: "HEAD (\(model.currentBranch.isEmpty ? "detached" : model.currentBranch))", selected: model.useHead) { model.useHead = true; model.changedBase() }.frame(height: 22)
-                    HStack { radio("Branch", target: .branch)
-                        ReferencePopup(references: chooser.branches, selection: $chooser.branchRevision, accessibilityLabel: "Base branch revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .branch) }).disabled(model.useHead || chooser.options.target != .branch)
-                        Button("…") { chooser.browse(.branch) }.accessibilityLabel("Browse references").disabled(model.useHead || chooser.options.target != .branch)
+                    BaseRadio(title: "HEAD (\(model.currentBranch.isEmpty ? "detached" : model.currentBranch))", selected: model.useHead) { model.selectBase(nil,context:context) }.frame(height: 22)
+                    HStack { radio("Branch", target: .branch,context:context)
+                        ReferencePopup(references: chooser.branches, selection: model.baseRevision(.branch,context:context), accessibilityLabel: "Base branch revision", focusRequest: chooser.referenceFocusRequest, onFocus: { model.focusBase($0,target:.branch,context:context) }).disabled(model.useHead || chooser.options.target != .branch)
+                        Button("…") { model.browseBase(.branch,context:context) }.accessibilityLabel("Browse references").disabled(model.useHead || chooser.options.target != .branch)
                     }.frame(height: 26)
-                    HStack { radio("Tag", target: .tag)
-                        ReferencePopup(references: chooser.tags, selection: $chooser.tagRevision, accessibilityLabel: "Base tag revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .tag) }).disabled(model.useHead || chooser.options.target != .tag)
+                    HStack { radio("Tag", target: .tag,context:context)
+                        ReferencePopup(references: chooser.tags, selection: model.baseRevision(.tag,context:context), accessibilityLabel: "Base tag revision", focusRequest: chooser.referenceFocusRequest, onFocus: { model.focusBase($0,target:.tag,context:context) }).disabled(model.useHead || chooser.options.target != .tag)
                         Color.clear.frame(width: 29)
                     }.frame(height: 26)
-                    HStack { radio("Commit", target: .commit)
-                        VersionRevisionField(text: $chooser.commitRevision, choices: chooser.commitChoices, accessibilityLabel: "Base commit revision", focusRequest: chooser.referenceFocusRequest, onFocus: { chooser.focusReference($0, target: .commit) }).disabled(model.useHead || chooser.options.target != .commit)
-                        Button("…") { chooser.browse(.commit) }.accessibilityLabel("Choose commit").disabled(model.useHead || chooser.options.target != .commit)
+                    HStack { radio("Commit", target: .commit,context:context)
+                        VersionRevisionField(text: model.baseRevision(.commit,context:context), choices: chooser.commitChoices, accessibilityLabel: "Base commit revision", focusRequest: chooser.referenceFocusRequest, onFocus: { model.focusBase($0,target:.commit,context:context) }).disabled(model.useHead || chooser.options.target != .commit)
+                        Button("…") { model.browseBase(.commit,context:context) }.accessibilityLabel("Choose commit").disabled(model.useHead || chooser.options.target != .commit)
                     }.frame(height: 26)
                 }.padding(8) }
                 GroupBox("Options") { VStack(spacing: 8) {
-                    HStack { Toggle("Create New Branch", isOn: Binding(get: { model.createBranch }, set: { model.createBranch = $0; model.changedBranch() })).frame(width: 180, alignment: .leading)
-                        TextField("New branch name", text: $model.branchName).disabled(!model.createBranch)
+                    HStack { Toggle("Create New Branch", isOn: model.field(\.createBranch,context:context,changed:{model.changedBranch()})).frame(width: 180, alignment: .leading)
+                        TextField("New branch name", text: model.field(\.branchName,context:context)).disabled(!model.createBranch)
                     }
-                    HStack { Toggle("Checkout", isOn: $model.checkout); Toggle("Force", isOn: $model.force).help("Allow checking out a branch that is already checked out in another worktree.")
-                        Toggle("Detach", isOn: Binding(get: { model.detach }, set: { model.detach = $0; model.changedDetach() })).disabled(model.automaticDetach); Spacer()
+                    HStack { Toggle("Checkout", isOn: model.field(\.checkout,context:context)); Toggle("Force", isOn: model.field(\.force,context:context)).help("Allow checking out a branch that is already checked out in another worktree.")
+                        Toggle("Detach", isOn: model.field(\.detach,context:context,changed:{model.changedDetach()})).disabled(model.automaticDetach); Spacer()
                     }
                 }.padding(8) }
                 HStack { if model.busy || chooser.busy || chooser.pickerTarget != nil { ProgressView().controlSize(.small) }; Spacer()
@@ -438,6 +526,7 @@ private struct WorktreeCreateDialog: View {
             Text(model.busy ? "Creating worktree…" : model.success ? "Worktree created" : model.cancelled ? "Cancelled" : "Worktree creation failed").font(.headline)
             SubmoduleProgressOutputView(text: model.output, completed: !model.busy, completionRange: model.completionRange, success: model.success, preferences: model.preferences).frame(maxHeight: .infinity)
             HStack { if model.progress { LocalGitProgressIndicator(percentage: model.percentage, animate: model.progressPresentation.animateActivity); Text(model.cancelling ? "Cancelling…" : model.currentWork).font(.caption) }; Spacer()
+                if model.finderRegistrationWarning != nil { Button("Retry Finder registration") {model.retryFinderRegistration()}.disabled(!model.canRetryFinderRegistration).help(model.finderRegistrationWarning ?? "") }
                 if model.success && model.hasSubmodules { Button { model.updateSubmodules() } label: { CommandLabel(title: "Submodule Update…", icon: .fetch) }.disabled(!model.canUpdateSubmodules) }
                 if model.busy { Button("Cancel") { model.cancel() }.disabled(!model.canCancel) }
                 else {

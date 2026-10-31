@@ -2787,6 +2787,7 @@
         "docs/qa/branch-tag-creation-family-2026-10-19.json",
         "docs/qa/branch-tag-handoff-2026-10-08.json",
         "docs/qa/branch-tag-source-family-2026-10-17.json",
+        "docs/qa/creation-finder-lifecycle-2026-10-31.json",
         "docs/qa/creation-outcome-2026-10-29.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
@@ -4676,6 +4677,7 @@
         "docs/WORKTREE-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/creation-finder-lifecycle-2026-10-31.json",
         "docs/qa/creation-outcome-2026-10-29.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/reference-groups-2026-10-15.json",
@@ -4705,6 +4707,7 @@
         "docs/WORKTREE-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/creation-finder-lifecycle-2026-10-31.json",
         "docs/qa/creation-outcome-2026-10-29.json",
         "docs/qa/creation-pickers-2026-10-09.json",
         "docs/qa/reference-groups-2026-10-15.json",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Finder first-use registration, accepted Clone persistence and owner cancellation."""
+"""Finder first-use registration, accepted Clone/worktree persistence and owner cancellation."""
 import argparse
 import json
 import os
@@ -60,7 +60,7 @@ def retire_owned_helpers(context, approved_images):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['publication', 'registration', 'clone', 'ownership', 'warm', 'services', 'launch', 'authority'], action='append')
+parser.add_argument('--only', choices=['publication', 'registration', 'clone', 'worktree', 'ownership', 'warm', 'services', 'launch', 'authority'], action='append')
 args = parser.parse_args()
 root = next(parent for parent in Path(__file__).resolve().parents if (parent / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/finder-registration-native-sources'
@@ -69,7 +69,7 @@ receiver = build_receiver(root, [root / 'docs/qa/finder-registration-native-2026
 results = []
 for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
     git = git.absolute()
-    for case in args.only or ['publication', 'registration', 'clone', 'ownership', 'warm', 'services', 'launch', 'authority']:
+    for case in args.only or ['publication', 'registration', 'clone', 'worktree', 'ownership', 'warm', 'services', 'launch', 'authority']:
         with tempfile.TemporaryDirectory(prefix='turtlegit-finder-registration-' + case + '-') as temporary:
             # Canonicalize the private test root once, before argv/environment
             # construction; literal Unicode leaf assertions remain unchanged.
