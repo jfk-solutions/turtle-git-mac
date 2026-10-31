@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-31",
+  "status": "implemented-grouped-debug-and-focused-native-passed-signed-hosted-open",
+  "family": "Log deferred refresh, captured unified comparisons and close/drain ownership",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "upstream_anchors": [
+    "src/TortoiseProc/LogDlg.cpp:1250-1269 Refresh button and display controls",
+    "src/TortoiseProc/LogDlg.cpp:3071-3077 completion refresh retains filter",
+    "src/TortoiseProc/LogDlg.cpp:1869 onward background-walk selection guard commented out"
+  ],
+  "implementation": [
+    "All unified comparison variants and followed comparison settlement preserve busy ownership for history, file navigation and remaining comparisons.",
+    "Repository/manual Refresh intents coalesce and remain pending until actual reload admission; close and permanent invalidation fence refresh publication.",
+    "Captured selection changes cancel without retargeting. Same-selection detail settlement does not drop immutable whole-revision/working-tree comparisons; selected-file identity fences remain.",
+    "Native Close cancels unified sessions and retries after actual drain; forced teardown retains controller completion through drain. Existing global session Quit accounting reused.",
+    "Retired models remain permanently refused; reopened workflow uses a fresh model. Shift choice captured explicitly for working-tree and selected-file unified sessions."
+  ],
+  "old_hosted_failure": {
+    "run": 41129980751,
+    "job": 124326670601,
+    "step": 426,
+    "step_name": "Native Cherry Pick and Rebase recovery across Git versions",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41129980751/job/124326670601",
+    "source": "87701028c8b0e9cb8e6cf3fa96796cede5b950f7",
+    "engine": "system",
+    "failure": "cherry-pick-native-receiver-2026-10-06.swift:1856 Precondition failed; receiver SIGILL",
+    "method": "verifyNativeLogDeferredRefresh",
+    "diagnostic_limit": "Shared until timeout did not identify its call site; this does not identify a Cherry Pick/Rebase Git failure.",
+    "concrete_fixture_defect": "Final cohort attempted reload/diff on invalidated model; corrected with fresh native owner while preserving retired-original refusal.",
+    "retrieval": "GitHub connector Transport closed; authenticated read-only Chrome job UI supplied exact step tail. Owned inspection tab closed."
+  },
+  "validation": {
+    "debug": {
+      "log": "build/qa/log-refresh-ownership-debug-2026-10-31.log",
+      "exit": 0
+    },
+    "initial_native_compile_failure": {
+      "log": "build/qa/log-refresh-ownership-native-2026-10-31.log",
+      "receiver_started": false,
+      "failure": "Linked fixture could not access fileprivate LogWindowModel.generation.",
+      "repair": "Fixture-only busy-admission observer retains exact coalesced refresh counts; product visibility unchanged."
+    },
+    "native": {
+      "log": "build/qa/log-refresh-ownership-native-admission-observer-2026-10-31.log",
+      "passed": true,
+      "executions": [
+        {
+          "engine": "system",
+          "reaped_pid": 81933
+        },
+        {
+          "engine": "bundled",
+          "reaped_pid": 82880
+        }
+      ],
+      "group": [
+        "verifyNativeLogParentWorkingComparison",
+        "verifyNativeLogUnifiedViewerRouting",
+        "verifyNativeLogDeferredRefresh"
+      ],
+      "additional_existing_assertions": [
+        "historical Revert parent/current checkout results with unchanged HEAD/unrelated staged blob",
+        "grouped merge duplicate-parent rows, headers, clipboard and file comparisons"
+      ],
+      "scope": [
+        "real local Git history/working-tree bytes",
+        "busy/idle/manual/reference-picker refresh coalescing",
+        "held comparison then latest HEAD publication",
+        "retired original refusal and fresh native successor",
+        "real offscreen Close and cancellation/worker drain",
+        "overlapping history/comparison ownership and same-selection settlement",
+        "selection cancellation and stale viewer refusal",
+        "HEAD/index/source-byte preservation and owned cleanup"
+      ],
+      "isolation": "Private homes/preferences/backend; hidden/offscreen test-owned windows, captured external handoffs, cached native compilation and owned receiver reaping."
+    },
+    "core": "Not repeated: no Core implementation changed.",
+    "repeat_scope": "After fixture compilation failure, repaired fixture compiled and focused group ran against both engines; no failed receiver existed to reap from the initial attempt."
+  },
+  "limits": [
+    "Followed-comparison/file-navigation overlap uses repaired production ownership terms but has no separate artificial injected fixture.",
+    "Physical keyboard/focus/Finder integration and all upstream Log behavior/layouts remain outside these offscreen checks.",
+    "Installed signed build43 predates this repair; no updated signed install or complete current hosted CI pass is claimed."
+  ]
+}

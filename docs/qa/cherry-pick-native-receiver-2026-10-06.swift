@@ -1835,61 +1835,157 @@ import TurtleGitCore
     print("Native Log unified viewer routing: whole working-tree external selection and disabled+Shift validation, enabled+Shift built-in choice, exact literal-path patch and alternate handoff, stale working/revision/selected-file reads and invalidated-model refusal passed. Invalid viewer path prevents application launch; successful viewer handoff injected; HEAD/index/working bytes preserved.")
 }
 
+private final class NativeDeferredProjectionGate:@unchecked Sendable {
+    private let condition=NSCondition()
+    private var released=false,started=false
+    var entered:Bool {condition.lock();defer{condition.unlock()};return started}
+    func open(){condition.lock();released=true;condition.broadcast();condition.unlock()}
+    func hold(_ cancellation:OperationCancellation)throws {
+        condition.lock();started=true
+        while !released {
+            if cancellation.isCancelled {condition.unlock();throw OperationCancellationFailure.cancelled}
+            _=condition.wait(until:Date().addingTimeInterval(0.01))
+        }
+        condition.unlock();try cancellation.check()
+    }
+}
 @MainActor func verifyNativeLogDeferredRefresh(executable: URL) async throws {
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-refresh-" + UUID().uuidString)
+    struct Failure:Error,CustomStringConvertible {let description:String}
+    let root = ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_DEFERRED_ROOT"].map{URL(fileURLWithPath:$0)} ?? FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-refresh-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
-    let repo = GitRepository(root: root, executable: executable)
+    let suite="TurtleGit.LogDeferredRefresh."+UUID().uuidString
+    guard let preferences=UserDefaults(suiteName:suite) else {throw Failure(description:"Private Log refresh preferences unavailable")}
+    defer{preferences.removePersistentDomain(forName:suite)}
+    preferences.set(true,forKey:"LogIncludeWorkingTreeChanges");preferences.set(true,forKey:"AddBeforeCommit")
+    preferences.set(false,forKey:"UseLibgit2");preferences.set(false,forKey:"EnableGravatar")
+    UnifiedDiffViewerPreferences(enabled:false,applicationPath:"").save(to:preferences)
+    let repo = GitRepository(root: root, executable: executable,askpass:nil,libgit2Configuration:.init(mask:0))
     _ = try await repo.run(["init", "--initial-branch=main"])
-    _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
-    _ = try await repo.run(["config", "commit.gpgSign", "false"])
-    func commit(_ value: String) async throws -> String {
+    for(key,value)in[("user.name","Native QA"),("user.email","native@example.invalid"),("commit.gpgSign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+    @MainActor func commit(_ value: String) async throws -> String {
         try Data((value + "\n").utf8).write(to: root.appendingPathComponent("file"))
         try await repo.stage(["file"]); _ = try await repo.commit(message: value)
         return try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
     }
     let initial = try await commit("initial")
-    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
-    func until(_ condition: () -> Bool) async throws {
-        let deadline = Date().addingTimeInterval(30)
-        while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(condition())
+    let log = LogWindowModel(repository: repo, access: nil,labelDefaults:preferences)
+    var models=[log],controllers:[LogWindowController]=[],starts=0
+    var reloadAdmissions:[ObjectIdentifier:Int]=[:]
+    @MainActor func admissions(_ model:LogWindowModel)->Int {reloadAdmissions[ObjectIdentifier(model),default:0]}
+    @MainActor func observeReloadAdmissions(_ model:LogWindowModel) {
+        let identifier=ObjectIdentifier(model),previous=model.onFindReferenceRefresh
+        model.onFindReferenceRefresh={
+            reloadAdmissions[identifier,default:0] += 1
+            previous?() // Keep the native controller's reference picker refresh.
+        }
     }
-    log.reload(); try await until { !log.busy && log.entries.contains { $0.hash == initial } }; log.select([""])
-    var starts = 0
-    let subscription = log.$busy.dropFirst().sink { if $0 { starts += 1 } }; defer { subscription.cancel() }
-    var gate: CheckedContinuation<Void, Never>?
-    log.onUnifiedDiff = { _, _ in await withCheckedContinuation { gate = $0 } }
-    defer { gate?.resume() }
-    func release() { let pending = gate; gate = nil; pending?.resume() }
-    log.diff(); try await until { log.busy && gate != nil }
-    let updated = try await commit("updated while viewer handoff waits")
-    for _ in 0..<5 { log.requestRepositoryRefresh() }
-    precondition(starts == 1 && log.busy && !log.entries.contains { $0.hash == updated })
-    release(); try await until { !log.busy && log.entries.contains { $0.hash == updated } }
-    precondition(starts == 2 && log.error == nil)
-    let beforeIdle = starts
-    for _ in 0..<5 { log.requestRepositoryRefresh() }
-    try await until { starts > beforeIdle && !log.busy }; precondition(starts == beforeIdle + 1)
-    // A direct user reload consumes an already queued repository refresh.
-    let manualHead = try await commit("manual reload consumes pending")
-    let beforeManual = starts
-    log.requestRepositoryRefresh(); log.reload()
-    try await until { !log.busy && log.entries.contains { $0.hash == manualHead } }
-    precondition(starts == beforeManual + 1)
-    // Closing before the deferred task starts cancels that task.
-    let beforeClose = starts
-    log.requestRepositoryRefresh(); log.invalidate()
-    try await Task.sleep(nanoseconds: 20_000_000)
-    precondition(log.isInvalidated && starts == beforeClose && !log.busy)
-    log.reload(); try await until { !log.busy }; log.select([""])
-    // Closing with a real operation held also clears its deferred refresh.
-    log.diff(); try await until { log.busy && gate != nil }
-    let afterClosed = try await commit("closed model must not revive")
-    log.requestRepositoryRefresh(); let beforeHeldClose = starts; log.invalidate(); release()
-    try await until { !log.busy }; try await Task.sleep(nanoseconds: 20_000_000)
-    precondition(log.isInvalidated && starts == beforeHeldClose && !log.entries.contains { $0.hash == afterClosed })
-    print("Native deferred Log refresh: real unified-diff handoff held while HEAD advances, busy and idle notifications coalesce to one reload, latest HEAD appears after release, direct reload consumes queued work, close cancels queued and busy refresh without reviving retained model passed. Handoff gate injected; no windows shown.")
+    observeReloadAdmissions(log)
+    var gate:CheckedContinuation<Void,Never>?,otherGate:CheckedContinuation<Void,Never>?
+    let projection=NativeDeferredProjectionGate()
+    @MainActor func pending(_ model:LogWindowModel)->Bool {model.pendingHistoryLoads>0 || model.historyProjectionWorkPending || model.unifiedComparisonReadPending || model.fileNavigationReadPending}
+    @MainActor func diagnostics(_ model:LogWindowModel)->String {
+        "busy=\(model.busy) loadingHistory=\(model.loadingHistory) pendingHistoryLoads=\(model.pendingHistoryLoads) projection=\(model.historyProjectionWorkPending) unified=\(model.unifiedComparisonReadPending) fileRead=\(model.fileNavigationReadPending) invalidated=\(model.isInvalidated) reloadAdmissions=\(admissions(model)) selected=\(model.selected.sorted()) workingSelected=\(model.selectedWorkingTree) workingSnapshot=\(model.workingTreeSnapshot != nil) showWorking=\(model.showWorkingTree) referencePicker=\(model.referencePickerBlocked) canInspect=\(model.canInspectHistory) starts=\(starts) gate=\(gate != nil) otherGate=\(otherGate != nil) projectionEntered=\(projection.entered) entries=\(model.entries.count)/\(model.entries.prefix(12).map{String($0.hash.prefix(12))}) error=\(String(reflecting:model.error)) backend=\(String(describing:repo.libgit2Configuration))"
+    }
+    @MainActor func until(_ stage:String,_ model:LogWindowModel,_ condition:()->Bool)async throws {
+        let deadline=Date().addingTimeInterval(30)
+        while !condition(),Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+        guard condition() else {
+            let message="Log deferred refresh stage [\(stage)] timed out; "+diagnostics(model)
+            try? message.write(to:root.deletingLastPathComponent().appendingPathComponent("log-deferred-diagnostic.txt"),atomically:true,encoding:.utf8)
+            throw Failure(description:message)
+        }
+    }
+    @MainActor func require(_ condition:Bool,_ stage:String,_ model:LogWindowModel)throws {guard condition else{throw Failure(description:"Log deferred refresh stage [\(stage)] failed; "+diagnostics(model))}}
+    @MainActor func release(){let held=gate;gate=nil;held?.resume()}
+    @MainActor func releaseOther(){let held=otherGate;otherGate=nil;held?.resume()}
+    @MainActor func cleanup()async {
+        projection.open();models.forEach{$0.invalidate()};release();releaseOther();controllers.forEach{$0.close()}
+        for _ in 0..<3000 {if models.allSatisfy({!pending($0)}) {break};try? await Task.sleep(nanoseconds:10_000_000)}
+    }
+    do {
+        log.reload();try await until("initial history/working row",log){!log.busy && log.pendingHistoryLoads==0 && log.entries.contains{$0.hash==initial} && log.workingTreeSnapshot != nil}
+        log.select([""])
+        try require(log.selectedWorkingTree,"initial working selection",log)
+        let subscription=log.$busy.dropFirst().sink{if $0 {starts += 1}};defer{subscription.cancel()}
+        log.onUnifiedDiff={_,_ in await withCheckedContinuation{gate=$0}}
+        log.diff();try await until("first held unified handoff",log){log.busy && gate != nil}
+        let updated=try await commit("updated while viewer handoff waits"),heldAdmissions=admissions(log)
+        for _ in 0..<5 {log.requestRepositoryRefresh()}
+        log.reload() // Direct Reload must also survive the captured owner.
+        try require(starts==1 && log.busy && admissions(log)==heldAdmissions && !log.entries.contains{$0.hash==updated},"busy refresh/manual coalescing",log)
+        release();try await until("released handoff publishes latest HEAD",log){!log.busy && log.pendingHistoryLoads==0 && log.entries.contains{$0.hash==updated}}
+        try require(starts==2 && log.error==nil,"one deferred reload",log)
+        let beforeIdle=starts
+        for _ in 0..<5 {log.requestRepositoryRefresh()}
+        try await until("idle notifications coalesce",log){starts>beforeIdle && !log.busy && log.pendingHistoryLoads==0}
+        try require(starts==beforeIdle+1,"idle single reload count",log)
+        let manualHead=try await commit("manual reload consumes pending"),beforeManual=starts
+        log.requestRepositoryRefresh();log.reload()
+        try await until("manual consumes queued refresh",log){!log.busy && log.pendingHistoryLoads==0 && log.entries.contains{$0.hash==manualHead}}
+        try require(starts==beforeManual+1,"manual single reload count",log)
+        let blockedAdmissions=admissions(log),beforePicker=starts
+        log.referencePickerBlocked=true
+        for _ in 0..<5 {log.requestRepositoryRefresh()}
+        await Task.yield();await Task.yield()
+        try require(admissions(log)==blockedAdmissions && starts==beforePicker,"reference picker holds pending refresh",log)
+        log.referencePickerBlocked=false
+        try await until("unblocked reference picker retains refresh",log){admissions(log)==blockedAdmissions+1 && !log.busy && log.pendingHistoryLoads==0}
+        try require(starts==beforePicker+1,"one refresh after reference picker",log)
+        let beforeClose=starts,retiredAdmissions=admissions(log)
+        log.requestRepositoryRefresh();log.invalidate()
+        try await Task.sleep(nanoseconds:20_000_000)
+        try require(log.isInvalidated && starts==beforeClose && !log.busy,"close cancels queued refresh",log)
+        log.reload();log.select([""]);log.diff()
+        await Task.yield()
+        try require(log.isInvalidated && admissions(log)==retiredAdmissions && starts==beforeClose && gate==nil && !pending(log),"retired reload/diff remains inert",log)
+
+        // A closed Log is permanently retired. A reopened window is a new owner,
+        // rather than attempting to resurrect the original invalidated model.
+        let successor=LogWindowController(repository:repo,access:nil,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,loadsImmediately:false)
+        controllers.append(successor);let reopened=successor.model;models.append(reopened);observeReloadAdmissions(reopened)
+        successor.window?.alphaValue=0;successor.window?.setFrameOrigin(.init(x:-24000,y:-24000));successor.showWindow(nil)
+        reopened.reload();try await until("fresh successor history",reopened){!reopened.busy && reopened.pendingHistoryLoads==0 && reopened.workingTreeSnapshot != nil}
+        reopened.select([""]);reopened.onUnifiedDiff={_,_ in await withCheckedContinuation{otherGate=$0}}
+        reopened.diff();try await until("fresh successor held comparison",reopened){reopened.busy && otherGate != nil && reopened.unifiedComparisonReadPending}
+        let afterClosed=try await commit("closed model must not revive")
+        reopened.requestRepositoryRefresh()
+        var closed=0,earlyClose=false
+        successor.onClosed={closed += 1;earlyClose = earlyClose || pending(reopened)}
+        successor.window?.performClose(nil)
+        try require(closed==0 && reopened.unifiedComparisonReadPending,"Close retains actual held worker",reopened)
+        releaseOther()
+        try await until("deferred native Close drains comparison",reopened){closed==1 && reopened.isInvalidated && !pending(reopened) && successor.window?.isVisible==false}
+        try require(!earlyClose && !reopened.entries.contains{$0.hash==afterClosed},"closed worker cannot publish deferred refresh",reopened)
+
+        let concurrent=LogWindowModel(repository:repo,access:nil,labelDefaults:preferences);models.append(concurrent);observeReloadAdmissions(concurrent)
+        concurrent.reload();try await until("concurrent cohort initial history",concurrent){!concurrent.busy && concurrent.pendingHistoryLoads==0 && concurrent.entries.contains{$0.hash==afterClosed}}
+        concurrent.select([afterClosed])
+        let ordinaryProjection=concurrent.readHistoryProjection
+        concurrent.readHistoryProjection={input in if input.isFinal {try projection.hold(input.cancellation)};return try ordinaryProjection(input)}
+        concurrent.reload();try await until("held final history projection",concurrent){projection.entered && concurrent.loadingHistory}
+        concurrent.onUnifiedDiff={_,_ in await withCheckedContinuation{otherGate=$0}}
+        concurrent.diff();try await until("immutable diff during history projection",concurrent){otherGate != nil && concurrent.unifiedComparisonReadPending}
+        projection.open()
+        try await until("history settles before unified worker",concurrent){!concurrent.loadingHistory && concurrent.pendingHistoryLoads==0 && !concurrent.historyProjectionWorkPending}
+        try require(concurrent.busy && concurrent.unifiedComparisonReadPending,"history completion retains comparison busy ownership",concurrent)
+        let concurrentAdmissions=admissions(concurrent)
+        for _ in 0..<5 {concurrent.requestRepositoryRefresh()}
+        try require(admissions(concurrent)==concurrentAdmissions,"refresh waits for overlapping comparison",concurrent)
+        releaseOther();concurrent.readHistoryProjection=ordinaryProjection
+        try await until("overlapping owners drain and refresh once",concurrent){!concurrent.busy && !pending(concurrent) && admissions(concurrent)==concurrentAdmissions+1}
+        try require(concurrent.error==nil,"same-selection history settlement preserves accepted unified handoff",concurrent)
+        concurrent.select([""]);concurrent.diff()
+        try await until("selection cancellation held worker",concurrent){otherGate != nil && concurrent.unifiedComparisonReadPending}
+        concurrent.select([initial])
+        try require(concurrent.busy && concurrent.unifiedComparisonReadPending,"selection cancellation retains actual worker drain",concurrent)
+        releaseOther();try await until("selection cancellation drains without stale error",concurrent){!concurrent.busy && !pending(concurrent)}
+        try require(concurrent.error==nil && concurrent.selected==[initial],"selection cancellation preserves successor selection",concurrent)
+        await cleanup()
+        try require(models.allSatisfy{!pending($0)} && controllers.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil},"all owned models/windows drained",concurrent)
+        print("Native deferred Log refresh: real held unified handoff, latest HEAD, busy/idle/manual/reference-picker coalescing, permanently retired refusal, fresh native successor Close drain, overlapping history/comparison ownership and selection cancellation passed. Private preferences/backend, injected handoff/projection gates; owned windows hidden/offscreen and closed.")
+        print("PASS: Log deferred refresh family")
+    } catch {await cleanup();throw error}
 }
 
 @MainActor func verifyNativeLogWorkingConflicts(executable: URL) async throws {
@@ -2560,6 +2656,12 @@ import TurtleGitCore
 
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_DEFERRED_REFRESH_ONLY"] == "1" {
+        let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
+        try await verifyNativeLogParentWorkingComparison(executable:executable)
+        try await verifyNativeLogUnifiedViewerRouting(executable:executable)
+        try await verifyNativeLogDeferredRefresh(executable:executable);return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_PATHS_ONLY"] == "1" {
         try await verifyNativeLogUnrelatedPaths(executable: URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")); return
     }

@@ -654,6 +654,7 @@ final class LogHistoryWindow: NSWindow {
         if !retiringDocument,model.cancelFileNavigationRead(closeAfter:true) { return false }
         if model.cancelWorkingLFSRead(closeAfter: true) { return false }
         if model.cancelFollowedComparison(closeAfter:true) { return false }
+        if model.cancelUnifiedComparison(closeAfter:true) { return false }
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
         if model.cancelIntegrationRead(closeAfter:true) { return false }
@@ -680,8 +681,8 @@ final class LogHistoryWindow: NSWindow {
         window?.contentViewController = nil
         completion?(nil);multiple?(nil)
         let closed=onClosed;onClosed={}
-        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || lfsOperation != nil {
-            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
+        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || model.unifiedComparisonReadPending || lfsOperation != nil {
+            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || model.unifiedComparisonReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
         }else{closed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
@@ -884,7 +885,7 @@ struct LogCommandRequest: Identifiable {
     // Upstream CGitLogListBase retains the index across Find close/reopen and reload.
     var findSearchIndex = 0
     var onFindReferenceRefresh: (() -> Void)?
-    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { fileMenuGeneration=UUID();fileDragEpoch=UUID();retireLogControlMenus(); if confirmingQuit { retireRevisionColumns?() } } } }
+    @Published var confirmingQuit = false { didSet { if confirmingQuit != oldValue { fileMenuGeneration=UUID();fileDragEpoch=UUID();retireLogControlMenus(); if confirmingQuit { retireRevisionColumns?() } else {scheduleRepositoryRefresh()} } } }
     @Published private(set) var resettingRevisionColumns=false
     private(set) var revisionColumnWorkPending=false
     var retireRevisionColumns:(()->Void)?
@@ -2080,14 +2081,17 @@ struct LogCommandRequest: Identifiable {
         scheduleRepositoryRefresh()
     }
     private func scheduleRepositoryRefresh() {
-        guard pendingRepositoryRefresh, !busy, !referencePickerBlocked, !isInvalidated, repositoryRefreshTask == nil else { return }
+        guard pendingRepositoryRefresh, repositoryRefreshAdmitted, repositoryRefreshTask == nil else { return }
         repositoryRefreshTask = Task { [weak self] in
             guard let self, !Task.isCancelled else { return }
             self.repositoryRefreshTask = nil
-            guard self.pendingRepositoryRefresh, !self.busy, !self.referencePickerBlocked, !self.isInvalidated else { return }
-            self.pendingRepositoryRefresh = false
+            guard self.pendingRepositoryRefresh, self.repositoryRefreshAdmitted else { return }
             self.reload()
         }
+    }
+    private var repositoryRefreshAdmitted:Bool {
+        !isInvalidated && !confirmingQuit && !busy && !referencePickerBlocked &&
+            !unifiedComparisonReadPending && followedSession == nil && !fileNavigationReadPending && !closeAfterUnifiedRead
     }
     private func cancelRepositoryRefresh() {
         pendingRepositoryRefresh = false
@@ -2096,6 +2100,24 @@ struct LogCommandRequest: Identifiable {
     @Published var bare = true
     @Published var error: String?
     private var unifiedSessions: [UUID: FileListComparisonSession] = [:]
+    var unifiedComparisonReadPending:Bool {!unifiedSessions.isEmpty}
+    private var closeAfterUnifiedRead=false
+    @discardableResult func cancelUnifiedComparison(closeAfter:Bool=false)->Bool {
+        guard unifiedComparisonReadPending else{return false}
+        closeAfterUnifiedRead = closeAfterUnifiedRead || closeAfter
+        unifiedSessions.values.forEach{$0.cancel()}
+        return true
+    }
+    private func finishUnifiedComparison(_ id:UUID,generation request:Int) {
+        unifiedSessions.removeValue(forKey:id)
+        if request == generation,!isInvalidated {
+            busy = loadingHistory || fileNavigationReadPending || unifiedComparisonReadPending || followedSession != nil
+        }
+        if closeAfterUnifiedRead,!unifiedComparisonReadPending {
+            closeAfterUnifiedRead=false
+            if !isInvalidated {window?.performClose(nil)}
+        } else {scheduleRepositoryRefresh()}
+    }
     private var followedSession: FileListComparisonSession?
     private var closeAfterFollowedRead = false
     @discardableResult func cancelFollowedComparison(closeAfter: Bool = false) -> Bool {
@@ -2114,7 +2136,7 @@ struct LogCommandRequest: Identifiable {
             defer {
                 if followedSession === session {
                     followedSession = nil
-                    if !loadingHistory, unifiedSessions.isEmpty { busy = false }
+                    if !isInvalidated {busy = loadingHistory || fileNavigationReadPending || unifiedComparisonReadPending || followedSession != nil}
                     let shouldClose = closeAfterFollowedRead; closeAfterFollowedRead = false
                     if shouldClose && !isInvalidated { close() }
                 }
@@ -2262,9 +2284,10 @@ struct LogCommandRequest: Identifiable {
         guard canStartHistoryTransport,!includesWorkingTree,occurrenceSelectionCount==2,revisions.count==2,onCommitChangeSets != nil else { return }
         let chosen=revisions,request=generation,selection=selected,count=occurrenceSelectionCount,projection=historyProjectionEpoch
         let id=UUID(),session=FileListComparisonSession(window:window,preferences:labelDefaults,alternateTool:alternate)
+        session.isOwnerCurrent = {[weak self] in guard let self else{return false};return !self.isInvalidated && !self.confirmingQuit && self.generation==request && self.historyProjectionEpoch==projection && self.selected==selection && self.occurrenceSelectionCount==count}
         unifiedSessions[id]=session;busy=true;error=nil
         Task {
-            defer { unifiedSessions.removeValue(forKey:id);if request==generation { busy=false };withExtendedLifetime(access) {} }
+            defer {finishUnifiedComparison(id,generation:request);withExtendedLifetime(access) {}}
             do {
                 try await session.run(selectedCount:0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -2517,6 +2540,9 @@ struct LogCommandRequest: Identifiable {
         statisticsWindow = controller; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     func invalidate() {
+        // Fence callbacks before cancellation publishes any idle state. A
+        // retired model is never a reusable reopen target.
+        isInvalidated=true;closeAfterUnifiedRead=false;cancelRepositoryRefresh()
         retireRevisionColumns?()
         noteSaveCancellation?.cancel();noteIdentitySession?.retire()
         bisectRead?.cancel(); bisectRead = nil
@@ -2550,7 +2576,12 @@ struct LogCommandRequest: Identifiable {
     }
     func reload() {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
-        guard !isInvalidated, !referencePickerBlocked, unifiedSessions.isEmpty, followedSession == nil, !fileNavigationReadPending, !busy || loadingHistory else { return }
+        guard !isInvalidated,!confirmingQuit else{return}
+        guard !referencePickerBlocked, unifiedSessions.isEmpty, followedSession == nil, !fileNavigationReadPending, !closeAfterUnifiedRead, !busy || loadingHistory else {
+            // A user Refresh must survive a captured comparison/picker owner.
+            // Consume the coalesced intent only once this reload is admitted.
+            pendingRepositoryRefresh=true;scheduleRepositoryRefresh();return
+        }
         cancelReferenceDescriptionRead()
         cancelSearchFilter()
         restoreHistorySnapshot()
@@ -2714,7 +2745,7 @@ struct LogCommandRequest: Identifiable {
         if parentMetadataBackendIdentity != identity {parentMetadata=[:];parentMetadataBackendIdentity=identity}
         selectionMark = mark.flatMap {hashes.contains($0) ? $0:nil} ?? selectionMark.flatMap {hashes.contains($0) ? $0:nil} ?? entries.first(where:{hashes.contains($0.hash)})?.hash
         messageLinkGeneration = UUID()
-        if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison(); cancelIntegrationRead() }
+        if hashes != selected { cancelWorkingCommandRead(); cancelFollowedComparison(); cancelUnifiedComparison(); cancelIntegrationRead() }
         cancelNoteRead()
         cancelJump(); highlightedRevision = nil
         if recordNavigation {
@@ -2933,11 +2964,14 @@ struct LogCommandRequest: Identifiable {
         guard (1...2).contains(revisions.count) else { return }
         let scope=path.map { [$0] } ?? (showWholeProject ? [] : historyPaths)
         let followed = path == nil ? followedPath : nil, followedRows = entries
-        let request = generation, selection = selected, detail = detailGeneration
+        // A history/detail settlement for the same selected hashes does not
+        // retire this captured revision operation. Selection changes cancel it.
+        let request = generation, selection = selected
         let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults, alternateTool:alternate)
+        session.isOwnerCurrent = {[weak self] in guard let self else{return false};return !self.isInvalidated && !self.confirmingQuit && self.generation==request && self.selected==selection}
         unifiedSessions[id] = session; busy = true
         Task {
-            defer { unifiedSessions.removeValue(forKey: id); if request == generation, !loadingHistory, unifiedSessions.isEmpty { busy = false }; withExtendedLifetime(access) {} }
+            defer {finishUnifiedComparison(id,generation:request);withExtendedLifetime(access) {}}
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -2966,17 +3000,17 @@ struct LogCommandRequest: Identifiable {
                         args += scope
                         bytes = try await repository.unifiedDiffData(arguments:args,cancellation:token)
                     } else { bytes = try await repository.revisionDiffData(revisions[0], paths:scope, workingTree:workingTree, mode:mode, cancellation:token) }
-                    guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if mode == .extraMergeChanges, String(decoding:bytes,as:UTF8.self).split(separator:"\n").count <= 1 {
                         navigationNotice="No extra changes after merge.";return
                     }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Selected revision changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
-                        guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected revision changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
-            } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
     var clipboardEntries:[LogEntry] {
@@ -3676,10 +3710,11 @@ struct LogCommandRequest: Identifiable {
         guard !chosen.isEmpty, !working || workingTreeSnapshot?.entry.parents.first != nil && chosen.allSatisfy({ $0.action != "?" }) else { return }
         let request = generation, selection = selected
         let fileRequest = fileSelectionGeneration
-        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults, alternateTool:alternate)
+        session.isOwnerCurrent = {[weak self] in guard let self else{return false};return !self.isInvalidated && !self.confirmingQuit && self.generation==request && self.selected==selection && self.fileSelectionGeneration==fileRequest}
         unifiedSessions[id] = session; busy = true
         Task {
-            defer { unifiedSessions.removeValue(forKey: id); if request == generation, !loadingHistory, unifiedSessions.isEmpty { busy = false }; withExtendedLifetime(access) {} }
+            defer {finishUnifiedComparison(id,generation:request);withExtendedLifetime(access) {}}
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -3789,13 +3824,14 @@ struct LogCommandRequest: Identifiable {
     private func workingTreeDiff(path: String?, alternate: Bool) {
         let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
         guard selected.count <= 2, let base = revisions.first?.hash ?? workingTreeSnapshot?.entry.parents.first else { return }
-        let request = generation, selection = selected, detail = detailGeneration
+        let request = generation, selection = selected
         let followed = path == nil ? followedPath : nil, rows = entries
         let scope = path.map { [$0] } ?? (showWholeProject ? [] : historyPaths)
-        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults)
+        let id = UUID(), session = FileListComparisonSession(window: window, preferences: labelDefaults, alternateTool:alternate)
+        session.isOwnerCurrent = {[weak self] in guard let self else{return false};return !self.isInvalidated && !self.confirmingQuit && self.generation==request && self.selected==selection}
         unifiedSessions[id] = session; busy = true
         Task {
-            defer { unifiedSessions.removeValue(forKey: id); if request == generation { busy = false }; withExtendedLifetime(access) {} }
+            defer {finishUnifiedComparison(id,generation:request);withExtendedLifetime(access) {}}
             do {
                 try await session.run(selectedCount: 0) { [self] token in
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
@@ -3807,14 +3843,14 @@ struct LogCommandRequest: Identifiable {
                         let args = ["diff", "--no-ext-diff", "--no-textconv", "--no-color", base, "--"] + scope
                         bytes = try await repository.unifiedDiffData(arguments:args,cancellation:token)
                     }
-                    guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                    guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: "Working tree changes", permissions: access.map { [$0] } ?? [], cancellation: token) {
-                        guard request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !token.isCancelled else { return }
+                        guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                         unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Working tree changes", preferences: labelDefaults, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
                 }
-            } catch { if request == generation, detailGeneration == detail, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
+            } catch { if request == generation, selection == selected, !isInvalidated, !session.cancellation.isCancelled { self.error = error.localizedDescription } }
         }
     }
 }

@@ -1,5 +1,23 @@
 # TurtleGit for Mac — full port tracking
 
+## Log comparison and refresh continuation
+
+The [Log ownership batch](qa/log-refresh-ownership-2026-10-31.json) retains
+coalesced repository/manual refresh requests until reload can actually start.
+Unified/followed comparison completion preserves other history/file-navigation
+owners. Whole-revision requests survive incidental same-selection detail loading;
+changed selections cancel captured work. Close cancels pending comparison work
+and waits for drain, while forced retirement retains its completion ownership.
+A closed model stays retired; reopening uses a fresh model.
+
+One incremental Debug build and the grouped native Log checks pass with both Git
+engines. The existing parent/working comparison, grouped merge/Revert and unified
+routing assertions remain in the group. The old hosted wait reused a retired
+model; the fixture now has named stages, observable reload admission and private
+state, with the initial fixture compilation failure retained. No Core suite was
+repeated. This source continuation is not installed in build43; wider physical,
+signed and corrected-source hosted acceptance remain open.
+
 ## Installed local testing build43
 
 [Signed build43](qa/signed-consolidation-build43-2026-10-31.json), `0.1.0 (43)`,

@@ -86,6 +86,20 @@ production alpha and original wires, and passes the matched-background checks
 locally. Hosted confirmation remains open. Neither local batch establishes a
 full hosted or installed pass.
 
+## Log refresh and comparison ownership continuation
+
+The [connected Log batch](qa/log-refresh-ownership-2026-10-31.json) fixes dropped
+refresh intents, overlapping comparison/history busy settlement and close-through-
+comparison cancellation. Same-selection detail completion no longer discards a
+captured whole-revision comparison. The old shared CI wait also tried to reuse a
+retired model; the fixture preserves retirement and uses a fresh successor.
+
+The Debug build and grouped Log comparison/routing/deferred-refresh checks pass
+with system and bundled Git after a fixture-only visibility correction. Default
+full assertions remain, with cached compilation and private receiver state.
+Build43 predates this source change; full hosted, signed/physical and remaining
+source/layout acceptance remain separate.
+
 ## Utility and local-tool startup continuation
 
 The [utility readiness checkpoint](qa/utility-startup-2026-10-31.json) covers
