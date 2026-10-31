@@ -3,11 +3,38 @@
 *A macOS fork of TortoiseGit*
 
 The Mac App Store is a target distribution channel, not a verified release path.
-The full port, signed runtime tests and licensing clearance remain incomplete.
+Full-port acceptance, distribution signing and license/Store terms review remain open.
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Installed signed local testing build47
+## Installed signed local testing build48
+
+[Signed build48](qa/signed-consolidation-build48-2026-10-31.json), `0.1.0 (48)`,
+is installed from exact clean source `d6ac61b8` and left closed for local testing.
+Build47 is preserved for rollback. This consolidation includes text-editor Open
+transactions, native image/text menu and keyboard ownership, selected merge block
+commands, caret-based Blame navigation, translated Log/References/RefLog menus
+and the Sync local/remote tag actor/refill repair.
+
+The universal Apple Development build, strict signatures/entitlements, eight
+app-owned components, 206 runtime entries, 98 Help source members and complete
+6,385-member package/install inventories pass. All 38 compiled language payloads
+match the frozen catalog's 1,361 keys where translated; this does not certify full
+UI localization. One signed sandbox parent exercised public Core and packaged Git
+local tools, then both parent and observed Git child were reaped and independently
+absent. No new shipping GUI or physical Finder acceptance is inferred.
+
+The local archive is `TurtleGit-for-Mac-0.1.0-build48-signed.zip`, SHA-256
+`65e3e960e1e5136bf235786d1bc06670a8fa95b047169c65585fc2d0c1b5e787`.
+The matching source archive contains exactly the 10,407 tracked files of the
+pinned revision; runtime reconstruction inputs and notices accompany the app.
+No running user app needed closing. Installation retained build47 and refreshed
+the installed path's registration without launching TurtleGit or restarting
+Finder/Dock. This is a local development-signed test package, with no public
+binary upload, notarization or App Store submission. Complete matching-source
+hosted CI, wider physical/platform acceptance and later distribution remain open.
+
+## Historical installed signed local testing build47
 
 [Signed build47](qa/signed-consolidation-build47-2026-10-31.json), `0.1.0 (47)`,
 is installed from exact clean source `a4e0a323` and left closed. Build46 is

@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed consolidated local build48
+
+[Build48](qa/signed-consolidation-build48-2026-10-31.json), source `d6ac61b8`, is
+installed and left closed. It consolidates the editor Open/menu/selected-block,
+Blame caret/navigation, history language and Sync tag authority batches. Build47
+is retained for rollback. Universal code, strict signatures/entitlements, 206
+runtime entries, exact Help and all compiled language payloads, ZIP/source archive
+and installed inventories pass. One owned signed public-Core/Git probe passed;
+its parent and observed child are independently absent. No workflow suites were
+repeated for assembly. No shipping GUI/physical Finder, complete hosted CI,
+minimum macOS/Intel execution or later Store distribution is inferred.
+
 ## Blame document-owned recent-history publication
 
 The [Blame workflow batch](qa/blame-recent-publication-2026-10-31.json) keeps
