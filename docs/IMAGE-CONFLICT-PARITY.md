@@ -128,3 +128,21 @@ Core was not rerun. [The dated record](qa/image-conflict-family-2026-10-16.json)
 retains all fixture failures, the native layout repair and exact cleanup scope.
 This supersedes earlier content-only routing and disabled missing-Base behavior;
 complete physical, format and signed acceptance remain open.
+
+
+## Pane controls and native acknowledgement lifetime (2026-10-31)
+
+Frame controls now receive equality-fenced parent admission changes during
+reload, selection, a peer preview read and native sheets. These boundaries stop
+playback; returning to an editable window restores controls without starting
+players or resetting the retained frame. The same ownership rule applies to the
+standalone three-input image selection window. Its accepted preview drop can
+publish its own result while preventing competing pane commands.
+
+Select retains its worker, repository permission and Quit blocker through actual
+sheet detachment, rather than treating a response callback as physical closure.
+Forced retirement cancels the question and drains the accepted operation without
+reviving the window. Original full-file selection and No's unmerged-index
+semantics remain unchanged. See the connected fixture and focused validation
+scope in [frame/playback parity](IMAGE-FRAMES-PARITY.md#three-pane-command-admission-and-sheet-completion-2026-10-31).
+This source change is not yet a signed or physical acceptance result.

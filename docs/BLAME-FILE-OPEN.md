@@ -25,6 +25,18 @@ Unicode and control characters. A moved repository can be reopened through its
 saved permission when macOS resolves it. An unavailable or invalid entry reports
 an error and retains the current document.
 
+For linked worktrees and repositories using another folder for Git metadata or
+objects, Open and Recent Files may ask for an additional folder. The sheet explains
+why it is needed and opens at that folder, including hidden folders such as `.git`.
+Choose that folder or its parent. Cancel or a wrong folder retains the current
+document and recent list.
+
+Recents remembers those additional permissions with the file. Older entries and
+unavailable extra permissions can be repaired through the same folder sheet when
+reopening. The selected repository remains the working folder; granting access to
+its metadata does not switch Blame to that folder. Closing or cancelling while the
+sheet is open refuses late replies and waits for the owned preparation to finish.
+
 ## Recent-file warnings
 
 If a bookmark or the private recent-file archive cannot be saved after a file

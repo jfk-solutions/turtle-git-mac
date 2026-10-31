@@ -1,0 +1,52 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-grouped-validation-passed",
+  "family": "Blame File Open and Recent linked-worktree metadata authority",
+  "source": {
+    "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "anchors": [
+      "TortoiseGitBlameDoc.cpp::OnOpenDocument",
+      "TortoiseGitBlame.cpp::LoadStdProfileSettings(4)"
+    ],
+    "native_reference": [
+      "RepositoryModel.prepareRepositoryMetadataAccess",
+      "MergeComparisonControls Merge-output metadata preparation",
+      "RepositoryAccessLease.retainingRelatedScopes/permittedFolders"
+    ]
+  },
+  "implementation": [
+    "Scoped File Open/Recent identifies the authorized repository marker and obtains required Git directory/common directory/object alternate grants before launching Git discovery.",
+    "Dependency discovery is capped at 64 added grants, uses only live security scopes and preserves the primary working-folder containment boundary.",
+    "An exact owned directory-only single-selection panel starts at the required folder with hidden files visible; wrong, duplicate, cancelled and retired replies cannot adopt or persist a document.",
+    "Preparation counters and controller completion retain ownership through real sheet detachment and worker drain, including initial file/root choices and queued preparation admission.",
+    "Optional auxiliary bookmarks preserve backward decoding of old archives; strict restoration is the default and only the scoped repair-capable controller can skip unavailable extras before preflight.",
+    "All bookmark creation and validation precede atomic publication, bounded to four records, 64 extras per record, 1 MiB per bookmark and 8 MiB encoded archive.",
+    "Successful readable HEAD publication renews the complete primary/auxiliary receipt with the same recent ID; filesystem/provider failures retain existing archive bytes and rows."
+  ],
+  "fixture": "blame-file-open-native-2026-10-13.swift::BlameAuthorityVerification",
+  "planned_cases": [
+    "Real linked worktree plus external alternates; exact metadata dependencies and no Git invocation before all grants",
+    "Full composite archive restoration with no prompt, stale bookmark renewal and older primary-only repair",
+    "Atomic auxiliary bookmark creation failure and strict inactive/unavailable restoration refusal",
+    "Native exact-folder/hidden-files/purpose and duplicate-response checks",
+    "Actual hidden initial file/root sheets with deliberately early replies: no next panel or Git until both sheet and parent detach; continuous Close/Quit ownership",
+    "Forced Close before queued preparation begins: no metadata prompt or Git call, exact callback after ticket drainage",
+    "Wrong grant, actual hidden-sheet Cancel and forced Close with late replies; unchanged current document, MRU, refs, indexes and literal source bytes"
+  ],
+  "validation": {
+    "executed": true,
+    "scope": "Existing native-reference-batch blame-file-open with system and bundled Git; grouped Debug app build passed. No Core implementation changed and no Core suite was run.",
+    "log": "build/qa/editor-authority-ownership-native-blame-2026-10-31.log",
+    "receivers_reaped": [
+      91107,
+      91115,
+      91529
+    ],
+    "limits": "Focused local checks do not establish full hosted CI, signed sandbox, physical Finder or complete visual parity."
+  },
+  "limits": [
+    "Private simulated bookmark grants do not establish actual signed sandbox acceptance.",
+    "No physical Finder/picker, moved external metadata store or complete Blame parity claim.",
+    "Primary and saved-extra bookmark resolution remains synchronous and bounded; no asynchronous store refactor is claimed."
+  ]
+}

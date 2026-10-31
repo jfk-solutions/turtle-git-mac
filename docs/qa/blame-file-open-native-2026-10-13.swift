@@ -154,6 +154,7 @@ import TurtleGitCore
         reloadOwner.close();try await wait { BlameWindowModel.activeHistoryOperations==0 && closePIDs.allSatisfy { kill($0,0) != 0 } }
         try require(reload.retired && !reload.busy && reload.snapshot?.contents==stable,"Closing metadata read accepted a late result")
         try await verifyPersistenceBoundaries(folder:folder,repositories:repos,files:files,preferences:prefs,regexExecutable:regexExecutable)
+        try await BlameAuthorityVerification.verify(folder:folder.appendingPathComponent("authority"),engine:engine,preferences:prefs,regexExecutable:regexExecutable)
         for n in 0..<5 { let lease=RepositoryAccessLease(url:repos[0].root,provider:provider);try history.remember(root:repos[0].root,path:"file\(n).txt",lease:lease) }
         try require(history.entries.count==4 && history.entries.map(\.path)==["file4.txt","file3.txt","file2.txt","file1.txt"],"Four-entry source MRU order/dedup")
         do {
@@ -214,5 +215,182 @@ import TurtleGitCore
     }
     private static func requireEncoding(_ encoding:GitBlameEncoding?)throws->GitBlameEncoding {
         guard let encoding else {throw Failure(description:"CP1252 unavailable for retained-byte recovery")};return encoding
+    }
+}
+
+private struct BlameAuthorityVerification {
+    typealias Failure=BlameFileOpenVerification.Failure
+    static func require(_ value:Bool,_ message:String)throws {try BlameFileOpenVerification.require(value,message)}
+    @MainActor static func wait(_ condition:@escaping ()->Bool)async throws {try await BlameFileOpenVerification.wait(condition)}
+    final class Provider:RepositoryBookmarkProvider {
+        var version=0,unavailable=Set<String>(),inactive=Set<String>(),failCreate:String?
+        var active=[String:Int]()
+        func create(for url:URL)throws->Data {
+            if url.path==failCreate {throw Failure(description:"Injected auxiliary bookmark failure")}
+            return Data(("v\(version)\0"+url.path).utf8)
+        }
+        func resolve(_ data:Data)throws->ResolvedBookmark {
+            let parts=String(decoding:data,as:UTF8.self).split(separator:"\0",maxSplits:1,omittingEmptySubsequences:false)
+            guard parts.count==2,!unavailable.contains(String(parts[1])) else {throw Failure(description:"Injected unavailable auxiliary bookmark")}
+            return .init(url:URL(fileURLWithPath:String(parts[1]),isDirectory:true),stale:String(parts[0]) != "v\(version)")
+        }
+        func startAccessing(_ url:URL)->Bool {
+            guard !inactive.contains(url.path) else{return false}
+            active[url.path,default:0] += 1;return true
+        }
+        func stopAccessing(_ url:URL) {active[url.path,default:0] -= 1}
+    }
+    @MainActor static func verify(folder:URL,engine:URL,preferences:UserDefaults,regexExecutable:URL)async throws {
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let main=folder.appendingPathComponent("main"),linked=folder.appendingPathComponent("linked"),external=folder.appendingPathComponent("external")
+        try FileManager.default.createDirectory(at:main,withIntermediateDirectories:true)
+        let repo=GitRepository(root:main,executable:engine)
+        _ = try await repo.run(["init","-b","main"])
+        for (key,value) in [("user.name","Blame Authority QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
+        let path="literal [linked] 雪\n.txt",contents=Data("linked source\n".utf8)
+        try contents.write(to:main.appendingPathComponent(path));try await repo.stage([path]);_ = try await repo.commit(message:"authority source")
+        _ = try await repo.run(["worktree","add","-b","linked-qa",linked.path])
+        _ = try await repo.run(["init","--bare",external.path])
+        let common=main.appendingPathComponent(".git"),objects=external.appendingPathComponent("objects")
+        try (objects.path+"\n").write(to:common.appendingPathComponent("objects/info/alternates"),atomically:true,encoding:.utf8)
+        let initialRefs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
+        let initialIndex=try Data(contentsOf:common.appendingPathComponent("index"))
+        let calls=folder.appendingPathComponent("git-calls"),helper=folder.appendingPathComponent("record-git")
+        func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        try ("#!/bin/sh\nprintf 'git\\n' >> "+quote(calls.path)+"\nexec "+quote(engine.path)+" \"$@\"\n").write(to:helper,atomically:true,encoding:.utf8)
+        try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        let provider=Provider(),primary=RepositoryAccessLease(url:linked,provider:provider)
+        let opener=BlameDocumentOpener(requireScope:true,provider:provider,factory:{GitRepository(root:$0,executable:helper)})
+        var required=[RepositoryMetadataAccessRequirement]()
+        let prepared=try await opener.prepare(file:linked.appendingPathComponent(path),scope:primary,options:GitBlameOptions(),regexExecutable:regexExecutable,chooseMetadataFolder:{requirement,token in
+            try token.check();try require(!FileManager.default.fileExists(atPath:calls.path),"Git ran before linked metadata authority settled")
+            required.append(requirement);return requirement.folder
+        })
+        try require(required.map(\.kind)==[.gitDirectory,.commonDirectory,.objectDirectory],"Linked worktree/common/alternate grants were not independently discovered")
+        let linkedIndex=required[0].folder.appendingPathComponent("index"),initialLinkedIndex=try Data(contentsOf:required[0].folder.appendingPathComponent("index"))
+        try require(prepared.snapshot.path.utf8.elementsEqual(path.utf8) && prepared.snapshot.contents==contents && !prepared.access.contains(common) && prepared.access.permits(common) && prepared.access.permits(objects),"Composite grant widened primary or lost exact source")
+        let archive=folder.appendingPathComponent("recent.json"),history=try BlameRecentDocuments(url:archive,provider:provider)
+        try history.remember(root:linked,path:path,lease:prepared.access)
+        let entry=history.entries[0],original=try Data(contentsOf:archive)
+        try require(entry.relatedBookmarks?.count==3,"MRU did not persist exact live metadata scopes")
+        provider.failCreate=objects.path
+        var failed=false
+        do {try history.remember(root:linked,path:path,lease:prepared.access)} catch {failed=true}
+        provider.failCreate=nil
+        let afterFailure=try Data(contentsOf:archive)
+        try require(failed && afterFailure==original && history.entries[0].id==entry.id && history.entries[0].relatedBookmarks==entry.relatedBookmarks,"Partial auxiliary save changed atomic MRU receipt")
+        let restored=try BlameRecentDocuments(url:archive,provider:provider),(_,file,restoredScope)=try restored.acquire(restored.entries[0],requireScope:true)
+        var unexpectedPrompt=false
+        let reopened=try await opener.prepare(file:file,scope:restoredScope,options:GitBlameOptions(),regexExecutable:regexExecutable,chooseMetadataFolder:{_,_ in unexpectedPrompt=true;return nil})
+        try require(!unexpectedPrompt && reopened.snapshot.contents==contents && !restoredScope.contains(objects) && restoredScope.permits(objects),"Restored composite authority required new grant or widened root")
+        provider.inactive.insert(objects.path)
+        var inactiveRejected=false
+        do {_ = try restored.acquire(restored.entries[0],requireScope:true)} catch {inactiveRejected=true}
+        provider.inactive.remove(objects.path)
+        try require(inactiveRejected,"Strict MRU restoration silently discarded inactive metadata permission")
+
+        // Old archives restore only the primary root. The native Recent action
+        // must obtain dependencies before Git, renew the record and retain ID.
+        var oldRecords=try JSONSerialization.jsonObject(with:original) as! [[String:Any]]
+        oldRecords[0].removeValue(forKey:"relatedBookmarks")
+        let oldArchive=folder.appendingPathComponent("old-recent.json")
+        try JSONSerialization.data(withJSONObject:oldRecords).write(to:oldArchive)
+        let oldHistory=try BlameRecentDocuments(url:oldArchive,provider:provider),oldEntry=oldHistory.entries[0]
+        provider.version=1
+        let bootScope=RepositoryAccessLease(url:main,provider:provider).retainingRelatedScopes([RepositoryAccessLease(url:objects,provider:provider)])
+        let owner=BlameWindowController(repository:GitRepository(root:main,executable:helper),access:bootScope,path:path,revision:"HEAD",options:GitBlameOptions(),preferences:preferences,regexExecutable:regexExecutable,recentDocuments:oldHistory,requireScope:true,provider:provider)
+        owner.window?.alphaValue=0;defer{owner.close()}
+        try await wait {!owner.model.busy && owner.model.snapshot != nil}
+        try FileManager.default.removeItem(at:calls)
+        var prompts=0
+        owner.chooseMetadataScope={ [weak owner] panel,window,reply in
+            prompts += 1
+            precondition(panel.canChooseDirectories && !panel.canChooseFiles && !panel.allowsMultipleSelection && panel.showsHiddenFiles && window===owner?.window && panel.alphaValue==0)
+            precondition(prompts<=required.count && panel.directoryURL?.path==required[prompts-1].folder.path && panel.message.contains(required[prompts-1].explanation))
+            precondition(!FileManager.default.fileExists(atPath:calls.path))
+            reply(panel.directoryURL);reply(nil)
+        }
+        var filePanel:NSOpenPanel?,rootPanel:NSOpenPanel?,fileAnswer:((URL?)->Void)?,rootAnswer:((URL?)->Void)?
+        owner.chooseFile={panel,window,reply in
+            filePanel=panel;fileAnswer=reply
+            panel.beginSheetModal(for:window){reply($0 == .OK ? panel.url:nil)}
+        }
+        owner.chooseScope={panel,window,reply in
+            rootPanel=panel;rootAnswer=reply
+            panel.beginSheetModal(for:window){reply($0 == .OK ? panel.url:nil)}
+        }
+        let beforeFile=owner.model;owner.openDocument()
+        try await wait {filePanel?.sheetParent === owner.window}
+        fileAnswer?(linked.appendingPathComponent(path));fileAnswer?(nil)
+        owner.openDocument()
+        try require(rootPanel==nil && prompts==0 && !FileManager.default.fileExists(atPath:calls.path) && beforeFile.openingDocument && BlameDocumentOpener.activeReads>0,"Early file reply crossed physical chooser handoff")
+        try require(!owner.windowShouldClose(owner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Initial file chooser handoff dropped Close/Quit ownership")
+        owner.window?.endSheet(filePanel!,returnCode:.cancel);filePanel?.orderOut(nil)
+        try await wait {rootPanel?.sheetParent === owner.window}
+        rootAnswer?(linked);rootAnswer?(nil)
+        try require(prompts==0 && !FileManager.default.fileExists(atPath:calls.path) && beforeFile.openingDocument && BlameDocumentOpener.activeReads>0,"Early root reply started metadata/Git before sheet detached")
+        owner.window?.endSheet(rootPanel!,returnCode:.cancel);rootPanel?.orderOut(nil)
+        try await wait {owner.model !== beforeFile && !owner.model.busy}
+        try require(prompts==3 && owner.model.error==nil && owner.model.path.utf8.elementsEqual(path.utf8),"File/root/metadata physical handoff did not load linked source")
+        try FileManager.default.removeItem(at:calls);prompts=0
+        let before=owner.model;owner.openRecent(oldEntry)
+        try await wait {owner.model !== before && !owner.model.busy && oldHistory.entries.first?.id==oldEntry.id}
+        try require(prompts==3 && owner.model.error==nil && oldHistory.entries.first?.relatedBookmarks?.count==3 && String(decoding:oldHistory.entries.first!.bookmark,as:UTF8.self).hasPrefix("v1\0"),"Old MRU did not repair and atomically renew exact grants/ID")
+        try require(owner.model.repositoryAccess?.contains(common)==false && owner.model.repositoryAccess?.permits(objects)==true,"Recent repair replaced primary boundary with metadata folder")
+
+        // Missing auxiliary bookmarks are repairable only through that owned
+        // preflight. Wrong/cancelled/retired replies never adopt a document.
+        provider.unavailable.insert(objects.path)
+        let repairEntry=oldHistory.entries.first!,repairModel=owner.model
+        var repairedPrompts=0
+        owner.chooseMetadataScope={panel,_,reply in repairedPrompts += 1;precondition(panel.directoryURL?.path==objects.path);reply(objects)}
+        owner.openRecent(repairEntry)
+        try await wait {owner.model !== repairModel && !owner.model.busy && oldHistory.entries.first?.id==repairEntry.id}
+        try require(repairedPrompts==1 && owner.model.error==nil && owner.model.repositoryAccess?.permits(objects)==true,"Unavailable auxiliary grant did not repair through exact owned prompt")
+        let savedEntry=oldHistory.entries.first!,stable=owner.model
+        let beforeRefusal=try Data(contentsOf:oldArchive),beforeRefusalIDs=oldHistory.entries.map(\.id)
+        var unavailableRejected=false
+        do {_ = try oldHistory.acquire(savedEntry,requireScope:true)} catch {unavailableRejected=true}
+        try require(unavailableRejected,"Strict recent acquisition skipped unavailable metadata without repair consumer")
+        owner.chooseMetadataScope={_,_,reply in reply(main)}
+        owner.openRecent(savedEntry);try await wait {!stable.openingDocument}
+        try require(owner.model===stable && stable.error != nil,"Wrong metadata grant adopted a replacement")
+        let afterWrong=try Data(contentsOf:oldArchive)
+        try require(afterWrong==beforeRefusal && oldHistory.entries.map(\.id)==beforeRefusalIDs && stable.repositoryAccess?.contains(common)==false,"Wrong metadata selection changed MRU or primary boundary")
+        var held:((URL?)->Void)?,promptWindow:NSWindow?
+        owner.chooseMetadataScope={panel,window,reply in
+            held=reply;promptWindow=panel
+            panel.beginSheetModal(for:window){reply($0 == .OK ? panel.url:nil)}
+        }
+        owner.openRecent(savedEntry);try await wait {held != nil && promptWindow?.sheetParent === owner.window && BlameDocumentOpener.activeReads==1}
+        try require(!owner.windowShouldClose(owner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Metadata prompt did not own Close/Quit")
+        owner.cancelOpenDocument();let late=held;held=nil;late?(objects)
+        try await wait {!stable.openingDocument && BlameDocumentOpener.activeReads==0}
+        let afterCancel=try Data(contentsOf:oldArchive)
+        try require(owner.model===stable && promptWindow?.sheetParent==nil && afterCancel==beforeRefusal && oldHistory.entries.map(\.id)==beforeRefusalIDs,"Cancelled metadata reply adopted a replacement or changed MRU")
+        owner.openRecent(savedEntry);try await wait {held != nil && promptWindow?.sheetParent === owner.window && BlameDocumentOpener.activeReads==1}
+        let afterClose=held;var closed=0;owner.onClosed={closed += 1};owner.close();afterClose?(objects)
+        try await wait {BlameDocumentOpener.activeReads==0 && closed==1}
+        try require(stable.retired && owner.model===stable && promptWindow?.sheetParent==nil,"Retired metadata reply adopted or retained its sheet")
+        provider.unavailable.remove(objects.path)
+        let queuedOwner=BlameWindowController(repository:GitRepository(root:main,executable:helper),access:bootScope,path:path,revision:"HEAD",options:GitBlameOptions(),preferences:preferences,regexExecutable:regexExecutable,recentDocuments:oldHistory,requireScope:true,provider:provider)
+        queuedOwner.window?.alphaValue=0;defer{queuedOwner.close()}
+        try await wait {!queuedOwner.model.busy && queuedOwner.model.snapshot != nil}
+        try FileManager.default.removeItem(at:calls)
+        var queuedPrompts=0,queuedClosed=0
+        queuedOwner.chooseFile={_,_,reply in reply(linked.appendingPathComponent(path))}
+        queuedOwner.chooseScope={_,_,reply in reply(linked)}
+        queuedOwner.chooseMetadataScope={_,_,reply in queuedPrompts += 1;reply(nil)}
+        queuedOwner.onClosed={queuedClosed += 1}
+        queuedOwner.openDocument()
+        try require(BlameDocumentOpener.activeReads>0 && queuedOwner.model.openingDocument,"Queued prepare handoff lost operation admission")
+        queuedOwner.close()
+        try await wait {queuedClosed==1 && BlameDocumentOpener.activeReads==0}
+        try require(queuedPrompts==0 && !FileManager.default.fileExists(atPath:calls.path) && queuedOwner.model.retired,"Queued prepare launched fresh metadata/Git after forced Close")
+        try require(try Data(contentsOf:linked.appendingPathComponent(path))==contents,"Authority acquisition changed source bytes")
+        let finalRefs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
+        let finalIndex=try Data(contentsOf:common.appendingPathComponent("index")),finalLinkedIndex=try Data(contentsOf:linkedIndex)
+        try require(finalRefs==initialRefs && finalIndex==initialIndex && finalLinkedIndex==initialLinkedIndex,"Authority acquisition mutated repository refs/index")
+        print("PASS: Blame linked-worktree/common/alternate preflight before Git, composite MRU/old archive renewal, atomic auxiliary refusal and owned wrong/Cancel/late/Close gates")
     }
 }

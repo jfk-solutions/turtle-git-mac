@@ -1515,3 +1515,36 @@ a failed automatic decode reuse the accepted bytes and history without another
 Git read. File Open/Recent Files retain the same recovery path. The linked record
 keeps Windows ANSI fallback, physical/signed acceptance and grouped evidence
 separate; no global encoding default is invented.
+
+## Linked-worktree File Open and recent authority — October 31, 2026
+
+The source File Open/HEAD MRU workflow now has a native metadata-permission
+preflight before Git discovery, annotation or history reads. It inspects only
+authorized `.git`, `commondir` and object-alternate markers, obtains an explicit
+directory grant for each missing dependency and retains those grants with the
+accepted document. The primary working-folder containment boundary is unchanged.
+Cancel, wrong-folder and retired replies cannot adopt a document or update MRU;
+the active preparation count and controller completion retain ownership through
+sheet detachment and worker drainage.
+The same single-use handoff covers the initial file chooser and repository-root
+chooser: an early callback cannot present metadata authorization or start Git
+before both the outgoing sheet and its parent detach. Queued preparation owns a
+continuous Quit lease and rechecks its original document before starting work,
+so closing between the chooser and task admission launches no new reader.
+
+Each recent entry can retain up to 64 optional auxiliary bookmarks, bounded to
+1 MiB per bookmark and an 8 MiB archive. Old primary-only records decode unchanged.
+Auxiliary restoration is strict by default; the scoped native opener alone may
+omit an unavailable extra so its owned preflight can request replacement before
+Git. Successful readable HEAD publication renews the complete bookmark receipt and
+preserves the record ID. All bookmarks are created and validated before an atomic
+0600 archive replacement; a partial failure leaves the previous archive and
+observable entries intact and uses the separate recent warning.
+
+The expanded private File Open fixture covers real linked worktrees and external
+object stores, grant capture/restoration, old archive repair, wrong/inactive or
+unavailable extras, cancellation, actual hidden sheet detachment and late owner
+replies. It is awaiting the grouped checkpoint recorded in
+[the family receipt](qa/blame-linked-authority-2026-10-31.json). No signed sandbox,
+physical folder gestures, moved external metadata stores or full Blame acceptance
+is established by source implementation or authored fixtures alone.

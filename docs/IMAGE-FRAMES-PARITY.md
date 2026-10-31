@@ -58,3 +58,38 @@ see [color parity](IMAGE-COLORS-PARITY.md).
 
 Native standalone image loading is now implemented; see
 [Open parity](IMAGE-OPEN-PARITY.md).
+
+
+## Three-pane command admission and sheet completion (2026-10-31)
+
+The conflict and standalone Mine/Base/Theirs windows now publish parent command
+availability to their independently observed frame controls. Owner transitions
+are compared before publication, so the existing pane-to-parent relay cannot
+create a notification loop. Loading, selection, peer file drops and native
+sheets stop active players. After the actual owner operation or sheet drains,
+controls become available again at their retained frame positions; playback
+requires a new Play command. Closing an owner retires its sheet observations,
+queued admission publication and players permanently.
+
+The standalone selection pane also distinguishes its own accepted preview drop
+from a peer's drop. Its own read may publish after decoding; competing pane
+commands remain blocked until that read drains. Preview replacement does not
+change the original bytes selected for the output file.
+
+An image resolution question retains the Select operation and its permissions
+until the question's native sheet has detached, including a response delivered
+before detachment. No still preserves the exact selected multi-frame file and
+unmerged index. This adapts the source's modal acknowledgement to AppKit's
+asynchronous sheet lifecycle; it adds no automatic playback or resolution.
+
+The connected native fixture now records named owner/control states and covers
+both window kinds, held reload/drop workers, native sheet admission, an early
+sheet-end notification, delayed physical detach, real No actions, unchanged
+frames/index/source bytes, retirement and absence of publisher feedback loops.
+The grouped checkpoint passed the Debug app build and the frames and
+conflict-owned native cases with both system and bundled Git. An initial
+fixture-only SDK compilation error required the explicit completion-handler
+sheet overload; only the affected image checks were repeated. All four image
+receivers were reaped. The log is
+`build/qa/editor-authority-ownership-native-image-sheet-api-2026-10-31.log`.
+Physical and signed acceptance and full hosted CI remain separate.

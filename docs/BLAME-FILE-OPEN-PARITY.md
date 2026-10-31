@@ -73,14 +73,14 @@ separate gates. The current private fixtures do not prove responsiveness of
 synchronous bookmark resolution on every external volume. No additional product
 deadlock was demonstrated by that limitation.
 
-## Remaining linked-worktree authority workflow
+## Linked-worktree authority continuation
 
-A confirmed separate implementation gap remains for narrow linked-worktree grants.
-The recent-file archive currently stores the primary bookmark, without a composite
-lease's external common-Git/object-store grants. `BlameDocumentOpener` also starts
-Git discovery before requesting missing metadata folders. A primary grant that
-covers those dependencies still works; a narrow grant needs preserved/restored
-related authority and an owned additional-folder flow. That next batch must keep
-primary containment unchanged, retain scopes through actual read/cancellation and
-refuse late or wrong-folder replies. The recent-warning checkpoint does not claim
-this authority gap is fixed.
+The separate narrow-grant gap identified after the recent-warning checkpoint has
+an implemented [authority workflow](qa/blame-linked-authority-2026-10-31.json).
+Recent entries retain bounded primary and related metadata bookmarks, and the
+File Open/Recent owner prepares missing Git/common/object-store permissions before
+Git discovery. Primary working-folder containment remains unchanged. Initial file,
+repository-folder and metadata choices retain one captured owner and wait for
+physical sheet detachment before handing off; cancelled, replaced or closed owners
+cannot start late Git reads. The connected editor checkpoint records its actual
+validation separately; these source changes are not signed/physical acceptance.

@@ -29,12 +29,14 @@ import TurtleGitCore
     let recentDocuments:BlameRecentDocuments?
     private let documentOpener:BlameDocumentOpener
     private(set) var openPanel:NSOpenPanel?
+    private var openPanelReply:((URL?)->Void)?
     private var openingGeneration=0
     private var recentID:UUID?
     private var recentSaveWarning:(owner:ObjectIdentifier,message:String)?
     var onDocumentChanged:()->Void={}
     var chooseFile:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
     var chooseScope:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
+    var chooseMetadataScope:(NSOpenPanel,NSWindow,@escaping (URL?)->Void)->Void = { panel,owner,reply in panel.beginSheetModal(for:owner) { reply($0 == .OK ? panel.url : nil) } }
 
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, regexExecutable:URL? = nil, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),gravatar:LogGravatar? = nil) {
         self.preferences=preferences;self.recentDocuments=recentDocuments
@@ -87,13 +89,36 @@ import TurtleGitCore
     }
     private let requireScope:Bool
     private let scopeProvider:any RepositoryBookmarkProvider
+    private func presentDocumentChoice(_ panel:NSOpenPanel,using present:(NSOpenPanel,NSWindow,@escaping(URL?)->Void)->Void,completion:@escaping(URL?)->Void) {
+        guard !closing,let window,openPanel==nil,window.attachedSheet==nil else {completion(nil);return}
+        let captured=model,identity=openingGeneration,opener=documentOpener,ticket=opener.retainChoice()
+        panel.appearance=window.appearance;panel.alphaValue=window.alphaValue;openPanel=panel
+        var answered=false
+        let settle:(URL?)->Void={ [weak self,weak captured] selected in
+            opener.releaseChoice(ticket)
+            guard let self else {completion(nil);return}
+            self.openPanelReply=nil
+            if self.openPanel === panel {self.openPanel=nil}
+            let accepted = !self.closing && captured?.retired==false && self.model === captured && self.openingGeneration==identity
+            completion(accepted ? selected:nil)
+        }
+        let reply:(URL?)->Void={ selected in
+            guard !answered else{return};answered=true
+            if panel.sheetParent==nil && window.attachedSheet !== panel {settle(selected);return}
+            Task { @MainActor [panel,window] in
+                while panel.sheetParent != nil || window.attachedSheet === panel {try? await Task.sleep(nanoseconds:10_000_000)}
+                settle(selected)
+            }
+        }
+        openPanelReply=reply;present(panel,window,reply)
+    }
     func openDocument() {
         guard model.canFind,!model.openingDocument,!hasBlockingHistoryChild,let window,window.attachedSheet==nil else { return }
         let panel=NSOpenPanel();panel.canChooseFiles=true;panel.canChooseDirectories=false;panel.allowsMultipleSelection=false;panel.resolvesAliases=false;panel.prompt="Blame File"
         panel.directoryURL=model.repository.root;panel.appearance=window.appearance
-        recentID=nil;openPanel=panel;model.openingDocument=true;openingGeneration += 1;let identity=openingGeneration
-        chooseFile(panel,window) { [weak self] file in
-            guard let self,self.openingGeneration==identity,!self.model.retired,self.openPanel===panel else { return };self.openPanel=nil
+        recentID=nil;model.openingDocument=true;openingGeneration += 1;let identity=openingGeneration,captured=model
+        presentDocumentChoice(panel,using:chooseFile) { [weak self,weak captured] file in
+            guard let self,let captured,self.openingGeneration==identity,!captured.retired,self.model === captured else { return }
             guard let file else { self.model.openingDocument=false;return }
             self.authorizeAndOpen(file)
         }
@@ -102,6 +127,7 @@ import TurtleGitCore
         guard model.openingDocument,!model.cancellingDocument else { return }
         let old=model;old.cancellingDocument=true;openingGeneration += 1;documentOpener.cancel()
         if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil }
+        openPanelReply?(nil)
         Task {
             while documentOpener.isReading { try? await Task.sleep(nanoseconds:10_000_000) }
             guard !old.retired,model===old else { return };old.openingDocument=false;old.cancellingDocument=false
@@ -113,9 +139,9 @@ import TurtleGitCore
         guard let window else { model.openingDocument=false;return }
         let panel=NSOpenPanel();panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.prompt="Allow Repository"
         panel.message="Allow access to the repository root containing this file.";panel.directoryURL=file.deletingLastPathComponent()
-        panel.appearance=window.appearance;openPanel=panel;let identity=openingGeneration
-        chooseScope(panel,window) { [weak self] folder in
-            guard let self,self.openingGeneration==identity,!self.model.retired,self.openPanel===panel else { return };self.openPanel=nil
+        panel.appearance=window.appearance;let identity=openingGeneration,captured=model
+        presentDocumentChoice(panel,using:chooseScope) { [weak self,weak captured] folder in
+            guard let self,let captured,self.openingGeneration==identity,!captured.retired,self.model === captured else { return }
             guard let folder else { self.model.openingDocument=false;return }
             self.prepare(file,scope:RepositoryAccessLease(url:folder,provider:self.scopeProvider))
         }
@@ -123,14 +149,38 @@ import TurtleGitCore
     func openRecent(_ entry:BlameRecentDocument) {
         guard model.canFind,!model.openingDocument,!hasBlockingHistoryChild,let recentDocuments else { return }
         recentID=entry.id;model.openingDocument=true;openingGeneration += 1
-        do { let (_,file,lease)=try recentDocuments.acquire(entry,requireScope:requireScope);prepare(file,scope:lease) }
+        do { let (_,file,lease)=try recentDocuments.acquire(entry,requireScope:requireScope,allowMetadataRepair:requireScope);prepare(file,scope:lease) }
         catch { model.openingDocument=false;model.error=error.localizedDescription }
+    }
+    private func chooseMetadataFolder(_ requirement:RepositoryMetadataAccessRequirement,cancellation:OperationCancellation) async throws -> URL? {
+        try cancellation.check()
+        guard !closing,!model.retired,model.openingDocument,openPanel==nil,let window,window.attachedSheet==nil else {return nil}
+        let panel=NSOpenPanel()
+        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false
+        panel.showsHiddenFiles=true
+        panel.title="Allow repository folder access";panel.prompt="Allow Access"
+        panel.message=requirement.explanation+"\n\nSelect this folder, or a parent folder: "+requirement.folder.path
+        panel.directoryURL=requirement.folder;panel.appearance=window.appearance;panel.alphaValue=window.alphaValue
+        return await withCheckedContinuation { continuation in
+            presentDocumentChoice(panel,using:chooseMetadataScope) {selected in
+                continuation.resume(returning:cancellation.isCancelled ? nil:selected)
+            }
+        }
     }
     private func prepare(_ file:URL,scope:RepositoryAccessLease?) {
         let old=model,identity=openingGeneration,options=GitBlamePreferences.load(from:preferences),replacing=recentID
+        let admission=documentOpener.retainChoice()
         Task {
+            defer {documentOpener.releaseChoice(admission)}
+            guard openingGeneration==identity,!closing,!old.retired,model === old else{return}
+            // Transfer the queued chooser handoff into the actual reader without
+            // yielding the main actor or dropping its Quit ownership meanwhile.
+            documentOpener.releaseChoice(admission)
             do {
-                let document=try await documentOpener.prepare(file:file,scope:scope,options:options,regexExecutable:old.historyRegexExecutable)
+                let document=try await documentOpener.prepare(file:file,scope:scope,options:options,regexExecutable:old.historyRegexExecutable,chooseMetadataFolder:{ [weak self,weak old] requirement,token in
+                    guard let self,let old,!old.retired,self.model === old,self.openingGeneration==identity else {return nil}
+                    return try await self.chooseMetadataFolder(requirement,cancellation:token)
+                })
                 guard openingGeneration==identity,!closing,!old.retired,model === old else { return }
                 cancelGoToLine();focusGeneration += 1
                 toolbarChrome?.retire();toolbarChrome=nil
@@ -312,6 +362,7 @@ import TurtleGitCore
         guard !closing else{return};closing=true
         toolbarChrome?.retire();toolbarChrome=nil
         let pendingColumnAlert=columnAlert
+        let pendingOpenPanel=openPanel
         cancelGoToLine();focusGeneration += 1
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
         feedbackGeneration += 1;openingGeneration += 1;documentOpener.cancel()
@@ -319,15 +370,16 @@ import TurtleGitCore
         Array(historyUnifiedWindows.values).forEach { $0.close() };historyUnifiedWindows=[:];historyUnifiedObservations=[:]
         Array(containingReferences.values).forEach { $0.close() };containingReferences=[:]
         if let panel=openPanel { panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.close();openPanel=nil };model.openingDocument=false
+        openPanelReply?(nil)
         if let alert=findAlert {
             alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close();findAlert=nil
         }
         model.searchFeedbackBusy=false
         findWindow?.close();findWindow=nil
         model.retireSourceView?();model.retireSourceView=nil;model.onFind=nil;model.onFindFeedback=nil;model.retire()
-        if model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil {
+        if model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {
             columnResetRelease=Task { [self] in
-                while model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                while model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
                 columnResetRelease=nil;onClosed()
             }
         } else {onClosed()}

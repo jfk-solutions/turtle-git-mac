@@ -58,6 +58,27 @@ signed sandbox inheritance, physical powerbox behavior, network filesystem
 behavior or complete App Store acceptance. Local clone-source and SSH-key grants
 remain separate workflows.
 
+## Blame File Open and Recent Files
+
+Blame uses the same metadata access rules when File Open or a recent entry points
+to a linked worktree or shared object store. Before reading Git data, its own
+window asks for any uncovered Git directory, common directory or alternate object
+folder. The picker opens at the requested folder and shows hidden metadata
+folders. Choose that folder or a containing parent, then allow access.
+
+Cancel retains the current Blame document and recent list. An unrelated folder
+reports an error. Closing the window cancels its pending choice; an old reply
+cannot open a different document. Required grants stay active until the actual
+read and sheet finish, including after cancellation.
+
+Successful HEAD openings remember the primary working-folder permission and
+related metadata permissions in Blame's separate four-file Recent Files archive.
+Those extra permissions do not change the working-folder boundary. Reopening
+reuses available grants and renews the record after a successful read. Older
+entries, or entries whose metadata permission is no longer available, ask only
+for dependencies currently needed. Workspace Recents and Finder watches keep
+their own archives and management commands.
+
 ## Manage saved workspace access
 
 Use **File → Open Recent → Manage Repository Access…** to open the native

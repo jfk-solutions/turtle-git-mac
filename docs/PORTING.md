@@ -5937,3 +5937,26 @@ were individually viewed and now illustrate both layouts/appearances in the
 homepage, Getting Started, Dialog Guide and offline Help. They use synthetic
 Harbor data and current Debug objects; they are not store screenshot approval
 or a signed build43 acceptance claim. All capture/test receivers were reaped.
+
+
+## Blame metadata authority and image owner controls — October 31, 2026
+
+Blame File Open and Recent Files now retain the complete linked-worktree, common
+Git directory and alternate object-store permissions. Exact folder choices occur
+before Git discovery; old recent entries can repair missing metadata grants
+without replacing a readable document or partially publishing its archive.
+Initial chooser, root chooser, metadata chooser and queued preparation preserve
+continuous cancellation and Close/Quit ownership through real sheet detachment.
+The [authority checkpoint](qa/blame-linked-authority-2026-10-31.json) records the
+scoped implementation and validation.
+
+Conflict and standalone image selection now propagate parent loading, peer-drop
+and sheet availability to frame/playback controls without a publication loop.
+Sheets stop playback; completed operations restore controls at retained frames
+without automatically restarting players. Preview drops retain the original
+source-selection bytes, and resolution confirmation retains ownership until
+its actual native sheet detaches. The [combined checkpoint](qa/editor-authority-ownership-2026-10-31.json)
+records the Debug build and six native case/engine passes, including the retained
+fixture-only compilation repair. No Core suite or passing native scope was
+repeated. Installed build46 is unchanged; signed, physical, complete hosted and
+whole-port acceptance remain separate.

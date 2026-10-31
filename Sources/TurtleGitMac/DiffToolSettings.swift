@@ -831,7 +831,14 @@ struct MergeToolSettings: View {
         question.messageText = "Mark “" + (path as NSString).lastPathComponent + "” as resolved?"
         question.informativeText = "The selected content has been copied to the working file."
         question.addButton(withTitle: "Yes"); question.addButton(withTitle: "No")
-        return await ask(question)
+        let accepted=await ask(question)
+        // Image Select owns both the accepted byte copy and this exact native
+        // acknowledgement. Keep its worker/grant/Quit count until AppKit has
+        // actually detached the sheet, including after forced retirement.
+        while question.window.sheetParent != nil || owner?.attachedSheet === question.window {
+            await withCheckedContinuation {reply in DispatchQueue.main.asyncAfter(deadline:.now()+0.005){reply.resume()}}
+        }
+        return accepted && !retired && !cancellation.isCancelled && !Task.isCancelled
     }
     func confirmResolution(path: String) async -> Bool {
         let question = NSAlert(); question.messageText = "Was the merge of “" + path + "” successful?"

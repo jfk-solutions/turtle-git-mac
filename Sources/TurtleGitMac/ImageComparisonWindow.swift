@@ -3,10 +3,54 @@ import SwiftUI
 import Combine
 import TurtleGitCore
 
+/// Sheet admission happens before attachedSheet is populated; completion can
+/// precede physical detachment. Publish that whole owner boundary to pane-local
+/// controls without making a pane observe its own relayed parent publisher.
+@MainActor final class ImagePaneOwnerWindowGate {
+    private weak var window:NSWindow?
+    private let changed:(Bool)->Void
+    private var observations=[NSObjectProtocol]()
+    private var release:Task<Void,Never>?
+    private var generation=UUID(),retired=false
+    init(window:NSWindow,changed:@escaping(Bool)->Void) {
+        self.window=window;self.changed=changed
+        for name in [NSWindow.willBeginSheetNotification,NSWindow.didEndSheetNotification,NSWindow.willCloseNotification] {
+            observations.append(NotificationCenter.default.addObserver(forName:name,object:window,queue:.main){[weak self] _ in
+                MainActor.assumeIsolated {
+                    guard let self,!self.retired else{return}
+                    if name==NSWindow.willCloseNotification {self.retire()}
+                    else if name==NSWindow.willBeginSheetNotification {self.generation=UUID();self.release?.cancel();self.release=nil;self.changed(true)}
+                    else {self.afterSheetCompletion()}
+                }
+            })
+        }
+        changed(window.attachedSheet != nil)
+    }
+    private func afterSheetCompletion() {
+        guard !retired,let window else{return}
+        let id=UUID(),sheet=window.attachedSheet;generation=id;release?.cancel()
+        release=Task { [weak self,weak window,sheet] in
+            await Task.yield()
+            while let window,!Task.isCancelled,window.attachedSheet != nil || sheet?.sheetParent === window {
+                do {try await Task.sleep(nanoseconds:5_000_000)} catch {return}
+            }
+            guard !Task.isCancelled,let self,!self.retired,self.generation==id else{return}
+            self.release=nil;self.changed(false)
+        }
+    }
+    func retire() {
+        guard !retired else{return};retired=true;generation=UUID();release?.cancel();release=nil
+        for observation in observations {NotificationCenter.default.removeObserver(observation)};observations=[]
+        changed(true)
+    }
+    deinit {release?.cancel();for observation in observations {NotificationCenter.default.removeObserver(observation)}}
+}
+
 @MainActor final class ImageComparisonViewModel: ObservableObject {
     let presentation: ImageWindowPresentation
     private var presentationObserver: AnyCancellable?
     private var commandOwnerObservation: AnyCancellable?
+    private var publishedCommandOwnerAvailability:Bool?
     init(presentation: ImageWindowPresentation? = nil) {
         self.presentation = presentation ?? ImageWindowPresentation()
         presentationObserver = self.presentation.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
@@ -18,6 +62,17 @@ import TurtleGitCore
         commandOwnerObservation=changes.receive(on:DispatchQueue.main).sink { [weak self] _ in
             MainActor.assumeIsolated { guard let self,!self.retired else{return};self.objectWillChange.send() }
         }
+    }
+    /// Compare actual post-mutation owner state before notifying SwiftUI. Pane
+    /// changes may be relayed back to a three-pane owner; equality stops a
+    /// parent/pane publication loop and blocked admission stops active timers.
+    func refreshCommandOwnerAvailability() {
+        guard !retired else{return}
+        let allowed=commandsAllowed()
+        guard publishedCommandOwnerAvailability != allowed else{return}
+        publishedCommandOwnerAvailability=allowed
+        if !allowed {stopImageTimers()}
+        objectWillChange.send()
     }
     @Published var nativeToolbarInstalled = false
     var commandsAllowed: () -> Bool = { true }

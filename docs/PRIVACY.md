@@ -104,11 +104,15 @@ Saved native window sizes and positions live in app preferences.
 legacy frame-autosave entries; it preserves histories, bookmarks and repositories.
 
 Blame keeps up to four recent HEAD files in a separate private `blame-files.json`
-archive with folder bookmarks, relative repository/file paths and display paths.
-Bookmarks are used only after containment/security-scope validation. Successful
-reopening renews moved grants; failed entries remain until replaced by later
-recent-file use. The archive is atomically written with owner-only permissions
-and is not shared with Finder or uploaded.
+archive with primary and related Git-metadata folder bookmarks, relative
+repository/file paths and display paths. Related grants cover such dependencies
+as a linked worktree's common Git directory or alternate object store; they do not
+widen its primary working-folder boundary. Bookmarks are used only after
+containment/security-scope validation. Reopening can request a currently needed
+metadata folder when an older entry lacks its grant. Successful reopening renews
+grants; failed entries remain until replaced by later recent-file use. All
+bookmarks for a new record are prepared before its atomic owner-only archive
+replacement. The archive is bounded and is not shared with Finder or uploaded.
 
 
 At launch, the local problem-report helper checks up to 32 recent candidate Apple

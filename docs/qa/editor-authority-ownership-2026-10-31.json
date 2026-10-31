@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-31",
+  "status": "focused-grouped-validation-passed",
+  "families": [
+    "Blame linked-worktree File Open/Recents metadata grants and chooser ownership",
+    "Conflict and standalone image frame/playback owner and native sheet lifetime"
+  ],
+  "build": {
+    "configuration": "Debug",
+    "result": "passed",
+    "log": "build/qa/editor-authority-ownership-debug-2026-10-31.log"
+  },
+  "native": {
+    "git_engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "cases": [
+      "blame-file-open",
+      "frames",
+      "conflict-owned"
+    ],
+    "distinct_case_engine_passes": 6,
+    "logs": [
+      "build/qa/editor-authority-ownership-native-blame-2026-10-31.log",
+      "build/qa/editor-authority-ownership-native-image-sheet-api-2026-10-31.log"
+    ]
+  },
+  "retained_failure": {
+    "scope": "Initial image fixture compilation only; no image receiver executed",
+    "cause": "SDK selected async beginSheet overload inside async fixture",
+    "repair": "Explicit completionHandler overload in fixture",
+    "repeat": "Only the affected image cases; passing Debug and Blame scopes retained",
+    "log": "build/qa/editor-authority-ownership-native-image-2026-10-31.log"
+  },
+  "cleanup": {
+    "receivers_reaped_and_independently_absent": [
+      91107,
+      91115,
+      91529,
+      92095,
+      92272,
+      92511,
+      92682
+    ],
+    "shipping_app_launched": false
+  },
+  "resources": {
+    "localization_check": "38 locales, 1326 keys",
+    "help_check": "63 documents, 52 topics, 97 source members",
+    "coverage": "130 resource dialogs, 120 partial family audits, 10 pending; no completeness percentage"
+  },
+  "core": "Unchanged; no Core suite run",
+  "limits": [
+    "Full hosted integration not established",
+    "No shipping signed sandbox or physical Finder/picker acceptance",
+    "No complete dialog visual parity claim",
+    "Installed build46 unchanged",
+    "No App Store submission, notarization or public binary upload"
+  ]
+}

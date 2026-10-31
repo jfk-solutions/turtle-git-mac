@@ -17,6 +17,7 @@ import TurtleGitCore
 }
 @MainActor final class ImageSelectionWindowController:NSWindowController,NSWindowDelegate {
     let model:ImageSelectionWindowModel
+    private var paneWindowGate:ImagePaneOwnerWindowGate?
     private(set) var imageToolbar:ImageEditorToolbar?
     var onFinished:(Int32)->Void = {_ in}
     var onClosed:()->Void = {}
@@ -28,6 +29,7 @@ import TurtleGitCore
         super.init(window:window);window.delegate=self;window.imageModel=model;model.windowForCommands=window;model.presentation.attach(window)
         model.onAccepted = { [weak self] status in self?.onFinished(status);self?.window?.close() }
         model.askMarkResolved = { [weak model] path in await model?.confirmResolution(path:path) ?? false }
+        paneWindowGate=ImagePaneOwnerWindowGate(window:window){[weak model] blocked in model?.setWindowCommandsBlocked(blocked)}
         imageToolbar=ImageEditorToolbar.selection(self)
         TurtleGitHelp.attach(window,topic:.images)
         DialogGeometry.attach(window,identifier:"TurtleGit.ImageSelection");window.center()
@@ -35,7 +37,7 @@ import TurtleGitCore
     func windowShouldClose(_ sender:NSWindow)->Bool {(!model.busy || model.decoding) && sender.attachedSheet==nil}
     func windowWillClose(_ notification:Notification) {
         guard (notification.object as? NSWindow) === window else{return}
-        imageToolbar?.retire();model.retire();(window as? ImageSelectionNSWindow)?.imageModel=nil;onClosed()
+        paneWindowGate?.retire();paneWindowGate=nil;imageToolbar?.retire();model.retire();(window as? ImageSelectionNSWindow)?.imageModel=nil;onClosed()
     }
     func closeAfterApprovedQuit() {model.cancelWork();window?.close()}
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
@@ -45,12 +47,26 @@ import TurtleGitCore
     static private(set) var activeOperations=0
     @Published private(set) var document:ImageSelectionDocument
     @Published private(set) var images:[ImageConflictSide:ComparisonImage]=[:]
-    @Published private(set) var busy=false
+    @Published private(set) var busy=false {didSet {refreshPaneCommands()}}
     @Published private(set) var decoding=false
     @Published var showInfo=false
     @Published var vertical=false
     @Published var nativeToolbarInstalled=false
     @Published var error:String?
+    private var windowCommandsBlocked=false,paneCommandRefreshQueued=false
+    func setWindowCommandsBlocked(_ blocked:Bool) {
+        guard !retired,windowCommandsBlocked != blocked else{return}
+        windowCommandsBlocked=blocked;refreshPaneCommands();objectWillChange.send()
+    }
+    private func refreshPaneCommands() {
+        guard !retired else{return};for pane in panes.values {pane.refreshCommandOwnerAvailability()}
+    }
+    private func schedulePaneCommandRefresh() {
+        guard !retired,!paneCommandRefreshQueued else{return};paneCommandRefreshQueued=true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else{return};self.paneCommandRefreshQueued=false;self.refreshPaneCommands()
+        }
+    }
     private(set) var retired=false
     private(set) var completedStatus:Int32?
     private var ownedOperations=0
@@ -89,12 +105,12 @@ import TurtleGitCore
         panes=Dictionary(uniqueKeysWithValues:ImageConflictSide.allCases.map{($0,ImageComparisonViewModel(presentation:appearance))})
         saveFolderAccess.requireScope=requiresScopes;newOutputResolution.requiresScope=requiresScopes
         for (side,pane) in panes {pane.commandsAllowed = { [weak self] in
-            guard let self else{return false};return self.ready && !self.panes.contains{$0.key != side && $0.value.receivingDrop}
+            guard let self else{return false};return !self.retired && !self.busy && !self.windowCommandsBlocked && !self.panes.contains{$0.key != side && $0.value.receivingDrop} && self.windowForCommands?.attachedSheet==nil && NSApp.modalWindow==nil
         }}
-        observations=panes.values.map{$0.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }}
+        observations=panes.values.map{$0.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send();self?.schedulePaneCommandRefresh() }}
         load(recapturing:false)
     }
-    private var ready:Bool {!retired && !busy && !panes.values.contains{$0.receivingDrop} && windowForCommands?.attachedSheet==nil && NSApp.modalWindow==nil}
+    private var ready:Bool {!retired && !busy && !windowCommandsBlocked && !panes.values.contains{$0.receivingDrop} && windowForCommands?.attachedSheet==nil && NSApp.modalWindow==nil}
     func title(for side:ImageConflictSide)->String {
         document.invocation.titles[side] ?? document.inputs[side]?.path ?? side.rawValue
     }
@@ -142,7 +158,7 @@ import TurtleGitCore
     func reload() {guard ready else{return};load(recapturing:true)}
     func cancelWork() {cancellation?.cancel();saveFolderAccess.cancel();newOutputResolution.cancel();question?.retire(cancelWork:true)}
     func retire() {
-        guard !retired else{return};retired=true;cancelWork();presentation.retire();panes.values.forEach{$0.retire()};observations=[]
+        guard !retired else{return};retired=true;windowCommandsBlocked=true;cancelWork();presentation.retire();panes.values.forEach{$0.retire()};observations=[]
     }
     func confirmResolution(path:String) async -> Bool {
         guard !retired,let window=windowForCommands,window.attachedSheet==nil else{return false}

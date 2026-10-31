@@ -21,6 +21,7 @@ import TurtleGitCore
 }
 @MainActor final class ImageConflictWindowController: NSWindowController, NSWindowDelegate {
     let model: ImageConflictWindowModel
+    private var paneWindowGate:ImagePaneOwnerWindowGate?
     private(set) var imageToolbar: ImageEditorToolbar?
     var onClosed: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, document: ImageConflictDocument, preferences: UserDefaults = .standard, decodeImages:ImageConflictWindowModel.Decoder?=nil) {
@@ -32,12 +33,13 @@ import TurtleGitCore
         super.init(window: window); model.presentation.attach(window); model.windowForCommands = window; window.delegate = self; window.imageModel = model; window.center()
         model.close = { [weak window] in window?.close() }
         model.askMarkResolved = { [weak model = model] path in await model?.confirmResolution(path: path) ?? false }
+        paneWindowGate=ImagePaneOwnerWindowGate(window:window){[weak model] blocked in model?.setWindowCommandsBlocked(blocked)}
         imageToolbar = ImageEditorToolbar.conflict(self)
         DialogGeometry.attach(window, identifier: "TurtleGit.ImageConflict", legacyName: "TurtleGit.ImageConflict")
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { (!model.busy || model.decoding) && sender.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        imageToolbar?.retire(); model.retire(); (window as? ImageConflictNSWindow)?.imageModel = nil; onClosed()
+        paneWindowGate?.retire();paneWindowGate=nil;imageToolbar?.retire(); model.retire(); (window as? ImageConflictNSWindow)?.imageModel = nil; onClosed()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -60,8 +62,22 @@ import TurtleGitCore
     @Published var nativeToolbarInstalled = false
     @Published var vertical = false
     @Published var showInfo = false
-    @Published private(set) var busy = false
+    @Published private(set) var busy = false {didSet {refreshPaneCommands()}}
     @Published var error: String?
+    private var windowCommandsBlocked=false,paneCommandRefreshQueued=false
+    func setWindowCommandsBlocked(_ blocked:Bool) {
+        guard !retired,windowCommandsBlocked != blocked else{return}
+        windowCommandsBlocked=blocked;refreshPaneCommands();objectWillChange.send()
+    }
+    private func refreshPaneCommands() {
+        guard !retired else{return};for pane in panes.values {pane.refreshCommandOwnerAvailability()}
+    }
+    private func schedulePaneCommandRefresh() {
+        guard !retired,!paneCommandRefreshQueued else{return};paneCommandRefreshQueued=true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else{return};self.paneCommandRefreshQueued=false;self.refreshPaneCommands()
+        }
+    }
     private(set) var retired = false
     private var task: Task<Void,Never>?
     private var cancellation: OperationCancellation?
@@ -83,9 +99,9 @@ import TurtleGitCore
             return (side,pane)
         })
         for (side,pane) in panes { pane.commandsAllowed = { [weak self] in
-            guard let self else {return false};return !self.busy && !self.retired && !self.panes.contains(where:{$0.key != side && $0.value.receivingDrop}) && self.windowForCommands?.attachedSheet == nil
+            guard let self else {return false};return !self.busy && !self.retired && !self.windowCommandsBlocked && !self.panes.contains(where:{$0.key != side && $0.value.receivingDrop}) && self.windowForCommands?.attachedSheet == nil
         } }
-        paneObservers = panes.values.map {pane in pane.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() } }
+        paneObservers = panes.values.map {pane in pane.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send();self?.schedulePaneCommandRefresh() } }
         loadInitialImages()
     }
     private func publishImages(_ decoded:[ImageConflictSide:ComparisonImage]) {
@@ -110,7 +126,7 @@ import TurtleGitCore
         }
     }
     func commandState(_ command: ImageEditorCommand) -> ImageEditorCommandState? {
-        let ready = !busy && !retired && !panes.values.contains(where:{$0.receivingDrop}) && windowForCommands?.attachedSheet == nil
+        let ready = !busy && !retired && !windowCommandsBlocked && !panes.values.contains(where:{$0.receivingDrop}) && windowForCommands?.attachedSheet == nil
         switch command {
         case .info: return .init(enabled: ready, checked: showInfo)
         case .vertical: return .init(enabled: ready, checked: vertical)
@@ -134,8 +150,9 @@ import TurtleGitCore
     func zoom(_ zoomIn: Bool) { for pane in panes.values { pane.changeZoom(zoomIn: zoomIn) } }
     func retire() {
         guard !retired else { return }
+        retired=true;windowCommandsBlocked=true;paneObservers=[]
         presentation.retire(); for pane in panes.values { pane.retire() }
-        retired = true; cancellation?.cancel(); resolutionSession?.retire(); task?.cancel()
+        cancellation?.cancel(); resolutionSession?.retire(); task?.cancel()
         // Keep the actual operation and its retained repository grant alive
         // until the Git worker or owned question really settles.
     }
@@ -147,10 +164,10 @@ import TurtleGitCore
         return await question.confirmImageResolution(path: path)
     }
     func canSelect(_ side: ImageConflictSide) -> Bool {
-        !busy && !retired && !panes.values.contains(where:{$0.receivingDrop}) && windowForCommands?.attachedSheet == nil && document.selectionBytes(side) != nil
+        !busy && !retired && !windowCommandsBlocked && !panes.values.contains(where:{$0.receivingDrop}) && windowForCommands?.attachedSheet == nil && document.selectionBytes(side) != nil
     }
     func reload() {
-        guard !busy, !retired, !panes.values.contains(where:{$0.receivingDrop}), windowForCommands?.attachedSheet == nil else { return }; busy = true; decoding=true;error = nil
+        guard !busy, !retired, !windowCommandsBlocked, !panes.values.contains(where:{$0.receivingDrop}), windowForCommands?.attachedSheet == nil else { return }; busy = true; decoding=true;error = nil
         let token = OperationCancellation(),decode=decodeImages; cancellation = token; Self.activeOperations += 1
         task = Task { [self,access] in
             defer { busy = false; decoding=false;task = nil; cancellation = nil; Self.activeOperations -= 1;withExtendedLifetime(access) {} }
