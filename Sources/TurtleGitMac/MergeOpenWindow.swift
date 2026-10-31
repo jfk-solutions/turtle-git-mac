@@ -136,7 +136,8 @@ import TurtleGitCore
     }
     func completionCandidates(for text: String, directoryOnly: Bool = false) -> [String] {
         guard !retired, !busy, !accepting, !text.isEmpty, !text.contains("\0") else { return [] }
-        let expanded = (text as NSString).expandingTildeInPath
+        let expanded = UserAccountPaths.expandingTilde(text)
+        let accountHome=UserAccountPaths.homeDirectory.path
         let folder = expanded.hasSuffix("/") ? URL(fileURLWithPath:expanded) : URL(fileURLWithPath:expanded).deletingLastPathComponent()
         guard !requiresScopes || grants.contains(where:{ $0.hasSecurityScope && $0.contains(folder) }) else { return [] }
         let prefix = expanded.hasSuffix("/") ? "" : (expanded as NSString).lastPathComponent
@@ -145,7 +146,7 @@ import TurtleGitCore
             let url = folder.appendingPathComponent(name); var directory: ObjCBool = false
             guard FileManager.default.fileExists(atPath:url.path,isDirectory:&directory), !directoryOnly || directory.boolValue else { return nil }
             let full = url.path + (directory.boolValue ? "/" : "")
-            if text.hasPrefix("~"), full.hasPrefix(NSHomeDirectory()+"/") { return "~" + full.dropFirst(NSHomeDirectory().count) }
+            if text=="~" || text.hasPrefix("~/"),full.hasPrefix(accountHome+"/") {return "~"+full.dropFirst(accountHome.count)}
             return full
         }
     }
@@ -209,7 +210,7 @@ import TurtleGitCore
         guard !retired, !busy, !accepting, choiceID == nil, field(slot).isEnabled,
               let window, window.attachedSheet == nil else { return }
         let captured = form, identity = UUID()
-        let existing = authorize ?? (field(slot).stringValue.isEmpty ? nil : URL(fileURLWithPath: (field(slot).stringValue as NSString).expandingTildeInPath))
+        let existing = authorize ?? (field(slot).stringValue.isEmpty ? nil : URL(fileURLWithPath:UserAccountPaths.expandingTilde(field(slot).stringValue)))
         choiceID = identity; busy = true; Self.activeChoices += 1; pendingChoices += 1; updateGates()
         Task { [self] in
             defer {
@@ -279,7 +280,7 @@ import TurtleGitCore
             case .compare:
                 paths = Slot.allCases.prefix(3).compactMap { slot in
                     let value = field(slot).stringValue; guard !value.isEmpty else { return nil }
-                    let expanded = (value as NSString).expandingTildeInPath
+                    let expanded = UserAccountPaths.expandingTilde(value)
                     let absolute = expanded.hasPrefix("/") ? expanded : FileManager.default.currentDirectoryPath + "/" + expanded
                     return (slot, FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(absolute)))
                 }

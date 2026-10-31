@@ -29,11 +29,12 @@ import TurtleGitCore
         return request.valid
     }
     func hasDestinationAccess(_ file:URL)->Bool { access?.contains(file) == true }
+    var suggestedFolder:URL {folder ?? UserAccountPaths.homeDirectory.appendingPathComponent(".ssh",isDirectory:true)}
     func chooseFolder() {
         guard !busy, !childActive, !retired, let window, window.attachedSheet == nil else { return }
         let panel = NSOpenPanel(); panel.canChooseFiles = false; panel.canChooseDirectories = true; panel.canCreateDirectories = true
         panel.title = "Choose SSH key folder"; panel.prompt = "Choose folder"
-        panel.directoryURL = folder ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".ssh", isDirectory: true)
+        panel.directoryURL = suggestedFolder
         self.panel = panel
         panel.beginSheetModal(for: window) { [weak self] response in
             guard let self, self.panel === panel else { return }; self.panel = nil

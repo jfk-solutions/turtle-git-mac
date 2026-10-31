@@ -45,10 +45,44 @@ final class FinderContextMenuSettingsTests: XCTestCase {
         XCTAssertFalse(settings.allowsPath("/repo/prefix-other")); XCTAssertTrue(settings.allowsPath("/repo/pre"))
         XCTAssertTrue(settings.allowsPath("/Repo/exact")); XCTAssertFalse(settings.allowsPath("/Repo/exact", caseSensitive: false))
         settings.excludedPaths = "~?"; XCTAssertFalse(settings.valid)
-        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        let home = UserAccountPaths.homeDirectory.path
         for rule in ["~", "$HOME"] { settings.excludedPaths = rule; XCTAssertTrue(settings.valid); XCTAssertFalse(settings.allowsPath(home)); XCTAssertTrue(settings.allowsPath(home + "/child")) }
         for rule in ["~*", "$HOME/"] { settings.excludedPaths = rule; XCTAssertTrue(settings.valid); XCTAssertFalse(settings.allowsPath(home + "/child")) }
         for rule in ["relative", "../repo", "/repo\0path"] { settings.excludedPaths = rule; XCTAssertFalse(settings.valid) }
+    }
+    func testAccountHomeMenuPatternsPreserveExactDescendantsAndExplicitContainerInjection() {
+        let account = URL(fileURLWithPath: "/Users/person", isDirectory: true)
+        let container = account.appendingPathComponent("Library/Containers/org.turtlegit.macos/Data", isDirectory: true)
+        var settings = FinderMenuSettings()
+        for spelling in ["~", "$HOME"] {
+            settings.excludedPaths = spelling + "/Projects/"
+            XCTAssertTrue(settings.valid)
+            XCTAssertFalse(settings.allowsPath("/Users/person/Projects", home: account))
+            XCTAssertFalse(settings.allowsPath("/Users/person/Projects/repo/file", home: account))
+            XCTAssertTrue(settings.allowsPath("/Users/person/Projects-other/repo", home: account))
+            XCTAssertTrue(settings.allowsPath(container.path + "/Projects/repo", home: account))
+            XCTAssertFalse(settings.allowsPath(container.path + "/Projects/repo", home: container))
+            XCTAssertTrue(settings.allowsPath("/Users/person/Projects/repo", home: container))
+            XCTAssertTrue(settings.allowsPath("/users/PERSON/Projects/repo", home: account))
+            XCTAssertFalse(settings.allowsPath("/users/PERSON/Projects/repo", caseSensitive: false, home: account))
+            settings.excludedPaths = spelling
+            XCTAssertFalse(settings.allowsPath(account.path, home: account))
+            XCTAssertTrue(settings.allowsPath(account.path + "/child", home: account))
+            XCTAssertTrue(settings.allowsPath(container.path, home: account))
+            settings.excludedPaths = spelling + "/Projects*"
+            XCTAssertFalse(settings.allowsPath("/Users/person/Projects-other", home: account), "Menu terminal * remains a spelling prefix")
+            XCTAssertTrue(settings.allowsPath("/Users/person/Project", home: account))
+        }
+        for invalid in ["~other/Projects/", "$HOMELESS/Projects/", "~/Projects\0/private"] {
+            settings.excludedPaths = invalid; XCTAssertFalse(settings.valid)
+        }
+        // Default callers (including FinderMenuBuilder) get account identity;
+        // explicit container injection is still available and never persisted.
+        let current = UserAccountPaths.homeDirectory
+        settings.excludedPaths = "~/Projects/"
+        XCTAssertEqual(settings.allowsPath(current.path + "/Projects/repo"), settings.allowsPath(current.path + "/Projects/repo", home: current))
+        XCTAssertFalse(settings.allowsPath(current.path + "/Projects/repo"))
+        XCTAssertEqual(settings, try? JSONDecoder().decode(FinderMenuSettings.self, from: JSONEncoder().encode(settings)))
     }
     func testHideUnversionedUsesRepositoryMembershipAndShiftOverride() {
         var settings = FinderMenuSettings(); settings.hideForUnversioned = true

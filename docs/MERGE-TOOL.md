@@ -6,6 +6,14 @@ review directly from a terminal. The waiting wrapper is
 `/Applications/TurtleGit for Mac.app`; set `TURTLEGIT_APP` to another app bundle,
 or `TURTLEGIT_MERGE_EXECUTABLE` to a development executable.
 
+## Enter file paths
+
+`~` and `~/…` refer to your Mac account's home folder in the Merge command line,
+Open dialog and its completions. Compare, three-way Merge and patch targets use
+the same expansion when requesting access and when opening the selected files.
+Named-user forms such as `~name/…` use macOS user lookup. Folder and file grants
+still apply to the expanded locations.
+
 ## Choose a comparison interface
 
 The **Interface** selector in text comparison and conflict windows offers

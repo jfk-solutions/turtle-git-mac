@@ -63,7 +63,7 @@ import UniformTypeIdentifiers
         picker.alphaValue=window.alphaValue;picker.appearance=window.appearance
         picker.title = "Open image file…"
         if let authorize { picker.directoryURL = authorize.deletingLastPathComponent(); picker.message = "Select “" + authorize.lastPathComponent + "” to allow this image to be read." }
-        else if !field.stringValue.isEmpty { picker.directoryURL = URL(fileURLWithPath: field.stringValue).deletingLastPathComponent() }
+        else if !field.stringValue.isEmpty { picker.directoryURL = URL(fileURLWithPath: UserAccountPaths.expandingTilde(field.stringValue)).deletingLastPathComponent() }
         panel = picker; ok.isEnabled = false
         picker.beginSheetModal(for: window) { [weak self, weak field] response in
             guard let self, !self.retired else { return }
@@ -78,7 +78,7 @@ import UniformTypeIdentifiers
     @objc func accept() {
         guard !retired, panel == nil else { return }
         do {
-            func url(_ field: NSTextField) -> URL? { field.stringValue.isEmpty ? nil : URL(fileURLWithPath: (field.stringValue as NSString).expandingTildeInPath) }
+            func url(_ field: NSTextField) -> URL? { field.stringValue.isEmpty ? nil : URL(fileURLWithPath: UserAccountPaths.expandingTilde(field.stringValue)) }
             let comparison = try ImageFileComparison(base: url(left), destination: url(right))
             for (field, file) in [(left, comparison.base), (right, comparison.destination)] {
                 if let file, requiresScopes, !permissions.contains(where: { $0.hasSecurityScope && $0.contains(file) }) { browse(field, authorize: file); return }

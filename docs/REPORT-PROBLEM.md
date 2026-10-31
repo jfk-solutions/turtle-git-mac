@@ -21,6 +21,10 @@ and inclusion choice remain intact. The window waits for the read to finish
 before accepting another import; cancelling does not delete the Apple report.
 The status area shows progress and errors without moving the editor or preview.
 
+The chooser and home-path replacement use your Mac account's home folder.
+The chooser suggests `Library/Logs/DiagnosticReports` inside that folder. You
+still select the report to authorize its import.
+
 ## Copy, save or open the issue form
 
 **Copy Report** copies the preview text. **Save Report…** opens a native Save

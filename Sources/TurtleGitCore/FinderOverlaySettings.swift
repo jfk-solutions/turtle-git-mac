@@ -296,7 +296,7 @@ public struct FinderOverlayPathPolicy: Sendable {
     static func folded(_ path: String) -> String {
         path.folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX")).precomposedStringWithCanonicalMapping
     }
-    public init(exclude: String, include: String, home: URL = FileManager.default.homeDirectoryForCurrentUser) {
+    public init(exclude: String, include: String, home: URL = UserAccountPaths.homeDirectory) {
         for (text, included) in [(exclude, false), (include, true)] {
             for (index, raw) in text.components(separatedBy: "\n").enumerated() {
                 var path = raw; if path.hasSuffix("\r") { path.removeLast() }

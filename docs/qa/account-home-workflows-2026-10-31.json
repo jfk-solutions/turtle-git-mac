@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-31",
+  "base_source": "0343a99687909fdc89b4bd3de231ef668674ae1e",
+  "status": "connected-account-home-policy-and-native-consumers-focused-passed",
+  "implementation": [
+    "Thread-safe bounded current-UID account-home lookup cachedonce perprocess; Foundationfallback and explicit injectedhome retained; no grant/HOME/preference mutation.",
+    "Account-home report discovery/redaction/defaultchooser consistency, capturedhome chooser and SSHfolder suggestion with priorfolderpriority.",
+    "Shared prefix-only tilde expansion across Merge command/lexicalrequests/nativeOpen, sharedcompletion and ImageLoad browse/accept; namedusers and literalfilename-tail bytes retained.",
+    "Finder menu/overlay ~/ and $HOME default to sameaccount; explicit matching semantics, case/boundaries/precedence retained."
+  ],
+  "validation": {
+    "debug": {
+      "exit": 0,
+      "compiler_errors": 0,
+      "log": "build/qa/account-home-debug-2026-10-31.log"
+    },
+    "core": {
+      "methods": 35,
+      "failures": 0,
+      "elapsed_seconds": 0.543,
+      "log": "build/qa/account-home-core-2026-10-31.log",
+      "full_suite": false
+    },
+    "native": {
+      "paths": {
+        "result": "passed",
+        "log": "build/qa/account-home-native-paths-current-controls-2026-10-31.log",
+        "scope": "Syntheticaccount/container completion, denied enumeration withoutgrant, defaultreportredaction/private injectedchooser, SSHsuggestion withoutauthorization; four actual native texteditors, completion/cancel/retire and unchangedGitHEAD/index"
+      },
+      "merge_open": {
+        "result": "passed",
+        "log": "build/qa/account-home-native-merge-open-2026-10-31.log",
+        "scope": "Sourcepanels/form snapshots/grant-before-metadata, wrongtypes, cancellation/duplicates/retirement and unchanged inputs"
+      },
+      "image_open": {
+        "result": "passed",
+        "log": "build/qa/account-home-native-image-open-2026-10-31.log",
+        "scope": "ActualOpen/OK/Cancel, missing/equal/empty/replacement cases, ungrantedtyped path authorization, pregranted acceptance/retainedlease and Git/file bytes"
+      }
+    },
+    "generated_docs": "Project regenerated once; localizationconsistency38locales/1326keys; Help63documents/52topics/97files; site518documents/no unresolvedfragments/3checks+searchpassed",
+    "repeat_scope": "Only affectedPaths cohort repeated after driver/fixture failures; build/Core/Merge/Image/site not repeated."
+  },
+  "retained_failures": [
+    {
+      "log": "build/qa/account-home-native-paths-2026-10-31.log",
+      "failure": "Driver environment setup indented outsideengine loop; IndentationError before receiver compilation/execution.",
+      "repair": "Corrected driver indentation."
+    },
+    {
+      "log": "build/qa/account-home-native-paths-environment-2026-10-31.log",
+      "receiver": 70099,
+      "failure": "Old fixture searched Export field label ZIP file; actual source uses Archive file. Generic wait also lacked per-owner load/mount admission.",
+      "repair": "Exact source label, per-owner model+nativecontrol readiness beforeediting; fail immediately on initial-load draft replacement; detailedphase diagnostics. Original safety/Git assertions retained."
+    }
+  ],
+  "cleanup": {
+    "reaped_receivers": [
+      69935,
+      69986,
+      70099,
+      70569
+    ],
+    "independently_absent": true,
+    "private_state": true,
+    "owned_windows_closed": true
+  },
+  "limits": [
+    "Nativechecks use private synthetic homes/permissions, not real signed account-folder access.",
+    "Network homes, signeddefaultchooser behavior, physicalFinder and keyboard/accessibility/Intel/minimumOS remain separate acceptance.",
+    "Git environment/configuration and privatecache/container-home policies intentionally unchanged.",
+    "Installed45 predates this batch; no new signedpackage or fullhostedpass established."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/UserAccountPaths.swift": "14d2e8f1086a4a7e3439bf170be9b829e500a8503a5698280de05ed636b095b9",
+    "Sources/TurtleGitCore/FinderCache.swift": "b3b3402a2854b425c5d49b3518313b5c530d57b518cab558513e85d0e19c2f96",
+    "Sources/TurtleGitCore/FinderOverlaySettings.swift": "952cc8bb2c014dc6fcad10636d46ed2822d26212dc5515dda8b1412c03b06c95",
+    "Sources/TurtleGitCore/MergeToolInvocation.swift": "23e268da6328b2f7596ea2016977b85d7dfb2e7d9d4b17b77d8cd7324251baac",
+    "Sources/TurtleGitCore/TextConflict.swift": "d42c9a5393af17776a25f074d45b3986c69941b7a675c2f4f885d1e126b82553",
+    "Sources/TurtleGitMac/SupportReportWindow.swift": "46a8dfdb11c65a79e137dd41f2f94f971e6815972f05b8a681c972288f19bbbc",
+    "Sources/TurtleGitMac/SSHKeyGenerationWindow.swift": "682eda202a3937e7b44fdd4b8245ca2022fdc2fc5379dff56d382503af423ade",
+    "Sources/TurtleGitMac/MergeOpenWindow.swift": "fbcc7bdeb0ab6318b727ad5f0e434de4565b8d42a94577e3bc3630919fc6544d",
+    "Sources/TurtleGitMac/PathEntryField.swift": "94ad4aac3a19889c8f10f8691434dbd0cab69c73cb6fb51010234fd6de2d45bf",
+    "Sources/TurtleGitMac/ImageLoadWindow.swift": "20e8744b49676de30a7bedd15c773455bd8030ac5e6f382ec5697f6b3102c0f8",
+    "docs/qa/path-entry-native-2026-10-16.swift": "252daa2a8a7173668ba95bbc2b552d1bcd2fcd5b9ba87c93cb5eed9fe407ddae",
+    "scripts/test-path-entry.py": "241426f546e6aee537a317b924c7fbd281f1bcc921331bdb64bce0612113d62f",
+    "scripts/test-merge-open-source.py": "f7297228a8bcc2af6dc1be37506ea7be76b67056ff0843103782e9b1086bcffc"
+  }
+}

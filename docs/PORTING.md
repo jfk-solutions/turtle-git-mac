@@ -1,5 +1,21 @@
 # TurtleGit for Mac — full port tracking
 
+## Account-home defaults and path interpretation
+
+The [connected path batch](qa/account-home-workflows-2026-10-31.json) gives report
+discovery/redaction/choosers, SSH key-folder suggestions, Merge/Open/completion,
+image loading and Finder home patterns a shared current-account location policy.
+The account lookup is bounded, thread-safe and cached once per process. Explicit
+folders and grants retain their existing authority; Git environment/configuration
+and private cache storage keep their separate home policies.
+
+One Debug build,35 focused Core methods and three grouped native cohorts pass.
+Only the Paths cohort was retried after its driver indentation and stale Export
+caption/load-readiness fixture repairs. No full Core or unrelated native suite
+was run. The manual/offline Help and site checks pass. Installed45 predates this
+source continuation; real signed/default-folder and broad platform acceptance
+remain separate.
+
 ## Connected problem-report workflow continuation
 
 The [report workflow batch](qa/support-workflow-continuation-2026-10-31.json)

@@ -50,10 +50,23 @@ final class MergeToolInvocationTests:XCTestCase {
         XCTAssertTrue(value.modifiedFile!.lastPathComponent.utf8.elementsEqual(b.utf8),"Modified NFD filename bytes changed")
         XCTAssertEqual(value.outputFile?.path,"/fixture/diff.patch")
         let home=try XCTUnwrap(MergeToolInvocation.parse(arguments:["--merge-tool","--mine","~/"+a],currentDirectory:"/fixture"))
-        XCTAssertTrue(home.mine!.path.utf8.elementsEqual((NSHomeDirectory()+"/"+a).utf8),"Tilde expansion changed the original filename tail")
+        XCTAssertTrue(home.mine!.path.utf8.elementsEqual((UserAccountPaths.homeDirectory.path+"/"+a).utf8),"Tilde expansion changed the original filename tail")
         let pair=try XCTUnwrap(MergeToolInvocation.parse(arguments:["--merge-tool","--","/base","/mine","/theirs"],currentDirectory:"/fixture"))
         XCTAssertEqual(pair.base?.path,"/base");XCTAssertEqual(pair.mine?.path,"/mine");XCTAssertEqual(pair.theirs?.path,"/theirs")
         let single=try XCTUnwrap(MergeToolInvocation.parse(arguments:["--merge-tool","one"],currentDirectory:"/fixture"));XCTAssertEqual(single.mine?.path,"/fixture/one")
+    }
+    func testBareAccountTildeAndNamedUserLocationsRemainDistinctFromWorkingDirectory()throws {
+        let account = UserAccountPaths.homeDirectory.path
+        let invocation = try XCTUnwrap(MergeToolInvocation.parse(arguments:["--merge-tool", "--base=~", "--mine=~/input", "--merged=~/output", "--diff=~/patch.diff", "--patch-path=~/target"], currentDirectory:"/private/tmp/unrelated"))
+        XCTAssertEqual(invocation.base?.path,account)
+        XCTAssertEqual(invocation.mine?.path,account+"/input")
+        XCTAssertEqual(invocation.merged?.path,account+"/output")
+        XCTAssertEqual(invocation.diff?.path,account+"/patch.diff")
+        XCTAssertEqual(invocation.patchPath?.path,account+"/target")
+        let user = NSUserName()
+        let namedHome = try XCTUnwrap(NSHomeDirectoryForUser(user))
+        let named = try XCTUnwrap(MergeToolInvocation.parse(arguments:["--merge-tool", "--mine=~"+user+"/named-input"], currentDirectory:"/fixture"))
+        XCTAssertEqual(named.mine?.path,namedHome+"/named-input")
     }
     func testMalformedUnsupportedAndWindowsProtocolsAreExplicitFailures()throws {
         for arguments in [["--merge-tool","--unknown"],["--merge-tool=value"],["--base"],["/base"],["--base="],["--base=a","--base=b"],["--merge-tool","--merge-tool"],["--readonly=false"],["/mine:bad\0path"],["/line:0"],["/line:-1"],["/line:999999999999999999999999999999999"],["--base","--readonly"],["--merge-tool","a","b","c","d"],["--merge-tool","/base:a","positional"],["--merge-tool","/resolvemsghwnd:123"],["--merge-tool","/resolvemsgwparam:1"],["--merge-tool","/resolvemsglparam:2"]] {

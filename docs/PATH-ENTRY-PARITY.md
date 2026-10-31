@@ -73,3 +73,44 @@ and signed Finder/AppStore acceptance remain open. See the dated interaction
 [evidence](qa/path-entry-interaction-2026-10-16.json) for results.
 The four affected native case/engine pairs passed after repairing a real
 completion Undo/model synchronization defect. No Core suite was rerun.
+
+## Account-home paths across native workflows — October 31, 2026
+
+The shared `UserAccountPaths` policy resolves the current UID's home with a
+bounded, thread-safe `getpwuid_r` lookup and Foundation fallback. Resolution is
+cached once per process, so path menus do not query the account database for each
+item. It supplies locations without granting access or changing process `HOME`.
+Explicit caller-supplied home/directory values retain their existing precedence.
+
+Report discovery, the report editor's default home-path substitution and its
+crash-report chooser now agree on the account home. The chooser uses the model's
+captured home, including explicit test/application injection. SSH key generation
+suggests the account `.ssh` folder while retaining an already selected folder.
+
+Bare `~`/`~/…` expansion is shared by Merge command entry, lexical two/three-file
+and patch selection, native Merge Open, path completions and image loading.
+The home prefix changes while filename-tail bytes remain intact. Named-user
+lookup retains the platform's existing behavior. Authorization and read targets
+use the same expanded path. Existing grant checks still precede completion
+listing and selected-file reads. Finder menu and overlay include/exclude patterns
+use the same account home for `~`/`$HOME`; explicit home injection, matching
+precedence, case handling and invalid-pattern diagnostics remain.
+
+Git configuration/environment semantics, private cache/container storage and
+external-document access ownership are separate policies. This batch does not
+reinterpret their process `HOME` or authorize new locations.
+
+The [grouped checkpoint](qa/account-home-workflows-2026-10-31.json) passes one
+Debug build,35 focused Core methods and native completion, Merge Open and image
+Open cohorts. Synthetic account/container homes exercise the policy without
+reading user directories; actual native fields retain permissions, editing,
+cancellation and retirement behavior. The Paths driver first had an indentation
+error; its retry exposed an older Export caption mismatch (`ZIP file` versus
+`Archive file`) and weak initial-load admission. Those fixture repairs and all
+attempts are retained. Only Paths was repeated; passing build/Core/Merge/image/
+documentation checks were not repeated. All owned receivers were reaped and
+independently absent.
+
+This source batch is not installed in build45. Real signed-account folder
+pickers, network homes, physical Finder and keyboard/accessibility/Intel/minimum
+macOS execution and complete hosted integration remain separate.

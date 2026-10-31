@@ -14,6 +14,9 @@ with tempfile.TemporaryDirectory(prefix='tg-open-source-') as temporary:
     env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',XDG_CONFIG_HOME=str(folder/'xdg'));env.pop('TURTLEGIT_MERGE_OPEN_CAPTURE',None)
     for case in args.only or cases:
         active=env.copy()
+        isolated=folder/(case+'-environment');isolated.mkdir(mode=0o700)
+        for name in ['home','preferences','xdg','temporary']:(isolated/name).mkdir(mode=0o700)
+        active.update(HOME=str(isolated/'home'),CFFIXED_USER_HOME=str(isolated/'preferences'),XDG_CONFIG_HOME=str(isolated/'xdg'),TMPDIR=str(isolated/'temporary')+'/')
         if args.captures and case=='source':active['TURTLEGIT_MERGE_OPEN_CAPTURE']=str(args.captures.absolute())
         print('Checking Merge Open '+case,flush=True)
         result=run_receiver([str(receiver),case],cwd=root,env=active,capture_output=True,text=True)

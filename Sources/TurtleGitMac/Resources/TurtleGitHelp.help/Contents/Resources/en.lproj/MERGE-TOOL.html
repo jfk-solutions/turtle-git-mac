@@ -5,6 +5,12 @@ review directly from a terminal. The waiting wrapper is
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/scripts/turtlegit-merge"><code>scripts/turtlegit-merge</code></a>. By default it uses
 <code>/Applications/TurtleGit for Mac.app</code>; set <code>TURTLEGIT_APP</code> to another app bundle,
 or <code>TURTLEGIT_MERGE_EXECUTABLE</code> to a development executable.</p>
+<h2 id="enter-file-paths">Enter file paths</h2>
+<p><code>~</code> and <code>~/…</code> refer to your Mac account's home folder in the Merge command line,
+Open dialog and its completions. Compare, three-way Merge and patch targets use
+the same expansion when requesting access and when opening the selected files.
+Named-user forms such as <code>~name/…</code> use macOS user lookup. Folder and file grants
+still apply to the expanded locations.</p>
 <h2 id="choose-a-comparison-interface">Choose a comparison interface</h2>
 <p>The <strong>Interface</strong> selector in text comparison and conflict windows offers
 <strong>Classic</strong> (the default) or <strong>P4Merge-style</strong>. The choice is shared and saved

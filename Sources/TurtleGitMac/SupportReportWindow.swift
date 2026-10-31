@@ -3,7 +3,6 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 import TurtleGitCore
-import Darwin
 
 @MainActor final class SupportReportService {
     static let shared = SupportReportService()
@@ -42,8 +41,7 @@ import Darwin
     var presentReport: (SupportReportWindowController) -> Void = { $0.showWindow(nil); $0.window?.makeKeyAndOrderFront(nil) }
     init(preferences: UserDefaults = .standard, reportsDirectory: URL? = nil, processName: String? = nil, bundleIdentifier: String? = nil) {
         self.preferences = preferences
-        let home = getpwuid(getuid()).flatMap { $0.pointee.pw_dir }.map { String(cString:$0) } ?? NSHomeDirectory()
-        directory = reportsDirectory ?? URL(fileURLWithPath:home).appendingPathComponent("Library/Logs/DiagnosticReports",isDirectory:true)
+        directory = reportsDirectory ?? UserAccountPaths.homeDirectory.appendingPathComponent("Library/Logs/DiagnosticReports",isDirectory:true)
         self.processName = processName ?? Bundle.main.executableURL?.lastPathComponent ?? ""
         self.bundleIdentifier = bundleIdentifier ?? Bundle.main.bundleIdentifier ?? ""
     }
@@ -188,8 +186,9 @@ private struct SupportCrashRecoveryDialog: View {
         if let notice {messages.append(notice)}
         return messages
     }
+    var diagnosticReportsDirectory:URL {URL(fileURLWithPath:home,isDirectory:true).appendingPathComponent("Library/Logs/DiagnosticReports",isDirectory:true)}
     var canEdit: Bool { !retired && !reading && !writing && !picking }
-    init(systemInformation: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path, preferences: UserDefaults = .standard) {
+    init(systemInformation: String, home: String = UserAccountPaths.homeDirectory.path, preferences: UserDefaults = .standard) {
         self.systemInformation = systemInformation; self.home = home; recoveryPreferences = preferences
         checkCrashReportsAtLaunch = SupportCrashRecoveryPreferences.enabled(in:preferences); rebuild()
     }
@@ -259,7 +258,7 @@ private struct SupportCrashRecoveryDialog: View {
     private var picker: UUID?
     private var closed = false
     var utilityOwnerActive:Bool {!closed && !model.retired && window != nil}
-    init(systemInformation: String, home: String = FileManager.default.homeDirectoryForCurrentUser.path, preferences: UserDefaults = .standard) {
+    init(systemInformation: String, home: String = UserAccountPaths.homeDirectory.path, preferences: UserDefaults = .standard) {
         model = SupportReportWindowModel(systemInformation: systemInformation, home: home, preferences:preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 840, height: 740), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = "Report a Problem – TurtleGit for Mac"; window.isReleasedWhenClosed = false
@@ -280,7 +279,7 @@ private struct SupportCrashRecoveryDialog: View {
         let panel = NSOpenPanel(); panel.canChooseDirectories = false; panel.allowsMultipleSelection = false
         panel.title = "Select an Apple crash report"; panel.prompt = "Review Report"
         panel.allowedContentTypes = [UTType(filenameExtension: "ips"), UTType(filenameExtension: "crash")].compactMap { $0 }
-        panel.directoryURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/DiagnosticReports", isDirectory: true)
+        panel.directoryURL = model.diagnosticReportsDirectory
         guard let id = begin(panel, context: context), let window else { return }
         presentOpen(panel, window) { [weak self] response in
             guard let self, self.finish(id), response == .OK, let url = self.panelURL(panel) else { return }

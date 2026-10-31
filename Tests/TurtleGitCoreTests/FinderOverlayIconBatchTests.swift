@@ -53,6 +53,36 @@ final class FinderOverlayIconBatchTests: XCTestCase {
         XCTAssertTrue(home.allows("/private/House/exact", fallback: false, caseSensitive: true))
         XCTAssertFalse(home.allows("relative", fallback: true, caseSensitive: true))
     }
+    func testOverlayAccountHomeRulesKeepSpecificityAndExplicitContainerHome() {
+        let account = URL(fileURLWithPath: "/Users/person", isDirectory: true)
+        let container = account.appendingPathComponent("Library/Containers/org.turtlegit.macos/Data", isDirectory: true)
+        for spelling in ["~", "$HOME"] {
+            let policy = FinderOverlayPathPolicy(exclude: spelling + "/Projects*", include: spelling + "/Projects/keep?", home: account)
+            XCTAssertNil(policy.issue)
+            XCTAssertFalse(policy.allows("/Users/person/Projects", fallback: true, caseSensitive: true))
+            XCTAssertFalse(policy.allows("/Users/person/Projects/repo/file", fallback: true, caseSensitive: true))
+            XCTAssertTrue(policy.allows("/Users/person/Projects/keep", fallback: false, caseSensitive: true))
+            XCTAssertFalse(policy.allows("/Users/person/Projects/keep/child", fallback: true, caseSensitive: true))
+            XCTAssertTrue(policy.allows("/Users/person/Projects-other/repo", fallback: true, caseSensitive: true), "Overlay recursive rules retain component boundaries")
+            XCTAssertTrue(policy.allows(container.path + "/Projects/repo", fallback: true, caseSensitive: true))
+            XCTAssertTrue(policy.allows("/users/PERSON/Projects/repo", fallback: true, caseSensitive: true))
+            XCTAssertFalse(policy.allows("/users/PERSON/Projects/repo", fallback: true, caseSensitive: false))
+            let injected = FinderOverlayPathPolicy(exclude: spelling + "/Projects*", include: "", home: container)
+            XCTAssertFalse(injected.allows(container.path + "/Projects/repo", fallback: true, caseSensitive: true))
+            XCTAssertTrue(injected.allows("/Users/person/Projects/repo", fallback: true, caseSensitive: true))
+        }
+        for invalid in ["~other/Projects*", "$HOMELESS/Projects*", "~/Projects\0/private"] {
+            let policy = FinderOverlayPathPolicy(exclude: "", include: invalid, home: account)
+            XCTAssertNotNil(policy.issue)
+            XCTAssertFalse(policy.allows("/Users/person/Projects", fallback: true, caseSensitive: true))
+        }
+        let current = UserAccountPaths.homeDirectory
+        let defaults = FinderOverlayPathPolicy(exclude: "~/Projects*", include: "$HOME/Projects/keep?")
+        XCTAssertFalse(defaults.allows(current.path + "/Projects/repo", fallback: true, caseSensitive: true))
+        XCTAssertTrue(defaults.allows(current.path + "/Projects/keep", fallback: false, caseSensitive: true))
+        var settings = FinderOverlaySettings(); settings.excludePaths = "~/Projects*"
+        XCTAssertFalse(settings.pathPolicy.allows(current.path + "/Projects/repo", fallback: true, caseSensitive: true), "Saved settings must use the same account-home default")
+    }
     func testOverlayProjectionUsesEachMountAndPolicyForIndexHandlers() {
         let snapshot = FinderSnapshot(roots: ["/repo"], states: ["/repo/mount/file": .normal], overlayEntries: ["/repo/local": .normal, "/repo/mount/file": .normal, "/repo/mount/folder": .normal], indexFlags: ["/repo/mount/file": .init(skipWorktree: true), "/repo/local": .init(assumeUnchanged: true)])
         var settings = FinderOverlaySettings()

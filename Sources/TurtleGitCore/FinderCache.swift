@@ -79,13 +79,16 @@ public struct FinderMenuSettings: Codable, Equatable, Sendable {
         if extendedOnly { extendedOnlyMask = checked ? extendedOnlyMask | entry.mask : extendedOnlyMask & ~entry.mask }
         else { topLevelMask = checked ? topLevelMask | entry.mask : topLevelMask & ~entry.mask }
     }
-    public func allowsPath(_ path: String, caseSensitive: Bool = true) -> Bool {
+    /// Finder preferences describe the account's folders, even when the app or
+    /// extension runs in a sandbox whose Foundation home is its container.
+    /// An explicit home is a matching input only; it grants no filesystem access.
+    public func allowsPath(_ path: String, caseSensitive: Bool = true, home: URL = UserAccountPaths.homeDirectory) -> Bool {
         for line in excludedPaths.replacingOccurrences(of: "\r", with: "").split(separator: "\n") {
             var pattern = String(line)
             let prefix = pattern.hasSuffix("*"), descendants = pattern.hasSuffix("/")
             if prefix { pattern.removeLast() }
-            if pattern == "~" || pattern.hasPrefix("~/") { pattern = FileManager.default.homeDirectoryForCurrentUser.path + pattern.dropFirst() }
-            if pattern == "$HOME" || pattern.hasPrefix("$HOME/") { pattern = FileManager.default.homeDirectoryForCurrentUser.path + pattern.dropFirst(5) }
+            if pattern == "~" || pattern.hasPrefix("~/") { pattern = home.path + pattern.dropFirst() }
+            if pattern == "$HOME" || pattern.hasPrefix("$HOME/") { pattern = home.path + pattern.dropFirst(5) }
             // Unlike overlay rules, a bare path excludes only that exact path.
             // A terminal '*' is a spelling prefix; '/' includes directory children.
             let candidate = caseSensitive ? path : path.lowercased(), filter = caseSensitive ? pattern : pattern.lowercased()

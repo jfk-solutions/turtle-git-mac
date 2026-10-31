@@ -16,6 +16,8 @@ with tempfile.TemporaryDirectory(prefix='TurtleGitPathEntry-') as temporary:
         receiver = build_receiver(root, [root/'docs/qa'/source], directory)
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             fixture = directory/(case+str(index)); fixture.mkdir()
+            home=fixture/'home';home.mkdir();preferences=fixture/'preferences';preferences.mkdir();xdg=fixture/'xdg';xdg.mkdir();scratch=fixture/'temporary';scratch.mkdir()
+            env.update(HOME=str(home),CFFIXED_USER_HOME=str(preferences),XDG_CONFIG_HOME=str(xdg),TMPDIR=str(scratch)+'/')
             result = run_receiver([str(receiver), str(fixture), str(git.absolute()), str(editor)], cwd=root, env=env, capture_output=True, text=True)
             print(result.stdout, end='', flush=True); print(result.stderr, end='', flush=True); result.check_returncode()
             if marker not in result.stdout: raise SystemExit('Receiver exited before final assertion: '+case)

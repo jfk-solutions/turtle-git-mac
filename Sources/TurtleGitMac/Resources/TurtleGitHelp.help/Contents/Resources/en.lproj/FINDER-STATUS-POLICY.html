@@ -76,4 +76,10 @@ Advanced Apply does not overwrite a pending Icon Overlays draft.</p>
 preserving the other overlay preferences. Source details, bounds and remaining
 physical/signed acceptance are recorded in the
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/FINDER-STATUS-POLICY-PARITY.html">status-policy audit</a>.</p>
+<h2 id="home-folder-patterns">Home-folder patterns</h2>
+<p>In Finder include/exclude path settings, <code>~</code> and <code>$HOME</code> refer to your Mac
+account's home folder. For example, <code>~/Projects/</code> refers to that account's
+Projects directory, including when TurtleGit runs in its sandbox. Existing
+exact-path, descendant and prefix matching rules still apply. The pattern does
+not grant access to a folder; register the repository when permission is needed.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

@@ -463,7 +463,7 @@ public enum MergeOpenRequest: Sendable {
         func url(_ value: String) throws -> URL? {
             guard !value.isEmpty else { return nil }
             guard !value.contains("\0") else { throw RevisionComparisonFailure.selection }
-            let expanded = (value as NSString).expandingTildeInPath
+            let expanded = UserAccountPaths.expandingTilde(value)
             let absolute = expanded.hasPrefix("/") ? expanded : FileManager.default.currentDirectoryPath + "/" + expanded
             return FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(absolute))
         }

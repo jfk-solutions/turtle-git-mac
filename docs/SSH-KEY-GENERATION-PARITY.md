@@ -113,3 +113,12 @@ See
 [batch evidence](qa/ssh-key-import-2026-10-14.json). Physical panels/layout/accessibility,
 signed sandbox invocation, all key algorithms/formats and full PuTTYgen utility
 parity remain open.
+
+## Account-home chooser defaults — October 31, 2026
+
+The initial key-folder chooser suggests the current account's `.ssh` directory.
+A previously chosen or imported output folder takes precedence. This is a
+location suggestion: the existing chooser result and folder lease are still
+required before generation or import can write a key. No key folder is created
+or authorized by resolving the account home. The shared account-home policy is
+recorded in [the path-entry continuation](PATH-ENTRY-PARITY.md#account-home-paths-across-native-workflows--october-31-2026).

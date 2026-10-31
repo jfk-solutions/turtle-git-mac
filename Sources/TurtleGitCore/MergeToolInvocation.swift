@@ -75,16 +75,7 @@ public struct MergeToolInvocation: Sendable {
         func location(_ key:String)throws->URL? {
             guard let raw=values[key] else{return nil}
             guard !raw.isEmpty else{throw Failure("Empty Merge-tool file option: "+key)}
-            var expanded=raw
-            if raw.hasPrefix("~") {
-                let prefix=raw.split(separator:"/",maxSplits:1,omittingEmptySubsequences:false)[0]
-                let user=String(prefix.dropFirst())
-                if let home=user.isEmpty ? NSHomeDirectory():NSHomeDirectoryForUser(user) {
-                    // Expand only the home prefix. NSString path conversion and
-                    // fileURLWithPath can decompose the original filename tail.
-                    expanded=home+String(raw.dropFirst(prefix.count))
-                }
-            }
+            let expanded=UserAccountPaths.expandingTilde(raw)
             let absolute=expanded.hasPrefix("/") ? expanded:currentDirectory+"/"+expanded
             return FileTransferPaths.fileURL(FileTransferPaths.lexicalPath(absolute))
         }

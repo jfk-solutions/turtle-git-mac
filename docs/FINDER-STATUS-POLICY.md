@@ -64,3 +64,11 @@ The [cache menu](CACHE-MENU.md) can disable badges or restore Default while
 preserving the other overlay preferences. Source details, bounds and remaining
 physical/signed acceptance are recorded in the
 [status-policy audit](FINDER-STATUS-POLICY-PARITY.md).
+
+## Home-folder patterns
+
+In Finder include/exclude path settings, `~` and `$HOME` refer to your Mac
+account's home folder. For example, `~/Projects/` refers to that account's
+Projects directory, including when TurtleGit runs in its sandbox. Existing
+exact-path, descendant and prefix matching rules still apply. The pattern does
+not grant access to a folder; register the repository when permission is needed.

@@ -11,13 +11,14 @@ struct PathEntryQuery: @unchecked Sendable {
     let base: URL
     let permissions: [RepositoryAccessLease]
     let requiresScopes: Bool
+    var accountHome: URL = UserAccountPaths.homeDirectory
     func results(cancellation: OperationCancellation) throws -> [String] {
         try cancellation.check()
         guard !text.isEmpty, !text.contains("\0"), !text.contains("://") else { return [] }
         let slash = text.lastIndex(of: "/")
         let prefix = slash.map { String(text[...$0]) } ?? ""
         let leaf = slash.map { String(text[text.index(after: $0)...]) } ?? text
-        let expanded = ((prefix.isEmpty ? "." : prefix) as NSString).expandingTildeInPath
+        let expanded = UserAccountPaths.expandingTilde(prefix.isEmpty ? "." : prefix, home: accountHome)
         let parent = (expanded.hasPrefix("/") ? URL(fileURLWithPath: expanded, isDirectory: true) : base.appendingPathComponent(expanded, isDirectory: true)).standardizedFileURL
         guard !requiresScopes || permissions.contains(where: { $0.permits(parent) }) else { return [] }
         // A selected file grant does not authorize enumerating its siblings.
