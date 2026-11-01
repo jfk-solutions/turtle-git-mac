@@ -37,9 +37,12 @@ private actor FilesystemServiceReadGate {
     static let commands = ["rename", "remove", "removeKeep", "clean"]
     static let literal = "literal [a]; 雪\n.txt"
     struct Failure: Error, CustomStringConvertible { let description: String }
-    static func require(_ value: Bool, _ message: String, line: UInt = #line) throws { if !value { throw Failure(description: "\(line): \(message)") } }
+    static func require(_ value: Bool, _ message: String, line: UInt = #line) throws { if !value {print("Filesystem Services assertion: \(line): \(message)");fflush(stdout);throw Failure(description: "\(line): \(message)") } }
     @MainActor static var diagnostic: () -> String = { "" }
+    @MainActor static var currentPhase="entry"
+    @MainActor static func phase(_ name:String) {currentPhase=name;fputs("Filesystem Services phase: \(name); \(diagnostic())\n",stderr);fflush(stderr)}
     @MainActor static func wait(_ message: String, line: UInt = #line, _ ready: () -> Bool) async throws {
+        phase("waiting: "+message)
         for _ in 0..<3000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         throw Failure(description: "\(line): \(message); \(diagnostic())")
     }
@@ -62,6 +65,7 @@ private actor FilesystemServiceReadGate {
         var acceptRemoval = true
         var configure: ((RepositoryAction, NSWindowController) -> Void)?
         init(root: URL, git: URL) throws {
+            FinderFilesystemServicesVerification.phase("construct private workflow context")
             self.root = root; self.git = git; suite = "TurtleGit.FilesystemServices.QA." + UUID().uuidString; defaults = UserDefaults(suiteName: suite)!
             store = try RepositoryAccessStore(storageURL: root.appendingPathComponent("access.json"), provider: FilesystemServiceScopes())
             workspace = RepositoryModel(startMonitoring: false, initializePreferences: false, repositoryFactory: { GitRepository(root: $0, executable: git) }, snapshotWriter: { _ in false }, savedAccessStore: store, comparisonMarks: WorkingComparisonMarkStore(storageURL: root.appendingPathComponent("marks.json")))
@@ -88,19 +92,26 @@ private actor FilesystemServiceReadGate {
                 Task { @MainActor in await Task.yield(); completion(.OK) }
             }
             workspace.selectedFinderServiceFolderURL = { _ in root }
-            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }
+            // Freeze the instrumented workspace without retaining Context
+            // through its delegate, and make member capture explicit on the
+            // hosted compiler as well as the current local SDK.
+            delegate.makeStandaloneWorkspace = { [workspace = self.workspace] in workspace }
+            delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            FinderFilesystemServicesVerification.phase("private workflow context startup returned")
         }
         func finish() {
             windows.forEach { $0.1.close() }; delegate.retireFinderServices(); workspace.stopMonitoringForTermination(); host.close(); defaults.removePersistentDomain(forName: suite)
         }
         func make(_ name: String) async throws -> GitRepository {
+            FinderFilesystemServicesVerification.phase("create repository: "+name)
             let directory = root.appendingPathComponent(name); try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             let repo = GitRepository(root: directory, executable: git); _ = try await repo.run(["init", "-b", "main"])
             for (key, value) in [("user.name", "File Services QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
             for (path, text) in [(literal, "base\n"), ("normal.txt", "normal\n"), ("delete.keep", "keep\n"), ("delete.drop", "drop\n")] { try Data(text.utf8).write(to: directory.appendingPathComponent(path)) }
             try await repo.stage([literal, "normal.txt", "delete.keep", "delete.drop"]); _ = try await repo.commit(message: "baseline")
             try Data("committed\n".utf8).write(to: directory.appendingPathComponent(literal)); try await repo.stage([literal]); _ = try await repo.commit(message: "second")
-            return repo
+            FinderFilesystemServicesVerification.phase("repository committed: "+name);return repo
         }
         func open(_ repo: GitRepository) async throws {
             // Mutation callbacks enqueue a real workspace refresh. Opening
@@ -157,6 +168,7 @@ private actor FilesystemServiceReadGate {
     }
     static func bytes(_ repository: GitRepository, _ path: String) throws -> Data { try Data(contentsOf: repository.root.appendingPathComponent(path)) }
     @MainActor static func effects() async throws {
+        phase("effects entry")
         let context = try Context(root: URL(fileURLWithPath: CommandLine.arguments[1]), git: URL(fileURLWithPath: CommandLine.arguments[2]))
         defer { context.finish(); diagnostic = { "" } }
         diagnostic = { "root=\(String(describing: context.workspace.root)), error=\(String(describing: context.workspace.error)), windows=\(context.windows.map { $0.0.rawValue })" }
@@ -169,6 +181,7 @@ private actor FilesystemServiceReadGate {
         let bIndex = try bytes(b, ".git/index"), bHead = try await b.run(["rev-parse", "HEAD"]).stdout
         let aHead = try await a.run(["rev-parse", "HEAD"]).stdout
         let original = try bytes(a, literal), beforeRename = try bytes(a, ".git/index")
+        phase("effects actual literal Rename request")
         let rename = try await context.launch("rename", paths: [a.root.appendingPathComponent(literal)]) as? RenameWindowController
         try require(rename?.model.source == literal && rename?.model.name == literal && context.workspace.root?.path == a.root.path, "Rename did not present source filename from A")
         try require(try bytes(a, ".git/index") == beforeRename && bytes(a, literal) == original, "Rename mutated before user submission")
@@ -179,6 +192,7 @@ private actor FilesystemServiceReadGate {
         let renamedIndex = try await a.run(["ls-files", "-z", "--", renamed]).stdout
         try require(rename?.model.error == nil && rename?.model.failed == false && !FileManager.default.fileExists(atPath: a.root.appendingPathComponent(literal).path) && bytes(a, renamed) == original && renamedIndex == Data((renamed + "\0").utf8), "Rename did not stage exact literal destination")
         rename?.close()
+        phase("effects symlink Rename request")
         let linkRename = try await context.launch("rename", paths: [a.root.appendingPathComponent(symlink)]) as? RenameWindowController
         try require(linkRename?.model.source == symlink && linkRename?.model.repository.root.path == a.root.path, "Rename followed symlink target into B")
         linkRename?.model.name = renamedSymlink; linkRename?.model.rename()
@@ -190,6 +204,7 @@ private actor FilesystemServiceReadGate {
         // Delete captures multiple paths, asks once, and preserves unstaged bytes
         // when the source keep-local variant is selected.
         for (command, names, keep) in [("remove", [renamed, "delete.drop"], false), ("removeKeep", ["normal.txt", "delete.keep"], true)] {
+            phase("effects actual "+command+" request")
             try await context.open(b)
             if keep { for name in names { try Data("private unstaged \(name)\n".utf8).write(to: a.root.appendingPathComponent(name)) } }
             let before = try names.map { try bytes(a, $0) }, questions = context.questions.count
@@ -207,6 +222,7 @@ private actor FilesystemServiceReadGate {
         // Cleanup accepts the source folder selection; its preview and explicit
         // destructive post-action operate only in that captured directory.
         let folder = a.root.appendingPathComponent("cleanup scope")
+        phase("effects Cleanup folder request")
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let selected = folder.appendingPathComponent("selected.tmp"), sibling = folder.appendingPathComponent("sibling.tmp"), outside = a.root.appendingPathComponent("outside.tmp")
         for url in [selected, sibling, outside] { try Data("untracked\n".utf8).write(to: url) }
@@ -227,6 +243,7 @@ private actor FilesystemServiceReadGate {
         let finalBHead = try await b.run(["rev-parse", "HEAD"]).stdout, finalAHead = try await a.run(["rev-parse", "HEAD"]).stdout
         try require(try bytes(b, ".git/index") == bIndex && finalBHead == bHead && finalAHead == aHead, "filesystem Services committed or modified unrelated workspace B")
         _ = try await context.launch("clean", paths: [outside], accepted: false)
+        phase("effects mixed-repository rejection")
         let mixed = board([a.root.appendingPathComponent(renamedSymlink), b.root.appendingPathComponent("normal.txt")]); defer { mixed.releaseGlobally() }
         let mixedWindows = context.windows.count
         context.workspace.error = nil
@@ -236,6 +253,7 @@ private actor FilesystemServiceReadGate {
         // Normal root and untracked targets are source-ineligible for Rename and
         // Delete; mixed repositories must never narrow to the first repository.
         for command in ["rename", "remove", "removeKeep"] {
+            phase("effects ineligible roots/outside: "+command)
             _ = try await context.launch(command, paths: [a.root], accepted: false)
             _ = try await context.launch(command, paths: [outside], accepted: false)
         }
@@ -372,6 +390,11 @@ private actor FilesystemServiceReadGate {
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
+        phase("receiver main entered")
+        let termination=NotificationCenter.default.addObserver(forName:NSApplication.willTerminateNotification,object:NSApp,queue:.main){_ in
+            MainActor.assumeIsolated {fputs("Filesystem Services WILL TERMINATE: phase=\(currentPhase); \(diagnostic())\n",stderr);fflush(stderr)}
+        }
+        defer{NotificationCenter.default.removeObserver(termination);fputs("Filesystem Services main scope leaving: phase=\(currentPhase)\n",stderr);fflush(stderr)}
         let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
         let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.turtleGitFilesystemServicesOrder(_:relativeTo:)))!
         method_exchangeImplementations(original,hidden);defer{method_exchangeImplementations(original,hidden)}
@@ -381,7 +404,7 @@ private actor FilesystemServiceReadGate {
         case "ownership": try await ownership()
         default: throw Failure(description: "Unknown filesystem Services case")
         }
-        print("PASS: filesystem Services case completed")
+        phase("receiver main completed");print("PASS: filesystem Services case completed");fflush(stdout)
     }
 }
 

@@ -14,7 +14,7 @@ final class UserAccountPathsTests: XCTestCase {
     }
     func testUnavailableOrInvalidAccountLocationsRetainFoundationFallback() {
         let fallback = URL(fileURLWithPath: "/private/tmp/foundation-home")
-        for invalid in [nil, "", "relative/home", "~", "/", "///", "/./", "/Users/..", "/Users/test\0suffix"] as [String?] {
+        for invalid in [nil, "", "relative/home", "~", "/", "///", "/./", "/..", "/../.", "/././", "////./../", "/Users/..", "/Users/test/../..", "/Users/../.", "/Users/test/../../../../.", "/Users/test\0suffix"] as [String?] {
             let directory = UserAccountPaths.resolveHome(accountHome: invalid, fallback: fallback)
             XCTAssertEqual(directory.path, fallback.path, String(describing: invalid))
             XCTAssertTrue(directory.isFileURL); XCTAssertTrue(directory.hasDirectoryPath)
@@ -25,6 +25,15 @@ final class UserAccountPathsTests: XCTestCase {
         let result = UserAccountPaths.resolveHome(accountHome: account, fallback: URL(fileURLWithPath: "/fallback"))
         XCTAssertEqual(result.path, account)
         XCTAssertTrue(result.hasDirectoryPath)
+    }
+    func testLiteralSpacesAndDotPrefixedNamesRemainAccountLocations() {
+        let fallback = URL(fileURLWithPath: "/private/tmp/foundation-home")
+        for account in ["/Users/ fixture ", "/Users/.hidden/..literal", "/Users/./ fixture /..literal"] {
+            let result = UserAccountPaths.resolveHome(accountHome: account, fallback: fallback)
+            XCTAssertNotEqual(result.path, fallback.path)
+            XCTAssertEqual(result.lastPathComponent, account.hasSuffix("..literal") ? "..literal" : " fixture ")
+            XCTAssertTrue(result.hasDirectoryPath)
+        }
     }
     func testTildeExpansionUsesInjectedAccountLocationAndPreservesLiteralTailBytes() {
         let account = UserAccountPaths.resolveHome(accountHome: "/Users/test", fallback: URL(fileURLWithPath: "/container/Data"))

@@ -61,11 +61,23 @@ import TurtleGitCore
                 catch { continuation.resume(throwing: error) }
             }
         }
-        guard folderBytes == original, folderProvider.suggestedName == "src",
-              try Data(contentsOf: root.appendingPathComponent(".git/index")) == index,
-              try Data(contentsOf: root.appendingPathComponent(path)) == Data("Uncommitted bytes must remain".utf8) else { throw Failure(description: "Folder bytes/name or original index/working bytes mismatch") }
+        guard folderBytes == original else { throw Failure(description: "Folder delivery lost pinned bytes: \(folderBytes as NSData)") }
+        guard folderProvider.suggestedName == "src" else { throw Failure(description: "Selected folder advertised its containing listing instead of src: \(String(describing:folderProvider.suggestedName))") }
+        guard try Data(contentsOf: root.appendingPathComponent(".git/index")) == index else { throw Failure(description: "Folder delivery changed the original index") }
+        guard try Data(contentsOf: root.appendingPathComponent(path)) == Data("Uncommitted bytes must remain".utf8) else { throw Failure(description: "Folder delivery changed the working file") }
+        let explicitFolder = RepositoryBrowserDrag.provider(repository: repository, access: nil, snapshot: snapshot, entry: nil, directory: "src/nested", name: "display-only label", folder: true)
+        let rootFolder = RepositoryBrowserDrag.provider(repository: repository, access: nil, snapshot: snapshot, entry: nil, directory: nil, name: "display-only label", folder: true)
+        guard explicitFolder.suggestedName == "nested", rootFolder.suggestedName == root.lastPathComponent else { throw Failure(description: "Explicit-directory or root delivery names changed") }
         let receiver = root.appendingPathComponent("receiver")
         try manager.createDirectory(at: receiver, withIntermediateDirectories: true)
+        stage = "selected folder promise delivery"
+        let folderPromise = RepositoryBrowserFilePromise(repository: repository, access: nil, snapshot: snapshot, entry: folder)
+        let folderWriter = folderPromise.provider(), folderDestination = receiver.appendingPathComponent("src", isDirectory: true)
+        guard folderPromise.filePromiseProvider(folderWriter, fileNameForType: UTType.folder.identifier) == "src" else { throw Failure(description: "Folder promise advertised its listing name") }
+        try await folderPromise.write(to: folderDestination)
+        guard try Data(contentsOf: folderDestination.appendingPathComponent("nested/file.bin")) == original else { throw Failure(description: "Selected folder promise lost historical bytes") }
+        do { try await folderPromise.write(to: folderDestination); throw Failure(description: "Folder promise overwrote an existing receiver directory") }
+        catch let error as NSError where error.domain == NSPOSIXErrorDomain && error.code == Int(EEXIST) {}
         stage = "native promise delivery"
         let promise = RepositoryBrowserFilePromise(repository: repository, access: nil, snapshot: nested, entry: file)
         let promised = promise.provider(), destination = receiver.appendingPathComponent(file.name)

@@ -69,6 +69,21 @@ corrections. The terminal hosted run passed Core and SVN but failed seven native
 lanes; all seven now have local repairs and focused passes in the continuation
 below. A complete corrected-source pass is still required.
 
+## Current hosted recovery batch — November 1, 2026
+
+The [connected repair record](qa/hosted-native-recovery-2026-11-01.json) covers
+four production defects: same-content Unified Diff Undo admission, selected
+historical-folder transfer names, unavailable child-commit Log pins and account
+home root aliases. Three additional hosted failures concern native receiver
+capture/readiness. The grouped checkpoint passes the focused Core methods, app
+build, historical transfer, Unified Diff, image question and targeted metafile
+workflows. Log/Changed Files also pass with both Git engines after the retirement
+wait was corrected to observe actual workers. Finder provider passes; effects
+were interrupted by an explicit Quit AppleEvent from Vorssaint, and ownership
+was not reached. Only those pending Finder cases remain for this checkpoint;
+passed families will not be repeated. This does not establish complete hosted CI
+or update installed build48.
+
 ## Source workflow continuation after build41
 
 The [file activation and Sync options batch](qa/file-activation-sync-options-2026-10-30.json)

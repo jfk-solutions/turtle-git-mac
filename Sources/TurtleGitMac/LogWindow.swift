@@ -3140,6 +3140,11 @@ struct LogCommandRequest: Identifiable {
                     guard let revision else {throw RevisionComparisonFailure.selection}
                     endRevision = try await repository.submoduleLogRevision(path:file.path,revision:revision.hash,cancellation:token)
                 } else { endRevision = nil }
+                if let endRevision {
+                    guard try await child.revisionLookup(endRevision,requirement:.commit,cancellation:token).objectID == endRevision else {
+                        throw SubmoduleComparisonFailure.unavailable
+                    }
+                }
                 guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated,!confirmingQuit,!token.isCancelled else { return }
                 acceptedNavigationRepository=child
                 finishFileOpenRead(token,generation:request); onSubmoduleFileLog?(checkout, endRevision)

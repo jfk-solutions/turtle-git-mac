@@ -1,5 +1,28 @@
 # TurtleGit for Mac — full port tracking
 
+## Connected hosted native recovery — November 1, 2026
+
+Seven actual hosted failures are addressed as one batch: same-content UDiff
+reload/Undo admission, selected historical folder provider/promise names,
+unavailable child-commit Log pins, account-home root aliases on older Foundation,
+and three receiver capture/readiness corrections. Native commands and ordinary
+typing wait for the adopted document reset; submodule pins are verified in the
+captured child without changing parent namespace or general-history policy.
+Directory metadata uses the selected item, while Root/explicit-directory and raw
+filename guards remain separate. Account root aliases are rejected lexically
+without filesystem access, symlink resolution or whitespace trimming.
+
+The [grouped record](qa/hosted-native-recovery-2026-11-01.json) retains exact
+hosted failures and source boundaries. Five focused Core methods, the Debug app
+build, historical transport and Unified Diff/submodule Log/image question/targeted
+metafile checks pass; native families use both Git engines. The initial retired
+Log wait was corrected to observe actual worker drainage. Finder provider passes,
+but its effects receiver was interrupted by a Quit AppleEvent from Vorssaint;
+remaining effects and ownership acceptance are pending that external interruption.
+No/Yes, worker/sheet, byte/index, one-transaction Undo and stale-owner assertions
+remain; default CI coverage is unchanged. Passed checks are retained, and
+installed48 predates this family.
+
 ## Installed consolidated local build48
 
 [Build48](qa/signed-consolidation-build48-2026-10-31.json), source `d6ac61b8`, is

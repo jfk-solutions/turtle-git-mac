@@ -1136,7 +1136,12 @@ parent group's gitlink; merge file occurrence metadata is retained.
 The route checks fresh working status or actual historical group membership,
 repository access and child checkout identity before handing off. An uninitialized
 checkout or unavailable pinned child revision reports an error without fetching
-or initialization. Busy/bare, multiple-file, changed revision/file selection and
+or initialization. Log and Changed Files validate a nonnil historical pin as an
+actual commit in the captured child repository before publishing the child Log;
+the parent tree's gitlink identity alone does not prove child object availability.
+The source master-off nil pin and preference-disabled general history remain
+separate paths and do not invent a replacement commit. Busy/bare, multiple-file,
+changed revision/file selection and
 invalidation guards prevent stale dispatch. Root wiring opens child Log with no
 parent path filter, retaining the parent's access lease and selected Git runtime.
 

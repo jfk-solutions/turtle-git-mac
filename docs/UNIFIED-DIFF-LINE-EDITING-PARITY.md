@@ -145,3 +145,16 @@ exact duplication of both spans and single Undo/Redo restoration of original
 bytes, both ranges, direction and mode. It resets through native mode transitions
 before the original equal-byte replacement, held Save and retirement assertions.
 No secondary-selection assertion is removed and production behavior is unchanged.
+
+
+## Same-content reload and native Undo — November 1, 2026
+
+A new document can contain identical text while requiring a distinct native Undo
+reset. Line-command receipts, ordinary text input and Undo/Redo now require the
+coordinator's adopted reset revision to match the model. An old native surface
+cannot stamp itself with the replacement document's identity or accept an edit
+whose Undo would subsequently be cleared by projection. The existing receiver
+waits for that actual receipt, never for Undo to become available, and retains
+all immediate one-transaction, exact-byte and ownership assertions. It also
+refuses retained/fresh commands and native insertText before same-content reset
+projection. See [the grouped checkpoint](qa/hosted-native-recovery-2026-11-01.json).

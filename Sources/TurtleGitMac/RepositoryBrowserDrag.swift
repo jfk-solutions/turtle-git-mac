@@ -51,12 +51,16 @@ private final class RepositoryBrowserWeakRetention {
 /// Never derive a native path from an escaped label or an opaque selection key.
 private enum RepositoryBrowserDelivery {
     static func name(repository:GitRepository,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry?,directory:String?) throws -> String {
+        guard snapshot.root == repository.root, snapshot.objectID != nil,
+              entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
         if let entry,![.directory,.submodule].contains(entry.kind) {
             try RepositoryBrowserTransferPolicy.validateHistoricalFiles(snapshot,entries:[entry])
             return try HistoricalFileDeliveryName.transferLeaf(path:entry.path)
         }
         try RepositoryBrowserTransferPolicy.validate(snapshot,entries:entry.map{[$0]} ?? [])
-        let key=directory ?? snapshot.directory
+        // A selected directory entry is the delivered item, not the listing
+        // containing it. Match exportRepositoryBrowser's entry-first policy.
+        let key=entry?.path ?? directory ?? snapshot.directory
         try RepositoryBrowserTransferPolicy.validateDirectory(key)
         let path=try RepositoryBrowserGitPath(key:key)
         guard let value=path.utf8 else {throw RepositoryBrowserTransferFailure.unrepresentablePath(path.display)}

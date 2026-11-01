@@ -618,7 +618,7 @@ struct PatchTextView: NSViewRepresentable {
             return model.canFind && model.sourceCallbacksCurrent(identity, revision: callbackRevision) && text.coordinator?.model === model
         }
         model.sourceAttached={ [weak text,weak model] in
-            guard let text,let model else{return false};return model.sourceCallbacksCurrent(identity,revision:callbackRevision) && text.coordinator?.model === model && text.window != nil
+            guard let text,let model else{return false};return model.sourceCallbacksCurrent(identity,revision:callbackRevision) && text.coordinator?.model === model && text.coordinator?.hasCurrentDocumentProjection == true && text.window != nil
         }
         model.sourceSelection = { [weak text,weak model] in
             guard let text,let model,model.sourceCallbacksCurrent(identity,revision:callbackRevision),text.coordinator?.model === model,text.window != nil else{return NSRange(location:0,length:0)}
@@ -710,14 +710,18 @@ struct PatchTextView: NSViewRepresentable {
         var lastZoomLevel = 0
         var lastAppearance: UnifiedDiffAppearance?
         var dark = false, highContrast = false
+        // A same-text document replacement still owns a distinct Undo/reset
+        // boundary. Never stamp the new model revision onto the old native
+        // surface before updateNSView has installed that boundary.
+        var hasCurrentDocumentProjection: Bool { resetRevision == model.documentResetRevision }
         init(model: PatchWindowModel) { self.model = model }
         func textDidChange(_ notification: Notification) {
-            guard let text = notification.object as? NSTextView, !text.hasMarkedText(), model.canEditText else { return }
+            guard hasCurrentDocumentProjection, let text = notification.object as? NSTextView, !text.hasMarkedText(), model.canEditText else { return }
             (text as? PatchText)?.resetViewportNavigation()
             (text.enclosingScrollView as? PatchScrollView)?.lineNumberGutter?.documentChanged()
             lastText = text.string; needsStyling = true; model.editDocument(text.string)
         }
-        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool { model.canEditText }
+        func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool { hasCurrentDocumentProjection && model.canEditText }
         func textViewDidChangeSelection(_ notification: Notification) {
             guard !model.retired, let view = notification.object as? NSTextView else { return }
             let selections = (view as? PatchText)?.columnSelection?.snapshot().ranges ?? view.selectedRanges.map(\.rangeValue)
@@ -1014,8 +1018,8 @@ struct PatchTextView: NSViewRepresentable {
                 catch { model.error = error.localizedDescription }
             }
         }
-        @objc func undoPatch(_ sender: Any?) { guard coordinator?.model.canEditText == true else { return }; undoManager?.undo() }
-        @objc func redoPatch(_ sender: Any?) { guard coordinator?.model.canEditText == true else { return }; undoManager?.redo() }
+        @objc func undoPatch(_ sender: Any?) { guard coordinator?.hasCurrentDocumentProjection == true, coordinator?.model.canEditText == true else { return }; undoManager?.undo() }
+        @objc func redoPatch(_ sender: Any?) { guard coordinator?.hasCurrentDocumentProjection == true, coordinator?.model.canEditText == true else { return }; undoManager?.redo() }
         override func performTextFinderAction(_ sender: Any?) {
             if coordinator?.model.usesSourceFindBar != true { super.performTextFinderAction(sender); return }
             guard let tag = (sender as? NSMenuItem)?.tag, let action = NSTextFinder.Action(rawValue: tag) else { return }

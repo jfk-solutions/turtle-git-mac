@@ -737,6 +737,11 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
                     let child=try await repository.submoduleWorkingRepository(path:file.path,cancellation:token)
                     let revision:String?
                     if pin && snapshot.to != .workingTree && snapshot.to != .emptyTree && !file.action.hasPrefix("D") {revision=try await repository.submoduleLogRevision(path:file.path,revision:snapshot.to.label,cancellation:token)}else{revision=nil}
+                    if let revision {
+                        guard try await child.revisionLookup(revision,requirement:.commit,cancellation:token).objectID == revision else {
+                            throw SubmoduleComparisonFailure.unavailable
+                        }
+                    }
                     guard !closed,!token.isCancelled else { continue }
                     acceptedNavigationRepository=child
                     onSubmoduleLog(child.root,revision)

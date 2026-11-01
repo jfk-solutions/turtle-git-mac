@@ -643,7 +643,18 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             conflict.model.decodeImages={_,token in reloadToken=token;return await withCheckedContinuation {conflictHold=$0}}
             conflict.model.reload();try await wait {conflictHold != nil}
             let escape=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:conflict.window!.windowNumber,context:nil,characters:"\u{1b}",charactersIgnoringModifiers:"\u{1b}",isARepeat:false,keyCode:53)!
-            try require(conflict.windowShouldClose(conflict.window!) && conflict.window!.performKeyEquivalent(with:escape),"User Escape could not close a held reload preview")
+            // A prohibited invisible receiver cannot become the physical key
+            // app. Supply only this owned window through the production seam;
+            // dispatch still traverses its real native Escape/close handler.
+            guard let conflictToolbar=conflict.imageToolbar,let conflictWindow=conflict.window else{throw Failure(message:"Held conflict lost its native command owner")}
+            do {
+                let originalKeyWindow=conflictToolbar.keyWindow
+                defer{conflictToolbar.keyWindow=originalKeyWindow}
+                conflictToolbar.keyWindow={ [weak conflictWindow] in conflictWindow }
+                let allowed=conflict.windowShouldClose(conflictWindow)
+                let handled=allowed && conflictWindow.performKeyEquivalent(with:escape)
+                try require(allowed && handled,"User Escape could not close a held reload preview: closeAllowed=\(allowed) handled=\(handled) keyOwner=\(conflictToolbar.keyWindow() === conflictWindow) eventOwner=\(escape.window === conflictWindow) busy=\(conflict.model.busy) decoding=\(conflict.model.decoding) retired=\(conflict.model.retired) sheet=\(conflictWindow.attachedSheet != nil)")
+            }
             try require(conflict.model.retired && reloadToken?.isCancelled == true && ImageConflictWindowModel.activeOperations == 1,"Reload retirement released actual metafile decoder")
             conflictHold?.resume(returning:[:]);conflictHold=nil;try await wait {ImageConflictWindowModel.activeOperations == 0}
             try require(conflict.model.images.mapValues(\.id) == priorImages,"Retired conflict reload replaced captured images")

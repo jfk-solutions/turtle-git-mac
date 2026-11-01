@@ -45,10 +45,24 @@ public enum UserAccountPaths {
     /// Pure location selection, also usable when the account database is absent
     /// or returns invalid data. Neither candidate is opened or authorized.
     public static func resolveHome(accountHome: String?, fallback: URL) -> URL {
-        if let path = accountHome, path.hasPrefix("/"), !path.contains("\0") {
+        if let path = accountHome, isNonRootAccountPath(path) {
             let directory = URL(fileURLWithPath: path, isDirectory: true).standardizedFileURL
             if directory.path != "/" { return directory }
         }
         return URL(fileURLWithPath: fallback.path, isDirectory: true)
+    }
+
+    private static func isNonRootAccountPath(_ path: String) -> Bool {
+        guard path.hasPrefix("/"), !path.contains("\0") else { return false }
+        // Foundation versions differ in whether standardized file URLs retain
+        // '/.' for a root alias. Validate lexically before making a URL, without
+        // touching the filesystem, following symlinks or trimming real names.
+        var depth = 0
+        for component in path.split(separator: "/") {
+            if component == "." { continue }
+            if component == ".." { depth = max(0, depth - 1) }
+            else { depth += 1 }
+        }
+        return depth > 0
     }
 }

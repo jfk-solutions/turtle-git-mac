@@ -4,9 +4,9 @@ import TurtleGitCore
 @main struct ImageConflictOwnedVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String) throws {if !value{throw Failure(description:message)}}
-    @MainActor static func wait(_ ready:()->Bool,line:Int = #line) async throws {
+    @MainActor static func wait(line:Int = #line,diagnostic:()->String = {""},_ ready:()->Bool) async throws {
         for _ in 0..<2000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(description:"Image conflict family timeout at \(line)")
+        throw Failure(description:"Image conflict family timeout at \(line): \(diagnostic())")
     }
     @MainActor static func main() async {do{try await verify()}catch{fputs("Image conflict family failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
@@ -39,7 +39,7 @@ import TurtleGitCore
         func owner(_ repo:GitRepository) async throws -> ImageConflictWindowController {
             guard let document=try await repo.imageConflictDocument(path:path) else{throw Failure(description:"Mixed image conflict did not route")}
             let controller=ImageConflictWindowController(repository:repo,access:nil,document:document,preferences:prefs);owners.append(controller)
-            controller.window!.alphaValue=0;controller.showWindow(nil);controller.window!.contentView?.layoutSubtreeIfNeeded();try await wait {!controller.model.busy};return controller
+            controller.window!.alphaValue=0;controller.window!.ignoresMouseEvents=true;controller.showWindow(nil);controller.window!.contentView?.layoutSubtreeIfNeeded();try await wait {!controller.model.busy};return controller
         }
         func descendants(_ view:NSView)->[NSView]{[view]+view.subviews.flatMap(descendants)}
         func press(_ side:ImageConflictSide,_ controller:ImageConflictWindowController) async throws {
@@ -50,8 +50,24 @@ import TurtleGitCore
             try await wait { descendants(controller.window!.contentView!).compactMap{$0 as? ImageComparisonScrollView}.allSatisfy{!$0.inputAllowed()} }
         }
         func reply(_ value:NSApplication.ModalResponse,_ controller:ImageConflictWindowController) async throws {
-            guard let sheet=controller.window!.attachedSheet else{throw Failure(description:"Missing production resolution sheet")}
-            NSApp.endSheet(sheet,returnCode:value.rawValue);sheet.orderOut(nil);try await wait{!controller.model.busy}
+            let window=controller.window!,model=controller.model
+            guard let sheet=window.attachedSheet else{throw Failure(description:"Missing production resolution sheet")}
+            func state()->String {
+                let sides=ImageConflictSide.allCases.map{"\($0.rawValue)=\(model.canSelect($0))"}.joined(separator:",")
+                let panes=ImageConflictSide.allCases.map{side in "\(side.rawValue):allowed=\(model.panes[side]?.commandsAllowed() == true),drop=\(model.panes[side]?.receivingDrop == true)"}.joined(separator:",")
+                return "response=\(value.rawValue) busy=\(model.busy) retired=\(model.retired) operations=\(ImageConflictWindowModel.activeOperations) attached=\(window.attachedSheet != nil) capturedParent=\(sheet.sheetParent != nil) selects=[\(sides)] panes=[\(panes)] error=\(String(describing:model.error))"
+            }
+            window.endSheet(sheet,returnCode:value);sheet.orderOut(nil)
+            // Worker completion and physical sheet detachment precede the
+            // window gate's deferred restoration of real pane/Select controls.
+            try await wait(diagnostic:state){!model.busy && ImageConflictWindowModel.activeOperations==0 && window.attachedSheet==nil && sheet.sheetParent==nil}
+            if !model.retired {
+                try await wait(diagnostic:state) {
+                    model.canSelect(.mine) && model.panes.values.allSatisfy{$0.commandsAllowed()} &&
+                    descendants(window.contentView!).compactMap{$0 as? NSButton}.contains{$0.accessibilityLabel()=="Select "+ImageConflictSide.mine.rawValue && $0.isEnabled} &&
+                    descendants(window.contentView!).compactMap{$0 as? ImageComparisonScrollView}.allSatisfy{$0.inputAllowed()}
+                }
+            }
         }
         let repo=try await fixture("mixed"),file=repo.root.appendingPathComponent(path)
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))

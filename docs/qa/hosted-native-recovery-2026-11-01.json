@@ -1,0 +1,213 @@
+{
+  "date": "2026-11-01",
+  "status": "focused-checkpoint-passed-except-external-finder-interruption",
+  "failures": [
+    {
+      "family": "core-home",
+      "source": "fc45a076",
+      "job": 124653873337,
+      "step": 79,
+      "message": "UserAccountPathsTests root alias /./ produced /. instead of the Foundation fallback.",
+      "change": "Lexical root-alias rejection before platform normalization; nonroot/space/symlink policy retained.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873337"
+    },
+    {
+      "family": "historical-provider",
+      "source": "fc45a076",
+      "job": 124653873238,
+      "step": 181,
+      "message": "Folder bytes/name or original index/working bytes mismatch at pinned folder provider.",
+      "change": "Selected directory entry now supplies provider/promise name rather than containing listing; metadata admission matches export root/selection guards.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873238"
+    },
+    {
+      "family": "whole-line-undo",
+      "source": "fc45a076",
+      "job": 124653873294,
+      "step": 145,
+      "message": "Whole-line transaction not undoable at fixture line112.",
+      "change": "Native document-reset projection gates source receipts, typing and Undo; same-content load fixture waits for actual projection, preserving immediate Undo assertions.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873294"
+    },
+    {
+      "family": "submodule-history",
+      "source": "fc45a076",
+      "job": 124653873357,
+      "step": 429,
+      "message": "Cherry Pick receiver line859 unavailable pinned child refusal assertion.",
+      "change": "Log and Changed Files validate requested commit in exact child before handoff; master/preference-off nil paths retained.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873357"
+    },
+    {
+      "family": "finder-capture",
+      "source": "fc45a076",
+      "job": 124653873291,
+      "step": 127,
+      "message": "Escaping makeStandaloneWorkspace closure requires explicit self.workspace capture.",
+      "change": "Freeze workspace by explicit immutable capture; no assertion/behavior change or Context retain cycle.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873291"
+    },
+    {
+      "family": "image-question",
+      "source": "fc45a076",
+      "job": 124653873275,
+      "step": 155,
+      "message": "No failed to settle/re-enable selection.",
+      "change": "Fixture waits actual sheet/worker and native control admission, preserving No/Yes/bytes/index/Quit/retirement assertions.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41237449674/job/124653873275"
+    },
+    {
+      "family": "metafile-escape",
+      "source": "141b04f6",
+      "job": 124695176132,
+      "step": 158,
+      "message": "User Escape could not close a held reload preview in dib-profiles system Git.",
+      "change": "Invisible receiver supplies existing captured key-window seam before actual native Escape; decoding/retirement/drain assertions retained.",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41250319609/job/124695176132"
+    }
+  ],
+  "scope": "Four actual native/Core consumer defects and three receiver capture/readiness corrections, completed together before validation. No original assertion removed.",
+  "planned_checkpoint": {
+    "core": "UserAccountPathsTests only; full Core suite not repeated.",
+    "native": [
+      "Standalone provider transport with cached current Core",
+      "Unified Diff complete whole-line family with both Git engines",
+      "Log/Changed Files submodule family with both engines",
+      "Finder filesystem Services complete family with both engines",
+      "Image conflict-owned family with both engines",
+      "Exact DIB-profiles metafile consumer case with both engines"
+    ]
+  },
+  "limits": [
+    "Hosted old-source results are failure evidence, not a complete current-source pass.",
+    "Local focused and hidden-native checks do not establish physical Finder/UI/VoiceOver, signed changes, all format cohorts or complete port parity.",
+    "Installed48 remains exact d6ac61b8 and predates this recovery batch.",
+    "Planned installed48 physical editor/Blame acceptance was deferred while actual CI failures were repaired; no TurtleGit UI was launched. Owned CI browser tabs were closed."
+  ],
+  "core": {
+    "result": "passed",
+    "methods": 5,
+    "log": "build/qa/hosted-native-recovery-core-2026-11-01.log",
+    "scope": "UserAccountPathsTests only; retain after receiver-only repairs."
+  },
+  "build": {
+    "result": "passed",
+    "configuration": "Debug",
+    "log": "build/qa/hosted-native-recovery-debug-2026-11-01.log",
+    "scope": "Current production changes; receiver-only followups do not rebuild the app."
+  },
+  "initial_native": [
+    {
+      "case": "provider",
+      "exit": 0,
+      "elapsed_seconds": 7.147,
+      "log": "build/qa/hosted-native-recovery-provider-2026-11-01.log"
+    },
+    {
+      "case": "unified-line",
+      "exit": 0,
+      "elapsed_seconds": 9.238,
+      "log": "build/qa/hosted-native-recovery-unified-line-2026-11-01.log"
+    },
+    {
+      "case": "submodule-log",
+      "exit": 1,
+      "elapsed_seconds": 66.425,
+      "log": "build/qa/hosted-native-recovery-submodule-log-2026-11-01.log"
+    },
+    {
+      "case": "finder-filesystem",
+      "exit": 1,
+      "elapsed_seconds": 7.538,
+      "log": "build/qa/hosted-native-recovery-finder-filesystem-2026-11-01.log"
+    },
+    {
+      "case": "image-owned",
+      "exit": 0,
+      "elapsed_seconds": 24.531,
+      "log": "build/qa/hosted-native-recovery-image-owned-2026-11-01.log"
+    },
+    {
+      "case": "metafile-escape",
+      "exit": 0,
+      "elapsed_seconds": 51.9,
+      "log": "build/qa/hosted-native-recovery-metafile-escape-2026-11-01.log"
+    }
+  ],
+  "followup_failures": [
+    {
+      "case": "submodule-log",
+      "message": "Original unavailable-child assertion and new Changed Files checks passed; subsequent retired-model wait at line886 timed out because retired presentation busy is not a worker lease.",
+      "repair": "Wait actual fileNavigationReadPending false and activeFileOpenReads zero, preserving retired/error/no-late-callback assertions."
+    },
+    {
+      "case": "finder-filesystem",
+      "message": "Provider passed; effects receiver exited zero without completion marker. Cause under investigation; sandbox diagnostics alone do not establish cause.",
+      "diagnostic": "Flushed phases show both Rename workflows settle, then NSApplication willTerminate during Delete dispatch. Unified system log for exact PID55557 records Handling Quit AppleEvent, normal approval and exit0; no assertion or crash established.",
+      "log": "build/qa/hosted-native-recovery-repair-finder-effects-2026-11-01.log",
+      "process_log": "build/qa/hosted-native-recovery-finder-effects-process-55557-2026-11-01.log",
+      "cause": "External process Vorssaint PID1986 sent Quit AppleEvent to exact receiver PID55557; sender and receiver match returnID -3992 at 02:00:49.769 CET.",
+      "sender_log": "build/qa/hosted-native-recovery-finder-effects-external-quit-sender-2026-11-01.log",
+      "disposition": "No speculative product repair or repeated run while external closer remains active; effects interrupted and ownership not reached. Provider pass retained."
+    }
+  ],
+  "cleanup": {
+    "initial_recorded_processes_independently_absent": [
+      51717,
+      51856,
+      51915,
+      52430,
+      52437,
+      52444,
+      52727,
+      52971,
+      53224,
+      53262,
+      53588,
+      51797,
+      51801,
+      51806,
+      51829,
+      52659
+    ],
+    "affected_recorded_processes_independently_absent": [
+      54427,
+      54497,
+      55016,
+      55548,
+      55557
+    ]
+  },
+  "affected_retry": [
+    {
+      "case": "submodule-log",
+      "exit": 0,
+      "elapsed_seconds": 47.423,
+      "log": "build/qa/hosted-native-recovery-repair-submodule-log-2026-11-01.log"
+    },
+    {
+      "case": "finder-effects",
+      "exit": 1,
+      "elapsed_seconds": 7.951,
+      "log": "build/qa/hosted-native-recovery-repair-finder-effects-2026-11-01.log"
+    }
+  ],
+  "accepted_results": {
+    "core": "5 UserAccountPathsTests methods pass.",
+    "app": "Debug build succeeds; no app build repeated for receiver-only followups.",
+    "historical_provider": "Standalone native file/folder providers and promises pass, including selected name, pinned bytes, collision/cancellation/release.",
+    "unified_line": "Complete whole-line edit/Undo/ownership family passes with system and bundled Git.",
+    "submodule_log": "Log and Changed Files pin refusal, general history and retirement checks pass with both Git engines after retired-worker wait correction.",
+    "image_question": "Owned conflict No/Yes/cancellation/retirement family passes with both engines.",
+    "metafile_escape": "DIB-profiles held-reload Escape family passes with both engines.",
+    "finder_filesystem": "Provider passes; effects Rename and symlink Rename assertions reached; later effects interrupted by external Quit. Full effects and ownership remain unverified."
+  },
+  "next_action": "After external auto-close is paused/excludes the private helpers, run only Finder filesystem --only effects --only ownership with both engines. Retain every other pass. User notified via asynchronous question.",
+  "source_delivery": "Installed48 is unchanged and does not contain these four product fixes; no package or Store publication attempted.",
+  "documentation": {
+    "dialog_reconciliation": "passed; no complete-parity status inferred",
+    "site": "521 documents rendered; unresolved_fragments=[]",
+    "site_log": "build/qa/hosted-native-recovery-site-2026-11-01.log",
+    "help_and_localizations": "No registered Help guide or native literal label changed; regeneration not required."
+  }
+}

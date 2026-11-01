@@ -58,7 +58,7 @@ private extension NSWindow {
     }
     static func load(_ s:Surface,_ bytes:Data)async throws {
         s.owner.presentDocument(bytes,title:"Private whole-line commands",comparison:"line-edit.patch",information:"Private native verification")
-        try await wait {s.model.canEditText && s.text.isEditable && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && s.model.savedDocumentBytes==bytes && !s.model.documentDirty && PatchDocumentSession.activeOperations==0}
+        try await wait {s.model.canEditText && s.text.isEditable && s.text.coordinator?.hasCurrentDocumentProjection == true && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && s.model.savedDocumentBytes==bytes && !s.model.documentDirty && PatchDocumentSession.activeOperations==0}
         s.window.contentView?.layoutSubtreeIfNeeded();s.window.makeFirstResponder(s.text)
         try require(try s.session.encodedBytes()==bytes,"Load changed original byte packets")
     }
@@ -109,7 +109,8 @@ private extension NSWindow {
         try require(actual==expected,message+"; actualHex="+actual.map{String(format:"%02x",$0)}.joined()+" expectedHex="+expected.map{String(format:"%02x",$0)}.joined()+" selection=\(s.text.selectedRange()) affinity=\(s.text.selectionAffinity.rawValue)")
     }
     static func undoRedo(_ s:Surface,before:Data,after:Data,range:NSRange,affinity:NSSelectionAffinity = .downstream)async throws {
-        try require(s.text.undoManager?.canUndo==true,"Whole-line transaction not undoable")
+        let expectedHex=after.map{String(format:"%02x",$0)}.joined()
+        try require(s.text.undoManager?.canUndo==true,"Whole-line transaction not undoable; projected=\(s.text.coordinator?.resetRevision ?? -1) model=\(s.model.documentResetRevision) group=\(s.text.undoManager?.groupingLevel ?? -1) expectedHex=\(expectedHex)")
         s.text.undoPatch(nil);try await ready(s)
         try bytes(s,before,"One Undo failed exact packet restoration")
         try require(!s.model.documentDirty && s.text.undoManager?.canUndo != true,"One Undo left a partial edit/extra undo group")
@@ -122,6 +123,19 @@ private extension NSWindow {
         phase("actual Lines menu/icons, clipboard, current-line and selection commands")
         let original=Data("one\ntwo\nthree\nfour".utf8)
         try await load(s,original);select(s,NSRange(location:1,length:7),.upstream)
+        // Equal displayed text is not evidence that the newly loaded native
+        // document/Undo boundary has been projected. Retained commands and
+        // actual native typing must not enter that old surface in this gap.
+        let oldDuplicate=try item(s,.duplicate),oldRevision=s.model.documentResetRevision
+        s.model.setReadOnlyDiff(original,discardingEdits:true)
+        try require(s.model.documentResetRevision==oldRevision+1 && s.text.coordinator?.hasCurrentDocumentProjection==false,"Same-content replacement did not establish an unprojected document boundary")
+        _=NSApp.sendAction(oldDuplicate.action!,to:oldDuplicate.target,from:oldDuplicate)
+        try require(!s.text.performLineCommand(.duplicate),"Unprojected surface minted a new document edit receipt")
+        s.text.insertText("late old-document typing",replacementRange:NSRange(location:0,length:0))
+        try bytes(s,original,"Unprojected native command/typing changed new document")
+        try require(s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.documentDirty && s.text.undoManager?.canUndo != true,"Unprojected native edit changed source/Undo state")
+        try await wait{s.text.coordinator?.hasCurrentDocumentProjection==true}
+        select(s,NSRange(location:1,length:7),.upstream)
         let menu=try lineMenu(s),commands:[PatchLineCommand]=[.copyLines,.cutLines,.deleteLine,.duplicate,.transpose,.indent,.dedent]
         try require(menu.items.count==commands.count+2 && Array(menu.items.prefix(commands.count)).map(\.title)==commands.map(title),"Source seven-command order/captions differ")
         try require(menu.items[commands.count].isSeparatorItem,"Column group lost its separating boundary after seven line commands")

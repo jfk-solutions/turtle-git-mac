@@ -107,3 +107,13 @@ independently absent. No Core code changed or unrelated image suites repeated.
 Installed build47 predates this family. The record retains every failed attempt
 and distinguishes injected key-owner/native-menu proof from OS event ordering. Physical menu tracking, keyboard/VoiceOver,
 signed grants and complete image-viewer/source acceptance remain separate.
+
+
+## Held sheet and keyboard receiver boundaries — November 1, 2026
+
+The existing conflict-owned receiver now waits for exact sheet detachment, worker
+accounting and native Select/pane admission after No. The metafile held-reload
+receiver supplies its captured invisible key window through the existing seam
+before actual Escape dispatch. These correct fixture assumptions, not production
+guards; all original Yes/No, cancellation, retirement and byte/index assertions
+remain. See [the grouped checkpoint](qa/hosted-native-recovery-2026-11-01.json).

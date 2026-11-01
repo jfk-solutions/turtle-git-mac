@@ -709,3 +709,15 @@ file bytes, folder navigation and submodule inspection. The source two-line info
 label and spinner now reserve stable space so selection/loading changes do not
 resize the contents/tree/header area. Native event admission in the invisible
 receiver uses scoped public key-state injection; it is not physical focus proof.
+
+
+## Selected directory transfer names — November 1, 2026
+
+Provider and promise metadata now use a selected directory entry's path before
+its containing listing. Root delivery still uses the repository basename, and
+an explicit directory uses that directory's leaf. Caller display labels never
+become filesystem names. Name admission checks the same repository/pinned
+snapshot/selected-entry boundary as export; raw-name restrictions remain intact.
+The existing standalone receiver retains original historical-byte, exclusive
+publication, cancellation and provider-release checks and adds actual folder
+promise delivery/collision checks. See [the grouped checkpoint](qa/hosted-native-recovery-2026-11-01.json).

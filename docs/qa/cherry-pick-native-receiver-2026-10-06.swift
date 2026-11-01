@@ -856,9 +856,23 @@ import TurtleGitCore
     let missing = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
     log.reload(); try await until { !log.busy }; log.select([missing]); try await until { log.files.contains { $0.path == path } }
     let count = requests.count
-    log.error = nil; log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(log.error != nil && requests.count == count)
+    log.error = nil; log.showSubmoduleFileLog([path]); try await until { !log.busy }
+    precondition(log.error != nil && requests.count == count,"Unavailable child pin escaped Log: error=\(log.error ?? "none"), requests=\(requests.count), expected=\(count)")
+    // Changed Files shares the same parent gitlink reader but owns its child
+    // handoff independently. An existing parent gitlink is not proof that the
+    // referenced object exists (or is a commit) in the initialized child.
+    let changed = RevisionComparisonWindowModel(repository:repo,access:nil,from:.revision(deleted),to:.revision(missing),preferences:.standard)
+    defer { changed.invalidate() }
+    var comparedRequests:[(URL,String?)]=[]
+    changed.onSubmoduleLog = { comparedRequests.append(($0,$1)) }
+    changed.load(); try await until { !changed.busy && RevisionComparisonWindowModel.activeFileOperations == 0 }
+    precondition(changed.error == nil && changed.visibleFiles.contains { $0.path == path && $0.isSubmodule })
+    changed.logSubmodules([path]); try await until { !changed.busy && RevisionComparisonWindowModel.activeFileOperations == 0 }
+    precondition(changed.error != nil && comparedRequests.isEmpty,"Changed Files dispatched unavailable child pin: \(changed.error ?? "none")")
     UserDefaults.standard.set(false, forKey: "LogSubmoduleShowRevision")
     log.error = nil; log.showSubmoduleFileLog([path]); try await until { !log.busy }; precondition(requests.count == count + 1 && requests.last?.1 == nil)
+    changed.error = nil; changed.logSubmodules([path]); try await until { !changed.busy && RevisionComparisonWindowModel.activeFileOperations == 0 }
+    precondition(changed.error == nil && comparedRequests.count == 1 && comparedRequests.last?.0.path == checkout.path && comparedRequests.last?.1 == nil,"Changed Files general child history failed after pin refusal: \(changed.error ?? "none")")
     // Uninitialized checkout is never fetched/initialized implicitly.
     let admin = checkout.appendingPathComponent(".git"), savedAdmin = checkout.appendingPathComponent(".git.saved")
     try FileManager.default.moveItem(at: admin, to: savedAdmin)
@@ -869,7 +883,11 @@ import TurtleGitCore
     precondition(!log.canShowSubmoduleFileLog([path, ".gitmodules"]))
     log.showSubmoduleFileLog([path]); log.select([advanced]); try await until { !log.busy }; precondition(requests.count == count + 1 && log.error == nil)
     try await until { log.files.contains { $0.path == path } }
-    log.showSubmoduleFileLog([path]); log.invalidate(); try await until { !log.busy }; precondition(requests.count == count + 1)
+    log.showSubmoduleFileLog([path]); log.invalidate()
+    // A retired model does not republish presentation busy state. Wait for the
+    // captured read itself, rather than treating its last UI state as a lease.
+    try await until { !log.fileNavigationReadPending && LogWindowModel.activeFileOpenReads == 0 }
+    precondition(log.isInvalidated && log.error == nil && requests.count == count + 1,"Retired submodule read published a late result or failed to drain")
     // Compare indexes around a readonly request, after the fixture's intentional commits.
     let stableParentIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), stableChildIndex = try Data(contentsOf: childIndexURL)
     let readOnly = LogWindowModel(repository: repo, access: nil); defer { readOnly.invalidate() }
@@ -2656,6 +2674,11 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
 
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_SUBMODULE_ONLY"] == "1" {
+        let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
+        try await verifyNativeLogSubmodule(executable:executable)
+        print("PASS: Log submodule history family");return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_DEFERRED_REFRESH_ONLY"] == "1" {
         let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
         try await verifyNativeLogParentWorkingComparison(executable:executable)
