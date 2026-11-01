@@ -202,7 +202,10 @@ Inspect the staged diff rather than relying on highlighted rows.
 
 Partial staging opens an attached patch window to the right of Commit. Select
 lines or hunks to stage or unstage. It changes the index while preserving
-working-tree contents; a stale patch is rejected. Partial operations support modified, added and deleted regular UTF-8 text files.
+working-tree contents; a stale patch is rejected. Partial operations support
+modified, added and deleted regular text files, including legacy-encoded content
+that Git treats as text. Selected patches retain the original bytes rather than
+re-encoding the displayed text.
 Selected untracked files can be previewed without first adding them to the index.
 Renames and executable-bit changes that include text hunks are applied together
 with the selected text, as shown by the patch header. Unstaging a rename hunk
