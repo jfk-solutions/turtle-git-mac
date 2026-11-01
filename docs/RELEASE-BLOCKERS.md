@@ -53,8 +53,14 @@ missing source behavior, reported defect or failing check.
 - [ ] Close the explicit source/layout gaps in the family records and establish
   the remaining dialog states, keyboard and accessibility acceptance. Resource
   counts alone do not complete this requirement.
-- [ ] Check the accepted build's README, license/source notices, manual, offline
-  Help and screenshot website together; keep publisher credit unobtrusive.
+- [x] Verify the build49 documentation/source package and public screenshot delivery.
+  The [signed package record](qa/signed-consolidation-build49-2026-11-01.json)
+  binds its Help, notices and complete source archive; the
+  [published guide check](qa/hosted-published-manual-2026-11-01.json) confirms the
+  updated guide and four current Commit screenshots are reachable and exact.
+  The source review found author/support/Impressum placement consistent.
+- [ ] Complete owner acceptance of bundled Help and screenshots against the
+  remaining native dialog states and accessibility behavior.
 - [x] Deliver and install the [signed local testing build49](qa/signed-consolidation-build49-2026-11-01.json).
   Build48 is preserved for rollback. Build49 adds four consumer fixes, localized
   history feedback/deletion warnings and the corrected partial-staging guide.

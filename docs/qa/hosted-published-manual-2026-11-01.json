@@ -1,0 +1,104 @@
+{
+  "date": "2026-11-01",
+  "observed_utc": "2026-11-01T02:04:05.563820+00:00",
+  "status": "public-guide-and-current-screenshot-delivery-verified",
+  "deployment_source": "3df4c9ad990290ea8a476ed86368dc9a79e7fde6",
+  "pages_workflow": {
+    "run": 41263101915,
+    "build_job": 124720206199,
+    "deploy_job": 124720307667,
+    "both_jobs": "completed/success"
+  },
+  "public_delivery": {
+    "source_deployment": "3df4c9ad990290ea8a476ed86368dc9a79e7fde6",
+    "pages": [
+      {
+        "url": "https://jfk-solutions.github.io/turtle-git-mac/",
+        "actual_url": "https://jfk-solutions.github.io/turtle-git-mac/",
+        "status": 200,
+        "image_urls": [
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-light-2026-10-27.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-dark-2026-10-27.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-light-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-dark-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-light-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-dark-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-light-2026-10-27.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-dark-2026-10-27.png"
+        ],
+        "legacy_partial_staging_description": false,
+        "development_banner": false,
+        "text_excerpt": "TurtleGit for Mac \u2014 Git in your Finder Skip to content TurtleGit for Mac About Manual Support Source The power of Git. At home on your Mac. A macOS fork of Tort"
+      },
+      {
+        "url": "https://jfk-solutions.github.io/turtle-git-mac/manual/GETTING-STARTED.html",
+        "actual_url": "https://jfk-solutions.github.io/turtle-git-mac/manual/GETTING-STARTED.html",
+        "status": 200,
+        "image_urls": [
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-light-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-dark-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-light-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-dark-2026-10-31.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-light-2026-10-27.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-dark-2026-10-27.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-compare-compact-light-classic-2026-10-25.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-compare-compact-dark-p4merge-2026-10-25.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-light-2026-10-27.png",
+          "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-dark-2026-10-27.png"
+        ],
+        "legacy_partial_staging_description": true,
+        "development_banner": false,
+        "text_excerpt": "Getting started with TurtleGit for Mac \u2014 TurtleGit for Mac Skip to content TurtleGit for Mac Documentation Getting started Source \u2197 \u2190 All documentation On this "
+      }
+    ],
+    "current_commit_images": [
+      {
+        "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-dark-2026-10-31.png",
+        "status": 200,
+        "type": "image/png",
+        "bytes": 458281,
+        "png": true,
+        "sha256": "2e97c87639ce4fdc06f54ad6d51e3cb1150ce885f9a3c26c4f01b271b0aaf29e",
+        "matches_tracked_image": true
+      },
+      {
+        "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-light-2026-10-31.png",
+        "status": 200,
+        "type": "image/png",
+        "bytes": 444922,
+        "png": true,
+        "sha256": "ff145a536bef06787ac9d42cffcb0501c068072f6e48c4b18284ed015af92b07",
+        "matches_tracked_image": true
+      },
+      {
+        "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-dark-2026-10-31.png",
+        "status": 200,
+        "type": "image/png",
+        "bytes": 507828,
+        "png": true,
+        "sha256": "5551c34e49ba658ebd8346178caa4322b7ba17446b44f86d2a10158e5f34387c",
+        "matches_tracked_image": true
+      },
+      {
+        "url": "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-light-2026-10-31.png",
+        "status": 200,
+        "type": "image/png",
+        "bytes": 511766,
+        "png": true,
+        "sha256": "f1edef35fc52b5c11ed59c445640998324b23e27019f451015608b1efc5007ec",
+        "matches_tracked_image": true
+      }
+    ],
+    "scope": "One public deployed-document/image delivery check, no app or native tests."
+  },
+  "package_evidence": "docs/qa/signed-consolidation-build49-2026-11-01.json",
+  "scope": "Public HTML/image delivery and existing signed package/source/Help evidence only. No app/native/Core tests, build or installation repeated.",
+  "limits": [
+    "HTTP/byte equality does not establish complete browser visual, native layout, accessibility or signed Finder acceptance.",
+    "Build49 remains exact frozen84c8b428; later workflow/receiver changes do not relabel that binary.",
+    "Complete matching-source hosted macOS CI and the pending native GUI queue remain open."
+  ]
+}
