@@ -9,11 +9,20 @@ This page identifies current gates; dated implementation detail is in
 
 Native runtime checks are waiting for the external Vorssaint auto-close exclusion.
 The exact Quit sender was recorded in the [hosted recovery batch](qa/hosted-native-recovery-2026-11-01.json).
+After the owner requested continuation, the [next grouped repair checkpoint](qa/hosted-native-continuation-2026-11-01.json)
+passed the Debug build and system-Git filesystem effects. Vorssaint then sent Quit
+to the bundled-Git receiver, so remaining local native checks stopped. Preserve
+that system-Git pass; resume bundled-Git effects and both-engine ownership only.
 Resume only these pending families; retain the other local passes:
 
 | Family | Pending scope |
 | --- | --- |
-| Finder filesystem Services | Interrupted effects and never-reached ownership, both Git engines; provider already passes |
+| Finder filesystem Services | Bundled-Git effects and both-engine ownership; system-Git effects and provider already pass |
+| Finder linked/history Services | Explicit property captures repaired at the hosted compiler boundary; linked and history workflow checks pending |
+| Switch conflict recovery | Restore source Resolve/Retry after an accepted merge checkout leaves conflicts; focused Switch/RefLog cases pending |
+| Unified Diff editor readiness | Whole-line Save/Undo and zoom receivers now await actual native projection/editability; affected families pending |
+| Log Add modes | Retain exact file mode/blob/HEAD/index assertions while checking selected visual path order; affected family pending |
+| Image colors | Supply the captured invisible key owner for real D-key dispatch; original palette/pixel assertions retained |
 | History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json) |
 | Merge Find | One shared fixture correction covers two hosted failures; unrelated wrapping cases already passed |
 | Fetch→Rebase revision lookup | Exact accepted-progress handoff check with both engines; unrelated reference/operation cases already passed |

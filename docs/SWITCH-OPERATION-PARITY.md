@@ -62,6 +62,13 @@ retaining the existing native adaptation. Retry and Switch with Merge stay in th
 same progress owner and preserve captured options while changing only the intended
 merge attempt flag.
 
+A checkout process can exit successfully while its fresh inspection finds merge
+conflicts. This result offers Resolve and Retry, matching the source. Only an
+explicit Retry from that verified conflict result can repeat an accepted checkout.
+An unavailable Switch with Merge action, a failed inspection or a cancelled
+inspection cannot repeat it. The accepted process receipt remains distinct from
+the failed conflict result shown to the user.
+
 Root follow-ups receive the actual originating preferences for Submodule Update,
 Merge, Pull, Commit, Stash and express branch/ref/history entry points. The selected
 previous branch is captured before the attempt and remains canonical when passed

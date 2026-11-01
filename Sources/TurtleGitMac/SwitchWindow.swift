@@ -937,6 +937,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     @Published private(set) var postActions: [SwitchPostAction] = []
     var onFinished: (String, Bool) -> Void = { _, _ in }
     private(set) var acceptedCommand:RepositoryTransitionReceipt?
+    private var acceptedMergeConflict=false
     @Published private(set) var inspectionPending=false
     private var acceptedAfterCancellation=false
     var checkoutAcceptedOperation:((CheckoutOptions,OperationCancellation,@escaping @Sendable(GitOutputChunk)->Void) async throws->RepositoryTransitionReceipt)?
@@ -954,7 +955,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         self.repository = repository; self.access = access; self.options = options; self.reference = options.revision; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.autoClosePolicy = GitProgressAutoClose(preferences: preferences)
     }
     private func resetAttempt() {
-        acceptedCommand=nil;inspectionPending=false;acceptedAfterCancellation=false
+        acceptedCommand=nil;acceptedMergeConflict=false;inspectionPending=false;acceptedAfterCancellation=false
         busy=true;success=false;cancelled=false;cancelling=false;postActions=[];output="";currentWork="";percentage=nil
         completionRange=nil;commandFinished=false;commandSucceeded=false;previousBranch=""
     }
@@ -993,7 +994,10 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             return
         }
         if action == .retry || action == .switchWithMerge {
-            guard acceptedCommand==nil else{return}
+            // A successful checkout with verified merge conflicts follows the
+            // source Resolve/Retry result. Only this explicit Retry may repeat
+            // an accepted checkout; a failed/cancelled inspection never may.
+            guard acceptedCommand==nil || action == .retry && acceptedMergeConflict else{return}
             ProgressActionLog.nextAttempt(self);
             let merge = action == .switchWithMerge || merging
             cancellation = OperationCancellation();resetAttempt();beginWork()
@@ -1066,6 +1070,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
     /// Result inspection is a separate owned read. It never repeats checkout.
     private func inspectAcceptedResult() async {
         guard acceptedCommand != nil,!invalidated else{return}
+        acceptedMergeConflict=false
         let token=OperationCancellation();inspectionCancellation=token
         let deadline=DispatchWorkItem{token.cancel()};DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+5,execute:deadline)
         defer{deadline.cancel();if inspectionCancellation===token{inspectionCancellation=nil}}
@@ -1074,7 +1079,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             if let readStatus {conflicts=try await readStatus(token).contains{$0.state == .conflicted}}
             else {conflicts=try await repository.hasWorkingTreeConflicts(cancellation:token)}
             try token.check();guard !invalidated,inspectionCancellation===token else{return}
-            if merging && conflicts {success=false;inspectionPending=false;postActions=[.resolve];appendDiagnostic("Has merge conflict");return}
+            if merging && conflicts {success=false;acceptedMergeConflict=true;inspectionPending=false;postActions=[.resolve,.retry];appendDiagnostic("Has merge conflict");return}
             let branch=try await repository.branch(cancellation:token)
             try token.check();guard !invalidated,inspectionCancellation===token else{return}
             var actions:[SwitchPostAction]=[]

@@ -27,7 +27,7 @@ focus.add_argument('--references-only',action='store_true',help='Run only native
 focus.add_argument('--menus-only',action='store_true',help='Run only native Rebase revision-menu fixtures.')
 focus.add_argument('--commit-selection-only',action='store_true',help='Run only native Commit visible-selection and full-index fixtures.')
 focus.add_argument('--log-paths-only',action='store_true',help='Run only native Log path/filter/status-color fixtures.')
-focus.add_argument('--only',choices=['log-deferred-refresh','log-submodule'],help='Run one complete native workflow family.')
+focus.add_argument('--only',choices=['log-deferred-refresh','log-submodule','log-add-modes'],help='Run one complete native workflow family.')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 products=root/'build/Build/Products/Debug'
@@ -118,7 +118,8 @@ for index,git in enumerate(gits):
         flags={'TURTLEGIT_NATIVE_REFERENCE_ONLY':args.references_only,'TURTLEGIT_NATIVE_MENUS_ONLY':args.menus_only,
                'TURTLEGIT_NATIVE_COMMIT_SELECTION_ONLY':args.commit_selection_only,'TURTLEGIT_NATIVE_LOG_PATHS_ONLY':args.log_paths_only,
                'TURTLEGIT_NATIVE_LOG_DEFERRED_REFRESH_ONLY':args.only=='log-deferred-refresh',
-               'TURTLEGIT_NATIVE_LOG_SUBMODULE_ONLY':args.only=='log-submodule'}
+               'TURTLEGIT_NATIVE_LOG_SUBMODULE_ONLY':args.only=='log-submodule',
+               'TURTLEGIT_NATIVE_LOG_ADD_MODES_ONLY':args.only=='log-add-modes'}
         environment.update({key:'1' if enabled else '0' for key,enabled in flags.items()})
         if args.only:environment['TURTLEGIT_NATIVE_DEFERRED_ROOT']=str(directory/'repository')
         approved={str(git.resolve()),str(Path('/usr/bin/git').resolve())}
@@ -134,7 +135,7 @@ for index,git in enumerate(gits):
             (directory/'receiver.stdout.log').write_text(result.stdout);(directory/'receiver.stderr.log').write_text(result.stderr)
             print(result.stdout,end='');print(result.stderr,end='')
             result.check_returncode()
-            focused_markers={'log-deferred-refresh':'PASS: Log deferred refresh family','log-submodule':'PASS: Log submodule history family'}
+            focused_markers={'log-deferred-refresh':'PASS: Log deferred refresh family','log-submodule':'PASS: Log submodule history family','log-add-modes':'PASS: Log Add modes family'}
             passed=args.only is None or focused_markers[args.only] in result.stdout
             if not passed:raise RuntimeError('Focused Log receiver exited before final assertions/cleanup')
             results.append(dict(case=args.only or 'default',git=str(git),returncode=result.returncode,passed=True,timeout_seconds=timeout))

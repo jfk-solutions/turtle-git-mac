@@ -80,7 +80,7 @@ private actor LinkedServiceReadGate {
                 Task { @MainActor in await Task.yield(); completion(.OK) }
             }
             workspace.selectedFinderServiceFolderURL = { _ in root }
-            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
+            delegate.startupArguments = []; delegate.startupCommandHandler = { _, _, _ in }; delegate.makeStandaloneWorkspace = { [workspace = self.workspace] in workspace }; delegate.repositoryModel = workspace; delegate.startupDidFinishLaunching()
         }
         func finish() {
             windows.forEach { $0.1.close() }; delegate.retireFinderServices(); workspace.stopMonitoringForTermination(); host.close(); defaults.removePersistentDomain(forName: suite)

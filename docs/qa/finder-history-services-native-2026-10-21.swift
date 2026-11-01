@@ -133,7 +133,7 @@ private final class HistoryServiceDaemonGate: @unchecked Sendable {
             delegate.startupArguments=[];delegate.startupCommandHandler={_,_,_ in}
             if ready{activate()}
         }
-        func activate(){delegate.makeStandaloneWorkspace={workspace};delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()}
+        func activate(){delegate.makeStandaloneWorkspace={ [workspace = self.workspace] in workspace };delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()}
         func finish() async throws {
             gates.forEach{$0.release()};delegate.retireFinderServices();workspace.stopMonitoringForTermination()
             windows.forEach{$0.1.close()};logs.forEach{$0.close()}

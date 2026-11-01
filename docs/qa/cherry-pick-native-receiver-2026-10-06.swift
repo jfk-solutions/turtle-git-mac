@@ -1073,8 +1073,12 @@ import TurtleGitCore
     log.fileTableSelection.wrappedValue = Set((["tracked"]).map(GitPathRowIdentity.encode)); precondition(!log.canWorkingAdd(["tracked", executablePath], mode: .executable))
     log.fileTableSelection.wrappedValue = Set((["tracked", executablePath]).map(GitPathRowIdentity.encode))
     precondition(log.canWorkingAdd(["tracked", executablePath], mode: .executable))
+    // The native report dispatches selected files in visible path-sort order,
+    // independently of the order used to construct the selected ID set.
+    let selectedAddOrder = [executablePath, "tracked"]
+    precondition(log.fileTableRows.compactMap(\.file).filter { ["tracked", executablePath].contains($0.id) }.map(\.path) == selectedAddOrder)
     log.requestWorkingAdd(["tracked", executablePath], mode: .executable); try await until { !log.busy }
-    precondition(requests.last?.1 == .executable && requests.last?.0 == ["tracked", executablePath])
+    precondition(requests.last?.1 == .executable && requests.last?.0 == selectedAddOrder)
     let progress = AddProgressWindowModel(repository: repo, access: nil, paths: requests.last!.0, mode: requests.last!.1)
     progress.onFinished = { _, ok in precondition(ok); log.requestRepositoryRefresh() }
     await progress.run(); try await until { !log.busy && log.files.contains { $0.path == executablePath && $0.action != "?" } }
@@ -2674,6 +2678,11 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
 
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_ADD_MODES_ONLY"] == "1" {
+        let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
+        try await verifyNativeLogAddModes(executable:executable)
+        print("PASS: Log Add modes family");return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_SUBMODULE_ONLY"] == "1" {
         let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
         try await verifyNativeLogSubmodule(executable:executable)

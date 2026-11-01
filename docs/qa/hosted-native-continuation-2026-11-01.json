@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-01",
+  "status": "implementation-and-debug-build-complete-native-checkpoint-interrupted",
+  "source_base": "b829bf31",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_run": {
+    "id": 41262318755,
+    "source": "8f39b0a1beb1eaac1f4ca3a0f4815d73c0cbffb9",
+    "core": "success",
+    "svn": "success",
+    "native_lanes": "seven failed; aggregate failed; not a complete hosted pass"
+  },
+  "repairs": [
+    {
+      "family": "Switch/RefLog",
+      "kind": "production and receiver",
+      "job": 124719004578,
+      "step": 248,
+      "cause": "Verified conflicts after a successful merge checkout incorrectly offered only Resolve and blanket-blocked explicit Retry.",
+      "change": "Restore Resolve/Retry for precisely the accepted, successfully inspected merge-conflict result. Retain no-repeat guard for failed/cancelled inspection and unavailable actions. Preserve real conflict/HEAD/index/retry assertions.",
+      "pinned_source": "src/TortoiseProc/AppUtils.cpp:1336-1387"
+    },
+    {
+      "family": "Finder linked/history Services",
+      "kind": "receiver",
+      "job": 124719004460,
+      "step": 128,
+      "cause": "Stored closure implicitly referenced Context.workspace under hosted compiler.",
+      "change": "Capture the existing workspace value explicitly in both related Context closures; no behavior/assertion removal."
+    },
+    {
+      "family": "Unified Diff Save/Undo and zoom",
+      "kind": "receiver",
+      "jobs": [
+        124719004490,
+        124719004496
+      ],
+      "steps": [
+        145,
+        151
+      ],
+      "cause": "Receiver acted after model readiness but before the native document reset/editability projection.",
+      "change": "Require actual adopted new reset/source attachment and editable native editor. Preserve immediate wheel accumulation and exact single Undo/Redo bytes; verify pre-projection wheel refusal."
+    },
+    {
+      "family": "Image colors",
+      "kind": "receiver",
+      "job": 124719004457,
+      "step": 158,
+      "cause": "Invisible receiver did not supply the exact key owner required by real D-key admission; not a demonstrated pixel/color mismatch.",
+      "change": "Scope and restore existing captured-key-window seam around real window-bound keyboard event; retain all palette/pixel/reload/retirement assertions. Complete malformed consumer cohorts already passed and will not be repeated."
+    },
+    {
+      "family": "Log Add modes",
+      "kind": "receiver and affected-only runner entry",
+      "job": 124719004447,
+      "step": 429,
+      "cause": "Receiver expected selection-construction order despite visual path-sort dispatch.",
+      "change": "Independently assert explicit ascending selected path order before callback, retain exact callback order and all actual mode/blob/working-file/HEAD/index/lock/cancellation assertions. Add focused family entry without removing it from default full suite."
+    },
+    {
+      "family": "Send Patch independent Review/Apply",
+      "kind": "receiver",
+      "job": 124719004462,
+      "step": 189,
+      "change": "Previously committed asynchronous close/drain correction retained in source b829bf31; runtime remains pending."
+    }
+  ],
+  "validation": {
+    "debug": {
+      "result": "passed",
+      "log": "build/qa/hosted-recovery-batch-debug-2026-11-01.log",
+      "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+    },
+    "core": "Not rerun locally; unchanged Core has a hosted pass.",
+    "native": {
+      "scope": "One grouped checkpoint with 14 planned commands; stopped in first command after external Quit. Remaining commands were not launched.",
+      "preflight": "Inherited SDKROOT pointed to missing CommandLineTools SDK; receiver lookup failed before compilation/launch. Retained first attempt, then scoped child SDKROOT/DEVELOPER_DIR to installed Xcode SDK; no global setting or app rebuild.",
+      "sdk": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX27.2.sdk",
+      "system_git_effects": "passed; original Rename/Delete/Cleanup/Git/HEAD/unrelated-workspace assertions and completion marker present",
+      "bundled_git_effects": "interrupted by externally sent Quit during Remove, no pass claimed",
+      "ownership": "not reached",
+      "log": "build/qa/hosted-recovery-batch-00-2026-11-01.log",
+      "receipt": "build/qa/hosted-recovery-batch-results-2026-11-01.json"
+    },
+    "resources": "No native labels or registered Help guides changed; no resource regeneration or distribution build needed."
+  },
+  "external_quit": {
+    "time_europe_berlin": "2026-11-01 08:14:19.076 CET",
+    "sender": "Vorssaint",
+    "sender_pid": 1986,
+    "receiver_pid": 84041,
+    "matching_return_id": 19052,
+    "evidence": "Unified sender AESendMessage(aevt,quit) and receiver RECEIVED(aevt,quit) match; receiver also logged Handling Quit AppleEvent.",
+    "log": "build/qa/hosted-recovery-batch-quit-sender-2026-11-01.log",
+    "limits": "Quit sender is proven; exact user-app feature/settings mechanism is not. No unrelated app/settings were altered."
+  },
+  "cleanup": {
+    "receiver_pids_reaped": [
+      83466,
+      84041
+    ],
+    "private_fixture_helpers": "Driver cleanup completed; targeted process scan found no surviving private fixture/receiver. No user app, Finder or Dock was terminated.",
+    "browser": "One owned CI failure-inspection tab closed after reading three failed steps; no retained tabs."
+  },
+  "remaining": [
+    "All affected native families other than retained system-Git Finder effects require runtime verification.",
+    "One batched source push for hosted validation; no hosted success inferred from local build.",
+    "Installed signed build49 unchanged; no new signed/public binary, notarization or App Store submission.",
+    "Physical/signed/accessibility and complete port parity remain open."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/SwitchWindow.swift": "7020a22c312f9b39faca9f3ee26b1aa620d39fd9371bb15c1046d97ddbadaf15",
+    "docs/qa/reflog-express-switch-native-2026-10-08.swift": "fb0602ccfc3ab07e03cbd0b9c586fa9b119cf1385461af910aaf4384b23f2243",
+    "docs/qa/finder-linked-services-native-2026-10-20.swift": "a9f1d43ee59107c3167e7b49977031a8101dd8cd2edda9aabd0ca5124a1b47de",
+    "docs/qa/finder-history-services-native-2026-10-21.swift": "abfee4227dbb390564c4a5ce0c57f93b86e4e9b3be4d46cab7320be369d7a8f3",
+    "docs/qa/unified-line-edit-native-2026-10-26.swift": "047fc7bfa152344aeeea17a057157a5c074c703de7cbfb2dbea3c88efcb0eccf",
+    "docs/qa/unified-zoom-native-2026-10-29.swift": "3201dd64a0dc217e9c399f6b90a7d39c99640f1307d827d08d662a36adc8dbda",
+    "docs/qa/image-colors-native-2026-10-10.swift": "a39945508f313ffd31582c4853e20ef5250706e32d3cff4e13b86e2072c149bb",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "edbd9c990972e8f1e0aeeacce5b74b745d3ea33ee4cf7f17f6d0911ef49af687",
+    "scripts/check-cherry-pick-native.py": "5e32b704ec5417a62fbfd6e063e4088b2cd5d9ac6fdf33006ad6d82b2e1f5a59"
+  }
+}

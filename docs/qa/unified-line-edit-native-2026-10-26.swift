@@ -102,7 +102,7 @@ private extension NSWindow {
     static func ready(_ s:Surface)async throws {
         await withCheckedContinuation { (reply:CheckedContinuation<Void,Never>) in DispatchQueue.main.async {reply.resume()} }
         s.window.contentView?.layoutSubtreeIfNeeded()
-        try await wait {s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.busy}
+        try await wait {s.text.coordinator?.hasCurrentDocumentProjection == true && s.model.sourceAttached() && s.text.isEditable==s.model.canEditText && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.busy}
     }
     static func bytes(_ s:Surface,_ expected:Data,_ message:String)throws {
         let actual=try s.session.encodedBytes()
@@ -233,7 +233,11 @@ private extension NSWindow {
         let target=c.root.appendingPathComponent(name)
         s.session.chooseSave={_,_,reply in reply(target)}
         try require(s.window.performKeyEquivalent(with:key(s,"s",1,.command)),"Native CmdS did not route owned save")
-        try await wait {PatchDocumentSession.activeOperations==0 && !s.model.busy && !s.model.documentDirty && FileManager.default.fileExists(atPath:target.path)}
+        // Save completion publishes the model's idle state before SwiftUI
+        // projects it back onto NSTextView. Invoke the following user action
+        // only after the actual source editor is editable again; never wait
+        // for the desired Undo result or alter its native transaction group.
+        try await wait {PatchDocumentSession.activeOperations==0 && !s.model.busy && s.model.canEditText && s.text.isEditable && s.text.coordinator?.hasCurrentDocumentProjection == true && s.model.sourceAttached() && !s.model.documentDirty && FileManager.default.fileExists(atPath:target.path)}
         try require(try Data(contentsOf:target)==expected && s.model.savedDocumentBytes==expected,"Owned Save changed raw packet/encoding/terminators")
     }
     static func rawPackets(_ c:Context,_ s:Surface)async throws {

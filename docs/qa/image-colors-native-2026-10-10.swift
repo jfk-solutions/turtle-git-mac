@@ -68,9 +68,17 @@ import Darwin
         button.performClick(nil); try await wait { window.attachedSheet == nil }; try await settle()
     }
     @MainActor static func keyD(_ window: NSWindow) throws {
+        guard let toolbar=(window.delegate as? FileComparisonWindowController)?.imageToolbar ?? (window.delegate as? ImageConflictWindowController)?.imageToolbar else{throw Failure(line:#line)}
+        // This prohibited receiver owns invisible windows, not physical focus.
+        // Keep the actual native key route and supply only its exact key owner.
+        let originalKeyWindow=toolbar.keyWindow
+        defer{toolbar.keyWindow=originalKeyWindow}
+        toolbar.keyWindow={ [weak window] in window }
         let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: window.windowNumber, context: nil, characters: "d", charactersIgnoringModifiers: "d", isARepeat: false, keyCode: 2)!
-        try require(window.performKeyEquivalent(with: event))
+        let handled=window.performKeyEquivalent(with:event)
+        if !handled {print("Image colors D dispatch: keyOwner=\(toolbar.keyWindow() === window), eventOwner=\(event.window === window), sheet=\(window.attachedSheet != nil), modal=\(NSApp.modalWindow != nil), fieldEditor=\((window.firstResponder as? NSTextView)?.isFieldEditor == true)");fflush(stdout)}
+        try require(handled)
     }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
     @MainActor static func verify() async throws {
@@ -88,7 +96,7 @@ import Darwin
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: first, destination: second), permissions: [])
         let window = controller.window!
-        window.alphaValue = 0; window.setFrameOrigin(NSPoint(x: -10000, y: -10000)); window.appearance = NSAppearance(named: .aqua)
+        window.alphaValue = 0;window.ignoresMouseEvents=true; window.setFrameOrigin(NSPoint(x: -10000, y: -10000)); window.appearance = NSAppearance(named: .aqua)
         defer { window.close() }
         controller.model.load(); try await wait { !controller.model.busy }
         window.contentView?.layoutSubtreeIfNeeded(); try await wait { (window as? ImageComparisonKeyRouting)?.imageKeyModel != nil }
@@ -140,7 +148,7 @@ import Darwin
         guard let document = try await repo.imageConflictDocument(path: "first.png") else { throw Failure(line: #line) }
         let conflictIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), conflictBytes = try Data(contentsOf: first)
         let conflict = ImageConflictWindowController(repository: repo, access: nil, document: document), conflictWindow = conflict.window!
-        conflictWindow.alphaValue = 0; conflictWindow.setFrameOrigin(NSPoint(x: -10000, y: -10000)); conflictWindow.appearance = NSAppearance(named: .aqua)
+        conflictWindow.alphaValue = 0;conflictWindow.ignoresMouseEvents=true; conflictWindow.setFrameOrigin(NSPoint(x: -10000, y: -10000)); conflictWindow.appearance = NSAppearance(named: .aqua)
         defer { conflictWindow.close() }
         conflictWindow.orderFront(nil); conflictWindow.orderOut(nil);try await wait {!conflict.model.busy}; conflict.model.originalSize(); try await settle()
         try await choose(conflict.model.presentation, window: conflictWindow, color: .cyan, answer: "OK")

@@ -48,11 +48,12 @@ private extension NSWindow {
     static func ready(_ s:Surface)async throws {
         await withCheckedContinuation {(reply:CheckedContinuation<Void,Never>) in DispatchQueue.main.async {reply.resume()}}
         s.window.contentView?.layoutSubtreeIfNeeded()
-        try await wait {s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.busy}
+        try await wait {s.text.coordinator?.hasCurrentDocumentProjection == true && s.model.sourceAttached() && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.busy}
     }
     static func load(_ s:Surface,_ bytes:Data)async throws {
+        let previousReset=s.model.documentResetRevision
         s.owner.presentDocument(bytes,title:"Private zoom document",comparison:"zoom.patch",information:"Owned native verification")
-        try await wait {s.model.canEditText && s.text.isEditable && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.documentDirty && PatchDocumentSession.activeOperations==0}
+        try await wait {s.model.documentResetRevision>previousReset && s.text.coordinator?.hasCurrentDocumentProjection == true && s.model.sourceAttached() && s.model.canEditText && s.text.isEditable && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && s.model.savedDocumentBytes==bytes && !s.model.documentDirty && PatchDocumentSession.activeOperations==0}
         s.window.contentView?.layoutSubtreeIfNeeded();s.window.makeFirstResponder(s.text)
         try require(try s.session.encodedBytes()==bytes,"Zoom load changed original byte packets")
     }
@@ -187,6 +188,13 @@ private extension NSWindow {
         try require(s.text.handleZoomWheel(with:wheel(s,y:6,precise:true)) && s.model.zoomLevel==0,"Precise wheel partial tick zoomed prematurely")
         try require(s.text.handleZoomWheel(with:wheel(s,y:4,precise:true)) && s.model.zoomLevel==1,"Ten-point precise wheel accumulation failed")
         try dispatch(s,.reset)
+        // A same-text replacement is still a new native document boundary.
+        // Until its reset has been projected, recognized wheel input is
+        // consumed without starting a gesture against the old source surface.
+        s.model.setReadOnlyDiff(original,discardingEdits:true)
+        try require(s.text.coordinator?.hasCurrentDocumentProjection==false,"Same-text zoom replacement reused old native projection")
+        try require(s.text.handleZoomWheel(with:wheel(s,y:10,precise:true)) && s.model.zoomLevel==0,"Unprojected replacement accepted a zoom gesture")
+        try await wait{s.text.coordinator?.hasCurrentDocumentProjection==true && s.model.sourceAttached()}
         _=s.text.handleZoomWheel(with:try wheel(s,y:6,precise:true))
         try await load(s,original)
         _=s.text.handleZoomWheel(with:try wheel(s,y:4,precise:true));try require(s.model.zoomLevel==0,"Old document partial wheel leaked across reset")
