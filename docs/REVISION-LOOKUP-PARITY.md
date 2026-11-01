@@ -127,3 +127,15 @@ attempts, source identities, repairs and scope.
 Physical controls, hosted full CI, minimum-OS/Intel, signed/App Store deployment,
 SHA-256 libgit2 support and every remaining caller outside this accepted workflow
 family remain separate scope.
+
+
+## Accepted Fetch worker through handoff — November 1, 2026
+
+The native Fetch/Sync receiver now observes the exact progress worker accepted by
+the existing presentation callback. A successful automatic Fetch→Rebase handoff
+retires the form's optional progress reference before presenting Rebase; that
+presentation slot is not a completion lease. The fixture preserves exact backend,
+helper, one-presentation and actual Rebase handoff assertions without changing
+production behavior or extending timeouts. The
+[repair record](qa/hosted-find-handoff-recovery-2026-11-01.json) retains the hosted
+timeout and pending runtime checkpoint.

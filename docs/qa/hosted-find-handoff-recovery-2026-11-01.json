@@ -1,0 +1,62 @@
+{
+  "date": "2026-11-01",
+  "status": "fixture-corrections-implemented-runtime-pending-external-exclusion",
+  "hosted_source": "141b04f6bd5b58b8c8a3bb59ed79b45d731d64fb",
+  "run": 41250319609,
+  "failures": [
+    {
+      "job": 124695176141,
+      "step": 76,
+      "message": "Merge Find assertion line171 after all preceding wrapped-navigation cases passed.",
+      "log": "build/qa/hosted-historymerge-failure-124695176141-2026-11-01.log"
+    },
+    {
+      "job": 124695176154,
+      "step": 189,
+      "message": "Same MergeFindNativeVerification assertion reported line172 by grouped runner; not an LFS or SMTP failure.",
+      "log": "build/qa/hosted-historymerge-failure-124695176154-2026-11-01.log"
+    },
+    {
+      "job": 124695176110,
+      "step": 235,
+      "message": "Revision lookup fetchsync timed out at170 after references and operations passed with both Git engines.",
+      "log": "build/qa/hosted-historymerge-failure-124695176110-2026-11-01.log"
+    }
+  ],
+  "repairs": [
+    {
+      "path": "docs/qa/merge-find-native-2026-10-12.swift",
+      "cause": "Find marked a normal row; current source-choice behavior correctly honors explicit native selection rather than implicitly replacing an unrelated conflict.",
+      "change": "Select actual unresolved conflict before source choice, require accepted range and command admission; preserve all result/highlight/Undo/Redo and disk/index assertions."
+    },
+    {
+      "path": "docs/qa/revision-lookup-native-2026-10-24.swift",
+      "cause": "Successful automatic Fetch handoff clears form.fetchProgress before Rebase opens; polling the retired optional can wait forever despite successful handoff.",
+      "change": "Capture exact progress via existing synchronous presentation callback, retain that accepted worker through settlement, require one presentation, original backend/helper success and actual Rebase handoff. Original callback restored; no retained result/model cycle."
+    }
+  ],
+  "validation": {
+    "core": "Not run; no Core changes.",
+    "app": "Not rebuilt; no production changes. Retain prior Debug pass on a0ea4f94.",
+    "native": "Not run while external Vorssaint Quit sender remains unresolved. Do not repeat passed wrapped-navigation, LFS/mail or unrelated revision-lookup cases.",
+    "pending_commands": [
+      "python3 scripts/test-merge-find-highlights.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-revision-lookup.py --only fetchsync --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    ]
+  },
+  "limits": [
+    "Corrections are source-reviewed; no runtime pass claimed.",
+    "Installed48 unchanged; no product or binary publication in this batch.",
+    "Full current-source hosted CI, physical/signed acceptance and complete port parity remain open."
+  ],
+  "source_sha256": {
+    "docs/qa/merge-find-native-2026-10-12.swift": "ffdb8d7b4b005078ced917ba6fac8e976dc45c1bc28481a391e8a8545a90ac53",
+    "docs/qa/revision-lookup-native-2026-10-24.swift": "6686fb8484db626928847ecc4ffc4f63f4cf262c64834d844f6000e259b8d58b"
+  },
+  "documentation": {
+    "coverage": "reconciled; no status promoted to complete",
+    "site": "521 documents; no unresolved fragments",
+    "log": "build/qa/hosted-find-handoff-site-2026-11-01.log",
+    "help_and_labels": "No registered Help guide or native literal UI label changed; no regeneration or app rebuild needed."
+  }
+}

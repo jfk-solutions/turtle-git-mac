@@ -3,8 +3,8 @@ import TurtleGitCore
 
 private struct MergeFindVerificationFailure: Error, CustomStringConvertible { let description: String }
 struct MergeFindNativeVerification {
-    @MainActor static func require(_ condition: @autoclosure () -> Bool, line: Int = #line) throws {
-        if !condition() { throw MergeFindVerificationFailure(description: "Merge Find assertion failed at line \(line)") }
+    @MainActor static func require(_ condition: @autoclosure () -> Bool, line: Int = #line, detail: @autoclosure () -> String = "") throws {
+        if !condition() { throw MergeFindVerificationFailure(description: "Merge Find assertion failed at line \(line): \(detail())") }
     }
     @MainActor static func descendants(_ view: NSView?) -> [NSView] { guard let view else { return [] }; return [view] + view.subviews.flatMap { descendants($0) } }
     @MainActor static func wait(_ condition: () -> Bool, line:Int = #line) async throws {
@@ -166,9 +166,15 @@ struct MergeFindNativeVerification {
         // state, then create the actual three-match result through a source action.
         try await wait { conflictModel.locatorHighlights.map { $0.marked.count } == [2, 1, 2] }
         try require(result.string == conflictModel.resultDisplayText && MergeText.hasMarkers(conflictModel.result))
+        // Marking selected the normal first-row word in the native result.
+        // Source-choice actions now correctly honor that explicit selection;
+        // this Find scenario needs the actual unresolved conflict instead.
+        guard let unresolved=conflictModel.blocks.first else {throw MergeFindVerificationFailure(description:"Expected unresolved conflict before source choice")}
+        conflictModel.selectConflict(0)
+        try require(conflictModel.selectionRequest==unresolved.range && conflictModel.canChooseSourceBlock)
         conflictModel.choose(.mineThenTheirs)
         try await wait { result.string == conflictModel.resultDisplayText && (result as? MergeContextMenuProviding)?.mergeSourceRowsReady == true }
-        try require(conflictModel.result.contains("mine foo") && conflictModel.result.contains("theirs foo") && !MergeText.hasMarkers(conflictModel.result))
+        try require(conflictModel.result.contains("mine foo") && conflictModel.result.contains("theirs foo") && !MergeText.hasMarkers(conflictModel.result), detail:"Source choice result=\(String(reflecting:conflictModel.result)); native=\(String(reflecting:result.string)); selectedConflict=\(conflictModel.selectedConflict); request=\(String(describing:conflictModel.selectionRequest)); nativeSelection=\(result.selectedRange())")
         try await wait { conflictModel.locatorHighlights.map { $0.marked.count } == [2, 3, 2] }
         result.turtleClearMarkedWord(nil)
         try await wait { conflictModel.locatorHighlights.allSatisfy { $0.marked.isEmpty } }

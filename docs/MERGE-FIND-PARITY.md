@@ -229,3 +229,14 @@ No capture, physical interaction or signed sandbox deployment is claimed. See
 for logs, receiver identities, cumulative scope and remaining limits.
 The existing platform Unicode case-conversion and font-metric differences,
 physical keyboard/VoiceOver acceptance and broader pane/volume cases remain open.
+
+
+## Explicit conflict intent in the native Find receiver — November 1, 2026
+
+Two hosted lanes reached the same outdated fixture assumption after marking a
+word in a normal result row. Source-choice commands correctly honor that explicit
+selection. The Find fixture now explicitly selects the unresolved conflict before
+choosing both sides, retaining all result, marker, highlight and Undo/Redo checks.
+The earlier wrapped-navigation cases passed and are not scheduled again for this
+correction. The [repair record](qa/hosted-find-handoff-recovery-2026-11-01.json)
+keeps source review distinct from pending native runtime verification.

@@ -165,11 +165,20 @@ extension NSWindow {
         try await wait{!fetch.model.busy && !fetch.model.preparing && fetch.model.remotes.contains("origin")}
         fetch.model.options.remote="origin";fetch.model.options.branch="main";fetch.model.options.namedRemoteFetchAll=false;fetch.model.launchRebase=true
         let present=fetch.model.onFetchProgress
-        fetch.model.onFetchProgress={result in present?(result);result.presentRebasePrompt={prompt in .init(value:prompt == .fastForward ? 2:6,suppress:false)}}
+        weak var capturedFetch:FetchProgressWindowModel?
+        var fetchPresentations=0
+        fetch.model.onFetchProgress={result in
+            capturedFetch=result;fetchPresentations += 1
+            present?(result);result.presentRebasePrompt={prompt in .init(value:prompt == .fastForward ? 2:6,suppress:false)}
+        }
+        defer {fetch.model.onFetchProgress=present}
         try c.clear();fetch.model.fetch();c.prefs.set(false,forKey:"UseLibgit2")
-        try await wait{fetch.model.fetchProgress?.busy==false}
-        let result=try unwrap(fetch.model.fetchProgress,"Actual Fetch progress missing")
-        try require(result.success && result.backend.enabled && c.calls().contains("turtlegit-revision-lookup"),"Fetch/Rebase preparation lost selected lookup engine")
+        // Successful automatic handoff retires the form's progress reference
+        // before presenting Rebase. Observe the exact accepted worker receipt,
+        // not an optional presentation slot that is intentionally cleared.
+        let result=try unwrap(capturedFetch,"Actual Fetch progress missing: \(fetch.model.error ?? "none"), active=\(fetch.model.operationActive), pending=\(fetch.model.pendingOperations)")
+        try await wait{!result.busy && result.pendingOperations==0}
+        try require(fetchPresentations==1 && result.success && result.backend.enabled && c.calls().contains("turtlegit-revision-lookup"),"Fetch/Rebase preparation lost selected lookup engine: \(result.output)")
         result.close()
         try await wait{NSApp.windows.contains{($0.windowController as? RebaseWindowController) != nil}}
         let rebase=try unwrap(NSApp.windows.compactMap{$0.windowController as? RebaseWindowController}.first,"Actual workspace Rebase handoff missing");c.owners.append(rebase)

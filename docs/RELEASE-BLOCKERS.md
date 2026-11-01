@@ -5,6 +5,23 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Current acceptance queue
+
+Native runtime checks are waiting for the external Vorssaint auto-close exclusion.
+The exact Quit sender was recorded in the [hosted recovery batch](qa/hosted-native-recovery-2026-11-01.json).
+Resume only these pending families; retain the other local passes:
+
+| Family | Pending scope |
+| --- | --- |
+| Finder filesystem Services | Interrupted effects and never-reached ownership, both Git engines; provider already passes |
+| History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json) |
+| Merge Find | One shared fixture correction covers two hosted failures; unrelated wrapping cases already passed |
+| Fetch→Rebase revision lookup | Exact accepted-progress handoff check with both engines; unrelated reference/operation cases already passed |
+
+The last two entries share the [source-reviewed repair record](qa/hosted-find-handoff-recovery-2026-11-01.json).
+They do not require another app build or Core suite: only verification sources changed.
+A complete hosted pass and the broader release checklist below remain required.
+
 ## Finish line for the first locally accepted release
 
 This is the current release checklist. Historical checkpoints below are evidence,
