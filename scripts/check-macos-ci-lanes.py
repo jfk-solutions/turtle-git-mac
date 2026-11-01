@@ -17,6 +17,21 @@ INVENTORY = ROOT / 'Configuration/CI/MacOSValidationInventory.json'
 WORKFLOW = ROOT / '.github/workflows/macos.yml'
 LANES = ['core', 'commit-repository', 'history-references', 'replay-transport',
          'editors', 'settings-finder', 'images-documents', 'distribution']
+# The original inventory remains immutable. This reviewed exception changes
+# only push admission; PR checks and every inventoried native assertion remain.
+DOCUMENTATION_PUSH_IGNORES = [
+    'README.md', 'docs/*.md', 'docs/qa/**/*.md',
+    'docs/qa/signed-consolidation-build*.json', 'docs/qa/hosted-*.json',
+    'docs/site/*.html', 'docs/site/*.css', 'docs/site/manual/**',
+    'docs/site/assets/mac-*.png',
+]
+BASELINE_HEADER = {
+    'name': 'macOS',
+    # Ruby's system YAML 1.1 parser represents the unquoted `on` key as true.
+    'true': {'push': None, 'pull_request': None},
+    'concurrency': {'group': '${{ github.workflow }}-${{ github.ref }}',
+                    'cancel-in-progress': False},
+}
 GUARD = {'name': 'Check workflow lane contracts', 'run': 'python3 scripts/test-macos-ci-lanes.py'}
 EDITOR_SETUP = {'name': 'Prepare SwiftPM editor for native and Core consumers',
                 'run': 'swift build --product TurtleGitMac'}
@@ -79,7 +94,11 @@ def verify(workflow, inventory, originals):
     require(len(records) == len(originals), 'Inventory parse lost a step')
     require(len({record['id'] for record in records}) == len(records), 'Duplicate inventory ID')
     require(all(record['lane'] in LANES + ['bootstrap'] for record in records), 'Unmapped inventory lane')
-    require({key: value for key, value in workflow.items() if key != 'jobs'} == inventory['workflowHeader'], 'Workflow trigger or inherited configuration changed')
+    require(inventory['workflowHeader'] == BASELINE_HEADER, 'Original workflow header inventory changed')
+    expected_header = copy.deepcopy(BASELINE_HEADER)
+    expected_header['true']['push'] = {'paths-ignore': DOCUMENTATION_PUSH_IGNORES}
+    require({key: value for key, value in workflow.items() if key != 'jobs'} == expected_header,
+            'Workflow trigger or inherited configuration changed beyond documentation-only push admission')
     require(workflow['concurrency'] == {'group': '${{ github.workflow }}-${{ github.ref }}',
                                        'cancel-in-progress': False}, 'Concurrency policy changed')
     jobs = workflow['jobs']
@@ -173,6 +192,8 @@ def verify(workflow, inventory, originals):
 def verify_baseline(inventory):
     original = subprocess.check_output(['git', 'show', inventory['baselineCommit'] + ':.github/workflows/macos.yml'], cwd=ROOT, text=True)
     require(hashlib.sha256(original.encode()).hexdigest() == inventory['baselineWorkflowSHA256'], 'Committed baseline hash mismatch')
+    require({key: value for key, value in yaml_document(original).items() if key != 'jobs'} == inventory['workflowHeader'],
+            'Inventory differs from committed pre-split workflow header')
     # Compare semantic steps to the original committed source, not counts alone.
     committed = yaml_document(original)['jobs']['build-and-test']['steps']
     require(committed == original_steps(inventory), 'Inventory differs from committed pre-split commands/env/actions')

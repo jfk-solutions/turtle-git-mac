@@ -1,6 +1,18 @@
 name: macOS
 on:
   push:
+    # Pages still validates documentation. Keep native fixtures, reference data,
+    # generated Help/resources, licenses and all code on the full macOS path.
+    paths-ignore:
+      - 'README.md'
+      - 'docs/*.md'
+      - 'docs/qa/**/*.md'
+      - 'docs/qa/signed-consolidation-build*.json'
+      - 'docs/qa/hosted-*.json'
+      - 'docs/site/*.html'
+      - 'docs/site/*.css'
+      - 'docs/site/manual/**'
+      - 'docs/site/assets/mac-*.png'
   pull_request:
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

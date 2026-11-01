@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-01",
+  "status": "focused-workflow-checkpoint-passed",
+  "base_source": "a9660323",
+  "scope": "Documentation-only push admission; keep PRs, consumed icons/reference data and all native/code/runtime/license changes on full macOS workflow. README-only main pushes still request Pages checks.",
+  "changes": [
+    "Exact narrow paths-ignore on macOS push only",
+    "Original workflow header/step inventory retained; independent original-header guard and exact reviewed admission exception",
+    "Existing lane, producer, command, environment, assertion, aggregate failure and concurrency contracts retained",
+    "Mutation and real consumed-path sentinels, including application web icons and actual Core/metafile reference JSON",
+    "README added to lightweight Pages admission; existing Help/link/search generation checks retained"
+  ],
+  "reference": "https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow",
+  "limits": [
+    "No hosted scheduling/execution pass inferred from local contracts.",
+    "GitHub evaluates path admission with its documented diff limits; PRs are unfiltered and tag pushes do not use path filters.",
+    "No existing run cancelled or rerun/dispatched by this batch.",
+    "Installed49 remains exact frozen84c8b428; no binary rebuild or native suite for this CI-only change."
+  ],
+  "validation": {
+    "contracts": {
+      "result": "passed",
+      "methods": 25,
+      "elapsed_seconds": 0.773,
+      "log": "build/qa/docs-push-admission-contracts-2026-11-01.log"
+    },
+    "committed_baseline": {
+      "result": "passed",
+      "log": "build/qa/docs-push-admission-baseline-2026-11-01.log"
+    },
+    "site": {
+      "documents": 521,
+      "unresolved_fragments": [],
+      "log": "build/qa/docs-push-admission-site-2026-11-01.log"
+    },
+    "core_native_signed": "Not run or rebuilt; CI-only behavior, no product changes."
+  },
+  "review": "A broad docs/site exclusion was rejected before validation because two web icons are native identity-check inputs. Final patterns keep those icons unignored; real Core/metafile QA JSON remains unignored.",
+  "unchanged_inventory_sha256": "70c580920b926905717169ac29fb57af257dfee5149fcd2d89f0064b28da7775",
+  "push_patterns": [
+    "README.md",
+    "docs/*.md",
+    "docs/qa/**/*.md",
+    "docs/qa/signed-consolidation-build*.json",
+    "docs/qa/hosted-*.json",
+    "docs/site/*.html",
+    "docs/site/*.css",
+    "docs/site/manual/**",
+    "docs/site/assets/mac-*.png"
+  ]
+}

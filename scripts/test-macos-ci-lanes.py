@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Focused workflow syntax, exact coverage and failure-aggregation regressions."""
 import copy
+import fnmatch
 import importlib.util
 import json
 import os
@@ -22,6 +23,70 @@ class MacOSLaneTests(unittest.TestCase):
         return ci.verify(workflow or self.workflow, inventory or self.inventory, self.originals)
     def testCurrentSyntaxAndExactOriginalCoverage(self):
         self.verify()
+    def testDocumentationAdmissionDoesNotFilterPullRequests(self):
+        self.assertIsNone(self.workflow['true']['pull_request'])
+        for filtering in [{'paths-ignore': ['docs/**']}, {'branches': ['main']},
+                          {'types': ['opened']}, {'paths': ['Sources/**']}]:
+            value = copy.deepcopy(self.workflow)
+            value['true']['pull_request'] = filtering
+            with self.subTest(filtering=filtering), self.assertRaises(AssertionError): self.verify(value)
+    def testPushAdmissionCannotBroadenToNativeOrReferenceInputs(self):
+        # These are real fixture, reference-oracle, generated-resource and
+        # distribution inputs; ignoring their broad parents would hide changes.
+        for pattern in ['docs/**', 'docs/qa/**/*.json', 'docs/qa/*.swift',
+                        'docs/upstream*', 'docs/site/**', 'docs/site/assets/**',
+                        'docs/site/assets/application-icon.png', 'docs/site/assets/application-favicon.png',
+                        'Sources/**', 'Configuration/**',
+                        'Licenses/**', 'LICENSE', 'NOTICE', 'AUTHORS.md']:
+            value = copy.deepcopy(self.workflow)
+            value['true']['push']['paths-ignore'].append(pattern)
+            with self.subTest(pattern=pattern), self.assertRaises(AssertionError): self.verify(value)
+        for mutation in [None, {'paths': ['Sources/**']},
+                         {'paths-ignore': list(ci.DOCUMENTATION_PUSH_IGNORES), 'branches': ['main']}]:
+            value = copy.deepcopy(self.workflow); value['true']['push'] = mutation
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testRealNativeAndOraclePathsRemainOutsideDocumentationPatterns(self):
+        patterns = self.workflow['true']['push']['paths-ignore']
+        # Concrete consumed paths, not a replacement for GitHub's glob engine.
+        critical = ['docs/qa/merge-find-native-2026-10-12.swift',
+                    'docs/qa/statistics-palette-reference-2026-10-07.json',
+                    'docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json',
+                    'docs/upstream.json', 'docs/upstream-controls.csv',
+                    'docs/site/assets/application-icon.png', 'docs/site/assets/application-favicon.png',
+                    'Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist',
+                    'Sources/TurtleGitMac/Resources/Localizable.xcstrings',
+                    'Configuration/MetafileRuntime.json', 'scripts/test-native-reference-batch.py',
+                    'LICENSE', 'NOTICE', 'AUTHORS.md', 'Licenses/Git.txt', '.github/workflows/macos.yml']
+        for path in critical:
+            with self.subTest(path=path):
+                self.assertFalse(any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns))
+        for path in ['README.md', 'docs/TESTING.md', 'docs/qa/notes/review.md',
+                     'docs/qa/signed-consolidation-build49-2026-11-01.json',
+                     'docs/qa/hosted-find-handoff-recovery-2026-11-01.json',
+                     'docs/site/index.html', 'docs/site/style.css', 'docs/site/manual/search.js',
+                     'docs/site/assets/mac-commit-classic-light-2026-10-31.png']:
+            with self.subTest(path=path):
+                self.assertTrue(any(fnmatch.fnmatchcase(path, pattern) for pattern in patterns))
+    def testBaselineCannotBeRewrittenToPermitHeaderDrift(self):
+        for change in ['pull-request-filter', 'name', 'concurrency', 'new-event']:
+            value = copy.deepcopy(self.workflow); inventory = copy.deepcopy(self.inventory)
+            header = inventory['workflowHeader']
+            if change == 'pull-request-filter':
+                value['true']['pull_request'] = header['true']['pull_request'] = {'paths-ignore': ['docs/**']}
+            if change == 'name': value['name'] = header['name'] = 'Renamed workflow'
+            if change == 'concurrency':
+                value['concurrency']['cancel-in-progress'] = header['concurrency']['cancel-in-progress'] = True
+            if change == 'new-event': value['true']['workflow_dispatch'] = header['true']['workflow_dispatch'] = None
+            with self.subTest(change=change), self.assertRaises(AssertionError): self.verify(value, inventory)
+    def testReadmePushStillRequestsDocumentationChecks(self):
+        pages = ci.yaml_document((ci.WORKFLOW.parent / 'pages.yml').read_text())
+        push = pages['true']['push']
+        self.assertEqual(push['branches'], ['main'])
+        self.assertIn('README.md', push['paths']); self.assertIn('docs/**', push['paths'])
+        commands = [step.get('run') for step in pages['jobs']['build']['steps']]
+        for required in ['python3 scripts/build-help.py --check', 'python3 scripts/build-site.py',
+                         'python3 scripts/test-site-docs.py', 'node scripts/test-site-search.cjs']:
+            self.assertIn(required, commands)
     def testUtilityStartupCannotBeLostMovedOrChanged(self):
         for mutation in ['missing', 'duplicate', 'late', 'command', 'lane']:
             value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']

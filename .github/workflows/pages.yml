@@ -2,7 +2,7 @@ name: GitHub Pages
 on:
   push:
     branches: [main]
-    paths: ['docs/**', 'scripts/build-site.py', 'scripts/build-help.py', 'Sources/TurtleGitMac/Resources/TurtleGitHelp.help/**', 'scripts/site_docs.py', 'scripts/site-requirements.txt', 'scripts/test-site-docs.py', 'scripts/test-site-search.cjs', '.github/workflows/pages.yml']
+    paths: ['README.md', 'docs/**', 'scripts/build-site.py', 'scripts/build-help.py', 'Sources/TurtleGitMac/Resources/TurtleGitHelp.help/**', 'scripts/site_docs.py', 'scripts/site-requirements.txt', 'scripts/test-site-docs.py', 'scripts/test-site-search.cjs', '.github/workflows/pages.yml']
   workflow_dispatch:
 permissions:
   contents: read

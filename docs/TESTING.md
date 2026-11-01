@@ -108,6 +108,36 @@ or was skipped. Same-ref workflow runs retain `cancel-in-progress: false`.
 Passing these focused guard checks validates the workflow split; it does not
 establish a successful hosted Core/native run.
 
+## Documentation-only push admission
+
+The full macOS workflow is skipped for pushes containing only README, top-level
+manual/developer Markdown, QA Markdown, selected static website files or explicitly named
+`hosted-*.json` / `signed-consolidation-build*.json` delivery records. One changed
+path outside this list keeps normal admission to the complete existing suite. QA Swift receivers,
+reference JSON, upstream pins/mappings, generated Help/localizations, runtime and
+license inputs, the application identity web icons and workflow changes stay on that full path. In particular,
+Website exclusions cover top-level HTML/CSS, manual web files and `mac-*.png`
+screenshots, rather than the whole assets directory.
+`docs/qa/*.json` is not generally excluded: some JSON files are Core or renderer
+reference data.
+
+Pull-request admission stays unfiltered. GitHub notes that path-skipped required
+checks can remain pending, so filtering PRs could block merges. See
+[GitHub's workflow trigger documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/trigger-a-workflow).
+Push admission uses GitHub’s documented changed-file evaluation limits; tag
+pushes do not use path filters.
+The original header/step inventory remains unchanged; the checker permits only
+the exact reviewed push exception and rejects broader ignores, PR filtering or
+inventory edits that try to authorize trigger drift.
+
+The Pages workflow still runs documentation generation, bundled Help consistency,
+link and search checks, including README-only pushes on main. No native assertion,
+lane, failure aggregation, Git engine or concurrency policy is removed. This
+changes future push admission; it does not cancel older runs or establish a
+successful current-source hosted pass. The
+[focused checkpoint](qa/hosted-docs-push-admission-2026-11-01.json) records actual
+validation and limits. Installed build49 is unchanged.
+
 ## GitHub CI repair, 12 October 2026
 
 Run 38199319588 reached 1,063 Core tests and reported ten failures: stale Finder
