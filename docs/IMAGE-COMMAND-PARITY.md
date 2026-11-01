@@ -117,3 +117,14 @@ receiver supplies its captured invisible key window through the existing seam
 before actual Escape dispatch. These correct fixture assumptions, not production
 guards; all original Yes/No, cancellation, retirement and byte/index assertions
 remain. See [the grouped checkpoint](qa/hosted-native-recovery-2026-11-01.json).
+
+
+## Toolbar receiver sheet lifetime — November 1, 2026
+
+A later hosted toolbar receiver crashed with SIGSEGV after other image cases
+passed. The retained auxiliary sheet now disables release-on-close, matching the
+fixture's other directly constructed modal and the application controllers. All
+assertions and actual sheet-detachment/close paths remain. The captured log has no
+crash backtrace: this source correction does not establish the crash's cause or a
+runtime pass. The [queue/toolbar record](qa/hosted-queue-toolbar-2026-11-01.json)
+keeps that pending scope separate from the earlier image question checks.

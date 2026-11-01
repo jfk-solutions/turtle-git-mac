@@ -17,10 +17,17 @@ Resume only these pending families; retain the other local passes:
 | History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json) |
 | Merge Find | One shared fixture correction covers two hosted failures; unrelated wrapping cases already passed |
 | Fetch→Rebase revision lookup | Exact accepted-progress handoff check with both engines; unrelated reference/operation cases already passed |
+| Image toolbar | Retained test-sheet lifetime corrected after a separate hosted SIGSEGV; crash attribution and both-engine runtime verification remain pending |
 
-The last two entries share the [source-reviewed repair record](qa/hosted-find-handoff-recovery-2026-11-01.json).
+The Merge Find and Fetch entries share the [source-reviewed repair record](qa/hosted-find-handoff-recovery-2026-11-01.json).
 They do not require another app build or Core suite: only verification sources changed.
 A complete hosted pass and the broader release checklist below remain required.
+
+The [bounded queue observation](qa/hosted-queue-toolbar-2026-11-01.json) records
+cancellation of superseded failing source `141b04f6` and subsequent start of the
+newer `8f39b0a1` workflow. Completed failure evidence remains retained. This is a
+queue transition, not a successful full CI result; the toolbar fixture correction
+still needs its own affected runtime check.
 
 ## Finish line for the first locally accepted release
 

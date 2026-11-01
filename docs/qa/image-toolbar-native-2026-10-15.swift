@@ -111,7 +111,7 @@ struct ImageToolbarVerification {
         parent.busy = true; toolbar.refresh(); try send(try item(.info, toolbar).menuFormRepresentation!); try require(image.showInfo == oldInfo)
         parent.busy = false; toolbar.refresh()
         let sheet = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 200,height: 100), styleMask: .titled, backing: .buffered, defer: false)
-        sheet.alphaValue=0;sheet.ignoresMouseEvents=true
+        sheet.isReleasedWhenClosed=false;sheet.alphaValue=0;sheet.ignoresMouseEvents=true
         window.alphaValue = 0; window.setFrameOrigin(NSPoint(x: -10000,y: -10000)); window.beginSheet(sheet, completionHandler: { _ in })
         toolbar.refresh(); try require(!toolbar.validateToolbarItem(try item(.info, toolbar)))
         try send(try item(.info, toolbar).menuFormRepresentation!); try require(image.showInfo == oldInfo)

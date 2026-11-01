@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-01",
+  "observed_utc": "2026-11-01T01:53:26.149696+00:00",
+  "status": "superseded-run-cancelled-newer-run-started-toolbar-runtime-pending",
+  "obsolete_workflow": {
+    "run": 41250319609,
+    "source": "141b04f6bd5b58b8c8a3bb59ed79b45d731d64fb",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41250319609",
+    "before": "in_progress with six failed validation lanes",
+    "after": "completed/cancelled",
+    "reason": "Superseded known-failing source held same-ref concurrency while corrected source waited. Completed failure logs/artifacts remain retained; no artifact deletion.",
+    "screenshot": "build/qa/obsolete-141-cancelled-2026-11-01.jpg"
+  },
+  "newer_workflow": {
+    "run": 41262318755,
+    "source": "8f39b0a1beb1eaac1f4ca3a0f4815d73c0cbffb9",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41262318755",
+    "before": "pending",
+    "after": "in_progress",
+    "scope": "Bounded observation after cancellation; not a successful current-source hosted pass."
+  },
+  "completed_failures": [
+    {
+      "job": 124695176110,
+      "step": 235,
+      "family": "Fetch/Sync lookup timeout",
+      "record": "docs/qa/hosted-find-handoff-recovery-2026-11-01.json"
+    },
+    {
+      "job": 124695176141,
+      "step": 76,
+      "family": "Merge Find171, preceding wrapped cases passed",
+      "record": "docs/qa/hosted-find-handoff-recovery-2026-11-01.json"
+    },
+    {
+      "job": 124695176154,
+      "step": 189,
+      "family": "Same Merge Find172 in grouped runner, not LFS/SMTP",
+      "record": "docs/qa/hosted-find-handoff-recovery-2026-11-01.json"
+    },
+    {
+      "job": 124695176115,
+      "step": 127,
+      "family": "Finder explicit workspace closure capture",
+      "log": "build/qa/obsolete-141-failure-124695176115-2026-11-01.log",
+      "record": "docs/qa/hosted-native-recovery-2026-11-01.json"
+    },
+    {
+      "job": 124695176132,
+      "step": 158,
+      "family": "Metafile held-reload Escape",
+      "record": "docs/qa/hosted-native-recovery-2026-11-01.json"
+    },
+    {
+      "job": 124695176159,
+      "step": 155,
+      "family": "Image toolbar receiver35517 SIGSEGV11 on system Git",
+      "log": "build/qa/obsolete-141-failure-124695176159-2026-11-01.log",
+      "disposition": "New failure retained; not conflated with prior image No/Yes readiness failure."
+    }
+  ],
+  "toolbar_fixture": {
+    "path": "docs/qa/image-toolbar-native-2026-10-15.swift",
+    "sha256": "b0446e7ff2797ec9e9507cea18ac6d34769944b0976e14be53202e9cee77d84b",
+    "change": "Retained auxiliary sheet now disables isReleasedWhenClosed, matching the other directly constructed modal; all assertions and detach/close paths retained.",
+    "review": "Toolbar and comparison/conflict source and fixture otherwise match failing141 revision. Both directly constructed auxiliary NSWindows were reviewed; controller-backed owner windows already disable self-release. No proven product defect or speculative product patch.",
+    "causal_limit": "No crash report/backtrace was present in captured job output. Lifetime defect corrected, but attribution and runtime repair of receiver35517 SIGSEGV remain unproved.",
+    "pending_command": "python3 scripts/test-image-command-family.py --only toolbar --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+  },
+  "validation": "No local Core, native or signed build rerun. Existing passes retained; GUI runtime verification still awaits external auto-close exclusion.",
+  "cleanup": {
+    "owned_browser_tab_closed": true,
+    "unrelated_tabs_and_user_apps_untouched": true,
+    "workflow_rerun_or_dispatch": false,
+    "cancelled_run_count": 1
+  },
+  "installed": "Build49 remains unchanged and was not launched.",
+  "documentation": {
+    "coverage": "Reconciled; no complete-parity status inferred.",
+    "site": "521 documents rendered; no unresolved fragments.",
+    "log": "build/qa/hosted-queue-toolbar-site-final-2026-11-01.log",
+    "help_and_labels": "No registered Help guide or native UI label changed; no generation or app build required."
+  }
+}
