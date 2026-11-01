@@ -152,9 +152,9 @@ import TurtleGitCore
     }
     private func question(_ title: String, detail: String, accept: String, reject: String) async -> Bool {
         guard let window, alert == nil, window.attachedSheet == nil, !model.invalidated else { return false }
-        let alert = NSAlert(); alert.messageText = title; alert.informativeText = detail
+        let alert = NSAlert(); alert.messageText = HistoryLabels.caption(title); alert.informativeText = detail
         // Source confirmation defaults to No; multi-failure defaults to Abort.
-        alert.addButton(withTitle: reject); alert.addButton(withTitle: accept)
+        alert.addButton(withTitle: HistoryLabels.caption(reject)); alert.addButton(withTitle: HistoryLabels.caption(accept))
         self.alert = alert
         return await withCheckedContinuation { continuation in
             var answered = false
@@ -343,8 +343,8 @@ private struct HistoryRevertDialog: View {
     private func showParentWarning() async -> Bool {
         guard let window, window.attachedSheet == nil, !model.invalidated else { return false }
         let alert = NSAlert(); alert.alertStyle = .informational
-        alert.messageText = "The following commit dialog can only show changes of oldest commit if it has exactly one parent. This is not the case right now."
-        alert.addButton(withTitle: "OK"); parentWarning = alert
+        alert.messageText = HistoryLabels.caption("The following commit dialog can only show changes of oldest commit if it has exactly one parent. This is not the case right now.")
+        alert.addButton(withTitle: HistoryLabels.caption("OK")); parentWarning = alert
         return await withCheckedContinuation { continuation in
             var answered = false
             let answer: (Bool) -> Void = { value in guard !answered else { return }; answered = true; continuation.resume(returning: value) }

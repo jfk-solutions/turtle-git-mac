@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+## History feedback and warning presentation — November 1, 2026
+
+History information, structured reference deletion warnings and related native
+feedback now use safe named-field presentation instead of looking up Core prose
+containing Git metadata. Log, References, RefLog, Rebase, Graph and Sync retain
+count rules, warnings, action choice/default indices and byte-identical diagnostics.
+The [batch record](qa/history-feedback-languages-2026-11-01.json) distinguishes
+implementation and checkpoint evidence from pending physical/signed/full-port
+acceptance. Installed build48 predates this source continuation.
+
 ## Connected hosted native recovery — November 1, 2026
 
 Seven actual hosted failures are addressed as one batch: same-content UDiff

@@ -1,8 +1,8 @@
 {
   "schema": 1,
   "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
-  "catalog_sha256": "ba7c31cb31c1d477d1385f7075aadb049e13ec340c4cd456cd6a975b3ecb1c85",
-  "keys": 1361,
+  "catalog_sha256": "32f21e7ee12a814b0546f68f9be6f15ee36b128b178bf728d71924a59d48ca3b",
+  "keys": 1392,
   "languages": [
     {
       "id": "bg",
@@ -16,7 +16,7 @@
       "id": "ca",
       "source": "Languages/Tortoise_ca.po",
       "blob": "cff9f98797dd8aa093864e9f6c21eeb1db923d50",
-      "translated_keys": 1220,
+      "translated_keys": 1223,
       "ambiguous_keys_skipped": 31,
       "formatted_entries_skipped": 284
     },
@@ -24,7 +24,7 @@
       "id": "cs",
       "source": "Languages/Tortoise_cs.po",
       "blob": "2ac7817c8cf8e8bc3c554bef7442d17915e41cbd",
-      "translated_keys": 1181,
+      "translated_keys": 1184,
       "ambiguous_keys_skipped": 20,
       "formatted_entries_skipped": 246
     },
@@ -40,7 +40,7 @@
       "id": "de",
       "source": "Languages/Tortoise_de.po",
       "blob": "ccabc4dfd31b7f687b19e16c538cff834977533c",
-      "translated_keys": 1341,
+      "translated_keys": 1372,
       "ambiguous_keys_skipped": 22,
       "formatted_entries_skipped": 288
     },
@@ -56,7 +56,7 @@
       "id": "es",
       "source": "Languages/Tortoise_es.po",
       "blob": "204f07036c526c2460df952b8a89e1f72eccbc0b",
-      "translated_keys": 1147,
+      "translated_keys": 1150,
       "ambiguous_keys_skipped": 49,
       "formatted_entries_skipped": 241
     },
@@ -80,7 +80,7 @@
       "id": "fr",
       "source": "Languages/Tortoise_fr.po",
       "blob": "70fc13d85763d6d4b057f7ef4c59b76528d306c2",
-      "translated_keys": 1310,
+      "translated_keys": 1341,
       "ambiguous_keys_skipped": 37,
       "formatted_entries_skipped": 286
     },
@@ -112,7 +112,7 @@
       "id": "it",
       "source": "Languages/Tortoise_it.po",
       "blob": "75430b313382bd762cd2c1fce7fdaaa6e0ac0402",
-      "translated_keys": 892,
+      "translated_keys": 893,
       "ambiguous_keys_skipped": 30,
       "formatted_entries_skipped": 199
     },
@@ -120,7 +120,7 @@
       "id": "ja",
       "source": "Languages/Tortoise_ja.po",
       "blob": "d6ab82ad5025d78ca808e8e794d5d284efafad1a",
-      "translated_keys": 1136,
+      "translated_keys": 1139,
       "ambiguous_keys_skipped": 126,
       "formatted_entries_skipped": 284
     },
@@ -168,7 +168,7 @@
       "id": "pt-BR",
       "source": "Languages/Tortoise_pt_BR.po",
       "blob": "b8bbc9f96d0bc434b840084bb3defbd1272f7e2f",
-      "translated_keys": 1255,
+      "translated_keys": 1258,
       "ambiguous_keys_skipped": 24,
       "formatted_entries_skipped": 286
     },
@@ -192,7 +192,7 @@
       "id": "ru",
       "source": "Languages/Tortoise_ru.po",
       "blob": "b8404bef8342d742612a4ff1c71fac5f97f334bb",
-      "translated_keys": 1238,
+      "translated_keys": 1241,
       "ambiguous_keys_skipped": 34,
       "formatted_entries_skipped": 285
     },
@@ -248,7 +248,7 @@
       "id": "ta",
       "source": "Languages/Tortoise_ta_IN.po",
       "blob": "6b6671d86587db9f6fc12f36a0a56d218a4ea624",
-      "translated_keys": 1229,
+      "translated_keys": 1232,
       "ambiguous_keys_skipped": 50,
       "formatted_entries_skipped": 286
     },
@@ -288,7 +288,7 @@
       "id": "zh-Hans",
       "source": "Languages/Tortoise_zh_CN.po",
       "blob": "5b8b8dfc6dfb605a92c4552dd90eb271b90491a5",
-      "translated_keys": 1147,
+      "translated_keys": 1150,
       "ambiguous_keys_skipped": 132,
       "formatted_entries_skipped": 286
     },
@@ -296,7 +296,7 @@
       "id": "zh-Hant",
       "source": "Languages/Tortoise_zh_TW.po",
       "blob": "9de4c85545f776b1da881f81438167caf2c54480",
-      "translated_keys": 1115,
+      "translated_keys": 1118,
       "ambiguous_keys_skipped": 122,
       "formatted_entries_skipped": 284
     }
@@ -471,11 +471,58 @@
     ],
     "Save file at revision {revision}": [
       "revision"
+    ],
+    "Showing {revisions} revision(s), from revision {oldest} to revision {newest} - {selected_revisions} revision(s) selected, {selected_files} file(s) selected": [
+      "revisions",
+      "oldest",
+      "newest",
+      "selected_revisions",
+      "selected_files"
+    ],
+    "; line: {added_lines}(+) {removed_lines}(-) files: Modified = {modified} Added = {added} Deleted = {deleted} Renamed = {renamed}": [
+      "added_lines",
+      "removed_lines",
+      "modified",
+      "added",
+      "deleted",
+      "renamed"
+    ],
+    "Do you really want to delete \"{reference}\"?": [
+      "reference"
+    ],
+    "The branch \"{reference}\" is a remote-tracking branch which locally represents a remote branch.\n\nDo you really want to delete it?": [
+      "reference"
+    ],
+    "The revision {revision} is not visible in the current log.": [
+      "revision"
+    ],
+    "File: {path}": [
+      "path"
+    ],
+    "Revision: {revision}": [
+      "revision"
+    ],
+    "Destination: {path}": [
+      "path"
+    ],
+    "{count} file(s) reverted to {revision}.": [
+      "count",
+      "revision"
+    ],
+    "{count} file(s) failed.": [
+      "count"
+    ],
+    "{count} revisions selected.": [
+      "count"
+    ],
+    "Deleted entries: {completed}. Failed entries: {failed}.\n": [
+      "completed",
+      "failed"
     ]
   },
   "native_adaptations": {
     "path": "Configuration/NativeTranslations.json",
-    "sha256": "8df2766a3598a5f28af39e860ce7d6d093b1845c61fff45715c5636c605e7c1a"
+    "sha256": "7e122001c1def8e93aa020c37546ae17f948fb46ff54c5e1a960940f8e660269"
   },
   "scope": "Literal labels, reviewed spelling aliases and validated native named-field templates. Other missing/fuzzy/ambiguous/plural/formatted/native-only text falls back to English; other dynamic native menus/alerts remain under migration."
 }

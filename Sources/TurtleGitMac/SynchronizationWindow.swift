@@ -511,11 +511,11 @@ final class SynchronizationNativeWindow: NSWindow {
         }
         model.confirmHistoryDeletion = { [weak self] request in
             guard let self else { return .abort }
-            let selected = await self.historyDeletionQuestion(request.message, detail: "", buttons: request.choices.map(\.title), defaultIndex: request.choices.count - 1)
+            let selected = await self.historyDeletionQuestion(HistoryLabels.deletion(request), detail: "", buttons: request.choices.map { HistoryLabels.caption($0.title) }, defaultIndex: request.choices.count - 1)
             return request.choices.indices.contains(selected) ? request.choices[selected].choice : .abort
         }
         model.acknowledgeHistoryDeletionFailure = { [weak self] message in
-            _ = await self?.historyDeletionQuestion("Could not delete reference.", detail: message, buttons: ["OK"], defaultIndex: 0)
+            _ = await self?.historyDeletionQuestion(HistoryLabels.caption("Could not delete reference."), detail: message, buttons: [HistoryLabels.caption("OK")], defaultIndex: 0)
         }
         model.onHistoryOperation = { [weak self] action in self?.showHistoryOperation(action) }
         model.onHistoryFind = { [weak self] tab, index in self?.showHistoryFind(sourceTab: tab, selectionIndex: index) }

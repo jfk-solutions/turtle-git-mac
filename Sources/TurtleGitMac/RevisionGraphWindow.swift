@@ -441,8 +441,8 @@ final class RevisionGraphToolbarButton: NSButton {
         model.confirmReferenceDeletion = { [weak self, weak window] request in
             guard let self, let window, window.attachedSheet == nil, !self.hasFindError else { return .abort }
             return await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
-                for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
+                let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = HistoryLabels.deletion(request)
+                for option in request.choices { alert.addButton(withTitle: HistoryLabels.caption(option.title)).keyEquivalent = "" }
                 let abort = alert.buttons.last!; abort.keyEquivalent = "\r"; window.makeFirstResponder(nil)
                 alert.window.defaultButtonCell = abort.cell as? NSButtonCell; abort.keyEquivalent = "\r"
                 alert.window.alphaValue = window.alphaValue
@@ -458,8 +458,8 @@ final class RevisionGraphToolbarButton: NSButton {
         model.acknowledgeReferenceDeletionFailure = { [weak self, weak window] message in
             guard let self, let window, window.attachedSheet == nil, !self.hasFindError else { return }
             await withCheckedContinuation { continuation in
-                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = "Could not delete reference."; alert.informativeText = message
-                alert.addButton(withTitle: "OK"); alert.window.alphaValue = window.alphaValue
+                let alert = NSAlert(); alert.alertStyle = .critical; alert.messageText = HistoryLabels.caption("Could not delete reference."); alert.informativeText = message
+                alert.addButton(withTitle: HistoryLabels.caption("OK")); alert.window.alphaValue = window.alphaValue
                 alert.beginSheetModal(for: window) { _ in continuation.resume() }
             }
         }

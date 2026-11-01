@@ -66,8 +66,8 @@ private enum LogSubmoduleHistoryFailure: LocalizedError {
     case uninitialized, unavailableRevision
     var errorDescription: String? {
         switch self {
-        case .uninitialized: return "The submodule is not initialized. Initialize its working checkout to show its history."
-        case .unavailableRevision: return "The selected gitlink revision is unavailable in the child repository. Update the submodule to show that revision."
+        case .uninitialized: return HistoryLabels.caption("The submodule is not initialized. Initialize its working checkout to show its history.")
+        case .unavailableRevision: return HistoryLabels.caption("The selected gitlink revision is unavailable in the child repository. Update the submodule to show that revision.")
         }
     }
 }
@@ -595,7 +595,7 @@ final class LogHistoryWindow: NSWindow {
             if model.entries.contains(where: { $0.hash == hash }) {
                 if select { model.select([hash]) } else { model.highlightedRevision = hash }
                 model.scrollRevision = hash; model.scrollRequest += 1
-            } else { model.navigationNotice = "The reference is not visible in the current log." }
+            } else { model.navigationNotice = HistoryLabels.caption("The reference is not visible in the current log.") }
         }
         child.onClosed = { [weak self, weak child, weak parent] in
             if let window = child?.window { parent?.removeChildWindow(window) }
@@ -810,10 +810,10 @@ private enum LogIntegrationFailure: LocalizedError {
     case worktree, head, active, stale
     var errorDescription: String? {
         switch self {
-        case .stale: return "The selected reference changed. Refresh the Log and try again."
-        case .worktree: return "This operation requires a working tree."
-        case .head: return "The selected revision is already HEAD. Refresh the Log."
-        case .active: return "Finish or abort the active Merge or Rebase before starting another operation."
+        case .stale: return HistoryLabels.caption("The selected reference changed. Refresh the Log and try again.")
+        case .worktree: return HistoryLabels.caption("This operation requires a working tree.")
+        case .head: return HistoryLabels.caption("The selected revision is already HEAD. Refresh the Log.")
+        case .active: return HistoryLabels.caption("Finish or abort the active Merge or Rebase before starting another operation.")
         }
     }
 }
@@ -1728,7 +1728,7 @@ struct LogCommandRequest: Identifiable {
                         }
                     }
                     guard !isInvalidated, request == searchFilterGeneration, !token.isCancelled else { return }
-                    guard valid else { searchFilterError = "Invalid regular expression"; return }
+                    guard valid else { searchFilterError = HistoryLabels.caption("Invalid regular expression"); return }
                 }
                 while !isInvalidated, request == searchFilterGeneration, !canEditLogFilters {
                     try await Task.sleep(nanoseconds: 100_000_000)
@@ -1968,7 +1968,7 @@ struct LogCommandRequest: Identifiable {
         guard canNavigateLog else {return}
         highlightedRevision = nil;navigationNotice = nil
         guard let hash = selectionNavigation.move(up:up) else {return}
-        guard entries.contains(where:{$0.hash == hash}) else {navigationNotice = "The revision \(hash) is not visible in the current log.";return}
+        guard entries.contains(where:{$0.hash == hash}) else {navigationNotice = HistoryLabels.text("The revision {revision} is not visible in the current log.", values: ["revision": hash]);return}
         if selectTarget {select([hash],recordNavigation:false)} else {highlightedRevision = hash}
         scrollRevision = hash;scrollRequest += 1
     }
@@ -2406,8 +2406,8 @@ struct LogCommandRequest: Identifiable {
         select([target]); scrollRevision = target; scrollRequest += 1
     }
     var messageDocument: HistoryMessageDocument {
-        if selectedWorkingTree, let snapshot = workingTreeSnapshot { return .init(plain: "Working tree changes\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "")) }
-        guard let revision else { return .init(plain: selected.isEmpty ? "Select a revision to see its commit message and changed files." : "\(selected.count) revisions selected.") }
+        if selectedWorkingTree, let snapshot = workingTreeSnapshot { return .init(plain: HistoryLabels.caption("Working tree changes") + "\n" + snapshot.entry.message + (snapshot.entry.parents.first.map { "\nHEAD: " + $0 } ?? "")) }
+        guard let revision else { return .init(plain: selected.isEmpty ? HistoryLabels.caption("Select a revision to see its commit message and changed files.") : HistoryLabels.text("{count} revisions selected.", values: ["count": String(selected.count)])) }
         return .init(hash: revision.hash, branchNumber: branchRevisionNumber, describe: describedRevision,
                      subject: revision.historySubject, body: revision.historyBody, notes: revision.notes,
                      tagInfo: HistoryDateSettings.load(defaults: labelDefaults).tagInfo(revision.tagInfo), asterisk: asteriskLogPrefix)
@@ -2808,7 +2808,7 @@ struct LogCommandRequest: Identifiable {
                         branchRevisionNumber = number
                     } catch {
                         guard request == detailGeneration else { return }
-                        if !cancellation.isCancelled { self.error = "Could not get rev count\n" + error.localizedDescription }
+                        if !cancellation.isCancelled { self.error = HistoryLabels.caption("Could not get rev count") + "\n" + error.localizedDescription }
                     }
                 }
                 if describeOptions.enabled {
@@ -2938,7 +2938,7 @@ struct LogCommandRequest: Identifiable {
     func execute(_ request: LogCommandRequest, value: String) {
         guard !busy else { return }
         if bare && [LogRevisionCommand.checkout, .cherryPick, .revert].contains(request.command) {
-            error = "This operation requires a working tree."; return
+            error = HistoryLabels.caption("This operation requires a working tree."); return
         }
         let hash = request.revision.hash
         var args: [String]
@@ -3023,7 +3023,7 @@ struct LogCommandRequest: Identifiable {
                     } else { bytes = try await repository.revisionDiffData(revisions[0], paths:scope, workingTree:workingTree, mode:mode, cancellation:token) }
                     guard request == generation, selection == selected, !isInvalidated, !token.isCancelled else { return }
                     if mode == .extraMergeChanges, String(decoding:bytes,as:UTF8.self).split(separator:"\n").count <= 1 {
-                        navigationNotice="No extra changes after merge.";return
+                        navigationNotice=HistoryLabels.caption("No extra changes after merge.");return
                     }
                     if let onUnifiedDiff { try await onUnifiedDiff(bytes, alternate) }
                     else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: labelDefaults, title: HistoryLabels.caption("Selected revision changes"), permissions: access.map { [$0] } ?? [], cancellation: token) {
@@ -3276,7 +3276,7 @@ struct LogCommandRequest: Identifiable {
                     do {try await repository.exportHistoricalFile(export,path:path,cancellation:token)}
                     catch {
                         guard !isInvalidated,!confirmingQuit,request==generation,!token.isCancelled else {break}
-                        let message=["File: "+path,"Revision: "+export.revision,"Destination: "+folder.appendingPathComponent(path).path,"",error.localizedDescription].joined(separator:"\n")
+                        let message=[HistoryLabels.text("File: {path}", values: ["path": path]),HistoryLabels.text("Revision: {revision}", values: ["revision": export.revision]),HistoryLabels.text("Destination: {path}", values: ["path": folder.appendingPathComponent(path).path]),"",error.localizedDescription].joined(separator:"\n")
                         guard await confirmExportFailure(message),!isInvalidated,!confirmingQuit,request==generation,!token.isCancelled else {break}
                     }
                 }
@@ -3416,7 +3416,7 @@ struct LogCommandRequest: Identifiable {
                 guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration else { return }
                 switch destination {
                 case .select(let url): NSWorkspace.shared.activateFileViewerSelecting([url])
-                case .openDirectory(let url): if !NSWorkspace.shared.open(url) { self.error = "Could not open the file's containing folder in Finder." }
+                case .openDirectory(let url): if !NSWorkspace.shared.open(url) { self.error = HistoryLabels.caption("Could not open the file's containing folder in Finder.") }
                 }
             } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration { self.error = error.localizedDescription } }
         }
@@ -3549,8 +3549,8 @@ struct LogCommandRequest: Identifiable {
             }
             busy = false
             guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, fileSelection == selectedFiles, !isInvalidated else { return }
-            let message = restored.keys.sorted().map { "\(restored[$0]!) file(s) reverted to \($0)." }.joined(separator: "\n")
-            showHistoricalRevertResult(message + (failures == 0 ? "" : "\n\(failures) file(s) failed."))
+            let message = restored.keys.sorted().map { HistoryLabels.text("{count} file(s) reverted to {revision}.", values: ["count": String(restored[$0]!), "revision": $0]) }.joined(separator: "\n")
+            showHistoricalRevertResult(message + (failures == 0 ? "" : "\n" + HistoryLabels.text("{count} file(s) failed.", values: ["count": String(failures)])))
         }
     }
     // Log's allowed column mask excludes LFS ownership. Match the source's
@@ -3816,7 +3816,7 @@ struct LogCommandRequest: Identifiable {
         guard labelDefaults.bool(forKey: "DiffByDoubleClickInLog"), canInspectHistory,
               let chosen = entries.first(where: { selected.contains($0.hash) }) else { return }
         guard let parent = chosen.parents.first else {
-            let message = "No previous version."
+            let message = HistoryLabels.caption("No previous version.")
             if let window, window.attachedSheet == nil {
                 let alert = NSAlert(); alert.messageText = message; alert.alertStyle = .informational
                 alert.addButton(withTitle: HistoryLabels.caption("OK")); alert.beginSheetModal(for: window)
@@ -4023,8 +4023,8 @@ struct LogDialog: View {
                 }
             }
             .background(LogPaneLayoutBridge(model: model))
-            Text(model.information.text).font(.system(size: 11)).lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).help(model.information.text)
+            Text(HistoryLabels.information(model.information)).font(.system(size: 11)).lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).help(HistoryLabels.information(model.information))
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle("Show Whole Project", isOn: Binding(get: { model.showWholeProject }, set: model.setWholeProject)).toggleStyle(.checkbox).disabled(!model.canChangeWholeProject)
@@ -5902,8 +5902,8 @@ struct LogRevisionDialog: View {
 /// Shared source confirmation for History and RefLog named-reference deletion.
 @MainActor enum HistoryReferenceDeletionPresentation {
     static func alert(_ request: HistoryReferenceDeletion) -> NSAlert {
-        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = request.message
-        for option in request.choices { alert.addButton(withTitle: option.title).keyEquivalent = "" }
+        let alert = NSAlert(); alert.alertStyle = .warning; alert.messageText = HistoryLabels.deletion(request)
+        for option in request.choices { alert.addButton(withTitle: HistoryLabels.caption(option.title)).keyEquivalent = "" }
         let abort = alert.buttons.last!; abort.keyEquivalent = "\r"
         alert.window.defaultButtonCell = abort.cell as? NSButtonCell
         return alert

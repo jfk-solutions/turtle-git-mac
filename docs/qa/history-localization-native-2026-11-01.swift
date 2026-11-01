@@ -36,6 +36,59 @@ enum HistoryLocalizationVerification {
         try require(HistoryLabels.text("Missing {branch}", values: [:], bundle: bundle) == "Missing {branch}", "Missing caller field partially rendered")
         try require(HistoryLabels.text("Pair {branch} / {hash}", values: ["branch": metadata, "hash": hash, "extra": "secret"], bundle: bundle) == "Pair {branch} / {hash}", "Unknown caller field accepted")
     }
+    @MainActor static func presentationContracts(_ directory:URL,locale:String,entries:[LogEntry],files:[CommitFile],stashEntries:[ReferenceLogEntry]) throws {
+        let location=directory.appendingPathComponent("EnglishFallback.bundle",isDirectory:true)
+        try FileManager.default.createDirectory(at:location,withIntermediateDirectories:true)
+        try PropertyListSerialization.data(fromPropertyList:["CFBundleIdentifier":"org.turtlegit.qa.history-fallback."+UUID().uuidString,"CFBundleDevelopmentRegion":"en"],format:.xml,options:0).write(to:location.appendingPathComponent("Info.plist"))
+        guard let fallback=Bundle(url:location) else {throw Failure(description:"Private English fallback bundle")}
+        let selected=Set([entries[0].hash]),paths=files.map(\.id)
+        let information=HistoryInformation(entries:entries,selected:selected,files:files,selectedFiles:paths,visibleFileIDs:paths)
+        for value in [information,HistoryInformation(entries:[],selected:[],files:[],selectedFiles:[String](),visibleFileIDs:[String]()),HistoryInformation(entries:entries,selected:Set(entries.map(\.hash)),files:files,selectedFiles:paths,visibleFileIDs:paths)] {
+            try require(HistoryLabels.information(value,bundle:fallback)==value.text,"English footer fallback differs from Core")
+        }
+        let v=information
+        let expectedFooter:String
+        switch locale {
+        case "de":expectedFooter="Zeige \(v.revisionCount) Revision(en), von Revision \(v.oldest) bis Revision \(v.newest) - \(v.selectedRevisionCount) Revision(en) ausgewählt, \(v.selectedFileCount) Datei(en) ausgewählt; Zeilen: \(v.addedLines)(+) \(v.removedLines)(-) Dateien: Verändert = \(v.modified) Hinzugefügt = \(v.added) Gelöscht = \(v.deleted) Umbenannt = \(v.renamed)"
+        case "fr":expectedFooter="\(v.revisionCount) révision(s) affichée(s), de la révision \(v.oldest) à la révision \(v.newest) - \(v.selectedRevisionCount) révision(s) sélectionnée(s), \(v.selectedFileCount) fichier(s) sélectionné(s); lignes : \(v.addedLines)(+) \(v.removedLines)(-) fichiers : Modifiés = \(v.modified) Ajoutés = \(v.added) Supprimés = \(v.deleted) Renommés = \(v.renamed)"
+        default:expectedFooter=v.text
+        }
+        try require(HistoryLabels.information(v)==expectedFooter,"Localized footer changed counts/hash framing")
+        let metadata="Message{reference}%@",oid=entries[0].hash
+        let requests:[HistoryReferenceDeletion]=[
+            .init(name:metadata,objectID:oid,kind:.ordinary,unmerged:false,stashEntries:[]),
+            .init(name:metadata,objectID:oid,kind:.ordinary,unmerged:true,stashEntries:[]),
+            .init(name:metadata,objectID:oid,kind:.remote,unmerged:false,stashEntries:[]),
+            .init(name:"refs/stash",objectID:oid,kind:.stash,unmerged:false,stashEntries:stashEntries)]
+        for request in requests {
+            try require(HistoryLabels.deletion(request,bundle:fallback)==request.message,"English deletion fallback differs from Core")
+            let alert=HistoryReferenceDeletionPresentation.alert(request)
+            defer {alert.window.orderOut(nil);alert.window.close()}
+            try require(alert.messageText==HistoryLabels.deletion(request) && alert.alertStyle == .warning,"Actual shared deletion alert lost localized warning")
+            try require(alert.buttons.map(\.title)==request.choices.map{HistoryLabels.caption($0.title)} && alert.buttons.last?.keyEquivalent=="\r" && alert.window.defaultButtonCell === alert.buttons.last?.cell,"Actual deletion choices/default Abort changed")
+            try require(alert.buttons.dropLast().allSatisfy{$0.keyEquivalent.isEmpty},"Destructive choice became default")
+            if request.kind != .stash {try require(alert.messageText.contains(metadata),"Deletion interpolated or translated reference bytes")}
+            if locale != "en" {try require(alert.messageText != request.message,"Deletion remained English")}
+        }
+        let ordinary=["de":"Möchten Sie „"+metadata+"“ wirklich löschen?","fr":"Voulez-vous vraiment supprimer « "+metadata+" » ?","en":"Do you really want to delete \""+metadata+"\"?"][locale]!
+        try require(HistoryLabels.deletion(requests[0])==ordinary,"Independent localized deletion caption")
+        let refs=[GitReferenceName("refs/remotes/"+metadata),GitReferenceName("refs/remotes/Author{count}%")]
+        let browser:[ReferenceBrowserDeletionConfirmation]=[
+            .init(references:[refs[0]],kind:.branch,name:metadata,unmerged:true),
+            .init(references:refs,kind:.remoteBranch,name:metadata,unmerged:true),
+            .init(references:refs,kind:.tag,name:metadata,unmerged:false)]
+        for value in browser {try require(HistoryLabels.deletion(value,bundle:fallback)==value.message,"English browser warning fallback differs from Core")}
+        let mixed=HistoryLabels.deletion(browser[1])
+        let expectedMixed:[String:String]=[
+            "de":"Möchten Sie die 2 ausgewählten Referenzen wirklich dauerhaft löschen? Sie können NICHT wiederhergestellt werden!\n\nDieser Branch ist nicht vollständig in HEAD zusammengeführt.\n\nEs wurde nicht geprüft, ob diese Branches vollständig in HEAD zusammengeführt wurden.\n\nDiese Aktion löscht die Branches auf dem Remote.",
+            "fr":"Voulez-vous vraiment supprimer définitivement les 2 références sélectionnées ? Elles ne pourront PAS être récupérées !\n\nCette branche n’est pas entièrement fusionnée dans HEAD.\n\nLa fusion complète de ces branches dans HEAD n’a pas été vérifiée.\n\nCette action supprimera les branches sur le dépôt distant.","en":browser[1].message]
+        try require(mixed==expectedMixed[locale] && browser[1].warning && browser[1].uncheckedMerge,"Mixed browser warning composition/order changed")
+        for error in [ReferenceLogFailure.reference,.stale,.selection] {
+            try require(ReferenceLogFeedback.presentationError(error)==HistoryLabels.caption(error.localizedDescription),"Typed Reflog feedback not localized")
+        }
+        let raw="Message{completed}%@ selector@{1}: server Author {reference}"
+        try require(ReferenceLogFeedback.presentationError(NSError(domain:"PrivateHistoryQA",code:1,userInfo:[NSLocalizedDescriptionKey:raw]))==raw,"Arbitrary Reflog diagnostic was translated or interpolated")
+    }
     @MainActor static func verify() async throws {
         let locale = CommandLine.arguments[1], root = URL(fileURLWithPath: CommandLine.arguments[2])
         let repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[3]))
@@ -116,6 +169,8 @@ enum HistoryLocalizationVerification {
         reflogTable.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
         var loggedHashes: [String] = []; reflog.model.onLog = { loggedHashes.append($0) }
         let entry = reflog.model.entries[0]
+        let history=try await repo.history(),historyFiles=try await repo.files(in:history[0])
+        try presentationContracts(root,locale:locale,entries:history,files:historyFiles,stashEntries:reflog.model.entries)
         let refCell = reflogCoordinator.tableView(reflogTable, viewFor: reflogTable.tableColumn(withIdentifier: .init("Ref")), row: 0) as? NSTableCellView
         let messageCell = reflogCoordinator.tableView(reflogTable, viewFor: reflogTable.tableColumn(withIdentifier: .init("Message")), row: 0) as? NSTableCellView
         try require(refCell?.textField?.stringValue == entry.selector && messageCell?.textField?.stringValue == entry.message, "Native Reflog cells translated metadata")
@@ -130,6 +185,6 @@ enum HistoryLocalizationVerification {
         try await wait(nil) { LogWindowModel.activeHistoryLoads == 0 && LogWindowModel.activeReferenceReads == 0 && LogWindowModel.activeActionReads == 0 && ReferenceBrowserWindowModel.activeReads == 0 && ReferenceLogWindowModel.activeRevisionReads == 0 }
         try require(try await repo.run(["rev-parse", "HEAD"]).stdout == head, "HEAD changed")
         try require(try Data(contentsOf: root.appendingPathComponent(".git/index")) == index && Data(contentsOf: file) == bytes, "Index/input changed")
-        print("PASS language history: actual localized Log/References/Reflog native menus/headers; raw branch/author/subject/hash and single-pass template bytes; dispatched actions and retired guards; immutable HEAD/index/input")
+        print("PASS language history: actual localized Log/References/Reflog native menus/headers, information footer and deletion alerts/defaults; exact Core English fallback, mixed browser warnings, typed Reflog errors and raw diagnostics; raw branch/author/subject/hash and single-pass template bytes; dispatched actions and retired guards; immutable HEAD/index/input")
     }
 }

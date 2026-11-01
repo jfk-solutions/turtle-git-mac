@@ -89,7 +89,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         window.handleCommand = { [weak self] event in self?.handleCommand(event) ?? false }
         model.confirmResetColumns = { [weak self] in await self?.ask(message:HistoryLabels.caption("Reset column order?"),detail:HistoryLabels.caption("Restore the default column order, widths and visibility?"),warning:false) ?? false }
         model.confirmDeletion = { [weak self] confirmation in
-            await self?.ask(message: "TurtleGit", detail: confirmation.message, warning: confirmation.warning) ?? false
+            await self?.ask(message: HistoryLabels.caption("TurtleGit"), detail: HistoryLabels.deletion(confirmation), warning: confirmation.warning) ?? false
         }
         model.confirmCancellation = { [weak self] in
             await self?.ask(message: HistoryLabels.caption("The process is still running."), detail: HistoryLabels.caption("Stop the current reference operation? Review the resulting references and configuration before retrying."), warning: true) ?? false

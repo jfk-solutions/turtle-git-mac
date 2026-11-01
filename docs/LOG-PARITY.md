@@ -3027,3 +3027,22 @@ connects native menu/header/filter captions with literal metadata and unchanged
 command ownership. Its [grouped checkpoint](qa/history-languages-2026-10-31.json)
 keeps actual German/French menu evidence separate from complete localization,
 physical/VoiceOver and signed acceptance. Installed build47 predates this family.
+
+
+## History information and warning language continuation — November 1, 2026
+
+The native footer now formats `HistoryInformation` fields through validated named
+templates, preserving the exact English Core fallback, count arithmetic, hash
+widths and single-selected-revision totals. This follows `IDS_PROC_LOG_STATS` and
+the existing line/action totals; no Git operation or Core serialization changed.
+Shared reference deletion questions format typed ordinary/remote/stash requests,
+with literal names and the original choice order/default Abort in Log, RefLog,
+Rebase, Graph and Sync. Browse References follows its separate single/multiple
+and unmerged/unchecked/remote warning paragraphs from `BrowseRefsDlg.cpp`.
+Native navigation, export, revert and known RefLog validation feedback localize
+presentation only; user metadata, operation logs and arbitrary diagnostics remain
+literal. Reviewed German/French templates use the existing named-field validator.
+
+The [batch record](qa/history-feedback-languages-2026-11-01.json) records the
+checkpoint and limits. Complete language coverage, graph accessibility prose,
+physical/signed acceptance and full source parity remain separate requirements.

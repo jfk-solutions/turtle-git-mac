@@ -1826,6 +1826,29 @@
         }
       }
     },
+    "; line: {added_lines}(+) {removed_lines}(-) files: Modified = {modified} Added = {added} Deleted = {deleted} Renamed = {renamed}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "; Zeilen: {added_lines}(+) {removed_lines}(-) Dateien: Verändert = {modified} Hinzugefügt = {added} Gelöscht = {deleted} Umbenannt = {renamed}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "; line: {added_lines}(+) {removed_lines}(-) files: Modified = {modified} Added = {added} Deleted = {deleted} Renamed = {renamed}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "; lignes : {added_lines}(+) {removed_lines}(-) fichiers : Modifiés = {modified} Ajoutés = {added} Supprimés = {deleted} Renommés = {renamed}"
+          }
+        }
+      }
+    },
     "<<": {
       "extractionState": "manual",
       "localizations": {
@@ -25414,6 +25437,29 @@
         }
       }
     },
+    "Choose HEAD or a full reference name.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie HEAD oder einen vollständigen Referenznamen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose HEAD or a full reference name."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choisissez HEAD ou un nom de référence complet."
+          }
+        }
+      }
+    },
     "Chronological reversed (git default)": {
       "extractionState": "manual",
       "localizations": {
@@ -39325,6 +39371,52 @@
         }
       }
     },
+    "Could not get rev count": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Anzahl der Revisionen konnte nicht ermittelt werden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not get rev count"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’obtenir le nombre de révisions"
+          }
+        }
+      }
+    },
+    "Could not open the file's containing folder in Finder.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der übergeordnete Ordner der Datei konnte nicht im Finder geöffnet werden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not open the file's containing folder in Finder."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d’ouvrir le dossier contenant le fichier dans le Finder."
+          }
+        }
+      }
+    },
     "Count": {
       "extractionState": "manual",
       "localizations": {
@@ -45766,7 +45858,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lösche den entfernten Zweig & den lokalen tracking Zweig"
+            "value": "Branch auf dem Remote und lokalen Remote-Tracking-Branch löschen"
           }
         },
         "en": {
@@ -45778,7 +45870,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Supprimer la branche à distance & la branche locale liée"
+            "value": "Supprimer la branche distante et la branche locale de suivi"
           }
         },
         "it": {
@@ -45974,7 +46066,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lösche den den lokalen tracking Zweig"
+            "value": "Lokalen Remote-Tracking-Branch löschen"
           }
         },
         "en": {
@@ -45986,7 +46078,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Supprimer et branche de suivi à distance locale"
+            "value": "Supprimer la branche locale de suivi"
           }
         },
         "ja": {
@@ -47286,6 +47378,29 @@
         }
       }
     },
+    "Deleted entries: {completed}. Failed entries: {failed}.\n": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gelöschte Einträge: {completed}. Fehlgeschlagene Einträge: {failed}.\n"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deleted entries: {completed}. Failed entries: {failed}.\n"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Entrées supprimées : {completed}. Échecs : {failed}.\n"
+          }
+        }
+      }
+    },
     "Deleting remote refs…": {
       "extractionState": "manual",
       "localizations": {
@@ -48415,6 +48530,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "目的目錄"
+          }
+        }
+      }
+    },
+    "Destination: {path}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ziel: {path}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destination: {path}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Destination : {path}"
           }
         }
       }
@@ -52602,6 +52740,29 @@
         }
       }
     },
+    "Do you really want to delete \"{reference}\"?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Möchten Sie „{reference}“ wirklich löschen?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Do you really want to delete \"{reference}\"?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Voulez-vous vraiment supprimer « {reference} » ?"
+          }
+        }
+      }
+    },
     "Do you really want to delete ALL {count} stash?": {
       "extractionState": "manual",
       "localizations": {
@@ -54501,7 +54662,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Entferne obersten Stash"
+            "value": "Einen Stash verwerfen"
           }
         },
         "el": {
@@ -54525,7 +54686,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Supprimer un élément remisé"
+            "value": "Supprimer une entrée de remisage"
           }
         },
         "ja": {
@@ -65954,6 +66115,29 @@
         }
       }
     },
+    "File: {path}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Datei: {path}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "File: {path}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fichier : {path}"
+          }
+        }
+      }
+    },
     "Filename": {
       "extractionState": "manual",
       "localizations": {
@@ -68488,6 +68672,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "完成"
+          }
+        }
+      }
+    },
+    "Finish or abort the active Merge or Rebase before starting another operation.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Beenden Sie den aktiven Merge oder Rebase oder brechen Sie ihn ab, bevor Sie einen anderen Vorgang starten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Finish or abort the active Merge or Rebase before starting another operation."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Terminez ou abandonnez la fusion ou le rebasage en cours avant de démarrer une autre opération."
           }
         }
       }
@@ -88542,6 +88749,29 @@
         }
       }
     },
+    "Invalid regular expression": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ungültiger regulärer Ausdruck"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Invalid regular expression"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Expression régulière invalide"
+          }
+        }
+      }
+    },
     "Issue Tracker Config": {
       "extractionState": "manual",
       "localizations": {
@@ -88704,6 +88934,89 @@
           "stringUnit": {
             "state": "translated",
             "value": "Bug 追蹤整合"
+          }
+        }
+      }
+    },
+    "It has not been checked if these branches have been fully merged into HEAD.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No s'ha comprovat si aquestes branques han estat completament fusionades amb HEAD."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nebyla provedena kontrola úplného sloučení těchto větví do čela."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Es wurde nicht geprüft, ob diese Branches vollständig in HEAD zusammengeführt wurden."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "It has not been checked if these branches have been fully merged into HEAD."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No se ha comprobado si estos ramales (branch) se han combinado (merge) completamente dentro del HEAD (puntero a la última consignación)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La fusion complète de ces branches dans HEAD n’a pas été vérifiée."
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non è stato verificato se questi rami sono stati completamente uniti in HEAD."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "これらのブランチがHEADにマージされているかどうかは、確認されていません"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Não foi verificado se estes ramos foram mesclados no HEAD."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Не проверено, полностью ли влиты эти ветви в ГОЛОВНУЮ."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "இந்த கிளைகள் தலையில் முழுமையாக இணைக்கப்பட்டுள்ளதா என்பது சரிபார்க்கப்படவில்லை."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有检查这些分支是否已完全合并到 HEAD。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這些分支尚未被檢查是否已完全合併到 HEAD。"
           }
         }
       }
@@ -109405,6 +109718,29 @@
         }
       }
     },
+    "No extra changes after merge.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Keine zusätzlichen Änderungen nach dem Merge."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No extra changes after merge."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucune modification supplémentaire après la fusion."
+          }
+        }
+      }
+    },
     "No fetch": {
       "extractionState": "manual",
       "localizations": {
@@ -110262,7 +110598,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Keine vorherige Eintragung."
+            "value": "Keine vorherige Version."
           }
         },
         "en": {
@@ -110280,7 +110616,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Pas de révision précédente."
+            "value": "Aucune version précédente."
           }
         },
         "he": {
@@ -146933,6 +147269,29 @@
         }
       }
     },
+    "Revision: {revision}": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision: {revision}"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Revision: {revision}"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Révision : {revision}"
+          }
+        }
+      }
+    },
     "Rewind": {
       "extractionState": "manual",
       "localizations": {
@@ -153703,6 +154062,52 @@
         }
       }
     },
+    "Select a revision to see its commit message and changed files.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie eine Revision, um ihre Commit-Nachricht und geänderten Dateien anzuzeigen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select a revision to see its commit message and changed files."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez une révision pour afficher son message de commit et les fichiers modifiés."
+          }
+        }
+      }
+    },
+    "Select entries from the current reference log.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wählen Sie Einträge aus dem aktuellen Referenzlog."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Select entries from the current reference log."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sélectionnez des entrées du journal de références actuel."
+          }
+        }
+      }
+    },
     "Select file": {
       "extractionState": "manual",
       "localizations": {
@@ -154322,6 +154727,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "全部選擇或取消(A)"
+          }
+        }
+      }
+    },
+    "Selected RefLog changes": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Änderungen der ausgewählten RefLog-Einträge"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Selected RefLog changes"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Modifications des entrées RefLog sélectionnées"
           }
         }
       }
@@ -161668,6 +162096,29 @@
           "stringUnit": {
             "state": "translated",
             "value": "顯示無版本控制的檔案(V)"
+          }
+        }
+      }
+    },
+    "Showing {revisions} revision(s), from revision {oldest} to revision {newest} - {selected_revisions} revision(s) selected, {selected_files} file(s) selected": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Zeige {revisions} Revision(en), von Revision {oldest} bis Revision {newest} - {selected_revisions} Revision(en) ausgewählt, {selected_files} Datei(en) ausgewählt"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Showing {revisions} revision(s), from revision {oldest} to revision {newest} - {selected_revisions} revision(s) selected, {selected_files} file(s) selected"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{revisions} révision(s) affichée(s), de la révision {oldest} à la révision {newest} - {selected_revisions} révision(s) sélectionnée(s), {selected_files} fichier(s) sélectionné(s)"
           }
         }
       }
@@ -173219,6 +173670,52 @@
         }
       }
     },
+    "The branch \"{reference}\" is a remote-tracking branch which locally represents a remote branch.\n\nDo you really want to delete it?": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Der Branch „{reference}“ ist ein Remote-Tracking-Branch, der lokal einen Remote-Branch repräsentiert.\n\nMöchten Sie ihn wirklich löschen?"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The branch \"{reference}\" is a remote-tracking branch which locally represents a remote branch.\n\nDo you really want to delete it?"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La branche « {reference} » est une branche de suivi qui représente localement une branche distante.\n\nVoulez-vous vraiment la supprimer ?"
+          }
+        }
+      }
+    },
+    "The current view is out of date. Refresh and recheck the selection.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die aktuelle Ansicht ist veraltet. Aktualisieren Sie sie und prüfen Sie die Auswahl erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The current view is out of date. Refresh and recheck the selection."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La vue actuelle est obsolète. Actualisez-la et vérifiez à nouveau la sélection."
+          }
+        }
+      }
+    },
     "The fetched branch fast-forwards upon the current branch.\n\nMerge or open the rebase dialog anyway?": {
       "extractionState": "manual",
       "localizations": {
@@ -173510,6 +174007,29 @@
         }
       }
     },
+    "The reference is not visible in the current log.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Referenz ist im aktuellen Log nicht sichtbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The reference is not visible in the current log."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La référence n’est pas visible dans le journal actuel."
+          }
+        }
+      }
+    },
     "The remote branch has not changed.\n\nOpen the rebase dialog anyway?": {
       "extractionState": "manual",
       "localizations": {
@@ -173595,6 +174115,121 @@
           "stringUnit": {
             "state": "translated",
             "value": "遠端分支並沒有改變。\n仍然要開啟「變基」視窗？"
+          }
+        }
+      }
+    },
+    "The revision {revision} is not visible in the current log.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die Revision {revision} ist im aktuellen Log nicht sichtbar."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The revision {revision} is not visible in the current log."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La révision {revision} n’est pas visible dans le journal actuel."
+          }
+        }
+      }
+    },
+    "The selected gitlink revision is unavailable in the child repository. Update the submodule to show that revision.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ausgewählte Gitlink-Revision ist im Unterrepository nicht verfügbar. Aktualisieren Sie das Submodul, um diese Revision anzuzeigen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected gitlink revision is unavailable in the child repository. Update the submodule to show that revision."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La révision gitlink sélectionnée n’est pas disponible dans le dépôt enfant. Mettez le sous-module à jour pour afficher cette révision."
+          }
+        }
+      }
+    },
+    "The selected reference changed. Refresh the Log and try again.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ausgewählte Referenz hat sich geändert. Aktualisieren Sie das Log und versuchen Sie es erneut."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected reference changed. Refresh the Log and try again."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La référence sélectionnée a changé. Actualisez le journal et réessayez."
+          }
+        }
+      }
+    },
+    "The selected revision is already HEAD. Refresh the Log.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Die ausgewählte Revision ist bereits HEAD. Aktualisieren Sie das Log."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected revision is already HEAD. Refresh the Log."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La révision sélectionnée est déjà HEAD. Actualisez le journal."
+          }
+        }
+      }
+    },
+    "The submodule is not initialized. Initialize its working checkout to show its history.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Das Submodul ist nicht initialisiert. Initialisieren Sie sein Arbeitsverzeichnis, um den Verlauf anzuzeigen."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The submodule is not initialized. Initialize its working checkout to show its history."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le sous-module n’est pas initialisé. Initialisez son arbre de travail pour afficher son historique."
           }
         }
       }
@@ -173816,6 +174451,183 @@
           "stringUnit": {
             "state": "translated",
             "value": "對方的"
+          }
+        }
+      }
+    },
+    "This action will remove the branches on the remote.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aquesta acció suprimirà les branques al remot."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tato činnost odstraní větve ve vzdálené."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Diese Aktion löscht die Branches auf dem Remote."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This action will remove the branches on the remote."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta acción eliminará los ramales (branch) en el remoto (remote)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette action supprimera les branches sur le dépôt distant."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "この操作はリモートのブランチを削除します。"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Esta ação irá remover os ramos no remoto."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Это действие удалит ветви во внешнем хранилище"
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "இந்த நடவடிக்கை தொலைநிலையில் உள்ள கிளைகளை அகற்றும்."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此操作将删除远端服务器上的相应分支。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "這會移除遠端的分支。"
+          }
+        }
+      }
+    },
+    "This branch is not fully merged into HEAD.": {
+      "extractionState": "manual",
+      "localizations": {
+        "ca": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aquesta branca no està completament fusionada amb HEAD."
+          }
+        },
+        "cs": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tato větev není plně sloučena do čela."
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Branch ist nicht vollständig in HEAD zusammengeführt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This branch is not fully merged into HEAD."
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este ramal no está completamente combinado (merge) dentro del HEAD (puntero de última consignación)."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette branche n’est pas entièrement fusionnée dans HEAD."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "このブランチはまだ完全にHEADにマージされていません。"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Este ramo não está completamente mesclado em HEAD."
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Эта ветвь не полностью влита в ГОЛОВНУЮ."
+          }
+        },
+        "ta": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "இந்த கிளை தலையில் முழுமையாக இணைக்கப்படவில்லை."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个分支没有完全合并到 HEAD。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "該分支未完全合併到 HEAD。"
+          }
+        }
+      }
+    },
+    "This operation requires a working tree.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dieser Vorgang erfordert ein Arbeitsverzeichnis."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This operation requires a working tree."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cette opération nécessite un arbre de travail."
           }
         }
       }
@@ -192792,7 +193604,7 @@
         "de": {
           "stringUnit": {
             "state": "translated",
-            "value": "Arbeitsbaum Änderungen"
+            "value": "Änderungen im Arbeitsverzeichnis"
           }
         },
         "en": {
@@ -192810,7 +193622,7 @@
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Modifications de l'arborescence de travail"
+            "value": "Modifications de l’arbre de travail"
           }
         },
         "ja": {
@@ -201988,6 +202800,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "{checked} fichiers cochés, {shown} fichiers affichés"
+          }
+        }
+      }
+    },
+    "{count} file(s) failed.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bei {count} Datei(en) ist ein Fehler aufgetreten."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} file(s) failed."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Échec pour {count} fichier(s)."
+          }
+        }
+      }
+    },
+    "{count} file(s) reverted to {revision}.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Datei(en) auf {revision} zurückgesetzt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} file(s) reverted to {revision}."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} fichier(s) rétabli(s) à {revision}."
+          }
+        }
+      }
+    },
+    "{count} revisions selected.": {
+      "extractionState": "manual",
+      "localizations": {
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} Revisionen ausgewählt."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} revisions selected."
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "{count} révisions sélectionnées."
           }
         }
       }

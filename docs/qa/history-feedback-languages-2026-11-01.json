@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-01",
+  "status": "implemented-build-resources-passed-native-pending-external-exclusion",
+  "base_source": "3ec2d693",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Log semantic revision/file/line footer, empty/multiple-selection and navigation/export/revert feedback",
+    "Structured reference deletion warnings and buttons in shared Log/RefLog/Rebase plus Graph/Sync and separate Browse References rules",
+    "Known RefLog validation and partial-failure count header, preserving selector/diagnostic and operation-log bytes",
+    "Reviewed German/French named-field templates and static adaptations"
+  ],
+  "source_contract": [
+    "IDS_PROC_LOG_STATS; Core HistoryInformation arithmetic and English .text retained",
+    "BrowseRefsDlg.cpp single/multiple local/remote/tag and unmerged/unchecked/remote warning composition retained",
+    "HistoryReferenceDeletion ordinary/remote/stash choices, ordering and default Abort unchanged",
+    "No Core Git/data/diagnostic formatting changed; native presentation uses semantic fields, never reparses formatted Core strings"
+  ],
+  "planned_validation": {
+    "core": "No Core changes; no Core suite repeated.",
+    "resources": "Localizations write/check; registered LANGUAGES Help regenerate/check; dialog ledger reconciliation and site build.",
+    "app": "One Debug build after implementation/resources freeze.",
+    "native": "Existing history language family extended with footer/deletion/typed-feedback contracts; German/French and both Git engines. Pending external auto-close exclusion before any native run."
+  },
+  "limits": [
+    "Installed48 unchanged, predates this source batch.",
+    "Vorssaint previously sent exact Quit AppleEvent to a private receiver; user asked to pause/exclude auto-close. No repeated native runs while the interruption is unresolved.",
+    "No complete localization, graph accessibility prose, physical/signed acceptance, complete hosted CI or full-port completion claim."
+  ],
+  "retained_failures": [
+    {
+      "log": "build/qa/history-feedback-languages-debug-2026-11-01.log",
+      "cause": "Swift parsed an unspaced line-ending plus as postfix operator in the new RefLog count-header concatenation. Added operator whitespace; no label/resource or behavior change."
+    }
+  ],
+  "resources": {
+    "localizations": "write/check pass;38localeIDs,1392catalogkeys; counts do not establish complete translation",
+    "help": "write/check pass;64documents,53topics,98members,9403301bytes",
+    "site": "521 documents; unresolved_fragments=[]; log build/qa/history-feedback-languages-site-2026-11-01.log",
+    "coverage": "Reconciled; partial family statuses retained, no complete-parity claim"
+  },
+  "review": "Independent read-only review found exact Core English field/punctuation/warning equivalence and unchanged deletion choice/default/index mapping. This is static review, not runtime acceptance.",
+  "native": "Not run: external Vorssaint auto-close exclusion is still awaiting user response. Extended existing fixture retains original assertions and adds fallback/footer/deletion/default/typed-feedback checks. Batch partial-failure rendering is source-reviewed, not directly fixture-exercised.",
+  "previous_commit_hosted_snapshot": {
+    "source": "3ec2d693bc71910b1b5cb2d5377103fdf2389990",
+    "macos_run": 41259473780,
+    "macos_status": "pending",
+    "pages_run": 41259473766,
+    "pages_conclusion": "success",
+    "scope": "One observed snapshot; does not prove hosted CI for this later source batch."
+  },
+  "build": {
+    "result": "passed-after-operator-spacing-repair",
+    "log": "build/qa/history-feedback-languages-debug-repaired-2026-11-01.log",
+    "scope": "Debug app; retained resource checks after whitespace-only fix. No unrelated suites run."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommandLabel.swift": "8d987ada09001908cb835b97fd7303823d9a0051c52cf2c4c80322b727934775",
+    "Sources/TurtleGitMac/LogWindow.swift": "317f6f0e64a60ab1ab5f167ca207a88f1efc35c206bfc3aa18f94faf349a4a56",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "7770c212512b8829ed0c19cc5ede0c506064b6d10ff209396c3bc9f169c5f23b",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "da751e749a139d0e10eb5e5e4472efe8d79003159c8bc63bbb83f84e23b6371d",
+    "Sources/TurtleGitMac/HistoryWorkflowWindow.swift": "74c4f194102a5f368f7aed53b7ac5abe1ab2586ea2560452f4f5dc149e96ef06",
+    "Sources/TurtleGitMac/RevisionGraphWindow.swift": "21c52c8ca77c1dfc17e5aa9e18e088e6090ee285949181e81ec7afc0dfc554f3",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "381ac282be6c9ad44554e6f6b78e81cfd5e35d887fb700c50f1f390af6b1021d",
+    "Configuration/NativeTranslations.json": "7e122001c1def8e93aa020c37546ae17f948fb46ff54c5e1a960940f8e660269",
+    "docs/qa/history-localization-native-2026-11-01.swift": "9e274505f9cb3c03ad90af330e4d52f7267057fcdaae7f37f07a433db76e73b9"
+  }
+}

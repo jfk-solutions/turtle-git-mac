@@ -313,7 +313,7 @@ import TurtleGitCore
                 let hashes=Set(state.entries.map(\.hash));diffParents=diffParents.filter{hashes.contains($0.key)}
                 selection.formIntersection(Set(state.entries.map(\.id)));searchIndex=0;searchWrapped=false
             } catch {if !invalidated,request==generation,!token.isCancelled {
-                entries=[];selection=[];diffParents=[:];requestedDiffParents=[];self.error=error.localizedDescription
+                entries=[];selection=[];diffParents=[:];requestedDiffParents=[];self.error=ReferenceLogFeedback.presentationError(error)
             }}
         }
     }
@@ -333,7 +333,7 @@ import TurtleGitCore
         } else {message=HistoryLabels.text("Do you really want to permanently delete the {count} selected refs? It can NOT be recovered!",values:["count":String(ids.count)])}
         let proceed:()->Void = { [weak self] in
             guard let self,self.commandSurfaceAvailable,self.generation==request else {return}
-            guard GitReferenceName.equal(self.reference,reference),self.entries==expected else {self.error=ReferenceLogFailure.stale.localizedDescription;return}
+            guard GitReferenceName.equal(self.reference,reference),self.entries==expected else {self.error=ReferenceLogFeedback.presentationError(ReferenceLogFailure.stale);return}
             self.deleteConfirmed(ids,reference:reference,expected:expected,clear:clear)
         }
         guard let askDelete else {confirmDelete(message,clear,proceed);return}
@@ -357,8 +357,8 @@ import TurtleGitCore
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
                 changedOutput = clear ? try await repository.deleteStashEntries([],expected:expected,clear:true,cancellation:token):try await repository.deleteReferenceLogEntries(ids,reference:reference,expected:expected,onFailure:presentDeletionFailure,cancellation:token)
             } catch let failure as ReferenceLogDeleteBatchFailure {
-                if !invalidated,!token.isCancelled {deletionReport=failure.localizedDescription;changedOutput=failure.output+failure.localizedDescription;if presentDeletionFailure==nil {error=failure.localizedDescription}}
-            } catch {if !invalidated,!token.isCancelled {self.error=error.localizedDescription}}
+                if !invalidated,!token.isCancelled {let feedback=ReferenceLogFeedback.presentationError(failure);deletionReport=feedback;changedOutput=failure.output+failure.localizedDescription;if presentDeletionFailure==nil {error=feedback}}
+            } catch {if !invalidated,!token.isCancelled {self.error=ReferenceLogFeedback.presentationError(error)}}
             mutating=false
             guard !invalidated,!token.isCancelled,generation==request else {return}
             busy=false;if let changedOutput {onChanged(changedOutput)};reload(refreshReferences:false,preservingError:true)
@@ -554,7 +554,7 @@ import TurtleGitCore
                     outputs.append(output); changed = true
                 } catch {
                     if self.invalidated || token.isCancelled { break }
-                    await self.acknowledgeReferenceDeletionFailure(error.localizedDescription)
+                    await self.acknowledgeReferenceDeletionFailure(ReferenceLogFeedback.presentationError(error))
                     // Source continues All after reported remote/stash errors,
                     // but stops after an ordinary local reference failure.
                     if [.remoteAndLocal, .stashAll, .stashOne].contains(choice) { changed = true }
@@ -594,7 +594,7 @@ import TurtleGitCore
                 self.revisionReadToken = nil; self.busy = false; self.onTransport?(prepared)
             } catch {
                 guard let self, !self.invalidated, self.generation == request, !token.isCancelled else { return }
-                self.revisionReadToken = nil; self.busy = false; self.error = error.localizedDescription
+                self.revisionReadToken = nil; self.busy = false; self.error = ReferenceLogFeedback.presentationError(error)
             }
         }
     }
@@ -652,7 +652,7 @@ import TurtleGitCore
                 else { self.onRevertRevisions?(metadata, mainline) }
             } catch {
                 guard let self, !self.invalidated, self.generation == request, !token.isCancelled else { return }
-                self.revisionReadToken = nil; self.busy = false; self.error = error.localizedDescription
+                self.revisionReadToken = nil; self.busy = false; self.error = ReferenceLogFeedback.presentationError(error)
             }
         }
     }
@@ -712,7 +712,7 @@ import TurtleGitCore
                 self.revisionReadToken = nil; self.busy = false; self.onBisect?(result)
             } catch {
                 guard let self, !self.invalidated, !token.isCancelled, self.generation == request else { return }
-                self.revisionReadToken = nil; self.busy = false; self.error = error.localizedDescription
+                self.revisionReadToken = nil; self.busy = false; self.error = ReferenceLogFeedback.presentationError(error)
             }
         }
     }
@@ -765,15 +765,33 @@ import TurtleGitCore
                 guard !invalidated,!token.isCancelled,request==generation else { return }
                 let viewerAlternate = chosen.count == 1 && mode == .extraChanges ? false : alternate
                 if let onUnifiedDiff { try await onUnifiedDiff(bytes, viewerAlternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate, preferences: preferences, title: "Selected RefLog changes", permissions: access.map { [$0] } ?? []) {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: viewerAlternate, preferences: preferences, title: HistoryLabels.caption("Selected RefLog changes"), permissions: access.map { [$0] } ?? []) {
                     guard !invalidated,!token.isCancelled,request==generation else { return }
-                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: "Selected RefLog changes", preferences: preferences, onClosed: { [weak self] in self?.unifiedWindow = nil })
+                    unifiedWindow = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedWindow, title: HistoryLabels.caption("Selected RefLog changes"), preferences: preferences, onClosed: { [weak self] in self?.unifiedWindow = nil })
                 }
-            } catch { if !invalidated,!token.isCancelled,request==generation { self.error = error.localizedDescription } }
+            } catch { if !invalidated,!token.isCancelled,request==generation { self.error = ReferenceLogFeedback.presentationError(error) } }
         }
     }
 }
 enum ReferenceLogCopyFormat { case full, hashes, messages }
+/// Only known Reflog feedback is translated. Git/server diagnostics, selectors
+/// and failure details remain literal, independently from the surrounding UI.
+enum ReferenceLogFeedback {
+    static func presentationError(_ error:Error)->String {
+        if let failure=error as? ReferenceLogFailure {
+            switch failure {
+            case .reference:return HistoryLabels.caption("Choose HEAD or a full reference name.")
+            case .stale:return HistoryLabels.caption("The current view is out of date. Refresh and recheck the selection.")
+            case .selection:return HistoryLabels.caption("Select entries from the current reference log.")
+            }
+        }
+        if let failure=error as? ReferenceLogDeleteBatchFailure {
+            return HistoryLabels.text("Deleted entries: {completed}. Failed entries: {failed}.\n",values:["completed":String(failure.completed.count),"failed":String(failure.failures.count)]) +
+                failure.failures.map{$0.selector+": "+$0.details}.joined(separator:"\n")
+        }
+        return error.localizedDescription
+    }
+}
 enum ReferenceLogHistoryCommand: CaseIterable, Hashable {
     case reset, checkout
     var icon: MenuIcon { self == .reset ? .reset : .checkout }

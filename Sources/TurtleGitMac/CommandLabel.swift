@@ -5,6 +5,41 @@ import TurtleGitCore
 /// translating a checked template; never look up or reinterpret those values.
 enum HistoryLabels {
     private static let tokenExpression = try! NSRegularExpression(pattern: "\\{([a-z_]+)\\}")
+    /// Core keeps English summaries for non-UI callers. Native presentation
+    /// formats semantic fields instead of translating a string containing Git data.
+    static func information(_ value: HistoryInformation, bundle: Bundle = .main) -> String {
+        var result = text("Showing {revisions} revision(s), from revision {oldest} to revision {newest} - {selected_revisions} revision(s) selected, {selected_files} file(s) selected", values: [
+            "revisions": String(value.revisionCount), "oldest": value.oldest, "newest": value.newest,
+            "selected_revisions": String(value.selectedRevisionCount), "selected_files": String(value.selectedFileCount)
+        ], bundle: bundle)
+        if value.selectedRevisionCount == 1 {
+            result += text("; line: {added_lines}(+) {removed_lines}(-) files: Modified = {modified} Added = {added} Deleted = {deleted} Renamed = {renamed}", values: [
+                "added_lines": String(value.addedLines), "removed_lines": String(value.removedLines),
+                "modified": String(value.modified), "added": String(value.added), "deleted": String(value.deleted), "renamed": String(value.renamed)
+            ], bundle: bundle)
+        }
+        return result
+    }
+    static func deletion(_ value: HistoryReferenceDeletion, bundle: Bundle = .main) -> String {
+        switch value.kind {
+        case .ordinary:
+            return text("Do you really want to delete \"{reference}\"?", values: ["reference": value.name], bundle: bundle)
+                + (value.unmerged ? "\n\n" + caption("This branch is not fully merged into HEAD.", bundle: bundle) : "")
+        case .remote:
+            return text("The branch \"{reference}\" is a remote-tracking branch which locally represents a remote branch.\n\nDo you really want to delete it?", values: ["reference": value.name], bundle: bundle)
+        case .stash:
+            return text("Do you really want to delete ALL {count} stash?", values: ["count": String(value.stashEntries.count)], bundle: bundle)
+        }
+    }
+    static func deletion(_ value: ReferenceBrowserDeletionConfirmation, bundle: Bundle = .main) -> String {
+        var result = value.references.count == 1
+            ? text("Do you really want to delete \"{reference}\"?", values: ["reference": value.name], bundle: bundle)
+            : text("Do you really want to permanently delete the {count} selected refs? It can NOT be recovered!", values: ["count": String(value.references.count)], bundle: bundle)
+        if value.unmerged { result += "\n\n" + caption("This branch is not fully merged into HEAD.", bundle: bundle) }
+        if value.uncheckedMerge { result += "\n\n" + caption("It has not been checked if these branches have been fully merged into HEAD.", bundle: bundle) }
+        if value.kind == .remoteBranch { result += "\n\n" + caption("This action will remove the branches on the remote.", bundle: bundle) }
+        return result
+    }
     static func caption(_ key: String, bundle: Bundle = .main) -> String {
         bundle.localizedString(forKey: key, value: key, table: nil)
     }

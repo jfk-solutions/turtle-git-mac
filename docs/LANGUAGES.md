@@ -161,6 +161,20 @@ are checked before substitution and inserted once; braces or percent signs in a
 name remain literal. Menu actions, sorting and saved column identifiers are
 independent of the visible caption.
 
-This extends native menu coverage; it does not establish complete translation of
-Git diagnostics, the history information footer, every dialog, or the English
-Help book. Restart after applying a language change, as described above.
+The Log information footer also formats its semantic revision/file/line counts
+through checked native templates. The values and short hashes match the Core
+summary. The line/action totals remain conditional on exactly one selected
+revision, following the source dialog.
+
+Reference deletion warnings translate the question and applicable unmerged,
+unverified-merge and remote-removal paragraphs. Log, RefLog, Rebase, Revision
+Graph and Sync keep their original button choices, ordering and default Abort.
+Browse References retains its separate single/multiple-reference warning rules.
+Related history navigation/export/revert feedback and known RefLog validation
+messages use the same presentation layer. A RefLog partial-failure report
+translates its count header while keeping each selector and diagnostic literal.
+Git operation logs and arbitrary server errors are never translation keys.
+
+This does not establish complete translation of every dialog, graph accessibility
+prose, Git diagnostics or the English Help book. Restart after applying a language
+change, as described above.
