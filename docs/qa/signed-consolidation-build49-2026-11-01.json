@@ -1,0 +1,137 @@
+{
+  "kind": "TurtleGitSignedCandidateCheckpoint",
+  "date": "2026-11-01",
+  "version": "0.1.0",
+  "build": "49",
+  "source_commit": "84c8b428024f41e13724a4faebb6508b83424fb0",
+  "source_input_sha256": "4cfd0a11b0ae7c890929bdac5ebbdd3d5935a879f6f92b855b4729be8fce336e",
+  "status": "installed-local-testing-checkpoint-passed",
+  "installed": true,
+  "changes": [
+    "Historical selected-folder provider/promise metadata matches actual exported item",
+    "Same-content Unified Diff native edit/Undo admission waits for adopted document reset",
+    "Historical submodule Log validates commit availability in exact captured child",
+    "Account-home root aliases rejected consistently across Foundation versions",
+    "Semantic history footer, reference deletion warnings and related feedback localized with literal Git metadata",
+    "Partial staging manual and bundled Help describe byte-preserving legacy text support; current primary Commit screenshots required by site builder"
+  ],
+  "source_family_evidence": [
+    "qa/hosted-native-recovery-2026-11-01.json",
+    "qa/history-feedback-languages-2026-11-01.json",
+    "qa/hosted-find-handoff-recovery-2026-11-01.json"
+  ],
+  "build_receipt": "/Users/jkuehner/.codex/worktrees/turtlegit-signed49/tortoise-git-mac/build/qa/signed49-final-command-2026-11-01.json",
+  "build_log": "/Users/jkuehner/.codex/worktrees/turtlegit-signed49/tortoise-git-mac/build/qa/signed49-final-build-2026-11-01.log",
+  "superseded_attempt": {
+    "source": "d050b83a43f67d8914bbc9361d5ea4763b009cce",
+    "exit": 75,
+    "elapsed_seconds": 47.084,
+    "reason": "Owned build interrupted to include actual manual/Help correction before final assembly; caches retained."
+  },
+  "local_validation_scope": "Prior affected Core/native checks retained as recorded by family; no Core suite or passed native family repeated for assembly. Later native checks remain pending the external Vorssaint auto-close exclusion.",
+  "documentation": {
+    "manual": "Corrected UTF-8-only statement using existing byte-preserving partial staging contract; no Git algorithm change.",
+    "site": "521 documents; unresolved_fragments=[]; actual current Oct31 primary Commit images required",
+    "help": "64 documents/53 topics/98 members/9403440 bytes; write/check passed before final assembly",
+    "credits": "Read-only review found author/support/imprint consistent; no public development banner or missing current primary image found."
+  },
+  "remaining": [
+    "Pending Finder filesystem effects/ownership, history feedback language, Merge Find and Fetch/Rebase native checks after external auto-close exclusion",
+    "Complete matching-source hosted CI, physical Intel/minimum macOS, Finder/current grants, representative repository latency, keyboard/accessibility and full source/layout acceptance",
+    "Owner testing before later distribution; Store signing, licensing/terms review and publication approval remain separate"
+  ],
+  "public_binary_upload_notarization_app_store_submission": "not performed",
+  "planned_signed_probe": "Existing --only local-tools executes a disposable sandbox parent against packaged Core/Git; source localTools path does not initialize NSApplication. No App Group or outside file grants; no GUI/metafile/history phases or prior native families repeated.",
+  "main_sha256": "8d57e4e9310b817b01c4241546acd151486e7e2e0938bedcdee65336d809b69f",
+  "build_result": {
+    "configuration": "AppStore",
+    "signature": "Existing Apple Development identity for local testing",
+    "team": "A49SCA5S8K",
+    "certificate": "368185657EAF3B08917601A5447D52FE9B572E46",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "exit": 0,
+    "elapsed_seconds": 499.76,
+    "source_inputs_unchanged": true,
+    "cache": "Independent APFS clone of48; retained after47second superseded attempt."
+  },
+  "verification": {
+    "owned_universal_components": 8,
+    "runtime_code_entries": 206,
+    "help_source_members": 98,
+    "inventory_members": 6385,
+    "strict_deep_seals": true,
+    "compiled_locale_payloads_equal_source": 38,
+    "catalog_keys": 1392,
+    "runtime": "One local-tools sandbox parent passed actual public Core and packaged Git. No GUI/AppGroup/outside-grant/Finder proof inferred.",
+    "cleanup": {
+      "owned_pids_independently_absent": [
+        63764,
+        63831
+      ],
+      "shipping_app_launched": false
+    },
+    "copy_zip_extract_install_inventory_equal": true
+  },
+  "package": {
+    "directory": "build/local-testing/TurtleGit-for-Mac-0.1.0-build49-signed",
+    "archive": "TurtleGit-for-Mac-0.1.0-build49-signed.zip",
+    "archive_bytes": 423964266,
+    "archive_sha256": "785b3e63d3c795829cae43cab7d284f84bad897e059d239631d3434cf8c43a9f",
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-84c8b428024f41e13724a4faebb6508b83424fb0.tar.gz",
+      "source_commit": "84c8b428024f41e13724a4faebb6508b83424fb0",
+      "sha256": "fda390e2274a21e1f101032ac2eb31725588310050c1201573b7858600cc106b",
+      "bytes": 200971449,
+      "tracked_files": 10411,
+      "exact_tracked_tree": true,
+      "bundled_runtime_sources": "Retained separately inside application runtime payloads"
+    },
+    "apple_development_local_testing_only": true
+  },
+  "installation": {
+    "installed": true,
+    "build": "49",
+    "source_commit": "84c8b428024f41e13724a4faebb6508b83424fb0",
+    "main_sha256": "8d57e4e9310b817b01c4241546acd151486e7e2e0938bedcdee65336d809b69f",
+    "installed_inventory_matches_package": true,
+    "strict_deep_seal": true,
+    "previous_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "48",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "48"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "48"
+        }
+      }
+    },
+    "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build48-before49-2026-11-01.app",
+    "user_app_was_running": false,
+    "app_launched": false,
+    "Finder_Dock_restart": false,
+    "launch_services_registration_exit": 0,
+    "frozen_candidate_unregistration_exit": 0,
+    "public_upload": false
+  },
+  "evidence": {
+    "static": "/Users/jkuehner/.codex/worktrees/turtlegit-signed49/tortoise-git-mac/build/qa/signed49-static-2026-11-01.json",
+    "signed_probe": "build/qa/signed49-local-tools-2026-11-01.json",
+    "installation": "build/qa/signed49-installation-2026-11-01.json"
+  },
+  "documentation_checkpoint": {
+    "site_documents": 521,
+    "unresolved_fragments": [],
+    "dialog_coverage": "Reconciled pinned resource ledger; counts remain partial audit coverage, not feature completion.",
+    "bundled_help": "Exact frozen98source members verified in signed bundle. Delivery-only docs are outside registered Help topics."
+  }
+}

@@ -7,32 +7,31 @@ Full-port acceptance, distribution signing and license/Store terms review remain
 Development builds can use the installed Git executable. The App Store
 configuration requires a prepared pinned runtime and refuses external fallback.
 
-## Installed signed local testing build48
+## Installed signed local testing build49
 
-[Signed build48](qa/signed-consolidation-build48-2026-10-31.json), `0.1.0 (48)`,
-is installed from exact clean source `d6ac61b8` and left closed for local testing.
-Build47 is preserved for rollback. This consolidation includes text-editor Open
-transactions, native image/text menu and keyboard ownership, selected merge block
-commands, caret-based Blame navigation, translated Log/References/RefLog menus
-and the Sync local/remote tag actor/refill repair.
+[Signed build49](qa/signed-consolidation-build49-2026-11-01.json), `0.1.0 (49)`,
+is installed from exact clean source `84c8b428` and left closed for local testing.
+Build48 is preserved for rollback. It includes historical-folder transfer names,
+same-content Unified Diff edit/Undo admission, unavailable child-history pin
+refusal, account-home root aliases, native history feedback/deletion translations,
+and the corrected byte-preserving legacy-text partial staging guide.
 
-The universal Apple Development build, strict signatures/entitlements, eight
+Universal Apple Development signing, strict signatures/entitlements, eight
 app-owned components, 206 runtime entries, 98 Help source members and complete
 6,385-member package/install inventories pass. All 38 compiled language payloads
-match the frozen catalog's 1,361 keys where translated; this does not certify full
+match the frozen catalog's 1,392 keys where translated; this does not certify full
 UI localization. One signed sandbox parent exercised public Core and packaged Git
-local tools, then both parent and observed Git child were reaped and independently
-absent. No new shipping GUI or physical Finder acceptance is inferred.
+local tools; parent and observed Git child were reaped and independently absent.
+The probe created no application/windows or App Group/outside grants. Shipping
+GUI, physical Finder and pending native workflow acceptance remain separate.
 
-The local archive is `TurtleGit-for-Mac-0.1.0-build48-signed.zip`, SHA-256
-`65e3e960e1e5136bf235786d1bc06670a8fa95b047169c65585fc2d0c1b5e787`.
-The matching source archive contains exactly the 10,407 tracked files of the
+The local archive is `TurtleGit-for-Mac-0.1.0-build49-signed.zip`, SHA-256
+`785b3e63d3c795829cae43cab7d284f84bad897e059d239631d3434cf8c43a9f`.
+The matching source archive contains exactly the 10,411 tracked files of the
 pinned revision; runtime reconstruction inputs and notices accompany the app.
-No running user app needed closing. Installation retained build47 and refreshed
-the installed path's registration without launching TurtleGit or restarting
-Finder/Dock. This is a local development-signed test package, with no public
-binary upload, notarization or App Store submission. Complete matching-source
-hosted CI, wider physical/platform acceptance and later distribution remain open.
+No running user app needed closing. Installation retained build48 and refreshed
+Launch Services without launching the app or restarting Finder/Dock. No public
+binary upload, notarization, App Store export or submission was performed.
 
 ## Historical installed signed local testing build47
 

@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+## Installed consolidated local build49
+
+[Build49](qa/signed-consolidation-build49-2026-11-01.json), source `84c8b428`,
+is installed and left closed; build48 is preserved for rollback. It contains the
+four hosted consumer fixes below, history feedback/localized deletion warnings,
+and the corrected legacy-text partial staging guide in bundled Help.
+Universal signing, exact resources, package/source/install inventories and one
+signed command-line sandbox probe pass. No shipping GUI was launched. The
+[pending native acceptance queue](RELEASE-BLOCKERS.md#current-acceptance-queue),
+complete hosted CI, physical/platform and full-port requirements remain open.
+No public binary upload, notarization or App Store submission occurred.
+
 ## History feedback and warning presentation — November 1, 2026
 
 History information, structured reference deletion warnings and related native
