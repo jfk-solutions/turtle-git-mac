@@ -18,9 +18,14 @@ Resume only these pending families; retain the other local passes:
 | Merge Find | One shared fixture correction covers two hosted failures; unrelated wrapping cases already passed |
 | Fetch→Rebase revision lookup | Exact accepted-progress handoff check with both engines; unrelated reference/operation cases already passed |
 | Image toolbar | Retained test-sheet lifetime corrected after a separate hosted SIGSEGV; crash attribution and both-engine runtime verification remain pending |
+| Send Patch independent Review/Apply | Wait for actual worker/sheet drainage and independent-owner release; the latest hosted run exposed an immediate-close assertion in the receiver, with the original Git results and ownership checks retained |
 
 The Merge Find and Fetch entries share the [source-reviewed repair record](qa/hosted-find-handoff-recovery-2026-11-01.json).
 They do not require another app build or Core suite: only verification sources changed.
+The [Send Patch close correction](qa/hosted-send-patch-close-2026-11-01.json)
+likewise changes the receiver's observation of asynchronous closure. Its native
+runtime check is pending; it does not change installed build49 or establish a
+complete hosted pass.
 A complete hosted pass and the broader release checklist below remain required.
 
 The [bounded queue observation](qa/hosted-queue-toolbar-2026-11-01.json) records

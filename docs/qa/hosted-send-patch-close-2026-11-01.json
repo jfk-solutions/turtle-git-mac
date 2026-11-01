@@ -1,0 +1,29 @@
+{
+  "date": "2026-11-01",
+  "status": "source-correction-implemented-native-runtime-pending",
+  "hosted_evidence": {
+    "source": "8f39b0a1beb1eaac1f4ca3a0f4815d73c0cbffb9",
+    "run": 41262318755,
+    "job": 124719004462,
+    "step": 189,
+    "failure": "Review own close releases retention",
+    "failure_time_utc": "2026-11-01T02:31:31.1374780Z",
+    "preceding_results": "Merge Find, editor wrapping/encoding, patch handoff, daemon and LFS phases completed. Send Patch reached real independent Review Apply and failed the immediate retention assertion; later Send Patch cases did not run.",
+    "cleanup": "Hosted log reports owned receiver 86177 and SMTP fixture 90255 reaped."
+  },
+  "source_review": {
+    "production": "WorkingTreePatchWindowController.retireOwner intentionally schedules a main-actor release task and holds onClosed until native sheets, replacement owners and workers drain. SendPatchCommandWindows removes the independent controller only from onClosed. The fixture asserted zero registry entries without yielding after performClose.",
+    "correction": "Wait for actual Review pending-work drainage and registry release. Require retired, hidden presentation and no pending work before the original zero-retention assertion. Apply Serial similarly requires presentationClosed, no pending model work and hidden presentation with its own bounded close deadline. Review Apply gets a separate bounded operation deadline instead of borrowing the earlier initial-load deadline.",
+    "preserved": "Original selected unchecked patch bytes, file order, permission leases, parent-independent tool ownership, running Quit guards, real working-tree bytes, unchanged Review HEAD/index, real serial commit results and zero-retention assertions remain. No product behavior or timeout limit increased."
+  },
+  "validation": {
+    "core": "Not run; Core unchanged.",
+    "app": "Not rebuilt; production unchanged and installed build49 retained.",
+    "native": "Not run while the recorded external Quit interference remains unresolved. One affected Send Patch workflow checkpoint is pending; passed unrelated families are retained.",
+    "hosted": "One observed lane failure, not a complete run result. Existing runs were not restarted, rerun or cancelled."
+  },
+  "limits": [
+    "This correction has source evidence but no native runtime pass yet.",
+    "Full hosted CI, signed UI acceptance and full port parity remain open."
+  ]
+}

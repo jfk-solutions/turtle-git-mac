@@ -533,12 +533,22 @@ private actor MailDraftProbe {
         reviewChild.model.apply()
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,
                     "Independent running review still prevents application termination")
-        while reviewChild.model.busy && Date() < reviewDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        let reviewApplyDeadline = Date().addingTimeInterval(15)
+        while reviewChild.model.busy && Date() < reviewApplyDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(!reviewChild.model.busy, "Review Apply finishes before inspecting working-tree results")
         let reviewHead = try await toolsRepository.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         let reviewedBytes = try Data(contentsOf: workingFile), reviewedIndex = try Data(contentsOf: toolRoot.appendingPathComponent(".git/index"))
         try require(reviewedBytes == Data("first\n".utf8) && reviewHead == base && reviewedIndex == originalIndex,
                     "Review Apply mutates working file while preserving HEAD/index")
         reviewChild.window?.performClose(nil)
+        // Review retires immediately but releases its independent owner only
+        // after workers and native sheets drain on the main actor.
+        let reviewCloseDeadline = Date().addingTimeInterval(15)
+        while (reviewChild.hasPendingWork || SendPatchCommandWindows.activeCount != 0) && Date() < reviewCloseDeadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        try require(!reviewChild.canReuse && !reviewChild.hasPendingWork && reviewChild.window?.isVisible == false,
+                    "Review own close retires presentation and drains owned work")
         try require(SendPatchCommandWindows.activeCount == 0, "Review own close releases retention")
         _ = try await toolsRepository.run(["reset", "--hard", base])
         let applyOptions = SendPatchWindowController(files: serialFiles + [serialFiles[0]], access: [grant], preferences: prefs, repository: toolsRepository,
@@ -561,7 +571,12 @@ private actor MailDraftProbe {
         try require(applyChild.model.finished && applyChild.model.error == nil && importedBytes == Data("second\n".utf8) && importedSubjects == "Patch 2\nPatch 1\n",
                     "Apply Serial imports both real commits in highlighted order")
         applyChild.window?.performClose(nil)
-        while SendPatchCommandWindows.activeCount != 0 && Date() < importDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        let importCloseDeadline = Date().addingTimeInterval(15)
+        while (!applyChild.presentationClosed || SendPatchCommandWindows.activeCount != 0) && Date() < importCloseDeadline {
+            try await Task.sleep(nanoseconds: 10_000_000)
+        }
+        try require(applyChild.presentationClosed && !applyChild.model.hasPendingWork && applyChild.window?.isVisible == false,
+                    "Apply own close drains work and presentation before releasing retention")
         try require(SendPatchCommandWindows.activeCount == 0, "Apply own guarded close releases retention")
         for key in identityKeys {
             if let value = previousIdentity[key] { setenv(key, value, 1) } else { unsetenv(key) }
