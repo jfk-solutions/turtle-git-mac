@@ -143,10 +143,15 @@ struct ReleaseUpdateNativeVerification {
             for (index,button) in buttons.enumerated() {
                 let asset=owner.model.assets[index]
                 try require(button.isEnabled==owner.model.canSelect(asset) && (button.state == .on)==owner.model.selected.contains(asset.id),"Actual release checkbox checked/enabled state differs: \(asset.name)")
+                try require(button.accessibilityIdentifier()=="release-asset-\(asset.id)" && button.accessibilityLabel()==asset.name && button.attributedTitle.string.hasSuffix(asset.name),
+                            "Native release checkbox lost its exact asset identity/title")
+                try require(button.target != nil && button.action != nil,"Native release checkbox has no owned action")
             }
             let asset=owner.model.assets[1],selection=owner.model.selected
             buttons[1].performClick(nil);try await wait{owner.model.selected==selection.union([asset.id])}
+            try require(buttons[1].state == .on,"Native release checkbox did not acknowledge checked receipt")
             buttons[1].performClick(nil);try await wait{owner.model.selected==selection}
+            try require(buttons[1].state == .off,"Native release checkbox did not acknowledge unchecked receipt")
             buttons[2].performClick(nil)
             try require(owner.model.selected==selection && !buttons[2].isEnabled,"Disabled digest-less native checkbox changed selection")
             print("Updates actual native row checkbox states/enabledness and exact asset-binding actions passed")

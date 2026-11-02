@@ -34,6 +34,14 @@ and explains how to export them separately. It does not silently omit one path
 or overwrite the first with the second. Export execution rejects an unselected
 canonical neighbor as well.
 
+Working-tree status can identify an untracked directory or embedded repository
+with one trailing slash, such as `nested/`. Native command admission validates
+the directory components while preserving that exact status path for Git. Normal
+Add remains available; executable/symlink Add variants still reject directories.
+Historical tree paths retain their filename validation. Empty paths, absolute
+paths, repeated separators, dot/parent components and nonrepresentable raw names
+do not gain admission from the directory suffix.
+
 ## Context menus and delayed work
 
 Every changed-file menu leaf, including nested flags, Resolve, Ignore, Copy,

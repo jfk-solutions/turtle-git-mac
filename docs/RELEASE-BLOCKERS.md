@@ -7,41 +7,42 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
-Native runtime checks are waiting for the external Vorssaint auto-close exclusion.
-The exact Quit sender was recorded in the [hosted recovery batch](qa/hosted-native-recovery-2026-11-01.json).
-After the owner requested continuation, the [next grouped repair checkpoint](qa/hosted-native-continuation-2026-11-01.json)
-passed the Debug build and system-Git filesystem effects. Vorssaint then sent Quit
-to the bundled-Git receiver, so remaining local native checks stopped. Preserve
-that system-Git pass; resume bundled-Git effects and both-engine ownership only.
-Resume only these pending families; retain the other local passes:
+The [November 2 workflow batch](qa/native-workflow-continuation-2026-11-02.json)
+fixes Log directory admission and gives release-asset checkboxes owned native
+actions. It also repairs the related mail-close, image Open, chooser, editor
+projection and final Switch-icon checks. Its Debug build passes; native runtime
+and a complete corrected-source hosted pass remain pending.
 
-| Family | Pending scope |
+Hosted run `41284129922` on `f1ea8274` passed Core, SVN, the five first-use Finder
+Services families, whole-line editing, temporary zoom, metafile consumers/colors
+and revision/reference validation. Retain those bounded passes. Programmatic
+Finder receiver coverage does not establish physical Finder or signed acceptance.
+The run still failed seven native lanes at later assertions.
+
+Local native checks remain subject to the [recorded external Quit sender](qa/hosted-native-continuation-2026-11-01.json).
+Vorssaint terminated the bundled-Git filesystem receiver after its system-Git
+counterpart passed. No local receivers were launched for the November 2 batch;
+the owner has been asked to pause automatic closing. Continue independent hosted
+validation while this local interference is unresolved.
+
+| Family | Remaining scope |
 | --- | --- |
-| Finder filesystem Services | Bundled-Git effects and both-engine ownership; system-Git effects and provider already pass |
-| Finder linked/history Services | Explicit property captures repaired at the hosted compiler boundary; linked and history workflow checks pending |
-| Switch conflict recovery | Restore source Resolve/Retry after an accepted merge checkout leaves conflicts; focused Switch/RefLog cases pending |
-| Unified Diff editor readiness | Whole-line Save/Undo and zoom receivers now await actual native projection/editability; affected families pending |
-| Log Add modes | Retain exact file mode/blob/HEAD/index assertions while checking selected visual path order; affected family pending |
-| Image colors | Supply the captured invisible key owner for real D-key dispatch; original palette/pixel assertions retained |
-| History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json) |
-| Merge Find | One shared fixture correction covers two hosted failures; unrelated wrapping cases already passed |
-| Fetch→Rebase revision lookup | Exact accepted-progress handoff check with both engines; unrelated reference/operation cases already passed |
-| Image toolbar | Retained test-sheet lifetime corrected after a separate hosted SIGSEGV; crash attribution and both-engine runtime verification remain pending |
-| Send Patch independent Review/Apply | Wait for actual worker/sheet drainage and independent-owner release; the latest hosted run exposed an immediate-close assertion in the receiver, with the original Git results and ownership checks retained |
+| Log Add modes | Actual nested-repository directory Add with strict status-path validation; preserve mode/blob/HEAD/index assertions |
+| Release download rows | Native checkbox action/identity and stale-owner fences, existing download/hash/cancellation and App Store isolation |
+| Mail options and progress | Actual asynchronous Cancel/drain across Format/Import and both delivery routes |
+| Image Open | Real Cmd+O with exact invisible key ownership; preserve foreign-owner/event/sheet rejection and original Open workflow |
+| Literal tool chooser | Actual Browse pointer tracking, sheet receipts, stale replies and owner retirement; forms/associations already passed |
+| Unified Diff command families | Actual new native reset before cursor/caret/word/block/selection/column commands and IME checks |
+| Express Switch | Final explicit nine-action/icon assertion; real earlier Resolve/Retry steps now pass |
+| History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json), runtime pending |
+| Later bundled-Git cases | Earlier grouped Find/mail/image commands stopped during system-Git cases; unexecuted later engine cases remain unverified |
 
-The Merge Find and Fetch entries share the [source-reviewed repair record](qa/hosted-find-handoff-recovery-2026-11-01.json).
-They do not require another app build or Core suite: only verification sources changed.
-The [Send Patch close correction](qa/hosted-send-patch-close-2026-11-01.json)
-likewise changes the receiver's observation of asynchronous closure. Its native
-runtime check is pending; it does not change installed build49 or establish a
-complete hosted pass.
-A complete hosted pass and the broader release checklist below remain required.
-
-The [bounded queue observation](qa/hosted-queue-toolbar-2026-11-01.json) records
-cancellation of superseded failing source `141b04f6` and subsequent start of the
-newer `8f39b0a1` workflow. Completed failure evidence remains retained. This is a
-queue transition, not a successful full CI result; the toolbar fixture correction
-still needs its own affected runtime check.
+The [earlier grouped recovery](qa/hosted-native-continuation-2026-11-01.json),
+[Find/Fetch repairs](qa/hosted-find-handoff-recovery-2026-11-01.json) and
+[Send Patch close correction](qa/hosted-send-patch-close-2026-11-01.json) retain
+original failure and source-review evidence. Later matched-source passes supersede
+only the corresponding pending runtime entries, not the full release gates.
+Installed signed build49 is unchanged by these source continuations.
 
 ## Finish line for the first locally accepted release
 

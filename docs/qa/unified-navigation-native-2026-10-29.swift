@@ -48,11 +48,12 @@ private extension NSWindow {
     static func ready(_ s:Surface)async throws {
         await withCheckedContinuation {(reply:CheckedContinuation<Void,Never>) in DispatchQueue.main.async {reply.resume()}}
         s.window.contentView?.layoutSubtreeIfNeeded()
-        try await wait {s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.busy}
+        try await wait {s.text.coordinator?.hasCurrentDocumentProjection == true && s.model.sourceAttached() && s.text.isEditable==s.model.canEditText && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.busy}
     }
     static func load(_ s:Surface,_ bytes:Data)async throws {
+        let previousReset=s.model.documentResetRevision
         s.owner.presentDocument(bytes,title:"Private caret document",comparison:"caret.patch",information:"Owned native verification")
-        try await wait {s.model.canEditText && s.text.isEditable && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.documentDirty && PatchDocumentSession.activeOperations==0}
+        try await wait {s.model.documentResetRevision != previousReset && s.text.coordinator?.hasCurrentDocumentProjection == true && s.model.sourceAttached() && s.model.canEditText && s.text.isEditable && s.text.string.utf16.elementsEqual(s.model.document.text.utf16) && !s.model.documentDirty && PatchDocumentSession.activeOperations==0}
         s.window.contentView?.layoutSubtreeIfNeeded();s.window.makeFirstResponder(s.text)
         try require(try s.session.encodedBytes()==bytes,"Caret load changed original byte packets")
     }

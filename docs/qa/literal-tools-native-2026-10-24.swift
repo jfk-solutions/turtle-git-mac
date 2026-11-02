@@ -33,7 +33,11 @@ private struct LiteralToolForm:View {
         guard let hit=content.hitTest(content.convert(point,from:nil)),hit.window === window else{throw Failure(description:"Actual Browse center has no owned hit-test target")}
         guard let down=NSEvent.mouseEvent(with:.leftMouseDown,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1),let up=NSEvent.mouseEvent(with:.leftMouseUp,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime+0.01,windowNumber:window.windowNumber,context:nil,eventNumber:2,clickCount:1,pressure:0) else{throw Failure(description:"Owned Browse mouse event unavailable")}
         print("Browse pointer control=\(type(of:control)) hit=\(type(of:hit)) point=\(point)")
-        window.sendEvent(down);window.sendEvent(up)
+        // Native buttons may synchronously track until mouse-up. Queue this
+        // owned release first so the tracking loop can consume it while the
+        // real Browse mouse-down is being dispatched.
+        NSApp.postEvent(up,atStart:true)
+        window.sendEvent(down)
     }
     @MainActor static func host<V:View>(_ view:V)->NSWindow {
         let window=NSWindow(contentRect:.init(x:0,y:0,width:900,height:650),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)

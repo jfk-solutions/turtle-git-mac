@@ -3156,9 +3156,17 @@ struct LogCommandRequest: Identifiable {
     func hasRepresentableFilePaths(_ ids: some Sequence<String>) -> Bool {
         let ids=GitPathSet(ids)
         let chosen=visibleFiles.filter { ids.contains($0.id) }
+        func representable(_ path:String)->Bool {
+            // Porcelain status uses one trailing slash for an untracked
+            // directory (including an embedded repository). Browser tree
+            // filenames never have this suffix. Validate the directory's
+            // components without changing the literal path sent to Git.
+            let candidate=selectedWorkingTree && path.hasSuffix("/") ? String(path.dropLast()):path
+            guard !candidate.isEmpty else{return false}
+            return (try? RepositoryBrowserGitPath(key:candidate).isRepresentable)==true
+        }
         return !chosen.isEmpty && chosen.allSatisfy { file in
-            (try? RepositoryBrowserGitPath(key:file.path).isRepresentable)==true &&
-            (file.oldPath.map { (try? RepositoryBrowserGitPath(key:$0).isRepresentable)==true } ?? true)
+            representable(file.path) && (file.oldPath.map(representable) ?? true)
         }
     }
     @discardableResult private func requireNativeFilePaths(_ ids: some Sequence<String>) -> Bool {

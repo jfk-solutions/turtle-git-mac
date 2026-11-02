@@ -1,0 +1,165 @@
+{
+  "date": "2026-11-02",
+  "status": "implementation-and-debug-build-complete-native-runtime-pending",
+  "source_base": "f1ea8274f28353f0c6117cb9ab704d75d7a4aaf7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_evidence": {
+    "run": 41284129922,
+    "core_job": 124785116784,
+    "core_result": "success",
+    "svn_job": 124784875541,
+    "svn_result": "success",
+    "overall": "failure; all seven native lanes stopped later; not a complete pass",
+    "retained_successes": [
+      {
+        "job": 124785116827,
+        "steps": [
+          125,
+          126,
+          127,
+          128,
+          129
+        ],
+        "scope": "Native first-use Finder repository, selected-file, filesystem, linked and history Services; does not establish physical Finder integration."
+      },
+      {
+        "job": 124785116825,
+        "steps": [
+          145
+        ],
+        "scope": "Whole-line native editing and exact byte provenance."
+      },
+      {
+        "job": 124785116739,
+        "steps": [
+          151
+        ],
+        "scope": "Temporary zoom, reflow and printing."
+      },
+      {
+        "job": 124785116747,
+        "steps": [
+          158,
+          160
+        ],
+        "scope": "Metafile consumers/colors and classic Boolean raster workflows."
+      },
+      {
+        "job": 124785116760,
+        "steps": [
+          235
+        ],
+        "scope": "Revision/reference selection validation, including prior Fetch handoff repair."
+      }
+    ]
+  },
+  "repairs": [
+    {
+      "family": "Log working-folder actions",
+      "kind": "production",
+      "job": 124785116761,
+      "step": 429,
+      "failure": "Native Log Add modes at1117 rejects embedded untracked directory.",
+      "cause": "RepositoryBrowserGitPath filename validation rejects the trailing slash used by porcelain status for an embedded/untracked repository directory.",
+      "change": "For working-tree status only, validate components with exactly one terminal slash removed, retaining the original path passed to Git. Reject empty/absolute/repeated/dot/parent/nonrepresentable paths; historical filenames remain strict. Original real nested gitlink staging and HEAD/index/mode/blob assertions retained."
+    },
+    {
+      "family": "Release download selection",
+      "kind": "production and receiver",
+      "job": 124785116747,
+      "step": 198,
+      "failure": "Update timeout at148 after actual checked/enabled state checks and native performClick.",
+      "cause": "The row checkbox action depended on the hosting List Toggle bridge rather than an app-owned native target.",
+      "change": "Use NSButton with exact asset/release-generation action receipt, checked/availability state, filename/icon/accessibility identity, and detached/retired/replaced-owner fences. Preserve native actual click, exact selection, download/hash/cancellation assertions and existing layout."
+    },
+    {
+      "family": "Mail options/progress close",
+      "kind": "receiver",
+      "job": 124785116737,
+      "step": 189,
+      "failure": "Format client options Cancel.",
+      "cause": "Synchronous fixture expectation conflicts with existing deliberate asynchronous worker/sheet/parent drainage.",
+      "change": "Await actual canceled options and progress drainage across Format/Import, SMTP and mail-client paths; assert retirement/invisibility and original exactly-once parent release. No production change."
+    },
+    {
+      "family": "Image Open native focus",
+      "kind": "receiver",
+      "job": 124785116739,
+      "step": 155,
+      "failure": "Image Open line92 on first Cmd+O.",
+      "cause": "Invisible prohibited receiver has no physical key window; production correctly requires exact owning toolbar key window.",
+      "change": "Scope existing key-owner seam around the original real Cmd+O, restore it immediately, and retain negative absent-key/foreign-event/active-sheet guards plus all original Open/bytes/lease assertions."
+    },
+    {
+      "family": "Tool application chooser",
+      "kind": "receiver",
+      "job": 124785116827,
+      "step": 141,
+      "failure": "Chooser times out after300s; forms/associations already passed.",
+      "cause": "Sending mouse-down synchronously enters native tracking before the subsequent mouse-up can be delivered.",
+      "change": "Queue the owned mouse-up first, then dispatch the original actual mouse-down. Preserve hit testing, Browse/receipt/sheet/retirement assertions and timeout. No production change."
+    },
+    {
+      "family": "Unified Diff cursor and related command projection",
+      "kind": "receiver",
+      "job": 124785116825,
+      "step": 150,
+      "failure": "Cursor line190 IME composition assertion.",
+      "cause": "Same-byte load can return before the new reset reaches the native editor; marked-text insertion is then correctly refused by the projection guard.",
+      "change": "Require a new reset and actual native projection/source attachment on load, and actual editability on readiness, across cursor/caret/word/block/selection/column command fixtures. Preserve IME refusal, native commands, exact byte/Undo/ownership assertions; no product change."
+    },
+    {
+      "family": "Express Switch action icons",
+      "kind": "receiver",
+      "job": 124785116760,
+      "step": 248,
+      "failure": "Final icon-list assertion at receiverline107 after real workflow checks.",
+      "cause": "Intentional read-only inspectResult recovery was added earlier but old fixture still expected eight actions.",
+      "change": "Assert all nine explicit actions and original eight source icons plus Refresh for read-only result inspection; retain every Git/HEAD/index/callback/ownership assertion."
+    }
+  ],
+  "source_review": {
+    "upstream": "CheckForUpdatesDlg.cpp native checkbox list, selection and transfer locking; AppUtils.cpp/FormatPatchCommand.cpp modal mail ownership; TortoiseIDiff/MainWindow.cpp Open prefill and OK-only replacement; SettingsProgsDiff/Merge owner-bound file selection; GitStatusListCtrl selected status paths.",
+    "limits": "Source reviews do not replace pending native runtime, full rendered parity or signed acceptance."
+  },
+  "validation": {
+    "debug": {
+      "result": "success",
+      "log": "build/qa/native-workflow-continuation-debug-2026-11-02.log",
+      "command": "env -u SDKROOT xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+    },
+    "core": "Not repeated locally: no Core changes, retain matched hosted pass.",
+    "native": "No receivers launched in this batch. Vorssaint remains running, with a previous exact Quit sender/receiver record. Asked owner to pause automatic closing; no affirmative response received at source freeze. Use hosted validation rather than repeating interrupted local checks.",
+    "resources": "No literal native UI captions or registered Help guides changed; no catalog/Help regeneration.",
+    "pending_checkpoint_commands": [
+      "python3 scripts/check-cherry-pick-native.py --only log-add-modes --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-release-updates.py --only source --only lifetime",
+      "python3 scripts/test-send-patch-dialog.py",
+      "python3 scripts/test-image-command-family.py --only open --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-literal-tools.py --only chooser",
+      "python3 scripts/test-unified-cursor.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-native-reflog-batch.py --only express-switch --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    ],
+    "limits": "Remaining changed Unified Diff fixture families also require their existing grouped hosted cases; listed focused commands are not the entire release suite."
+  },
+  "cleanup": {
+    "native": "No local test processes/windows were created. Debug build completed normally. No user app, Finder or Dock terminated.",
+    "browser": "One owned failure-inspection tab closed after reading three inaccessible job-log steps; no tab retained."
+  },
+  "distribution": "Installed signed build49 unchanged; no signed/public binary, notarization or App Store submission. Full hosted CI, physical/signed/accessibility acceptance and whole-port parity remain open.",
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "2c0594a647b7718b0769997f808c49ff86fe8c572be3879ae35f6c92a363d204",
+    "Sources/TurtleGitMac/ReleaseUpdateWindow.swift": "3ba667dd78a3bd3b2042f766bd5bf0b8620f9296357dc6d6e7daf3396a244248",
+    "docs/qa/send-patch-dialog-native-2026-10-10.swift": "67e1fc4a5f1c09fc13c197c9ceb016f7c69870c8314a9ba101a46a245279b894",
+    "docs/qa/image-open-native-2026-10-10.swift": "8476c8ac028617dd9d1fc62a4e8eba4368b5fa9515145409673bea923e90c580",
+    "docs/qa/literal-tools-native-2026-10-24.swift": "77199844d55ff3beb31509d003f5ddf9639c8799006e00c20a56fe067c42a81e",
+    "docs/qa/reflog-express-switch-native-2026-10-08.swift": "894bfa930812b17eea139ff9d16abbcc6f5c405810cd92f1fe077ba11d5a4343",
+    "docs/qa/release-update-native-2026-10-17.swift": "0f8abd99c9b43375487530d748bb927feeb653b0b3f8250c2da798f758dec94a",
+    "docs/qa/unified-cursor-native-2026-10-29.swift": "a9cd8c765465ee1795ae2024fa409a700705cb98b140cc8019fdcab548d50648",
+    "docs/qa/unified-caret-native-2026-10-28.swift": "137435f40bea2d64f9d6d53e5b4fbbc1cbc3b279121cd0cde54d6e66cc8d657e",
+    "docs/qa/unified-navigation-native-2026-10-29.swift": "f35479a1f0482fe0aa234eaa8a847431a01d300f6fb9878f2e51676248097014",
+    "docs/qa/unified-block-navigation-native-2026-10-29.swift": "ff08b08d4f7812bd9d9ab602b01e84df18a815755db7ed2b51dc228675e9cd95",
+    "docs/qa/unified-selection-edit-native-2026-10-29.swift": "29310dbe752cac950a0b5e07e828610e196d4be98b8caa8001d91c12f58de6cb",
+    "docs/qa/unified-column-edit-native-2026-10-27.swift": "d8bb01438586f6747b0bb2ed159de07dcee60d83b23d72e758a6b18068f7b945"
+  }
+}

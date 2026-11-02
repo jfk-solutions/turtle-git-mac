@@ -81,23 +81,36 @@ import Darwin
             return loader
         }
         controller.model.load(); try await wait { !controller.model.busy }; window.contentView?.layoutSubtreeIfNeeded()
-        try await wait { (window as? ImageComparisonKeyRouting)?.imageKeyModel != nil }
+        try await wait { (window as? ImageComparisonKeyRouting)?.imageKeyModel != nil && controller.imageToolbar != nil }
         window.orderFront(nil); window.orderOut(nil); try await settle()
         let pane = (window as! ImageComparisonKeyRouting).imageKeyModel!
         pane.vertical = true; pane.linked = false; pane.showInfo = true; pane.alpha = 0.75
         pane.toggleWidths(); pane.toggleHeights()
         try require(pane.fitWidths && pane.fitHeights)
         @MainActor func open() async throws -> ImageLoadWindowController {
-            let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "o", charactersIgnoringModifiers: "o", isARepeat: false, keyCode: 31)!
-            try require(window.performKeyEquivalent(with: event)); try await wait { window.attachedSheet != nil }
+            try dispatchOpen(controller)
+            try await wait { window.attachedSheet != nil }
             window.orderOut(nil); window.attachedSheet!.orderOut(nil)
             guard let loader = window.attachedSheet!.delegate as? ImageLoadWindowController else { throw Failure(line: #line) }
             try require(!window.isVisible && !loader.window!.isVisible && !controller.windowShouldClose(window))
+            // A retained viewer key event cannot replace the active chooser.
+            try dispatchOpen(controller, expectingHandled: false)
+            try require(window.attachedSheet === loader.window)
             try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
             try await wait{!loader.reading && loader.left.isEnabled && loader.right.isEnabled}
             return loader
         }
         let initial = controller.model.document!
+        beginPhase("native Open key ownership")
+        try dispatchOpen(controller, admittingOwner: false, expectingHandled: false)
+        try require(window.attachedSheet == nil && controller.model.document?.base.bytes == initial.base.bytes)
+        do {
+            let foreignWindow = NSWindow(contentRect: .zero, styleMask: .borderless, backing: .buffered, defer: false)
+            foreignWindow.isReleasedWhenClosed = false
+            defer { foreignWindow.close() }
+            try dispatchOpen(controller, eventWindow: foreignWindow, expectingHandled: false)
+            try require(window.attachedSheet == nil && controller.model.document?.destination.bytes == initial.destination.bytes)
+        }
         print("FIRST OPEN"); fflush(stdout)
         var loader = try await open()
         beginPhase("original cancel",{state(loader)})
@@ -174,12 +187,25 @@ import Darwin
         let finalA = try Data(contentsOf: left), finalB = try Data(contentsOf: right), finalC = try Data(contentsOf: other)
         try require(finalHead == head && finalIndex == index && finalA == a && finalB == b && finalC == c)
         try await cleanup()
-        print("PASS: Native Cmd+O, left-only prefill, two path fields and actual OK/Cancel; missing path retains chooser/current images, identical and empty sides, replacement title/fit and retained view modes; ungranted typed path opens native file authorization and cancellation prevents acceptance; pregranted standalone acceptance retains and releases its lease; close/Quit guards; unchanged HEAD/index/file bytes. All owned windows closed.")
+        print("PASS: Native Cmd+O with exact invisible owner, rejected absent key ownership, foreign-window events and repeated Open while chooser owns admission; left-only prefill, two path fields and actual OK/Cancel; missing path retains chooser/current images, identical and empty sides, replacement title/fit and retained view modes; ungranted typed path opens native file authorization and cancellation prevents acceptance; pregranted standalone acceptance retains and releases its lease; close/Quit guards; unchanged HEAD/index/file bytes. All owned windows closed.")
         } catch {let original=error;do {try await cleanup()}catch {throw NSError(domain:"Image Open cleanup: \(original); \(error)",code:1)};throw original}
     }
 }
 
 extension ImageOpenVerification {
+    @MainActor static func dispatchOpen(_ owner:FileComparisonWindowController, eventWindow:NSWindow?=nil, admittingOwner:Bool=true, expectingHandled:Bool=true) throws {
+        guard let window=owner.window,let toolbar=owner.imageToolbar else {throw Failure(line:#line,detail:"Image Open native owner/toolbar absent")}
+        // A prohibited receiver cannot acquire physical key focus. Supply only
+        // its exact invisible owner through the existing toolbar focus seam;
+        // keep the actual NSWindow key route and all production admission guards.
+        let originalKeyWindow=toolbar.keyWindow
+        defer {toolbar.keyWindow=originalKeyWindow}
+        toolbar.keyWindow={ [weak window] in admittingOwner ? window : nil }
+        let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,
+            windowNumber:(eventWindow ?? window).windowNumber,context:nil,characters:"o",charactersIgnoringModifiers:"o",isARepeat:false,keyCode:31)!
+        try require(event.window === (eventWindow ?? window))
+        try require(window.performKeyEquivalent(with:event)==expectingHandled)
+    }
     @MainActor static func state(_ chooser:ImageLoadWindowController)->String {
         "reading=\(chooser.reading) retired=\(chooser.retired) releases=\(ImageLoadWindowController.activeReleases) leftEnabled=\(chooser.left.isEnabled) left=\(chooser.left.stringValue) sheet=\(String(describing:chooser.window?.sheetParent))"
     }

@@ -104,6 +104,20 @@ private actor MailDraftProbe {
         while model.pendingLoads != 0 && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         try require(model.pendingLoads == 0, "Owned file preparation did not finish")
     }
+    @MainActor static func settleMailRelease(_ message: String, ready: () -> Bool) async throws {
+        // Native close retires the presentation immediately; canceled file
+        // readers, sheet dismissal and the retained workflow drain on later
+        // main-actor turns before the source-modal parent is released.
+        let deadline = Date().addingTimeInterval(15)
+        while !ready() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+        try require(ready(), message + " did not drain owned work")
+    }
+    @MainActor static func settleMailOptions(_ controller: SendPatchWindowController?, parentReleased: () -> Bool) async throws {
+        guard let controller else { throw VerificationFailure(description: "Mail options missing before Cancel") }
+        try await settleMailRelease("Mail options Cancel") { !controller.hasPendingWork && parentReleased() }
+        try require(!controller.canReuse && controller.model.isRetired && controller.window?.isVisible == false,
+                    "Cancelled mail options retire the hidden presentation before parent release")
+    }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
         let selectedGit=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_SEND_SOURCE_GIT"] ?? "/usr/bin/git")
@@ -671,14 +685,18 @@ private actor MailDraftProbe {
             mailPresentation: { clientFormatOptions = $0 as? SendPatchWindowController })
         clientFormat.model.close = {}
         clientFormat.model.composeMail([first]); try require(clientFormat.model.composingMail && clientFormatOptions?.model.delivery == .mailClient, "Format client native options")
-        clientFormatOptions?.model.cancel(); try require(!clientFormat.model.composingMail, "Format client options Cancel")
+        clientFormatOptions?.model.cancel()
+        try await settleMailOptions(clientFormatOptions) { !clientFormat.model.composingMail }
+        try require(!clientFormat.model.composingMail, "Format client options Cancel")
         clientFormat.window?.performClose(nil)
         var clientImportOptions: SendPatchWindowController?
         let clientImport = ImportPatchWindowController(repository: repository, access: nil, preferences: prefs,
             mailPresentation: { clientImportOptions = $0 as? SendPatchWindowController })
         clientImport.model.add([second]); clientImport.model.sendMail(Set(clientImport.model.items.map(\.id)))
         try require(clientImport.model.composingMail && clientImportOptions?.model.delivery == .mailClient, "Import client native options")
-        clientImportOptions?.model.cancel(); try require(!clientImport.model.composingMail, "Import client options Cancel")
+        clientImportOptions?.model.cancel()
+        try await settleMailOptions(clientImportOptions) { !clientImport.model.composingMail && !clientImport.model.hasPendingWork }
+        try require(!clientImport.model.composingMail, "Import client options Cancel")
         clientImport.window?.performClose(nil)
         print("Mail client: real Git sender, immutable ordered staged attachments/To/CC/body/subject, no configured server, accepted-prefix uncertain stop, local typed Apple Event arguments and actual Format/Import options/Cancel verified. No Apple Mail or public mail invoked.")
         var liveOptions = mailOptions; liveOptions.combine = true; liveOptions.attachment = true; liveOptions.subject = "Captured series"
@@ -709,6 +727,7 @@ private actor MailDraftProbe {
         try require(directFormat.model.composingMail && directOptions.model.delivery == .smtp && directOptions.window?.isVisible == false,
                     "Actual direct Format factory uses retained hidden SMTP options")
         directOptions.model.cancel()
+        try await settleMailOptions(directOptions) { !directFormat.model.composingMail }
         try require(!directFormat.model.composingMail, "Direct options Cancel releases parent")
         var directImportOptions: SendPatchWindowController?
         let directImporter = ImportPatchWindowController(repository: repository, access: nil, preferences: prefs,
@@ -716,7 +735,9 @@ private actor MailDraftProbe {
         directImporter.model.add([second]); directImporter.model.sendMail(Set(directImporter.model.items.map(\.id)))
         guard let directImportOptions else { throw VerificationFailure(description: "Direct Import mail did not enter SMTP options") }
         try require(directImporter.model.composingMail && directImportOptions.model.delivery == .smtp, "Direct Import factory uses retained SMTP options")
-        directImportOptions.model.cancel(); try require(!directImporter.model.composingMail, "Direct Import options Cancel unlocks parent")
+        directImportOptions.model.cancel()
+        try await settleMailOptions(directImportOptions) { !directImporter.model.composingMail && !directImporter.model.hasPendingWork }
+        try require(!directImporter.model.composingMail, "Direct Import options Cancel unlocks parent")
         directImporter.window?.performClose(nil)
         let directPartial = SendPatchProgressModel(request: directRequest, repository: repository, access: nil, preferences: prefs, submission: { token, _ in
             token.cancel()
@@ -754,12 +775,14 @@ private actor MailDraftProbe {
                     "Actual Format options/progress/Git sender/SDK SMTP submission: busy=\(progress.model.busy), success=\(progress.model.success), accepted=\(progress.model.accepted), percentage=\(progress.model.percentage), error=\(progress.model.error ?? "none")")
         try require(progress.window?.isVisible == false && format.model.composingMail, "Progress retained until user close without ordered windows")
         progress.window?.performClose(nil)
+        try await settleMailRelease("Final Format mail close") { !format.model.composingMail && !format.hasPendingWork && formatCloses == 1 }
         try require(!format.model.composingMail && formatCloses == 1, "Final close releases Format parent once")
         var importOptions: SendPatchWindowController?
         let importer = ImportPatchWindowController(repository: repository, access: nil, preferences: prefs, mailPresentation: { importOptions = $0 as? SendPatchWindowController })
         importer.model.add([second]); importer.model.sendMail(Set(importer.model.items.map(\.id)))
         try require(importer.model.composingMail && importOptions != nil, "Import selected mail configured route")
         importOptions?.model.cancel()
+        try await settleMailOptions(importOptions) { !importer.model.composingMail && !importer.model.hasPendingWork }
         try require(!importer.model.composingMail && importer.model.error == nil, "Cancelling Import mail options unlocks parent")
         importer.window?.performClose(nil)
 

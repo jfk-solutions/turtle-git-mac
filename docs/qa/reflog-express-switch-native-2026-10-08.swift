@@ -103,7 +103,10 @@ import TurtleGitCore
         await fromUnborn.run(); precondition(fromUnborn.success && fromUnborn.previousBranch == "unborn")
         let attached = try await unbornRepo.branch(); precondition(attached == "topic")
         model.invalidate(); precondition(model.switchBranches([older.id]).isEmpty)
-        precondition(SwitchPostAction.allCases.map(\.icon) == [.fetch, .merge, .pull, .commit, .resolve, .stash, .mergeReload, .checkout])
+        // Accepted-command inspection recovery joins the source post-actions;
+        // it only rereads the result, so it keeps its own Refresh source icon.
+        precondition(SwitchPostAction.allCases == [.submoduleUpdate, .mergePreviousBranch, .pull, .commit, .resolve, .stash, .retry, .switchWithMerge, .inspectResult])
+        precondition(SwitchPostAction.allCases.map(\.icon) == [.fetch, .merge, .pull, .commit, .resolve, .stash, .mergeReload, .checkout, .refresh])
         print("RefLog express Switch: sorted single/multiple local refs, current branch exclusion, other branch at HEAD, remote/tag exclusion, selection/busy/chooser/invalidation guards; direct native model switch with prior-branch post-action, dirty failure preserves HEAD/index/file, merge reports conflicts despite Git exit zero, Resolve/Retry and successful retry, missing branch, pre-cancellation, detached-source/submodule post-actions, bare guards and unborn-to-existing branch switch passed; no windows/standard preferences/clipboard")
     }
 }

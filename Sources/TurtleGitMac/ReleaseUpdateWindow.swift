@@ -4,6 +4,49 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+/// Own the checked-row action explicitly: List may recycle its hosted row,
+/// so a control must submit the exact release/asset receipt that it displays.
+@MainActor private struct ReleaseAssetCheckbox:NSViewRepresentable {
+    @ObservedObject var model:ReleaseUpdateModel
+    let asset:ReleaseAsset
+    let generation:UUID
+    func makeCoordinator()->Coordinator {Coordinator(self)}
+    func makeNSView(context:Context)->NSButton {
+        let button=NSButton(checkboxWithTitle:asset.name,target:context.coordinator,action:#selector(Coordinator.changed(_:)))
+        button.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        button.cell?.lineBreakMode = .byTruncatingTail
+        return button
+    }
+    func updateNSView(_ button:NSButton,context:Context) {
+        context.coordinator.parent=self
+        button.title=asset.name;button.toolTip=asset.name
+        // Keep the source export icon without treating the release filename as
+        // a localized caption or replacing AppKit's checkbox state images.
+        if let image=MenuIcon.export.image() {
+            let attachment=NSTextAttachment();attachment.image=image;attachment.bounds=NSRect(x:0,y:-3,width:16,height:16)
+            let title=NSMutableAttributedString(attachment:attachment)
+            title.append(NSAttributedString(string:" " + asset.name));button.attributedTitle=title
+        }
+        button.setAccessibilityLabel(asset.name);button.setAccessibilityIdentifier("release-asset-\(asset.id)")
+        button.isEnabled=generation==model.context && model.assets.contains(asset) && model.canSelect(asset)
+        button.state=model.selected.contains(asset.id) ? .on:.off
+    }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {
+        coordinator.retired=true;button.target=nil;button.action=nil;button.isEnabled=false
+    }
+    @MainActor final class Coordinator:NSObject {
+        var parent:ReleaseAssetCheckbox,retired=false
+        init(_ parent:ReleaseAssetCheckbox){self.parent=parent}
+        @objc func changed(_ sender:NSButton) {
+            guard !retired,sender.isEnabled,let window=sender.window,window === parent.model.window else{return}
+            parent.model.select(parent.asset,checked:sender.state == .on,context:parent.generation)
+            // Reflect the model receipt immediately, including a rejected stale
+            // action, rather than leaving a projected checked state in the row.
+            sender.state=parent.model.selected.contains(parent.asset.id) ? .on:.off
+        }
+    }
+}
+
 @MainActor final class ReleaseUpdateModel: ObservableObject {
     static private(set) var activeOperations = 0
     @Published private(set) var busy = false
@@ -269,9 +312,8 @@ private struct ReleaseUpdateDialog: View {
                         List {
                             ForEach(model.assets) { asset in
                                 HStack(alignment:.center,spacing:12) {
-                                    Toggle(isOn:Binding(get:{model.selected.contains(asset.id)},set:{model.select(asset,checked:$0,context:context)})) {
-                                        CommandLabel(title:asset.name,icon:.export,localized:false).lineLimit(1).help(asset.name)
-                                    }.toggleStyle(.checkbox).disabled(!model.canSelect(asset)).accessibilityIdentifier("release-asset-\(asset.id)")
+                                    ReleaseAssetCheckbox(model:model,asset:asset,generation:context)
+                                        .frame(maxWidth:.infinity,alignment:.leading).frame(height:22)
                                     Spacer(minLength:8)
                                     Text(model.statuses[asset.id] ?? (asset.downloadable ? ByteCountFormatter.string(fromByteCount:asset.size,countStyle:.file):"SHA-256 download unavailable"))
                                         .font(.caption).foregroundStyle(model.statuses[asset.id]?.hasPrefix("Downloaded")==true ? Color.green:Color.secondary)

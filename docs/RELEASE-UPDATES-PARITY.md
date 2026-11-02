@@ -157,6 +157,13 @@ aligned. Exact asset IDs, captured selection generations, unavailable digest
 rows and already-downloaded files retain their existing eligibility rules.
 Long filenames keep a full-name tooltip.
 
+Each checked row now owns an AppKit checkbox action target rather than relying
+on the hosting list's Toggle bridge. Row updates retain the exact asset and
+release generation; detached, replaced or retired controls cannot change a
+selection. The native control keeps the filename, source export icon, checked
+state, availability and accessibility identity in the same list row. Downloaded
+and digest-less entries remain unavailable for selection.
+
 Feedback has a reserved scrollable area, and Download/Abort/Show in Finder share
 a fixed-height operation band. Loading, errors, verification status and retry
 do not insert rows above the list or change its operation band's height. The
