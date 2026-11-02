@@ -513,7 +513,8 @@
       ],
       "qa_records": [
         "docs/qa/merge-regex-batch-2026-10-12.json",
-        "docs/qa/merge-regex-source-family-2026-10-17.json"
+        "docs/qa/merge-regex-source-family-2026-10-17.json",
+        "docs/qa/settings-compare-owners-2026-11-03.json"
       ]
     },
     {
@@ -533,7 +534,8 @@
       ],
       "qa_records": [
         "docs/qa/merge-regex-batch-2026-10-12.json",
-        "docs/qa/merge-regex-source-family-2026-10-17.json"
+        "docs/qa/merge-regex-source-family-2026-10-17.json",
+        "docs/qa/settings-compare-owners-2026-11-03.json"
       ]
     },
     {
@@ -1140,7 +1142,8 @@
         "docs/qa/commit-settings-source-parity-2026-10-25.json",
         "docs/qa/general-setup-batch-2026-10-11.json",
         "docs/qa/general-source-family-2026-10-17.json",
-        "docs/qa/language-family-2026-10-17.json"
+        "docs/qa/language-family-2026-10-17.json",
+        "docs/qa/settings-compare-owners-2026-11-03.json"
       ]
     },
     {
