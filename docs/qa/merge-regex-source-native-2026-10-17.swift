@@ -40,7 +40,9 @@ struct MergeRegexSourceVerification {
         var closeCount = 0; list.onClosed = { closeCount += 1 }
         model.requestEdit(versions, context: oldContext)
         guard let child = list.editor else { throw Failure(description: "Child sheet missing") }
+        try await wait {child.window?.sheetParent === list.window && list.window?.attachedSheet === child.window}
         try require(child.window?.sheetParent === list.window && child.window?.title == "Regex Filter" && (child.window?.frame.width ?? 0) >= 520 && !model.canEdit && MergeRegexFilterListController.activeEditors == 1, "Owned child session missing")
+        try require(child.window?.alphaValue == 0, "Owned regex child escaped invisible presentation")
         try require(!list.windowShouldClose(list.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Child allowed close/Quit")
         model.remove(); model.saveAndClose(); model.cancel(); model.accept(timestamps, oldName: "Versions"); model.requestEdit(nil, context: oldContext)
         try require(model.filters == [versions,timestamps] && list.editor === child && !model.retired && MergeRegexFilters.load(defaults: prefs) == [versions,timestamps], "Parent changed through attached child")
@@ -63,11 +65,17 @@ struct MergeRegexSourceVerification {
         // Native Cancel and external endSheet must settle just this child once.
         model.requestEdit(nil, context: model.context)
         guard let cancelled = list.editor else { throw Failure(description: "Add sheet missing") }
+        try await wait {cancelled.window?.sheetParent === list.window}
         cancelled.model.name = "Cancelled"; cancelled.model.expression = "x"
         cancelled.model.cancel(); cancelled.model.accept()
+        let cancelledSession=model.session
+        model.requestEdit(releases, context:model.context)
+        try require(list.editor === cancelled && model.session == cancelledSession && !model.canEdit, "Closing child admitted a replacement session before native drain")
+        try await wait {list.editor == nil && list.window?.attachedSheet == nil && MergeRegexFilterListController.activeEditors == 0}
         try require(list.editor == nil && model.canEdit && model.filters == [timestamps,releases], "Cancel retained a child/draft")
         model.requestEdit(releases, context: model.context)
         guard let external = list.editor, let sheet = external.window else { throw Failure(description: "External sheet missing") }
+        try await wait {sheet.sheetParent === list.window}
         list.window?.endSheet(sheet, returnCode: .cancel)
         try await wait { list.editor == nil }
         try require(external.model.retired && MergeRegexFilterListController.activeEditors == 0, "External sheet completion retained child")
@@ -104,8 +112,11 @@ struct MergeRegexSourceVerification {
         closing.window?.alphaValue = 0; closing.window?.orderFront(nil)
         closing.model.requestEdit(concurrent[0], context: closing.model.context)
         guard let late = closing.editor else { throw Failure(description: "Retirement sheet missing") }
+        try await wait {late.window?.sheetParent === closing.window}
         late.model.accept(); closing.retire()
-        try require(late.model.retired && closing.model.retired && MergeRegexFilterListController.activeEditors == 0 && MergeRegexOperations.activeRequests == 1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Retirement released pending validation")
+        try require(late.model.retired && closing.model.retired && MergeRegexOperations.activeRequests == 1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Retirement released pending validation")
+        try await wait {MergeRegexFilterListController.activeEditors == 0 && closing.window?.attachedSheet == nil}
+        try require(late.model.retired && closing.model.retired && MergeRegexFilterListController.activeEditors == 0, "Retirement retained a child session after native drain")
         late.model.accepted(versions); late.cancel(); closing.model.saveAndClose()
         try await wait { MergeRegexOperations.activeRequests == 0 }
         try require(MergeRegexFilters.load(defaults: prefs) == concurrent, "Late validation changed storage")

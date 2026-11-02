@@ -47,11 +47,14 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
             }
             throw Failure(message:"Missing Settings page: "+title)
         }
-        try await wait("General update control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Automatically check for newer versions every week" } }
-        views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Automatically check for newer versions every week" }!.performClick(nil)
+        try await wait("General update control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Automatically check for newer versions every week" && $0.isEnabled && $0.window === window } }
+        let updates=views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Automatically check for newer versions every week" }!
+        try require(updates.state == .off,"General native checkbox ignored private initial preference")
+        updates.performClick(nil)
+        try require(updates.state == .on,"General native checkbox did not accept its enabled action")
         try await wait("General draft") { navigation.transaction.modified }
         try choose("Message Editor")
-        try await wait("Message editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Style commit messages" } }
+        try await wait("Message editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Style commit messages" && $0.isEnabled && $0.window === window } }
         views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Style commit messages" }!.performClick(nil)
         try await wait("Message editor draft") { navigation.transaction.modified }
         try choose("Dialogs 1"); navigation.transaction.apply(closeAfter:false)
@@ -62,7 +65,7 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         let engineApplied = await engine.apply()
         try require(engineApplied && GitEnginePreferences.load(from:prefs).path==CommandLine.arguments[2],"Validated Git-engine Apply ignored owner domain")
         try choose("Dialogs 1")
-        try await wait("Dialogs controls") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Symbolize ref names" } }
+        try await wait("Dialogs controls") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Symbolize ref names" && $0.isEnabled && $0.window === window } }
         let checkbox=views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Symbolize ref names" }!
         checkbox.performClick(nil)
         try await wait("Log draft registration") { navigation.transaction.modified }
@@ -80,7 +83,7 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         try await wait("Cancel restored") { !navigation.transaction.modified }
         try require(prefs.bool(forKey:"SymbolizeRefNames"),"Cancel changed persisted Log choice")
         try choose("Dialogs 2")
-        try await wait("Dialogs 2 controls") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Disable sounds" } }
+        try await wait("Dialogs 2 controls") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSButton }.contains { $0.title=="Disable sounds" && $0.isEnabled && $0.window === window } }
         let sounds=views(navigation.view).compactMap { $0 as? NSButton }.first { $0.title=="Disable sounds" }!
         sounds.performClick(nil); try await wait("Dialogs 2 draft") { navigation.transaction.modified }
         try choose("Colors 2"); navigation.transaction.apply(closeAfter:false)
@@ -96,23 +99,23 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
             field.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:field))
         }
         try choose("TurtleGitBlame")
-        try await wait("Blame tab control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Tab size" } }
+        try await wait("Blame tab control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Tab size" && $0.isEnabled && $0.window === window } }
         try enter("Tab size","6"); try await wait("Blame draft") { navigation.transaction.modified }
         try choose("Unified Diff"); navigation.transaction.apply(closeAfter:false)
         try await wait("Cached Blame Apply") { !navigation.transaction.busy }
         try require(GitBlamePresentation.load(from:prefs).tabSize==6,"Blame ignored owner domain")
-        try await wait("Unified tab control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Tab size" } }
+        try await wait("Unified tab control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Tab size" && $0.isEnabled && $0.window === window } }
         try enter("Tab size","7"); try await wait("Unified draft") { navigation.transaction.modified }
         try choose("Diff Viewer"); navigation.transaction.apply(closeAfter:false)
         try await wait("Cached Unified Apply") { !navigation.transaction.busy }
         try require(UnifiedDiffAppearance.load(from:prefs).tabSize==7,"Unified appearance ignored owner domain")
-        try await wait("Nested viewer control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Unified Diff program" } }
+        try await wait("Nested viewer control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Unified Diff program" && $0.isEnabled && $0.window === window } }
         try enter("Unified Diff program","/Applications/ChangedViewer.app")
         try await wait("Nested viewer draft") { navigation.transaction.modified }
         try choose("Alternative Editor"); navigation.transaction.apply(closeAfter:false)
         try await wait("Nested viewer Apply") { !navigation.transaction.busy }
         try require(UnifiedDiffViewerPreferences.load(from:prefs).applicationPath=="/Applications/ChangedViewer.app","Nested viewer ignored Diff owner domain")
-        try await wait("Alternative editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Editor application" } }
+        try await wait("Alternative editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Editor application" && $0.isEnabled && $0.window === window } }
         try enter("Editor application","/Applications/ChangedEditor.app")
         try await wait("Alternative editor draft") { navigation.transaction.modified }
         try choose("Advanced"); navigation.transaction.apply(closeAfter:false)
@@ -124,7 +127,7 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         advanced.apply(); try require(prefs.integer(forKey:"AutoCompleteMinChars")==5,"Advanced ignored owner domain")
         advanced.edit("AutoCompleteMinChars",text:"6"); advanced.cancel(); try require(advanced.values["AutoCompleteMinChars"]=="5","Advanced Cancel lost saved value")
         try choose("Email")
-        try await wait("Email port control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="25" && $0.isEnabled } }
+        try await wait("Email port control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="25" && $0.isEnabled && $0.window === window } }
         try enter("25","2525"); try await wait("Email draft") { navigation.transaction.modified }
         try choose("Dialogs 1"); navigation.transaction.apply(closeAfter:false)
         try await wait("Cached Email Apply") { !navigation.transaction.busy }
@@ -155,7 +158,7 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         let fontWindow=NSWindow(contentRect:.init(x:0,y:0,width:700,height:300),styleMask:[.titled],backing:.buffered,defer:false)
         fontWindow.isReleasedWhenClosed=false; fontWindow.contentView=NSHostingView(rootView:font.environment(\.settingsTransaction,fontTransaction).defaultAppStorage(prefs))
         defer { fontWindow.close(); fontTransaction.invalidate() }
-        try await wait("Font controls") { fontWindow.contentView!.layoutSubtreeIfNeeded(); return views(fontWindow.contentView!).compactMap { $0 as? NSComboBox }.count >= 1 }
+        try await wait("Font controls") { fontWindow.contentView!.layoutSubtreeIfNeeded(); return views(fontWindow.contentView!).compactMap { $0 as? NSComboBox }.contains {$0.isEnabled && $0.window === fontWindow} }
         let sizes=views(fontWindow.contentView!).compactMap { $0 as? NSComboBox }.first { $0.objectValues.compactMap { $0 as? String }.contains("10") }!
         sizes.stringValue="17"; sizes.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:sizes))
         try await wait("Font modified") { fontTransaction.modified }; fontTransaction.apply(closeAfter:false)

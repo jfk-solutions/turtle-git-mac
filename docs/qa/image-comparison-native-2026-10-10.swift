@@ -192,21 +192,31 @@ import Darwin
         // calling the model directly or installing a global event monitor.
         let routedWindow = controller.window!
         routedWindow.contentView?.layoutSubtreeIfNeeded()
-        try await wait { (routedWindow as? ImageComparisonKeyRouting)?.imageKeyModel != nil }
+        try await wait { (routedWindow as? ImageComparisonKeyRouting)?.imageKeyModel != nil && controller.imageToolbar != nil }
         let route = routedWindow as! ImageComparisonKeyRouting
         let routedModel = route.imageKeyModel!
-        func key(_ characters: String, _ code: UInt16, flags: NSEvent.ModifierFlags = []) throws {
+        func key(_ characters: String, _ code: UInt16, flags: NSEvent.ModifierFlags = [], owningFocus: Bool = true, handled: Bool = true) throws {
+            guard let toolbar = controller.imageToolbar else { throw Failure(line: #line) }
+            // Match the exact invisible owner without changing production focus
+            // admission or bypassing the actual NSWindow keyboard bridge.
+            let originalKeyWindow = toolbar.keyWindow
+            defer { toolbar.keyWindow = originalKeyWindow }
+            toolbar.keyWindow = { [weak routedWindow] in owningFocus ? routedWindow : nil }
             let event = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: flags, timestamp: 0, windowNumber: routedWindow.windowNumber, context: nil, characters: characters, charactersIgnoringModifiers: characters, isARepeat: false, keyCode: code)!
-            try require(routedWindow.performKeyEquivalent(with: event))
+            try require(event.window === routedWindow)
+            try require(routedWindow.performKeyEquivalent(with: event) == handled)
         }
+        try key("o",31,owningFocus: false,handled: false); try require(!routedModel.overlay)
         try key("o",31); try require(routedModel.overlay && routedModel.alpha == 0.5)
         try key("",126); try require(routedModel.alpha == 0)
         try key("",125); try require(routedModel.alpha == 1)
         try key("",123); try require(routedModel.alpha == 0.5)
         try key(" ",49); try require(routedModel.alpha == 0)
         try key(" ",49); try require(routedModel.alpha == 1)
-        try key("v",9,flags: .command); try require(routedModel.vertical)
+        // Pinned IDiff disables Arrange Vertical while images overlap.
+        try key("v",9,flags: .command,handled: false); try require(!routedModel.vertical)
         try key("o",31); try require(!routedModel.overlay)
+        try key("v",9,flags: .command); try require(routedModel.vertical)
         try key("s",1); try require(!routedModel.fit && routedModel.zoom == 1)
         try key("+",24,flags: .shift); try require(abs(routedModel.zoom - 1.2) < 0.001)
         try key("-",27); try require(routedModel.zoom == 1)

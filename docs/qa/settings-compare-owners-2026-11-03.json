@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-03",
+  "status": "source-batch-and-debug-build-complete-native-runtime-pending",
+  "source_base": "aaca482a9666e06d089ea6146fe0cf0fba841adb",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_observation": {
+    "run": 41517175256,
+    "core_job": 125529767540,
+    "core_result": "success",
+    "svn_job": 125523580043,
+    "svn_result": "success",
+    "pages_run": 41517175399,
+    "pages_result": "success",
+    "scope": "Six native lanes failed later; distribution was still in progress at observation. No complete run pass.",
+    "retained_successes": [
+      {
+        "job": 125529767413,
+        "steps": [
+          145,
+          146,
+          147,
+          148,
+          149,
+          150,
+          153
+        ],
+        "scope": "Unified Diff whole-line/caret/block/selection/word/cursor/column families"
+      },
+      {
+        "job": 125529767420,
+        "steps": [
+          198
+        ],
+        "scope": "Release download and App Store workflow family"
+      },
+      {
+        "job": 125529767491,
+        "steps": [
+          151
+        ],
+        "scope": "Unified Diff zoom family; Image Open system-Git case later completed before conflict failure"
+      },
+      {
+        "job": 125529767501,
+        "steps": [
+          248
+        ],
+        "scope": "Grouped RefLog comparisons/ranges/handoffs including final express Switch action assertion"
+      },
+      {
+        "job": 125529767506,
+        "steps": [
+          189
+        ],
+        "scope": "Grouped native LFS and Send Mail with prior asynchronous Cancel repairs"
+      }
+    ]
+  },
+  "implementation": [
+    {
+      "family": "General settings",
+      "kind": "production and receiver",
+      "job": 125529767441,
+      "step": 221,
+      "failure": "Settings family General draft",
+      "source_finding": "Fixture waited for existence rather than enabled/attached native control during deferred page activation. Production also allowed retained raw field bindings and an older checkbox target to bypass suspended-page edit admission.",
+      "change": "Use existing SettingsDraftCheckbox and lifecycle-receipted updates/appearance/engine/path/Extra PATH bindings; guard retained utility actions. Preserve Browse/question receipts, Store automatic engine, bookmark invalidation and labels. Fixture waits actionable native controls and retains Apply/persistence/Cancel assertions plus stale-action checks.",
+      "pinned_source": "SetMainPage.cpp112-119 and173-182 native update checkbox/accepted Browse draft semantics"
+    },
+    {
+      "family": "Regex filter editor sessions",
+      "kind": "production and receiver",
+      "job": 125529767420,
+      "step": 199,
+      "failure": "Owned child session missing",
+      "source_finding": "Composite failure component is not isolated. Native sheet attachment may be asynchronous. Source review separately proves child lacked owner alpha/appearance and editor/session count was released immediately after endSheet rather than actual detachment.",
+      "change": "Inherit owner presentation and retain editor/session/Quit ownership through existing SettingsLifecycleSheetDrain. Adopt accepted draft after release, fence competing editor creation and retain cancellation/validation/helper ownership. Fixture waits attachment and drainage without removing original assertions.",
+      "pinned_source": "RegexFiltersDlg.cpp58-99 owns DoModal Add/Edit and adopts only IDOK; RegexFilterDlg::OnOK validates expression without closing invalid editor"
+    },
+    {
+      "family": "Image command ownership",
+      "kind": "receiver",
+      "job": 125529767491,
+      "step": 155,
+      "failure": "Image conflict line69",
+      "source_finding": "Invisible prohibited receivers lack the physical key owner required by existing production guards. Related comparison and standalone-selection fixtures had the same issue.",
+      "change": "Scope exact toolbar key owner for real native keys and popup controls, restore it, retain absent-owner/foreign-event/sheet/retirement rejection. Assert vertical-layout refusal during overlay, then retain successful vertical action after leaving overlay, matching pinned MainWindow.cpp510-514. Frames require no change; all original pixel/output/lease/file/Git assertions retained."
+    },
+    {
+      "family": "Switch and standalone reference ownership",
+      "kind": "receiver",
+      "jobs": [
+        125529767506,
+        125529767501
+      ],
+      "steps": [
+        192,
+        252
+      ],
+      "failures": [
+        "Foreign window accepted F5",
+        "Standalone normal close did not complete once"
+      ],
+      "source_finding": "F5 fixture used an empty-character event instead of the actual function-key character; superclass empty-key matching is a hypothesis pending runtime. Standalone completion intentionally follows an asynchronous worker/child drain.",
+      "change": "Use real F5 text/function modifier, retain strict ownership rejection and add separate foreign-event/catalog invariants. Wait actual close/cancel drain before original once-only callbacks; verify duplicate closure cannot replay completion. Production focus and ownership guards unchanged.",
+      "pinned_source": "BrowseRefsDlg.cpp223-228 OK,1392 F5,1472+ standalone activation"
+    },
+    {
+      "family": "Pane-header timeout diagnostics",
+      "kind": "receiver diagnostics; cause unresolved",
+      "job": 125529767413,
+      "step": 174,
+      "failure": "Compare receiver exceeded300s with no phase diagnostics",
+      "change": "Keep all system AX button/ShowMenu/custom-action assertions. Bound each owned AX object IPC wait to1s and traversal to25s, with flushed before/after/load/Save phases. Local SDK AXUIElement.h387-403 documents per-object timeout scope. No process-global accessibility setting or permission changed.",
+      "limits": "The hung phase and root cause are not proven. This is not a claimed product fix or runtime pass."
+    }
+  ],
+  "validation": {
+    "debug": {
+      "result": "success",
+      "log": "build/qa/settings-compare-owners-debug-2026-11-03.log",
+      "command": "env -u SDKROOT xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+    },
+    "core": "Not repeated locally; no Core changes; retain matched hosted pass.",
+    "native": "No local receivers launched. External Quit sender has not been confirmed paused; retain pending grouped checks for hosted validation.",
+    "resources": "No native literal captions or registered Help guides changed; no regenerated catalog/Help or distribution build.",
+    "pending_commands": [
+      "python3 scripts/test-general-source-family.py",
+      "python3 scripts/test-tool-source-family.py",
+      "python3 scripts/test-merge-regex-source.py",
+      "python3 scripts/test-image-command-family.py --only conflict --only routing --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-image-tool-selection.py",
+      "python3 scripts/test-switch-source.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-reference-standalone.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-merge-pane-header.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    ],
+    "limits": "Regular and metafile conflict executions both remain affected; existing full hosted commands retain them. Pending commands are not complete release certification."
+  },
+  "cleanup": {
+    "native": "No test processes/windows launched; Debug build completed. No user app/Finder/Dock terminated.",
+    "browser": "One successful failure-inspection tab closed. Initial legacy browser creation returned Debugger unattached but left another owned log tab; ordinary attachment failed. Exact URL/id were confirmed through the documented management capability, then only that tab was closed; exact-URL query returned no tabs. No unrelated tabs touched."
+  },
+  "distribution": "Installed signed build49 unchanged; no binary publication/notarization/App Store submission. Full hosted, physical/signed/accessibility acceptance and complete port parity remain open.",
+  "source_sha256": {
+    "Sources/TurtleGitMac/GeneralSettings.swift": "18b851b0a4d530f18768c6242823abdc217503812087aff5b0c45ad8f7971139",
+    "Sources/TurtleGitMac/MergeRegexFilterWindows.swift": "100a20bf7de1b324e88d1ae1a04de1dff0f46cd030933a2c1e7bb31b735faac8",
+    "docs/qa/general-source-family-native-2026-10-17.swift": "07b5d373135feb47667a2e265469535a8e20f31027398701e513ad04809480aa",
+    "docs/qa/settings-family-native-2026-10-13.swift": "1a1ff47aa313066df8a41223df710fd102bcb687d272bb33afd2e704ea95d50b",
+    "docs/qa/merge-regex-source-native-2026-10-17.swift": "2a9d8d57e8ac20f4e51b9473e112556379d862845b352eb1de7cf1164caaab23",
+    "docs/qa/image-conflict-native-2026-10-10.swift": "3a599fda3b995b7ea2246a05e7ac67b0739c22a058edcb9c1abb77cbf14d5a3b",
+    "docs/qa/image-comparison-native-2026-10-10.swift": "83198e67c4b3b6b6e45629b85e3b41559b0a019843413669306867788690268e",
+    "docs/qa/image-tool-selection-native-2026-10-29.swift": "0ae38a4a9487f336a9b79d0eebebe227c73b3bc0997c0ef5d6eee95f51a4bbfc",
+    "docs/qa/switch-pickers-native-2026-10-09.swift": "bb0c9fe3e42db0e73a7f8c97d56734c89053412f27a58e010a64b124ad25c3ac",
+    "docs/qa/reference-standalone-native-2026-10-09.swift": "b8b871b99fe4a3dcae9d0b9be0dc3eca1f7f65ab22c10eea7ea63698cdf99448",
+    "docs/qa/merge-pane-header-native-2026-10-25.swift": "61356b8f9b523fd0c50ff99eff3f42a5c84455f347ad9e8439c0f3c4d04dd77a"
+  }
+}

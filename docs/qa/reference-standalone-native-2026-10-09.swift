@@ -22,8 +22,9 @@ import TurtleGitCore
         _ = try await repo.run(["branch","left"]);_ = try await repo.run(["commit","--allow-empty","-m","right"]);_ = try await repo.run(["branch","right"])
         let tree=try await repo.run(["rev-parse","HEAD^{tree}"]).text.trimmingCharacters(in:.newlines);_ = try await repo.run(["update-ref","refs/misc/tree",tree])
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index")),config=try Data(contentsOf:root.appendingPathComponent(".git/config")),file=try Data(contentsOf:root.appendingPathComponent("file"))
-        var closes=0,logs:[String]=[],browses:[String]=[],copies:[String]=[]
+        var closes=0,closedNotifications=0,logs:[String]=[],browses:[String]=[],copies:[String]=[]
         let owner=ReferenceBrowserWindowController(repository:repo,access:nil,initial:"HEAD",preferences:prefs,picking:false){_ in closes += 1};defer {owner.close()}
+        owner.onClosed={closedNotifications += 1}
         owner.model.onLogRange={logs.append($0.expression)};owner.model.onLog={logs.append($0)};owner.model.onBrowse={browses.append($0)};owner.model.copyReferences={copies.append($0)}
         owner.model.load();try await wait([owner.window!]){!owner.model.busy && owner.model.snapshot != nil}
         owner.model.setFolder("refs");try await wait([owner.window!]){find(owner.window!.contentView!) != nil}
@@ -61,7 +62,13 @@ import TurtleGitCore
         picker.model.load();try await wait([picker.window!]){!picker.model.busy && picker.model.snapshot != nil}
         try require(find(picker.window!.contentView!)?.allowsMultipleSelection==false,"Existing chooser became multiple")
         picker.model.select(["refs/heads/left","refs/heads/right"],last:"refs/heads/right");try require(picker.model.selection.count==1,"Chooser accepted multiple refs");picker.close()
-        owner.model.selected=nil;try require(owner.model.canFinish,"Standalone cannot close empty selection");owner.model.accept();try require(closes==1 && owner.model.closed,"Standalone normal close did not complete once");owner.model.accept();try require(closes==1,"Duplicate completion")
+        owner.model.selected=nil;try require(owner.model.canFinish,"Standalone cannot close empty selection");owner.model.accept()
+        // Completion belongs to the controller's retirement drain, after its
+        // readers and native sheets release, rather than the accept call stack.
+        try await wait {owner.model.closed && !owner.hasPendingWork && !picker.hasPendingWork}
+        try require(closes==1 && closedNotifications==1 && owner.model.closed,"Standalone normal close did not complete once")
+        owner.model.accept();owner.close();await Task.yield()
+        try require(closes==1 && closedNotifications==1 && !owner.hasPendingWork,"Duplicate completion")
         let after=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(head==after && index==Data(contentsOf:root.appendingPathComponent(".git/index")) && config==Data(contentsOf:root.appendingPathComponent(".git/config")) && file==Data(contentsOf:root.appendingPathComponent("file")),"Read-only browser changed repository")
         try require(NSApplication.shared.windows.allSatisfy{!$0.isVisible},"Displayed QA windows")

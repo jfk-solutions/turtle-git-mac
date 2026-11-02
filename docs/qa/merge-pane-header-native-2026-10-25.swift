@@ -41,14 +41,21 @@ private extension NSWindow {
         let expected=Set((header.accessibilityCustomActions() ?? []).map(\.name))
         return await Task.detached {
             var result=SystemHeader(),windows:CFTypeRef?
-            let status=AXUIElementCopyAttributeValue(AXUIElementCreateApplication(pid),kAXWindowsAttribute as CFString,&windows)
+            let deadline=ProcessInfo.processInfo.systemUptime+25
+            let application=AXUIElementCreateApplication(pid)
+            // Bound IPC on each exact owned AX object; do not change the
+            // process-global timeout or ask for accessibility permission.
+            _=AXUIElementSetMessagingTimeout(application,1)
+            let status=AXUIElementCopyAttributeValue(application,kAXWindowsAttribute as CFString,&windows)
             guard status == .success else{result.diagnostics=["Owned AX server error \(status.rawValue)"];return result}
             var remaining=4096,seen=Set<CFHashCode>()
             func value(_ element:AXUIElement,_ name:String)->CFTypeRef? {
+                guard ProcessInfo.processInfo.systemUptime<deadline else{return nil}
+                _=AXUIElementSetMessagingTimeout(element,1)
                 var value:CFTypeRef?;return AXUIElementCopyAttributeValue(element,name as CFString,&value) == .success ? value:nil
             }
             func visit(_ element:AXUIElement,_ depth:Int) {
-                guard depth<48,remaining>0,seen.insert(CFHash(element)).inserted else{return};remaining-=1
+                guard depth<48,remaining>0,ProcessInfo.processInfo.systemUptime<deadline,seen.insert(CFHash(element)).inserted else{return};remaining-=1
                 let role=value(element,kAXRoleAttribute) as? String,caption=(value(element,kAXDescriptionAttribute) as? String) ?? (value(element,kAXTitleAttribute) as? String),location=value(element,kAXHelpAttribute) as? String
                 var raw:CFArray?;_ = AXUIElementCopyActionNames(element,&raw)
                 let names=raw as? [String] ?? []
@@ -56,18 +63,21 @@ private extension NSWindow {
                 if result.diagnostics.count<100 {result.diagnostics.append("depth=\(depth) role=\(String(reflecting:role)) caption=\(String(reflecting:caption)) help=\(String(reflecting:location))")}
                 if role==kAXButtonRole,caption==label,location==help {
                     var described=[String:String]()
-                    for action in names {var description:CFString?;if AXUIElementCopyActionDescription(element,action as CFString,&description) == .success,let description {described[description as String]=action}}
+                    for action in names where ProcessInfo.processInfo.systemUptime<deadline {var description:CFString?;if AXUIElementCopyActionDescription(element,action as CFString,&description) == .success,let description {described[description as String]=action}}
                     if expected.isSubset(of:Set(described.keys)) && names.contains(kAXShowMenuAction) {result.element=element;result.actions=described}
                 }
                 for child in value(element,kAXChildrenAttribute) as? [AXUIElement] ?? [] {visit(child,depth+1)}
             }
             for window in windows as? [AXUIElement] ?? [] where (value(window,kAXTitleAttribute) as? String)==title {visit(window,0)}
+            result.diagnostics.append("Owned AX traversal visited=\(4096-remaining), deadlineReached=\(ProcessInfo.processInfo.systemUptime>=deadline)")
             return result
         }.value
     }
     static func requireAccessible(_ header:MergePaneHeaderView,in window:NSWindow?)async throws {
         try require(header.isAccessibilityElement() && header.accessibilityRole() == .button && !header.titleField.isAccessibilityElement(),"Header is still exposed only as a static text child")
+        print("Pane header phase: owned system AX begin");fflush(stdout)
         let actual=await systemHeader(header,in:window)
+        print("Pane header phase: owned system AX returned; control=\(actual.control), header=\(actual.element != nil), final=\(actual.diagnostics.last ?? "none")");fflush(stdout)
         try require(actual.control,"System AX standard Save button control unavailable: \(actual.diagnostics)")
         try require(header.accessibilityChildren()?.isEmpty != false && actual.element != nil,"Owning header button/ShowMenu/custom actions absent from actual system AX hierarchy: \(actual.diagnostics)")
     }
@@ -157,7 +167,9 @@ private extension NSWindow {
     }
     static func headers(_ owner:NSWindowController)->[MergePaneHeaderView]{views(owner.window?.contentView).compactMap{$0 as? MergePaneHeaderView}}
     static func comparison(_ c:Context)async throws {
+        print("Pane header phase: Compare load begin");fflush(stdout)
         let owner=try await c.pair(),model=owner.model
+        print("Pane header phase: Compare native panes ready");fflush(stdout)
         try await wait(owner.window){headers(owner).count==2}
         guard let left=headers(owner).first(where:{$0.toolTip?.contains(c.base.lastPathComponent)==true}) else{throw Failure(description:"Actual base header missing")}
         try await requireAccessible(left,in:owner.window)
@@ -168,6 +180,7 @@ private extension NSWindow {
         try dispatch(try item(hidden,"Reveal in Finder"));try require(revealed.count==1,"Retained menu command dispatched twice")
         c.prefs.set(true,forKey:"ShowAppContextMenuIcons");try require(left.contextMenu().items.allSatisfy{$0.image != nil},"Header source artwork missing")
         let output=c.root.appendingPathComponent("saved header base.txt");model.chooseExportLocation={_,_,_ in output}
+        print("Pane header phase: Compare Save As begin");fflush(stdout)
         try dispatch(try item(left.contextMenu(),"Save this pane as…"));try await wait(owner.window){!model.busy && !model.hasPendingEditorChoice && model.savedPaneURL(base:true)==output}
         try require(try Data(contentsOf:output)==c.original[0],"Header Save As lost exact source bytes")
         try await pairReady(owner);try await wait(owner.window){headers(owner).count==2}

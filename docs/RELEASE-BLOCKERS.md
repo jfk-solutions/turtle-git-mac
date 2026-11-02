@@ -7,41 +7,35 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
-The [November 2 workflow batch](qa/native-workflow-continuation-2026-11-02.json)
-fixes Log directory admission and gives release-asset checkboxes owned native
-actions. It also repairs the related mail-close, image Open, chooser, editor
-projection and final Switch-icon checks. Its Debug build passes; native runtime
-and a complete corrected-source hosted pass remain pending.
+The [November 3 Settings/Compare ownership batch](qa/settings-compare-owners-2026-11-03.json)
+protects General-page controls from stale edits and retains regex-editor sessions
+through native sheet detachment. Related image, Switch and standalone-reference
+receivers preserve production focus/ownership rules. Its Debug build passes;
+affected runtime and a complete corrected-source hosted pass remain pending.
 
-Hosted run `41284129922` on `f1ea8274` passed Core, SVN, the five first-use Finder
-Services families, whole-line editing, temporary zoom, metafile consumers/colors
-and revision/reference validation. Retain those bounded passes. Programmatic
-Finder receiver coverage does not establish physical Finder or signed acceptance.
-The run still failed seven native lanes at later assertions.
-
-Local native checks remain subject to the [recorded external Quit sender](qa/hosted-native-continuation-2026-11-01.json).
-Vorssaint terminated the bundled-Git filesystem receiver after its system-Git
-counterpart passed. No local receivers were launched for the November 2 batch;
-the owner has been asked to pause automatic closing. Continue independent hosted
-validation while this local interference is unresolved.
+The preceding `aaca482a` hosted run passed Core, SVN and Pages. It also passed the
+Unified Diff command families, native release-download/App Store workflows,
+grouped LFS/Send Mail and RefLog workflows that had stopped earlier. Retain those
+bounded passes. Six lanes stopped later; distribution was still in progress at
+the recorded observation. This does not establish complete hosted success.
 
 | Family | Remaining scope |
 | --- | --- |
-| Log Add modes | Actual nested-repository directory Add with strict status-path validation; preserve mode/blob/HEAD/index assertions |
-| Release download rows | Native checkbox action/identity and stale-owner fences, existing download/hash/cancellation and App Store isolation |
-| Mail options and progress | Actual asynchronous Cancel/drain across Format/Import and both delivery routes |
-| Image Open | Real Cmd+O with exact invisible key ownership; preserve foreign-owner/event/sheet rejection and original Open workflow |
-| Literal tool chooser | Actual Browse pointer tracking, sheet receipts, stale replies and owner retirement; forms/associations already passed |
-| Unified Diff command families | Actual new native reset before cursor/caret/word/block/selection/column commands and IME checks |
-| Express Switch | Final explicit nine-action/icon assertion; real earlier Resolve/Retry steps now pass |
+| General Settings | Actionable native controls, lifecycle-receipted update/appearance/engine/path fields and retained utility actions; preserve Apply/Cancel/Browse behavior |
+| Regex filter editors | Native sheet attachment, inherited visibility/appearance, validation/cancellation and session ownership through actual detachment |
+| Image commands | Conflict/comparison/standalone-selection exact key owner, original output/pixel/lease assertions, overlay layout availability and stale-event refusal |
+| Switch/reference ownership | Real F5 event identity, background refusal and actual standalone close/cancel drainage with exactly-once callbacks |
+| Compare/Merge pane headers | Hosted Compare timeout remains unexplained; bounded phase/AX diagnostics retain every original accessibility and command assertion |
 | History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json), runtime pending |
-| Later bundled-Git cases | Earlier grouped Find/mail/image commands stopped during system-Git cases; unexecuted later engine cases remain unverified |
+| Later unexecuted cases | Retain engine/case boundaries from failed grouped commands; a prior case pass does not establish unexecuted later cases |
 
-The [earlier grouped recovery](qa/hosted-native-continuation-2026-11-01.json),
-[Find/Fetch repairs](qa/hosted-find-handoff-recovery-2026-11-01.json) and
-[Send Patch close correction](qa/hosted-send-patch-close-2026-11-01.json) retain
-original failure and source-review evidence. Later matched-source passes supersede
-only the corresponding pending runtime entries, not the full release gates.
+The [November 2 repairs](qa/native-workflow-continuation-2026-11-02.json) and
+[earlier recovery](qa/hosted-native-continuation-2026-11-01.json) retain original
+failures and source evidence. A matching later pass supersedes only its scoped
+pending entry. Current local native checks remain subject to the exact external
+Quit sender recorded in the earlier recovery: no receiver was launched in the
+November 3 batch while Vorssaint remains running without confirmation that its
+automatic closing is paused. Independent hosted validation can continue.
 Installed signed build49 is unchanged by these source continuations.
 
 ## Finish line for the first locally accepted release

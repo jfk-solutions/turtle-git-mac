@@ -137,3 +137,10 @@ the owner closes. Actual picker gestures and signed installed grants remain open
 This supersedes the earlier preset-distribution and INI migration gaps for the
 supported format. Full regex/locale/UTF-16 edge cases, physical keyboard/menu/
 VoiceOver and signed helper/App Store acceptance remain required.
+
+The [November 3 editor ownership continuation](qa/settings-compare-owners-2026-11-03.json)
+inherits the parent window's appearance/visibility and retains the editor session
+through actual sheet detachment. A replacement editor cannot enter during that
+drain; accepted values are adopted after modal release. Validation, cancellation,
+stale bindings and concurrent persistence retain their existing guards. The
+Debug build passes; the affected native workflow still needs runtime validation.

@@ -108,6 +108,16 @@ assets, signed grants and complete source/App Store acceptance remain open.
 Four distinct native case/engine combinations pass with system and bundled Git, with two affected source rechecks after the checkbox layout repair. Both raw light/dark captures were individually reviewed: compact groups, persistent labels and footers fit without clipping. All seven owned receivers were reaped and independently absent; source receivers also assert real child-process cleanup. Core was unchanged and not repeated. See [batch evidence](qa/general-source-family-2026-10-17.json) for the build/capture failures, repairs and remaining acceptance.
 
 
+## Page-control ownership — November 3, 2026
+
+The [November 3 ownership continuation](qa/settings-compare-owners-2026-11-03.json)
+extends page-lifecycle admission to the update checkbox, appearance, engine,
+executable and Extra PATH fields, and retained utility actions. Native disabled
+or detached controls and bindings from a suspended page cannot edit its draft.
+Existing Browse and disable-update questions keep their captured owner and
+selection receipts. The Debug build passes; affected native runtime remains
+pending.
+
 ## Bundled language choices — October 17, 2026
 
 General Language is now a real draft participating in property-sheet Apply/Cancel.

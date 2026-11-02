@@ -99,7 +99,22 @@ import TurtleGitCore
         try require(field.isEditable && field.frame.height>=20,"Native Git completion field clipped")
         let updateBox=views(host).compactMap {$0 as? NSButton}.first {$0.title=="Automatically check for newer versions every week"}
         try require(updateBox != nil && updateBox!.frame.height<=30,"Update checkbox stretched the source application group")
-        model.suspend();try await wait {!field.isEnabled};model.activate();try await wait {field.isEnabled}
+        let staleChoice=model.engineChoiceBinding(),stalePath=model.pathBinding(),staleExtraPath=model.engineField(\.extraPath)
+        var pageValue=false
+        let stalePage=model.pageField(Binding(get:{pageValue},set:{pageValue=$0}))
+        let sourceDraft=model.draft
+        model.suspend();try await wait {!field.isEnabled}
+        if let updateBox,let action=updateBox.action {
+            let oldState=updateBox.state,wasModified=transaction.modified
+            try require(!updateBox.isEnabled,"Suspended General update checkbox remained actionable")
+            updateBox.state = oldState == .on ? .off:.on
+            _ = NSApp.sendAction(action,to:updateBox.target,from:updateBox)
+            try require(transaction.modified==wasModified,"Disabled General update action changed its retained draft")
+            updateBox.state=oldState
+        }
+        model.activate();try await wait {field.isEnabled}
+        staleChoice.wrappedValue = .system;stalePath.wrappedValue="/retired/git";staleExtraPath.wrappedValue="/retired/bin";stalePage.wrappedValue=true
+        try require(model.draft==sourceDraft && !pageValue,"Retained General inputs changed the reopened form")
         model.draft.bookmark=Data("old grant".utf8);field.coordinator?.changed(git.path);try require(model.draft.bookmark==nil,"Typing Git path retained old bookmark")
         model.draft.extraPath="/usr/local/bin";model.check();try await wait {!model.busy}
         try require(model.version.hasPrefix("git version "),"Final real version check failed")

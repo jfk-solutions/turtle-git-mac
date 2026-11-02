@@ -64,10 +64,19 @@ import Darwin
         try require(colors[0].greenComponent > 0.9 && colors[1].redComponent > 0.9 && colors[2].blueComponent > 0.9)
         let selectButtons = descendants(host).compactMap { $0 as? NSButton }.filter { $0.title == "Select" }
         try require(selectButtons.count == 3)
-        func key(_ characters: String, _ code: UInt16, flags: NSEvent.ModifierFlags = []) throws {
+        func key(_ characters: String, _ code: UInt16, flags: NSEvent.ModifierFlags = [], owningFocus: Bool = true, handled: Bool = true) throws {
+            guard let toolbar = controller.imageToolbar else { throw Failure(line: #line) }
+            // The prohibited receiver cannot acquire physical key focus. Use
+            // the existing exact-owner seam and keep native dispatch/guards.
+            let originalKeyWindow = toolbar.keyWindow
+            defer { toolbar.keyWindow = originalKeyWindow }
+            toolbar.keyWindow = { [weak window] in owningFocus ? window : nil }
             let event = NSEvent.keyEvent(with: .keyDown,location: .zero,modifierFlags: flags,timestamp: 0,windowNumber: window.windowNumber,context: nil,characters: characters,charactersIgnoringModifiers: characters,isARepeat: false,keyCode: code)!
-            try require(window.performKeyEquivalent(with: event))
+            try require(event.window === window)
+            try require(window.performKeyEquivalent(with: event) == handled)
         }
+        try key("v",9,flags: .command,owningFocus: false,handled: false)
+        try require(!controller.model.vertical)
         try key("v",9,flags: .command); try require(controller.model.vertical); try await settle()
         try require(scrolls().count == 3)
         try key("s",1); try require(controller.model.panes.values.allSatisfy { !$0.fit && $0.zoom == 1 })
@@ -88,6 +97,9 @@ import Darwin
             try await wait({ window.attachedSheet != nil }, line: line)
             let sheet = window.attachedSheet!
             try require(controller.model.busy && !controller.windowShouldClose(window))
+            let vertical = controller.model.vertical
+            try key("v",9,flags: .command,handled: false)
+            try require(controller.model.vertical == vertical && window.attachedSheet === sheet)
             try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
             sheet.alphaValue = 0
             try require(window.isVisible && sheet.isVisible)
@@ -124,6 +136,9 @@ import Darwin
         controller.model.reload(); try await wait { !controller.model.busy }; try require(controller.model.error == nil)
         try await click(2); try await answer("Yes")
         try require(closed == 1 && controller.model.retired && controller.model.error == nil)
+        let retiredVertical = controller.model.vertical
+        try key("v",9,flags: .command,handled: false)
+        try require(controller.model.vertical == retiredVertical)
         let remaining = try await repo.conflicts(), staged = try await repo.run(["show",":" + path]).stdout
         try require(remaining.isEmpty && staged == theirs)
         let afterHead = try await repo.run(["rev-parse","HEAD"]).stdout; try require(afterHead == head)

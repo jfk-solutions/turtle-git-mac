@@ -162,6 +162,16 @@ private final class ImageToolQABookmarks:RepositoryBookmarkProvider {
         let view=try await owner(c,try await c.document(c.request(directory,paths,output,flags:["--show-info"])))
         let model=view.model,window=view.window!
         try await wait("selection toolbar installed"){model.nativeToolbarInstalled && window.toolbar != nil}
+        let toolbar=try unwrap(view.imageToolbar,"Missing selection native toolbar owner")
+        // This inactive receiver supplies its exact invisible toolbar owner;
+        // native keys and popup actions retain all production admission guards.
+        let originalKeyWindow=toolbar.keyWindow
+        defer{toolbar.keyWindow=originalKeyWindow}
+        toolbar.keyWindow={nil}
+        let initialVertical=model.vertical
+        try require(!window.performKeyEquivalent(with:key(window,"v",9,.command)) && model.vertical==initialVertical,"Selection key bypassed absent key ownership")
+        toolbar.keyWindow={ [weak window] in window }
+        toolbar.refresh()
         try require(model.showInfo && window.title.contains("TurtleGitIDiff"),"Initial source info/title policy lost")
         try require(window.toolbar!.items.contains{$0.itemIdentifier==ImageEditorCommand.fit.identifier} && window.toolbar!.items.allSatisfy{$0.itemIdentifier != ImageEditorCommand.overlay.identifier},"Selection toolbar used two-image comparison actions")
         let zoom=model.panes[.mine]!.zoom
@@ -169,6 +179,8 @@ private final class ImageToolQABookmarks:RepositoryBookmarkProvider {
         try require(window.performKeyEquivalent(with:key(window,"v",9,.command)) && model.vertical,"Actual Arrange Vertical key refused")
         model.perform(.transparentColor);try await wait("owned transparency chooser"){window.attachedSheet != nil}
         let sheet=window.attachedSheet!
+        let sheetVertical=model.vertical
+        try require(!window.performKeyEquivalent(with:key(window,"v",9,.command)) && model.vertical==sheetVertical && window.attachedSheet === sheet,"Selection key bypassed active color sheet")
         let closeAllowed=view.windowShouldClose(window),selectAllowed=model.canSelect(.mine),quitReply=TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp)
         try require(!closeAllowed && !selectAllowed && quitReply == .terminateCancel,"Color chooser ownership: Close=\(closeAllowed) Select=\(selectAllowed) Quit=\(quitReply.rawValue) sheetParentMatches=\(sheet.sheetParent === window) windowRegistered=\(NSApp.windows.contains{$0 === window})")
         let well=try unwrap(descendants(sheet.contentView!).compactMap{$0 as? NSColorWell}.first,"Missing actual color well")

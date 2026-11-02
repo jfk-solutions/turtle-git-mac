@@ -97,6 +97,31 @@ import TurtleGitCore
     var canEditEngine:Bool {live && !busy && !selecting && !confirmingUpdates && !GitRuntime.isAppStoreBuild}
     var canCheck:Bool {live && !busy && !selecting && !confirmingUpdates}
     var canEditPage:Bool {live && !busy && !selecting && !confirmingUpdates}
+    var pageContext:UUID {lifecycle}
+    func acceptsPage(_ context:UUID)->Bool {lifecycle==context && canEditPage}
+    func pageField<Value>(_ binding:Binding<Value>)->Binding<Value> {
+        let context=lifecycle
+        return Binding(get:{binding.wrappedValue},set:{value in
+            guard self.acceptsPage(context) else{return};binding.wrappedValue=value
+        })
+    }
+    func engineField<Value>(_ key:WritableKeyPath<GitEnginePreferences,Value>)->Binding<Value> {
+        let context=lifecycle
+        return Binding(get:{self.draft[keyPath:key]},set:{value in
+            guard self.lifecycle==context,self.canEditEngine else{return};self.draft[keyPath:key]=value
+        })
+    }
+    func engineChoiceBinding()->Binding<GitEngineChoice> {
+        let field=engineField(\.choice)
+        return Binding(get:{GitRuntime.isAppStoreBuild ? .automatic:field.wrappedValue},set:{field.wrappedValue=$0})
+    }
+    func pathBinding()->Binding<String> {
+        let context=lifecycle
+        return Binding(get:{self.draft.path},set:{value in
+            guard self.lifecycle==context,self.canEditEngine,self.draft.choice == .custom else{return}
+            self.draft.path=value;self.draft.bookmark=nil
+        })
+    }
     var validationError:String? {
         if selecting || confirmingUpdates {return "Finish the General settings question first."}
         if busy {return "Wait for the Git version check to finish, or cancel it."}
@@ -290,6 +315,7 @@ struct GeneralSettings: View {
         _updates=State(initialValue:enabled);_savedUpdates=State(initialValue:enabled)
     }
     var body: some View {
+        let context=model.pageContext
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("TurtleGit for Mac") {
                 VStack(alignment: .leading, spacing: 12) {
@@ -301,30 +327,30 @@ struct GeneralSettings: View {
                         Spacer(); Button("Language help") { TurtleGitHelp.show(.languages) }.buttonStyle(.link)
                     }
                     HStack {
-                        LogPreferenceCheckbox(title: "Automatically check for newer versions every week", value: Binding(get: { updates }, set: { enabled in
+                        SettingsDraftCheckbox(title: "Automatically check for newer versions every week", identifier:"Settings.General.VersionCheck", value: model.pageField(Binding(get: { updates }, set: { enabled in
                             if enabled { updates = true } else { model.confirmDisableUpdates { updates = false } }
-                        })).frame(height:24).disabled(GitRuntime.isAppStoreBuild)
-                        Spacer(); Button("Check now") { ReleaseUpdateService.shared.show(preferences: preferences) }
+                        }))).frame(height:24).disabled(GitRuntime.isAppStoreBuild)
+                        Spacer(); Button("Check now") { if model.acceptsPage(context) {ReleaseUpdateService.shared.show(preferences: preferences)} }
                     }
-                    Button("Re-run First Start Wizard") { FirstStartWizardService.shared.show(preferences: preferences) }
-                    Picker("Appearance:", selection: $appearance.choice) { ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) } }
+                    Button("Re-run First Start Wizard") { if model.acceptsPage(context) {FirstStartWizardService.shared.show(preferences: preferences)} }
+                    Picker("Appearance:", selection: model.pageField($appearance.choice)) { ForEach(AppearanceChoice.allCases) { Text($0.title).tag($0) } }
                 }.padding(10).disabled(!model.canEditPage)
             }
             GroupBox("Git for macOS") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Git engine:", selection: Binding(get: { GitRuntime.isAppStoreBuild ? .automatic : model.draft.choice }, set: { model.draft.choice = $0 })) {
+                    Picker("Git engine:", selection: model.engineChoiceBinding()) {
                         Text("Automatic (bundled when available)").tag(GitEngineChoice.automatic)
                         Text("System Git").tag(GitEngineChoice.system)
                         Text("Custom Git").tag(GitEngineChoice.custom)
                     }.disabled(!model.canEditEngine)
                     HStack {
                         Text("Git executable:").frame(width:100,alignment:.leading)
-                        PathEntryField(text:Binding(get:{model.draft.path},set:{model.draft.path=$0;model.draft.bookmark=nil}),label:"Git executable",preferences:preferences,mayEdit:{model.canEditEngine && model.draft.choice == .custom}).frame(height:24)
+                        PathEntryField(text:model.pathBinding(),label:"Git executable",preferences:preferences,mayEdit:{model.canEditEngine && model.draft.choice == .custom}).frame(height:24)
                         Button("Browse…", action: model.browse)
                     }.disabled(!model.canEditEngine || model.draft.choice != .custom)
-                    HStack {Text("Extra PATH:").frame(width:100,alignment:.leading);TextField("",text:$model.draft.extraPath).accessibilityLabel("Git Extra PATH")}.disabled(!model.canEditEngine)
+                    HStack {Text("Extra PATH:").frame(width:100,alignment:.leading);TextField("",text:model.engineField(\.extraPath)).accessibilityLabel("Git Extra PATH")}.disabled(!model.canEditEngine)
                     HStack { Text("Version:"); Text(verbatim: model.version); Spacer(); Button("Check now", action: model.check).disabled(!model.canCheck) }
-                    Button("Show Environment Variables") { environment = model.environment() }.disabled(!model.canCheck)
+                    Button("Show Environment Variables") { if model.acceptsPage(context) {environment = model.environment()} }.disabled(!model.canCheck)
                     if model.busy {HStack {ProgressView().controlSize(.small);if model.checking {Button(model.cancellingCheck ? "Cancelling…":"Cancel check",action:model.cancelCheck).disabled(model.cancellingCheck)}}}
                     if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
                 }.padding(10)

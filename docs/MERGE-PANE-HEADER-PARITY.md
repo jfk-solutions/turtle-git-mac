@@ -188,3 +188,11 @@ a standard Save button as a control. Direct guarded action dispatch remains
 separate from an external assistive-client interaction claim. Installed build 7
 predates these source corrections; signed/physical VoiceOver and full-dialog
 acceptance remain open.
+
+The [November 3 hosted continuation](qa/settings-compare-owners-2026-11-03.json)
+reopens the current hosted Compare checkpoint: its receiver exceeded the runtime
+bound without identifying the phase. The receiver now reports flushed phase
+boundaries and bounds self-process AX queries without removing the original
+button, Show Menu or named-action assertions. The timeout's cause and current
+native runtime result remain unresolved; the historical local pass above does
+not establish a corrected-source hosted pass.

@@ -72,10 +72,23 @@ import TurtleGitCore
         guard let refresh=owner.referencePicker else { throw Failure(description:"Refresh browser missing") }; try await wait([refresh.window!]) { !refresh.model.busy && refresh.model.snapshot != nil }
         try require(!owner.model.references.contains(where:{$0.name=="refs/tags/late"}),"Late reference already in parent catalog")
         _ = try await repo.run(["update-ref","refs/tags/late",prior])
-        guard let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:refresh.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:96) else { throw Failure(description:"F5 event unavailable") }
+        // An empty character string can match unrelated SwiftUI key equivalents
+        // when AppKit receives an unhandled event. Use the actual F5 character
+        // as well as its hardware code while retaining native window dispatch.
+        let f5=String(UnicodeScalar(NSF5FunctionKey)!)
+        func refreshEvent(_ window:NSWindow)throws->NSEvent {
+            guard let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[.function],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:f5,charactersIgnoringModifiers:f5,isARepeat:false,keyCode:96) else {throw Failure(description:"F5 event unavailable")};return event
+        }
+        let event=try refreshEvent(refresh.window!)
         refresh.commandKeyWindow = { nil }
         try require(!refresh.window!.performKeyEquivalent(with:event),"Foreign window accepted F5")
+        try require(!refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == false,"Background F5 refreshed the catalog")
         refresh.commandKeyWindow = { [weak refresh] in refresh?.window }
+        let foreign=NSWindow(contentRect:.zero,styleMask:[],backing:.buffered,defer:false);foreign.isReleasedWhenClosed=false
+        defer {foreign.close()}
+        try require(!refresh.window!.performKeyEquivalent(with:try refreshEvent(foreign)),"Foreign F5 event identity was accepted")
+        foreign.close()
+        try require(!refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == false,"Foreign F5 event refreshed the catalog")
         try require(refresh.window!.performKeyEquivalent(with:event),"Owned F5 not handled")
         try await wait([refresh.window!]) { !refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == true }
         let lateChoice=refresh.model.snapshot!.initialSelection("refs/tags/late"); refresh.model.setFolder(lateChoice.folder); refresh.model.selected=lateChoice.reference; refresh.model.accept()
@@ -93,7 +106,8 @@ import TurtleGitCore
         try await wait([owner.window!]) { if let editor=field.currentEditor() { return owner.window!.firstResponder === editor }; return false }
         owner.model.commitRevision=prior; owner.model.browse(.commit); guard let second=owner.commitPicker else { throw Failure(description:"Second Log missing") }; try await wait([second.window!]) { !second.model.busy }
         callbacks[0](entry); try require(owner.model.commitRevision==prior && owner.commitPicker === second && owner.model.pickerTarget == .commit,"Stale Log result changed newer child")
-        second.model.close(); try require(owner.commitPicker == nil && owner.model.pickerTarget == nil && owner.model.commitRevision==prior,"Log cancel changed draft/ownership")
+        second.model.close(); try await wait([owner.window!]) {owner.commitPicker == nil && owner.model.pickerTarget == nil}
+        try require(owner.commitPicker == nil && owner.model.pickerTarget == nil && owner.model.commitRevision==prior,"Log cancel changed draft/ownership")
         phase("Reject and forced-parent cleanup")
         owner.presentPicker={_,_ in false}; owner.model.browse(.commit); try require(owner.commitPicker == nil && owner.model.pickerTarget == nil,"Rejected Log retained child")
         owner.model.options.target = .branch; owner.model.browse(.branch); try require(owner.referencePicker == nil && owner.model.pickerTarget == nil && !owner.model.busy,"Rejected browser retained child/query")
@@ -108,6 +122,7 @@ import TurtleGitCore
         guard let closingLog=closing.commitPicker else { throw Failure(description:"Forced Log missing") }; try await wait([closingLog.window!]) { !closingLog.model.busy }
         closing.close(); lateCallback?(entry); closing.model.browse(.commit)
         try require(closing.commitPicker == nil && closing.model.pickerTarget == nil && closing.model.commitRevision==prior && closing.model.referenceFocusRequest==0,"Forced Log close or late result escaped")
+        try await wait([]) {!owner.transportBatchWorkPending && !closing.transportBatchWorkPending && !final.hasPendingWork}
         let afterHead=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in: .newlines), afterTree=try await repo.run(["write-tree"]).text
         try require(head==afterHead && tree==afterTree && config==Data(contentsOf:root.appendingPathComponent(".git/config")),"Picker mutated repository")
         print("PASS: Switch all-ref browser branch/tag/symbolic-remote/notes canonical handoff, F5 late-ref refresh and fresh return catalog, correct new-branch/tracking defaults and retained force/merge/draft, actual revision first responder; full Log typed ancestry/graph/native single selection and accepted hash focus; cancel/stale/reject/duplicate/cross-target/checkout/reload/close/Quit/forced-parent guards. Private preferences/repos, unchanged HEAD/staged tree/config, no ordered windows or sheets. Physical/signed/full chooser parity unverified.")

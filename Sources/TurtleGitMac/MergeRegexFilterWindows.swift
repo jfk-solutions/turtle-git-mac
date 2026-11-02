@@ -194,11 +194,23 @@ extension Notification.Name {
         let child = MergeRegexFilterEditController(filter: filter, executable: executable)
         editor = child; Self.activeEditors += 1
         child.finished = { [weak self, weak child] value in
-            guard let self, self.editor === child else { return }
-            if let sheet = child?.window, sheet.sheetParent === self.window { self.window?.endSheet(sheet, returnCode: value == nil ? .cancel : .OK) }
-            self.editor = nil; Self.activeEditors -= 1
-            self.model.finishEdit(session, value: value)
+            guard let self, let child, self.editor === child else { return }
+            let finish = { [self, child] in
+                Self.activeEditors -= 1
+                guard self.editor === child else { return }
+                self.editor = nil
+                self.model.finishEdit(session, value: value)
+            }
+            // Keep the session and Quit/Close ownership until AppKit releases
+            // the sheet. A replacement editor cannot race its predecessor's
+            // asynchronous endSheet completion.
+            if let sheet = child.window {
+                if sheet.sheetParent === self.window { self.window?.endSheet(sheet, returnCode: value == nil ? .cancel : .OK) }
+                SettingsLifecycleSheetDrain.close([sheet], completion: finish)
+            } else { finish() }
         }
+        child.window?.alphaValue = window.alphaValue
+        child.window?.appearance = window.appearance
         window.beginSheet(child.window!) { [weak child] _ in child?.cancel() }
     }
     private func chooseTransfer(exporting: Bool, context: MergeRegexFilterListModel.Context) {
@@ -260,7 +272,7 @@ extension Notification.Name {
     func retire() { window?.close(); retireOwnedState() }
     private func retireOwnedState() {
         guard !retired else { return }; retired = true; model.retire(); cancelFileTransfer()
-        editor?.cancel(); editor = nil
+        editor?.cancel()
         model.edit = { _ in }; model.close = {}
         let callback = onClosed; onClosed = {}; callback()
     }
