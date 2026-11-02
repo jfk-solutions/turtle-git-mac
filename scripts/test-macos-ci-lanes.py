@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Focused workflow syntax, exact coverage and failure-aggregation regressions."""
 import copy
+import ast
 import fnmatch
 import importlib.util
 import json
 import os
+import re
 import subprocess
 import unittest
 
@@ -23,6 +25,73 @@ class MacOSLaneTests(unittest.TestCase):
         return ci.verify(workflow or self.workflow, inventory or self.inventory, self.originals)
     def testCurrentSyntaxAndExactOriginalCoverage(self):
         self.verify()
+    def eligible(self, name, lane, outcomes=None, cancelled=False):
+        step = next(s for s in self.workflow['jobs']['validation']['steps'] if s.get('name') == name)
+        expression = step['if']
+        self.assertTrue(expression.startswith('${{ ') and expression.endswith(' }}'))
+        self.assertIn('!cancelled()', expression)
+        values = {'native_ready': 'success', 'store_ready': 'success', 'replay_ready': 'success'}
+        values.update(outcomes or {})
+        expression = expression[4:-3].replace('!cancelled()', repr(not cancelled))
+        expression = expression.replace('matrix.lane', repr(lane)).replace('&&', ' and ')
+        expression = re.sub(r'steps\.(\w+)\.outcome', lambda m: repr(values.get(m[1], '')), expression)
+        tree = ast.parse(expression.strip(), mode='eval')
+        allowed = (ast.Expression, ast.BoolOp, ast.And, ast.Compare, ast.Eq, ast.Constant)
+        self.assertTrue(all(isinstance(node, allowed) for node in ast.walk(tree)))
+        return eval(compile(tree, '<actual workflow condition>', 'eval'), {'__builtins__': {}})
+    def testIndependentConsumersRunAfterAnotherNativeFailure(self):
+        for name, lane in [('Native regex source list and editor workflows', 'commit-repository'),
+                           ('Native standalone reference browser', 'history-references'),
+                           ('Image native command family', 'images-documents'),
+                           (ci.UTILITY_STARTUP['name'], 'settings-finder')]:
+            with self.subTest(name=name):
+                self.assertTrue(self.eligible(name, lane, {'earlier_native': 'failure'}))
+                self.assertFalse(self.eligible(name, 'unrelated', {'earlier_native': 'failure'}))
+                self.assertFalse(self.eligible(name, lane, cancelled=True))
+    def testFailedSkippedMissingOrCancelledPreparationCannotLaunchConsumers(self):
+        for outcome in ['failure', 'skipped', 'cancelled', '']:
+            with self.subTest(outcome=outcome):
+                self.assertFalse(self.eligible('Image native command family', 'images-documents', {'native_ready': outcome}))
+                self.assertFalse(self.eligible(ci.STORE_BUILD, 'distribution', {'native_ready': outcome}))
+    def testCoreSuiteAndItsFilteredFollowupsKeepTheirOriginalFailurePolicy(self):
+        # XCTest already collects its case failures. Do not repeatedly rebuild
+        # a failed test target through every filtered follow-up command.
+        core = {r['name'] for r in self.inventory['steps'] if r['lane'] == 'core'}
+        for step in self.workflow['jobs']['validation']['steps']:
+            if step.get('name') in core:
+                self.assertEqual(step['if'], "matrix.lane == 'core'", step['name'])
+    def testStoreAndReplayConsumersRequireActualProducerSuccess(self):
+        replay = 'Native Cherry Pick and Rebase recovery across Git versions'
+        expected = {
+            'Preserve unsigned distribution audit': ['store_ready'],
+            'Revision Graph through built Debug and Store frameworks and helpers': ['store_ready'],
+            'Native packaged Git SSH client lookup without network': ['store_ready'],
+            'Native AppStore bundled SSH encrypted-key loading and cleanup': ['store_ready'],
+            replay: ['store_ready', 'replay_ready'],
+        }
+        self.assertEqual(ci.COLLECTION_DEPENDENCIES, expected)
+        for name, dependencies in expected.items():
+            self.assertTrue(self.eligible(name, 'distribution'))
+            for dependency in dependencies:
+                for outcome in ['failure', 'skipped', 'cancelled', '']:
+                    with self.subTest(name=name, dependency=dependency, outcome=outcome):
+                        self.assertFalse(self.eligible(name, 'distribution', {dependency: outcome}))
+        self.assertTrue(self.eligible(ci.REPLAY_BUILD, 'distribution', {'store_ready': 'failure'}))
+        self.assertFalse(self.eligible(replay, 'distribution', {'store_ready': 'success', 'replay_ready': 'failure'}))
+    def testCollectionConditionsAndProducerIdentitiesCannotBeWeakened(self):
+        for mutation in ['implicit-success', 'always', 'drop-ready', 'drop-store', 'drop-replay', 'continue-on-error', 'ready-id', 'store-id', 'replay-id']:
+            value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+            consumer = next(s for s in steps if s.get('name') == 'Native Cherry Pick and Rebase recovery across Git versions')
+            if mutation == 'implicit-success': consumer['if'] = "matrix.lane == 'distribution'"
+            if mutation == 'always': consumer['if'] = consumer['if'].replace('!cancelled()', 'always()')
+            if mutation == 'drop-ready': consumer['if'] = consumer['if'].replace("steps.native_ready.outcome == 'success' && ", '')
+            if mutation == 'drop-store': consumer['if'] = consumer['if'].replace(" && steps.store_ready.outcome == 'success'", '')
+            if mutation == 'drop-replay': consumer['if'] = consumer['if'].replace(" && steps.replay_ready.outcome == 'success'", '')
+            if mutation == 'continue-on-error': consumer['continue-on-error'] = True
+            if mutation.endswith('-id'):
+                name = {'ready-id': ci.EDITOR_SETUP['name'], 'store-id': ci.STORE_BUILD, 'replay-id': ci.REPLAY_BUILD}[mutation]
+                next(s for s in steps if s.get('name') == name)['id'] = 'unreviewed'
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
     def testDocumentationAdmissionDoesNotFilterPullRequests(self):
         self.assertIsNone(self.workflow['true']['pull_request'])
         for filtering in [{'paths-ignore': ['docs/**']}, {'branches': ['main']},

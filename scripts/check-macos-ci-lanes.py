@@ -34,7 +34,31 @@ BASELINE_HEADER = {
 }
 GUARD = {'name': 'Check workflow lane contracts', 'run': 'python3 scripts/test-macos-ci-lanes.py'}
 EDITOR_SETUP = {'name': 'Prepare SwiftPM editor for native and Core consumers',
+                'id': 'native_ready',
                 'run': 'swift build --product TurtleGitMac'}
+STORE_BUILD = 'Build and audit unsigned universal App Store candidate'
+REPLAY_BUILD = 'Build isolated older Git runtimes for replay tests'
+STORE_AUDIT = 'Preserve unsigned distribution audit'
+COLLECTION_IDS = {STORE_BUILD: 'store_ready', REPLAY_BUILD: 'replay_ready'}
+COLLECTION_DEPENDENCIES = {
+    STORE_AUDIT: ['store_ready'],
+    'Revision Graph through built Debug and Store frameworks and helpers': ['store_ready'],
+    'Native packaged Git SSH client lookup without network': ['store_ready'],
+    'Native AppStore bundled SSH encrypted-key loading and cleanup': ['store_ready'],
+    'Native Cherry Pick and Rebase recovery across Git versions': ['store_ready', 'replay_ready'],
+}
+
+def collection_condition(name, lane):
+    """Keep failures visible while collecting independent ready consumers.
+
+    An explicit cancelled() status check overrides GitHub's implicit success()
+    without starting new work after cancellation. Producers still fail closed.
+    """
+    terms = ['!cancelled()', "steps.native_ready.outcome == 'success'",
+             "matrix.lane == '" + lane + "'"]
+    terms += ["steps." + dependency + ".outcome == 'success'"
+              for dependency in COLLECTION_DEPENDENCIES.get(name, [])]
+    return '${{ ' + ' && '.join(terms) + ' }}'
 # Explicit additions are checked in full, then removed before the
 # immutable pre-split inventory comparison. It cannot excuse any producer or
 # other artifact drift, nor introduce a generic class of untracked steps.
@@ -42,7 +66,7 @@ METAFILE_CONSUMER = 'WMF and EMF native comparison consumers and colors'
 UTILITY_STARTUP_ANCHOR = 'First Start SSH selection and owned inspection'
 UTILITY_STARTUP = {
     'name': 'Repository-independent utility and local tool startup',
-    'if': "matrix.lane == 'settings-finder'",
+    'if': collection_condition('Repository-independent utility and local tool startup', 'settings-finder'),
     'run': 'python3 scripts/test-utility-startup.py',
 }
 METAFILE_FAILURE_EVIDENCE = {
@@ -149,7 +173,7 @@ def verify(workflow, inventory, originals):
     actual.pop(app_index + 1)
     require(len(actual) == len(originals), 'New/unmapped, removed or duplicate workflow step')
     assignments = {}
-    for record, before, after in zip(records, originals, actual):
+    for position, (record, before, after) in enumerate(zip(records, originals, actual)):
         expected = copy.deepcopy(before)
         name = expected.get('name', expected.get('uses'))
         require(record['name'] == name, 'Inventory identity mismatch: ' + record['id'])
@@ -159,6 +183,11 @@ def verify(workflow, inventory, originals):
             if 'if' in expected:
                 condition += ' && (' + str(expected['if']) + ')'
             expected['if'] = condition
+            if position > app_index and lane != 'core' and ('run' in before or name == STORE_AUDIT):
+                require('if' not in before, 'Unreviewed conditional consumer: ' + name)
+                expected['if'] = collection_condition(name, lane)
+        if name in COLLECTION_IDS:
+            expected['id'] = COLLECTION_IDS[name]
         if expected.get('uses') == 'actions/upload-artifact@v4':
             prior = expected['with']['name']
             require(prior in ARTIFACT_NAMES, 'Unmapped artifact ownership')

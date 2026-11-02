@@ -69,3 +69,30 @@ recipe. Four download recovery tests and five cache invalidation checks passed;
 all six builder sources compile and declare the reconstruction dependency. The
 full native toolchains were not rebuilt for this Python-only change. Current
 hosted network and complete reconstruction acceptance remain separate.
+
+## Collect independent native failures — 2026-11-03
+
+After the runtime, Debug app and SwiftPM editor preparation succeed, independent
+native checks continue even when an earlier check in their lane fails. Explicit
+`!cancelled()` conditions override GitHub's implicit success condition while
+stopping new checks after cancellation. See GitHub's
+[status check documentation](https://docs.github.com/en/actions/reference/workflows-and-actions/expressions#status-check-functions).
+Failed checks still fail their lane and the required aggregate status; no check
+uses `continue-on-error`. Core keeps its existing execution policy.
+
+Consumers of the universal Store candidate additionally require its successful
+build. Cross-version replay checks also require their older Git runtime build.
+The immutable pre-split inventory still verifies every command, environment,
+action, argument and ordering; the reviewed scheduling exceptions cannot excuse
+a missing or altered check. Eight lanes, four concurrent jobs and existing
+timeouts remain unchanged.
+
+Thirty focused workflow contract tests and the immutable-baseline check passed.
+An independent producer-dependency assertion was then strengthened and passed its
+focused recheck. No application build, Core suite or native receiver ran for this
+workflow-only batch. See the [validation record](qa/ci-native-failure-collection-2026-11-03.json).
+
+Hosted acceptance of these new conditions remains pending. A grouped command can
+still stop at its first internal failure, and a lane can reach its existing
+timeout; this collects more independent failures rather than guaranteeing an
+exhaustive report or application parity.

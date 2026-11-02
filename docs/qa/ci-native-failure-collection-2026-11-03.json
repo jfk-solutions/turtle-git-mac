@@ -1,0 +1,40 @@
+{
+  "date": "2026-11-03",
+  "scope": "Collect independent native CI failures after successful preparation without masking failures or bypassing producer dependencies",
+  "files": [
+    ".github/workflows/macos.yml",
+    "scripts/check-macos-ci-lanes.py",
+    "scripts/test-macos-ci-lanes.py"
+  ],
+  "baselineInventoryChanged": false,
+  "validation": [
+    {
+      "command": "python3 scripts/test-macos-ci-lanes.py",
+      "result": "passed: 30 tests",
+      "log": "build/qa/ci-native-failure-collection-contracts-2026-11-03.log"
+    },
+    {
+      "command": "python3 scripts/check-macos-ci-lanes.py --verify-baseline",
+      "result": "passed",
+      "log": "build/qa/ci-native-failure-collection-baseline-2026-11-03.log"
+    },
+    {
+      "command": "python3 scripts/test-macos-ci-lanes.py MacOSLaneTests.testStoreAndReplayConsumersRequireActualProducerSuccess",
+      "result": "passed after strengthening the independent expected dependency map",
+      "log": "build/qa/ci-native-failure-collection-dependencies-2026-11-03.log"
+    }
+  ],
+  "notRun": [
+    "app build",
+    "Core suite",
+    "native receivers",
+    "installation"
+  ],
+  "limitations": [
+    "Hosted acceptance pending",
+    "Grouped commands may still stop at their first internal failure",
+    "Existing lane timeout can limit collected results",
+    "Does not establish full application or Finder parity"
+  ],
+  "installedAppUnchanged": "0.1.0 (49)"
+}
