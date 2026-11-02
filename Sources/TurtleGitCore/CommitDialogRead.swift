@@ -102,10 +102,11 @@ enum CommitCombinedDiff {
     }
 }
 
-private struct CommitDisplayIndex {
+struct CommitDisplayIndex:Sendable {
     var submodules:GitPathSet=[]
     var flags:GitPathMap<(Bool,Bool)>=[:]
-    init(_ bytes:Data,cancellation:OperationCancellation?)throws {
+    init() {}
+    init(_ bytes:Data,requested:GitPathSet,cancellation:OperationCancellation?)throws {
         guard bytes.isEmpty || bytes.last==0 else {throw CommitDialogReadFailure.malformedIndex}
         for record in bytes.split(separator:0) {
             try cancellation?.check()
@@ -115,6 +116,9 @@ private struct CommitDisplayIndex {
                   fields[1].count==6,fields[1].allSatisfy({(48...55).contains($0)}),
                   [40,64].contains(fields[2].count),fields[2].allSatisfy({(48...57).contains($0)||(97...102).contains($0)}),!path.isEmpty,
                   let stage=Int(String(decoding:fields[3],as:UTF8.self)),(0...3).contains(stage) else {throw CommitDialogReadFailure.malformedIndex}
+            // A literal directory pathspec can include children. Only the
+            // captured exact names belong to this display inventory.
+            guard requested.contains(path) else {continue}
             if fields[1]==Data("160000".utf8)[...] {submodules.insert(path)}
             flags[path]=(tag>=97 && tag<=122,tag==83 || tag==115)
         }
@@ -122,6 +126,34 @@ private struct CommitDisplayIndex {
 }
 
 extension GitRepository {
+    /// Read only the current display candidates, never the clean repository's
+    /// complete index. Each invocation remains literal and byte-budgeted; all
+    /// batches are owned by the same cancellable display-read lifetime.
+    func commitDisplayIndex(paths:[String],cancellation:OperationCancellation?=nil,argumentByteLimit:Int?=nil)throws->CommitDisplayIndex {
+        try cancellation?.check()
+        let requested=GitPathSet(paths)
+        guard !requested.isEmpty else {return CommitDisplayIndex()}
+        guard paths.allSatisfy({path in
+            !path.isEmpty && !path.hasPrefix("/") && !path.utf8.contains(0) &&
+            !path.split(separator:"/",omittingEmptySubsequences:false).contains(where:{$0.isEmpty || $0=="." || $0==".."})
+        }) else {throw CommitDialogReadFailure.malformedIndex}
+        let arguments=["-c","core.precomposeunicode=false","ls-files","--stage","-v","-z","--"]
+        let invocation=commandInvocation(arguments)
+        let names=Array(requested).sorted{$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        let batches:[[String]]
+        do {batches=try SubmoduleUpdateBatchPlan.paths(names,fixedArguments:[invocation.executable.path]+invocation.arguments,byteLimit:argumentByteLimit ?? SubmoduleUpdateBatchPlan.platformByteLimit)}
+        catch {throw CommitDialogReadFailure.malformedIndex}
+        var result=CommitDisplayIndex()
+        for batch in batches {
+            try cancellation?.check()
+            let bytes=try run(arguments+batch,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
+            let captured=try CommitDisplayIndex(bytes,requested:requested,cancellation:cancellation)
+            result.submodules.formUnion(captured.submodules)
+            for (path,flags) in captured.flags {result.flags[path]=flags}
+        }
+        try cancellation?.check()
+        return result
+    }
     public func commitDialogRead(amend:Bool,amendDiffToLastCommit:Bool,cancellation:OperationCancellation? = nil)throws->CommitDialogRead {
         try cancellation?.check()
         func directory(_ argument:String)throws->URL {
@@ -158,10 +190,16 @@ extension GitRepository {
             return try CommitCombinedDiff.parse(run(args,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout,cancellation:cancellation)
         }
         let working=try diff(base.map{[$0]} ?? head.map{[$0]} ?? ["--cached"])
-        let staged=try diff(["--cached"]+(base.map{[$0]} ?? head.map{[$0]} ?? []))
+        // Before the first commit both comparisons are exactly --cached.
+        // Reuse this read's accepted bytes rather than walking the same index
+        // twice; later operations still perform their own fresh preflight.
+        let staged=head == nil ? working:try diff(["--cached"]+(base.map{[$0]} ?? head.map{[$0]} ?? []))
         let unstaged=try diff([])
         let entries=try commitDialogEntries(current:current,amendToParent:compareParent,indexed:staged,working:working,cancellation:cancellation)
-        let inventory=try CommitDisplayIndex(run(["-c","core.precomposeunicode=false","ls-files","--stage","-v","-z"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout,cancellation:cancellation)
+        // Unversioned embedded repositories can be reported as "nested/".
+        // They have no index flags or gitlink mode to query; keep their display
+        // row unchanged and use the ordinary false defaults below.
+        let inventory=try commitDisplayIndex(paths:entries.filter{$0.state != .ignored && $0.state != .untracked}.map(\.path),cancellation:cancellation)
         let flags=entries.filter{$0.state != .ignored}.map{WorkingTreeFile(entry:$0,assumeUnchanged:inventory.flags[$0.path]?.0 ?? false,skipWorktree:inventory.flags[$0.path]?.1 ?? false,modificationDate:nil)}
         let branch=try branch(cancellation:cancellation)
         let hasLFS=try layout.hasDirectory("lfs",under:layout.common,cancellation:cancellation)

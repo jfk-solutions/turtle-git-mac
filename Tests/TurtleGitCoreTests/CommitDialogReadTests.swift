@@ -43,9 +43,9 @@ final class CommitDialogReadTests:XCTestCase {
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
         return (GitRepository(root:repo.root,executable:wrapper,libgit2Configuration:.init(enabled:false)),log)
     }
-    private func assertCommands(_ log:URL,file:StaticString = #filePath,line:UInt = #line)throws {
+    private func assertCommands(_ log:URL,diffs:Int=3,file:StaticString = #filePath,line:UInt = #line)throws {
         let commands=try String(contentsOf:log,encoding:.utf8).split(separator:"\n")
-        XCTAssertEqual(commands.filter{$0=="diff"}.count,3,file:file,line:line)
+        XCTAssertEqual(commands.filter{$0=="diff"}.count,diffs,file:file,line:line)
         XCTAssertEqual(commands.filter{$0=="status"}.count,1,file:file,line:line)
         XCTAssertEqual(commands.filter{$0=="ls-files"}.count,1,file:file,line:line)
     }
@@ -92,7 +92,7 @@ final class CommitDialogReadTests:XCTestCase {
         try Data("new\n".utf8).write(to:root.appendingPathComponent("new"));try await repo.stage(["new"])
         let before=try Data(contentsOf:root.appendingPathComponent(".git/index")),(reader,log)=try counted(repo)
         let snapshot=try await reader.commitDialogRead(amend:false,amendDiffToLastCommit:true)
-        try assertCommands(log);XCTAssertFalse(snapshot.hasHead);XCTAssertFalse(snapshot.hasParent)
+        try assertCommands(log,diffs:2);XCTAssertFalse(snapshot.hasHead);XCTAssertFalse(snapshot.hasParent)
         XCTAssertEqual(snapshot.entries.map(\.path),["new"]);XCTAssertEqual(snapshot.staged.map(\.action),["A"])
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),before)
         try Data().write(to:log);let token=OperationCancellation();token.cancel()

@@ -1,0 +1,59 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "7c1758d04753f9f66c43470a5726ffd213d110f7",
+  "scope": [
+    "Candidate-only bounded index inventory for captured Commit refresh and fallback flags",
+    "Skip clean and wholly untracked index queries",
+    "Reuse identical unborn working/staged diff"
+  ],
+  "changes": {
+    "nameIdentity": "Literal arguments, core.precomposeunicode=false, exact UTF8 deduplication and projection; directory descendants cannot become candidates",
+    "ownership": "Operation-local display facts; cancellation before launch, per batch and per record; no cross-refresh cache or mutation authority",
+    "preserved": "Conflict stages, gitlinks, lowercase assume-unchanged/skip-worktree flags, recreated staged-deletion copies, full general Working Tree inventory"
+  },
+  "reviewCorrection": "Initial implementation rejected untracked embedded repository trailing-slash paths. Both callers now exclude untracked/ignored index candidates while retaining their display rows/default flags; real nested-repository regression added.",
+  "validation": [
+    {
+      "command": "env -u SDKROOT TURTLEGIT_CORE_ONLY=1 swift test --filter 'CommitIndexInventoryTests|CommitDialogReadTests|CommitRefreshTests|CommitAmendTests|CommitFileModeTests|CommitReadCancellationTests'",
+      "tests": 24,
+      "failures": 0,
+      "log": "build/qa/commit-scoped-index-core-2026-11-03.log",
+      "scope": "Initial grouped Core checkpoint before embedded-repository correction"
+    },
+    {
+      "command": "env -u SDKROOT TURTLEGIT_CORE_ONLY=1 swift test --filter 'CommitIndexInventoryTests|CommitDialogReadTests|CommitRefreshTests'",
+      "tests": 15,
+      "failures": 0,
+      "log": "build/qa/commit-scoped-index-affected-system-2026-11-03.log",
+      "scope": "Only readers affected by caller correction; includes new embedded-repository case"
+    },
+    {
+      "command": "env -u SDKROOT TURTLEGIT_CORE_ONLY=1 TURTLEGIT_GROUP_TEST_GIT=$PWD/build/git-runtime/Git/bin/git swift test --filter 'CommitIndexInventoryTests|CommitDialogReadTests|CommitRefreshTests'",
+      "tests": 15,
+      "failures": 0,
+      "log": "build/qa/commit-scoped-index-affected-bundled-2026-11-03.log",
+      "scope": "Captured and new fixture classes honor bundled engine override; four legacy CommitRefreshTests retain system-Git fixture and repeated unintentionally; pure parser cases are engine independent"
+    }
+  ],
+  "observedWorkReduction": "300 clean tracked files plus one changed literal filename return exactly one auxiliary index record; clean and embedded-repository-only changes launch no auxiliary index command; small injected argv budget requires multiple bounded batches without losing exact names",
+  "notRun": [
+    "Full Core suite",
+    "App build",
+    "Native receiver/UI checks",
+    "Signed installation",
+    "Physical Finder acceptance",
+    "Representative owner-repository wall-clock benchmark"
+  ],
+  "remaining": [
+    "Matching-source complete hosted CI",
+    "Large-repository latency acceptance",
+    "Signed/physical/native dialog acceptance",
+    "Finder directory-only registration admission and containing-root grant recovery"
+  ],
+  "installedAppUnchanged": "0.1.0 (49)",
+  "nativeLimit": "External Quit sender remains unresolved; no native receiver launched",
+  "subagents": [
+    "commit_latency_review: Core implementation/source review",
+    "finder_grant_review: read-only next-workflow findings"
+  ]
+}

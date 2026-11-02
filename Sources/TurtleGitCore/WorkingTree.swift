@@ -124,16 +124,9 @@ extension GitRepository {
     public func workingTreeIndexFlags(entries:[StatusEntry],cancellation:OperationCancellation? = nil)throws->[WorkingTreeFile] {
         try cancellation?.check()
         guard !entries.isEmpty else{return []}
-        let requested=GitPathSet(entries.map(\.path))
-        var flags=GitPathMap<(Bool,Bool)>()
-        let data=try run(["ls-files","-v","-z"],cancellation:cancellation).stdout
-        for record in data.split(separator:0) {
-            try cancellation?.check()
-            guard record.count>=3 else{continue}
-            let path=String(decoding:record.dropFirst(2),as:UTF8.self)
-            guard requested.contains(path),let code=record.first else{continue}
-            flags[path]=(code>=97 && code<=122,code==83 || code==115)
-        }
+        // Unversioned/ignored directories may carry a trailing slash, and
+        // cannot have index flags. Their original rows still receive defaults.
+        let flags=try commitDisplayIndex(paths:entries.filter{$0.state != .untracked && $0.state != .ignored}.map(\.path),cancellation:cancellation).flags
         try cancellation?.check()
         return entries.map {WorkingTreeFile(entry:$0,assumeUnchanged:flags[$0.path]?.0 ?? false,skipWorktree:flags[$0.path]?.1 ?? false,modificationDate:nil)}
     }

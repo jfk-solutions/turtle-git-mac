@@ -7,6 +7,14 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 3 Commit index-read batch](COMMIT-STARTUP-READS.md) removes
+full clean-index output from Commit refresh and fallback flags, skips auxiliary
+index reads for wholly untracked lists, and reuses the identical unborn-branch
+diff. Focused Core checks pass, including exact filenames, conflicts, gitlinks,
+embedded repositories and unchanged index bytes. This is a source improvement;
+representative large-repository timing and installed signed acceptance remain
+open. Installed build49 does not contain this continuation.
+
 The [November 3 Settings/Compare ownership batch](qa/settings-compare-owners-2026-11-03.json)
 protects General-page controls from stale edits and retains regex-editor sessions
 through native sheet detachment. Related image, Switch and standalone-reference
