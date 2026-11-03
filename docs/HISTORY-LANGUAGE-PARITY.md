@@ -33,3 +33,17 @@ remain recorded. No Core suite or unrelated native families were repeated. Core-
 and graph accessibility prose, shared reference-deletion message formatting,
 complete translation/CLDR coverage, physical menu/keyboard/VoiceOver and signed
 translated-app acceptance remain open. Installed build47 predates this family.
+
+## German/French feedback runtime checkpoint — November 3, 2026
+
+The [runtime checkpoint](qa/history-remote-acceptance-2026-11-03.json) passes
+German and French history processes with both Git engines. Native Log/References/
+RefLog captions and actions, footer counts, deletion alerts/default Abort and
+English fallback contracts execute with private preferences and repositories.
+The partial RefLog failure presentation additionally checks independently stated
+localized counts while preserving raw selectors, diagnostics, operation output
+and Core English failure text. No production translation or label changed.
+
+This supersedes the earlier pending native scope of the November 1 feedback
+batch; it does not establish complete translation coverage, signed deployment
+or physical keyboard/VoiceOver acceptance.

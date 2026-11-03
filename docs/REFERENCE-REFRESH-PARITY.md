@@ -95,3 +95,18 @@ independently confirmed absent. See the [batch evidence](qa/reference-ssh-overla
 transport/backends and hosted CI remain broader acceptance scopes. Source custom
 Windows combo drawing/placement and every exceptional remote configuration are
 not certified by these focused refresh cases.
+
+## Deferred native remote catalog acceptance — November 3, 2026
+
+Hosted run41546718496 passed both Rebase refresh cases, then failed the metadata
+fixture's immediate native remote count. The fixture waited for control existence
+without waiting for the model's catalog to reach the native popup. Its failure
+message alone does not prove a product Unicode collapse. The shared popup already
+uses exact Git identities and explicit native menu items; production was unchanged.
+
+The [acceptance checkpoint](qa/history-remote-acceptance-2026-11-03.json) passes
+metadata and lifetime cases with both engines. It preserves the original NFC/NFD
+count and model-selection assertions, waits for the actionable ordered native
+catalog, and checks selected caption bytes and refreshed catalogs across Fetch,
+Pull, Push and manager return/removal. Original Rebase passes were retained.
+Physical focus, signed sandbox and complete hosted acceptance remain separate.

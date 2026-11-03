@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
-import TurtleGitCore
+@testable import TurtleGitCore
 
 enum HistoryLocalizationVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
@@ -88,6 +88,13 @@ enum HistoryLocalizationVerification {
         }
         let raw="Message{completed}%@ selector@{1}: server Author {reference}"
         try require(ReferenceLogFeedback.presentationError(NSError(domain:"PrivateHistoryQA",code:1,userInfo:[NSLocalizedDescriptionKey:raw]))==raw,"Arbitrary Reflog diagnostic was translated or interpolated")
+        let selectors=["refs/heads/Message{completed}%@@{1}","refs/stash@{2}"]
+        let details=[raw,"Author{failed} %@\nserver detail"]
+        let batch=ReferenceLogDeleteBatchFailure(completed:["refs/stash@{8}","refs/stash@{9}"],failures:zip(selectors,details).map{ReferenceLogDeleteIssue(selector:$0.0,details:$0.1)},output:raw)
+        let header=["de":"Gelöschte Einträge: 2. Fehlgeschlagene Einträge: 2.\n","fr":"Entrées supprimées : 2. Échecs : 2.\n","en":"Deleted entries: 2. Failed entries: 2.\n"][locale]!
+        let body=zip(selectors,details).map{$0.0+": "+$0.1}.joined(separator:"\n")
+        try require(ReferenceLogFeedback.presentationError(batch)==header+body,"Partial RefLog feedback changed localized counts or literal selector/diagnostic bytes")
+        try require(batch.output==raw && batch.localizedDescription=="Deleted entries: 2. Failed entries: 2.\n"+body,"Presentation changed underlying RefLog operation output/English failure")
     }
     @MainActor static func verify() async throws {
         let locale = CommandLine.arguments[1], root = URL(fileURLWithPath: CommandLine.arguments[2])

@@ -57,10 +57,30 @@ import TurtleGitCore
         try require(model.window?.attachedSheet?.alphaValue==0 && model.window?.attachedSheet?.isReleasedWhenClosed==false,"Manager sheet escaped invisible ownership")
         return model.remoteManagerReceipt!
     }
-    static func popup(_ window:NSWindow)async throws->NSPopUpButton{
-        try await wait{descendants(window.contentView!).compactMap{$0 as? TransportRemotePopup}.contains{$0.accessibilityLabel()=="Remote archive"}}
-        return descendants(window.contentView!).compactMap{$0 as? TransportRemotePopup}.first{$0.accessibilityLabel()=="Remote archive"}!
+    static func remoteCaption(_ value:String)->String {value == "*" ? "– All –":value.isEmpty ? "Choose remote":value}
+    static func nativeCatalog(_ button:NSPopUpButton,values:[String],selected:String)->Bool {
+        button.isEnabled && button.itemArray.map{GitReferenceName($0.title)}==values.map{GitReferenceName(remoteCaption($0))} &&
+            button.selectedItem.map{exact($0.title,remoteCaption(selected))}==true
     }
+    static func popup(_ window:NSWindow,values:[String],selected:String)async throws->NSPopUpButton{
+        // Settling model readers does not settle SwiftUI's deferred delivery to
+        // its native representable. Existence alone can observe the initial
+        // empty placeholder catalog, before the real remotes arrive.
+        do {try await wait{
+            window.contentView?.layoutSubtreeIfNeeded()
+            return descendants(window.contentView!).compactMap{$0 as? TransportRemotePopup}.contains{
+                $0.accessibilityLabel()=="Remote archive" && nativeCatalog($0,values:values,selected:selected)
+            }
+        }} catch {
+            let actual=descendants(window.contentView!).compactMap{$0 as? TransportRemotePopup}.map{button in
+                ["enabled":String(button.isEnabled),"titles":button.itemArray.map{Data($0.title.utf8).base64EncodedString()}.joined(separator:","),"selected":button.selectedItem.map{Data($0.title.utf8).base64EncodedString()} ?? "none"]
+            }
+            throw Failure(message:"\(phase): native remote catalog did not accept exact model snapshot; expected=\(values.map{Data(remoteCaption($0).utf8).base64EncodedString()}) selected=\(Data(remoteCaption(selected).utf8).base64EncodedString()) actual=\(actual); \(error)")
+        }
+        return descendants(window.contentView!).compactMap{$0 as? TransportRemotePopup}.first{$0.accessibilityLabel()=="Remote archive" && nativeCatalog($0,values:values,selected:selected)}!
+    }
+    static func fetchValues(_ model:FetchWindowModel)->[String] {(!model.isPull && model.remotes.count>1 ? ["*"]:[]) + (model.remotes.isEmpty ? [""]:model.remotes)}
+    static func pushValues(_ model:PushWindowModel)->[String] {[""]+(model.remotes.count>1 ? ["*"]:[])+model.remotes}
     static func acknowledgeError(_ owner:NSWindow)async throws {
         try await wait{owner.attachedSheet?.contentView.map{descendants($0).compactMap{$0 as? NSButton}.contains{$0.title=="OK"}}==true}
         let sheet=owner.attachedSheet!;sheet.isReleasedWhenClosed=false;sheet.alphaValue=0
@@ -98,9 +118,9 @@ import TurtleGitCore
     static func metadata()async throws{try await run{c in
         for pull in [false,true] {
             phase="\(pull ? "Pull":"Fetch") exact native remote chooser";let owner=try await c.fetch(pull),m=owner.model
-            let button=try await popup(owner.window!);try require(button.itemArray.filter{exact($0.title,nfc)||exact($0.title,nfd)}.count==2,"Native remote popup merged NFC/NFD")
-            try await wait{button.isEnabled};try choose(nfc,in:button);try await wait{!m.preparing};try require(exact(m.options.remote,nfc),"Native NFC selection lost bytes")
-            try await wait{button.isEnabled};try choose(nfd,in:button);try await wait{!m.preparing};try require(exact(m.options.remote,nfd),"Native NFD selection lost bytes")
+            let button=try await popup(owner.window!,values:fetchValues(m),selected:m.options.allRemotes ? "*":m.options.remote);try require(button.itemArray.filter{exact($0.title,nfc)||exact($0.title,nfd)}.count==2,"Native remote popup merged NFC/NFD")
+            try await wait{button.isEnabled};try choose(nfc,in:button);try await wait{!m.preparing};try require(exact(m.options.remote,nfc),"Native NFC selection lost bytes");_ = try await popup(owner.window!,values:fetchValues(m),selected:nfc)
+            try await wait{button.isEnabled};try choose(nfd,in:button);try await wait{!m.preparing};try require(exact(m.options.remote,nfd),"Native NFD selection lost bytes");_ = try await popup(owner.window!,values:fetchValues(m),selected:nfd)
             m.options.tags = .disabled;m.options.prune = .enabled;m.options.namedRemoteFetchAll=false;m.depth="7";m.squash=pull;m.noCommit=pull
             phase="\(pull ? "Pull":"Fetch") actual captured manager return";let receipt=try await beginManager(m),child=m.remoteManagerModel!
             _ = try await c.repo.run(["-c","core.precomposeunicode=false","config","branch.main.remote",nfc]);_ = try await c.repo.run(["-c","core.precomposeunicode=false","config","branch.main.merge","refs/heads/topic-two"])
@@ -108,6 +128,7 @@ import TurtleGitCore
             let config=try Data(contentsOf:c.root.appendingPathComponent(".git/config")),index=try Data(contentsOf:c.root.appendingPathComponent(".git/index")),head=try await c.repo.run(["rev-parse","HEAD"]).stdout
             child.close();try await wait{m.remoteManagerModel==nil && m.pendingOperations==0 && !m.busy && !m.preparing}
             try require(m.error==nil && exact(m.options.remote,nfc) && exact(m.options.branch,"topic-two") && m.tagsDefault=="None" && m.pruneDefault=="true","Manager return did not reread tracking branch/remote/options")
+            _ = try await popup(owner.window!,values:fetchValues(m),selected:nfc)
             try require(m.options.tags == .disabled && m.options.prune == .enabled && !m.options.namedRemoteFetchAll && m.depth=="7" && m.squash==pull && m.noCommit==pull,"Manager return reset unrelated operation draft")
             m.remoteManagerReturned(receipt);try require(m.pendingOperations==0,"Duplicate retired child dispatched refresh")
             let finalHead=try await c.repo.run(["rev-parse","HEAD"]).stdout
@@ -124,6 +145,8 @@ import TurtleGitCore
             let afterRemoval=try Data(contentsOf:c.root.appendingPathComponent(".git/config"))
             removing.close();try await wait{m.remoteManagerModel==nil && m.pendingOperations==0 && !m.busy && !m.preparing}
             try require(!exact(m.options.remote,nfd) && m.options.allRemotes == !pull,"Missing exact remote did not use source first-row fallback")
+            let refreshed=try await popup(owner.window!,values:fetchValues(m),selected:m.options.allRemotes ? "*":m.options.remote)
+            try require(!refreshed.itemArray.contains{exact($0.title,nfd)} && refreshed.itemArray.contains{exact($0.title,nfc)},"Manager return native catalog retained removed NFD remote or lost NFC sibling")
             try require(afterRemoval==Data(contentsOf:c.root.appendingPathComponent(".git/config")),"Manager refresh wrote missing remote config")
             m.remoteManagerReturned(removedReceipt);owner.window?.close()
             _ = try await c.repo.run(["-c","core.precomposeunicode=false","remote","add",nfd,c.root.appendingPathComponent("unused.git").path])
@@ -131,11 +154,18 @@ import TurtleGitCore
             _ = try await c.repo.run(["-c","core.precomposeunicode=false","config","branch.main.remote",nfd]);_ = try await c.repo.run(["-c","core.precomposeunicode=false","config","branch.main.merge","refs/heads/topic-one"])
         }
         phase="Push removed exact selected remote";let owner=PushWindowController(repository:c.repo,access:nil,preferences:c.prefs);c.pushes.append(owner);offscreen(owner.window);owner.model.load();try await wait{owner.model.pendingOperations==0 && !owner.model.busy && !owner.model.preparing}
-        let button=try await popup(owner.window!);try await wait{button.isEnabled};try choose(nfd,in:button);try require(exact(owner.model.options.remote,nfd),"Push native NFD selection lost")
+        let button=try await popup(owner.window!,values:pushValues(owner.model),selected:owner.model.options.allRemotes ? "*":owner.model.options.remote)
+        try require(button.itemArray.filter{exact($0.title,nfc)||exact($0.title,nfd)}.count==2,"Push native remote popup merged NFC/NFD")
+        try choose(nfc,in:button);try await wait{!owner.model.preparing};try require(exact(owner.model.options.remote,nfc),"Push native NFC selection lost")
+        _ = try await popup(owner.window!,values:pushValues(owner.model),selected:nfc)
+        try choose(nfd,in:button);try await wait{!owner.model.preparing};try require(exact(owner.model.options.remote,nfd),"Push native NFD selection lost")
+        _ = try await popup(owner.window!,values:pushValues(owner.model),selected:nfd)
         try await c.repo.removeRemote(name:nfd);_ = try await c.repo.run(["-c","core.precomposeunicode=false","config","branch.main.remote",nfd])
         let stored=try Data(contentsOf:c.root.appendingPathComponent(".git/config"))
         let window=owner.window as! PushNativeWindow;window.keyOwnerQuery={_ in true};_ = window.performKeyEquivalent(with:f5(window));try await wait{owner.model.pendingOperations==0 && !owner.model.busy && !owner.model.preparing}
         try require(!exact(owner.model.options.remote,nfd) && owner.model.remotes.contains{exact($0,nfc)},"Push F5 retained removed NFD remote through NFC sibling")
+        let refreshed=try await popup(owner.window!,values:pushValues(owner.model),selected:owner.model.options.allRemotes ? "*":owner.model.options.remote)
+        try require(!refreshed.itemArray.contains{exact($0.title,nfd)} && refreshed.itemArray.contains{exact($0.title,nfc)},"Push native F5 catalog retained removed NFD remote or lost NFC sibling")
         try require(stored==Data(contentsOf:c.root.appendingPathComponent(".git/config")),"Push F5 wrote configuration")
     }}
     static func lifetime()async throws{try await run{c in

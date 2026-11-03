@@ -44,7 +44,7 @@ the recorded observation. This does not establish complete hosted success.
 | Image commands | Conflict/routing and complete standalone selection pass with both engines, preserving bytes/pixels/leases and stale-event refusal; other unexecuted metafile/conflict variants remain scoped separately |
 | Switch/reference ownership | Picker and standalone-reference checks pass with both engines, including real F5 and exactly-once closure; physical/signed acceptance remains |
 | Compare/Merge pane headers | Compare/Merge/ownership pass with both engines and strengthened nonempty menu-derived AX action checks; earlier hosted timeout cause is unproven, current hosted acceptance remains |
-| History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json), runtime pending |
+| History feedback languages / remote catalog | German/French history and remote metadata/lifetime checks [pass with both engines](qa/history-remote-acceptance-2026-11-03.json); broader translation, signed/physical and complete hosted acceptance remain |
 | Later unexecuted cases | Retain engine/case boundaries from failed grouped commands; a prior case pass does not establish unexecuted later cases |
 
 The [November 2 repairs](qa/native-workflow-continuation-2026-11-02.json) and

@@ -1,0 +1,106 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "e89209b7",
+  "scope": "Exact remote native catalog/selection/manager refresh and pending German/French history feedback acceptance",
+  "hostedFailure": {
+    "run": 41546718496,
+    "source": "3a6f425c1af5c4c74fdc3e23fb27d38fe44333b1",
+    "job": 125624750606,
+    "step": 120,
+    "name": "Source reference refresh and remote-manager return ownership",
+    "case": "metadata, system Git",
+    "message": "Fetch exact native remote chooser line 101: Native remote popup merged NFC/NFD",
+    "priorRebase": "Both engine cases passed in same job; not repeated locally"
+  },
+  "diagnosis": {
+    "proven": "Fixture waited only for TransportRemotePopup existence before exact catalog assertion. Model settlement does not establish deferred SwiftUI native rendering settlement.",
+    "limits": "Original failing hosted catalog contents were not logged, so the message alone does not prove actual Unicode collapse or isolate exact rendered state.",
+    "productionReview": "PushRemotePopup shared by Fetch/Pull/Push already uses GitReferenceName for raw identity and explicit NSMenuItem insertion, with model form receipts. No production change justified."
+  },
+  "fixtureChanges": {
+    "remote": "Wait enabled native ordered catalog and selected caption against accepted byte-exact model snapshot; base64 UTF8 diagnostics on mismatch. Preserve original two-name count/model selection assertions; add native NFC/NFD selection, manager return/removal catalog and Push F5 exact sibling consistency checks.",
+    "history": "Runtime-check partial RefLog failure count templates independently for German/French, preserving selectors, diagnostics, operation output and Core English failure. Uses testable Core import for constructing structured fixture failure; no production API change."
+  },
+  "validation": {
+    "groups": [
+      {
+        "family": "remote-refresh",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-reference-refresh.py",
+          "--only",
+          "metadata",
+          "--only",
+          "lifetime",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 40.524743375,
+        "log": "build/qa/history-remote-remote-refresh-2026-11-03.log"
+      },
+      {
+        "family": "history-languages",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-language-family.py",
+          "--only",
+          "history",
+          "--locale",
+          "de",
+          "--locale",
+          "fr",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 12.088492082999998,
+        "log": "build/qa/history-remote-history-languages-2026-11-03.log"
+      }
+    ],
+    "cases": {
+      "remoteMetadata": 2,
+      "remoteLifetime": 2,
+      "historyLocalesTimesEngines": 4
+    },
+    "result": "All eight case/engine combinations passed; runner processes exit0",
+    "notRepeated": [
+      "Hosted-passed Rebase refresh cases",
+      "App build: existing current Debug objects reused",
+      "Core suite",
+      "Localization generation/checks",
+      "Help generation/checks",
+      "Settings/files language cases"
+    ],
+    "resources": "No production labels, translations or registered Help guide changed"
+  },
+  "cleanup": {
+    "ownedReceiversReaped": [
+      66515,
+      66732,
+      66945,
+      67371,
+      67800,
+      67922,
+      68026,
+      68128
+    ],
+    "scope": "Private fixture repositories/preferences/pasteboards and invisible/offscreen windows; existing runners closed windows, drained work and reaped owned receivers/helpers; no external interruption observed",
+    "userApps": "No user-owned app terminated"
+  },
+  "limits": [
+    "Complete matching-source hosted CI still required",
+    "German/French sampled runtime checks do not establish complete localization",
+    "No physical/signed Finder or layout certification",
+    "No installed app update; build49 unchanged",
+    "Original hosted failure snapshot was readiness-incomplete; no claim its exact state is reconstructed"
+  ],
+  "sourceSHA256": {
+    "docs/qa/reference-refresh-native-2026-10-24.swift": "0c62c17865198a9c7e01281c654abba971709e0be911c1990eaaa4e2e4ede637",
+    "docs/qa/history-localization-native-2026-11-01.swift": "8cde4150fed151eb5e5cdee9667d7f9f4e30926d7f897e678bfb0ad23d062384"
+  }
+}
