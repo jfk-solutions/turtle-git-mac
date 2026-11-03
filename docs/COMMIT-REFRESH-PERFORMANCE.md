@@ -202,3 +202,19 @@ Filesystem caches were not controlled. Project hooks/providers were rejected and
 private configuration excluded user global settings. This measures the hidden
 Debug native dialog, rather than full cold Finder launch, signed sandbox IPC or
 the installed application. No additional app/Core build or full suite ran.
+
+## First-read diagnosis — November 3, 2026
+
+The [focused diagnosis](qa/commit-first-read-diagnosis-2026-11-03.json) reproduced
+the slow hidden-native first load and isolated an 8.84-second Git status child.
+A later Trace2 observation places most of its slower status interval in index
+refresh, with no content scans. Direct fresh-checkout status took 0.59 seconds;
+forcing TurtleGit's C locale still took only 0.66 seconds. No locale or native
+layout rewrite is justified by these results.
+
+A scoped user-initiated activity control reduced the observed native first load
+to 3.72 seconds, but the separate checkout also had different index-stat counts.
+This is a scheduling hypothesis, not a proven App Nap cause or production speedup.
+The hidden probe bypasses application-main Git permission preparation. Current
+signed application/Finder delivery must be measured before changing shipping
+performance policy. The earlier 10.56-second sample and first-load gate remain.

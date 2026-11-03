@@ -1,0 +1,498 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "f8d44bcf",
+  "scope": "Focused diagnosis of retained first native Commit load delay; no production change",
+  "observations": {
+    "commandWrapper": {
+      "initialNativeSeconds": 11.614045958267525,
+      "refreshNativeSeconds": 2.251258875010535,
+      "statusChildSeconds": [
+        8.844348458,
+        0.748103792
+      ],
+      "sourceUnchanged": true,
+      "privateCheckoutRemoved": true,
+      "ownedGitHelpersRemaining": []
+    },
+    "directTrace": {
+      "statusSeconds": [
+        0.5908551250000009,
+        0.40585454100000007
+      ],
+      "sourceUnchanged": true,
+      "privateCheckoutRemoved": true
+    },
+    "nativeTrace": {
+      "initialNativeSeconds": 5.580857208231464,
+      "refreshNativeSeconds": 1.895163791719824,
+      "statusChildSeconds": [
+        3.054015916,
+        0.5976005839999999
+      ],
+      "sourceUnchanged": true,
+      "privateCheckoutRemoved": true,
+      "ownedGitHelpersRemaining": [],
+      "statusRegions": [
+        [
+          {
+            "event": "region_leave",
+            "category": "cache_tree",
+            "label": "read",
+            "t_rel": 0.000241
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "do_read_index",
+            "t_rel": 0.001433
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "preload",
+            "t_rel": 0.035061
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 2.638337,
+            "key": "refresh/sum_lstat",
+            "value": "1631"
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 2.638426,
+            "key": "refresh/sum_scan",
+            "value": "0"
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "refresh",
+            "t_rel": 2.638461
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 5.5e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 2.5e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "worktrees",
+            "t_rel": 0.001488
+          },
+          {
+            "event": "region_leave",
+            "category": "unpack_trees",
+            "label": "unpack_trees",
+            "t_rel": 0.000702
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 1.6e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 3.7e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "index",
+            "t_rel": 0.002151
+          },
+          {
+            "event": "region_leave",
+            "category": "dir",
+            "label": "read_directory",
+            "t_rel": 0.361541
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "untracked",
+            "t_rel": 0.361613
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "print",
+            "t_rel": 1.3e-05
+          }
+        ],
+        [
+          {
+            "event": "region_leave",
+            "category": "cache_tree",
+            "label": "read",
+            "t_rel": 0.000244
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "do_read_index",
+            "t_rel": 0.001487
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "preload",
+            "t_rel": 0.034044
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 0.209359,
+            "key": "refresh/sum_lstat",
+            "value": "1631"
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 0.209397,
+            "key": "refresh/sum_scan",
+            "value": "0"
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "refresh",
+            "t_rel": 0.209404
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 7e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 5e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "worktrees",
+            "t_rel": 0.000541
+          },
+          {
+            "event": "region_leave",
+            "category": "unpack_trees",
+            "label": "unpack_trees",
+            "t_rel": 0.000116
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 7e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 6e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "index",
+            "t_rel": 0.000531
+          },
+          {
+            "event": "region_leave",
+            "category": "dir",
+            "label": "read_directory",
+            "t_rel": 0.337477
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "untracked",
+            "t_rel": 0.337518
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "print",
+            "t_rel": 7e-06
+          }
+        ]
+      ]
+    },
+    "directCLocale": {
+      "statusSeconds": [
+        0.6606757500000002,
+        0.4223796249999996
+      ],
+      "sourceUnchanged": true,
+      "privateCheckoutRemoved": true
+    },
+    "activityControl": {
+      "initialNativeSeconds": 3.717696208273992,
+      "refreshNativeSeconds": 1.5665560418274254,
+      "statusChildSeconds": [
+        1.28999325,
+        0.49624824999999995
+      ],
+      "sourceUnchanged": true,
+      "privateCheckoutRemoved": true,
+      "ownedGitHelpersRemaining": [],
+      "statusRegions": [
+        [
+          {
+            "event": "region_leave",
+            "category": "cache_tree",
+            "label": "read",
+            "t_rel": 0.000239
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "do_read_index",
+            "t_rel": 0.001411
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "preload",
+            "t_rel": 0.033845
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 0.885977,
+            "key": "refresh/sum_lstat",
+            "value": "749"
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 0.88603,
+            "key": "refresh/sum_scan",
+            "value": "0"
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "refresh",
+            "t_rel": 0.886051
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 4.3e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 1.5e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "worktrees",
+            "t_rel": 0.001352
+          },
+          {
+            "event": "region_leave",
+            "category": "unpack_trees",
+            "label": "unpack_trees",
+            "t_rel": 0.000493
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 1.6e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 1.6e-05
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "index",
+            "t_rel": 0.001675
+          },
+          {
+            "event": "region_leave",
+            "category": "dir",
+            "label": "read_directory",
+            "t_rel": 0.349189
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "untracked",
+            "t_rel": 0.349247
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "print",
+            "t_rel": 1.9e-05
+          }
+        ],
+        [
+          {
+            "event": "region_leave",
+            "category": "cache_tree",
+            "label": "read",
+            "t_rel": 0.000247
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "do_read_index",
+            "t_rel": 0.001521
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "preload",
+            "t_rel": 0.035139
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 0.104023,
+            "key": "refresh/sum_lstat",
+            "value": "749"
+          },
+          {
+            "event": "data",
+            "category": "index",
+            "t_rel": 0.104057,
+            "key": "refresh/sum_scan",
+            "value": "0"
+          },
+          {
+            "event": "region_leave",
+            "category": "index",
+            "label": "refresh",
+            "t_rel": 0.104065
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 7e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 5e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "worktrees",
+            "t_rel": 0.000205
+          },
+          {
+            "event": "region_leave",
+            "category": "unpack_trees",
+            "label": "unpack_trees",
+            "t_rel": 0.000126
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "setup",
+            "t_rel": 7e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "diff",
+            "label": "write back to queue",
+            "t_rel": 5e-06
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "index",
+            "t_rel": 0.00053
+          },
+          {
+            "event": "region_leave",
+            "category": "dir",
+            "label": "read_directory",
+            "t_rel": 0.338471
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "untracked",
+            "t_rel": 0.338515
+          },
+          {
+            "event": "region_leave",
+            "category": "status",
+            "label": "print",
+            "t_rel": 1e-05
+          }
+        ]
+      ]
+    }
+  },
+  "findings": [
+    "First native wrapper profile reproduced11.61s total and isolated8.844s in the actual status child, followed by0.748s on refresh. Wrapper adds Python process overhead; not a baseline speedup comparison.",
+    "Native Trace2 profile recorded5.58s total; firststatus3.054s included index refresh2.638s,1631lstat calls and0content scans. Untracked walk was0.362s.",
+    "Direct fresh-checkout CLI profiles were0.591/0.406s in inherited C.UTF-8 and0.661/0.422s in C. Locale alone does not explain the native delay; no production locale change justified.",
+    "A scoped user-initiated activity control measured3.72s total, firststatus1.290s and indexrefresh0.886s with749lstat calls. This differs from earlier datasets and timing conditions; it suggests a scheduling hypothesis but does not prove App Nap or a production fix.",
+    "Probe bootstrap bypasses TurtleGitApplication.main and therefore does not install GitConfigurationPermissions.installGitReadPreparation. Recorded timing cannot establish full signed application/Finder grant performance."
+  ],
+  "sourceReview": {
+    "CancellableGitProcess": "Uses spawn group/signal/file-descriptor flags only; no explicit QoS/priority/AppNap policy. Parent10ms wait polling cannot explain time inside the child Trace2 index region.",
+    "CommitWindow": "Inherited-priority Task; actual visible app and prohibited hidden probe are different execution environments.",
+    "GitRuntime": "No first-use sleep/timer or authority callback in this probe."
+  },
+  "references": {
+    "gitTrace2": "https://github.com/git/git/blob/master/Documentation/technical/api-trace2.adoc",
+    "appleUserActivity": "https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/PrioritizeWorkAtTheAppLevel.html",
+    "appleAppNap": "https://developer.apple.com/library/archive/documentation/Performance/Conceptual/power_efficiency_guidelines_osx/AppNap.html"
+  },
+  "validationLimits": [
+    "Diagnostic runs on separate fresh private clones, not controlled A/B causal measurements",
+    "Index lstat counts differ; filesystem/cache/scheduling effects not isolated",
+    "Python wrapper command start fields are per-process clock readings; only elapsed durations were compared",
+    "No Core suite/app build rerun; existing native fixture and ignored diagnostic variants reused",
+    "No speculative production optimization, cache omission or assertion weakening",
+    "Original10.56s first sample retained; first-load acceptance stays open"
+  ],
+  "cleanup": {
+    "originalSourceHeadAndIndexUnchanged": true,
+    "allPrivateCheckoutsRemoved": true,
+    "ownedReceiversReaped": [
+      70791,
+      71509,
+      71994
+    ],
+    "ownedGitHelpersRemaining": [],
+    "userAppsTerminated": false
+  },
+  "nextAction": "Measure the real signed application delivery path with current source before treating hidden-probe scheduling as a shipping defect; prepare next consolidated local testing candidate. Full matching-source CI remains pending.",
+  "installedAppUnchanged": "0.1.0 (49)"
+}
