@@ -11,9 +11,15 @@ public enum OperationCancellationFailure: LocalizedError {
 public final class OperationCancellation: @unchecked Sendable {
     private let lock = NSLock()
     private var cancelled = false
-    public init() {}
+    // Immutable parent ownership makes propagation directional: retiring an
+    // optional child never cancels the enclosing command or its siblings.
+    private let parent: OperationCancellation?
+    public init(parent: OperationCancellation? = nil) { self.parent = parent }
     public func cancel() { lock.lock(); cancelled = true; lock.unlock() }
-    public var isCancelled: Bool { lock.lock(); defer { lock.unlock() }; return cancelled }
+    public var isCancelled: Bool {
+        lock.lock(); let local = cancelled; lock.unlock()
+        return local || parent?.isCancelled == true
+    }
     public func check() throws { if isCancelled { throw OperationCancellationFailure.cancelled } }
 }
 

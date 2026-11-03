@@ -1069,8 +1069,12 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         func encoding() throws -> (Data,Bool) {
             encodingLock.lock();defer{encodingLock.unlock()}
             if let encodedBody{return (encodedBody,false)}
-            let encoder=JSONEncoder();encoder.outputFormatting = [.sortedKeys]
-            let bytes=try encoder.encode(self);encodedBody=bytes;return (bytes,true)
+            // This immutable body is reused verbatim by control-header writes.
+            // JSON object order is not cache authority. Sorting the large legacy
+            // path dictionaries makes Foundation compare bridged NSString path
+            // keys repeatedly; exact records already use a byte ordering and
+            // legacy collision winners are fixed before JSON serialization.
+            let bytes=try JSONEncoder().encode(self);encodedBody=bytes;return (bytes,true)
         }
         init(root: String, session: UUID, sequence: UInt64, revision: UInt64? = nil, snapshots: [FinderSnapshot], restored: Bool) {
             self.root=root;self.session=session;self.sequence=sequence;self.revision=revision ?? sequence
@@ -1197,9 +1201,12 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         if lstat(location.path,&attributes)==0 {guard attributes.st_mode & S_IFMT == S_IFREG else {throw FinderPublicationFailure.corruptStore}}
         else if errno != ENOENT {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
         let bytes:Data=try autoreleasepool {
-            let encoder=JSONEncoder();encoder.outputFormatting = [.sortedKeys]
+            let encoder=JSONEncoder()
             let bytes:Data
             if let state=value as? Control {
+                // Only this small metadata header needs stable key ordering;
+                // payload bodies retain their own immutable encoded bytes.
+                encoder.outputFormatting = [.sortedKeys]
                 let header=try encoder.encode(ControlHeader(state:state)),placeholder=Data("\"contributions\":[]".utf8)
                 guard let range=header.range(of:placeholder) else{throw FinderPublicationFailure.corruptStore}
                 var bodies:[Data]=[],total=header.count
@@ -1215,7 +1222,13 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 combined.append(header.prefix(range.upperBound-1))
                 for (index,body) in bodies.enumerated(){if index>0{combined.append(44)};combined.append(body)}
                 combined.append(header.suffix(from:range.upperBound-1));bytes=combined
-            }else{bytes=try encoder.encode(value)}
+            }else{
+                // Live/restart snapshot dictionaries can contain hundreds of
+                // thousands of long Foundation-backed path keys. Preserve all
+                // wire fields and the exact/legacy collision projections, but
+                // do not sort JSON object keys that no reader uses as authority.
+                bytes=try encoder.encode(value)
+            }
             return bytes
         }
         guard bytes.count<=268435456 else {throw FinderPublicationFailure.corruptStore}

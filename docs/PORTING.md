@@ -1,15 +1,26 @@
 # TurtleGit for Mac — full port tracking
 
-## Installed consolidated local build49
+## Installed consolidated local build51
 
-[Build49](qa/signed-consolidation-build49-2026-11-01.json), source `84c8b428`,
-is installed and left closed; build48 is preserved for rollback. It contains the
-four hosted consumer fixes below, history feedback/localized deletion warnings,
-and the corrected legacy-text partial staging guide in bundled Help.
-Universal signing, exact resources, package/source/install inventories and one
-signed command-line sandbox probe pass. No shipping GUI was launched. The
-[pending native acceptance queue](RELEASE-BLOCKERS.md#current-acceptance-queue),
-complete hosted CI, physical/platform and full-port requirements remain open.
+[Build51](qa/signed-consolidation-build51-2026-11-03.json), source `ff4b6085`,
+is installed and left closed; build49 is preserved for rollback. It consolidates
+the Commit candidate-index reads, Finder root grants, Settings ownership and
+Switch cancellation repairs. Universal signing, exact resources,
+package/source/install inventories and the focused signed Git sandbox probe pass.
+The shipping-app observation retains a startup failure behind large shared-cache
+publication; Classic Commit separately reaches its two expected rows and keeps
+visible headers stable through selection and typing. Finder menu invocation was
+blocked by native control, so registration/badges/cold delivery remain open.
+
+The connected cache/readiness source continuation separates ordinary workspace
+facts from optional overlay publication, preserves strict Services/registration
+requirements and retains worker cancellation/drainage. Large cache bodies retain
+their exact and legacy fields without Foundation JSON object-key sorting.
+Its [grouped checkpoint](qa/finder-readiness-publication-2026-11-03.json) passes 69
+focused Core checks, the Debug build and eight native case/engine pairs. Subsequent
+signed large-cache acceptance remains separate from installed build51. See the
+[acceptance queue](RELEASE-BLOCKERS.md#current-acceptance-queue) for current gates.
+Complete hosted CI, physical/platform and full-port requirements remain open.
 No public binary upload, notarization or App Store submission occurred.
 
 ## History feedback and warning presentation — November 1, 2026

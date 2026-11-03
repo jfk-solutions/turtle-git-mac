@@ -855,29 +855,47 @@ private enum TransportBatchPresentationContext {
     private let snapshotStore:FinderSnapshotStore?
     private var finderPublicationSession:FinderPublicationSession?
     private var finderPublicationReads:[UUID:OperationCancellation]=[:]
+    private var workspaceFinderPublication: (id: UUID, cancellation: OperationCancellation)?
+    private func cancelWorkspaceFinderPublication() {
+        workspaceFinderPublication?.cancellation.cancel()
+        workspaceFinderPublication = nil
+    }
     private var finderPublicationSessionStartup:Task<FinderPublicationSession,Error>?
     private var finderPublicationSessionStartupID: UUID?
     private(set) var finderPublicationShutdownPending = false
     private var finderPublicationShutdownTask:Task<Void,Never>?
     var hasPendingFinderPublication:Bool { workspaceServicesPending || !finderPublicationReads.isEmpty || finderPublicationSession != nil || finderPublicationShutdownPending }
     private func publicationSession(_ store:FinderSnapshotStore,cancellation:OperationCancellation) async throws -> FinderPublicationSession {
-        guard !retired else { throw OperationCancellationFailure.cancelled }
-        if let finderPublicationSession { return finderPublicationSession }
-        let task: Task<FinderPublicationSession, Error>
-        let identity: UUID
-        if let pending = finderPublicationSessionStartup, let pendingID = finderPublicationSessionStartupID { task = pending; identity = pendingID }
-        else {
-            identity = UUID()
-            task = Task.detached(priority: .utility) { try store.startSession(cancellation: cancellation) }
-            finderPublicationSessionStartup = task; finderPublicationSessionStartupID = identity
-        }
-        do {
-            let session = try await task.value
-            finderPublicationSession = session; if finderPublicationSessionStartupID == identity { finderPublicationSessionStartup = nil; finderPublicationSessionStartupID = nil }
+        while true {
             try cancellation.check()
-            guard !retired else { throw OperationCancellationFailure.cancelled }
-            return session
-        } catch { if finderPublicationSessionStartupID == identity { finderPublicationSessionStartup = nil; finderPublicationSessionStartupID = nil }; throw error }
+            guard !retired else {throw OperationCancellationFailure.cancelled}
+            if let finderPublicationSession {return finderPublicationSession}
+            let task:Task<FinderPublicationSession,Error>,identity:UUID,reused:Bool
+            if let pending=finderPublicationSessionStartup,let pendingID=finderPublicationSessionStartupID {
+                task=pending;identity=pendingID;reused=true
+            } else {
+                identity=UUID();reused=false
+                task=Task.detached(priority:.utility) {try store.startSession(cancellation:cancellation)}
+                finderPublicationSessionStartup=task;finderPublicationSessionStartupID=identity
+            }
+            do {
+                let session=try await task.value
+                finderPublicationSession=session
+                if finderPublicationSessionStartupID==identity {finderPublicationSessionStartup=nil;finderPublicationSessionStartupID=nil}
+                try cancellation.check()
+                guard !retired else {throw OperationCancellationFailure.cancelled}
+                return session
+            } catch {
+                if finderPublicationSessionStartupID==identity {finderPublicationSessionStartup=nil;finderPublicationSessionStartupID=nil}
+                try cancellation.check()
+                guard !retired else {throw OperationCancellationFailure.cancelled}
+                // A replacement read can join a start still draining its old
+                // request's cancellation. Retry only that cancelled shared
+                // start; genuine store/signature/permission failures stay errors.
+                if reused,error is OperationCancellationFailure {continue}
+                throw error
+            }
+        }
     }
     /// Keep the live writer lease until every owned Git reader and publication
     /// settles. Retiring this owner must preserve other active app/helper owners.
@@ -1221,6 +1239,7 @@ private enum TransportBatchPresentationContext {
         guard !busy, !confirmingQuit else { return }
         guard root == nil || canChangeSettingsContext() else { return }
         deferredDialogFinderRefresh?.cancel()
+        cancelWorkspaceFinderPublication()
         stopFileMonitoring()
         completedRepositoryHandoff = nil
         adoptionGeneration += 1; hasGitSVN = false; bare = false; mergeActive = false
@@ -1272,6 +1291,7 @@ private enum TransportBatchPresentationContext {
         }
         completedRepositoryHandoff = nil
         deferredDialogFinderRefresh?.cancel()
+        cancelWorkspaceFinderPublication()
         stopFileMonitoring()
         adoptionGeneration += 1
         let adoption = adoptionGeneration
@@ -1399,7 +1419,7 @@ private enum TransportBatchPresentationContext {
                 section = .status
                 output = "Repository: \(resolved.path)"
                 if let dialogBare { bare = dialogBare }
-                else { try await reload(cancellation: cancellation) }
+                else { try await reload(cancellation: cancellation, requireSelectionSnapshot: serviceCommand?.requiresSourceEligibility == true) }
                 try cancellation.check();guard adoption == adoptionGeneration else { return }
                 if bare { section = .log }
                 if !dialogFirst, let selected { selection = selected.selectedStatusPaths(root: resolved, entries: entries) }
@@ -1527,7 +1547,7 @@ private enum TransportBatchPresentationContext {
                     if !readiness.busy { break }
                     try await Task.sleep(nanoseconds: 10_000_000)
                 }
-                try await reload(cancellation: token)
+                try await reload(cancellation: token, awaitPublication: true)
             } catch {
                 if !token.isCancelled, !retired, adoptionGeneration == adoption, self.root == root {
                     finderStatus = "Finder cache unavailable: " + error.localizedDescription
@@ -1541,7 +1561,7 @@ private enum TransportBatchPresentationContext {
         do { try await reload() } catch { self.error = error.localizedDescription }
         if refreshStatus, let root { refreshStatusWindows(root) }
     }
-    private func reload(cancellation:OperationCancellation? = nil) async throws {
+    private func reload(cancellation:OperationCancellation? = nil, requireSelectionSnapshot:Bool = false, awaitPublication:Bool = false) async throws {
         guard !retired,let repository, let root else { return }
         let token=cancellation ?? OperationCancellation(),readID=UUID(),generation=adoptionGeneration
         @MainActor func checkCurrent() throws {
@@ -1549,59 +1569,124 @@ private enum TransportBatchPresentationContext {
             guard !retired, adoptionGeneration == generation, self.root == root else { throw OperationCancellationFailure.cancelled }
         }
         try checkCurrent()
+        // A newer repository read owns the next publication. A cancelled writer
+        // still retains its read/lease entry until the real worker has drained.
+        cancelWorkspaceFinderPublication()
         finderPublicationReads[readID]=token
         defer { finderPublicationReads.removeValue(forKey:readID) }
-        let store=snapshotStore
-        let policy=try finderStatusPolicyProvider?()
-        var ticket:FinderPublicationTicket?,publicationError:String?,persistenceWarning:String?
-        if snapshotWriter==nil,let store {
-            do {
-                let session=try await publicationSession(store,cancellation:token)
-                try checkCurrent()
-                persistenceWarning=session.persistenceFailure
-                ticket=try await Task.detached { try store.begin(root:root,session:session,cancellation:token,policy:policy) }.value
-            }
-            catch { publicationError=error.localizedDescription }
-            persistenceWarning=ticket?.persistenceFailure ?? persistenceWarning
-        }
-        try checkCurrent()
-        let collected=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in
+        let watchReady:@Sendable ([URL]) async -> Void = { [weak self] directories in
             await MainActor.run {
                 guard !token.isCancelled, let self, !self.retired, self.adoptionGeneration == generation, self.root == root else { return }
                 self.monitorFiles(directories)
             }
-        },policy:policy)
+        }
+        let collected:WorkspaceRepositoryState
+        if requireSelectionSnapshot {
+            // First-use selected-file Services need exact clean/ignored path
+            // classification before admission, not an earlier Finder cache.
+            let policy=try finderStatusPolicyProvider?()
+            let complete=try await repository.collectFinderRepository(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:watchReady,policy:policy)
+            try checkCurrent()
+            collected=complete.workspaceState
+            let prior=currentFinderSnapshot()
+            let cached=try await Task.detached(priority:.userInitiated) {
+                try token.check();var result=prior;result.replaceSubtree(root:root,snapshots:complete.snapshots);try token.check();return result
+            }.value
+            try checkCurrent();adoptFinderSnapshot(cached)
+        } else {
+            collected=try await repository.workspaceState(authorizedRoot:activeAccess?.url ?? root,cancellation:token,watchReady:watchReady)
+        }
         try checkCurrent()
         bare=collected.bare;entries=collected.entries;conflictRebase=collected.conflictIsRebase;submodules=collected.submodules
         selection = (pendingWorkspaceSelection ?? selection).intersection(visibleEntries.map(\.path));pendingWorkspaceSelection=nil
         branch=collected.branch;hasGitSVN=collected.metadata.hasGitSVN;mergeActive=collected.metadata.mergeActive
-        var cached=FinderSnapshot(roots:monitoredRoots,states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags,overlayPolicies:cacheOverlayPolicies)
-        cached.replaceSubtree(root:root,snapshots:collected.snapshots)
-        monitoredRoots = cached.roots; cacheStates = cached.states; cacheRepositories = cached.repositories
-        cacheOverlayEntries = cached.overlayEntries
-        cacheIndexFlags = cached.indexFlags
-        cacheOverlayPolicies = cached.overlayPolicies
-        do {
-            if let publicationError { finderStatus="Finder cache unavailable: "+publicationError;return }
-            let written:Bool
-            if let writer=snapshotWriter { written=try await Task.detached { try writer(cached) }.value }
-            else if let store,let ticket {
-                let update=try await Task.detached { try store.publish(ticket,snapshots:collected.snapshots,cancellation:token) }.value
+        // Workspace commands and self-loading dialogs are ready after their own
+        // Git read. Shared-store encoding/other repository writers are optional
+        // background work, independently retained for replacement and Quit.
+        let publication=scheduleWorkspaceFinderPublication(root:root,generation:generation,cancellation:token)
+        // A cold dialog's deferred owner retains its close observer and token
+        // through publication; ordinary foreground readiness does not await it.
+        if awaitPublication {await publication?.value}
+    }
+    private func currentFinderSnapshot() -> FinderSnapshot {
+        FinderSnapshot(roots:monitoredRoots,states:cacheStates,repositories:cacheRepositories,overlayEntries:cacheOverlayEntries,indexFlags:cacheIndexFlags,overlayPolicies:cacheOverlayPolicies)
+    }
+    private func adoptFinderSnapshot(_ value:FinderSnapshot) {
+        monitoredRoots=value.roots;cacheStates=value.states;cacheRepositories=value.repositories
+        cacheOverlayEntries=value.overlayEntries;cacheIndexFlags=value.indexFlags;cacheOverlayPolicies=value.overlayPolicies
+    }
+    private func scheduleWorkspaceFinderPublication(root:URL,generation:Int,cancellation parent:OperationCancellation) -> Task<Void,Never>? {
+        guard snapshotStore != nil || snapshotWriter != nil else {finderStatus="Finder cache unavailable: App Group access required";return nil}
+        let id=UUID(),token=OperationCancellation(parent:parent),access=activeAccess,store=snapshotStore,writer=snapshotWriter
+        workspaceFinderPublication=(id,token)
+        finderPublicationReads[id]=token
+        finderStatus="Updating Finder status…"
+        let work=Task { [self] in
+            defer {
+                finderPublicationReads.removeValue(forKey:id)
+                if workspaceFinderPublication?.id == id {workspaceFinderPublication=nil}
+                withExtendedLifetime(access) {}
+            }
+            @MainActor func checkCurrent() throws {
+                try token.check()
+                guard !retired,adoptionGeneration==generation,self.root==root,
+                      workspaceFinderPublication?.id==id else {throw OperationCancellationFailure.cancelled}
+            }
+            do {
+                // Keep optional collectors off the foreground repository actor,
+                // so a cache writer cannot queue ahead of Commit's own read.
+                await Task.yield()
                 try checkCurrent()
-                cached=update.snapshot
-                persistenceWarning=update.persistenceFailure
-                monitoredRoots=cached.roots;cacheStates=cached.states;cacheRepositories=cached.repositories
-                cacheOverlayEntries=cached.overlayEntries;cacheIndexFlags=cached.indexFlags;cacheOverlayPolicies=cached.overlayPolicies
-                guard update.published else { finderStatus="Finder cache update superseded";eventRefresh?.invalidate();return }
-                written=true
-            } else { written=false }
-            try checkCurrent()
-            finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
-            if written { if let persistenceWarning { finderStatus += "; saved cache unavailable: "+persistenceWarning };notifyFinder() }
-        } catch { try checkCurrent(); finderStatus = "Finder cache unavailable: " + error.localizedDescription }
+                let collector=try makeRepository(root)
+                let policy=try finderStatusPolicyProvider?()
+                var ticket:FinderPublicationTicket?,persistenceWarning:String?
+                if writer==nil,let store {
+                    let session=try await publicationSession(store,cancellation:token)
+                    try checkCurrent();persistenceWarning=session.persistenceFailure
+                    ticket=try await Task.detached(priority:.utility) {try store.begin(root:root,session:session,cancellation:token,policy:policy)}.value
+                    persistenceWarning=ticket?.persistenceFailure ?? persistenceWarning
+                }
+                try checkCurrent()
+                // BEGIN must precede this authoritative read. Reusing the
+                // foreground pre-ticket snapshot could overwrite a newer watch.
+                let collected=try await collector.collectFinderRepository(authorizedRoot:access?.url ?? root,cancellation:token,watchReady:{ [weak self] directories in
+                    await MainActor.run {
+                        guard let self,!token.isCancelled,!self.retired,self.adoptionGeneration==generation,
+                              self.root==root,self.workspaceFinderPublication?.id==id else {return}
+                        self.monitorFiles(directories)
+                    }
+                },policy:policy)
+                try checkCurrent()
+                var cached:FinderSnapshot?
+                let written:Bool
+                if let writer {
+                    let prior=currentFinderSnapshot()
+                    let update=try await Task.detached(priority:.utility) {
+                        try token.check();var value=prior;value.replaceSubtree(root:root,snapshots:collected.snapshots);try token.check()
+                        return (try writer(value),value)
+                    }.value
+                    written=update.0;cached=update.1
+                } else if let store,let ticket {
+                    let update=try await Task.detached(priority:.utility) {try store.publish(ticket,snapshots:collected.snapshots,cancellation:token)}.value
+                    try checkCurrent();cached=update.snapshot;persistenceWarning=update.persistenceFailure
+                    guard update.published else {finderStatus="Finder cache update superseded";eventRefresh?.invalidate();return}
+                    written=true
+                } else {written=false}
+                try checkCurrent()
+                if written,let cached {adoptFinderSnapshot(cached)}
+                finderStatus = written ? (collected.failures.isEmpty ? "Finder cache updated" : "Finder cache updated; \(collected.failures.count) submodule scan(s) failed: " + collected.failures.sorted { $0.key < $1.key }.map { $0.key + ": " + $0.value }.joined(separator: "; ")) : "Finder cache unavailable: App Group access required"
+                if written {if let persistenceWarning {finderStatus += "; saved cache unavailable: "+persistenceWarning};notifyFinder()}
+            } catch {
+                if !token.isCancelled,!retired,adoptionGeneration==generation,self.root==root,workspaceFinderPublication?.id==id {
+                    finderStatus="Finder cache unavailable: "+error.localizedDescription
+                }
+            }
+        }
+        return work
     }
     func perform(_ operation: @escaping (GitRepository) async throws -> String) {
         guard let repository, !busy, !confirmingQuit else { return }
+        cancelWorkspaceFinderPublication()
         busy = true
         let access = activeAccess
         let finderOwner=UUID();FinderCommandStatusActivity.update(finderOwner,active:true)

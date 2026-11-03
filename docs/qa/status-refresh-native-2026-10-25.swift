@@ -11,6 +11,13 @@ private extension NSWindow {
 }
 @MainActor @main enum StatusRefreshVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
+    final class PublicationGate:@unchecked Sendable {
+        private let lock=NSLock(),releaseSignal=DispatchSemaphore(value:0)
+        private var waiting=false,released=false
+        var entered:Bool {lock.lock();defer{lock.unlock()};return waiting}
+        func hold() {lock.lock();waiting=true;lock.unlock();releaseSignal.wait()}
+        func release() {lock.lock();let first = !released;released=true;lock.unlock();if first {releaseSignal.signal()}}
+    }
     static func require(_ condition: Bool, _ message: String) throws { if !condition { throw Failure(description: message) } }
     static func wait(line: Int = #line, _ ready: () -> Bool) async throws {
         for _ in 0..<3000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -136,6 +143,74 @@ private extension NSWindow {
         try await wait { owner.model.retired && !owner.window!.isVisible }
         print("Actual monitor quiescent; external mutation refreshed; Commit display did not feed index writes; idle Status closed")
     }
+    static func publication(_ c:Context) async throws {
+        let cache=c.base.appendingPathComponent("held-cache/status.json"),store=FinderSnapshotStore(url:cache)
+        let foreign=try store.startSession(),storeGate=PublicationGate(),foreignRoot=c.base.appendingPathComponent("foreign-root")
+        let held=Task.detached {try store.begin(root:foreignRoot,session:foreign,authorize:{storeGate.hold()})}
+        defer {storeGate.release()}
+        do {
+            try await wait {storeGate.entered}
+            let model=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:c.git,askpass:nil,libgit2Configuration:.init(enabled:false))},snapshotStore:store,cachePersistenceDefaults:c.prefs)
+            c.workspace=model;model.fileComparisonPreferences=c.prefs
+            var notifications=0;model.notifyFinder={notifications += 1}
+            model.open(c.folder)
+            try await wait {!model.busy && model.root?.path==c.folder.path}
+            try require(model.entries.contains{$0.path=="file"} && model.error==nil && model.hasPendingFinderPublication && notifications==0,
+                        "Shared store lock blocked foreground facts or lost publication ownership")
+            model.activate(.commit)
+            var commit:CommitWindowController?
+            try await wait {
+                commit=NSApp.windows.compactMap{$0.delegate as? CommitWindowController}.first{$0.model.repository.root.path==c.folder.path && $0.canReuse}
+                return commit?.model.hasHead==true && commit?.model.busy==false && CommitWindowModel.activeReloads==0
+            }
+            guard let commit else {throw Failure(description:"Commit could not read independently of optional shared cache")}
+            c.owners.append(commit)
+            try require(commit.model.error==nil && storeGate.entered && notifications==0,"Commit waited for or published around the held cache writer")
+            commit.close();try await wait {drained()}
+            try Data("latest workspace generation\n".utf8).write(to:c.folder.appendingPathComponent("latest.txt"))
+            await model.refresh(refreshStatus:false)
+            try require(!model.busy && model.entries.contains{$0.path=="latest.txt"} && notifications==0,"A newer display refresh joined an older optional publication")
+            let replacement=c.base.appendingPathComponent("replacement")
+            try FileManager.default.createDirectory(at:replacement,withIntermediateDirectories:true)
+            let second=GitRepository(root:replacement,executable:c.git,askpass:nil,libgit2Configuration:.init(enabled:false))
+            _=try await second.run(["init","--template=","-b","replacement"])
+            try Data("replacement untracked\n".utf8).write(to:replacement.appendingPathComponent("other.txt"))
+            model.open(replacement)
+            try await wait {!model.busy && model.root?.path==replacement.path}
+            try require(model.branch=="replacement" && model.entries.map(\.path)==["other.txt"] && notifications==0,"Late optional publication replaced the new repository display")
+            model.closeRepository();model.stopMonitoringForTermination();await model.shutdownFinderPublication()
+            try require(model.root==nil && !model.hasPendingFinderPublication && notifications==0,"Cancelled queued store startup outlived retirement")
+            storeGate.release();_=try await held.value;_=try store.endSession(foreign)
+        } catch {
+            storeGate.release();_=try? await held.value;_=try? store.endSession(foreign)
+            throw error
+        }
+        let writerGate=PublicationGate()
+        defer {writerGate.release()}
+        let writer=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:c.git,askpass:nil,libgit2Configuration:.init(enabled:false))},snapshotWriter:{_ in writerGate.hold();return true},snapshotStore:store,cachePersistenceDefaults:c.prefs)
+        c.workspace=writer
+        var notifications=0;writer.notifyFinder={notifications += 1}
+        writer.open(c.folder)
+        try await wait {!writer.busy && writer.root?.path==c.folder.path && writerGate.entered}
+        try require(writer.hasPendingFinderPublication,"Optional active writer was hidden from Quit ownership")
+        writer.closeRepository();let retiredStatus=writer.finderStatus
+        writer.stopMonitoringForTermination()
+        var shutdownFinished=false
+        let shutdown=Task {await writer.shutdownFinderPublication();shutdownFinished=true}
+        await Task.yield()
+        try require(!shutdownFinished && writer.hasPendingFinderPublication,"Retirement released an uninterruptible writer before actual worker drainage")
+        writerGate.release();await shutdown.value
+        try require(shutdownFinished && !writer.hasPendingFinderPublication && writer.root==nil && notifications==0 && writer.finderStatus==retiredStatus,
+                    "Late writer completion published/notified into a closed owner")
+        let policy=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:c.git,askpass:nil,libgit2Configuration:.init(enabled:false))},snapshotWriter:{_ in false},cachePersistenceDefaults:c.prefs,
+            finderStatusPolicyProvider:{throw NSError(domain:"PrivateFinderPolicy",code:1,userInfo:[NSLocalizedDescriptionKey:"Private overlay policy unavailable"])})
+        c.workspace=policy;policy.open(c.folder)
+        try await wait {!policy.busy && policy.root?.path==c.folder.path && policy.finderStatus.contains("Private overlay policy unavailable")}
+        try require(policy.error==nil && policy.entries.contains{$0.path=="file"},"Optional overlay policy failure hid actual workspace status")
+        policy.stopMonitoringForTermination();await policy.shutdownFinderPublication()
+        try await c.preserved()
+        print("Workspace/Commit ready under a held real store; refresh and replacement refuse old publications; active optional writer remains owned through actual retirement drainage; overlay policy failure stays separate from workspace readiness")
+    }
     static func cancel(_ c: Context) async throws {
         let owner = try await c.status(), model = owner.model, previous = model.files
         model.selection = ["file"]; let selection = model.selection
@@ -188,7 +263,7 @@ private extension NSWindow {
         let c = Context()
         do {
             try await c.prepare()
-            switch CommandLine.arguments[3] { case "monitor": try await monitor(c); case "cancel": try await cancel(c); case "scope": try await scope(c); default: throw Failure(description: "Unknown Status refresh case") }
+            switch CommandLine.arguments[3] { case "monitor": try await monitor(c); case "cancel": try await cancel(c); case "scope": try await scope(c); case "publication": try await publication(c); default: throw Failure(description: "Unknown Status refresh case") }
             await c.clean(); try require(drained() && NSApp.windows.allSatisfy { !$0.isVisible && $0.attachedSheet == nil }, "Status refresh owners did not drain/close")
             print("PASS: status refresh " + CommandLine.arguments[3])
         } catch { await c.clean(); fputs("Status refresh failed: \(error)\n", stderr); exit(1) }

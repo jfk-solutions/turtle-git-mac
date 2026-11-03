@@ -271,3 +271,44 @@ public actor GitRepository {
         return try run(["commit", "-F", messageFile.url.path]).text
     }
 }
+
+/// Foreground workspace facts do not depend on the shared Finder publication
+/// store, full clean-file overlay expansion, overlay policy scans or child snapshots.
+/// The publisher separately acquires a ticket before collecting its complete
+/// authoritative snapshot; this value must never be submitted as that snapshot.
+public struct WorkspaceRepositoryState: Sendable {
+    public let bare: Bool
+    public let entries: [StatusEntry]
+    public let branch: String
+    public let conflictIsRebase: Bool
+    public let submodules: GitPathSet
+    public let metadata: FinderRepositoryMetadata
+    public let watchDirectories: [URL]
+}
+
+extension GitRepository {
+    public func workspaceState(authorizedRoot: URL, cancellation: OperationCancellation? = nil,
+                               watchReady: (@Sendable ([URL]) async -> Void)? = nil) async throws -> WorkspaceRepositoryState {
+        try cancellation?.check()
+        guard RepositoryAccessLease.pathIsContained(root, by: authorizedRoot) else { throw RepositoryAccessFailure.securityScopeUnavailable }
+        let bare = try isBare(cancellation: cancellation)
+        let watch = try finderWatchDirectories(cancellation: cancellation)
+        await watchReady?(watch)
+        try cancellation?.check()
+        let entries = try bare ? [] : status(readPolicy: .automatic, cancellation: cancellation)
+        let conflict = try bare ? false : conflictIsRebase(cancellation: cancellation)
+        let submodules = try bare ? GitPathSet() : GitPathSet(submodulePathNames(cancellation: cancellation).map(\.rawValue))
+        let branch = try self.branch(cancellation: cancellation)
+        let metadata = try finderMetadata(knownBare: bare, cancellation: cancellation)
+        try cancellation?.check()
+        return WorkspaceRepositoryState(bare: bare, entries: entries, branch: branch, conflictIsRebase: conflict,
+                                        submodules: submodules, metadata: metadata, watchDirectories: watch)
+    }
+}
+
+extension FinderRepositoryCollection {
+    public var workspaceState: WorkspaceRepositoryState {
+        WorkspaceRepositoryState(bare: bare, entries: entries, branch: branch, conflictIsRebase: conflictIsRebase,
+                                 submodules: submodules, metadata: metadata, watchDirectories: watchDirectories)
+    }
+}

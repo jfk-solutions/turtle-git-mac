@@ -1,0 +1,177 @@
+{
+  "date": "2026-11-03",
+  "status": "signed-built-packaged-installed-physical-startup-defect-retained",
+  "version": "0.1.0",
+  "build": "51",
+  "source_commit": "ff4b60856bea44bb1b50253f5fefd46cffc9a0c9",
+  "source_input_sha256": "516fc66914f6dcdffee6dd3e9a55f17104172dd09114c9668eab713219fde638",
+  "main_sha256": "8eef58f6162b002a59a20d93b5a8ec4db5f2a5769e1095387ae0965f2f67db6a",
+  "build_result": {
+    "exit": 0,
+    "elapsed_seconds": 539.466,
+    "log": "build/qa/signed51-final-build-2026-11-03.log"
+  },
+  "build_inputs_unchanged": true,
+  "static": {
+    "receipt": "build/qa/signed51-static-2026-11-03.json in frozen signed51 worktree",
+    "strict_deep_seal": true,
+    "owned_universal_components": 8,
+    "runtime_layout_code_entries": 206,
+    "inventory_members": 6385,
+    "team": "A49SCA5S8K",
+    "signing_leaf_sha1": "368185657EAF3B08917601A5447D52FE9B572E46",
+    "packaged_help_source_members": 98,
+    "compiled_locales": 38
+  },
+  "signed_runtime": {
+    "receipt": "build/qa/signed51-local-tools-2026-11-03.json",
+    "passed": true,
+    "requested_runtime_phases": [
+      "local-tools"
+    ],
+    "scope": "One private signed sandbox parent exercises packaged public Core and Git local-tools contracts; no shipping GUI/Finder activation/outside-folder grant inferred.",
+    "helper_processes_and_groups_drained": true
+  },
+  "package": {
+    "archive": "TurtleGit-for-Mac-0.1.0-build51-signed.zip",
+    "archive_bytes": 424008028,
+    "archive_sha256": "a33c459a88495516d2e2d220a1cbcff9749bf77f299e573eba7676250776c43f",
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-ff4b60856bea44bb1b50253f5fefd46cffc9a0c9.tar.gz",
+      "source_commit": "ff4b60856bea44bb1b50253f5fefd46cffc9a0c9",
+      "sha256": "b2d0c413ee0ab30c95ae9df66cb569b10be67afd5a4b9bf57dd05e40ef71d12b",
+      "bytes": 201035404,
+      "tracked_files": 10432,
+      "exact_tracked_tree": true,
+      "source_blobs_and_modes_equal": true,
+      "bundled_runtime_sources": "Retained separately inside application runtime payloads"
+    },
+    "strict_source_copy_and_roundtrip_seals": true,
+    "copied_and_extracted_inventory_equal": true
+  },
+  "installation": {
+    "installed": true,
+    "created_utc": "2026-11-03T01:46:56.959523+00:00",
+    "build": "51",
+    "source_commit": "ff4b60856bea44bb1b50253f5fefd46cffc9a0c9",
+    "source_input_sha256": "516fc66914f6dcdffee6dd3e9a55f17104172dd09114c9668eab713219fde638",
+    "main_sha256": "8eef58f6162b002a59a20d93b5a8ec4db5f2a5769e1095387ae0965f2f67db6a",
+    "installed_inventory_matches_package": true,
+    "strict_deep_seal": true,
+    "static_receipt_sha256": "716d485ed9a938701e938b55d71dba13ed64312406dd4fbbb7ce00dfe63e27c5",
+    "previous_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "49",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "49"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "49"
+        }
+      }
+    },
+    "previous_main_sha256": "8d57e4e9310b817b01c4241546acd151486e7e2e0938bedcdee65336d809b69f",
+    "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build49-before51-2026-11-03.app",
+    "rollback_inventory_matches_previous": true,
+    "user_app_was_running": false,
+    "app_launched": false,
+    "Finder_Dock_restart": false,
+    "external_app_quits": false,
+    "extension_toggles": false,
+    "atomic_exchange": true,
+    "launch_services_registration_exit": 0,
+    "frozen_candidate_unregistration_exit": 0,
+    "launch_services_registration": {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-f",
+        "/Applications/TurtleGit for Mac.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "frozen_candidate_unregistration": {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-u",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-signed51/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "public_upload": false,
+    "notarization": false,
+    "app_store_submission": false
+  },
+  "installed_workflows": {
+    "private_repository": {
+      "synthetic": true,
+      "tracked_files": 34304,
+      "modified_files": 1,
+      "untracked_files": 1,
+      "private_head_index_status_unchanged": true
+    },
+    "observed": [
+      "Test-owned shipping app launches from installed path with no repository selected; first native observation2739ms including tool overhead.",
+      "Exact private root selected through native Open Repository permission panel.",
+      "At5493ms and12683ms after Open, workspace commands were disabled and initial read pending. A later observation showed both exact changed rows while commands remained disabled.",
+      "At76080ms first observed ready state: main, modified README.md, untracked.txt and usable commands. This is an observation interval, not an exact76s load measurement.",
+      "Owned process31227 stack sample during wait shows FinderSnapshotStore.publish waiting for local writer and FinderWatchManager.collect -> begin -> writeLive -> save -> JSONEncoder JSONWriter sorted-key sorting.",
+      "Commit toolbar gesture opens Classic Commit. Initial AX transition failed; first successful ready observation4947ms after action displays exact modified/untracked rows, author and source controls.",
+      "Selecting README.md and typing a private draft preserves visible Path/Extension/Status/Lines added/Lines removed headers. No high-frame-rate transient geometry claim.",
+      "Draft cleared, Commit cancelled via source confirmation, app quit normally; owned main process independently absent."
+    ],
+    "timing_limits": "CUA action/observation includes tool overhead; synthetic working tree was recently created and this is cold app, not a controlled cold filesystem-cache experiment. No Finder cold-launch timing established.",
+    "startup_failure": "Workspace foreground readiness waited on expensive optional shared Finder snapshot publication. Keep open until cache/readiness batch and signed large-cache acceptance pass.",
+    "sample": "build/qa/installed51-acceptance-2026-11-03/startup-sample.txt",
+    "sample_sha256": "93eca2c108e19ea761122c8d08ddc2675947ad313cebaa22a4801c6121449cd8",
+    "shared_cache_bytes_at_sample": {
+      "status": 77613393,
+      "warm": 83422330,
+      "writers": 77621502
+    },
+    "Finder": {
+      "observed": "Actual unregistered-folder context menu contains Clone/Create repository/Add/Settings/Help/About; Services contains single Open in TurtleGit rather than command catalog.",
+      "command_delivery": "Not established. Native control context guard rejected submenu actions; recovery exposed first-item Open in New Tab rather than requested Add. No TurtleGit main app was launched by these attempts.",
+      "remaining": [
+        "Actual Add registration/access picker targeting",
+        "Nested folder containing-root recovery",
+        "Physical badges and background refresh",
+        "Cold Finder Commit delivery"
+      ],
+      "extension_version_limit": "Existing extension host was not deliberately restarted; menu observation alone does not establish execution of updated extension bytes."
+    },
+    "cleanup": {
+      "owned_app_pid": 31227,
+      "normal_quit": true,
+      "independently_absent": true,
+      "signals_sent": false,
+      "test_preference_keys_restored": [
+        "NSOSPLastRootDirectory",
+        "TurtleGit.DialogGeometry.workspace",
+        "TurtleGit.DialogGeometry.CommitWindowController"
+      ],
+      "private_repository_records_removed": 1,
+      "test_watched_records_added": 0,
+      "user_repository_records_retained": 5,
+      "all_other_preference_values_preserved": true,
+      "Finder_window_close": "Cmd-W returned cgWindowNotFound; subsequent Finder control cannot inspect preexisting window; owned context menu absent before close",
+      "user_downloads_window_actions": false,
+      "warm_cache_limit": "Historical private fixture metadata may remain in optional warm cache; no whole cache or unrelated root data was erased."
+    }
+  },
+  "limits": [
+    "Not complete TortoiseGit dialog/layout/keyboard/accessibility parity.",
+    "No complete matching-source hosted macOS CI pass established. GitHub job-log connector returned Transport closed during continuation; no run was cancelled/restarted for this.",
+    "Source fixes after this frozen candidate are not in installed build51.",
+    "No public binary publication, notarization or App Store submission."
+  ]
+}

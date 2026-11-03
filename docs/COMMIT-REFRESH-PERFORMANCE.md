@@ -178,6 +178,45 @@ retirement did not show a comparable improvement. Sequential sampling and OS
 cache/CPU state limit the comparison. Publication remains synchronous; these
 results do not prove that installed repository/Commit startup is fixed.
 
+## Installed shared-cache continuation — November 3, 2026
+
+The [build51 installed checkpoint](qa/signed-consolidation-build51-2026-11-03.json)
+separates actual shipping startup from the hidden native probe. In a synthetic
+34,304-path private repository, workspace rows appeared before the global busy
+state cleared. Commands were still disabled at 12.7 seconds; the next ready observation
+was 76.1 seconds, so the actual completion lies within the recorded observation interval.
+A process sample during the wait shows one writer encoding a full Finder snapshot
+while other begin/publish requests wait for the local writer lock. The encoding
+stack spends its samples sorting JSON keys through Foundation-backed path strings.
+The shared live projection was 77.6 MB and warm archive 83.4 MB at that observation.
+
+The earlier exact-record ordering optimization remains present. This is additional
+Foundation object-key ordering during serialization and foreground ownership of
+optional publication, rather than proof that the earlier optimization was absent.
+The connected source continuation removes Foundation object-key sorting from
+large volatile snapshots and immutable contribution bodies. Exact UTF-8 records,
+legacy collision projections, control-header ordering and atomic/lease checks
+remain. Ordinary workspace readiness uses repository facts before waiting on the
+shared store. A separately owned publication worker begins its ticket before its
+full authoritative collection, preserves nested watch directories and refuses
+obsolete root/request results. Selected-file Services retain their required exact
+foreground snapshot; Add registration still requires successful publication.
+Directional cancellation lets the parent retire the worker without allowing a
+replaced optional worker to cancel its parent Git command. Quit continues to own
+drainage rather than treating a usable workspace as completed background work.
+The [grouped checkpoint](qa/finder-readiness-publication-2026-11-03.json) passes
+69 focused Core checks, the Debug build and all eight native case/engine pairs.
+The actual held-store case retains usable workspace/Commit controls; queued
+replacement and an uninterruptible injected writer remain owned through real
+drainage, without late notifications. Existing monitor, cancellation and scope
+cases also pass. This is behavioral isolation, not a matched encoding speedup or
+signed large-cache latency result; those physical acceptance limits remain open.
+
+Build51 itself contains neither continuation. Its Classic Commit read was ready
+at the first successful 4.95-second native observation; action/observation overhead and a
+recently created filesystem cache limit that measurement. No cold Finder result
+or universal startup guarantee follows from it.
+
 ## Native large-checkout timing — November 3, 2026
 
 The [native timing checkpoint](qa/commit-native-scale-2026-11-03.json) uses a

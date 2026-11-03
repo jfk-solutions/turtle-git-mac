@@ -60,7 +60,7 @@ def retire_owned_helpers(context, approved_images):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['monitor', 'cancel', 'scope'], action='append')
+parser.add_argument('--only', choices=['monitor', 'cancel', 'scope', 'publication'], action='append')
 args = parser.parse_args()
 root = next(parent for parent in Path(__file__).resolve().parents if (parent / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/status-refresh-family-native-sources'
@@ -69,7 +69,7 @@ receiver = build_receiver(root, [root / 'docs/qa/status-refresh-native-2026-10-2
 results = []
 for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
     git = git.absolute()
-    for case in args.only or ['monitor', 'cancel', 'scope']:
+    for case in args.only or ['monitor', 'cancel', 'scope', 'publication']:
         with tempfile.TemporaryDirectory(prefix='turtlegit-status-refresh-' + case + '-') as temporary:
             context = Path(temporary)
             for name in ['fixture', 'preferences', 'xdg', 'temporary', 'home']:

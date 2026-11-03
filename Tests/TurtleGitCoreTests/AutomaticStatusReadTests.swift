@@ -4,6 +4,35 @@ import Darwin
 @testable import TurtleGitCore
 
 final class AutomaticStatusReadTests:XCTestCase {
+    func testOptionalPublicationCancellationIsDirectional() throws {
+        let command=OperationCancellation(),publication=OperationCancellation(parent:command),sibling=OperationCancellation(parent:command)
+        publication.cancel()
+        XCTAssertTrue(publication.isCancelled)
+        XCTAssertFalse(command.isCancelled)
+        XCTAssertFalse(sibling.isCancelled)
+        XCTAssertThrowsError(try publication.check())
+        let nested=OperationCancellation(parent:sibling)
+        command.cancel()
+        XCTAssertTrue(sibling.isCancelled)
+        XCTAssertTrue(nested.isCancelled)
+        XCTAssertThrowsError(try nested.check())
+    }
+    func testWorkspaceStateRetainsFactsAndAutomaticReadOwnership() async throws {
+        let(root,repo)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        try Data("changed\n".utf8).write(to:root.appendingPathComponent("tracked.txt"))
+        try Data("untracked\n".utf8).write(to:root.appendingPathComponent("new.txt"))
+        let index=root.appendingPathComponent(".git/index"),before=try Witness(index)
+        let state=try await repo.workspaceState(authorizedRoot:root)
+        XCTAssertFalse(state.bare);XCTAssertEqual(state.branch,"main")
+        XCTAssertEqual(state.entries.first{$0.path=="tracked.txt"}?.state,.modified)
+        XCTAssertEqual(state.entries.first{$0.path=="new.txt"}?.state,.untracked)
+        XCTAssertFalse(state.metadata.mergeActive);XCTAssertFalse(state.conflictIsRebase)
+        XCTAssertTrue(state.watchDirectories.contains{$0.path==root.path})
+        XCTAssertEqual(try Witness(index),before)
+        let token=OperationCancellation();token.cancel()
+        do {_=try await repo.workspaceState(authorizedRoot:root,cancellation:token);XCTFail("Cancelled workspace read succeeded")}catch OperationCancellationFailure.cancelled {}
+        XCTAssertEqual(try Witness(index),before)
+    }
     private struct Witness:Equatable {
         let bytes:Data,inode:UInt64,modifiedSeconds:Int,modifiedNanoseconds:Int,changedSeconds:Int,changedNanoseconds:Int
         init(_ url:URL)throws {

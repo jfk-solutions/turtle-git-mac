@@ -1,0 +1,123 @@
+{
+  "date": "2026-11-03",
+  "status": "connected-core-build-native-checkpoint-passed-signed-large-cache-acceptance-open",
+  "source_base": "ff4b60856bea44bb1b50253f5fefd46cffc9a0c9",
+  "trigger": "Installed51 real workspace showed changed rows but remained busy behind shared Finder JSON publication; retained sample identifies Foundation key sorting and local writer queues.",
+  "installed_trigger_record": "signed-consolidation-build51-2026-11-03.json",
+  "implementation": {
+    "encoding": "Large volatile FinderSnapshot and immutable Contribution bodies no longer sort JSON object keys. Exact UTF8 record ordering, canonical-collision legacy projection, all fields, small ControlHeader ordering, regular-file/size/atomic checks and lease/publication fences remain.",
+    "foreground": "Ordinary workspace reads current status/branch/bare/conflict/gitlink/metadata/watch facts before optional shared-store work. Full gitlink catalog remains; this does not eliminate all index reads. Strict selected Services retain full exact classification foreground snapshots.",
+    "publication": "Separate repository actor begins a ticket before full authoritative collection, preserves nested watch directories, merges large injected snapshots off the main actor and accepts only current root/generation/request results. Ordinary foreground busy ends independently, while real worker/read/lease lifetime remains tracked.",
+    "cancellation": "Immutable parent cancellation reaches child workers; cancelling a replaced optional child leaves enclosing command/siblings live. Mutation/read/adoption/retirement cancel old optional work. Cold-dialog deferred owner retains close observers through worker completion.",
+    "failure_boundaries": "Optional policy/store failures update Finder diagnostics without hiding current workspace facts; required Add registration remains strict."
+  },
+  "core": {
+    "filter": "AutomaticStatusReadTests|GitProcessCancellationTests|FinderPublicationEncodingTests|FinderPublicationClaimTests|FinderPublicationSnapshotReuseTests|FinderPublicationRetirementTests|FinderPublicationPipelineTests|FinderPublicationTests|FinderCachePersistenceTests|FinderCachedLiveTests",
+    "tests": 69,
+    "failures": 0,
+    "seconds": 33.482,
+    "exit": 0,
+    "log": "build/qa/finder-readiness-batch-core-2026-11-03.log",
+    "scope": "System Git automatic-read/actual process-group cancellation; directionality and workspace facts/index metadata; private cold/long Foundation-path serialization and exact/legacy wire compatibility; existing claim/reuse/retirement/persistence/live-cache contracts. No full Core suite repeated.",
+    "performance_limits": "Private10001 long-path cold identity+sibling sequence took14.34s across multiple real writes/decodes. No matched before/after speedup or installed shared-cache latency inferred."
+  },
+  "app_build": {
+    "configuration": "Debug",
+    "exit": 0,
+    "log": "build/qa/finder-readiness-batch-debug-2026-11-03.log",
+    "diagnostics": "Existing CoreSimulator mismatch/command-failed-with-exit0 notes remain; terminal build succeeds."
+  },
+  "native": {
+    "log": "build/qa/finder-readiness-batch-native-2026-11-03.log",
+    "exit": 0,
+    "case_engine_pairs": [
+      {
+        "git": "/usr/bin/git",
+        "case": "monitor",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "cancel",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "scope",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "publication",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "monitor",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "cancel",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "scope",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "publication",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "receiver_pids_reaped_and_independently_absent": [
+      34737,
+      34936,
+      34993,
+      35066,
+      35213,
+      35407,
+      35460,
+      35532
+    ],
+    "cases": [
+      "Real monitor remains quiescent across read-only Status/Commit, and external mutation refreshes.",
+      "Active Status cancellation and scope/replacement preserve index/config/HEAD and pending ownership.",
+      "Held real cache writer does not block workspace or Commit facts/controls.",
+      "New refresh and repository replacement refuse old publications; cancelled queued startup drains.",
+      "Active uninterruptible injected writer remains owned until actual return; retired owner refuses stale notification/status.",
+      "Optional policy failure retains workspace facts and reports Finder error."
+    ],
+    "ownership": "Private repositories, HOME/preferences/config, controlled gates and hidden/offscreen controllers; wrapper verifies owned helper cleanup; no user-owned app terminated."
+  },
+  "generated_resources": {
+    "localization_write": "38 languages/1392 pinned keys; new non-source status caption retains English fallback",
+    "localization_check": "Passed38 languages/1392 pinned keys; Help guides unchanged"
+  },
+  "source_file_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "ff8b7706f4c49c66e7c9d9eb7bd03f086229172f6f1b2eac4dafdce1f7743cc8",
+    "Sources/TurtleGitCore/GitRepository.swift": "6c6f39744302076ad44a033011f9d487c161d596c0264d0bf8290d95f040e4b2",
+    "Sources/TurtleGitCore/OperationCancellation.swift": "d1935fdabd65c6404a6a509c5aef30032d42cc69da53a44bd5649ec07dd2fdab",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "8b7308e56b4dc57942d082662f46670339eadee3db1a99525c609e3396ae3066",
+    "Tests/TurtleGitCoreTests/AutomaticStatusReadTests.swift": "61e7681abcbe91ddc6666c3548dcd6618e3d608a97b72476d976129fb7593662",
+    "Tests/TurtleGitCoreTests/FinderPublicationEncodingTests.swift": "268d54d1913a060373b3604c0dafd009a57191cac3b6d7669364ceb9f8a51371",
+    "docs/qa/status-refresh-native-2026-10-25.swift": "ae58e272045daa7e6121f6c6a62e84f1fb47cd4026059a17d88e79fc13795909",
+    "scripts/test-status-refresh-family.py": "ca56635559ab42e713d9f667b1e4a00dff96c896134e24453266253bdbc11874"
+  },
+  "limits": [
+    "Installed51 predates these source fixes.",
+    "Signed real large-cache readiness and physical Finder grants/badges/cold delivery remain open.",
+    "No complete matching-source hosted CI or whole-dialog/platform/keyboard/accessibility parity established.",
+    "This source continuation is not yet in a signed build; no public upload, notarization or App Store submission."
+  ]
+}

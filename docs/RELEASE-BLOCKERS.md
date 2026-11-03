@@ -7,14 +7,27 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
-The [signed build50 candidate](qa/signed-consolidation-build50-2026-11-03.json)
-builds from frozen source and passes bundle/signature/resource/source-archive and
-limited sandbox-parent checks. Its ZIP round trip is verified. Installation is
-held: the newly reached Switch progress cancellation case reproduces a semantic
-state defect after the child is cancelled. The [Debug repair](qa/switch-cancel-semantic-2026-11-03.json)
-now passes with both engines, but it is not in sealed build50. The existing build49 remains installed;
-no binary publication or App Store submission occurred. Current signed GUI/Finder
-latency acceptance still needs a candidate containing the progress repair.
+The [signed build51 checkpoint](qa/signed-consolidation-build51-2026-11-03.json)
+is built, packaged and installed, including the validated Switch cancellation
+repair. Build49 is preserved for rollback; build50 remains a held historical
+candidate. Strict signatures, universal components, resources, source archive,
+ZIP round trip and the limited signed-parent Git probe pass. No binary publication
+or App Store submission occurred.
+
+The real installed check retains a startup failure: the workspace's changed rows
+appear while commands still wait for shared Finder cache publication. A worker
+sample identifies full snapshot JSON key sorting and queued publication writers
+against a roughly 78 MB live cache. The first ready observation was 76 seconds after Open;
+this is an observation bound, not a precise load time. Classic Commit subsequently
+showed the two expected rows within the first successful five-second observation, and its
+visible headers remained stable through selection and message typing. The owned
+app quit normally. The [connected source batch](qa/finder-readiness-publication-2026-11-03.json)
+addresses cache encoding and foreground readiness together. Its 69 focused Core,
+Debug build and eight native case/engine checks pass, including a held real cache
+writer and actual retirement drainage. Installed build51 predates this source
+batch; the signed large-cache acceptance gate remains open.
+Physical Finder command/grant/badge acceptance remains open because native menu
+control rejected actions before Add could be invoked.
 
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
@@ -29,7 +42,7 @@ index reads for wholly untracked lists, and reuses the identical unborn-branch
 diff. Focused Core checks pass, including exact filenames, conflicts, gitlinks,
 embedded repositories and unchanged index bytes. This is a source improvement;
 representative large-repository timing and installed signed acceptance remain
-open. Installed build49 does not contain this continuation. The subsequent
+open. Installed build51 contains this continuation. The subsequent
 [native scale checkpoint](qa/commit-native-scale-2026-11-03.json) measures the
 34,303-path private checkout: first load10.56s, other initial loads2.23–2.39s,
 refresh1.65–1.77s. The slow first settings/change-read phase is not isolated;
@@ -67,8 +80,9 @@ pending entry. The first November 3 source checkpoint deferred native receivers
 after the earlier exact external Quit interruption. The subsequent Finder and
 pending-family runtime checkpoints completed without external interruption. This
 does not establish that the external application's closing preference changed.
-Independent hosted validation can continue. Installed signed build49 is unchanged
-by these source continuations.
+Independent hosted validation can continue. Installed build51 now includes these
+source continuations; the bounded physical observation above retains the newly
+identified shared-cache readiness failure.
 
 ## Finish line for the first locally accepted release
 
