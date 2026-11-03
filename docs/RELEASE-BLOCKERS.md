@@ -7,6 +7,15 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [signed build50 candidate](qa/signed-consolidation-build50-2026-11-03.json)
+builds from frozen source and passes bundle/signature/resource/source-archive and
+limited sandbox-parent checks. Its ZIP round trip is verified. Installation is
+held: the newly reached Switch progress cancellation case reproduces a semantic
+state defect after the child is cancelled. The [Debug repair](qa/switch-cancel-semantic-2026-11-03.json)
+now passes with both engines, but it is not in sealed build50. The existing build49 remains installed;
+no binary publication or App Store submission occurred. Current signed GUI/Finder
+latency acceptance still needs a candidate containing the progress repair.
+
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
 for nested folder selection. Core permission, Debug build and actual menu/context

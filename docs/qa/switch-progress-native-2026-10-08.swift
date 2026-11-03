@@ -80,15 +80,36 @@ import TurtleGitCore
         let slowRepo = GitRepository(root:root,executable:helper); prefs.set(true,forKey:"ConfirmKillProcess")
         let slow = SwitchProgressWindowModel(repository: slowRepo,access:nil,reference:"refs/heads/older",preferences:prefs); slow.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) }
         let pids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0.trimmingCharacters(in:.whitespacesAndNewlines)) }; precondition(pids.count == 2)
-        slow.confirmCancellation = { $0(false) }; slow.cancel(); precondition(slow.busy && !slow.cancelling && kill(pids[0],0) == 0 && kill(pids[1],0) == 0)
-        slow.confirmCancellation = { $0(true) }; slow.cancel(); try await wait { !slow.busy }; precondition(slow.cancelled && !slow.success); try await wait { kill(pids[0],0) != 0 && kill(pids[1],0) != 0 }
-        try Data().write(to:release); slow.perform(.retry); try await wait { !slow.busy }; precondition(slow.success)
+        // Hold each injected question receipt explicitly. A second Cancel is
+        // admitted only after the declined receipt releases its model gate;
+        // a duplicate answer from that old question cannot answer the new one.
+        var cancellationAnswers:[(Bool)->Void]=[]
+        slow.confirmCancellation = { cancellationAnswers.append($0) }
+        precondition(slow.canCancel && !slow.commandFinished, "Held switch did not admit its first cancellation question: \(slow.output)")
+        slow.cancel(); precondition(cancellationAnswers.count == 1 && slow.confirmingCancellation, "First Switch cancellation question was not admitted")
+        cancellationAnswers[0](false); cancellationAnswers[0](true)
+        try await wait { !slow.confirmingCancellation && slow.canCancel }
+        precondition(slow.busy && !slow.cancelling && kill(pids[0],0) == 0 && kill(pids[1],0) == 0)
+        slow.cancel(); precondition(cancellationAnswers.count == 2 && slow.confirmingCancellation, "Second Switch cancellation question was not admitted")
+        cancellationAnswers[0](true)
+        precondition(slow.confirmingCancellation && !slow.cancelling && kill(pids[0],0) == 0 && kill(pids[1],0) == 0, "Old Switch question answered a newer cancellation")
+        cancellationAnswers[1](true); cancellationAnswers[1](true)
+        precondition(!slow.confirmingCancellation && slow.cancelling, "Accepted Switch cancellation did not signal its owned operation")
+        try await wait { !slow.busy && !slow.hasPendingWork }
+        precondition(slow.cancelled && !slow.success, "Accepted Switch cancellation result: cancelled=\(slow.cancelled), success=\(slow.success), accepted=\(slow.acceptedCommand != nil), commandSucceeded=\(slow.commandSucceeded), inspectionPending=\(slow.inspectionPending); \(slow.output)")
+        precondition(slow.commandFinished && !slow.commandSucceeded && slow.acceptedCommand == nil && slow.currentWork.hasPrefix("git did not exit cleanly (exit code ") && !slow.output.contains("\nUser cancelled"), "Switch cancellation lost its actual process exit-code footer: \(slow.output)")
+        try await wait { kill(pids[0],0) != 0 && kill(pids[1],0) != 0 }
+        try Data().write(to:release); slow.perform(.retry); try await wait { !slow.busy && !slow.hasPendingWork }; precondition(slow.success)
+        cancellationAnswers[0](true); cancellationAnswers[1](true)
+        precondition(slow.success && !slow.cancelled && !slow.confirmingCancellation, "Earlier cancellation receipt changed the successful retry")
         // Completion under a pending cancellation question defers close; late Yes cannot cancel completion.
         try FileManager.default.removeItem(at: marker); try FileManager.default.removeItem(at: release); prefs.set(2,forKey:"AutoCloseGitProgress")
         let deferred = SwitchProgressWindowModel(repository:slowRepo,access:nil,reference:"refs/heads/main",preferences:prefs); var answer: ((Bool)->Void)?, deferredCloses = 0
         deferred.confirmCancellation = { answer = $0 }; deferred.close = { deferredCloses += 1 }; deferred.start(); try await wait { FileManager.default.fileExists(atPath:marker.path) }; deferred.cancel(); precondition(deferred.confirmingCancellation)
         let deferredPids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0.trimmingCharacters(in:.whitespacesAndNewlines)) }; try Data().write(to:release); _ = kill(deferredPids[1],SIGTERM)
-        try await wait { !deferred.busy }; precondition(deferred.success && deferredCloses == 0); answer?(true); answer?(true); precondition(deferredCloses == 1 && !deferred.cancelled)
+        try await wait { !deferred.busy && !deferred.hasPendingWork }; precondition(deferred.success && deferredCloses == 0); answer?(true); answer?(true); precondition(deferredCloses == 1 && !deferred.cancelled && !deferred.confirmingCancellation)
+        precondition(deferred.acceptedCommand != nil && deferred.commandSucceeded && deferred.currentWork == "Success", "Late cancellation changed an accepted Switch command receipt: \(deferred.output)")
+        try await wait { deferredPids.allSatisfy { kill($0,0) != 0 } }
         // Missing presentation cancels before switch; hidden running controller blocks Quit/Close.
         _ = try await repo.run(["checkout","main"]); prefs.set(0,forKey:"AutoCloseGitProgress")
         let absent = SwitchWindowModel(repository:repo,access:nil,preferences:prefs); absent.load(revision:"refs/heads/older"); try await wait { !absent.busy }; absent.onProgress = { $0.abandonPresentation() }; absent.checkout(); try await wait { !absent.busy }; let retainedBranch = try await repo.branch(); precondition(retainedBranch == "main" && absent.progress == nil)

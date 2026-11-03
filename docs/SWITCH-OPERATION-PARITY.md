@@ -108,3 +108,20 @@ pixel identity. Git cancellation may retain completed ref/index/worktree changes
 no rollback is promised. This family retains the existing extra validation and
 native draft-recovery behavior documented above rather than claiming wholesale
 Windows error-path identity.
+
+## Cancellation state and actual exit feedback — November 3, 2026
+
+The [progress repair checkpoint](qa/switch-cancel-semantic-2026-11-03.json)
+reproduced a cancelled child with exit143 whose model incorrectly reported
+`cancelled=false`. The catch path had filtered semantic cancellation for footer
+formatting, and completion wrote the filtered value back into the model.
+Completion now retains the semantic flag independently: the UI says Cancelled,
+while the footer keeps Git's actual exit code. Accepted successful checkout and
+late-cancellation inspection behavior remain unchanged.
+
+Both engine progress cases pass, covering explicit No/Yes receipts, stale-answer
+refusal, retry, accepted completion under a held question and helper drainage.
+The runner additionally owns private helper cleanup on assertion/timeout. The
+original result/footer/state assertions remain. No unrelated passed source/picker
+families or Core suite were repeated. Signed build50 predates this repair and is
+held; signed/physical and full hosted acceptance remain separate.

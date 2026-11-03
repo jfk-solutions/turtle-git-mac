@@ -1,0 +1,123 @@
+{
+  "kind": "TurtleGitSignedConsolidation",
+  "date": "2026-11-03",
+  "version": "0.1.0",
+  "build": "50",
+  "source_commit": "0fa79d8a84d5ed71a02bf61f002de5a3964db23f",
+  "source_input_sha256": "a69b7d4f3664ba106b71328b6d59a36bd65c1dff1650a4c1974f05fdd680e940",
+  "status": "built-audited-and-packaged-held-awaiting-consolidation-of-validated-switch-repair",
+  "installed": false,
+  "build_result": {
+    "exit": 0,
+    "elapsed_seconds": 504.108,
+    "log": "build/qa/signed50-final-build-2026-11-03.log"
+  },
+  "purpose": "Consolidate completed Commit/Finder/Settings changes and enable real signed-application/Finder latency acceptance; not publication or waiting-only rebuild",
+  "changesSince49": [
+    "Candidate-only Commit index inventory, empty/untracked skips and unborn diff reuse",
+    "Directory-only Finder registration and owned containing-root grant recovery",
+    "General Settings, Alternative Editor and regex session/native control ownership",
+    "Updated bundled getting-started permission guidance and scoped runtime evidence"
+  ],
+  "frozenWorktree": "/Users/jkuehner/.codex/worktrees/turtlegit-signed50/tortoise-git-mac",
+  "signature": {
+    "team": "A49SCA5S8K",
+    "certificate": "368185657EAF3B08917601A5447D52FE9B572E46",
+    "kind": "Apple Development local testing",
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ]
+  },
+  "verification": {
+    "source_inputs_before_after_unchanged": true,
+    "strict_deep_seals": true,
+    "owned_universal_components": 8,
+    "runtime_code_entries": 206,
+    "inventory_members": 6385,
+    "main_sha256": "f75750468f77bde88df118ea75a515b4cd186b0ca0e892d202db3e40ab7c8782",
+    "help_source_members": 98,
+    "compiled_locale_payloads": 38,
+    "catalog_keys": 1392,
+    "source_archive": {
+      "source_commit": "0fa79d8a84d5ed71a02bf61f002de5a3964db23f",
+      "archive": "build/local-testing/TurtleGit-for-Mac-source-0fa79d8a84d5ed71a02bf61f002de5a3964db23f.tar.gz",
+      "bytes": 201028774,
+      "sha256": "27e8bb0fe7bf0bc1afe4182614774a0b2ddfb247f78ef50157e10c63924390ed",
+      "tracked_files": 10430,
+      "exact_tracked_tree": true,
+      "modes_and_blob_contents_match": true,
+      "archive_comment_matches": true,
+      "git_archive_permissions": {
+        "tar_umask": "0002",
+        "nonexecutable": "0664",
+        "executable": "0775",
+        "treeModeCounts": {
+          "100644": 10347,
+          "100755": 83
+        }
+      },
+      "retained_failures": [
+        {
+          "log": "build/qa/signed50-source-archive-2026-11-03.log",
+          "cause": "Initial verifier assumed root directory retained trailing slash"
+        },
+        {
+          "log": "build/qa/signed50-source-archive-repaired-2026-11-03.log",
+          "cause": "Verifier assumed tar umask0022 instead of Git archive default0002; executable classification and exact archive permissions now verified"
+        }
+      ],
+      "artifact_recreated": false
+    },
+    "signed_runtime": {
+      "passed": true,
+      "phases": [
+        "local-tools"
+      ],
+      "nativeUI": "not exercised; separate private native receiver covers controls and delivery",
+      "appGroupEntitled": false,
+      "scope": "Packaged public Core/Git through disposable sandbox parent only; no shipping GUI, Finder or outside grants"
+    }
+  },
+  "package": {
+    "archive": "TurtleGit-for-Mac-0.1.0-build50-signed.zip",
+    "archive_bytes": 424008490,
+    "archive_sha256": "cfc6fc2eb198156266ac65e154d356444df2330909f2b6a8259dcca2685f9a62",
+    "strict_source_copy_and_roundtrip_seals": true,
+    "copied_and_extracted_inventory_equal": true
+  },
+  "package_directory": "build/local-testing/TurtleGit-for-Mac-0.1.0-build50-signed",
+  "installed_application_observed": {
+    "build": "49",
+    "version": "0.1.0",
+    "main_sha256": "8d57e4e9310b817b01c4241546acd151486e7e2e0938bedcdee65336d809b69f",
+    "changed_by_this_batch": false
+  },
+  "hold": {
+    "hostedRun": 41546718496,
+    "job": 125624750732,
+    "failure": "Switch progress source case cancelled child exit143 but semantic cancelled=false",
+    "local_reproduction": "build/qa/switch-progress-hosted-continuation-2026-11-03.log",
+    "proven_source": "SwitchWindow catch computes cancellation then filters it for exit-footer formatting; completeCommand overwrites semantic state. Root agent implementing related progress cancellation-state review/repair; no production fix included in50.",
+    "installation": "Held, not performed",
+    "publication": "No binary upload, notarization or App Store submission",
+    "repair_evidence": "qa/switch-cancel-semantic-2026-11-03.json",
+    "local_debug_repair": "passed both engine progress cases; not present in sealed50"
+  },
+  "remaining": [
+    "Repair and validate the progress cancellation-state defect before installing a new consolidation",
+    "Measure real current signed GUI/Finder delivery latency; hidden probe scheduling cause remains unproven",
+    "Complete matching-source hosted CI and remaining signed/physical/accessibility acceptance"
+  ],
+  "retained_failures": [
+    "build/qa/signed50-source-archive-2026-11-03.log: verifier root directory slash assumption",
+    "build/qa/signed50-source-archive-repaired-2026-11-03.log: verifier used wrong Git tar umask",
+    "build/qa/package-signed50-local-2026-11-03.log: second archive mode checker had same default-umask assumption; corrected only checker, rechecked affected package, no app rebuild"
+  ],
+  "artifacts_and_logs": {
+    "build_receipt": "/Users/jkuehner/.codex/worktrees/turtlegit-signed50/tortoise-git-mac/build/qa/signed50-final-command-2026-11-03.json",
+    "static_receipt": "/Users/jkuehner/.codex/worktrees/turtlegit-signed50/tortoise-git-mac/build/qa/signed50-static-2026-11-03.json",
+    "signed_probe": "build/qa/signed50-local-tools-2026-11-03.json",
+    "package": "build/local-testing/TurtleGit-for-Mac-0.1.0-build50-signed/manifest.json"
+  }
+}

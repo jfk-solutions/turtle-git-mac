@@ -1,0 +1,51 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "0fa79d8a84d5ed71a02bf61f002de5a3964db23f",
+  "scope": "Switch progress semantic cancellation, actual exit footer, owned confirmation receipts, retry/late completion and helper drainage",
+  "trigger": {
+    "hostedRun": 41546718496,
+    "job": 125624750732,
+    "sourceAndPickers": "Both engines passed; retain these unchanged passes",
+    "progress": "system case failed old line84",
+    "localReproduction": "build/qa/switch-progress-hosted-continuation-2026-11-03.log",
+    "observed": "Child cancelled with exit143 and Operation cancelled output, yet model cancelled=false/success=false/accepted=false"
+  },
+  "diagnosis": "Catch computed cancellation then filtered it for footer presentation. completeCommand assigned that filtered bool back to semantic cancelled, erasing acknowledged cancellation when Git supplied an exit code. Direct synchronous fixture replies do not prove a native sheet-drain race.",
+  "productionFix": "Explicit wasCancelled parameter retains semantic state; only SubmoduleProgressCompletion footer suppresses synthetic cancellation footer when actual exit code is known. Accepted-success/late-cancel inspection behavior remains unchanged.",
+  "familyReview": "Clone, Stash, Reset, Merge, Push/shared completion paths inspected for identical semantic overwrite; no matching defect established. Separate Fetch/Pull late acceptance questions are not claimed repaired.",
+  "fixtureScope": [
+    "Original cancelled&&!success assertion preserved with result diagnostics",
+    "No/Yes admission and explicit retained receipts; reject duplicate old answers during later question and after retry",
+    "Await actual model work drainage; verify cancelled result/no accepted command and actual exit-code footer",
+    "Accepted completed checkout under pending question keeps success and once-only closure",
+    "Leader/helper disappearance, unchanged private state and hidden Close/Quit gates"
+  ],
+  "runnerCleanup": "Before private fixture deletion, require exact private ownership and approved Git image/authored slow-git argv; orphan sleep requires marker PID/dedicated group. Recheck before bounded TERM/KILL, reject survivors and nominal passes needing unexpected cleanup. Shared receiver cache unchanged.",
+  "validation": {
+    "debug": "exit0; build/qa/switch-cancel-semantic-debug-2026-11-03.log",
+    "native": "exit0; progress case with system and bundled Git; build/qa/switch-cancel-semantic-native-2026-11-03.log",
+    "ownedReceiversReaped": [
+      78394,
+      78616
+    ],
+    "unexpectedHelperCleanup": false,
+    "notRepeated": [
+      "Source forms",
+      "Full pickers",
+      "Core suite",
+      "Unrelated native families"
+    ],
+    "resources": "No native labels or registered Help guides changed"
+  },
+  "distribution": "Signed build50 remains sealed at0fa79d8a and does NOT contain this repair; packageheld/uninstalled. Build49 remains installed. Next consolidation must include validated repair.",
+  "limits": [
+    "No complete matching-source hosted CI pass",
+    "No signed/physical cancellation or all-platform parity claim",
+    "No rollback guarantee for commands accepted before late cancellation"
+  ],
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/SwitchWindow.swift": "7966e479f18ec6a6803cd53753bb5dabb0ac52b18d54fd5fec9ada5cca79f942",
+    "docs/qa/switch-progress-native-2026-10-08.swift": "ab5a6eb7b517107fe9dc3e2eef9eb2792cf07f753240d2f43276a3b4db3a6ca2",
+    "scripts/test-switch-source.py": "73fb03f34e75a154453416b4fb99a4ce1811855da18d4eb93a791322ff3cac3b"
+  }
+}

@@ -1012,13 +1012,15 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
         while count > 0,bytes[count] & 0xc0 == 0x80 {count -= 1}
         return String(decoding:bytes.prefix(count),as:UTF8.self) + String(decoding:marker.utf8.prefix(limit-count),as:UTF8.self)
     }
-    private func completeCommand(succeeded:Bool,cancelled:Bool,exitCode:Int32?,startedAt:TimeInterval) {
+    private func completeCommand(succeeded:Bool,wasCancelled:Bool,exitCode:Int32?,startedAt:TimeInterval) {
         guard !invalidated,!commandFinished else{return}
-        let completion=SubmoduleProgressCompletion(success:succeeded,cancelled:cancelled && exitCode == nil,exitCode:exitCode,
+        // A terminated Git command retains its actual exit-code footer while
+        // the result still reports the acknowledged user cancellation.
+        let completion=SubmoduleProgressCompletion(success:succeeded,cancelled:wasCancelled && exitCode == nil,exitCode:exitCode,
             elapsed:ProcessInfo.processInfo.systemUptime-startedAt,finished:Date(),preferences:preferences)
         output=bounded(output,bytes:progressPresentation.outputLimit-completion.text.utf8.count)
         completionRange=completion.append(to:&output);currentWork=completion.currentWork;percentage=100
-        commandSucceeded=succeeded;commandFinished=true;self.cancelled=cancelled
+        commandSucceeded=succeeded;commandFinished=true;cancelled=wasCancelled
         OperationSounds.report(failed:!succeeded,preferences:preferences)
     }
     private func appendDiagnostic(_ text:String) {
@@ -1114,7 +1116,7 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             guard !invalidated else{return}
             previousBranch=before;success=true;cancelled=false
             acceptedAfterCancellation=token.isCancelled || receipt.cancelledAfterCommand
-            completeCommand(succeeded:true,cancelled:false,exitCode:0,startedAt:startedAt)
+            completeCommand(succeeded:true,wasCancelled:false,exitCode:0,startedAt:startedAt)
             if acceptedAfterCancellation || confirmingQuit {
                 inspectionPending=true;postActions=[.inspectResult]
                 appendDiagnostic("Switch completed. Cancellation stopped further actions; check the result again to continue.")
@@ -1126,8 +1128,8 @@ enum SwitchPostAction: String, CaseIterable, Hashable {
             guard !invalidated else{return}
             output=LocalGitCommandProgress.failure(error,existing:output,preferences:preferences)
             let failure=error as? GitCommandCancellationFailure
-            cancelled=token.isCancelled || error is OperationCancellationFailure || error is CancellationError || failure != nil
-            completeCommand(succeeded:false,cancelled:cancelled && failure==nil,exitCode:failure?.result.exitCode ?? (error as? GitFailure)?.code,startedAt:startedAt)
+            let wasCancelled=token.isCancelled || error is OperationCancellationFailure || error is CancellationError || failure != nil
+            completeCommand(succeeded:false,wasCancelled:wasCancelled,exitCode:failure?.result.exitCode ?? (error as? GitFailure)?.code,startedAt:startedAt)
             var conflicts=false
             if merge {
                 let inspection=OperationCancellation();inspectionCancellation=inspection
