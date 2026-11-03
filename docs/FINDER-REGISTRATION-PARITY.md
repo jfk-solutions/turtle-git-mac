@@ -134,3 +134,32 @@ Git engines, alongside registration/ownership/warm/Services/launch regressions.
 The old cold-launch fixture readiness failure and its affected-only repair are
 retained. Installed build41 predates this continuation; real Finder invocation,
 signed external grants and representative large-repository timing remain separate.
+
+## Directory admission and containing-root grants — November 3, 2026
+
+The extension retains Finder's directory hint before literal URL normalization.
+Item selection offers registration only for a single directory; container and
+toolbar targets retain their folder semantics even without a trailing URL slash.
+An unavailable file does not become a folder merely because status metadata is
+missing. The app continues to validate the directory independently after grant.
+
+For an unregistered checkout's nested folder, registration searches for a marker
+only within accepted folder authority before invoking Git. If the child grant
+cannot reach a marker, an owned chooser asks for the checkout or a containing
+folder, starting at the child's parent. The answer must contain the original
+selection; discovery must resolve a containing checkout under that grant. Cancel,
+retirement, a sibling answer or a folder with no reachable marker cannot persist
+a watch or adopt a workspace. Linked metadata permission discovery remains a
+separate retained step after the checkout root is authorized.
+
+The new Core marker probe is bounded even in an unsandboxed development build;
+Settings retains its existing sandbox-dependent discovery policy. Registration
+still saves both recent and watch records, awaits initial badge publication and
+does not opt into the independent background service.
+
+The [batch evidence](qa/finder-root-grants-2026-11-03.json) records 25 passing
+Core permission tests, a passing Debug build, actual menu/selection checks and
+compiled registration/retirement fixtures. The chooser runtime additions have
+not executed locally; fixture compilation is not behavior acceptance.
+Installed build49, physical Finder behavior, signed sandbox acceptance and a
+complete matching-source hosted pass remain separate gates.

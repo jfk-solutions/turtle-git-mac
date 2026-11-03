@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "1e37874c",
+  "scope": [
+    "Directory-only first-use and registered Finder menu admission",
+    "Bounded repository marker discovery before Git launch",
+    "Containing-root permission recovery for nested-folder registration",
+    "Chooser cancellation, retirement, durable exact-root registration and manual/Help"
+  ],
+  "implementation": {
+    "menu": "Retain selected-item directory hints and semantic container/toolbar intent before normalized URL conversion; file/multiple/mismatched registration candidates refused; registered nested targets retain general Git menus without status snapshot",
+    "authority": "Explicit authorized-folder marker probe for registration, including unsandboxed builds. Settings keeps its prior policy. Root recovery chooser anchored at selected child parent; selected lease must contain original candidate and discovered checkout must contain candidate",
+    "ownership": "Owner cancellation/generation checked around reads and chooser; retain chooser, worker and leases until actual sheet detachment; cancellation unchanged without error; existing recent/watch persistence and Clone path retained"
+  },
+  "validation": [
+    {
+      "command": "env -u SDKROOT TURTLEGIT_CORE_ONLY=1 swift test --filter RepositoryAccessTests",
+      "result": "passed: 25 tests, 0 failures",
+      "log": "build/qa/finder-root-grant-core-2026-11-03.log"
+    },
+    {
+      "command": "env -u SDKROOT xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "result": "exit0",
+      "log": "build/qa/finder-root-grant-debug-2026-11-03.log",
+      "diagnostics": "Existing simulator mismatch, Sendable warnings and command-failed-with-exit0 diagnostic text retained; actual build process exit0"
+    },
+    {
+      "command": "python3 scripts/test-finder-menu.py",
+      "result": "passed after fixture compiler-mode/default-argument corrections; receiver60955 reaped",
+      "log": "build/qa/finder-root-grant-menu-default-repair-2026-11-03.log",
+      "scope": "Actual menu builder, directory admission, cold registered nested containers, command/icon/transport/language assertions; no Finder controller, extension, window or signed activation"
+    },
+    {
+      "command": "python3 scripts/test-finder-selection-context.py",
+      "result": "passed; owned receivers60898 and60903 reaped",
+      "log": "build/qa/finder-root-grant-selection-context-2026-11-03.log"
+    },
+    {
+      "command": "native_receiver.build_receiver with current app objects and finder-registration/dialog-launch fixtures",
+      "result": "compiled only; no receiver launch",
+      "log": "build/qa/finder-root-grant-fixture-compile-2026-11-03.log"
+    },
+    {
+      "command": "python3 scripts/build-localizations.py --check",
+      "result": "passed: 38 locales, 1392 keys; generated write/check performed"
+    },
+    {
+      "command": "build/site-venv/bin/python scripts/build-help.py --check",
+      "result": "passed:64 documents,53 topics,98 members,9403907bytes; generated before app build"
+    },
+    {
+      "command": "python3 scripts/reconcile-dialog-coverage.py",
+      "result": "reconciled; no generated ledger change; counts do not certify parity"
+    }
+  ],
+  "failuresRetained": [
+    {
+      "log": "build/qa/finder-root-grant-menu-2026-11-03.log",
+      "cause": "Direct fixture used Swift6 mode for Swift5 shipping Finder source; current SDK rejected existing non-Sendable callbacks before assertions"
+    },
+    {
+      "log": "build/qa/finder-root-grant-menu-language-repair-2026-11-03.log",
+      "cause": "Pre-existing LFS fixture local actor-isolated helper called from default argument; resolve nil default inside actor context instead; assertions preserved"
+    }
+  ],
+  "recheckScope": "Only failed menu fixture rechecked after each actual compile correction. Passed Core/app/registration compilation not repeated. Both direct Finder fixtures now use shipping Swift5 mode.",
+  "pendingRuntimeFixtureCases": [
+    "registration: nested child grant, cancel, sibling/markerless rejection, containing-parent success, exact saved grants and duplicate registration",
+    "ownership: retire during actual root recovery sheet; reject late answer"
+  ],
+  "nativeRuntimeLimit": "Prior exact external Quit sender remains unresolved; registration/ownership receivers not launched locally. Pure menu/context receivers have no visible windows.",
+  "notProven": [
+    "Chooser runtime behavior",
+    "Physical Finder permissions/badges/cold activation",
+    "Current signed deployment",
+    "Complete matching-source hosted CI",
+    "Whole-port visual/accessibility parity"
+  ],
+  "installedAppUnchanged": "0.1.0 (49)",
+  "subagents": [
+    "finder_grant_review: menu implementation and tests",
+    "finder_root_grant_fixtures: native registration/retirement fixtures"
+  ]
+}

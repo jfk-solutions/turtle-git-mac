@@ -7,6 +7,12 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
+adds directory-only menu admission and an owned containing-root grant recovery
+for nested folder selection. Core permission, Debug build and actual menu/context
+checks pass. Registration/retirement fixtures compile; their new chooser runtime
+cases, signed deployment and physical Finder acceptance remain pending.
+
 The [November 3 Commit index-read batch](COMMIT-STARTUP-READS.md) removes
 full clean-index output from Commit refresh and fallback flags, skips auxiliary
 index reads for wholly untracked lists, and reuses the identical unborn-branch

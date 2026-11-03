@@ -255,8 +255,46 @@ import TurtleGitCore
         // Native first-use discovery is independent of the pinned creation
         // clauses above. A candidate conveys intent, never authority or proof
         // of existence; even unavailable resource metadata cannot hide entry.
-        let unavailable=folder.deletingLastPathComponent().appendingPathComponent("not granted/not present 雪",isDirectory:false)
+        let unavailable=folder.deletingLastPathComponent().appendingPathComponent("not granted/not present 雪",isDirectory:true)
         precondition(!FileManager.default.fileExists(atPath:unavailable.path))
+        let unavailableFile=URL(fileURLWithPath:unavailable.path,isDirectory:false)
+        for file in [tracked,untracked,unavailableFile] {
+            for cached in [nil,snapshot] as [FinderSnapshot?] {
+                for toolbar in [false,true] {
+                    let fileMenu=FinderMenuBuilder.make(paths:[file],snapshot:cached,settings:allCommands(),comparisonMark:nil,target:target,actionSelector:selector,toolbar:toolbar,registrationCandidate:file)
+                    precondition(!items(fileMenu).contains{FinderShellMenuLayout.action($0) == .registerRepository},"Individual files never offer folder registration, including unknown or unavailable files")
+                }
+            }
+            precondition(FinderMenuBuilder.registrationCandidate(kind:.contextualMenuForItems,selection:[file],target:folder)==nil,"A target folder must not turn a selected file into registration")
+        }
+        precondition(FinderMenuBuilder.registrationCandidate(kind:.contextualMenuForItems,selection:[unavailable],target:folder)?.hasDirectoryPath == true,"Unavailable Finder directory intent survives without probing metadata")
+        precondition(FinderMenuBuilder.registrationCandidate(kind:.contextualMenuForItems,selection:[folder,unavailable],target:folder)==nil,"Multi-selection cannot register an arbitrary member")
+        precondition(FinderMenuBuilder.registrationCandidate(kind:.toolbarItemMenu,selection:[folder],target:nil)==nil)
+        for kind in [FIMenuKind.contextualMenuForContainer,.toolbarItemMenu] {
+            let selected=FinderMenuBuilder.paths(kind:kind,selection:[tracked],target:unavailableFile)
+            let candidate=FinderMenuBuilder.registrationCandidate(kind:kind,selection:[tracked],target:unavailableFile)
+            precondition(candidate?.hasDirectoryPath == true && candidate?.path == unavailable.path,"Container and toolbar targets retain directory semantics even without a URL slash")
+            let menu=FinderMenuBuilder.make(paths:selected,snapshot:nil,settings:allCommands(),comparisonMark:nil,target:target,actionSelector:selector,toolbar:kind == .toolbarItemMenu,registrationCandidate:candidate)
+            precondition(items(menu).contains{FinderShellMenuLayout.action($0) == .registerRepository})
+        }
+        let registeredChild=URL(fileURLWithPath:folder.path+"/not yet cached 雪/nested",isDirectory:false)
+        let registeredCatalog=FinderRegisteredRoots(entries:[.init(id:UUID(),root:folder.path,kind:.workingTree)])
+        for kind in [FIMenuKind.contextualMenuForContainer,.toolbarItemMenu,.contextualMenuForItems] {
+            let selection=kind == .contextualMenuForItems ? []:[tracked]
+            let selected=FinderMenuBuilder.paths(kind:kind,selection:selection,target:registeredChild)
+            let candidate=FinderMenuBuilder.registrationCandidate(kind:kind,selection:selection,target:registeredChild)
+            let menu=FinderMenuBuilder.make(paths:selected,snapshot:nil,settings:allCommands(),comparisonMark:nil,target:target,actionSelector:selector,toolbar:kind == .toolbarItemMenu,registrationCandidate:candidate,registeredRoots:registeredCatalog)
+            let commands=items(menu).compactMap{$0.representedObject as? FinderMenuCommand}
+            for action in [RepositoryAction.commit,.log,.status] {
+                guard let command=commands.first(where:{$0.request.action == action}) else {preconditionFailure("Registered nested container must retain Git commands before any status publication")}
+                precondition(command.request.paths.map{Data($0.path.utf8)} == [Data(registeredChild.path.utf8)],"Registered discovery retains the captured nested target")
+            }
+            precondition(commands.contains{$0.request.action == .registerRepository},"Registered nested targets retain explicit registration entry")
+        }
+        let fallback=FinderMenuBuilder.registrationCandidate(kind:.contextualMenuForItems,selection:[],target:unavailableFile)
+        precondition(fallback?.hasDirectoryPath == true && fallback?.path == unavailable.path,"Empty selection uses Finder's container target")
+        let mismatch=FinderMenuBuilder.make(paths:[tracked],snapshot:nil,settings:allCommands(),comparisonMark:nil,target:target,actionSelector:selector,registrationCandidate:unavailable)
+        precondition(!items(mismatch).contains{FinderShellMenuLayout.action($0) == .registerRepository},"A directory hint cannot authorize another selected URL")
         for icons in [false,true] {
             var discoverySettings=allCommands(showIcons:icons);discoverySettings.hideForUnversioned=true
             let discovery=FinderMenuBuilder.make(paths:[unavailable],snapshot:nil,settings:discoverySettings,comparisonMark:nil,target:target,actionSelector:selector,registrationCandidate:unavailable,cloneDirectory:unavailable)
@@ -319,7 +357,7 @@ import TurtleGitCore
         precondition(items(knownDiscovery).filter{FinderShellMenuLayout.action($0) == .clone}.count == 1)
         precondition(items(knownDiscovery).contains{FinderShellMenuLayout.action($0) == .registerRepository})
         precondition(items(knownDiscovery).contains{FinderShellMenuLayout.action($0) == .commit},"Known repository commands remain present")
-        print("First-use discovery: unavailable metadata candidate, typed single selection, Clone/Create masks, icon preferences/SDK visibility, known commands, and namespace-only status admission passed.")
+        print("First-use discovery: directory-only selected intent, container/toolbar targeting, unavailable metadata, typed single selection, Clone/Create masks, icon preferences/SDK visibility, known commands, and namespace-only status admission passed.")
         let containerPaths = FinderMenuBuilder.paths(kind: .contextualMenuForContainer, selection: [tracked], target: folder)
         for item in items(make(containerPaths, settings: allCommands())) {
             if let command = item.representedObject as? FinderMenuCommand {
@@ -374,8 +412,8 @@ import TurtleGitCore
             return Set(roots.compactMap(FinderShellMenuLayout.action).filter { !$0.isApplicationUtility && $0 != .properties })
         }
         let lfsSnapshot = FinderSnapshot(roots: [folder.path], states: [folder.path: .normal, tracked.path: .normal, untracked.path: .untracked], repositories: [folder.path: FinderRepositoryMetadata(hasLFS: true)])
-        func lfsMenu(_ paths: [URL], settings: FinderMenuSettings = allCommands(), extended: Bool = false) -> NSMenu {
-            FinderMenuBuilder.make(paths: paths, snapshot: lfsSnapshot, settings: settings, comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
+        func lfsMenu(_ paths: [URL], settings: FinderMenuSettings? = nil, extended: Bool = false) -> NSMenu {
+            FinderMenuBuilder.make(paths: paths, snapshot: lfsSnapshot, settings: settings ?? allCommands(), comparisonMark: nil, target: target, actionSelector: selector, extended: extended)
         }
         let folderLFS = items(lfsMenu([folder])).first { FinderShellMenuLayout.action($0) == .lfs }!
         precondition(folderLFS.submenu!.items.compactMap(FinderShellMenuLayout.action) == [.lfsLocks])
@@ -679,7 +717,10 @@ compiler = subprocess.check_output(['xcrun', 'swiftc', '--version'], text=True)
 sdk = subprocess.check_output(['xcrun', '--show-sdk-path'], text=True).strip()
 sdk_build = subprocess.check_output(['xcrun', '--show-sdk-build-version'], text=True).strip()
 target = platform.machine() + '-apple-macos13.0'
-flags = ['-swift-version', '6', '-parse-as-library', '-target', target,
+# Match the Xcode Finder target's inherited SWIFT_VERSION = 5.0.
+# Compiling imported production source in a different language mode rejects
+# unrelated actor-isolation code before any menu assertion can execute.
+flags = ['-swift-version', '5', '-parse-as-library', '-target', target,
          '-sdk', sdk, '-F', str(frameworks), '-framework', 'TurtleGitCore',
          '-framework', 'FinderSync', '-Xlinker', '-rpath', '-Xlinker', str(frameworks)]
 inputs = [pathlib.Path(__file__).resolve(), root / 'scripts/native_receiver.py', root / 'FinderSync/FinderSync.swift']

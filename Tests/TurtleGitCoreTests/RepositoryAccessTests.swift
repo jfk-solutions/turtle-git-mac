@@ -20,6 +20,25 @@ private final class TestBookmarks: RepositoryBookmarkProvider {
 }
 
 final class RepositoryAccessTests: XCTestCase {
+    func testRegistrationMarkerRequiresContainingGrantAndKeepsNestedCheckoutIdentity() throws {
+        let (base, _) = try fixture(); defer { try? FileManager.default.removeItem(at: base) }
+        let root=base.appendingPathComponent("checkout",isDirectory:true),child=root.appendingPathComponent("Sources/child",isDirectory:true)
+        let sibling=base.appendingPathComponent("checkout-other",isDirectory:true)
+        for folder in [child,root.appendingPathComponent(".git"),sibling.appendingPathComponent(".git")] {
+            try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        }
+        XCTAssertNil(try RepositoryMetadataAccess.registrationRepository(at:child,authorizedFolders:[]))
+        XCTAssertNil(try RepositoryMetadataAccess.registrationRepository(at:child,authorizedFolders:[child]))
+        XCTAssertNil(try RepositoryMetadataAccess.registrationRepository(at:child,authorizedFolders:[sibling]))
+        XCTAssertEqual(try RepositoryMetadataAccess.registrationRepository(at:child,authorizedFolders:[root])?.path,root.path)
+        XCTAssertEqual(try RepositoryMetadataAccess.registrationRepository(at:child,authorizedFolders:[base])?.path,root.path)
+        let nested=child.appendingPathComponent("nested",isDirectory:true)
+        try FileManager.default.createDirectory(at:nested,withIntermediateDirectories:true)
+        try Data("gitdir: ../../external-metadata\n".utf8).write(to:nested.appendingPathComponent(".git"))
+        XCTAssertEqual(try RepositoryMetadataAccess.registrationRepository(at:nested,authorizedFolders:[base])?.path,nested.path)
+        let token=OperationCancellation();token.cancel()
+        XCTAssertThrowsError(try RepositoryMetadataAccess.registrationRepository(at:child,authorizedFolders:[base],cancellation:token))
+    }
     func testCapturedAuthorityDoesNotRewriteArchiveAndSurvivesRecordReplacement() throws {
         let (folder, archive) = try fixture()
         defer { try? FileManager.default.removeItem(at: folder) }

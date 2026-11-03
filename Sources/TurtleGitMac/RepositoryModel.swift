@@ -1914,18 +1914,58 @@ private enum TransportBatchPresentationContext {
                 try token.check();guard !retired,!confirmingQuit,generation==adoptionGeneration else {throw OperationCancellationFailure.cancelled}
                 var directory:ObjCBool=false
                 guard FileManager.default.fileExists(atPath:candidate.path,isDirectory:&directory),directory.boolValue else {throw PrimaryCommandInvocation.Failure("Select a repository folder to add to TurtleGit.")}
-                let prepared=try await prepareRepositoryMetadataAccess(at:candidate,primary:access,cancellation:token)
-                let accepted=access.retainingRelatedScopes(prepared.scopes)
-                let repository=try makeRepository(candidate),root=try await repository.discoverRoot(cancellation:token)
+                let (hint,primary)=try await finderRegistrationRepositoryAccess(candidate,initial:access,owner:owner,generation:generation)
+                let prepared=try await prepareRepositoryMetadataAccess(at:hint,primary:primary,cancellation:token)
+                let accepted=primary.retainingRelatedScopes(prepared.scopes)
+                let repository=try makeRepository(hint),root=try await repository.discoverRoot(cancellation:token)
                 try token.check();guard !retired,!confirmingQuit,generation==adoptionGeneration else {throw OperationCancellationFailure.cancelled}
-                guard accepted.contains(root) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path)}
+                guard accepted.contains(root),RepositoryAccessLease.pathIsContained(candidate,by:root) else {throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path)}
                 let captured=try makeRepository(root)
                 let folders=prepared.newFolders+accepted.permittedFolders(requireSecurityScope:requiresRepositoryScope).filter { !RepositoryAccessLease.pathIsContained(root,by:$0) }
                 try await saveFinderRegistration(captured,access:accepted,additionalFolders:folders,cancellation:token)
                 guard !retired,!token.isCancelled,generation==adoptionGeneration else {return}
                 output="Added repository to TurtleGit: "+root.path
+            } catch is OperationCancellationFailure {
+                // The owned picker/metadata operation already drained.
             } catch {if !retired,!token.isCancelled {self.error="Could not add this repository to TurtleGit.\n"+error.localizedDescription}}
         }
+    }
+    /// A child-folder grant cannot authorize Git to walk its parent checkout.
+    /// Locate markers only inside accepted scopes, then ask for a containing
+    /// folder when needed. No Finder URL or inferred parent grants authority.
+    private func finderRegistrationRepositoryAccess(_ candidate:URL,initial:RepositoryAccessLease,owner:RepositoryWindowOwner,generation:Int) async throws -> (URL,RepositoryAccessLease) {
+        let token=owner.cancellation
+        func check() throws {
+            try token.check()
+            guard !retired,!confirmingQuit,generation==adoptionGeneration else {throw OperationCancellationFailure.cancelled}
+        }
+        func marker(_ lease:RepositoryAccessLease) async throws -> URL? {
+            try check()
+            let folders=lease.permittedFolders(requireSecurityScope:requiresRepositoryScope)
+            let value=try await Task.detached(priority:.userInitiated) {
+                try RepositoryMetadataAccess.registrationRepository(at:candidate,authorizedFolders:folders,cancellation:token)
+            }.value
+            try check();return value
+        }
+        if let hint=try await marker(initial) {return (hint,initial)}
+        let choice=RepositoryCreationFolderChoice(window:workspaceWindow,owner:owner),panel=choice.panel
+        panel.title="Allow containing repository access";panel.prompt="Allow Access"
+        panel.message="Choose the repository folder containing the selected folder to enable Git commands and status badges in Finder.\n\n"+candidate.path
+        panel.canChooseDirectories=true;panel.canChooseFiles=false;panel.allowsMultipleSelection=false;panel.showsHiddenFiles=true
+        panel.directoryURL=candidate.deletingLastPathComponent()
+        panel.alphaValue=workspaceWindow?.alphaValue ?? 1;panel.appearance=workspaceWindow?.appearance
+        finderServiceFolderChoice=choice;finderServiceWorkers += 1
+        defer {finderServiceWorkers -= 1;if finderServiceFolderChoice === choice {finderServiceFolderChoice=nil}}
+        let selected:URL?=await withCheckedContinuation {continuation in
+            choice.onFinished=CommandProgressContext.capture {selected in continuation.resume(returning:selected)}
+            choice.begin(present:presentFinderServiceFolderPanel,selected:selectedFinderServiceFolderURL)
+        }
+        while panel.sheetParent != nil || panel.attachedSheet != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+        try check();guard let selected else {throw OperationCancellationFailure.cancelled}
+        let lease=RepositoryAccessLease(url:selected,provider:repositoryBookmarkProvider)
+        guard lease.contains(candidate),!requiresRepositoryScope || lease.hasSecurityScope else {throw RepositoryAccessFailure.securityScopeUnavailable}
+        guard let hint=try await marker(lease) else {throw PrimaryCommandInvocation.Failure("Choose the repository folder containing the selected folder.")}
+        return (hint,lease)
     }
     /// Configure every creation entry point, including the manager-owned child.
     /// The checkout grant is primary; common/source metadata is retained related

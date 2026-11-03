@@ -31,9 +31,8 @@ This removes proven excess subprocess output and parsing; it does not establish
 a wall-clock latency improvement on the owner's large repository. Physical
 Finder launch, current signed-app acceptance and complete hosted CI remain open.
 
-The parallel Finder review also identified a separate next workflow batch:
-registration should be offered only for directories, and registering an
-unregistered nested repository folder needs an owned containing-root grant
-recovery path when the child grant cannot reach repository metadata. The root
-registration, quiet launch, folder preselection and Clone registration paths
-already exist. No Finder change or new Finder acceptance is claimed here.
+The parallel review identified directory-only Finder registration admission and
+containing-root grant recovery as the next workflow batch. That subsequent
+[source continuation](qa/finder-root-grants-2026-11-03.json) records its own
+validation and pending chooser runtime acceptance; this Commit batch itself
+does not establish Finder behavior.

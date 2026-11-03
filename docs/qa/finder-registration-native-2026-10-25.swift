@@ -174,6 +174,70 @@ private extension NSWindow {
         try require(linkedWatch?.additionalPermissions?.contains {$0.path==c.source.root.path} == true && linkedRecent?.additionalPermissions?.contains {$0.path==c.source.root.path} == true,"Linked repository metadata grants were not persisted in both independent stores; requested=\(linked.path); source=\(c.source.root.path); choices=\(metadataChoices.map(\.path)); watches=\(c.watched.repositories.map {($0.lastKnownPath,($0.additionalPermissions ?? []).map(\.path))}); recents=\(c.recent.repositories.map {($0.lastKnownPath,($0.additionalPermissions ?? []).map(\.path))})")
         try require(c.watched.repositories.count==3 && c.manager.backgroundService==nil,"Linked registration affected unrelated watches/service")
         try await deferredStartup(c)
+        try await nestedRegistration(c)
+    }
+    /// A Finder child-folder grant must not be treated as permission to probe
+    /// its parent checkout. Keep the recovery chooser and its worker alive until
+    /// AppKit has detached the sheet, and persist only the discovered checkout.
+    static func nestedRegistration(_ c:Context)async throws {
+        let repository=try await c.repo("nested registration/checkout"),child=repository.root.appendingPathComponent("Sources/Subdir",isDirectory:true)
+        try FileManager.default.createDirectory(at:child,withIntermediateDirectories:true)
+        let sibling=try await c.repo("nested registration/sibling")
+        let wrapper=c.root.appendingPathComponent("held-helper")
+        let action=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:wrapper,libgit2Configuration:.init(enabled:false))},finderWatches:c.manager,savedAccessStore:c.recent)
+        c.additionalModels.append(action);action.requiresRepositoryScope=true;action.repositoryBookmarkProvider=c.provider;action.fileComparisonPreferences=c.prefs;action.workspaceWindow=c.parent
+        action.selectedFinderServiceFolderURL={_ in c.selected}
+        action.presentFinderServiceFolderPanel={panel,owner,reply in
+            c.panels += 1;c.permissionReply=reply;c.permissionDirectory=panel.directoryURL;c.permissionTitle=panel.title;c.permissionMessage=panel.message
+            owner?.beginSheet(panel,completionHandler:reply)
+        }
+        let baselineWatches=c.watched.repositories,baselineRecent=c.recent.repositories
+        let head=try await repository.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:repository.root.appendingPathComponent(".git/index"))
+        func unchanged()throws {
+            try require(c.watched.repositories.map(\.id)==baselineWatches.map(\.id) && c.recent.repositories.map(\.id)==baselineRecent.map(\.id),"Nested recovery saved an unaccepted checkout/grant")
+            try require(action.root==nil && action.workspaceWindow===c.parent && c.manager.backgroundService==nil,"Nested recovery adopted workspace or enabled service")
+        }
+        func recovery()async throws {
+            c.selected=child;c.permissionReply=nil
+            let panels=c.panels
+            try Data().write(to:c.commandLog)
+            try require(action.handleFinderService(.init(action:.registerRepository,paths:[child])),"Nested Add refused captured folder")
+            try await wait{c.permissionReply != nil}
+            try require(c.panels==panels+1 && c.permissionDirectory.map{Data($0.path.utf8)}==Data(child.path.utf8),"Initial child-folder grant lost exact Finder target")
+            c.answer(.OK)
+            try await wait{c.panels==panels+2 && c.permissionReply != nil}
+            try require(action.hasPendingFinderServiceWork && action.busy && c.parent.attachedSheet != nil,"Containing-root recovery lost native sheet/worker ownership")
+            try require(c.permissionDirectory.map{Data($0.path.utf8)}==Data(child.deletingLastPathComponent().path.utf8) && c.permissionTitle=="Allow containing repository access" && c.permissionMessage.contains(child.path),"Containing-root picker lost candidate anchor/explanation")
+            let commands=((try? String(contentsOf:c.commandLog,encoding:.utf8)) ?? "").split(separator:"\n")
+            try require(!commands.contains{line in line.hasPrefix(child.path+"\t") || line.hasPrefix(repository.root.path+"\t")},"Nested Add launched Git outside its child grant before recovery")
+            try unchanged()
+        }
+        try await recovery();c.answer(.cancel)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.parent.attachedSheet==nil}
+        try require(action.error==nil,"Cancelling containing-root grant surfaced an error")
+        try unchanged()
+        try await recovery();c.selected=sibling.root;c.answer(.OK)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.parent.attachedSheet==nil}
+        try require(action.error != nil,"Sibling repository grant silently authorized original child")
+        try unchanged()
+        try await recovery();c.selected=child;c.answer(.OK)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.parent.attachedSheet==nil}
+        try require(action.error != nil,"Child without repository marker silently became a checkout")
+        try unchanged()
+        try await recovery();c.selected=repository.root.deletingLastPathComponent();c.answer(.OK)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.parent.attachedSheet==nil && c.manager.pendingOperations==0}
+        try require(action.error==nil && action.root==nil && action.workspaceWindow===c.parent,"Containing grant failed or adopted a workspace: \(action.error ?? "")")
+        guard let watch=c.watched.repositories.first(where:{$0.lastKnownPath==repository.root.path}),let recent=c.recent.repositories.first(where:{$0.lastKnownPath==repository.root.path}) else {throw Failure(description:"Nested registration missing exact checkout watch/recent") }
+        try require(c.watched.repositories.count==baselineWatches.count+1 && c.recent.repositories.count==baselineRecent.count+1 && !c.watched.repositories.contains{$0.lastKnownPath==child.path || $0.lastKnownPath==repository.root.deletingLastPathComponent().path},"Nested registration saved a child/container instead of checkout root")
+        try require(baselineWatches.allSatisfy{old in c.watched.repositories.contains{$0.id==old.id && $0.bookmark==old.bookmark}} && baselineRecent.allSatisfy{old in c.recent.repositories.contains{$0.id==old.id && $0.bookmark==old.bookmark}},"Nested registration changed unrelated grants")
+        let reopened=try c.recent.acquire(recent.id,requireSecurityScope:true)
+        try require(reopened.contains(repository.root) && reopened.contains(child) && !reopened.contains(sibling.root),"Nested registration persisted broad/sibling authority")
+        let panels=c.panels;c.selected=child;c.permissionReply=nil
+        try require(action.handleFinderService(.init(action:.registerRepository,paths:[child])),"Repeat nested registration refused saved checkout")
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.manager.pendingOperations==0}
+        try require(action.error==nil && c.panels==panels && c.watched.repositories.contains{$0.id==watch.id} && c.recent.repositories.contains{$0.id==recent.id},"Saved containing-checkout grant did not bypass duplicate picker/watch")
+        let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout
+        try require(afterHead==head && (try Data(contentsOf:repository.root.appendingPathComponent(".git/index")))==index && c.manager.backgroundService==nil,"Nested registration mutated Git state or opted into background service")
     }
     static func deferredStartup(_ c:Context)async throws {
         var a=try await c.repo("deferred/selected")
@@ -676,7 +740,27 @@ private extension NSWindow {
         try require(c.watched.repositories.contains{$0.lastKnownPath==c.third.root.path} && !c.recent.repositories.contains{$0.lastKnownPath==c.third.root.path},"Failed publication lost captured saved watch or falsely completed recent pairing")
         try require(c.workspace.root==nil && c.workspace.workspaceWindow===c.parent && c.manager.backgroundService==nil,"Headless publication adopted workspace or enabled background service")
     }
+    static func nestedRegistrationRetirement(_ c:Context)async throws {
+        let repository=try await c.repo("retired nested/checkout"),child=repository.root.appendingPathComponent("Sources/Child",isDirectory:true)
+        try FileManager.default.createDirectory(at:child,withIntermediateDirectories:true)
+        let action=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:c.git,libgit2Configuration:.init(enabled:false))},finderWatches:c.manager,savedAccessStore:c.recent)
+        c.additionalModels.append(action);action.requiresRepositoryScope=true;action.repositoryBookmarkProvider=c.provider;action.fileComparisonPreferences=c.prefs;action.workspaceWindow=c.parent
+        action.selectedFinderServiceFolderURL={_ in c.selected}
+        action.presentFinderServiceFolderPanel={panel,owner,reply in c.panels += 1;c.permissionReply=reply;c.permissionDirectory=panel.directoryURL;owner?.beginSheet(panel,completionHandler:reply)}
+        let watches=c.watched.repositories.map(\.id),recent=c.recent.repositories.map(\.id),panels=c.panels
+        c.selected=child;c.permissionReply=nil
+        try require(action.handleFinderService(.init(action:.registerRepository,paths:[child])),"Retirement fixture refused nested Add")
+        try await wait{c.permissionReply != nil};c.answer(.OK)
+        try await wait{c.panels==panels+2 && c.permissionReply != nil && c.parent.attachedSheet != nil}
+        try require(action.hasPendingFinderServiceWork && action.busy,"Recovery chooser not retained before retirement")
+        action.stopMonitoringForTermination()
+        c.selected=repository.root;c.answer(.OK)
+        try await wait{!action.hasPendingFinderServiceWork && !action.busy && c.parent.attachedSheet==nil}
+        try require(action.root==nil && action.error==nil && c.watched.repositories.map(\.id)==watches && c.recent.repositories.map(\.id)==recent,"Retired root grant delivered late registration, workspace or error")
+        try require(c.manager.pendingOperations==0 && c.manager.backgroundService==nil,"Retired root grant started publication/background service")
+    }
     static func ownership(_ c:Context)async throws {
+        try await nestedRegistrationRetirement(c)
         try c.block();let mutating=Task {await c.manager.add(c.other.root)};defer {c.unblock()}
         try await wait {c.manager.busy && FileManager.default.fileExists(atPath:c.started.path)}
         try await c.submit(c.source.root);c.answer(.OK)

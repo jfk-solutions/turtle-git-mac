@@ -451,10 +451,18 @@ public enum RepositoryMetadataAccess {
     /// repository marker first, using only folders available to the caller.
     public static func settingsRepository(at location: URL, permissions: [RepositoryAccessLease], requireSecurityScope: Bool, cancellation: OperationCancellation? = nil) throws -> URL? {
         let folders = permissions.flatMap { $0.permittedFolders(requireSecurityScope: requireSecurityScope) }
+        return try repositoryMarker(at: location, authorizedFolders: requireSecurityScope ? folders:nil, cancellation: cancellation)
+    }
+    /// Registration must not probe ancestors beyond its captured folder grant,
+    /// including in development builds where the OS sandbox is not enabled.
+    public static func registrationRepository(at location: URL, authorizedFolders: [URL], cancellation: OperationCancellation? = nil) throws -> URL? {
+        try repositoryMarker(at: location, authorizedFolders: authorizedFolders, cancellation: cancellation)
+    }
+    private static func repositoryMarker(at location: URL, authorizedFolders: [URL]?, cancellation: OperationCancellation?) throws -> URL? {
         var cursor = location.standardizedFileURL
         for _ in 0..<256 {
             try cancellation?.check()
-            guard !requireSecurityScope || folders.contains(where: { RepositoryAccessLease.pathIsContained(cursor, by: $0) }) else { return nil }
+            guard authorizedFolders?.contains(where: { RepositoryAccessLease.pathIsContained(cursor, by: $0) }) != false else { return nil }
             let manager = FileManager.default
             if (try? manager.attributesOfItem(atPath: cursor.appendingPathComponent(".git").path)) != nil ||
                 manager.fileExists(atPath: cursor.appendingPathComponent("HEAD").path) && manager.fileExists(atPath: cursor.appendingPathComponent("objects").path) { return cursor }

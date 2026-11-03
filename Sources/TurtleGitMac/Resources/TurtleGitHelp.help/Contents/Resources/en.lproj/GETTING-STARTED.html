@@ -67,7 +67,13 @@ choose <strong>Add to TurtleGit…</strong>. The app requests folder access when
 the repository and saves it in Open Recent and Watched Repositories. Registration
 runs without opening a workspace and does not replace a repository already open there.
 When access is needed, the picker opens inside the selected folder; click
-<strong>Allow Access</strong> to approve it. Valid saved access avoids another picker.</p>
+<strong>Allow Access</strong> to approve it. Valid saved access avoids another picker.
+<strong>Add to TurtleGit…</strong> is offered for folders, rather than individual files.
+If you select a subfolder of an unregistered checkout and grant only that
+subfolder, TurtleGit asks you to choose the checkout root or a containing folder.
+The second picker starts at the selected subfolder's parent. It registers the
+actual checkout, without opening a workspace; Cancel leaves registration unchanged.
+A sibling folder cannot authorize the selected checkout.</p>
 <p>Registered repository folders retain their general Git commands when TurtleGit
 is closed. The app restores folder permission and validates the repository when
 you invoke a command. File-state commands require a current status publication;

@@ -216,7 +216,7 @@ import os
             target: self, actionSelector: #selector(openAction(_:)), creationDirectory: creation,
             extended: NSEvent.modifierFlags.contains(.shift), toolbar: menuKind == .toolbarItemMenu,
             sourceSelection: menuKind == .contextualMenuForItems ? selection : [],
-            registrationCandidate: paths.count == 1 ? paths.first:nil,
+            registrationCandidate: FinderMenuBuilder.registrationCandidate(kind:menuKind,selection:selection,target:targetURL),
             cloneDirectory: selection.count == 1 && selection[0].hasDirectoryPath ? selection[0]:targetURL,
             clipboardSources: (NSPasteboard.general.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL]) ?? [],
             registeredRoots: try? FinderRegisteredRoots.read())
@@ -425,6 +425,17 @@ enum FinderMenuBuilder {
         if kind == .contextualMenuForContainer || kind == .toolbarItemMenu { return target.map { [$0] } ?? [] }
         return selection.isEmpty ? target.map { [$0] } ?? [] : selection
     }
+    /// Finder supplies directory intent even when sandboxed resource lookup is
+    /// unavailable. Container/toolbar targets are folders by definition; item
+    /// selections must carry Finder's directory hint before URL normalization.
+    static func registrationCandidate(kind:FIMenuKind,selection:[URL],target:URL?)->URL? {
+        if kind == .contextualMenuForContainer || kind == .toolbarItemMenu || selection.isEmpty {
+            guard let target,let normalized=FinderRequest.normalizedSelection([target]).first else{return nil}
+            return URL(fileURLWithPath:normalized.path,isDirectory:true)
+        }
+        guard selection.count==1,selection[0].hasDirectoryPath else{return nil}
+        return selection[0]
+    }
     static func make(paths: [URL], snapshot: FinderSnapshot?, settings: FinderMenuSettings,
                      comparisonMark: WorkingComparisonMarkSnapshot?, target: AnyObject?, actionSelector: Selector,
                      creationDirectory: URL? = nil, extended: Bool = false, toolbar: Bool = false, sourceSelection: [URL] = [], registrationCandidate:URL? = nil, cloneDirectory:URL? = nil, clipboardSources: [URL] = [], localizationBundle: Bundle? = nil, registeredRoots: FinderRegisteredRoots? = nil) -> NSMenu {
@@ -434,13 +445,18 @@ enum FinderMenuBuilder {
         defer { MenuImageVisibility.apply(to:menu) }
         // Literal-path normalization intentionally discards URL resource hints.
         // Keep Finder's directory bit separately for cold folder discovery.
-        let selectedDirectory = paths.count == 1 && paths[0].hasDirectoryPath
+        let selectedDirectoryHint = paths.count == 1 && paths[0].hasDirectoryPath
         let normalizedPaths = FinderRequest.normalizedSelection(paths)
         if normalizedPaths.contains(where: { $0.pathComponents.contains(".git") }) { return menu }
         // First-use discovery cannot depend on reading an ungranted directory,
         // cached Git metadata, or successful directory resource lookup. The app
         // receives the candidate and obtains its own folder grant before use.
-        let candidate=registrationCandidate.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{candidate in normalizedPaths.count == 1 && GitReferenceName.equal(normalizedPaths[0].path,candidate.path) ? candidate:nil}
+        let registrationDirectory=registrationCandidate?.hasDirectoryPath == true
+        let candidate=registrationDirectory ? registrationCandidate.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{candidate in normalizedPaths.count == 1 && GitReferenceName.equal(normalizedPaths[0].path,candidate.path) ? candidate:nil}:nil
+        // The candidate has already matched the one selected path. Its captured
+        // container/toolbar directory intent also admits registered child folders
+        // before a live status snapshot arrives; it grants no file access.
+        let selectedDirectory=selectedDirectoryHint || candidate != nil
         let clone=cloneDirectory.flatMap{FinderRequest.normalizedSelection([$0]).first}.flatMap{!$0.pathComponents.contains(".git") && settings.allowsPath($0.path) ? $0:nil}
         if normalizedPaths.count == 1, let selected = normalizedPaths.first,
            snapshot?.repositoryRoot(for: selected) == nil,
