@@ -116,11 +116,35 @@ private actor SettingsSMTPFixture: SMTPCredentialStore {
         try await wait("Nested viewer Apply") { !navigation.transaction.busy }
         try require(UnifiedDiffViewerPreferences.load(from:prefs).applicationPath=="/Applications/ChangedViewer.app","Nested viewer ignored Diff owner domain")
         try await wait("Alternative editor control") { navigation.view.layoutSubtreeIfNeeded(); return views(navigation.view).compactMap { $0 as? NSTextField }.contains { $0.placeholderString=="Editor application" && $0.isEnabled && $0.window === window } }
-        try enter("Editor application","/Applications/ChangedEditor.app")
+        func editAlternative(_ text:String) throws {
+            guard let field=views(navigation.view).compactMap({$0 as? ToolLiteralTextField.Field}).first(where:{$0.placeholderString=="Editor application"}),field.isEnabled,field.window === window else {throw Failure(message:"Alternative editor native field unavailable")}
+            field.selectText(nil)
+            guard let editor=field.currentEditor() as? NSTextView,window.firstResponder === editor else {throw Failure(message:"Alternative editor field editor unavailable")}
+            editor.insertText(text,replacementRange:NSRange(location:0,length:editor.string.utf16.count))
+            window.makeFirstResponder(nil)
+        }
+        // Retain the actual AppKit target when this SDK exposes one; hosted
+        // SwiftUI controls without an NSButton retain their existing UI checks.
+        let retainedAlternativeBrowse=views(navigation.view).compactMap{$0 as? NSButton}.first{$0.title=="Browse…"}
+        let retainedBrowseAction=retainedAlternativeBrowse?.action,retainedBrowseTarget=retainedAlternativeBrowse?.target
+        try editAlternative("/Applications/ChangedEditor.app")
         try await wait("Alternative editor draft") { navigation.transaction.modified }
         try choose("Advanced"); navigation.transaction.apply(closeAfter:false)
         try await wait("Alternative editor Apply") { !navigation.transaction.busy }
         try require(AlternativeEditorPreferences.load(from:prefs).applicationPath=="/Applications/ChangedEditor.app","Alternative editor ignored owner domain")
+        try choose("Alternative Editor")
+        try await wait("Alternative editor restored control") {navigation.view.layoutSubtreeIfNeeded();return views(navigation.view).compactMap{$0 as? ToolLiteralTextField.Field}.contains{$0.isEnabled && $0.window === window && $0.stringValue=="/Applications/ChangedEditor.app"}}
+        if let retainedAlternativeBrowse,let retainedBrowseAction,let retainedBrowseTarget {
+            _ = NSApp.sendAction(retainedBrowseAction,to:retainedBrowseTarget,from:retainedAlternativeBrowse)
+            await Task.yield()
+            try require(window.attachedSheet==nil && ToolApplicationChooser.activeChoosers==0,"Retained Alternative Browse reopened a chooser after revisiting the page")
+        }
+        try editAlternative("/Applications/DiscardedEditor.app")
+        try await wait("Alternative editor Cancel draft") {navigation.transaction.modified}
+        navigation.transaction.cancel()
+        try await wait("Alternative editor Cancel restored") {!navigation.transaction.modified && views(navigation.view).compactMap{$0 as? ToolLiteralTextField.Field}.contains{$0.stringValue=="/Applications/ChangedEditor.app"}}
+        try require(AlternativeEditorPreferences.load(from:prefs).applicationPath=="/Applications/ChangedEditor.app","Alternative editor Cancel changed persisted editor")
+        try choose("Advanced")
  try await wait("Advanced table") { navigation.selected == .advanced }
         let advanced=AdvancedSettingsModel(defaults:prefs,publishFinderMenu:{ _ in })
         try require(advanced.edit("AutoCompleteMinChars",text:"5"),"Advanced numeric edit rejected")

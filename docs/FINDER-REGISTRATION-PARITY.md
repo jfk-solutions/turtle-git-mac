@@ -159,7 +159,9 @@ does not opt into the independent background service.
 
 The [batch evidence](qa/finder-root-grants-2026-11-03.json) records 25 passing
 Core permission tests, a passing Debug build, actual menu/selection checks and
-compiled registration/retirement fixtures. The chooser runtime additions have
-not executed locally; fixture compilation is not behavior acceptance.
+compiled registration/retirement fixtures. The subsequent [runtime checkpoint](qa/finder-root-grants-runtime-2026-11-03.json)
+passes registration and retirement with both Git engines, including the new
+nested-root chooser flows. These private injected responses do not establish
+physical Finder or signed sandbox acceptance.
 Installed build49, physical Finder behavior, signed sandbox acceptance and a
 complete matching-source hosted pass remain separate gates.

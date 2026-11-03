@@ -522,3 +522,17 @@ closed without opening a repository or applying Settings. That attempt is not
 evidence of successful isolated physical acceptance. Existing preference data
 was preserved rather than deleted. Full physical keyboard/VoiceOver, signed
 entry points, minimum-version/Intel and hosted integration remain open.
+
+## Alternative Editor presentation ownership — November 3, 2026
+
+Alternative Editor retains its saved/draft values across cached navigation, while
+recreating the native literal-field coordinator and Browse action for each visit.
+Captured mode/path edits, Browse and standalone responses carry a presentation
+receipt; disappearance and Cancel invalidate old actions and pending chooser
+replies. Hidden cached pages can still participate in property-sheet Apply/Cancel.
+
+The [native recovery checkpoint](qa/native-pending-recovery-2026-11-03.json)
+uses the actual field editor, revisits the page, verifies another native edit and
+Cancel restoration without changing the persisted path. A retained AppKit Browse
+action is refused where the SDK exposes that target. This does not establish all
+SDK control variants, physical focus or signed acceptance.

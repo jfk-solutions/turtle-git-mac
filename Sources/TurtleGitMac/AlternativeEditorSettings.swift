@@ -51,6 +51,8 @@ import TurtleGitCore
 struct AlternativeEditorSettings: View {
     @Environment(\.settingsTransaction) private var transaction
     @State private var initialized = false
+    @State private var presented = false
+    @State private var presentation = UUID()
     private let preferences: UserDefaults
     @StateObject private var chooser = ToolApplicationChooser()
     @State private var draft: AlternativeEditorPreferences
@@ -63,19 +65,23 @@ struct AlternativeEditorSettings: View {
     }
     @State private var error: String?
     var body: some View {
+        let receipt=presentation
         VStack(alignment: .leading, spacing: 16) {
             GroupBox("Alternative editor") {
                 VStack(alignment: .leading, spacing: 12) {
-                    Picker("Editor", selection: $draft.custom) {
+                    Picker("Editor", selection: Binding(get:{draft.custom},set:{value in
+                        guard presented,presentation==receipt,!chooser.selecting else{return};draft.custom=value
+                    })) {
                         Text("TextEdit").tag(false)
                         Text("Custom").tag(true)
                     }.pickerStyle(.radioGroup).labelsHidden()
                     HStack {
                         ToolLiteralTextField(text: Binding(get: { draft.applicationPath }, set: {
-                            guard !$0.utf8.elementsEqual(draft.applicationPath.utf8) else { return }
+                            guard presented,presentation==receipt,draft.custom,!chooser.selecting,
+                                  !$0.utf8.elementsEqual(draft.applicationPath.utf8) else { return }
                             draft.applicationPath = $0; draft.bookmark = nil
-                        }),label:"Editor application",placeholder:"Editor application",mayEdit:{draft.custom && !chooser.selecting}).frame(height:24)
-                        Button("Browse…", action: browse)
+                        }),label:"Editor application",placeholder:"Editor application",mayEdit:{presented && presentation==receipt && draft.custom && !chooser.selecting}).id(receipt).frame(height:24)
+                        Button("Browse…") {browse(receipt:receipt)}.id(receipt)
                     }.disabled(!draft.custom)
                     if !draft.valid { Text("Choose an application bundle or executable using its full path.").font(.caption).foregroundStyle(.red) }
                 }.padding(8)
@@ -85,19 +91,26 @@ struct AlternativeEditorSettings: View {
             Spacer()
             if transaction == nil { HStack {
                 Spacer()
-                Button("Cancel") { draft = saved; chooser.window?.performClose(nil) }
-                Button("Apply") { draft.save(to:preferences); saved = draft }.disabled(!draft.valid || draft == saved)
+                Button("Cancel") { guard presented,presentation==receipt else{return};cancelDraft(); chooser.window?.performClose(nil) }
+                Button("Apply") { guard presented,presentation==receipt,!chooser.selecting,draft.valid else{return};draft.save(to:preferences); saved = draft }.disabled(!draft.valid || draft == saved)
             } }
-        }.padding(20).disabled(chooser.selecting).background(ToolChooserProbe(chooser:chooser).frame(width:0,height:0)).onDisappear { chooser.cancel() }.onAppear { if !initialized { initialized = true; saved = .load(from:preferences); draft = saved } }
+        }.padding(20).disabled(!presented || chooser.selecting).background(ToolChooserProbe(chooser:chooser).frame(width:0,height:0)).onDisappear { presented=false;presentation=UUID();chooser.cancel() }.onAppear {
+            presentation=UUID();presented=true
+            if !initialized { initialized = true; saved = .load(from:preferences); draft = saved }
+        }
             .settingsParticipant("alternativeEditor", page: .alternativeEditor, value: draft,
                 modified: { draft != saved }, validate: { draft.valid ? nil : "Choose an editor application or executable." },
-                apply: { draft.save(to:preferences); saved = draft; return true }, cancel: { draft = saved })
+                apply: { draft.save(to:preferences); saved = draft; return true }, cancel: cancelDraft)
             .alert("Alternative editor", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
                 Button("OK") { error = nil }
             } message: { Text(error ?? "") }
     }
-    private func browse() {
+    private func cancelDraft() {
+        presentation=UUID();chooser.cancel();draft=saved;error=nil
+    }
+    private func browse(receipt:UUID) {
+        guard presented,presentation==receipt,draft.custom,!chooser.selecting else{return}
         let captured=draft
-        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 }, allowExecutables: true,currentPath:captured.applicationPath,isCurrent:{draft == captured && draft.custom})
+        chooser.choose({ application, bookmark in draft.applicationPath = application.path; draft.bookmark = bookmark },failure:{ error = $0 }, allowExecutables: true,currentPath:captured.applicationPath,isCurrent:{presented && presentation==receipt && draft == captured && draft.custom})
     }
 }

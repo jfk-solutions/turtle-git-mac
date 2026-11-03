@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-03",
+  "source": "57e34d1c",
+  "scope": "Pending Finder nested-root registration and retirement runtime checks after source batch",
+  "command": "env DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer SDKROOT=macosx python3 scripts/test-finder-registration.py --only registration --only ownership",
+  "result": "exit0; four case/engine pairs passed",
+  "log": "build/qa/finder-root-grant-runtime-2026-11-03.log",
+  "cases": [
+    {
+      "git": "/usr/bin/git",
+      "case": "registration",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "git": "/usr/bin/git",
+      "case": "ownership",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "case": "registration",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "case": "ownership",
+      "returncode": 0,
+      "passed": true
+    }
+  ],
+  "assertions": [
+    "Nested child grant does not launch Git beyond its authority before recovery",
+    "Owned containing-root picker keeps correct parent anchor/candidate explanation",
+    "Cancel leaves persistence unchanged without error",
+    "Sibling and markerless answers rejected",
+    "Containing-parent answer persists actual checkout in both stores with exact reopened authority",
+    "Duplicate nested registration avoids extra picker",
+    "Retirement rejects late OK without registration or workspace adoption",
+    "Unrelated watches, preferences and fixture HEAD/index retained"
+  ],
+  "cleanup": {
+    "ownedReceiversReaped": [
+      61443,
+      62023,
+      62148,
+      62656
+    ],
+    "eachCase": "manager drained; cleanup complete; runner detected no remaining approved fixture helpers",
+    "windows": "Hidden/offscreen private receiver windows and sheets",
+    "externalQuit": "No external interruption in this grouped run; this does not establish the external app setting was changed"
+  },
+  "notRepeated": [
+    "Core suite",
+    "Debug app build",
+    "Menu/context checks",
+    "Clone/worktree/publication/warm/service/authority cases"
+  ],
+  "limits": [
+    "Private injected chooser responses, not physical Finder grants",
+    "No signed installation or App Store submission",
+    "No complete hosted CI claim",
+    "Installed build49 unchanged"
+  ]
+}

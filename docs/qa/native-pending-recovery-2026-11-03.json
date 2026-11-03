@@ -1,0 +1,264 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "57e34d1c",
+  "scope": "Complete previously blocked Settings/regex/image/reference/pane-header native checkpoint and repair evidenced Alternative Editor lifecycle gap",
+  "sourceRepair": {
+    "file": "Sources/TurtleGitMac/AlternativeEditorSettings.swift",
+    "failureDiagnosis": "Alternative draft fixture sent delegate notification without an owning NSTextView editor; ToolLiteralTextField correctly rejected it. Production review separately found Browse receipt could revive after leave/reenter and cached native coordinator needed fresh presentation ownership.",
+    "changes": [
+      "Presentation receipts guard mode, path, Browse and standalone Apply/Cancel actions",
+      "New native field/Browse identity on page revisit; preserve cached draft and hidden property-sheet Apply/Cancel",
+      "Browse completion cannot revive after disappearance, Cancel or a new presentation"
+    ],
+    "pinnedSource": "7338078f8ddd924b8cddee35f512f2286072136d src/TortoiseProc/Settings/SettingsProgsAlternativeEditor.cpp57-92,115-123"
+  },
+  "fixtureRepairs": {
+    "settings": "Use actual ToolLiteralTextField field editor; retain modified/persisted-path assertions; add cached revisit/native edit/Cancel restore and retained Browse-target refusal when SDK exposes AppKit target",
+    "imageSelection": "Wait both native sheet detachment and actual owner command admission, invoke native File Reload, require synchronous read/decode, retain original raw-choice eligibility and assert all three original byte streams/no output publication",
+    "paneHeader": "Require nonempty expected actions from enabled native menu including Reveal in Finder, compare native AX custom actions against that set, then validate external AX action descriptions; Save/button/help/ShowMenu checks retained"
+  },
+  "validation": {
+    "debugBuild": {
+      "result": "exit0",
+      "log": "build/qa/native-pending-repair-debug-2026-11-03.log",
+      "command": "env -u SDKROOT xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+    },
+    "initialGroups": [
+      {
+        "family": "general",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-general-source-family.py"
+        ],
+        "returncode": 1,
+        "seconds": 23.846632250000003,
+        "log": "build/qa/native-pending-general-2026-11-03.log"
+      },
+      {
+        "family": "regex",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-merge-regex-source.py"
+        ],
+        "returncode": 0,
+        "seconds": 9.670048958,
+        "log": "build/qa/native-pending-regex-2026-11-03.log"
+      },
+      {
+        "family": "image-commands",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-image-command-family.py",
+          "--only",
+          "conflict",
+          "--only",
+          "routing",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 30.194527709,
+        "log": "build/qa/native-pending-image-commands-2026-11-03.log"
+      },
+      {
+        "family": "image-selection",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-image-tool-selection.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 1,
+        "seconds": 6.662198957999998,
+        "log": "build/qa/native-pending-image-selection-2026-11-03.log"
+      },
+      {
+        "family": "switch-pickers",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-switch-source.py",
+          "--only",
+          "pickers",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 1,
+        "seconds": 0.05700587500000154,
+        "log": "build/qa/native-pending-switch-pickers-2026-11-03.log"
+      },
+      {
+        "family": "reference",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-reference-standalone.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 1,
+        "seconds": 0.04066541699999959,
+        "log": "build/qa/native-pending-reference-2026-11-03.log"
+      },
+      {
+        "family": "pane-headers",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-merge-pane-header.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 1,
+        "seconds": 0.038421040999999434,
+        "log": "build/qa/native-pending-pane-headers-2026-11-03.log"
+      }
+    ],
+    "affectedAndUnexecutedGroups": [
+      {
+        "family": "navigation-repair",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-general-source-family.py",
+          "--only",
+          "navigation"
+        ],
+        "returncode": 0,
+        "seconds": 6.48444675,
+        "log": "build/qa/native-pending-navigation-repair-2026-11-03.log"
+      },
+      {
+        "family": "image-selection-repair",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-image-tool-selection.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 27.449634458,
+        "log": "build/qa/native-pending-image-selection-repair-2026-11-03.log"
+      },
+      {
+        "family": "switch-pickers-resumed",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-switch-source.py",
+          "--only",
+          "pickers",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 15.571982041999995,
+        "log": "build/qa/native-pending-switch-pickers-resumed-2026-11-03.log"
+      },
+      {
+        "family": "reference-resumed",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-reference-standalone.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 3.9007737919999954,
+        "log": "build/qa/native-pending-reference-resumed-2026-11-03.log"
+      },
+      {
+        "family": "pane-headers-resumed",
+        "command": [
+          "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+          "scripts/test-merge-pane-header.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+        ],
+        "returncode": 0,
+        "seconds": 19.784415333,
+        "log": "build/qa/native-pending-pane-headers-resumed-2026-11-03.log"
+      }
+    ],
+    "strengthenedAccessibility": {
+      "result": "exit0; Compare/Merge/ownership with system and bundled Git, six case/engine pairs",
+      "log": "build/qa/native-pending-pane-header-ax-strengthened-2026-11-03.log"
+    },
+    "retainedPasses": [
+      "General source case passed before navigation failure",
+      "Regex source/comparison/INI all passed",
+      "Image conflict and routing passed with both engines",
+      "Finder nested-root registration/retirement four case/engine pairs in separate receipt"
+    ],
+    "core": "No Core changes in this repair; suite not repeated",
+    "resources": "No native captions or registered Help guide changed in this repair; retain preceding generated-resource checks"
+  },
+  "failuresAndInvalidation": {
+    "general": "Navigation failed Alternative editor draft; only navigation rechecked after repair; passed General source not repeated",
+    "imageSelection": "System-Git case failed Reload raw-choice admission; affected whole selection workflow rechecked both engines; passed conflict/routing not repeated",
+    "sourceFreeze": "A parallel Alternative source edit preceded root freeze instruction, so stale-object guard correctly blocked Switch/reference/pane-header before any receiver launch. Root waited for all source repairs, froze edits and rebuilt once; these three groups then ran for first time in this checkpoint. No guard bypass.",
+    "accessibilityConcern": "Initial pane-header pass retained, but review proved empty expected set could pass subset check. Only pane headers repeated after strengthening actual custom-action assertion."
+  },
+  "cleanup": {
+    "ownedReceiversReaped": [
+      62865,
+      62889,
+      63065,
+      63074,
+      63097,
+      63145,
+      63280,
+      63302,
+      63426,
+      63459,
+      64120,
+      64167,
+      64378,
+      64585,
+      64802,
+      65045,
+      65095,
+      65158,
+      65187,
+      65222,
+      65247,
+      65272,
+      65306,
+      65461,
+      65489,
+      65527,
+      65548,
+      65575,
+      65608
+    ],
+    "scope": "Private fixture repositories/preferences, inactive invisible/offscreen windows; runners closed owned windows and reaped their receivers/helpers. No user app terminated.",
+    "externalQuit": "No external Quit interruption observed in this checkpoint; external app preference state remains unknown"
+  },
+  "limits": [
+    "Original hosted300s Compare timeout did not reproduce; cause remains unproven",
+    "No complete matching-source hosted CI pass",
+    "Physical Finder/sandbox/signed acceptance and representative large-repository wall-clock timings remain open",
+    "System Git only for General/navigation and regex; both engines only where runner arguments explicitly request them",
+    "Conditional retained AppKit Browse action assertion does not establish all SDK control implementations",
+    "Installed signed build49 unchanged; these source continuations are not deployed"
+  ],
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AlternativeEditorSettings.swift": "918f49263a23bf4c72e799deacc08090ac4519e961f51fd928663baa14a076b8",
+    "docs/qa/settings-family-native-2026-10-13.swift": "d03410753396c581b9aadb3df1d9481ce1de1b7066a64e47148d360d216a4bb3",
+    "docs/qa/image-tool-selection-native-2026-10-29.swift": "8115bfe52c37a96cba70acb8c6bfa72b49f006011cc7953a9f1676cdd0480eb8",
+    "docs/qa/merge-pane-header-native-2026-10-25.swift": "64ae9512ce3510ae938a62998353d82da01821c1e4bdc0403e01d0eb9f847ce6"
+  }
+}

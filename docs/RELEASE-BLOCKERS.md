@@ -10,8 +10,9 @@ This page identifies current gates; dated implementation detail is in
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
 for nested folder selection. Core permission, Debug build and actual menu/context
-checks pass. Registration/retirement fixtures compile; their new chooser runtime
-cases, signed deployment and physical Finder acceptance remain pending.
+checks pass. The [registration/retirement runtime checkpoint](qa/finder-root-grants-runtime-2026-11-03.json)
+now passes with both Git engines. Signed deployment and physical Finder
+acceptance remain pending.
 
 The [November 3 Commit index-read batch](COMMIT-STARTUP-READS.md) removes
 full clean-index output from Commit refresh and fallback flags, skips auxiliary
@@ -24,8 +25,11 @@ open. Installed build49 does not contain this continuation.
 The [November 3 Settings/Compare ownership batch](qa/settings-compare-owners-2026-11-03.json)
 protects General-page controls from stale edits and retains regex-editor sessions
 through native sheet detachment. Related image, Switch and standalone-reference
-receivers preserve production focus/ownership rules. Its Debug build passes;
-affected runtime and a complete corrected-source hosted pass remain pending.
+receivers preserve production focus/ownership rules. The subsequent
+[native recovery checkpoint](qa/native-pending-recovery-2026-11-03.json) passes
+the scoped families below, fixes Alternative Editor presentation ownership and
+strengthens pane-header custom-action checks. Complete corrected-source hosted
+and signed/physical acceptance remain pending.
 
 The preceding `aaca482a` hosted run passed Core, SVN and Pages. It also passed the
 Unified Diff command families, native release-download/App Store workflows,
@@ -33,24 +37,25 @@ grouped LFS/Send Mail and RefLog workflows that had stopped earlier. Retain thos
 bounded passes. Six lanes stopped later; distribution was still in progress at
 the recorded observation. This does not establish complete hosted success.
 
-| Family | Remaining scope |
+| Family | Current bounded evidence and remaining scope |
 | --- | --- |
-| General Settings | Actionable native controls, lifecycle-receipted update/appearance/engine/path fields and retained utility actions; preserve Apply/Cancel/Browse behavior |
-| Regex filter editors | Native sheet attachment, inherited visibility/appearance, validation/cancellation and session ownership through actual detachment |
-| Image commands | Conflict/comparison/standalone-selection exact key owner, original output/pixel/lease assertions, overlay layout availability and stale-event refusal |
-| Switch/reference ownership | Real F5 event identity, background refusal and actual standalone close/cancel drainage with exactly-once callbacks |
-| Compare/Merge pane headers | Hosted Compare timeout remains unexplained; bounded phase/AX diagnostics retain every original accessibility and command assertion |
+| General / Alternative Editor Settings | General source and navigation pass with system Git, including real native edit, cached Apply/Cancel and Alternative presentation receipts; wider SDK/signed/physical acceptance remains |
+| Regex filter editors | Source/comparison/INI native families pass, including sheet/session drainage; full hosted and signed acceptance remains |
+| Image commands | Conflict/routing and complete standalone selection pass with both engines, preserving bytes/pixels/leases and stale-event refusal; other unexecuted metafile/conflict variants remain scoped separately |
+| Switch/reference ownership | Picker and standalone-reference checks pass with both engines, including real F5 and exactly-once closure; physical/signed acceptance remains |
+| Compare/Merge pane headers | Compare/Merge/ownership pass with both engines and strengthened nonempty menu-derived AX action checks; earlier hosted timeout cause is unproven, current hosted acceptance remains |
 | History feedback languages | Extended German/French history family with both engines; [build/resources pass](qa/history-feedback-languages-2026-11-01.json), runtime pending |
 | Later unexecuted cases | Retain engine/case boundaries from failed grouped commands; a prior case pass does not establish unexecuted later cases |
 
 The [November 2 repairs](qa/native-workflow-continuation-2026-11-02.json) and
 [earlier recovery](qa/hosted-native-continuation-2026-11-01.json) retain original
 failures and source evidence. A matching later pass supersedes only its scoped
-pending entry. Current local native checks remain subject to the exact external
-Quit sender recorded in the earlier recovery: no receiver was launched in the
-November 3 batch while Vorssaint remains running without confirmation that its
-automatic closing is paused. Independent hosted validation can continue.
-Installed signed build49 is unchanged by these source continuations.
+pending entry. The first November 3 source checkpoint deferred native receivers
+after the earlier exact external Quit interruption. The subsequent Finder and
+pending-family runtime checkpoints completed without external interruption. This
+does not establish that the external application's closing preference changed.
+Independent hosted validation can continue. Installed signed build49 is unchanged
+by these source continuations.
 
 ## Finish line for the first locally accepted release
 

@@ -186,10 +186,29 @@ private final class ImageToolQABookmarks:RepositoryBookmarkProvider {
         let well=try unwrap(descendants(sheet.contentView!).compactMap{$0 as? NSColorWell}.first,"Missing actual color well")
         well.color=NSColor(deviceRed:0.2,green:0.4,blue:0.6,alpha:1)
         let okay=try unwrap(descendants(sheet.contentView!).compactMap{$0 as? NSButton}.first{$0.title=="OK"},"Missing actual color response")
-        okay.performClick(nil);try await wait("color sheet detached"){window.attachedSheet==nil}
+        okay.performClick(nil)
+        // AppKit detachment can precede the owner's published sheet-boundary
+        // release. Wait for actual command admission before sending Reload;
+        // idle alone could otherwise accept a command that was never admitted.
+        try await wait("color sheet detached and selection command admission restored") {
+            window.attachedSheet==nil && sheet.sheetParent==nil && model.commandState(.reload)?.enabled==true && model.canSelect(.theirs)
+        }
         try require(abs((model.presentation.transparentColor?.usingColorSpace(.deviceRGB)?.greenComponent ?? -1)-0.4)<0.01,"Shared pane transparency choice not retained")
-        model.perform(.reload);try await wait("actual native reload settled"){!model.busy && !model.decoding}
-        try require(model.images[.mine] != nil && model.canSelect(.theirs),"Reload changed raw-choice eligibility")
+        let rawBefore=try paths.mapValues{try Data(contentsOf:$0)}
+        let filePopup=try unwrap(window.toolbar?.items.first{$0.itemIdentifier==ImageEditorCommand.fileMenu.identifier}?.view as? NSPopUpButton,"Missing actual toolbar File menu")
+        toolbar.refresh();filePopup.menu?.update()
+        let reload=try unwrap(filePopup.menu?.items.first{$0.title==ImageEditorCommand.reload.title},"Missing actual File Reload command")
+        try require(reload.isEnabled && reload.target != nil && reload.action != nil,"Actual File Reload command unavailable after color sheet release")
+        try require(NSApp.sendAction(reload.action!,to:reload.target,from:reload) && model.busy && model.decoding,"Native File Reload did not start its owned read/decode")
+        let reloadVertical=model.vertical
+        try require(!model.canSelect(.theirs) && !window.performKeyEquivalent(with:key(window,"v",9,.command)) && model.vertical==reloadVertical,"Reload did not fence native selection/view commands")
+        try await wait("actual native reload settled"){!model.busy && !model.decoding && !model.hasPendingWork}
+        let reloadState="error=\(model.error ?? "none") minePreview=\(model.images[.mine] != nil) theirsPreview=\(model.images[.theirs] != nil) rawTheirs=\(model.document.selectionBytes(.theirs)?.count ?? -1) canSelect=\(model.canSelect(.theirs)) reloadEnabled=\(model.commandState(.reload)?.enabled == true) attachedSheet=\(window.attachedSheet != nil) sheetParent=\(sheet.sheetParent != nil)"
+        try require(model.error==nil && model.images[.mine] != nil && model.images[.theirs]==nil && model.canSelect(.theirs),"Reload changed raw-choice eligibility: "+reloadState)
+        for side in ImageConflictSide.allCases {
+            try require(model.document.selectionBytes(side)==rawBefore[side] && (try Data(contentsOf:paths[side]!))==rawBefore[side],"Native Reload changed original raw input bytes: "+side.rawValue)
+        }
+        try require(model.document.selectedSide==nil && !FileManager.default.fileExists(atPath:output!.path),"Native Reload selected a side or published an output")
         let popup=try unwrap(window.toolbar?.items.first{$0.itemIdentifier==ImageEditorCommand.viewMenu.identifier}?.view as? NSPopUpButton,"Missing actual toolbar View menu")
         popup.menu?.update()
         try await wait("actual toolbar menu enabled after reload") {popup.menu?.items.first{$0.title==ImageEditorCommand.info.title}?.isEnabled==true}

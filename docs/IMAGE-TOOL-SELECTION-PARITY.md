@@ -67,3 +67,13 @@ and signed permission-panel acceptance remain separate. The
 attempts and repairs; [capture provenance](qa/image-tool-selection-captures-2026-10-29.json)
 records the actual authored inputs and PNG hashes. No installed-build or full
 hosted acceptance is inferred. Installed build33 predates this family.
+
+## Reload after native sheet detachment — November 3, 2026
+
+The [pending-family recovery](qa/native-pending-recovery-2026-11-03.json) passes
+the complete standalone selection workflow with both Git engines. The receiver
+now waits for both AppKit detachment and published owner-command admission before
+using native File → Reload, rather than treating idle state as proof that Reload
+started. It checks the read/decode lifetime, all three retained raw input streams
+and absence of output/selection publication. Production ownership was preserved.
+Physical key ownership and signed permission panels remain separate acceptance.

@@ -36,9 +36,8 @@ private extension NSWindow {
     // an isolated standard SwiftUI Button is absent there too. Query only this
     // owned process through the public AX server, from a background task while
     // MainActor services accessibility callbacks. Never request TCC permission.
-    static func systemHeader(_ header:MergePaneHeaderView,in window:NSWindow?)async->SystemHeader {
+    static func systemHeader(_ header:MergePaneHeaderView,in window:NSWindow?,expected:Set<String>)async->SystemHeader {
         let pid=getpid(),title=window?.title ?? "",label=header.accessibilityLabel() ?? "",help=header.accessibilityHelp() ?? ""
-        let expected=Set((header.accessibilityCustomActions() ?? []).map(\.name))
         return await Task.detached {
             var result=SystemHeader(),windows:CFTypeRef?
             let deadline=ProcessInfo.processInfo.systemUptime+25
@@ -75,8 +74,11 @@ private extension NSWindow {
     }
     static func requireAccessible(_ header:MergePaneHeaderView,in window:NSWindow?)async throws {
         try require(header.isAccessibilityElement() && header.accessibilityRole() == .button && !header.titleField.isAccessibilityElement(),"Header is still exposed only as a static text child")
-        print("Pane header phase: owned system AX begin");fflush(stdout)
-        let actual=await systemHeader(header,in:window)
+        let expected=Set(header.contextMenu().items.filter{$0.isEnabled && !$0.isSeparatorItem}.map(\.title))
+        try require(!expected.isEmpty && expected.contains("Reveal in Finder"),"Ready header has no independent native menu action set")
+        try require(Set((header.accessibilityCustomActions() ?? []).map(\.name))==expected,"Native AX custom actions differ from enabled menu commands")
+        print("Pane header phase: owned system AX begin; expected actions=\(expected.count)");fflush(stdout)
+        let actual=await systemHeader(header,in:window,expected:expected)
         print("Pane header phase: owned system AX returned; control=\(actual.control), header=\(actual.element != nil), final=\(actual.diagnostics.last ?? "none")");fflush(stdout)
         try require(actual.control,"System AX standard Save button control unavailable: \(actual.diagnostics)")
         try require(header.accessibilityChildren()?.isEmpty != false && actual.element != nil,"Owning header button/ShowMenu/custom actions absent from actual system AX hierarchy: \(actual.diagnostics)")
