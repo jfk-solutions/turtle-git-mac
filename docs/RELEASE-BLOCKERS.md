@@ -20,7 +20,11 @@ index reads for wholly untracked lists, and reuses the identical unborn-branch
 diff. Focused Core checks pass, including exact filenames, conflicts, gitlinks,
 embedded repositories and unchanged index bytes. This is a source improvement;
 representative large-repository timing and installed signed acceptance remain
-open. Installed build49 does not contain this continuation.
+open. Installed build49 does not contain this continuation. The subsequent
+[native scale checkpoint](qa/commit-native-scale-2026-11-03.json) measures the
+34,303-path private checkout: first load10.56s, other initial loads2.23–2.39s,
+refresh1.65–1.77s. The slow first settings/change-read phase is not isolated;
+first-load and full cold/signed acceptance remain open.
 
 The [November 3 Settings/Compare ownership batch](qa/settings-compare-owners-2026-11-03.json)
 protects General-page controls from stale edits and retains regex-editor sessions

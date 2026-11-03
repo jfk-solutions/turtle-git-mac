@@ -177,3 +177,28 @@ complete publication phase from 7.30 to 5.80 seconds. Startup and unchanged
 retirement did not show a comparable improvement. Sequential sampling and OS
 cache/CPU state limit the comparison. Publication remains synchronous; these
 results do not prove that installed repository/Commit startup is fixed.
+
+## Native large-checkout timing — November 3, 2026
+
+The [native timing checkpoint](qa/commit-native-scale-2026-11-03.json) uses a
+private local checkout of the reported Ladybird repository with 34,303 tracked
+paths. Classic and staging modes run with both Git engines, first clean and then
+with one private tracked-file edit. Each new receiver measures controller
+construction, actual native table/header readiness and one owned refresh.
+
+The first system-Git Classic load took **10.56 seconds**. The other seven initial
+loads took **2.23–2.39 seconds**; all refreshes took **1.65–1.77 seconds**. Controller
+construction itself took 0.13–0.19 seconds. All eight cases retained private
+HEAD/index and exact row counts, closed their owners and drained their work.
+The original checkout's HEAD/index were unchanged and the private copy was removed.
+
+The first receiver's existing phase trace reaches identity readiness at 0.19
+seconds, settings/change-data readiness at 10.02, and accepted rows at 10.32.
+The interval includes preferences and captured Git reads; individual command cost
+and the slow first-load cause are not yet isolated. The first-load gate stays
+open. Faster later samples do not establish a product speedup or erase this result.
+
+Filesystem caches were not controlled. Project hooks/providers were rejected and
+private configuration excluded user global settings. This measures the hidden
+Debug native dialog, rather than full cold Finder launch, signed sandbox IPC or
+the installed application. No additional app/Core build or full suite ran.

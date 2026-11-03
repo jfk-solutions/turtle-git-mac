@@ -1,0 +1,209 @@
+{
+  "date": "2026-11-03",
+  "sourceBase": "58e6e9dd",
+  "status": "measurements-complete-first-load-acceptance-open",
+  "scope": "Native Commit controller initialization, initial real list/header readiness and owned model.reload refresh on private large checkout",
+  "dataset": {
+    "description": "Private local shared clone of owner-reported Ladybird checkout; source accessed read-only",
+    "trackedPaths": 34303,
+    "scenarios": [
+      "clean",
+      "one private tracked text edit"
+    ],
+    "engines": [
+      "system Git",
+      "bundled Git"
+    ],
+    "modes": [
+      "Classic",
+      "Git Gui staging"
+    ],
+    "preparationSeconds": 8.262026417,
+    "filesystemCaches": "Not flushed or controlled; first sample on fresh private checkout, subsequent cases follow earlier reads"
+  },
+  "results": [
+    {
+      "engine": "system",
+      "changes": 0,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.18821754166856408,
+      "initial_native_ready_seconds": 10.562668583355844,
+      "mode": "classic",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.6910514584742486,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "system",
+      "changes": 0,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.1702422082889825,
+      "initial_native_ready_seconds": 2.31868924992159,
+      "mode": "staging",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.7138109998777509,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "bundled",
+      "changes": 0,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.14797041658312082,
+      "initial_native_ready_seconds": 2.2281861666124314,
+      "mode": "classic",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.718230333412066,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "bundled",
+      "changes": 0,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.16986429155804217,
+      "initial_native_ready_seconds": 2.2410012499894947,
+      "mode": "staging",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.6728629167191684,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "system",
+      "changes": 1,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.1350427500437945,
+      "initial_native_ready_seconds": 2.3053190417122096,
+      "mode": "classic",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.7401304165832698,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "system",
+      "changes": 1,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.15627716667950153,
+      "initial_native_ready_seconds": 2.3847480416297913,
+      "mode": "staging",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.7679461250081658,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "bundled",
+      "changes": 1,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.13406695844605565,
+      "initial_native_ready_seconds": 2.2511668750084937,
+      "mode": "classic",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.653711416758597,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    },
+    {
+      "engine": "bundled",
+      "changes": 1,
+      "head_unchanged": true,
+      "index_unchanged": true,
+      "init_seconds": 0.15972266672179103,
+      "initial_native_ready_seconds": 2.294739708304405,
+      "mode": "staging",
+      "owned_work_drained": true,
+      "refresh_native_ready_seconds": 1.6979837082326412,
+      "result": "passed",
+      "scope": "hidden native Commit owner after safety preflight; model.reload refresh; no Finder or signed cold-launch claim",
+      "tracked": 34303
+    }
+  ],
+  "summary": {
+    "firstSystemClassicInitialSeconds": 10.562668583355844,
+    "remainingInitialRangeSeconds": [
+      2.2281861666124314,
+      2.3847480416297913
+    ],
+    "allRefreshRangeSeconds": [
+      1.653711416758597,
+      1.7679461250081658
+    ],
+    "initializationRangeSeconds": [
+      0.13406695844605565,
+      0.18821754166856408
+    ]
+  },
+  "firstReadTrace": {
+    "receiverPID": 69270,
+    "log": "build/qa/commit-scale-first-trace-exact-2026-11-03.log",
+    "identityReadySeconds": 0.19348,
+    "settingsAndChangeReadReadySeconds": 10.023646,
+    "messageProviderReadySeconds": 10.278037,
+    "rowsAcceptedSeconds": 10.323551,
+    "readReadySeconds": 10.343256,
+    "interpretation": "Most elapsed time lies between identity and settings/change-read completion. This phase spans preferences plus captured Git reads; individual command/root cause not isolated.",
+    "nextAction": "Profile individual configuration/status/diff reads for a first-load case; do not infer native table layout or a product speedup from later samples"
+  },
+  "validation": {
+    "result": "Eight structural/readiness/unchanged-state cases passed; this is not a first-load latency acceptance pass",
+    "log": "build/qa/commit-scale-native-2026-11-03.log",
+    "appBuild": "Current Debug app objects reused; no rebuild",
+    "core": "Not rerun; no production changes",
+    "trackedAndChangedCounts": "Actual native table/header/scroll/probe readiness with exact0/1 changed rows, staged rows0",
+    "privateState": "Each case asserts private HEAD/index and tracked count unchanged; actual owner closure and active work drainage required",
+    "safety": "Private HOME/preferences; global/system Git config excluded, project hooks/providers rejected at preflight, no stage/commit/network/credential operations"
+  },
+  "cleanup": {
+    "success": true,
+    "ownedHelpersDrained": true,
+    "unexpectedHelperCleanup": false,
+    "sourceHeadAndIndexUnchanged": true,
+    "results": 8,
+    "privateCheckoutRemoved": true,
+    "ownedReceiversReaped": [
+      69270,
+      69359,
+      69436,
+      69510,
+      69588,
+      69662,
+      69741,
+      69814
+    ]
+  },
+  "fixtureProvenance": {
+    "file": "docs/qa/commit-startup-scale-native-2026-11-03.swift",
+    "measuredAndFinalSHA256": "d6084391b2a23630c0ad50421072d85d5bd77fb5c637173356490c09ff923a89",
+    "validation": "Final fixture bytes exactly match the compiled and eight-times-executed measured fixture; SHA equality verified.",
+    "retainedFailure": {
+      "log": "build/qa/commit-scale-final-fixture-compile-2026-11-03.log",
+      "cause": "Post-measurement attempted clipboard assignment used an API CommitWindowModel does not expose. Removed that assignment; restored exact previously measured/passing fixture. No clipboard action was exercised.",
+      "compilerReaped": 70298,
+      "recheck": "No rerun: restored bytes exactly equal tested fixture"
+    }
+  },
+  "limits": [
+    "First load10.56s remains unresolved; no fixed performance guarantee or before/after speedup claim",
+    "Not complete cold Finder process launch, signed sandbox/grant IPC, owner installed configuration or original working-copy timing",
+    "Hooks/providers absent and controlled private preferences; excludes those configured costs",
+    "No physical focus, VoiceOver or full visual parity claim",
+    "Installed signed build49 unchanged; no distribution publication"
+  ]
+}
