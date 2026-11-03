@@ -7,14 +7,15 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
-The [signed build51 checkpoint](qa/signed-consolidation-build51-2026-11-03.json)
-is built, packaged and installed, including the validated Switch cancellation
-repair. Build49 is preserved for rollback; build50 remains a held historical
-candidate. Strict signatures, universal components, resources, source archive,
-ZIP round trip and the limited signed-parent Git probe pass. No binary publication
-or App Store submission occurred.
+The [signed build52 checkpoint](qa/signed-consolidation-build52-2026-11-03.json)
+is built, installed and locally packaged, including the connected cache/readiness
+repair. Build51 is preserved for rollback. Strict signatures, universal components,
+resources, source archive and the candidate-specific signed-parent Git probe pass.
+The guarded installation uses its own source/static/runtime manifest; ZIP
+compression/round-trip checks follow bounded physical acceptance. No binary
+publication or App Store submission occurred.
 
-The real installed check retains a startup failure: the workspace's changed rows
+The earlier [build51 check](qa/signed-consolidation-build51-2026-11-03.json) retains a startup failure: the workspace's changed rows
 appear while commands still wait for shared Finder cache publication. A worker
 sample identifies full snapshot JSON key sorting and queued publication writers
 against a roughly 78 MB live cache. The first ready observation was 76 seconds after Open;
@@ -24,10 +25,23 @@ visible headers remained stable through selection and message typing. The owned
 app quit normally. The [connected source batch](qa/finder-readiness-publication-2026-11-03.json)
 addresses cache encoding and foreground readiness together. Its 69 focused Core,
 Debug build and eight native case/engine checks pass, including a held real cache
-writer and actual retirement drainage. Installed build51 predates this source
-batch; the signed large-cache acceptance gate remains open.
-Physical Finder command/grant/badge acceptance remains open because native menu
-control rejected actions before Add could be invoked.
+writer and actual retirement drainage. Installed build52 now verifies usable workspace
+commands at the first 1.225s observation against the same private 34,304-path fixture
+and a 106.6 MB warm cache; publication continues independently and later completes.
+Commit shows the two correct rows at the first successful 5.569s observation.
+Those observations include tool overhead and do not establish cold filesystem,
+every-repository or cold Finder command latency.
+Physical Finder command/grant/badge acceptance remains open. A later bounded Add
+attempt invokes the nested-folder menu, but capture/Space/reopen behavior prevents
+visual access-picker or completed-registration proof. No permission was accepted;
+the owned app/window are closed and private saved/watch/registered records absent.
+
+The older hosted `3a6f425c` run is terminal: Core and SVN pass, seven native lanes
+fail. Its later Settings Alternative Editor and image Reload failures match the
+already retained repairs. The later replay failure is an unmounted Log fixture;
+the [label/history projection continuation](qa/log-history-projection-native-2026-11-03.json)
+now passes with both engines, preserving the full default assertion sequence.
+These bounded passes do not establish a complete corrected-source hosted pass.
 
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
@@ -42,7 +56,7 @@ index reads for wholly untracked lists, and reuses the identical unborn-branch
 diff. Focused Core checks pass, including exact filenames, conflicts, gitlinks,
 embedded repositories and unchanged index bytes. This is a source improvement;
 representative large-repository timing and installed signed acceptance remain
-open. Installed build51 contains this continuation. The subsequent
+open. Installed build52 contains this continuation. The subsequent
 [native scale checkpoint](qa/commit-native-scale-2026-11-03.json) measures the
 34,303-path private checkout: first load10.56s, other initial loads2.23–2.39s,
 refresh1.65–1.77s. The slow first settings/change-read phase is not isolated;
@@ -80,9 +94,9 @@ pending entry. The first November 3 source checkpoint deferred native receivers
 after the earlier exact external Quit interruption. The subsequent Finder and
 pending-family runtime checkpoints completed without external interruption. This
 does not establish that the external application's closing preference changed.
-Independent hosted validation can continue. Installed build51 now includes these
+Independent hosted validation can continue. Installed build52 now includes these
 source continuations; the bounded physical observation above retains the newly
-identified shared-cache readiness failure.
+identified shared-cache readiness failure and its bounded installed correction.
 
 ## Finish line for the first locally accepted release
 
@@ -116,13 +130,13 @@ missing source behavior, reported defect or failing check.
   The source review found author/support/Impressum placement consistent.
 - [ ] Complete owner acceptance of bundled Help and screenshots against the
   remaining native dialog states and accessibility behavior.
-- [x] Deliver and install the [signed local testing build49](qa/signed-consolidation-build49-2026-11-01.json).
-  Build48 is preserved for rollback. Build49 adds four consumer fixes, localized
-  history feedback/deletion warnings and the corrected partial-staging guide.
-  Universal signing, compiled resources, package/source/install inventories and
-  one signed command-line probe pass. It is left closed for local testing;
-  pending native checks, wider physical acceptance, complete hosted CI and later
-  publication remain separate.
+- [x] Deliver and install the [signed local testing build52](qa/signed-consolidation-build52-2026-11-03.json).
+  Build51 is preserved for rollback. Build52 adds the connected cache/readiness
+  repair and retains the prior consumer, translation and guide fixes. Universal
+  signing, compiled resources, source/install inventories, its own signed Git
+  probe and post-acceptance ZIP round trip pass. The bounded large-cache workspace
+  and Commit checks are recorded above. The app is left closed; physical Finder,
+  complete hosted CI, broader platform/parity and later publication remain separate.
 
 The [installed build39 attempt](qa/installed39-startup-commit-2026-10-30.json)
 found the large-cache startup delay and native Commit column-set transition.

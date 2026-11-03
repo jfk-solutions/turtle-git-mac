@@ -1,27 +1,44 @@
 # TurtleGit for Mac — full port tracking
 
-## Installed consolidated local build51
+## Installed consolidated local build52
 
-[Build51](qa/signed-consolidation-build51-2026-11-03.json), source `ff4b6085`,
-is installed and left closed; build49 is preserved for rollback. It consolidates
-the Commit candidate-index reads, Finder root grants, Settings ownership and
-Switch cancellation repairs. Universal signing, exact resources,
-package/source/install inventories and the focused signed Git sandbox probe pass.
-The shipping-app observation retains a startup failure behind large shared-cache
-publication; Classic Commit separately reaches its two expected rows and keeps
-visible headers stable through selection and typing. Finder menu invocation was
-blocked by native control, so registration/badges/cold delivery remain open.
+[Build52](qa/signed-consolidation-build52-2026-11-03.json), source `3702643e`,
+is installed and left closed; build51 is preserved for rollback. It consolidates
+the earlier Commit, Finder, Settings and Switch repairs with the connected
+cache/readiness continuation. Universal signing, exact resources, source/install
+inventories and the candidate-specific signed Git sandbox probe pass. Installation
+precedes ZIP compression; the subsequently accepted local package also passes
+copy/extraction inventories and strict seals.
 
 The connected cache/readiness source continuation separates ordinary workspace
 facts from optional overlay publication, preserves strict Services/registration
 requirements and retains worker cancellation/drainage. Large cache bodies retain
 their exact and legacy fields without Foundation JSON object-key sorting.
 Its [grouped checkpoint](qa/finder-readiness-publication-2026-11-03.json) passes 69
-focused Core checks, the Debug build and eight native case/engine pairs. Subsequent
-signed large-cache acceptance remains separate from installed build51. See the
+focused Core checks, the Debug build and eight native case/engine pairs. The
+installed private 34,304-path check observes usable workspace commands at 1.225s
+while Finder publication continues, and correct Commit rows at the first successful
+5.569s observation. Automation overhead, sparse sampling and warm filesystem state
+limit those measurements. This closes the demonstrated foreground/publication
+coupling in that bounded workflow, not every startup or Finder acceptance gate.
+The nested-folder Finder attempt does not establish access/registration/badges or
+cold command delivery; its windows/app are closed and test records/preferences
+removed or restored. See the
 [acceptance queue](RELEASE-BLOCKERS.md#current-acceptance-queue) for current gates.
 Complete hosted CI, physical/platform and full-port requirements remain open.
 No public binary upload, notarization or App Store submission occurred.
+
+## Native Log label and history projection continuation
+
+The older hosted replay checkpoint reached a nil cell in a fixture-created,
+unmounted table coordinator. The [connected fixture batch](qa/log-history-projection-native-2026-11-03.json)
+mounts actual hidden message tables for the complete label/history-walk family,
+retains rows/counts/selection/graph/ref metadata and exact repository bytes, and
+checks captured native callback retirement. Both Git engines pass. The initial
+intrinsic-size assertion was repaired for production's explicitly fixed host
+sizing; actual mounted viewport/message dimensions remain asserted. No app/Core
+build or Core suite was repeated, and installed build52 application code is unchanged.
+The full default receiver and current hosted requirement remain intact.
 
 ## History feedback and warning presentation — November 1, 2026
 

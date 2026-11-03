@@ -1447,6 +1447,87 @@ import TurtleGitCore
     print("Native shared unversioned preference: true default, Commit/Log reopen both directions, real working rows show/hide, busy/quit/closed guards, private preference domain and exact repository preservation passed.")
 }
 
+/// Mount the shipping revision table before asking for a row. Rendering owns
+/// Coordinator.renderedEntries; an ad-hoc coordinator has no native projection.
+/// The pinned LOGLIST_MESSAGE column paints labels, not a synthetic subject cell.
+@MainActor final class NativeLogHistoryFixtureOwner {
+    struct Failure:Error,CustomStringConvertible {let description:String}
+    let owner:LogWindowController
+    var model:LogWindowModel {owner.model}
+    var window:NSWindow {owner.window!}
+    init(repository:GitRepository,preferences:UserDefaults,selecting:Bool = false) {
+        let choose:((LogEntry?)->Void)?
+        if selecting {choose={_ in}} else {choose=nil}
+        owner=LogWindowController(repository:repository,access:nil,onChoose:choose,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,loadsImmediately:false)
+        window.alphaValue=0;window.setFrameOrigin(.init(x:-28000,y:-28000));owner.showWindow(nil)
+        window.contentView?.layoutSubtreeIfNeeded()
+    }
+    private func views(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(views)}
+    var table:HistoryTableView? {window.contentView.flatMap{views($0).compactMap{$0 as? HistoryTableView}.first}}
+    func settle() async throws {
+        for _ in 0..<3000 {
+            window.contentView?.layoutSubtreeIfNeeded()
+            if !model.busy,!model.loadingHistory,!model.historyProjectionWorkPending,model.error==nil,
+               let table,let coordinator=table.delegate as? RevisionTable.Coordinator,
+               coordinator.model === model,coordinator.table === table,table.window === window,
+               coordinator.renderedEntries.map(\.hash)==model.entries.map(\.hash),table.numberOfRows==model.entries.count,
+               coordinator.renderedProjection==model.historyProjectionEpoch,
+               coordinator.graphEpoch==model.revisionGraphEpoch,coordinator.referenceVisibility==model.referenceVisibility {
+                return
+            }
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        throw Failure(description:"Actual native Log projection did not settle: "+(model.error ?? "no model error"))
+    }
+    func message(hash:String) throws -> LogReferenceTextField {
+        guard let table,let coordinator=table.delegate as? RevisionTable.Coordinator,
+              let row=coordinator.renderedEntries.firstIndex(where:{$0.hash==hash}),
+              let column=table.tableColumn(withIdentifier:.init("message")),!column.isHidden else {
+            throw Failure(description:"Actual message column/revision is unavailable")
+        }
+        table.scrollRowToVisible(row);table.layoutSubtreeIfNeeded()
+        guard let cell=table.view(atColumn:table.column(withIdentifier:column.identifier),row:row,makeIfNecessary:true) as? NSTableCellView,
+              let field=cell.textField as? LogReferenceTextField,field.referenceCell != nil,field.window === window else {
+            throw Failure(description:"Actual native message reference painter is unavailable")
+        }
+        return field
+    }
+    func requireMountedLayout() throws {
+        // LogWindowController deliberately clears NSHostingController sizing
+        // options. Its fixed window layout need not report an intrinsic fitting
+        // size; inspect the actual mounted host and revision viewport instead.
+        guard let controller=window.contentViewController,let table else {
+            throw Failure(description:"Mounted Log hosting controller/table missing")
+        }
+        let host=controller.view
+        host.layoutSubtreeIfNeeded();table.layoutSubtreeIfNeeded()
+        guard host.window === window,table.window === window,table.isDescendant(of:host),
+              host.bounds.width>0,host.bounds.height>0,table.bounds.width>0,table.bounds.height>0,
+              (table.tableColumn(withIdentifier:.init("message"))?.width ?? 0) > 0 else {
+            throw Failure(description:"Mounted Log layout is empty: host=\(type(of:host)) bounds=\(host.bounds) fitting=\(host.fittingSize) table=\(table.bounds)")
+        }
+    }
+    func tagItem() throws -> LogControlMenuItem {
+        let menu=LogControlMenus.make(model:model,kind:.view)
+        let items=menu.items.flatMap{[$0]+($0.submenu?.items ?? [])}
+        guard let item=items.first(where:{$0.title==NSLocalizedString(HistoryLabelCommand.tags.rawValue,comment:"")}) as? LogControlMenuItem else {
+            throw Failure(description:"Native View/Labels tag command unavailable")
+        }
+        return item
+    }
+    func close(){owner.close()}
+    func closeAndDrain() async throws {
+        close()
+        for _ in 0..<3000 {
+            if !window.isVisible,window.attachedSheet==nil,window.contentViewController==nil,model.isInvalidated,
+               LogWindowModel.activeHistoryLoads==0,LogWindowModel.activeHistoryProjectionWorkers==0,
+               LogWindowModel.activeActionReads==0,LogWindowModel.activeReferenceReads==0 {return}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        throw Failure(description:"Owned native Log window/readers did not drain")
+    }
+}
+
 @MainActor func verifyNativeLogLabelVisibility(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-labels-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -1455,6 +1536,7 @@ import TurtleGitCore
     let defaults = UserDefaults(suiteName: suite)!
     // Use a private preference domain; no user preferences are changed.
     defer { defaults.removePersistentDomain(forName: suite) }
+    defaults.set(false,forKey:"Gravatar");defaults.set(false,forKey:"EnableGravatar")
     let repo = GitRepository(root: root, executable: executable)
     _ = try await repo.run(["init", "--initial-branch=main"])
     _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
@@ -1470,21 +1552,27 @@ import TurtleGitCore
     _ = try await repo.run(["update-ref", "refs/remotes/qa-label/remote", hashes[2]])
     _ = try await repo.run(["update-ref", "refs/custom/qa-label-other", hashes[3]])
     let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), head = try await repo.run(["rev-parse", "HEAD"]).stdout, bytes = try Data(contentsOf: root.appendingPathComponent("file"))
-    let model = LogWindowModel(repository: repo, access: nil, selecting: true, labelDefaults: defaults); defer { model.invalidate() }
-    func wait() async throws {
-        let deadline = Date().addingTimeInterval(30)
-        while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(!model.busy && model.error == nil, model.error ?? "Labels timeout")
-    }
+    let fixture=NativeLogHistoryFixtureOwner(repository:repo,preferences:defaults,selecting:true),model=fixture.model
+    defer {fixture.close()}
+    func wait() async throws {try await fixture.settle();precondition(!model.busy && model.error==nil,model.error ?? "Labels timeout")}
     model.reload(); try await wait(); precondition(model.referenceVisibility == .all && model.entries.count == 5)
     let selection = model.selected, original = model.entries.map(\.hash)
     let tagRow = model.entries.firstIndex { $0.hash == hashes[0] }!
-    let coordinator = RevisionTable.Coordinator(model: model), table = NSTableView(), column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier("subject"))
-    func paintedTag() -> String { (coordinator.tableView(table, viewFor: column, row: tagRow) as! NSTableCellView).textField!.stringValue }
-    precondition(paintedTag().contains("qa-label-tag"))
+    func paintedTag() throws -> String {try fixture.message(hash:hashes[0]).stringValue}
+    let tagField=try fixture.message(hash:hashes[0]),painted=tagField.attributedStringValue
+    var annotatedTag=false
+    painted.enumerateAttribute(.logReference,in:NSRange(location:0,length:painted.length)) {value,_,_ in
+        if let style=value as? LogReferenceStyle,style.label.reference.name=="refs/tags/qa-label-tag",style.pointed {annotatedTag=true}
+    }
+    let initialPainted=try paintedTag()
+    precondition(initialPainted.contains("qa-label-tag"));precondition(annotatedTag,"Actual annotated-tag painter style missing")
+    let initialProjection=model.historyProjectionEpoch
     model.toggleHistoryLabel(.tags)
     precondition(!model.busy && model.entries.map(\.hash) == original && model.selected == selection)
-    precondition(!paintedTag().contains("qa-label-tag") && model.entries[tagRow].references.contains { $0.name == "refs/tags/qa-label-tag" })
+    try await wait()
+    precondition(model.historyProjectionEpoch==initialProjection,"Normal label visibility unnecessarily replaced history")
+    let hiddenPainted=try paintedTag()
+    precondition(!hiddenPainted.contains("qa-label-tag") && model.entries[tagRow].references.contains { $0.name == "refs/tags/qa-label-tag" })
     let reopened = LogWindowModel(repository: repo, access: nil, labelDefaults: defaults); defer { reopened.invalidate() }
     precondition(!reopened.referenceVisibility.contains(.tags) && reopened.referenceVisibility.contains(.localBranches))
     let other = LogWindowModel(repository: GitRepository(root: root.appendingPathComponent("other-repo"), executable: executable), access: nil, labelDefaults: defaults); defer { other.invalidate() }
@@ -1497,20 +1585,29 @@ import TurtleGitCore
     model.toggleHistoryLabel(.tags); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4], hashes[0]])
     precondition(model.graph[1].edges.contains { $0.endsAtNode })
     model.toggleHistoryWalk(.compressed); try await wait(); precondition(model.entries.map(\.hash) == [hashes[4], hashes[0]])
-    let host = NSHostingView(rootView: LogDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1100, height: 760); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
-    let mask = model.referenceVisibility
-    model.busy = true; model.toggleHistoryLabel(.tags); precondition(model.referenceVisibility == mask); model.busy = false
-    model.invalidate(); model.toggleHistoryLabel(.tags); precondition(model.referenceVisibility == mask)
+    try fixture.requireMountedLayout()
+    let restoredPainted=try paintedTag()
+    precondition(restoredPainted.contains("qa-label-tag"),"Compressed native projection lost the restored tag")
+    let mask = model.referenceVisibility,heldBusy=try fixture.tagItem()
+    precondition(heldBusy.image != nil && heldBusy.state == .on && heldBusy.isEnabled)
+    model.busy = true; model.toggleHistoryLabel(.tags);heldBusy.invokeCaptured();precondition(model.referenceVisibility == mask);model.busy = false
+    try await wait()
+    let heldClosed=try fixture.tagItem()
+    try await fixture.closeAndDrain()
+    model.invalidate();model.toggleHistoryLabel(.tags);heldClosed.invokeCaptured();precondition(model.referenceVisibility == mask && model.isInvalidated)
     let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterBytes = try Data(contentsOf: root.appendingPathComponent("file"))
     precondition(afterHead == head && afterIndex == index && afterBytes == bytes)
-    print("Native Log labels: four checked model toggles, actual annotated/local/remote/other refs, native attributed tag label hide/show without normal history reload or metadata loss, isolated per-repository persistence, labeled/compressed rows and bridged graph, HEAD retained with hidden local label, busy/closed guards, hidden hosted View/Labels menu and exact HEAD/index/work preservation passed. Displayed menu gestures remain pending.")
+    print("Native Log labels: four checked model toggles, actual annotated/local/remote/other refs, actual mounted message-column reference painter hide/show without normal history reload or metadata loss, isolated per-repository persistence, labeled/compressed rows and bridged graph, HEAD retained with hidden local label, busy/closed guards including captured native View/Labels callbacks, hidden owned native table and exact HEAD/index/work preservation passed. Displayed menu gestures remain pending.")
 }
 
 @MainActor func verifyNativeLogHistoryWalk(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-walk-" + UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
+    let suite="TurtleGit.LogWalk.QA."+UUID().uuidString,defaults=UserDefaults(suiteName:suite)!
+    defer {defaults.removePersistentDomain(forName:suite)}
+    defaults.set(false,forKey:"Gravatar");defaults.set(false,forKey:"EnableGravatar")
     let repo = GitRepository(root: root, executable: executable)
     _ = try await repo.run(["init", "--initial-branch=main"])
     _ = try await repo.run(["config", "user.name", "Native QA"]); _ = try await repo.run(["config", "user.email", "native@example.invalid"])
@@ -1523,11 +1620,13 @@ import TurtleGitCore
     _ = try await repo.run(["switch", "walk-side"])
     try Data("side\n".utf8).write(to: root.appendingPathComponent("side-file")); try await repo.stage(["side-file"]); _ = try await repo.commit(message: "walk side")
     _ = try await repo.run(["switch", "main"]); _ = try await repo.run(["merge", "--no-ff", "walk-side", "-m", "walk merge"])
-    let model = LogWindowModel(repository: repo, access: nil); defer { model.invalidate() }
+    let fixture=NativeLogHistoryFixtureOwner(repository:repo,preferences:defaults),model=fixture.model
+    defer {fixture.close()}
     func until(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(condition(), model.error ?? "Walk fixture timed out")
+        if !model.isInvalidated {try await fixture.settle()}
     }
     model.reload(); try await until { !model.busy }
     precondition(model.error == nil && !model.historyWalk.isActive && !model.canToggleHistoryWalk(.followRenames))
@@ -1555,13 +1654,16 @@ import TurtleGitCore
     model.toggleHistoryWalk(.followRenames); try await until { !model.busy }
     precondition(model.historyWalk.followRenames && !model.allBranches && !model.showWholeProject)
     precondition(model.entries.filter { !$0.hash.isEmpty }.map(\.subject) == ["walk rename", "walk base"])
-    let host = NSHostingView(rootView: LogDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1100, height: 760); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
+    try fixture.requireMountedLayout()
+    precondition(fixture.table?.tableColumn(withIdentifier:.init("graph"))?.isHidden==true,"Follow-renames native projection kept the normal graph column")
     model.setPathScope([new, "side-file"]); try await until { !model.busy }
     precondition(!model.historyWalk.followRenames && !model.canFollowRenames)
     try FileManager.default.createDirectory(at: root.appendingPathComponent("folder"), withIntermediateDirectories: true)
     model.setPathScope(["folder"]); try await until { !model.busy }; precondition(!model.canFollowRenames)
     model.busy = true; model.toggleHistoryWalk(.firstParent); precondition(!model.historyWalk.firstParent); model.busy = false
-    model.invalidate(); model.toggleHistoryWalk(.firstParent); precondition(model.isInvalidated && !model.historyWalk.firstParent)
+    let staleWalk=LogControlMenus.make(model:model,kind:.walk).items.compactMap{$0 as? LogControlMenuItem}.first{$0.title==NSLocalizedString(HistoryWalkCommand.firstParent.rawValue,comment:"")}!
+    try await fixture.closeAndDrain()
+    model.invalidate();model.toggleHistoryWalk(.firstParent);staleWalk.invokeCaptured();precondition(model.isInvalidated && !model.historyWalk.firstParent)
     let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     let afterBytes = try Data(contentsOf: root.appendingPathComponent(new))
     precondition(afterIndex == index && afterHead == head && afterBytes == bytes)
@@ -1570,8 +1672,9 @@ import TurtleGitCore
     try Data("graph path change\n".utf8).write(to: root.appendingPathComponent(new)); try await repo.stage([new]); _ = try await repo.commit(message: "graph visible path")
     let graphIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), graphHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     let graphBytes = try Data(contentsOf: root.appendingPathComponent(new))
-    let scoped = LogWindowModel(repository: repo, access: nil); defer { scoped.invalidate() }
-    scoped.setPathScope([new]); try await until { !scoped.busy }
+    let scopedFixture=NativeLogHistoryFixtureOwner(repository:repo,preferences:defaults),scoped=scopedFixture.model
+    defer {scopedFixture.close()}
+    scoped.setPathScope([new]);try await until {!scoped.busy};try await scopedFixture.settle()
     precondition(scoped.error == nil)
     let pathEntries = scoped.entries.filter { !$0.hash.isEmpty }
     precondition(pathEntries.map(\.subject) == ["graph visible path", "walk rename"])
@@ -1584,7 +1687,8 @@ import TurtleGitCore
     let finalIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     let finalBytes = try Data(contentsOf: root.appendingPathComponent(new))
     precondition(finalIndex == graphIndex && finalHead == graphHead && finalBytes == graphBytes)
-    print("Native Log Walk Behavior: rewritten path graph with actual file/revert parents, all six model controls, actual first-parent/no-merge rows and retained merge parents, full-history toggle, compressed fork/merge and labeled-only views with working row, mutual mode toggles, literal rename history, all-branch/whole-project exclusion, single-file eligibility, multi/folder reset, busy/closed guards, hidden hosted menu and exact index/HEAD/file preservation passed. Displayed gestures and per-node rollup remain pending.")
+    try await scopedFixture.closeAndDrain()
+    print("Native Log Walk Behavior: rewritten path graph with actual file/revert parents, all six controls with actual mounted native projections, actual first-parent/no-merge rows and retained merge parents, full-history toggle, compressed fork/merge and labeled-only views with working row, mutual mode toggles, literal rename history, all-branch/whole-project exclusion, single-file eligibility, multi/folder reset, busy/closed guards including a captured native Walk callback, hidden owned tables and exact index/HEAD/file preservation passed. Displayed gestures and per-node rollup remain pending.")
 }
 
 @MainActor func verifyNativeLogWorkingAddCommit(executable: URL) async throws {
@@ -2678,6 +2782,13 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
 
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_HISTORY_LABELS_ONLY"] == "1" {
+        let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
+        try await verifyNativeLogLabelVisibility(executable:executable)
+        try await verifyNativeLogHistoryWalk(executable:executable)
+        precondition(NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Owned history-label windows left open")
+        print("PASS: Log history labels and native projections family");return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_ADD_MODES_ONLY"] == "1" {
         let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
         try await verifyNativeLogAddModes(executable:executable)

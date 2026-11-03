@@ -217,6 +217,18 @@ at the first successful 4.95-second native observation; action/observation overh
 recently created filesystem cache limit that measurement. No cold Finder result
 or universal startup guarantee follows from it.
 
+The subsequent [signed build52 check](qa/signed-consolidation-build52-2026-11-03.json)
+uses the same private repository with unchanged HEAD/index/status and an existing
+106.6 MB warm archive. Workspace commands and both changed rows are ready at the
+first 1.225s observation, while the footer separately reports Finder publication
+in progress. Commit is then ready at the first successful 5.569s observation;
+before normal Quit the workspace reports that publication completed. The app's
+owned windows close and its main executable is independently absent. This proves
+usable foreground state during that real publication workload. It is not a
+matched encoding benchmark, an isolated Commit speedup, a cold-disk guarantee or
+physical Finder grant/badge/cold-command proof. Test app preferences/repository
+records are restored or removed; optional historical warm metadata may remain.
+
 ## Native large-checkout timing — November 3, 2026
 
 The [native timing checkpoint](qa/commit-native-scale-2026-11-03.json) uses a

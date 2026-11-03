@@ -1,0 +1,213 @@
+{
+  "date": "2026-11-03",
+  "status": "signed-packaged-installed-bounded-large-cache-readiness-passed-Finder-and-full-CI-open",
+  "version": "0.1.0",
+  "build": "52",
+  "source_commit": "3702643e020511fc09687cda58f352ad5d12e459",
+  "source_input_sha256": "08cf03802df0e3677370e567728a9ecca0a4f7468e0c4d7b94327308d3cf7b8a",
+  "main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+  "build_result": {
+    "exit": 0,
+    "elapsed_seconds": 530.708,
+    "log": "build/qa/signed52-final-build-2026-11-03.log"
+  },
+  "build_inputs_unchanged": true,
+  "static": {
+    "strict_deep_seal": true,
+    "owned_universal_components": 8,
+    "runtime_layout_code_entries": 206,
+    "inventory_members": 6385,
+    "compiled_locales": 38,
+    "packaged_help_source_members": 98,
+    "team": "A49SCA5S8K",
+    "signing_leaf_sha1": "368185657EAF3B08917601A5447D52FE9B572E46",
+    "receipt": "build/qa/signed52-static-2026-11-03.json in frozen signed52 worktree"
+  },
+  "signed_parent": {
+    "passed": true,
+    "phases": [
+      "local-tools"
+    ],
+    "helper_processes_and_groups_drained": true,
+    "observed_helper_pids": [
+      39920,
+      40084
+    ],
+    "scope": "Candidate-specific public Core/Git sandbox probe; no outside-folder grant, shipping GUI or Finder proof inferred.",
+    "receipt": "build/qa/signed52-local-tools-2026-11-03.json"
+  },
+  "installation": {
+    "installed": true,
+    "created_utc": "2026-11-03T13:15:42.515797+00:00",
+    "build": "52",
+    "source_commit": "3702643e020511fc09687cda58f352ad5d12e459",
+    "source_input_sha256": "08cf03802df0e3677370e567728a9ecca0a4f7468e0c4d7b94327308d3cf7b8a",
+    "main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "installed_inventory_matches_preinstall_manifest": true,
+    "preinstall_manifest_sha256": "c989569388af34d81905332db7ccf8273e73d366fe1d76fa4f123c15b771a799",
+    "ZIP_roundtrip_before_install": false,
+    "strict_deep_seal": true,
+    "static_receipt_sha256": "b4309e5e020ad9e62aa2e87f84b54b9a770c512e64a6f19c5287f41fa9fe72ce",
+    "previous_identity": {
+      "bundle_identifier": "org.turtlegit.macos",
+      "marketing_version": "0.1.0",
+      "build_number": "51",
+      "peers": {
+        "finder": {
+          "bundle_identifier": "org.turtlegit.macos.finder",
+          "marketing_version": "0.1.0",
+          "build_number": "51"
+        },
+        "cache": {
+          "bundle_identifier": "org.turtlegit.macos.cache",
+          "marketing_version": "0.1.0",
+          "build_number": "51"
+        }
+      }
+    },
+    "previous_main_sha256": "8eef58f6162b002a59a20d93b5a8ec4db5f2a5769e1095387ae0965f2f67db6a",
+    "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build51-before52-2026-11-03.app",
+    "rollback_inventory_matches_previous": true,
+    "user_app_was_running": false,
+    "app_launched": false,
+    "Finder_Dock_restart": false,
+    "external_app_quits": false,
+    "extension_toggles": false,
+    "atomic_exchange": true,
+    "launch_services_registration_exit": 0,
+    "frozen_candidate_unregistration_exit": 0,
+    "launch_services_registration": {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-f",
+        "/Applications/TurtleGit for Mac.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "frozen_candidate_unregistration": {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-u",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-signed52/tortoise-git-mac/build/signed-development/Build/Products/AppStore/TurtleGitMac.app"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    "public_upload": false,
+    "notarization": false,
+    "app_store_submission": false
+  },
+  "physical_acceptance": {
+    "build": "52",
+    "source_commit": "3702643e020511fc09687cda58f352ad5d12e459",
+    "source_input_sha256": "08cf03802df0e3677370e567728a9ecca0a4f7468e0c4d7b94327308d3cf7b8a",
+    "main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "native_ui_executed": true,
+    "accepted_for_local_packaging": true,
+    "owned_app_and_windows_closed": true,
+    "user_repositories_unchanged": true,
+    "scope": "Bounded installed App workspace/Commit startup with same private synthetic34304-path repository and existing106566753B warm cache. Local packaging acceptance only; incomplete Finder/whole-port acceptance remains explicit.",
+    "observed": [
+      "Exact installed52 launched; initial empty-workspace observation1799ms including tool overhead.",
+      "Same private root/HEAD/index/status as51 selected through native Open panel. First post-open observation1225ms already has main, two correct rows and enabled workspace/Commit/Log controls while Updating Finder status\u2026 remains separate.",
+      "Commit was invoked while optional Finder update was active. Initial AX window transition failed, then first successful observation5569ms shows correct modified/untracked rows, author/source options and enabled cancellation.",
+      "Later workspace footer reports Finder cache updated Ready; optional publication completes instead of being omitted.",
+      "Empty Commit cancelled via source confirmation; owned app normal Quit and independent main-executable absence. Exact private HEAD/index/status remain unchanged; test repository record removed and changed app preference keys restored.",
+      "Additional Finder nested-folder menu invoked Add; subsequent access/registration result unverified because capture/Space/reopen control was unreliable. No permission was accepted and no private saved/watch/registration entry remains. Owned private Finder window selected by its exact Window-menu title and closed; its capture then reports missing window."
+    ],
+    "observations": {
+      "build": "52",
+      "source_commit": "3702643e020511fc09687cda58f352ad5d12e459",
+      "source_input_sha256": "08cf03802df0e3677370e567728a9ecca0a4f7468e0c4d7b94327308d3cf7b8a",
+      "launch_observation_ms": 1799,
+      "workspace_ready_first_observation_ms": 1225,
+      "workspace_ready_while_updating_Finder_status": true,
+      "commit_ready_first_successful_observation_ms": 5569,
+      "commit_initial_AX_transition_failed": true,
+      "commit_rows": [
+        "Modified README.md",
+        "Untracked untracked.txt"
+      ],
+      "footer_before_quit": "2 changed \u2022 0 staged Finder cache updated Ready",
+      "no_commit_or_draft_written": true,
+      "normal_cancel_and_quit": true,
+      "scope": "Same synthetic34304-path private checkout, existing106566753B warm cache. Action/observation overhead included; no controlled cold filesystem or physical Finder command result inferred."
+    },
+    "cleanup": {
+      "normal_quit": true,
+      "owned_app_independently_absent": true,
+      "owned_app_pid": "Not captured before normal quit; unique installed-main executable absent afterward",
+      "signals_sent": false,
+      "test_preference_keys_restored": [
+        "NSOSPLastRootDirectory",
+        "TurtleGit.DialogGeometry.CommitWindowController",
+        "TurtleGit.DialogGeometry.workspace"
+      ],
+      "private_repository_records_removed": 1,
+      "test_watched_records_added": 0,
+      "user_repository_records_retained": 5,
+      "all_other_preference_values_preserved": true,
+      "private_head_index_status_unchanged": true,
+      "Finder_windows_created_during_App_check": 0,
+      "warm_cache_limit": "Private historical fixture metadata may remain in optional warm cache; no user snapshots or unrelated roots erased."
+    },
+    "Finder_attempt": {
+      "scope": "Additional current-build Finder nested-folder command attempt after successful App acceptance",
+      "extension_host_pid": 40387,
+      "main_app_pid": 41186,
+      "menu_command_invoked": true,
+      "registration_completed": false,
+      "access_panel_visually_verified": false,
+      "workspace_observed_on_later_CUA_getApp": true,
+      "causal_limit": "Initial app capture failed while Finder was in a temporary full-screen Space. Later getApp/reopen observation cannot establish original quiet-admission behavior; no folder permission was accepted. No product routing defect inferred.",
+      "owned_app_normal_quit": true,
+      "owned_app_independently_absent": true,
+      "owned_finder_window": "nested-repository",
+      "owned_finder_window_close": "Selected exact private title through Window menu, verified native window title, Cmd-W; subsequent capture reports cgWindowNotFound.",
+      "user_downloads_fullscreen_roundtrip": "Accidental toggle restored immediately; existing Downloads window retained.",
+      "no_private_saved_or_watched_or_registered_records_after_cleanup": true,
+      "app_preference_keys_restored": [
+        "TurtleGit.DialogGeometry.workspace",
+        "NSOSPLastRootDirectory"
+      ],
+      "signals_sent": false,
+      "extension_toggles": false
+    },
+    "limits": [
+      "Action/observation timings include tool overhead and sparse sampling; recently created filesystem cache is not a controlled cold-disk experiment.",
+      "No timing guarantee for every user repository, active global hook/provider/filter, platform or filesystem.",
+      "Current physical first-use/nested grants, quiet Add, badges/background refresh and cold Finder Commit delivery remain unproven; no Finder acceptance inferred from the App path.",
+      "No complete matching-source hosted CI pass or complete upstream dialog/layout/keyboard/accessibility parity.",
+      "No public binary publication, notarization or App Store submission."
+    ]
+  },
+  "package": {
+    "archive": "TurtleGit-for-Mac-0.1.0-build52-signed.zip",
+    "archive_bytes": 424010371,
+    "archive_sha256": "a36abefa6155fe5918c084a701d8608809eb573312fa76e73baa9404895675c0",
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-3702643e020511fc09687cda58f352ad5d12e459.tar.gz",
+      "source_commit": "3702643e020511fc09687cda58f352ad5d12e459",
+      "sha256": "b58fdfe1ddea098d7f2ed6a0821a9d23fc80662e66c64a30fbe68ed752da5376",
+      "bytes": 201046687,
+      "tracked_files": 10435,
+      "exact_tracked_tree": true,
+      "source_blobs_and_modes_equal": true,
+      "bundled_runtime_sources": "Retained separately inside application runtime payloads"
+    },
+    "strict_source_copy_and_roundtrip_seals": true,
+    "copied_and_extracted_inventory_equal": true
+  },
+  "timing_comparison_limits": "Same synthetic34304-path repository and exact HEAD/index/status, but shared warm archive grew from83.4MB at51 sample to106.6MB before52. Source51 was still busy at12.7s and first observed ready at76.1s;52 was ready at first1.225s observation while publication remained pending. Sparse automation observations are not exact elapsed completion or controlled filesystem-cold benchmarks. Commit first successful observations4.95s versus5.57s do not prove a Commit-only speedup.",
+  "not_repeated": "No Core/native workflow suite repeated for signed assembly; source checkpoint69 focused Core+8 native pairs retained. The later Log fixture repair does not alter installed52 application code.",
+  "limits": [
+    "Action/observation timings include tool overhead and sparse sampling; recently created filesystem cache is not a controlled cold-disk experiment.",
+    "No timing guarantee for every user repository, active global hook/provider/filter, platform or filesystem.",
+    "Current physical first-use/nested grants, quiet Add, badges/background refresh and cold Finder Commit delivery remain unproven; no Finder acceptance inferred from the App path.",
+    "No complete matching-source hosted CI pass or complete upstream dialog/layout/keyboard/accessibility parity.",
+    "No public binary publication, notarization or App Store submission."
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "date": "2026-11-03",
+  "status": "Log-label-history-native-projection-family-passes-current-hosted-full-run-pending",
+  "source_base": "3702643e020511fc09687cda58f352ad5d12e459",
+  "hosted_failure": {
+    "run_id": 41546718496,
+    "source_commit": "3a6f425c1af5c4c74fdc3e23fb27d38fe44333b1",
+    "job_id": 125624750552,
+    "step": 429,
+    "line": 1483,
+    "error": "Unexpected nil while unwrapping optional in manually queried revision cell",
+    "cause": "Bare RevisionTable.Coordinator has no renderedEntries. Production fills it through updateNSView; fixture also used obsolete subject identifier instead of actual message column. No product tag-rendering defect established."
+  },
+  "source_parity": "Pinned GitLogListBase LOGLIST_MESSAGE and DrawTagBranchMessage render branch/tag labels in the message column; native LogReferenceTextField painter is exercised.",
+  "changes": [
+    "Both existing label-visibility and history-walk functions mount actual hidden LogWindowController/HistoryTableView with private preferences, await matching rendered hashes/projection/graph/visibility and query actual message cell/reference attributes.",
+    "Retains normal no-reload toggles, annotated/local/remote/custom refs, persistence, all walks/counts/selections/graph edges, rename/path behavior, metadata and exact HEAD/index/file bytes.",
+    "Captures native View/Labels and Walk callbacks; refuses late busy/closed callbacks and waits for real reader/window-host drainage.",
+    "Existing complete partitioned receiver gains only log-history-labels selector; full default invocation still calls both complete functions and all other original families. Exact partition reassembly/order assertions retained."
+  ],
+  "checkpoint": {
+    "exit": 0,
+    "case_engine_pairs": [
+      {
+        "case": "log-history-labels",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "timeout_seconds": 240
+      },
+      {
+        "case": "log-history-labels",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "timeout_seconds": 240
+      }
+    ],
+    "functions_per_engine": [
+      "verifyNativeLogLabelVisibility",
+      "verifyNativeLogHistoryWalk"
+    ],
+    "receiver_pids_reaped_and_independently_absent": [
+      43187,
+      44114
+    ],
+    "log": "build/qa/log-history-labels-native-layout-repair-2026-11-03.log",
+    "compilation": {
+      "source_sha256": "b1ebd10230c6af893e37f414447fd1e39ee0be2b880e5b21154988cebd5f978b",
+      "declaration_count": 31,
+      "entry_point_count": 1,
+      "fixture_mode": "per-file",
+      "compiled": true
+    },
+    "app_Core_builds_repeated": false,
+    "Core_tests_repeated": false
+  },
+  "retained_first_failure": {
+    "receiver_pid": 42445,
+    "line": 1573,
+    "reason": "New mounted fixture initially applied old intrinsic-fitting assertion to wrapper view. Production sets NSHostingController.sizingOptions=[]; real mounted frame/viewport/message width must be positive instead.",
+    "repair": "Checks actual hosting view attachment, revision viewport and message-column dimensions with explicit shape diagnostics. All behavior assertions retained.",
+    "log": "build/qa/log-history-labels-native-2026-11-03.log",
+    "helper_cleanup_verified": true,
+    "later_engine_initially_unexecuted": true
+  },
+  "older_run_terminal_summary": {
+    "date": "2026-11-03",
+    "run_id": 41546718496,
+    "source_commit": "3a6f425c1af5c4c74fdc3e23fb27d38fe44333b1",
+    "jobs": [
+      {
+        "id": 125624102848,
+        "name": "svn-runtime",
+        "status": "completed",
+        "conclusion": "success",
+        "failed_steps": []
+      },
+      {
+        "id": 125624750537,
+        "name": "validation (editors)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 174,
+            "name": "Compare and Merge pane header commands and ownership"
+          }
+        ]
+      },
+      {
+        "id": 125624750552,
+        "name": "validation (distribution)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 429,
+            "name": "Native Cherry Pick and Rebase recovery across Git versions"
+          }
+        ]
+      },
+      {
+        "id": 125624750588,
+        "name": "validation (core)",
+        "status": "completed",
+        "conclusion": "success",
+        "failed_steps": []
+      },
+      {
+        "id": 125624750606,
+        "name": "validation (history-references)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 120,
+            "name": "Source reference refresh and remote-manager return ownership"
+          }
+        ]
+      },
+      {
+        "id": 125624750618,
+        "name": "validation (commit-repository)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 199,
+            "name": "Native regex source list and editor workflows"
+          }
+        ]
+      },
+      {
+        "id": 125624750622,
+        "name": "validation (images-documents)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 156,
+            "name": "Standalone local image entry and three-image selection"
+          }
+        ]
+      },
+      {
+        "id": 125624750669,
+        "name": "validation (settings-finder)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 221,
+            "name": "Native tool source forms and Browse ownership"
+          }
+        ]
+      },
+      {
+        "id": 125624750732,
+        "name": "validation (replay-transport)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 192,
+            "name": "Switch source form and connected workflows"
+          }
+        ]
+      },
+      {
+        "id": 125695457494,
+        "name": "build-and-test",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          {
+            "number": 2,
+            "name": "Require every validation lane and runtime producer"
+          }
+        ]
+      }
+    ],
+    "log_connector": "Job metadata succeeded; large whole-job decoded logs returned Transport closed. Browser read of individual visible failed-step logs used instead.",
+    "browser_step_evidence": {
+      "distribution": {
+        "step": 429,
+        "error": "main/cherry-pick-native-receiver-2026-10-06.swift:1483: Fatal error: Unexpectedly found nil while unwrapping an Optional value",
+        "scope": "Default/system Git run after10m14s; owned receiver/helper cleanup recorded; later engines not reached.",
+        "source_review": "Fixture creates an unmounted RevisionTable coordinator with empty renderedEntries, so cell query returns nil. Production updateNSView initializes it. No product tag-rendering defect established; actual hidden table/history-label fixture batch in progress."
+      },
+      "settings": {
+        "step": 221,
+        "earlier_passes": [
+          "Tool source family",
+          "Tool settings"
+        ],
+        "error": "Settings family failed: Failure(message: \"Alternative editor draft\")",
+        "superseded_locally_by": "e89209b7 Alternative Editor lifecycle repair and native navigation checkpoint; full corrected hosted still required."
+      },
+      "images": {
+        "step": 156,
+        "error": "Standalone ImageTool selection failed: line192: Reload changed raw-choice eligibility",
+        "superseded_locally_by": "e89209b7 actual sheet-detachment/command gate fixture readiness correction, both Git engines passed; current hosted acceptance pending."
+      }
+    },
+    "scope": "Older source run terminal; not evidence of current-source full hosted pass. No rerun/cancel or other browser state mutation submitted."
+  },
+  "scope_limits": [
+    "Only this complete Log label/history family ran locally, with system and bundled Git. Full replay/Cherry Pick and older Git engine runs are not inferred.",
+    "Actual displayed menu gestures, all keyboard/accessibility/platform states and whole-port parity remain open.",
+    "Installed52 app/Core code unchanged by this verification-only continuation. Complete matching-source hosted CI still required."
+  ]
+}
