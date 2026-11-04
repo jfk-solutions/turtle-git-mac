@@ -1,0 +1,110 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "490d99bffc327484acb955f49b13e22da3057765",
+  "status": "grouped_local_native_checkpoint_passed_hosted_pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_contract": [
+    "BrowseRefsDlg.cpp OnEnChangeEditFilter/OnTimer/OnClickedInfoIcon: one-second typed-input and field-mask delay.",
+    "OnClickedCancelFilter and namespace/refresh rebuild: immediate accepted filter.",
+    "Existing native chooser, multi-selection, last-selected, namespace, sorting and captured menu ownership remain."
+  ],
+  "implementation": [
+    "Visible query/field drafts are separate from accepted rows; one owned cancellable one-second delay publishes only the current draft.",
+    "Sorted/filtered rows are cached by accepted catalog and presentation; native signatures, selected-index mapping and namespace arrays avoid whole-catalog work on draft repaints.",
+    "Accepted filter has explicit publication revision; exact-byte Unicode/reference metadata, current branch, date-format/locale/time-zone changes invalidate the appropriate projection. Relative dates update visible cells on a retired-on-close timer.",
+    "Clear/cancel/Escape, refresh and namespace navigation apply immediately; sorting reorders accepted rows while preserving a pending draft. Children/rename/busy/Quit pause publication; live editable owners resume their current draft.",
+    "Captured menus bind displayed accepted rows; draft and accepted-projection changes retire stale receipts. OK remains usable for the currently displayed selection while a filter waits.",
+    "Quit cancels/pauses owned delays, returns Later until actual completion, then continues existing document policy once; declined Quit resumes only live browser drafts. Three existing termination reply sites share settlement without changing the injected reply callback.",
+    "Existing Commit group Check/Uncheck commands now use the established Add/Revert glyphs and context-icon preference; existing captured actions and staging behavior unchanged."
+  ],
+  "validation": {
+    "core": {
+      "run": false,
+      "reason": "No Core query/Git algorithm changed; native checks execute actual repository operations and controls."
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/reference-filter-debug-2026-11-05.log",
+      "scope": "Unsigned arm64 Debug with existing derived data; existing simulator/compiler warnings and exit0 diagnostics retained."
+    },
+    "native": {
+      "passed": true,
+      "distinct_case_engine_combinations": 8,
+      "scope": [
+        "New filter native input/cache/Unicode/masks/clear/Escape/F5/sort/namespace/nesting and exact actual delayed ownership with system and bundled Git",
+        "Real dirty PatchDocument declines deferred Quit, once-only reply and latest browser draft resumption; retired isolated delay drains before exactly one successful reply",
+        "Existing source browser/range-picker/remote-tags form, presentation/columns/splitter and captured menu targets with both Git engines"
+      ],
+      "logs": [
+        "build/qa/reference-filter-native-2026-11-05.log",
+        "build/qa/reference-filter-native-regression-2026-11-05.log"
+      ],
+      "receiver_pids": [
+        64516,
+        64581,
+        64642,
+        65420,
+        65542,
+        65622,
+        65674,
+        65735,
+        65869
+      ],
+      "independent_absence": {
+        "exit_code": 1,
+        "output": ""
+      },
+      "ownership": "Private repositories, homes/config/preferences/temp, actual visible-state assertions on invisible/offscreen native windows including sheets. Owned read/helper/window cleanup retained on success/failure/timeout. Installed app not launched.",
+      "warnings": "AppKit NSSplitView zero-bounds diagnostics remain in passing output. No clean diagnostics or complete visual acceptance claim.",
+      "initial_failure": {
+        "log": "build/qa/reference-filter-native-2026-11-05.log",
+        "case": "source/system",
+        "diagnostic": "Range-picker assertion inspected result immediately after closing; production FinderFilesystemWorkflowRelease yields and drains before delivering selection.",
+        "evidence": "build/qa/native-reference-source-failures/source-0-5wf96y_e",
+        "repair": "After both invocations, bounded await actual picker release/result, then unchanged exact original pair and once-only assertion. No product change, no repeated passed filter cases."
+      }
+    },
+    "localizations": {
+      "write_exit_code": 0,
+      "write_log": "build/qa/reference-filter-localizations-write-2026-11-05.log",
+      "languages": 38,
+      "keys": 1392,
+      "check_exit_code": 0,
+      "check_log": "build/qa/reference-filter-localizations-check-2026-11-05.log"
+    },
+    "dialog_coverage": {
+      "exit_code": 0,
+      "log": "build/qa/reference-filter-dialog-coverage-2026-11-05.log",
+      "meaning": "Partial review references, not a feature-completion percentage."
+    },
+    "help": {
+      "regenerated": false,
+      "reason": "No guide registered by docs/help-topics.json changed; new parity/QA records are outside the bundled guide set."
+    }
+  },
+  "installed_app": "Build52 unchanged; no new signed package/install or public binary/App Store submission.",
+  "not_claimed": [
+    "Complete corrected-source hosted CI",
+    "Physical typing/IME/VoiceOver and every locale/large-catalog performance benchmark",
+    "Signed Finder/sandbox and minimum-version/Intel acceptance",
+    "Full source/dialog/application parity"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "aec6f4e3b15f4fe4c97b77c6ef331e3283d479d6687f9f42d99ba98b8d43e0bb",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "64d51b58c65f3f971a713fadcf737ac6a8c3b1b3ef7f0ca6f5c7086912063552",
+    "Sources/TurtleGitMac/CommitWindow.swift": "11036f4994e293cf0f7660108a59aae1e465e2c1c4794939af06bd3e6fe356df",
+    "docs/qa/reference-filter-native-2026-11-05.swift": "4b12f9597baf8907a67fb8a785c18e622f5fe486353382ff1803f96be7109dd5",
+    "docs/qa/reference-source-native-2026-10-17.swift": "cd07ae7cc6dedd09e5ef880aaf215ab02b6c0de4f6a18da2990e9eaa2b1a9e83",
+    "scripts/test-reference-source-family.py": "017addfaf15e3f2b9664b1f5a0c73a754ba1ebcf36d8b0cc2ca47244dd52f484"
+  },
+  "hosted_observation": {
+    "source": "490d99bffc327484acb955f49b13e22da3057765",
+    "macos_run": 41934758431,
+    "macos_status": "pending",
+    "macos_conclusion": null,
+    "pages_run": 41934758395,
+    "pages_status": "completed",
+    "pages_conclusion": "success",
+    "scope": "Preceding source only; not hosted acceptance of this subsequent batch."
+  }
+}

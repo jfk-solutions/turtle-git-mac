@@ -1,5 +1,25 @@
 # TurtleGit for Mac — full port tracking
 
+## Reference filter publication — November 5, 2026
+
+The [connected filter family](REFERENCE-BROWSER-FILTER-PARITY.md) now follows
+the pinned browser's one-second typing/field timer. Draft edits keep accepted
+rows and selection stable; cached model and native table projections avoid
+whole-catalog filtering, sorting, cell-signature and selection scans on every
+draft repaint. Clear, Escape, namespace navigation and refresh remain immediate.
+Owned child/rename/read/close transitions retain cancellation, and Quit drains
+pending delays before continuing its existing document policy. A declined Quit
+resumes only still-live drafts. Commit's existing Check/Uncheck group menu also
+gets the shared command icons and owning preference.
+
+One Debug build and eight native case-and-engine combinations pass, including
+actual controls, held stale completions, native cache consumers and a real dirty
+document declining Quit. The existing source range-picker assertion now awaits
+actual release before checking the original pair and exactly-once result.
+[The checkpoint](qa/reference-filter-publication-2026-11-05.json) retains that
+failure and passing-output diagnostics. No Core algorithm or installed build
+changed. Complete hosted, physical/signed and whole-port acceptance remain open.
+
 ## Switch tracking and Finder owners — November 5, 2026
 
 The [connected checkpoint](qa/finder-switch-owners-2026-11-05.json) fixes Switch

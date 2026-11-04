@@ -780,6 +780,8 @@ import TurtleGitCore
     }
     private var confirmingQuit = false
     private var drainingUnifiedDiffQuit = false
+    private var drainingReferenceFiltersQuit = false
+    private var resumeReferenceFiltersAfterDeclinedQuit: (() -> Void)?
     var replyToTermination: (NSApplication, Bool) -> Void = { $0.reply(toApplicationShouldTerminate: $1) }
     func applicationWillTerminate(_ notification: Notification) { retireCommandDiagnostics();gitConfigurationPreparation?.cancel(); gitConfigurationPreparation=nil; retireMenuImageVisibility(); retireFinderServices(); acceptingOpenURLs = false; retireInboundURLBridge(); presentWorkspace = nil; workspacePresentationRequested = false; workspaceOpenHandoff.retire(); pendingOpenURLs.removeAll(); finderActionReceipts.removeAll(); finderActionReceiptOrder.removeAll(); SupportReportService.shared.retire(); DockProgressPresenter.shared.clear(); for model in routingModels {model.stopMonitoringForTermination();model.finderWatches?.retire()};actionErrors=nil;actionReadiness=nil;actionErrorController?.close();actionErrorController=nil;queuedActionErrors.removeAll(); HistoricalPreviewFiles.discardAll(); RepositoryBrowserExportFiles.discardAll(); FileListDrag.discardAll(); UnifiedDiffPreviewFiles.discardAll(); GitConfigurationPreviewFiles.discardAll(); DiffToolApplication.discardAll(); MergeToolApplication.discardAll() }
     private func setTransferQuitConfirmation(_ sender: NSApplication, _ value: Bool) {
@@ -799,16 +801,36 @@ import TurtleGitCore
     }
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         let decision=terminationDecision(sender)
+        if decision != .terminateLater {settleReferenceFilterQuit(allow:decision == .terminateNow)}
         if decision == .terminateNow {retireCommandDiagnostics()}
         return decision
     }
+    private func settleReferenceFilterQuit(allow:Bool) {
+        let resume=resumeReferenceFiltersAfterDeclinedQuit;resumeReferenceFiltersAfterDeclinedQuit=nil
+        if !allow {resume?()}
+    }
+    private func sendTerminationReply(_ sender:NSApplication,_ allow:Bool) {
+        settleReferenceFilterQuit(allow:allow);replyToTermination(sender,allow)
+    }
     private func terminationDecision(_ sender:NSApplication)->NSApplication.TerminateReply {
+        if drainingReferenceFiltersQuit {return .terminateLater}
         // A scoped action Settings owner retains drafts just like the workspace
         // service. Refuse Quit and focus its existing owner until it is settled.
         for service in [SettingsPresentationService.shared,actionSettingsService].compactMap({$0}) {
             if !service.prepareContextChange() {return .terminateCancel}
         }
         if drainingUnifiedDiffQuit { return .terminateLater }
+        if ReferenceBrowserWindowModel.activeFilters > 0 {
+            drainingReferenceFiltersQuit=true
+            resumeReferenceFiltersAfterDeclinedQuit=ReferenceBrowserWindowModel.pauseFiltersForQuit()
+            Task { [self] in
+                while ReferenceBrowserWindowModel.activeFilters > 0 {try? await Task.sleep(nanoseconds:10_000_000)}
+                drainingReferenceFiltersQuit=false
+                let reply=applicationShouldTerminate(sender)
+                if reply != .terminateLater {sendTerminationReply(sender,reply == .terminateNow)}
+            }
+            return .terminateLater
+        }
         if UnifiedDiffInputSession.activeOperations > 0 || PatchDocumentSession.activeStartupInputs > 0 {
             drainingUnifiedDiffQuit = true
             // Accept cancellation in this actor turn, before returning Later.
@@ -821,7 +843,7 @@ import TurtleGitCore
                 await PatchDocumentSession.waitForStartupInputs()
                 drainingUnifiedDiffQuit = false
                 let reply = applicationShouldTerminate(sender)
-                if reply != .terminateLater { replyToTermination(sender, reply == .terminateNow) }
+                if reply != .terminateLater { sendTerminationReply(sender, reply == .terminateNow) }
             }
             return .terminateLater
         }
@@ -1239,7 +1261,7 @@ import TurtleGitCore
             if allowQuit {retireCommandDiagnostics()}
             confirmingQuit = false
             if allowQuit,finishDedicatedUnifiedDiffAfterApprovedQuit(){return}
-            replyToTermination(sender, allowQuit)
+            sendTerminationReply(sender, allowQuit)
             if !allowQuit {
                 // Configuration/authority readiness can arrive while the owned
                 // Quit question suppresses routing. Refusing Quit restores that
@@ -1390,7 +1412,7 @@ import TurtleGitCore
             for controller in updateProgress { controller.model.confirmingQuit = false }
             for controller in inaccessibleDiagnostics { controller.model.confirmingQuit = false }
             setTransferQuitConfirmation(sender, false); setRoutingQuitConfirmation(false)
-            retireCommandDiagnostics();confirmingQuit=false;replyToTermination(sender,true)
+            retireCommandDiagnostics();confirmingQuit=false;sendTerminationReply(sender,true)
         }
         return .terminateLater
     }

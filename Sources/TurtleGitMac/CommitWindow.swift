@@ -4062,8 +4062,8 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 if requested.count == 1, let group = rows.first(where: { requested.contains($0.id) })?.group {
                     let files = StatusListGroups.files(in: group, rows: rows)
                     let groupSnapshot = model.fileMenu(GitPathSet(files.map(\.id)), orderedEntries: files)
-                    Button("Check group") { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: true) } }.disabled(model.busy || model.confirmingQuit)
-                    Button("Uncheck group") { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: false) } }.disabled(model.busy || model.confirmingQuit)
+                    Button { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: true) } } label: { CommandLabel(title: "Check group", icon: .add) }.disabled(model.busy || model.confirmingQuit)
+                    Button { model.withFileMenu(groupSnapshot) { model.setGroupChecked(files, checked: false) } } label: { CommandLabel(title: "Uncheck group", icon: .revert) }.disabled(model.busy || model.confirmingQuit)
                 } else {
                     fileMenuActions(menuSnapshot, ids: ids, staged: staged)
                 }

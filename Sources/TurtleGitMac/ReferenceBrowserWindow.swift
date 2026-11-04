@@ -149,7 +149,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         }
         if event.keyCode == 53,modifiers.isEmpty,!model.query.isEmpty,
            let field = find(NSSearchField.self,"BrowseRefs.Filter",in:window?.contentView),field.currentEditor() === window?.firstResponder {
-            if model.canEditPresentation,window?.attachedSheet == nil { field.stringValue = "";model.query = "";model.refilter() };return true
+            if model.canEditPresentation,window?.attachedSheet == nil { field.stringValue = "";model.clearFilter() };return true
         }
         return false
     }
@@ -422,13 +422,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     private var resolvingCurrentBranch = false
     private(set) var initialFocusPending = true
     var closed: Bool { invalidated }
-    @Published private(set) var renameReference: GitReferenceName? { didSet { if oldValue != renameReference { menuEpoch &+= 1; formRevision = UUID() } } }
+    @Published private(set) var renameReference: GitReferenceName? { didSet { if oldValue != renameReference { menuEpoch &+= 1; formRevision = UUID();filterOwnerChanged() } } }
     private var renameFolder: GitReferenceName?
     private var renameHash: String?
     static private(set) var activeRenames = 0
     static private(set) var activeMutations = 0
-    @Published private(set) var confirmingCancellation = false { didSet { if oldValue != confirmingCancellation { formRevision = UUID() } } }
-    @Published private(set) var awaitingConfirmation = false { didSet { if oldValue != awaitingConfirmation { formRevision = UUID() } } }
+    @Published private(set) var confirmingCancellation = false { didSet { if oldValue != confirmingCancellation { formRevision = UUID();filterOwnerChanged() } } }
+    @Published private(set) var awaitingConfirmation = false { didSet { if oldValue != awaitingConfirmation { formRevision = UUID();filterOwnerChanged() } } }
     @Published private(set) var mutationTitle = "Rename"
     @Published private(set) var mutationFailed = false
     @Published private(set) var mutationCancelled = false
@@ -446,15 +446,16 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     func dismissOutput() { guard !mutationActive else { return }; saveActionLog(); renameOutput = "" }
 
 
-    @Published var confirmingQuit = false { didSet { if oldValue != confirmingQuit { menuEpoch &+= 1; formRevision = UUID() } } }
-    @Published var hasChild = false { didSet { if oldValue != hasChild { menuEpoch &+= 1; formRevision = UUID() } } }
+    @Published var confirmingQuit = false { didSet { if oldValue != confirmingQuit { menuEpoch &+= 1; formRevision = UUID();filterOwnerChanged() } } }
+    @Published var hasChild = false { didSet { if oldValue != hasChild { menuEpoch &+= 1; formRevision = UUID();filterOwnerChanged() } } }
     @Published private(set) var bare = false
-    private(set) var folders: [GitReferenceName] = ["refs"]
+    private(set) var folders: [GitReferenceName] = ["refs"] { didSet {namespaceRevision &+= 1} }
+    private(set) var namespaceRevision: UInt64 = 0
     private(set) var snapshotBackendIdentity: String?
-    @Published private(set) var snapshot: ReferenceBrowserSnapshot?
-    @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1; formRevision = UUID() } } }
+    @Published private(set) var snapshot: ReferenceBrowserSnapshot? { didSet {invalidateRows()} }
+    @Published private(set) var busy = false { didSet { if oldValue != busy { menuEpoch &+= 1; formRevision = UUID();filterOwnerChanged() } } }
     @Published var error: String?
-    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1;formRevision = UUID();refreshNamespaceColumns() } } }
+    @Published var folder: GitReferenceName = "refs" { didSet { if oldValue != folder { menuEpoch &+= 1;formRevision = UUID();invalidateRows();refreshNamespaceColumns() } } }
     @Published private(set) var selection: Set<GitReferenceName> = []
     @Published private(set) var lastSelected: GitReferenceName?
     var selected: GitReferenceName? {
@@ -499,13 +500,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         guard !invalidated, !confirmingQuit, !busy, !hasChild, renameReference == nil, let reference = selectedRows.first?.reference else { return }
         if reference.objectType == "tree" { onBrowse?(reference.name.rawValue) } else { onLog?(reference.name.rawValue) }
     }
-    @Published var query = "" { didSet { if !GitReferenceName.equal(oldValue, query) { menuEpoch &+= 1 } } }
+    @Published var query = "" { didSet { if !GitReferenceName.equal(oldValue, query) { menuEpoch &+= 1;scheduleFilter() } } }
     static let allFields: HistorySearchFields = [.referenceNames, .subject, .authors, .revisions]
-    @Published var fields: HistorySearchFields = allFields { didSet { if oldValue != fields { menuEpoch &+= 1 } } }
+    @Published var fields: HistorySearchFields = allFields { didSet { if oldValue != fields { menuEpoch &+= 1;scheduleFilter() } } }
     @Published var mergeFilter = ReferenceBrowserMergeFilter.all { didSet { if oldValue != mergeFilter { menuEpoch &+= 1 } } }
-    @Published var nested: Bool { didSet { if oldValue != nested { menuEpoch &+= 1 } } }
-    @Published var sortColumn = "name" { didSet { if oldValue != sortColumn { menuEpoch &+= 1;saveSort() } } }
-    @Published var descending = false { didSet { if oldValue != descending { menuEpoch &+= 1;saveSort() } } }
+    @Published var nested: Bool { didSet { if oldValue != nested { menuEpoch &+= 1;invalidateRows() } } }
+    @Published var sortColumn = "name" { didSet { if oldValue != sortColumn { menuEpoch &+= 1;invalidateRows();saveSort() } } }
+    @Published var descending = false { didSet { if oldValue != descending { menuEpoch &+= 1;invalidateRows();saveSort() } } }
     @Published private(set) var columnLayout = ReferenceBrowserColumnLayout()
     @Published var displayedDivider = 190.0
     private(set) var layoutRevision = 0
@@ -519,15 +520,15 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         return HistoryLabels.text("Filter by {fields}", values: ["fields": names.filter { fields.contains($0.0) }.map { HistoryLabels.caption($0.1) }.joined(separator:", ")])
     }
     func queryBinding(context: FormContext) -> Binding<String> {
-        Binding(get:{self.query},set:{value in guard self.accepts(context) else {return};self.query=value;self.refilter()})
+        Binding(get:{self.query},set:{value in guard self.accepts(context) else {return};if value.isEmpty {self.clearFilter()} else {self.query=value}})
     }
     func searchField(_ field: HistorySearchFields, context: FormContext) -> Binding<Bool> {
         Binding(get:{self.fields.contains(field)},set:{value in
             guard self.accepts(context) else {return}
-            if value {self.fields.insert(field)} else {self.fields.remove(field)};self.refilter()
+            if value {self.fields.insert(field)} else {self.fields.remove(field)}
         })
     }
-    func toggleSearchFields(context: FormContext) { guard accepts(context) else {return};fields=Self.allFields.subtracting(fields);refilter() }
+    func toggleSearchFields(context: FormContext) { guard accepts(context) else {return};fields=Self.allFields.subtracting(fields) }
     func mergeFilterBinding(context: FormContext) -> Binding<ReferenceBrowserMergeFilter> {
         Binding(get:{self.mergeFilter},set:{value in
             guard self.accepts(context),self.mergeFilter != value else {return};self.mergeFilter=value;self.load()
@@ -732,8 +733,68 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         descending = savedDescending
         sortColumn = ReferenceBrowserColumnLayout.ids.indices.contains(sort) ? ReferenceBrowserColumnLayout.ids[sort]:"name"
     }
+    // Draft controls stay responsive while the last accepted projection remains
+    // stable. Source BrowseRefsDlg applies typing/field changes after 1000ms.
+    private var acceptedQuery = ""
+    private var acceptedFields: HistorySearchFields = allFields
+    private var filterTask: Task<Void,Never>?
+    private var filterRequest: UUID?
+    static private(set) var activeFilters = 0
+    private final class FilterOwner {
+        weak var model: ReferenceBrowserWindowModel?
+        init(_ model: ReferenceBrowserWindowModel) {self.model=model}
+    }
+    private static var filterOwners: [UUID:FilterOwner] = [:]
+    private var filterQuitPaused = false
+    /// Quit cancels ordinary delays immediately, but still waits for their real
+    /// completions. If another document refuses Quit, resume its latest draft.
+    static func pauseFiltersForQuit() -> () -> Void {
+        var seen=Set<ObjectIdentifier>()
+        let owners=filterOwners.values.filter {owner in
+            guard let model=owner.model else {return false}
+            return seen.insert(ObjectIdentifier(model)).inserted
+        }
+        for owner in owners {owner.model?.filterQuitPaused=true;owner.model?.cancelFilter()}
+        return {
+            for owner in owners {
+                guard let model=owner.model,!model.closed else {continue}
+                model.filterQuitPaused=false;model.scheduleFilter()
+            }
+        }
+    }
+    var waitForFilterDelay: () async throws -> Void = {try await Task.sleep(nanoseconds:1_000_000_000)}
+    private var rowsRevision: UInt64 = 0
+    var rowProjectionRevision: UInt64 {rowsRevision}
+    @Published private(set) var acceptedFilterRevision: UInt64 = 0
+    private var cachedRows: (revision: UInt64, rows: [ReferenceBrowserRow])?
+    private(set) var rowProjectionBuilds = 0
+    var filterPending: Bool { filterRequest != nil }
+    private func invalidateRows() { rowsRevision &+= 1;cachedRows = nil }
+    private func cancelFilter() {
+        filterRequest = nil;filterTask?.cancel();filterTask = nil
+    }
+    private func filterOwnerChanged() {
+        cancelFilter()
+        if canEditPresentation { scheduleFilter() }
+    }
+    private func scheduleFilter() {
+        cancelFilter()
+        guard !filterQuitPaused,canEditPresentation, !GitReferenceName.equal(query,acceptedQuery) || fields != acceptedFields else { return }
+        let request=UUID();filterRequest=request
+        let draft=query,mask=fields,delay=waitForFilterDelay
+        Self.activeFilters += 1;pendingOperations += 1;Self.filterOwners[request]=FilterOwner(self)
+        filterTask=Task { [self] in
+            defer {Self.filterOwners.removeValue(forKey:request);Self.activeFilters -= 1;pendingOperations -= 1}
+            do {try await delay()} catch {return}
+            guard filterRequest == request,!Task.isCancelled,canEditPresentation,
+                  GitReferenceName.equal(query,draft),fields == mask else {return}
+            filterRequest=nil;filterTask=nil;refilter()
+        }
+    }
+    func clearFilter() { guard canEditPresentation else {return};query="";refilter() }
     var rows: [ReferenceBrowserRow] {
-        (snapshot?.rows(folder: folder, nested: nested, query: query, fields: fields) ?? []).sorted { lhs, rhs in
+        if let cachedRows,cachedRows.revision == rowsRevision {return cachedRows.rows}
+        let result = (snapshot?.rows(folder: folder, nested: nested, query: acceptedQuery, fields: acceptedFields) ?? []).sorted { lhs, rhs in
             let comparison: ComparisonResult
             if sortColumn == "authorDate" || sortColumn == "committerDate" {
                 let a = sortColumn == "authorDate" ? lhs.reference.authorDate ?? 0 : lhs.reference.committerDate ?? 0
@@ -744,6 +805,8 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             if comparison == .orderedSame { return lhs.reference.name.rawValue.utf8.lexicographicallyPrecedes(rhs.reference.name.rawValue.utf8) }
             return descending ? comparison == .orderedDescending : comparison == .orderedAscending
         }
+        rowProjectionBuilds += 1;cachedRows=(rowsRevision,result)
+        return result
     }
     var chosen: BrowserReference? { (dispatchingMenu?.selectedRows.count ?? selection.count) == 1 ? selectedRows.first?.reference : nil }
     var canAccept: Bool { !confirmingQuit && !confirmingCancellation && !awaitingConfirmation && !busy && !hasChild && !invalidated && renameReference == nil && (pickMultiple ? !selectedRows.isEmpty && selectedRows.count == (dispatchingMenu?.selectedRows.count ?? selection.count) : chosen != nil) }
@@ -792,7 +855,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             }
         }
     }
-    func text(_ row: ReferenceBrowserRow, column: String) -> String {
+    func text(_ row: ReferenceBrowserRow, column: String, now: Date = Date()) -> String {
         let ref = row.reference
         switch column {
         case "name": return row.name
@@ -804,12 +867,13 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         case "description": return ref.description.replacingOccurrences(of: "\n", with: " ")
         case "authorDate", "committerDate":
             guard let epoch = column == "authorDate" ? ref.authorDate : ref.committerDate else { return "" }
-            let timestamp = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: epoch)); return HistoryDateSettings.load(defaults: preferences).format(timestamp)
+            let timestamp = ISO8601DateFormatter().string(from: Date(timeIntervalSince1970: epoch)); return HistoryDateSettings.load(defaults: preferences).format(timestamp,now:now)
         default: return ""
         }
     }
     func load(preservingError: String? = nil) {
         guard !invalidated, !confirmingQuit, !confirmingCancellation, !awaitingConfirmation, !generatingUnified, !hasChild, !deletingReference, !changingTracking, !resolvingCurrentBranch, renameReference == nil else { return }
+        refilter()
         let requested = selected?.rawValue ?? (snapshot == nil ? initial : folder.rawValue)
         token?.cancel(); let request = OperationCancellation(); token = request; busy = true; error = preservingError
         let filter = mergeFilter, useMailmap = preferences.usesMailmap
@@ -829,9 +893,12 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
             } catch { if !invalidated, token === request, !request.isCancelled { self.error = error.localizedDescription } }
         }
     }
-    func invalidate() { if mutationActive { mutationCancelled = true }; saveActionLog(); invalidated = true; confirmingCancellation = false; awaitingConfirmation = false; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
-    func setFolder(_ folder: GitReferenceName) { guard !invalidated, !confirmingQuit, !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil }
+    func invalidate() { cancelFilter();if mutationActive { mutationCancelled = true }; saveActionLog(); invalidated = true; confirmingCancellation = false; awaitingConfirmation = false; generatingUnified = false; deletingReference = false; changingTracking = false; resolvingCurrentBranch = false; renameReference = nil; renameFolder = nil; initialFocusPending = false; token?.cancel(); token = nil; busy = false }
+    func setFolder(_ folder: GitReferenceName) { guard !invalidated, !confirmingQuit, !busy, !hasChild, renameReference == nil, folders.contains(folder) else { return }; self.folder = folder; selected = nil;refilter() }
     func refilter() {
+        guard !invalidated else {return}
+        acceptedFilterRevision &+= 1
+        cancelFilter();acceptedQuery=query;acceptedFields=fields;invalidateRows();menuEpoch &+= 1
         refreshNamespaceColumns()
         selection.formIntersection(Set(rows.map { $0.reference.name }))
         if let lastSelected, !selection.contains(lastSelected) { self.lastSelected = selectedRows.last?.reference.name }
@@ -985,12 +1052,60 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
         var model: ReferenceBrowserWindowModel
         weak var tree: NSOutlineView?; weak var table: NSTableView?
         private var paths: [GitReferenceName] = [], folders: [GitReferenceName: Folder] = [:], visible: [ReferenceBrowserRow] = []
-        var positioned = false,retired = false
+        var positioned = false
+        var retired = false {didSet {if retired {stopDateRefresh()}}}
         private var appliedLayout: ReferenceBrowserColumnLayout?
         private var rowSignature: [String] = []
+        private struct RowDisplayKey: Equatable {
+            let owner: ObjectIdentifier, projection: UInt64, dates: HistoryDateSettings
+            let locale: String, zone: String, offset: Int
+            let currentBranch: GitReferenceName?
+        }
+        private var displayedRowsKey: RowDisplayKey?
+        private var selectedRowsKey: (owner:ObjectIdentifier,projection:UInt64,selection:Set<GitReferenceName>,indexes:IndexSet)?
+        private var namespaceOwner: ObjectIdentifier?,appliedNamespaceRevision: UInt64?
+        private var relativeDateTimer: Timer?
+        private var dateCloseObserver: NSObjectProtocol?
+        private weak var dateWindow: NSWindow?
+        private(set) var rowSignatureBuilds = 0,selectionProjectionBuilds = 0
+        private func refreshVisibleDates() {
+            guard !retired,let table,!model.closed,!model.busy,model.renameReference == nil,
+                  table.window != nil,HistoryDateSettings.load(defaults:model.preferences).relative else {return}
+            let range=table.rows(in:table.visibleRect),now=Date()
+            guard range.location != NSNotFound else {return}
+            for row in range.location..<min(NSMaxRange(range),visible.count) {
+                for name in ["authorDate","committerDate"] {
+                    let column=table.column(withIdentifier:.init(name))
+                    guard column>=0,!table.tableColumns[column].isHidden else {continue}
+                    let view=table.view(atColumn:column,row:row,makeIfNecessary:false)
+                    guard let text=(view as? NSTextField) ?? (view as? NSTableCellView)?.textField else {continue}
+                    let value=model.text(visible[row],column:name,now:now)
+                    if !GitReferenceName.equal(text.stringValue,value) {text.stringValue=value}
+                }
+            }
+        }
+        private func stopDateRefresh() {
+            relativeDateTimer?.invalidate();relativeDateTimer=nil
+            if let dateCloseObserver {NotificationCenter.default.removeObserver(dateCloseObserver)}
+            dateCloseObserver=nil;dateWindow=nil
+        }
+        private func updateDateRefresh(relative:Bool) {
+            guard relative,!retired,!model.closed,let window=table?.window else {stopDateRefresh();return}
+            if dateWindow !== window {
+                stopDateRefresh();dateWindow=window
+                dateCloseObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) {[weak self] _ in
+                    MainActor.assumeIsolated {self?.stopDateRefresh()}
+                }
+            }
+            guard relativeDateTimer == nil else {return}
+            relativeDateTimer=Timer.scheduledTimer(withTimeInterval:1,repeats:true) {[weak self] _ in
+                MainActor.assumeIsolated {self?.refreshVisibleDates()}
+            }
+        }
         var updating = false
         private weak var renameField: NSTextField?
         init(model: ReferenceBrowserWindowModel) { self.model = model }
+        deinit {relativeDateTimer?.invalidate();if let dateCloseObserver {NotificationCenter.default.removeObserver(dateCloseObserver)}}
         func splitView(_ splitView: NSSplitView, shouldAdjustSizeOfSubview view: NSView) -> Bool { view === splitView.subviews.last }
         var presentationAvailable: Bool { !retired && model.canEditPresentation && table?.window?.attachedSheet == nil }
         func splitView(_ splitView:NSSplitView,constrainMinCoordinate proposedMinimumPosition:CGFloat,ofSubviewAt dividerIndex:Int) -> CGFloat { 120 }
@@ -1053,8 +1168,10 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
             if model.renameReference != nil { tree.isEnabled = false; renameField?.isEditable = !model.busy; return }
             if renameField != nil { renameField?.delegate = nil; table.window?.makeFirstResponder(table); renameField = nil }
             updating = true; defer { updating = false }
-            let paths = model.folders
-            if paths != self.paths {
+            let owner=ObjectIdentifier(model)
+            if namespaceOwner != owner || appliedNamespaceRevision != model.namespaceRevision {
+                namespaceOwner=owner;appliedNamespaceRevision=model.namespaceRevision
+                let paths=model.folders
                 self.paths = paths; folders = Dictionary(uniqueKeysWithValues: paths.map { ($0, Folder($0)) })
                 for path in paths where path != "refs" {
                     let bytes = Array(path.rawValue.utf8), slash = bytes.lastIndex(of: 47)!
@@ -1069,13 +1186,25 @@ struct ReferenceBrowserNativeView: NSViewRepresentable {
                 for ancestor in ancestors.reversed() { tree.expandItem(ancestor) }
                 let row = tree.row(forItem: chosen); if row >= 0 { tree.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false) }
             }
-            visible = model.rows
-            let signature = visible.flatMap { row in
-                [row.reference.name.rawValue,row.reference.hash,row.reference.objectType,row.reference.name == model.snapshot?.currentBranch ? "current":""] + ReferenceBrowserColumnLayout.ids.map { model.text(row,column:$0) }
+            let dates=HistoryDateSettings.load(defaults:model.preferences)
+            let rowsKey=RowDisplayKey(owner:owner,projection:model.rowProjectionRevision,dates:dates,
+                locale:Locale.current.identifier,zone:TimeZone.current.identifier,offset:TimeZone.current.secondsFromGMT(),currentBranch:model.snapshot?.currentBranch)
+            var changed=false
+            if displayedRowsKey != rowsKey {
+                visible=model.rows;let now=Date()
+                let signature=visible.flatMap {row in
+                    [row.reference.name.rawValue,row.reference.hash,row.reference.objectType,row.reference.name == model.snapshot?.currentBranch ? "current":""] + ReferenceBrowserColumnLayout.ids.map {model.text(row,column:$0,now:now)}
+                }
+                rowSignatureBuilds += 1;displayedRowsKey=rowsKey
+                changed=signature.count != rowSignature.count || !zip(signature,rowSignature).allSatisfy {$0.utf8.elementsEqual($1.utf8)}
+                if changed {rowSignature=signature;table.reloadData()}
             }
-            let changed = signature.count != rowSignature.count || !zip(signature,rowSignature).allSatisfy { $0.utf8.elementsEqual($1.utf8) }
-            if changed {rowSignature = signature;table.reloadData()}
-            let selected = IndexSet(visible.indices.filter { model.selection.contains(visible[$0].reference.name) })
+            updateDateRefresh(relative:dates.relative);refreshVisibleDates()
+            if selectedRowsKey?.owner != owner || selectedRowsKey?.projection != model.rowProjectionRevision || selectedRowsKey?.selection != model.selection {
+                let indexes=IndexSet(visible.indices.filter {model.selection.contains(visible[$0].reference.name)})
+                selectedRowsKey=(owner,model.rowProjectionRevision,model.selection,indexes);selectionProjectionBuilds += 1
+            }
+            let selected=selectedRowsKey?.indexes ?? IndexSet()
             let selectionChanged = table.selectedRowIndexes != selected
             if selectionChanged {table.selectRowIndexes(selected, byExtendingSelection: false)}
             if changed || selectionChanged,let row = selected.first { table.scrollRowToVisible(row) }

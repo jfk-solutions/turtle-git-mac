@@ -33,7 +33,7 @@ import TurtleGitCore
             if let owner=window.delegate as? RemoteTagWindowController {owner.close()}
         }
         for _ in 0..<3000 {
-            if ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeMutations==0 && RemoteTagWindowModel.activeOperations==0 {return}
+            if ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeMutations==0 && ReferenceBrowserWindowModel.activeFilters==0 && RemoteTagWindowModel.activeOperations==0 {return}
             try? await Task.sleep(nanoseconds:10_000_000)
         }
     }
@@ -51,10 +51,13 @@ import TurtleGitCore
         owner.window!.alphaValue=0;owner.window!.orderFront(nil);model.load()
         try await wait {!model.busy && model.snapshot != nil}
         let context=model.formContext,query=model.queryBinding(context:context)
+        let originalCount=model.rows.count
         query.wrappedValue="topic"
-        try require(model.rows.count==2 && model.filterCue=="Filter by Refname, Subject, Authors, SHA-1","Synchronous query/initial field cue")
+        try require(model.query=="topic" && model.filterPending && model.rows.count==originalCount && model.filterCue=="Filter by Refname, Subject, Authors, SHA-1","Draft query changed accepted rows or initial field cue")
+        try await wait {!model.filterPending && model.rows.count==2}
         let refname=model.searchField(.referenceNames,context:context);refname.wrappedValue=false
-        try require(model.rows.isEmpty && model.filterCue=="Filter by Subject, Authors, SHA-1","Refname field mask/cue")
+        try require(model.filterPending && model.rows.count==2 && model.filterCue=="Filter by Subject, Authors, SHA-1","Draft field mask changed accepted rows/cue")
+        try await wait {!model.filterPending && model.rows.isEmpty}
         refname.wrappedValue=true
         try await wait {views(owner.window?.contentView).compactMap {$0 as? NSSearchField}.first?.placeholderString==model.filterCue}
         let search=views(owner.window?.contentView).compactMap {$0 as? ReferenceBrowserOwnedSearchField}.first!
@@ -79,6 +82,9 @@ import TurtleGitCore
         guard let rangeContext=picker.model.menuContext(),let expected=picker.model.pickRangeChoices.first?.expression else {throw Failure(description:"No range menu")}
         picker.model.select(["refs/heads/main","refs/heads/topic-b"],last:"refs/heads/main")
         picker.model.acceptRange(0,context:rangeContext);picker.model.acceptRange(0,context:rangeContext)
+        // The accepted range closes immediately, but its captured callback is
+        // delivered only after the real native/worker release has drained.
+        try await wait {!picker.hasPendingWork && !chosen.isEmpty}
         try require(chosen.count==1 && chosen[0]==expected,"Range accepted current instead of captured pair or accepted twice")
         // Real remote catalog with a name wider than the source-sized native dialog.
         let long="release/"+String(repeating:"long-",count:35)+"雪"
@@ -108,6 +114,6 @@ import TurtleGitCore
         search.stringValue="closed";if let action=search.action {_ = NSApp.sendAction(action,to:search.target,from:search)}
         try require(search.lifetime.retired && model.query==queryBefore,"Closed search revived")
         tags.close();try require(table.lifetime.retired && all.lifetime.retired,"Closed tag controls not retired")
-        print("PASS reference source: synchronous filter masks/cues/scope reads, captured range acceptance, full-width tag scrolling, selection reading position and retired controls")
+        print("PASS reference source: debounced filter masks with immediate cues/scope reads, captured range acceptance, full-width tag scrolling, selection reading position and retired controls")
     }
 }

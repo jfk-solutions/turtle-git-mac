@@ -113,6 +113,17 @@ options. Initial failures and AppKit/sandbox-extension output remain explicit;
 these local checks do not establish hosted or signed physical acceptance.
 Installed build52 remains unchanged; no public binary distribution occurred.
 
+The [November 5 Reference filter checkpoint](qa/reference-filter-publication-2026-11-05.json)
+connects source-timed input, accepted/native projection caching, live selection,
+captured menus and real cancellation/Quit drainage. One Debug build and eight
+native case-and-engine combinations pass cumulatively after a range-picker
+fixture awaited its actual release; its original-pair/once-only assertion stays.
+The completed filter cases were not repeated after that fixture-only repair.
+AppKit split-view warnings remain in passing output. No Core suite, installed
+app or signed/public distribution changed. At the final observation, preceding
+source490d99bf's macOS run41934758431 remains pending and Pages run41934758395
+passes; neither establishes hosted acceptance of this subsequent source family.
+
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
 for nested folder selection. Core permission, Debug build and actual menu/context

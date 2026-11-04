@@ -10,6 +10,13 @@ Earlier checkpoint limitations below are historical; later named continuations
 supersede missing-command statements. Full visual/control, physical and signed
 acceptance remain separate from implemented commands.
 
+The [filter-publication continuation](REFERENCE-BROWSER-FILTER-PARITY.md) follows
+the source's one-second typing/field timer, retaining the last accepted catalog
+while input changes. It connects cached filtering/sorting and native table
+projection with immediate clear/refresh, selection, popup and owned-dialog
+lifetimes. Its dated checkpoint records the actual runtime scope separately
+from full source/layout and physical/signed acceptance.
+
 The October 18 [comparison and native ownership follow-up](REFERENCE-COMPARISON-OWNERSHIP-PARITY.md) covers Shift, source default commands, sheet release, tracking handoff and refreshed action catalogs. Its grouped validation is recorded separately.
 
 ## Captured native context commands — October 16, 2026
