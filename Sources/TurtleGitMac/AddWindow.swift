@@ -19,6 +19,7 @@ private final class AddNativeWindow: NSWindow {
     private var ignoreController: IgnoreWindowController?
     private(set) var lfsOperation: LFSFileOperationController?
     private var columnAlert: NSAlert?
+    private var cancelRevertQuestion:(()->Void)?
     private var closing = false
     private(set) lazy var filePanels = OwnedFilePanelSession(window:window)
     var onPullAfterLFSLock: () -> Void = {}
@@ -42,6 +43,7 @@ private final class AddNativeWindow: NSWindow {
         model.onIgnore = { [weak self] paths, mask in self?.ignore(paths, mask: mask) }
         model.onIndexFlags = { [weak self] action, paths, mark in self?.confirmFlags(action, paths: paths, mark: mark) }
         model.onRevertRequest = { [weak self] rows in self?.confirmRevert(rows) }
+        model.cancelRevertConfirmation={ [weak self] in self?.cancelRevertQuestion?() }
         model.onRestore = { [weak self] paths in self?.confirmRestore(paths) }
         model.onDelete = { [weak self] selected, permanently in self?.confirmDelete(selected, permanently: permanently) }
         model.onSave = { [weak model] path in _ = model?.requestSave(path) }
@@ -127,13 +129,25 @@ private final class AddNativeWindow: NSWindow {
         alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
         alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishFlagConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
+    var presentRevertQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
     private func confirmRevert(_ rows: [AddDialogEntry]) {
         guard let window, window.attachedSheet == nil, model.beginRevertConfirmation(rows) else { return }
         guard model.revertNeedsConfirmation else { model.finishRevertConfirmation(accepted: true); return }
-        let alert = NSAlert(); alert.messageText = "Are you sure you want to revert \(rows.count) item(s)?"
-        alert.informativeText = "You will lose ALL changes since the last update! "+WorkingFileRevertPresentation.confirmation(model.pendingRevertPolicy ?? .load(from:model.presentationPreferences))
-        alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
-        alert.beginSheetModal(for: window) { [weak model] response in model?.finishRevertConfirmation(accepted: response == .alertSecondButtonReturn) }
+        let alert=WorkingFileRevertPresentation.question(count:rows.count,policy:model.pendingRevertPolicy ?? .load(from:model.presentationPreferences))
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+        var answered=false,cancelled=false
+        model.beginNativeRevertQuestion()
+        let reply:(NSApplication.ModalResponse)->Void={ [weak self,model] response in
+            guard !answered else{return};answered=true
+            Task {
+                defer {model.endNativeRevertQuestion()}
+                await FileOperationWindowDrain.detach(alert.window)
+                self?.cancelRevertQuestion=nil
+                model.finishRevertConfirmation(accepted:response == .alertFirstButtonReturn && !cancelled)
+            }
+        }
+        cancelRevertQuestion={cancelled=true;if !answered {reply(.abort)}}
+        if !presentRevertQuestion(window,alert,reply) {reply(.abort)}
     }
     private func confirmRestore(_ paths: [String]) {
         guard let window, window.attachedSheet == nil, model.beginRestoreConfirmation(paths) else { return }
@@ -144,7 +158,7 @@ private final class AddNativeWindow: NSWindow {
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) {
-        closing = true;filePanels.retire();model.invalidate();columnAlert = nil
+        closing = true;cancelRevertQuestion?();filePanels.retire();model.invalidate();columnAlert = nil
         lfsOperation?.model.retire(); lfsOperation?.close(); lfsOperation = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
         ignoreController?.close();ignoreController = nil;window?.contentViewController = nil;onClosed()
@@ -274,6 +288,10 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     private var pendingRevert: [AddDialogEntry]?
+    var cancelRevertConfirmation:()->Void = {}
+    private var nativeRevertQuestionPending=false
+    func beginNativeRevertQuestion(){guard !nativeRevertQuestionPending else{return};nativeRevertQuestionPending=true;Self.activeOperations += 1}
+    func endNativeRevertQuestion(){guard nativeRevertQuestionPending else{return};nativeRevertQuestionPending=false;Self.activeOperations -= 1}
     private(set) var pendingRevertPolicy:WorkingFileRevertPolicy?
     private(set) var reverting = false
     private var closeAfterRevert = false
@@ -293,7 +311,7 @@ private final class AddNativeWindow: NSWindow {
     private func finishRevertConfirmationInCommandProgressScope(accepted: Bool) {
         guard !retired else { return }
         guard let selected = pendingRevert else { return }; pendingRevert = nil
-        guard accepted else { pendingRevertPolicy=nil;busy = false; return }
+        guard accepted,!confirmingQuit,selected.allSatisfy({row in entries.contains{$0.status==row.status}}) else {pendingRevertPolicy=nil;busy=false;return}
         reverting = true; closeAfterRevert = false
         let cancel = onRevert(selected.map(\.status)) { [weak self] succeeded in self?.finishRevert(selected, succeeded: succeeded) }
         if reverting { cancelRevert = cancel }
@@ -617,6 +635,7 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     func cancel() {
+        if !retired,!confirmingQuit,pendingRevert != nil {cancelRevertConfirmation();return}
         guard !retired, !confirmingQuit, !ignoring, !lockingFiles, !resettingColumns, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
         if fileIOActive {cancellation.cancel();cancelFileChoice()}
         else if reverting { closeAfterRevert = true; cancelRevert?() }

@@ -328,7 +328,7 @@ struct RepositoryWindow: View {
                     Button { if model.claimWorkspaceMenu(context) { model.showDiff(paths:context.paths) } } label: { CommandLabel(title: "Diff", icon: .compare) }
                     Button { if model.claimWorkspaceMenu(context) { model.stage(paths:context.paths) } } label: { CommandLabel(title: "Add / Stage", icon: .add) }.disabled(context.paths.isEmpty)
                     Button { if model.claimWorkspaceMenu(context) { model.unstage(paths:context.paths) } } label: { CommandLabel(title: "Unstage", icon: .revert) }.disabled(context.paths.isEmpty)
-                    Button { if model.claimWorkspaceMenu(context) { model.activate(.revert,paths:context.paths) } } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!context.canRevert)
+                    Button { model.revertWorkspaceSelection(context) } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!context.canRevert)
                     Button { if model.claimWorkspaceMenu(context) { model.activate(.clean,paths:context.paths) } } label: { CommandLabel(title: RepositoryAction.clean.title, icon: .clean) }.disabled(context.bare || model.busy || model.confirmingQuit)
                     Button { if model.claimWorkspaceMenu(context) { model.activate(.rename,paths:context.paths) } } label: { CommandLabel(title: "Rename…", icon: .rename) }.disabled(!context.canRename)
                     if context.canResolve && !context.paths.isEmpty {

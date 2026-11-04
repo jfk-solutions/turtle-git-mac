@@ -8,8 +8,9 @@ Revert, distinct from reverting a historical commit in Log.
 
 ## Native Commit menu
 
-Revert appears for selected versioned rows with the original `menurevert.ico`.
-Modified/conflicted selections ask before proceeding; No is the native default.
+Revert follows the marked versioned row with the original `menurevert.ico`, then
+captures the complete highlighted selection.
+Modified/type-changed ordinary files ask before proceeding; Yes is the source default.
 Added-only selections become unversioned without deleting their working contents.
 Successful actions clear selected checks and refresh the list and patch view.
 Saved Restore after commit copies remain available independently.
@@ -25,14 +26,18 @@ Submodule pointers are reset without changing their checkout or local edits.
 Renamed initialized submodules use Git's reverse move to preserve checkout
 metadata and update their path in `.gitmodules`, followed by pointer restoration.
 
-The backend rejects mixed unversioned/ignored selections, changed status rows,
-unsupported filesystem objects and parent paths escaping the working tree before
-working-file changes. It locks the actual index, including linked-worktree indexes, and runs
+The backend retains mixed unversioned/ignored selections. Changed status rows,
+unsupported filesystem objects and parent paths escaping the working tree are
+rejected before working-file changes. It locks the actual index, including linked-worktree indexes, and runs
 Git writes against a private copy. The real index is replaced only after all steps
 succeed. A checkout/filter error leaves the original index intact and reports
 structured Trash locations for recovery. Working-file changes are not a filesystem
 transaction: partial Git checkout or submodule moves can still require recovery.
 Concurrent external filesystem edits are not fully prevented.
+
+The November 3 direct-invocation continuation below supersedes the earlier
+mixed-selection rejection and extra Working Tree planning step. Older dated
+verification sections describe their original implementation, not new evidence.
 
 ## Verification
 
@@ -380,3 +385,50 @@ receipts. Checkbox events retain their native action; group rows cannot launch
 a different selected file. Explicit multi-file menu commands retain their
 existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
 separate from the connected native checkpoint.
+
+## Direct selection and mixed-path invocation — November 3, 2026
+
+The pinned shared list enables Revert from the marked row, then copies every
+highlighted path (`GitStatusListCtrl.cpp:1815–1821,2564–2577,3595–3610`).
+The confirmation predicate is the actual modified/type-change action on an
+ordinary file, not the aggregate display state: a clean, renamed or conflicted
+row must not be treated as modified solely because of its display category.
+`MB_YESNO` supplies a Yes default. The dedicated repository/Finder command keeps
+its selection planner; direct file-list actions proceed with the captured rows.
+
+Mixed unversioned/ignored rows are not filtered by the pinned shared list. In
+`RevertProgressCommand.cpp:43–55,72–109,121–151`, non-added ordinary files enter
+the configured recycle phase, additions enter the unstage task, and unknown
+names still enter the checkout task. A disposable Git2.55 experiment reproduced
+that order without using system Trash: checkout rejected both unknown names
+before restoring the tracked/deleted paths; the earlier addition was already
+unstaged and private recovery copies remained. `builtin/checkout.c:630–659`
+validates every pathspec before the working checkout. This is an error path,
+not successful removal of unknown files from the request.
+
+The native mixed restore cohort therefore retains every requested name in one
+literal NUL-framed Git request. It preserves the native private-index transaction:
+unlike the source's earlier separate unstage task, failure does not publish its
+index effects. Completed working-file/Trash effects still remain and are reported
+with their actual recovery URLs. Versioned-only work retains bounded cancellation
+steps; path, directory, symlink-parent and stale-row validation remain prerequisites.
+
+Retry is a native extension, not a source action found in this review. It rereads
+the complete original path set, including ignored and now-missing names, or reports
+why it cannot represent that set. It must never turn a failed mixed request into
+a narrower successful operation. Cancellation and parent retirement retain the
+captured policy and access until the owned question/progress worker has drained.
+An old-name counterpart remains part of its captured rename unless that row was
+also explicitly selected. The first grouped Core run caught Retry treating such
+an obstruction as an extra unknown selection, bypassing the rename recycling
+preference; the repair preserves this identity and the existing symlink-safety
+and recycling assertions.
+
+The [grouped checkpoint](qa/revert-direct-selection-2026-11-03.json) records 43
+distinct Core methods passing cumulatively after the targeted Retry repair,
+nine mixed/read methods with bundled Git, one Debug build and eight native
+case/engine combinations. It preserves the initial failures and affected
+rechecks. The native group covers four direct source dialogs, retained file flow,
+Commit controls and Log flag/Add/Commit continuations. Workspace physical/menu
+acceptance, signed Trash permissions and all source dialog states remain open;
+installed52 is unchanged.

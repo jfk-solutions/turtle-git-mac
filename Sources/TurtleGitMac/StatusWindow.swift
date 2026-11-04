@@ -330,6 +330,24 @@ final class StatusNativeWindow: NSWindow {
     var onCopyAdd: ([String]) -> Void = { _ in }
     var onPasteFiles: (Bool, [URL]) -> Void = { _, _ in }
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
+    var onRevert:(([StatusEntry],WorkingFileRevertPolicy,Bool,@escaping(Bool)->Void)->(()->Void))?
+    private var pendingRevertID:UUID?,pendingRevertRows:[StatusEntry]=[]
+    private var cancelRevert:(()->Void)?
+    var revertSelectionIsCurrent:Bool {pendingRevertID != nil && !retired && !confirmingQuit && pendingRevertRows.allSatisfy{row in files.contains{$0.entry==row}}}
+    func requestRevert(_ snapshot:StatusFileMenuSnapshot) {
+        guard accepts(snapshot),snapshot.offersRevert,let onRevert else{return}
+        let rows=snapshot.entries,identity=UUID(),policy=WorkingFileRevertPolicy.load(from:defaults)
+        let directories=WorkingFileRevertPresentation.directories(rows,root:repository.root,known:submodules)
+        pendingRevertID=identity;pendingRevertRows=rows;busy=true;Self.activeOperations += 1
+        let cancel=onRevert(rows,policy,WorkingFileRevertPresentation.needsConfirmation(rows,directories:directories)) { [self] succeeded in
+            guard self.pendingRevertID==identity else{return}
+            self.pendingRevertID=nil;self.pendingRevertRows=[];self.cancelRevert=nil;Self.activeOperations -= 1
+            guard !self.retired else{return}
+            if succeeded {self.selection.subtract(rows.map(\.path))}
+            self.busy=false;self.reload()
+        }
+        if pendingRevertID==identity {cancelRevert=cancel}
+    }
     var onChanged: () -> Void = {}
     init(repository: GitRepository, access: RepositoryAccessLease?, defaults: UserDefaults = .standard, columnKey: String = "WorkingTree.FileColumns", initialColumns: StatusListColumnSettings? = nil) {
         self.repository = repository; self.access = access; self.defaults = defaults
@@ -484,6 +502,7 @@ final class StatusNativeWindow: NSWindow {
         Task { [self] in await fileListRefresh.restore(position,ids:tableRows.map { $0.row.id });fileListRefresh.finish(position) }
     }
     @discardableResult func cancelOperation() -> Bool {
+        if pendingRevertID != nil {cancelRevert?();return true}
         guard let token = operationCancellation else { return cancelLFSOwnerQuery() }
         // ChangedDlg busy-close cancels the read and stays open. Drop automatic
         // reloads accumulated before that cancellation instead of immediately
@@ -494,7 +513,7 @@ final class StatusNativeWindow: NSWindow {
     }
     func invalidate() {
         guard !retired else { return }; retired = true;missingStagedRecovery.retire();fileListRefresh.retire(); refreshRequested = false; pendingScope = nil
-        operationCancellation?.cancel(); ownerCancellation?.cancel(); submoduleLog.retire()
+        cancelRevert?();operationCancellation?.cancel(); ownerCancellation?.cancel(); submoduleLog.retire()
         unifiedWindow?.close(); unifiedWindow = nil
     }
     private func isLive(_ token: OperationCancellation) -> Bool {
@@ -1016,7 +1035,7 @@ struct StatusDialog: View {
                         Button { model.withFileMenu(snapshot) { model.onAction(.move, selected.map(\.id)) } } label: { CommandLabel(title: "Move…", icon: .rename) }
                     }
                     if snapshot.offersRevert {
-                        Button { model.withFileMenu(snapshot) { model.onAction(.revert, selected.map(\.id)) } } label: { CommandLabel(title: "Revert…", icon: .revert) }
+                        Button { model.requestRevert(snapshot) } label: { CommandLabel(title: "Revert…", icon: .revert) }
                     }
                     ForEach(model.lfsActions(selected), id: \.self) { action in
                         Button { model.withFileMenu(snapshot) { model.setLFSLocked(ids, locked: action == .lock) } } label: { CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock) }.disabled(model.busy || model.confirmingQuit)

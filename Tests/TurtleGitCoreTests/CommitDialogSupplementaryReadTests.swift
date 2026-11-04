@@ -78,7 +78,12 @@ final class CommitDialogSupplementaryReadTests:XCTestCase {
     func testCapturedSupplementUsesTwoLayoutQueriesAndPrecancelLaunchesNothing()async throws {
         let (root,repo)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
         try await seed(root,repo)
+        // Retain an unrelated tracked row so the changed read proves that its
+        // index query is bounded to candidates rather than the full index.
+        try Data("unchanged\n".utf8).write(to:root.appendingPathComponent("unrelated-clean"))
+        try await repo.stage(["unrelated-clean"]);_=try await repo.commit(message:"clean companion")
         let wrapper=root.appendingPathComponent(".git/layout-reader"),log=root.appendingPathComponent(".git/layout-log")
+        let indexArguments=root.appendingPathComponent(".git/layout-index-arguments")
         func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
         let script="""
         #!/bin/sh
@@ -87,24 +92,55 @@ final class CommitDialogSupplementaryReadTests:XCTestCase {
             case "$1" in -C|-c) shift;shift;; --*) shift;; *) break;; esac
           done
           printf '%s\n' "${1-}" >> \(quote(log.path))
+          if [ "${1-}" = ls-files ]; then
+            printf '%s\\0' "$@" >> \(quote(indexArguments.path))
+          fi
         }
         record "$@"
         exec \(quote(repo.executable.path)) "$@"
         """
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
         let reader=GitRepository(root:root,executable:wrapper,libgit2Configuration:.init(enabled:false))
-        let snapshot=try await read(reader);XCTAssertEqual(snapshot.branch,"main")
-        let commands=try String(contentsOf:log,encoding:.utf8).split(separator:"\n")
-        XCTAssertEqual(commands.filter{$0=="rev-parse"}.count,4,"Two layout paths plus HEAD and its parent; no per-marker probes")
-        XCTAssertEqual(commands.filter{$0=="branch"}.count,1)
-        XCTAssertEqual(commands.filter{$0=="status"}.count,1)
-        XCTAssertEqual(commands.filter{$0=="diff"}.count,3)
-        XCTAssertEqual(commands.filter{$0=="ls-files"}.count,1)
-        XCTAssertEqual(commands.count,10)
+        func assertCommands(_ commands:[Substring],indexQueries:Int,file:StaticString=#filePath,line:UInt=#line) {
+            XCTAssertEqual(commands.filter{$0=="rev-parse"}.count,4,"Two layout paths plus HEAD and its parent; no per-marker probes",file:file,line:line)
+            XCTAssertEqual(commands.filter{$0=="branch"}.count,1,file:file,line:line)
+            XCTAssertEqual(commands.filter{$0=="status"}.count,1,file:file,line:line)
+            XCTAssertEqual(commands.filter{$0=="diff"}.count,3,file:file,line:line)
+            XCTAssertEqual(commands.filter{$0=="ls-files"}.count,indexQueries,file:file,line:line)
+            XCTAssertEqual(commands.count,9+indexQueries,file:file,line:line)
+        }
+        let indexBefore=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let clean=try await read(reader);XCTAssertEqual(clean.branch,"main")
+        XCTAssertTrue(clean.entries.isEmpty);XCTAssertTrue(clean.indexFlags.isEmpty)
+        XCTAssertTrue(clean.working.isEmpty);XCTAssertTrue(clean.staged.isEmpty);XCTAssertTrue(clean.unstaged.isEmpty)
+        XCTAssertTrue(clean.hasHead);XCTAssertTrue(clean.hasParent)
+        XCTAssertNil(clean.operation);XCTAssertNil(clean.comparisonBase)
+        XCTAssertFalse(clean.hasLFS);XCTAssertFalse(clean.conflictIsRebase)
+        assertCommands(try String(contentsOf:log,encoding:.utf8).split(separator:"\n"),indexQueries:0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath:indexArguments.path),"A clean list must not launch index inventory")
+
+        try Data("changed\n".utf8).write(to:root.appendingPathComponent("file"))
+        try Data().write(to:log)
+        let changed=try await read(reader)
+        XCTAssertEqual(changed.entries.map(\.path),["file"])
+        XCTAssertEqual(changed.working.map(\.path),["file"])
+        XCTAssertTrue(changed.staged.isEmpty);XCTAssertEqual(changed.unstaged.map(\.path),["file"])
+        XCTAssertEqual(changed.indexFlags.map(\.id),["file"])
+        XCTAssertTrue(changed.indexFlags.allSatisfy{!$0.assumeUnchanged && !$0.skipWorktree})
+        XCTAssertEqual(changed.branch,clean.branch);XCTAssertEqual(changed.hasHead,clean.hasHead)
+        XCTAssertEqual(changed.hasParent,clean.hasParent);XCTAssertEqual(changed.comparisonBase,clean.comparisonBase)
+        XCTAssertEqual(changed.operation,clean.operation);XCTAssertEqual(changed.hasLFS,clean.hasLFS)
+        XCTAssertEqual(changed.conflictIsRebase,clean.conflictIsRebase)
+        assertCommands(try String(contentsOf:log,encoding:.utf8).split(separator:"\n"),indexQueries:1)
+        XCTAssertEqual(try Data(contentsOf:indexArguments),Data(["ls-files","--stage","-v","-z","--","file"].flatMap{Array($0.utf8)+[0]}),"The index query must retain literal candidate framing and exclude unrelated clean rows")
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),indexBefore)
+        try Data().write(to:indexArguments)
         try Data().write(to:log)
         let token=OperationCancellation();token.cancel()
         do {_=try await reader.commitDialogRead(amend:false,amendDiffToLastCommit:true,cancellation:token);XCTFail("Cancelled supplemental read launched")}
         catch OperationCancellationFailure.cancelled {}
         XCTAssertEqual(try Data(contentsOf:log),Data())
+        XCTAssertEqual(try Data(contentsOf:indexArguments),Data())
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),indexBefore)
     }
 }

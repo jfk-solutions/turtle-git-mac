@@ -1,0 +1,249 @@
+{
+  "date": "2026-11-03",
+  "source_parent": "839406e51b183e34dd14b14cbe51acaf8b1f0fdf",
+  "status": "grouped_focused_validation_passed",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "shared_selection": "src/Git/GitStatusListCtrl.cpp:1815-1821,2564-2577,3595-3610",
+    "task": "src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp:43-55,72-109,121-151"
+  },
+  "scope": [
+    "Captured direct Revert from Commit, Add, Status and Log Working Tree; repository/Finder selection planner retained.",
+    "Exact modified/type-change ordinary-file confirmation with source Yes default.",
+    "Mixed unknown/ignored Git error and actual recovery copies; complete original Retry intent.",
+    "Question, progress/result, cancellation, retained access and source-owner drainage."
+  ],
+  "native_adaptations": [
+    "Private index publication remains all-success-only; completed working-file and Trash effects are not rolled back.",
+    "Retry is a native extension; this source review found no upstream Revert Retry action.",
+    "Versioned-only operations retain protected bounded steps; mixed restore uses one complete literal path packet so Git validates all names before checkout."
+  ],
+  "source_experiment": {
+    "question": "Does the pinned-task mixed checkout partially restore known paths before reporting unknown/ignored pathspec errors?",
+    "git_version": "git version 2.55.0",
+    "disposable": true,
+    "uses_system_trash": false,
+    "recovery_moves": "Private sibling recovery directory substitutes only the preceding Shell recycle moves; Git command/order is the pinned task shape.",
+    "selected_paths": [
+      "tracked.txt",
+      "deleted.txt",
+      "addition.txt",
+      "unknown.txt",
+      "ignored.txt"
+    ],
+    "status_before": "A  addition.txt\n D deleted.txt\nMM tracked.txt\n?? unknown.txt\n!! ignored.txt\n",
+    "unstage_exit": 0,
+    "checkout_arguments": [
+      "checkout",
+      "-f",
+      "--pathspec-from-file=-",
+      "--pathspec-file-nul",
+      "--end-of-options",
+      "HEAD"
+    ],
+    "checkout_paths": [
+      "tracked.txt",
+      "deleted.txt",
+      "unknown.txt",
+      "ignored.txt"
+    ],
+    "checkout_exit": 1,
+    "checkout_stdout": "",
+    "checkout_stderr": "error: pathspec 'unknown.txt' did not match any file(s) known to git\nerror: pathspec 'ignored.txt' did not match any file(s) known to git\n",
+    "known_tracked_restored": false,
+    "known_deleted_restored": false,
+    "addition_working_bytes": "addition.txt bytes\n",
+    "addition_removed_from_index": true,
+    "checkout_index_bytes_equal_after_unstage": true,
+    "original_index_equal_after_tasks": false,
+    "retained_recovery_names": [
+      "ignored.txt",
+      "tracked.txt",
+      "unknown.txt"
+    ],
+    "retained_recovery_bytes": {
+      "unknown.txt": "unknown.txt bytes\n",
+      "tracked.txt": "working tracked\n",
+      "ignored.txt": "ignored.txt bytes\n"
+    },
+    "source_user_repositories_changed": false,
+    "private_fixture_removed": true
+  },
+  "ci_diagnostics": {
+    "run": 41560015333,
+    "source": "ff4b60856bea44bb1b50253f5fefd46cffc9a0c9",
+    "core": {
+      "job": 125695830441,
+      "step": 79,
+      "tests": 3409,
+      "skipped": 3,
+      "failed_assertions": 2,
+      "failed_methods": 1,
+      "diagnostic": "CommitDialogSupplementaryReadTests lines102/103 expected one ls-files /ten total on a clean checkout, actual zero/nine after candidate-only optimization. Fixture repair preserves clean and modified exact-query assertions; pending grouped check."
+    },
+    "native_commands": {
+      "job": 125695830580,
+      "step": 353,
+      "diagnostic": "Native None. Fixture sends retired invocation immediately after Published busy changes and again after accepted actions. Repair waits current validated native menu item for positive calls; deliberate stale/blocked calls retained."
+    },
+    "native_geometry": {
+      "job": 125695830580,
+      "step": 278,
+      "diagnostic": "Report rows timeout169; separate unresolved diagnostic, not claimed fixed by command fixture."
+    }
+  },
+  "validation": {
+    "core": {
+      "initial": {
+        "exit_code": 1,
+        "methods": 43,
+        "failures": 1,
+        "log": "build/qa/revert-direct-selection-core-2026-11-04.log",
+        "diagnostic": "Retry promoted a rename old-name obstruction into an independent unknown selection, causing a Trash copy despite the captured rename-recycling switch."
+      },
+      "repair": "Only explicitly selected unknown/ignored rows become independent Retry entries; rename counterparts remain represented by their rename. Existing directory/symlink/recycling assertions retained.",
+      "affected_retry": {
+        "exit_code": 0,
+        "methods": 7,
+        "log": "build/qa/revert-direct-selection-core-retry-repair-2026-11-04.log"
+      },
+      "partial_effect_retry": {
+        "exit_code": 0,
+        "methods": 1,
+        "log": "build/qa/revert-direct-selection-core-partial-retry-2026-11-04.log"
+      },
+      "bundled": {
+        "exit_code": 0,
+        "methods": 9,
+        "log": "build/qa/revert-direct-selection-core-bundled-2026-11-04.log",
+        "scope": "Five new mixed Revert methods and four supplementary-read methods explicitly select bundled Git; existing helper-based Revert methods use system Git."
+      },
+      "distinct_methods_passed_cumulatively": 43,
+      "full_core_suite_repeated": false
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/revert-direct-selection-debug-2026-11-04.log",
+      "configuration": "Unsigned Debug arm64, existing derived data; CoreSimulator version mismatch and existing compiler diagnostics retained."
+    },
+    "native": {
+      "case_engine_pairs_passed": 8,
+      "scope": [
+        "retained Add/Revert file flow, system and bundled Git",
+        "direct Revert across Commit/Add/Status/Log, system and bundled Git",
+        "Commit native commands, system and bundled Git",
+        "Log Revert/index flags and working Add/Commit continuation, system and bundled Git"
+      ],
+      "passing_logs": [
+        "build/qa/revert-direct-selection-native-flow-repair-2026-11-04.log (system retained flow only; later direct Add admission failed)",
+        "build/qa/revert-direct-selection-native-direct-commands-2026-11-04.log",
+        "build/qa/revert-direct-selection-native-flow-bundled-2026-11-04.log",
+        "build/qa/revert-direct-selection-native-log-owner-repair-2026-11-04.log"
+      ],
+      "retained_failures": [
+        {
+          "log": "build/qa/revert-direct-selection-native-flow-2026-11-04.log",
+          "diagnostic": "Fixture attempted internal StatusEntry initializer; repaired to public porcelain parser without widening production API. No receiver launched by failed compile."
+        },
+        {
+          "log": "build/qa/revert-direct-selection-native-log-2026-11-04.log",
+          "diagnostic": "Typed Revert fixture omitted independent generic Commit callback; eligibility assertion retained and consumer restored."
+        },
+        {
+          "log": "build/qa/revert-direct-selection-native-flow-repair-2026-11-04.log",
+          "diagnostic": "After Commit direct case passed, Add fixture wrongly expected a dialog for file-only Add; real route staged immediately. Repaired fixture uses folder-containing Add route; product behavior retained."
+        },
+        {
+          "log": "build/qa/revert-direct-selection-native-log-repair-2026-11-04.log",
+          "diagnostic": "Old fixture reused permanently invalidated Log model. Retired-owner refusal remains asserted; live continuation uses fresh successor."
+        }
+      ],
+      "physical_acceptance": false,
+      "ownership": "Private repositories/preferences/pasteboards, hidden/offscreen windows and sheets, actual reader/window drainage and exact-image/private-resource helper cleanup. Successful retained flow was not repeated with system Git after unrelated direct fixture repair.",
+      "receiver_pids": [
+        29811,
+        30125,
+        30410,
+        31093,
+        31944,
+        32721,
+        32958,
+        33730,
+        33970,
+        34165,
+        34826
+      ],
+      "process_absence_probe": {
+        "exit_code": 1,
+        "output": ""
+      }
+    },
+    "resources": {
+      "localizations_write": {
+        "exit_code": 0,
+        "languages": 38,
+        "keys": 1392
+      },
+      "localizations_check": {
+        "exit_code": 0,
+        "languages": 38,
+        "keys": 1392
+      },
+      "bundled_help": {
+        "write_exit_code": 0,
+        "check_exit_code": 0,
+        "documents": 64,
+        "topics": 53,
+        "files": 98
+      },
+      "dialog_coverage": {
+        "exit_code": 0,
+        "log": "build/qa/revert-direct-selection-dialog-coverage-2026-11-04.log",
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_control_reviews": 85,
+        "certified_complete": 0,
+        "meaning": "Resource review references only; not a feature completion percentage."
+      }
+    }
+  },
+  "remaining": [
+    "Complete corrected-source hosted CI pass.",
+    "Physical signed confirmation, keyboard/VoiceOver, Trash permissions and external volumes.",
+    "Full upstream dialog/workflow parity and platform acceptance; resource counts are not completion percentages."
+  ],
+  "installed_build": "52 remains installed at source3702643e; this source batch has an unsigned Debug build and focused native validation only. No new signed candidate, installation or public binary publication.",
+  "resumed_date": "2026-11-04",
+  "current_hosted": {
+    "source": "839406e51b183e34dd14b14cbe51acaf8b1f0fdf",
+    "macos_run": 41649018044,
+    "macos_conclusion": "failure",
+    "pages_run": 41649018085,
+    "pages_conclusion": "success",
+    "core": {
+      "tests": 3413,
+      "skipped": 3,
+      "failed_assertions": 2,
+      "failed_method": "CommitDialogSupplementaryReadTests.testCapturedSupplementUsesTwoLayoutQueriesAndPrecancelLaunchesNothing",
+      "diagnostic": "Same clean-read ls-files and total-command expectations targeted by this batch fixture repair."
+    },
+    "distribution": {
+      "step": 429,
+      "diagnostic": "Run advanced beyond mounted Log label/history repair; verifyNativeLogWorkingAddCommit reused a permanently invalidated Log model before expecting a stale-Add error.",
+      "local_continuation": "Fresh-successor repair in this batch preserves retired-owner refusal and exact index/HEAD/working-byte assertions; focused Log family passes both engines. Complete hosted success remains open."
+    }
+  },
+  "completed_date": "2026-11-04",
+  "native_receiver_generation": "7d62f912ed57b2957a1b24ec5ebea617994f993d71e9d7b14c5b01a7d70ea603",
+  "changed_production_sha256": {
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "d9e465a888eb4993d43451504e3ab617fbba18085aded793942142e8d6dfda93",
+    "Sources/TurtleGitMac/AddWindow.swift": "d76b10b84cc8ba5095d02f35fe781f697ee477bbe7eff69a4c64eeaa5689fc5d",
+    "Sources/TurtleGitMac/CommitWindow.swift": "93247fa1100e2b3eec1c6a6e18a762fee39762c838692fc774bf0a86d273c999",
+    "Sources/TurtleGitMac/LogWindow.swift": "fe3a3ee98f3c3f88a823feb1ccc39431c5c5550d7687ae9035273cd5cc891d7a",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "3b8581ec93d7987ad737a2d2e34064b6e3362375e5276f7f83a1f585f7e49015",
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "5081dede3a12918dbc73113b9726c5204de7093843562c4178f4de3f11b13710",
+    "Sources/TurtleGitMac/StatusWindow.swift": "68d512b8916f2649308c1f20812fa928a1f51177110d5533dcef7c6965b49d6c",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "47ed04114cc19e11b1ef540fe7afe94bde57cb65c7eaf53b3a6ea051d4535041"
+  }
+}

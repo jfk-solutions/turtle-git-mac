@@ -1899,6 +1899,7 @@ import TurtleGitCore
         messageFocusAvailable && fileOperationToken === token && !token.isCancelled && !Task.isCancelled
     }
     @discardableResult func cancelFileOperation() -> Bool {
+        if pendingRevertID != nil {cancelRevert?();return true}
         guard let fileOperationToken else { return false }
         fileOperationCancelling = true; fileOperationToken.cancel(); return true
     }
@@ -2018,24 +2019,27 @@ import TurtleGitCore
         if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
     }
     private(set) var pendingRevertPolicy:WorkingFileRevertPolicy?
-    var onRevert: ([StatusEntry], Bool, Bool, @escaping (Bool) -> Void) -> Void = { _, _, _, done in done(false) }
+    private(set) var pendingRevertNeedsConfirmation=false
+    private var pendingRevertID:UUID?,pendingRevertRows:[StatusEntry]=[]
+    private var cancelRevert:(()->Void)?
+    var revertSelectionIsCurrent:Bool {pendingRevertID != nil && messageFocusAvailable && !confirmingQuit && pendingRevertRows.allSatisfy{entries.contains($0)}}
+    var onRevert: ([StatusEntry], Bool, Bool, @escaping (Bool) -> Void) -> (() -> Void) = { _, _, _, done in done(false);return{} }
     func revertFiles(_ selected: [StatusEntry]) {
-        guard !busy, !confirmingQuit, !selected.isEmpty else { return }
-        let policy=WorkingFileRevertPolicy.load(from:dialogDefaults)
-        if selected.contains(where: { [.modified, .conflicted].contains($0.state) }) {
-            let alert = NSAlert()
-            alert.messageText = "Are you sure you want to revert \(selected.count) item(s)?"
-            alert.informativeText = "You will lose ALL changes since the last update! "+WorkingFileRevertPresentation.confirmation(policy)
-            alert.addButton(withTitle: "No"); alert.addButton(withTitle: "Yes")
-            guard alert.runModal() == .alertSecondButtonReturn else { return }
+        guard fileListAvailable,!selected.isEmpty,selected.allSatisfy({entries.contains($0)}),activeFileMenu.map({acceptsFileMenu($0)}) ?? true else{return}
+        let identity=UUID(),policy=WorkingFileRevertPolicy.load(from:dialogDefaults)
+        let directories=WorkingFileRevertPresentation.directories(selected,root:repository.root,known:submodules)
+        pendingRevertID=identity;pendingRevertRows=selected;pendingRevertPolicy=policy
+        pendingRevertNeedsConfirmation=WorkingFileRevertPresentation.needsConfirmation(selected,directories:directories)
+        busy=true;Self.activeFileOperations += 1;pendingFileOperations += 1
+        let cancel=onRevert(selected,amend,amendDiffToLastCommit) { [self] succeeded in
+            guard self.pendingRevertID==identity else{return}
+            self.pendingRevertID=nil;self.pendingRevertRows=[];self.pendingRevertPolicy=nil;self.pendingRevertNeedsConfirmation=false;self.cancelRevert=nil
+            Self.activeFileOperations -= 1;self.pendingFileOperations -= 1
+            guard self.messageFocusAvailable else{return}
+            if succeeded {self.checked.subtract(selected.map(\.path));self.selection.subtract(selected.map(\.path))}
+            self.busy=false;self.reload();self.refreshPartial()
         }
-        guard messageFocusAvailable, activeFileMenu.map({ acceptsFileMenu($0) }) ?? true else { return }
-        pendingRevertPolicy=policy;busy = true
-        onRevert(selected, amend, amendDiffToLastCommit) { [weak self] succeeded in
-            guard let self, self.messageFocusAvailable else { return }
-            if succeeded { self.checked.subtract(selected.map(\.path)); self.selection.subtract(selected.map(\.path)) }
-            self.pendingRevertPolicy=nil;self.busy = false; self.reload(); self.refreshPartial()
-        }
+        if pendingRevertID==identity {cancelRevert=cancel}
     }
     func markForRestore(_ paths: some Sequence<String>) { let paths = GitPathSet(paths);
         guard !paths.isEmpty else { return }
@@ -2805,7 +2809,7 @@ import TurtleGitCore
         if issueProviderPreflightPending {providerCommitAttemptTask?.cancel()}
         if let progress=commitProgress { progress.invalidate();if !progress.busy { progress.choose(nil) } }
         issueProviderGeneration = UUID(); issueProviderBusy = false; cancelProviderIssues()
-        fileMenuGeneration = UUID(); fileOperationToken?.cancel(); cancelChangelist()
+        fileMenuGeneration = UUID(); fileOperationToken?.cancel();cancelRevert?(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
         retireCommitIdentitySettings();retireDetachedChildren();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
@@ -3290,7 +3294,7 @@ import TurtleGitCore
     var inputsBlocked:Bool {!commitIdentityPrepared || preparingCommitIdentity || operationInputsBlocked}
     var canRefresh:Bool {messageFocusAvailable && !operationInputsBlocked}
     var fileListAvailable:Bool {messageFocusAvailable && !messageOnly && !inputsBlocked}
-    var canCancel: Bool { messageFocusAvailable && !mergeHintVisible && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || preparingDetachedHead || issueProviderPreflightPending) }
+    var canCancel: Bool { messageFocusAvailable && !mergeHintVisible && !stagingHintVisible && !unversionedPromptVisible && !confirmingQuit && !pendingReloadCancel && (!busy || reloadCancellation != nil || fileOperationToken != nil || pendingRevertID != nil || preparingDetachedHead || issueProviderPreflightPending) }
     func cancel(closeWindow: Bool = true, completion: ((Bool) -> Void)? = nil) {
         cancel(closeWindow: closeWindow, completion: completion, confirmationAccepted: false)
     }

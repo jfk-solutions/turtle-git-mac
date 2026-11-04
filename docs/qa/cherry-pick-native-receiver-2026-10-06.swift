@@ -727,9 +727,14 @@ import TurtleGitCore
     let head = try await repo.run(["rev-parse", "HEAD"]).stdout
     try Data("working\n".utf8).write(to: root.appendingPathComponent(path))
     try Data("untracked\n".utf8).write(to: root.appendingPathComponent("untracked"))
-    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
-    log.clipboard = NSPasteboard(name: .init("TurtleGit-log-flags-copy-" + UUID().uuidString))
-    defer { log.clipboard.releaseGlobally() }
+    let preferencesName="TurtleGit-log-revert-flags-"+UUID().uuidString
+    let preferences=UserDefaults(suiteName:preferencesName)!
+    defer{preferences.removePersistentDomain(forName:preferencesName)}
+    preferences.set(true,forKey:"RevertWithRecycleBin");preferences.set(false,forKey:"RevertRenamedFilesWithRecycleBin")
+    var log = LogWindowModel(repository: repo, access: nil,labelDefaults:preferences); defer { log.invalidate() }
+    let clipboard=NSPasteboard(name:.init("TurtleGit-log-flags-copy-"+UUID().uuidString))
+    log.clipboard=clipboard
+    defer { clipboard.releaseGlobally() }
     func until(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -738,8 +743,19 @@ import TurtleGitCore
     func refresh() async throws { log.reload(); try await until { !log.busy }; log.select([""]) }
     log.showUnversionedFiles = true; try await refresh()
     let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-    var revertPaths: [String] = []; log.onWorkingFiles = { action, paths in precondition(action == .revert); revertPaths = paths }
-    var changes = 0; log.onRevisionChanged = { _ in changes += 1 }
+    var revertRows:[StatusEntry]=[],revertPolicy:WorkingFileRevertPolicy?,revertQuestion:Bool?,revertCompletion:((Bool)->Void)?
+    var changes=0
+    func attachConsumers(_ model:LogWindowModel) {
+        // Commit eligibility still needs its independent root consumer; direct
+        // Revert retains its own captured-selection callback on each owner.
+        model.onWorkingFiles={action,_ in precondition(action == .commit)}
+        model.onWorkingRevert={rows,policy,needsQuestion,done in
+            revertRows=rows;revertPolicy=policy;revertQuestion=needsQuestion;revertCompletion=done
+            return{done(false)}
+        }
+        model.onRevisionChanged={_ in changes += 1}
+    }
+    attachConsumers(log)
     precondition(log.canWorkingFlag(.skipWorktree, ids: [path]) && log.canWorkingFlag(.assumeUnchanged, ids: [path]) && !log.canWorkingFlag(.clear, ids: [path]))
     precondition(!log.canWorkingFlag(.skipWorktree, ids: ["untracked"]))
     log.confirmWorkingFlags = { _ in false }; log.setWorkingFlag(.assumeUnchanged, ids: [path]); try await until { !log.busy }
@@ -775,21 +791,44 @@ import TurtleGitCore
     let closedClipboard = log.clipboard.string(forType: .string)
     precondition(!log.canCopyFiles([path])); log.copyFiles([path], information: .relativePaths)
     precondition(log.clipboard.string(forType: .string) == closedClipboard)
+    // Retirement is permanent. Keep that owner for refusal assertions; the
+    // remaining live gitlink/Revert checks need a freshly loaded successor.
+    let retiredLog=log
+    let retiredFiles=retiredLog.files
+    retiredLog.reload();retiredLog.select([""])
+    precondition(retiredLog.isInvalidated && !retiredLog.busy && retiredLog.files==retiredFiles && !retiredLog.canCopyFiles([path]))
+    log=LogWindowModel(repository:repo,access:nil,labelDefaults:preferences)
+    log.clipboard=clipboard;log.showUnversionedFiles=true;attachConsumers(log)
     try await repo.setIndexFlags(.skipWorktree, paths: ["module"]); try await refresh()
+    precondition(!log.isInvalidated && log.selectedWorkingTree && retiredLog.isInvalidated && retiredLog.clipboard.string(forType:.string)==closedClipboard)
     precondition(log.files.contains { $0.path == "module" && $0.isSubmodule && log.fileStatus($0) == "Skip-worktree" })
     log.confirmWorkingFlags = { _ in true }; log.setWorkingFlag(.clear, ids: ["module"])
     try await until { !log.busy && log.workingIndexFiles.contains { $0.id == "module" && !$0.skipWorktree } }
-    log.requestWorkingFiles(.revert, ids: [path, "untracked"]); try await until { !log.busy }; precondition(revertPaths == [path])
-    let chooser = RevertWindowModel(repository: repo, access: nil); chooser.setScope(revertPaths)
+    let directIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),directWork=try Data(contentsOf:root.appendingPathComponent(path)),directUnknown=try Data(contentsOf:root.appendingPathComponent("untracked"))
+    let directReaders=LogWindowModel.activeWorkingCommandReads
+    log.selectedFiles=[path,"untracked"];log.focusedChangedFile=path
+    let expectedRevertPaths=log.fileTableRows.compactMap(\.file).filter{GitPathSet([path,"untracked"]).contains($0.id)}.map(\.path)
+    log.requestWorkingFiles(.revert, ids: [path, "untracked"]);try await until{revertCompletion != nil}
+    let revertPaths=revertRows.map(\.path)
+    precondition(revertPaths == expectedRevertPaths && GitPathSet(revertPaths)==GitPathSet([path,"untracked"]) && revertRows.count==2)
+    precondition(revertRows.contains{GitReferenceName.equal($0.path,path) && [$0.index,$0.worktree].contains("M")} && revertRows.contains{$0.path=="untracked" && $0.state == .untracked})
+    precondition(revertPolicy == .init(recycle:true,recycleRenamedFiles:false) && revertQuestion == true && log.busy && LogWindowModel.activeWorkingCommandReads==directReaders+1)
+    let finishDirect=revertCompletion;revertCompletion=nil;finishDirect?(false)
+    try await until{!log.busy && LogWindowModel.activeWorkingCommandReads==directReaders}
+    let directIndexAfter=try Data(contentsOf:root.appendingPathComponent(".git/index")),directWorkAfter=try Data(contentsOf:root.appendingPathComponent(path)),directUnknownAfter=try Data(contentsOf:root.appendingPathComponent("untracked"))
+    precondition(directIndexAfter==directIndex && directWorkAfter==directWork && directUnknownAfter==directUnknown)
+    // The independent shell planning dialog intentionally offers only eligible
+    // versioned rows; it must not be inserted into the direct list callback.
+    let chooser = RevertWindowModel(repository: repo, access: nil,preferences:preferences); chooser.setScope(revertPaths)
     try await until { !chooser.busy }; precondition(chooser.checked == [path])
-    let progress = RevertProgressWindowModel(repository: repo, access: nil, entries: chooser.entries.filter { chooser.checked.contains($0.path) }, amend: false, againstHead: false, autoCloseSuccess: false)
+    let progress = RevertProgressWindowModel(repository: repo, access: nil, entries: chooser.entries.filter { chooser.checked.contains($0.path) }, amend: false, againstHead: false, autoCloseSuccess: false,preferences:preferences)
     defer { for file in progress.trashedFiles { try? FileManager.default.removeItem(at: file) } }
     var completed = false; progress.onFinished = { _, ok in precondition(ok); completed = true; log.requestRepositoryRefresh() }
     progress.start(); try await until { completed && !log.busy && !log.files.contains { $0.path == path } }
     let restored = try Data(contentsOf: root.appendingPathComponent(path)), finalHead = try await repo.run(["rev-parse", "HEAD"]).stdout
     let unrelated = try Data(contentsOf: root.appendingPathComponent("untracked")), other = try Data(contentsOf: root.appendingPathComponent("other"))
     precondition(restored == Data("base\n".utf8) && finalHead == head && unrelated == Data("untracked\n".utf8) && other == Data("other\n".utf8))
-    print("Native Log Revert/index flags: decline preserves index; actual assume/skip/clear cycles retain rows/status and Commit guard, unchanged blobs/work, fresh stale-menu refusal, confirmation selection/invalidation guards, flagged gitlink type, scoped Revert chooser and actual Revert progress restore only selected path, refresh Log and preserve HEAD/untracked/other files passed. Confirmations/root callbacks injected; owned Trash files removed; no windows shown.")
+    print("Native Log Revert/index flags: decline preserves index; actual assume/skip/clear cycles retain rows/status and Commit guard, unchanged blobs/work, fresh stale-menu refusal, confirmation selection/invalidation guards, permanently retired owner refusal and fresh successor flagged gitlink type, typed direct Revert captures the complete mixed selection/policy/question and holds its source until completion, declined direct request preserves bytes/index, independent scoped Revert chooser and actual progress restore only its checked path, refresh Log and preserve HEAD/untracked/other files passed. Confirmations/root callbacks injected; owned Trash files removed; no windows shown.")
 }
 
 @MainActor func verifyNativeLogSubmodule(executable: URL) async throws {
@@ -1706,7 +1745,12 @@ import TurtleGitCore
     let path = "new :(glob)* 雪\n.txt"
     try Data("new selected\n".utf8).write(to: root.appendingPathComponent(path))
     try Data("unrelated\n".utf8).write(to: root.appendingPathComponent("unrelated"))
-    let log = LogWindowModel(repository: repo, access: nil); defer { log.invalidate() }
+    let preferenceName="TurtleGit.LogWorkingAddCommit."+UUID().uuidString
+    let preferences=UserDefaults(suiteName:preferenceName)!
+    defer{preferences.removePersistentDomain(forName:preferenceName)}
+    preferences.set(true,forKey:"HintStagingMode");preferences.set(true,forKey:"AddBeforeCommit")
+    preferences.set(false,forKey:"EnableGravatar")
+    var log=LogWindowModel(repository:repo,access:nil,labelDefaults:preferences);defer{log.invalidate()}
     func until(_ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(30)
         while !condition() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -1720,13 +1764,17 @@ import TurtleGitCore
     precondition(!log.canWorkingFiles(.add, ids: ["tracked"]))
     log.requestWorkingFiles(.commit, ids: [path]); try await until { !log.busy }
     precondition(requests.last?.0 == .commit && requests.last?.1 == [path])
-    let commit = CommitWindowModel(repository: repo, access: nil)
+    let commit=CommitWindowModel(repository:repo,access:nil,unversionedDefaults:preferences,dialogDefaults:preferences)
+    defer{commit.invalidateForClose()}
     commit.reload(paths: requests.last!.1); try await until { !commit.busy }
     precondition(commit.scopePaths == [path] && commit.checked == [path] && !commit.showWholeProject)
     let commitIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")); precondition(commitIndex == index)
+    commit.invalidateForClose()
+    try await until{CommitWindowModel.activeReloads==0 && CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activePreferenceOperations==0 && !commit.fileWorkPending}
     log.requestWorkingFiles(.add, ids: [path]); try await until { !log.busy }
     precondition(requests.last?.0 == .add && requests.last?.1 == [path])
-    let add = AddProgressWindowModel(repository: repo, access: nil, paths: requests.last!.1)
+    let add=AddProgressWindowModel(repository:repo,access:nil,paths:requests.last!.1,preferences:preferences)
+    defer{add.retire()}
     var completed = false
     add.onFinished = { _, ok in precondition(ok); completed = true; log.requestRepositoryRefresh() }
     add.start(); try await until { completed && !log.busy && log.files.contains { $0.path == path && $0.action == "A" } }
@@ -1745,12 +1793,25 @@ import TurtleGitCore
     precondition(requests.count == count)
     log.select([""]); log.requestWorkingFiles(.commit, ids: [path]); log.invalidate(); try await until { !log.busy }
     precondition(log.isInvalidated && requests.count == count)
+    // A closed owner cannot be reopened. Retain its refusal assertions, then
+    // use a fresh live owner for the independently stale unversioned Add case.
+    let retiredLog=log,retiredFiles=log.files
+    retiredLog.reload();retiredLog.select([""])
+    precondition(retiredLog.isInvalidated && !retiredLog.busy && retiredLog.files==retiredFiles && requests.count==count)
+    log=LogWindowModel(repository:repo,access:nil,labelDefaults:preferences)
+    log.onWorkingFiles={requests.append(($0,$1))};log.showUnversionedFiles=true
+    log.reload();try await until{!log.busy};log.select([""])
+    precondition(!log.isInvalidated && log.selectedWorkingTree && log.canWorkingFiles(.add,ids:["unrelated"]))
     // Cached unversioned menu refuses Add after another client stages the file.
-    log.reload(); try await until { !log.busy }; log.select([""])
     try await repo.stage(["unrelated"])
-    log.error = nil; log.requestWorkingFiles(.add, ids: ["unrelated"]); try await until { !log.busy }
-    precondition(log.error != nil)
-    print("Native Log working Add/Commit: literal selected path handoffs, actual Commit model scope/checks without committing, actual Add progress stages only selected path and refreshes Log, tracked index/work and HEAD preserved, busy/bare/empty/selection/invalidation/stale-Add guards passed. Root handoffs injected; no windows shown.")
+    let staleIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+    log.error=nil;log.requestWorkingFiles(.add,ids:["unrelated"]);try await until{!log.busy}
+    let staleIndexAfter=try Data(contentsOf:root.appendingPathComponent(".git/index")),staleHead=try await repo.run(["rev-parse","HEAD"]).stdout
+    precondition(log.error != nil && requests.count==count && staleIndexAfter==staleIndex && staleHead==head && retiredLog.isInvalidated)
+    let staleUnknownBytes=try Data(contentsOf:root.appendingPathComponent("unrelated")),staleTrackedBytes=try Data(contentsOf:root.appendingPathComponent("tracked"))
+    precondition(staleUnknownBytes==Data("unrelated\n".utf8) && staleTrackedBytes==Data("working\n".utf8))
+    add.retire();try await until{AddProgressWindowModel.activeOperations==0}
+    print("Native Log working Add/Commit: literal selected path handoffs, actual Commit model scope/checks without committing, actual Add progress stages only selected path and refreshes Log, tracked index/work and HEAD preserved, busy/bare/empty/selection/invalidation guards, permanent retired-owner refusal and fresh successor stale-Add refusal with exact index/HEAD/working bytes retained passed. Root handoffs injected; no windows shown.")
 }
 
 @MainActor func verifyNativeLogParentWorkingComparison(executable: URL) async throws {
@@ -2782,6 +2843,28 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
 
 @MainActor func verify() async throws {
     NSApplication.shared.setActivationPolicy(.prohibited)
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_REVERT_FLAGS_ONLY"] == "1" {
+        let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
+        var failure:Error?
+        do {
+            try await verifyNativeLogRevertFlags(executable:executable)
+            try await verifyNativeLogWorkingAddCommit(executable:executable)
+        } catch {failure=error}
+        for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+        var drained=false
+        for _ in 0..<3000 {
+            if LogWindowModel.activeWorkingCommandReads==0,LogWindowModel.activeHistoryLoads==0,
+               LogWindowModel.activeHistoryProjectionWorkers==0,LogWindowModel.activeActionReads==0,
+               LogWindowModel.activeReferenceReads==0,RevertProgressWindowModel.activeOperations==0,
+               CommitWindowModel.activeFileOperations==0,CommitWindowModel.activeReloads==0,
+               CommitWindowModel.activeMetadataOperations==0,CommitWindowModel.activePreferenceOperations==0,
+               NSApp.windows.allSatisfy({!$0.isVisible && $0.attachedSheet==nil}) {drained=true;break}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        guard drained else {throw NSError(domain:"TurtleGit.Native.LogRevertFlags",code:1,userInfo:[NSLocalizedDescriptionKey:"Owned Log Revert readers/windows did not drain"])}
+        if let failure {throw failure}
+        print("PASS: Log working-file Revert and flags family");return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_HISTORY_LABELS_ONLY"] == "1" {
         let executable=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
         try await verifyNativeLogLabelVisibility(executable:executable)

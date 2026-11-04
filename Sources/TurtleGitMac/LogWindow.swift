@@ -953,7 +953,11 @@ struct LogCommandRequest: Identifiable {
     private(set) static var activeWorkingCommandReads=0
     private var workingCommandCancellation:OperationCancellation?
     private var closeAfterWorkingCommandRead=false
+    private var workingRevertID:UUID?,workingRevertCancel:(()->Void)?
+    private var workingRevertContext:()->Bool = {false}
+    var workingRevertSelectionIsCurrent:Bool {workingRevertID != nil && workingCommandCancellation?.isCancelled==false && !isInvalidated && !confirmingQuit && selectedWorkingTree && workingRevertContext()}
     @discardableResult func cancelWorkingCommandRead(closeAfter:Bool=false)->Bool {
+        if workingRevertID != nil,let workingRevertCancel {closeAfterWorkingCommandRead = closeAfterWorkingCommandRead || closeAfter;workingRevertCancel();return true}
         guard let token=workingCommandCancellation else { return false }
         closeAfterWorkingCommandRead = closeAfterWorkingCommandRead || closeAfter
         token.cancel();return true
@@ -2380,6 +2384,7 @@ struct LogCommandRequest: Identifiable {
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onWorkingFiles: ((RepositoryAction, [String]) -> Void)?
+    var onWorkingRevert:(([StatusEntry],WorkingFileRevertPolicy,Bool,@escaping(Bool)->Void)->(()->Void))?
     var onWorkingFilePairCompare: (([String]) -> Void)?
     var onFileCompare: ((ComparisonRevision, ComparisonRevision, [String]) -> Void)?
     var onFileComparisons: (([(ComparisonRevision, ComparisonRevision, [String])]) -> Void)?
@@ -2575,7 +2580,7 @@ struct LogCommandRequest: Identifiable {
         cancelSearchFilter(); pathFilterGeneration += 1; pathFilterTask?.cancel(); pathFilterTask = nil
         followedSession?.cancel();closeAfterFollowedRead=false
         integrationCancellation?.cancel(); closeAfterIntegrationRead = false
-        workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
+        workingRevertCancel?();workingCommandCancellation?.cancel();closeAfterWorkingCommandRead=false
         workingLFSCancellation?.cancel();closeAfterWorkingLFSRead=false
         changedFileColumnRequest=UUID();resettingChangedFileColumns=false;focusedChangedFile=nil
         combineSelectionReads.values.forEach {$0.cancel()};combineSelectionReads.removeAll()
@@ -3706,19 +3711,20 @@ struct LogCommandRequest: Identifiable {
         let ids = GitPathSet(ids)
         guard hasRepresentableFilePaths(ids) else { return false }
         if action == .add { return canWorkingAdd(ids) }
-        guard !busy, !isInvalidated, !bare, selectedWorkingTree, onWorkingFiles != nil else { return false }
+        guard !busy,!isInvalidated,!bare,selectedWorkingTree,(action == .revert ? onWorkingRevert != nil:onWorkingFiles != nil) else{return false}
         let chosen = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) }
         guard !chosen.isEmpty else { return false }
-        if action == .revert { return chosen.contains { $0.action != "?" } }
+        if action == .revert {return markedFile(ids).map{$0.action != "?" && $0.action != "!"} == true}
         if action == .commit, let mark = workingFlagMark(ids), mark.assumeUnchanged || mark.skipWorktree { return false }
         return action == .commit
     }
     func requestWorkingFiles(_ action: RepositoryAction, ids: some Sequence<String>) {
         let ids = GitPathSet(ids)
         guard requireNativeFilePaths(ids) else { return }
-        if action == .add { requestWorkingAdd(ids); return }
-        guard canWorkingFiles(action, ids: ids), let onWorkingFiles else { return }
-        let paths = fileTableRows.compactMap(\.file).filter { ids.contains($0.id) && (action != .revert || $0.action != "?") }.map(\.path)
+        if action == .add {requestWorkingAdd(ids);return}
+        if action == .revert {requestWorkingRevert(ids);return}
+        guard canWorkingFiles(action,ids:ids),let onWorkingFiles else{return}
+        let paths=fileTableRows.compactMap(\.file).filter{ids.contains($0.id)}.map(\.path)
         let request = generation, selection = selected
         let fileRequest = fileSelectionGeneration
         busy = true
@@ -3732,6 +3738,38 @@ struct LogCommandRequest: Identifiable {
                 guard request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated else { return }
                 busy = false; onWorkingFiles(action, paths)
             } catch { if request == generation, fileRequest == fileSelectionGeneration, selection == selected, !isInvalidated { self.error = error.localizedDescription } }
+        }
+    }
+    private func requestWorkingRevert(_ ids:GitPathSet) {
+        guard canWorkingFiles(.revert,ids:ids),let onWorkingRevert else{return}
+        let paths=fileTableRows.compactMap(\.file).filter{ids.contains($0.id)}.map(\.path)
+        let identity=UUID(),token=OperationCancellation(),request=generation,fileRequest=fileSelectionGeneration,selection=selected
+        let policy=WorkingFileRevertPolicy.load(from:labelDefaults),chosenFiles=selectedFiles
+        workingRevertContext={ [weak self] in guard let self else{return false};return self.generation==request && self.fileSelectionGeneration==fileRequest && self.selected==selection && self.selectedFiles==chosenFiles}
+        workingRevertID=identity;workingCommandCancellation=token;busy=true;Self.activeWorkingCommandReads += 1
+        func finish(_ succeeded:Bool) {
+            guard workingRevertID==identity else{return}
+            workingRevertID=nil;workingRevertContext={false};workingRevertCancel=nil;workingCommandCancellation=nil;Self.activeWorkingCommandReads -= 1
+            guard !isInvalidated else{return}
+            busy=false
+            if closeAfterWorkingCommandRead {closeAfterWorkingCommandRead=false;close()}
+            else {requestRepositoryRefresh()}
+        }
+        Task { [self] in
+            do {
+                for path in paths {try validateWorkingFileAccess(repository.root.appendingPathComponent(path))}
+                let fresh=try await repository.workingTreeStatus(readPolicy:.automatic,cancellation:token)
+                let lookup=GitPathMap(fresh.map{($0.id,$0.entry)},uniquingKeysWith:{_,last in last})
+                let rows=paths.compactMap{lookup[$0]}
+                guard rows.count==paths.count else{throw RevisionComparisonFailure.selection}
+                guard !token.isCancelled,!isInvalidated,request==generation,fileRequest==fileSelectionGeneration,selection==selected,workingRevertID==identity else{finish(false);return}
+                let directories=WorkingFileRevertPresentation.directories(rows,root:repository.root,known:workingSubmodules)
+                let cancel=onWorkingRevert(rows,policy,WorkingFileRevertPresentation.needsConfirmation(rows,directories:directories)){[self] succeeded in finish(succeeded)}
+                if workingRevertID==identity {workingRevertCancel=cancel}
+            } catch {
+                if !isInvalidated,!token.isCancelled,workingRevertID==identity {self.error=error.localizedDescription}
+                finish(false)
+            }
         }
     }
     func selectedFileDiff(_ ids: some Sequence<String>, alternate: Bool = false) {

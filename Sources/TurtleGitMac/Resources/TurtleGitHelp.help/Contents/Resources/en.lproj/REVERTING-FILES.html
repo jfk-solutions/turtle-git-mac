@@ -2,10 +2,13 @@
 <html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>Reverting working files</title><link rel="stylesheet" href="help.css" /></head><body><a class="skip" href="#content">Skip to content</a><nav aria-label="Help navigation"><a href="index.html">TurtleGit Help</a><a href="GETTING-STARTED.html">Getting started</a><a href="DIALOG-GUIDE.html">Dialog guide</a></nav><main id="content"><a name="topic-revert"></a><h1 id="reverting-working-files">Reverting working files</h1>
 <p>Revert replaces selected versioned files and their index entries with the chosen
 baseline. It does not make a commit. Added files are removed from the index while
-their working copies remain. Replaced working contents are moved to Trash for
-recovery; the result offers <strong>Show saved copies in Finder</strong>.</p>
-<p>Open Revert from a file list or Finder command, select the paths, review the
-baseline options and confirm. The progress table records Action and Path while
+their working copies remain. By default replaced working contents move to Trash
+for recovery; the result offers <strong>Show saved copies in Finder</strong>. The configured
+recycling preferences can disable those recovery copies.</p>
+<p>From Commit, Add or a Working Tree file list, Revert uses the highlighted files
+directly. Modified or type-changed ordinary files ask for confirmation first.
+The repository/Finder Revert command opens the selection window, where you can
+review paths and baseline options. The progress table records Action and Path while
 Git output appears below it. The final result includes any error or cancellation
 and retains recovery locations.</p>
 <p>When Revert has stopped, select a file result and open its context menu for
@@ -33,8 +36,15 @@ may ask whether to queue this cancellation; No lets the operation continue.</p>
 <p>A failed or cancelled result offers <strong>Retry</strong>. Retry rereads only the originally
 selected paths and their renamed counterparts. It uses their current status,
 rather than the old rows, and retains saved copies from previous attempts. It does
-not automatically revert unrelated modifications. An item that is no longer
-versioned cannot be restored by Retry.</p>
+not automatically revert unrelated modifications or silently omit requested names.
+Git reports a path that cannot be restored from the baseline as an error.</p>
+<p>A versioned row can enable Revert for a mixed highlighted selection that also
+contains unversioned or ignored files. All selected names belong to the operation.
+With recycling enabled, their existing ordinary working files can move to Trash
+before Git reports that an unknown path cannot be restored. The failed result
+retains those recovery locations. The real index stays unchanged on failure;
+completed working-file effects remain. Review the result and restore any needed
+copies before another attempt.</p>
 <p>The configured Git progress close policy is captured when the window opens.
 Manual keeps the result open. No options closes a successful result when no
 submodule handling action remains. No errors may close any successful result.

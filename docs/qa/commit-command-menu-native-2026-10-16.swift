@@ -33,6 +33,20 @@ struct CommitCommandMenuVerification {
         model.onCommitted={_ in commits += 1}
         func rootMenu()->NSMenu {main.items.first{$0.title=="Commit"}!.submenu!}
         func item(_ title:String)->NSMenuItem {find(title,in:rootMenu())!}
+        // Published changes and accepted actions retire the old invocation
+        // immediately; the native menu publishes fresh commands on its queued
+        // update. Positive actions must use that current validated item. Raw
+        // send(retainedItem) below deliberately tests stale/blocked callbacks.
+        func currentItem(_ title:String) async throws->NSMenuItem {
+            var captured:NSMenuItem?
+            try await wait {
+                guard let menu=main.items.first(where:{$0.title=="Commit"})?.submenu,
+                      let current=find(title,in:menu),menus.validateMenuItem(current) else{return false}
+                captured=current;return true
+            }
+            return captured!
+        }
+        func sendCurrent(_ title:String) async throws {send(try await currentItem(title))}
         let primary=rootMenu().items[0]
         try require(primary.title=="ReCommit" && primary.image != nil && menus.validateMenuItem(primary),"Remembered primary action/icon/state")
         try require(item("Commit actions").submenu!.items.map(\.title)==["Commit","ReCommit","Commit & Push"],"Source commit action menu")
@@ -40,23 +54,25 @@ struct CommitCommandMenuVerification {
         model.busy=true;try require(window.performKeyEquivalent(with:controlReturn) && commits==0 && !menus.validateMenuItem(primary),"Disabled Control-Return was not consumed")
         model.busy=false
         let other=NSWindow(contentRect:.zero,styleMask:[.titled],backing:.buffered,defer:false);defer {other.close()};other.isReleasedWhenClosed=false
-        menus.keyWindow={other};send(primary);try require(commits==0 && !menus.validateMenuItem(primary),"Background menu remained active");menus.keyWindow={window}
-        send(item("None"));try require(model.checked.isEmpty,"Native None")
-        send(item("Modified"));try require(model.checked==["file","other"],"Native category check")
+        let backgroundPrimary=try await currentItem("ReCommit")
+        menus.keyWindow={other};send(backgroundPrimary);try require(commits==0 && !menus.validateMenuItem(backgroundPrimary),"Background menu remained active");menus.keyWindow={window}
+        try await sendCurrent("None");try require(model.checked.isEmpty,"Native None")
+        try await sendCurrent("Modified");try require(model.checked==["file","other"],"Native category check")
         model.checked.insert("new");model.check({$0.state == .modified},checking:false)
         try require(model.checked==["new"],"Reverse category check changed unrelated rows")
         model.checkAll(true);try require(model.checked==GitPathSet(model.visibleEntries.filter{$0.state != .conflicted}.map(\.id)),"Reverse None/check all")
-        send(item("Staging support (EXPERIMENTAL)"));try await wait {!model.busy && !model.savingPreferences && model.stagingEnabled}
+        try await sendCurrent("Staging support (EXPERIMENTAL)");try await wait {!model.busy && !model.savingPreferences && model.stagingEnabled}
         model.check({$0.state == .modified},checking:true);try await wait {!model.busy && CommitWindowModel.activeFileOperations==0}
         try require(model.visibleEntries.filter{$0.state == .modified}.allSatisfy{model.isStaged($0)},"Staging category check")
         model.check({$0.state == .modified},checking:false);try await wait {!model.busy && CommitWindowModel.activeFileOperations==0}
         try require(model.visibleEntries.filter{$0.state == .modified}.allSatisfy{!model.isStaged($0)},"Staging reverse category check")
-        send(item("Staging support (EXPERIMENTAL)"));try await wait {!model.busy && !model.savingPreferences && !model.stagingEnabled}
+        try await sendCurrent("Staging support (EXPERIMENTAL)");try await wait {!model.busy && !model.savingPreferences && !model.stagingEnabled}
         model.message="Native command commit";model.checked=["file"]
-        send(item("Focus commit message"));try await wait {window.firstResponder === owner.messageEditor()}
+        try await sendCurrent("Focus commit message");try await wait {window.firstResponder === owner.messageEditor()}
         model.messageHistory?.add("history command")
-        send(item("Recent messages…"));try await wait {owner.hasMessagePicker && window.attachedSheet != nil}
-        try require(!menus.validateMenuItem(primary),"History sheet did not disable Commit")
+        let historyPrimary=try await currentItem("ReCommit")
+        try await sendCurrent("Recent messages…");try await wait {owner.hasMessagePicker && window.attachedSheet != nil}
+        try require(!menus.validateMenuItem(historyPrimary) && !owner.commandsAvailable,"History sheet did not disable Commit")
         let sheet=window.attachedSheet!
         let escape=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:sheet.windowNumber,context:nil,characters:"\u{1b}",charactersIgnoringModifiers:"\u{1b}",isARepeat:false,keyCode:53)!
         if !sheet.performKeyEquivalent(with:escape) {sheet.sendEvent(escape)}
@@ -64,7 +80,7 @@ struct CommitCommandMenuVerification {
         menus.install()
         var signOff:CheckedContinuation<String,Never>?,queries=0
         model.querySignOff={_ in queries += 1;return await withCheckedContinuation {signOff=$0}}
-        send(item("Add Signed-off-by"));try await wait {signOff != nil}
+        try await sendCurrent("Add Signed-off-by");try await wait {signOff != nil}
         try require(model.busy && !owner.windowShouldClose(window) && TurtleGitApplicationDelegate().applicationShouldTerminate(.shared) == .terminateCancel,"Sign-off read lost ownership")
         send(item("Add Signed-off-by"));try require(queries==1,"Sign-off duplicate read")
         let priorMessage=model.message
@@ -72,13 +88,13 @@ struct CommitCommandMenuVerification {
         try await wait {!model.busy && CommitWindowModel.activeFileOperations==0}
         try require(model.message==priorMessage && model.error != nil,"Close-requested cancellation changed sign-off draft")
         model.error=nil;try await wait {window.attachedSheet==nil};menus.install()
-        send(item("Add Signed-off-by"));try await wait {signOff != nil}
+        try await sendCurrent("Add Signed-off-by");try await wait {signOff != nil}
         try require(queries==2,"Sign-off retry unavailable")
         signOff?.resume(returning:"Signed-off-by: Command QA <commands@example.invalid>");signOff=nil
         try await wait {!model.busy && CommitWindowModel.activeFileOperations==0}
         try require(model.message.contains("Signed-off-by: Command QA"),"Sign-off retry not appended")
         model.querySignOff=nil
-        let stale=rootMenu().items[0],tracked=rootMenu();menus.menuWillOpen(tracked)
+        let stale=try await currentItem("ReCommit"),tracked=rootMenu();menus.menuWillOpen(tracked)
         main=NSMenu(title:"Replacement");menus.install();try require(main.items.isEmpty,"Tracking menu rebuilt prematurely")
         send(stale);try require(commits==0,"Detached target invoked")
         menus.menuDidClose(tracked);menus.install();menus.install()

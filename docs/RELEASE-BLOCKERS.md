@@ -43,6 +43,40 @@ the [label/history projection continuation](qa/log-history-projection-native-202
 now passes with both engines, preserving the full default assertion sequence.
 These bounded passes do not establish a complete corrected-source hosted pass.
 
+The later completed `ff4b6085` run ([41560015333](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41560015333))
+collects independent failures across all validation lanes; SVN passes. Core runs
+3,409 tests with three skipped and two failed assertions in one supplementary
+Commit-read test: its clean-repository fixture still expects an index query that
+the candidate-only reader intentionally skips. The repair must retain a second,
+changed-candidate case and exact query framing, rather than remove that coverage.
+Native failures include a Commit command fixture's `Native None` assertion and
+a report-row geometry timeout. These are distinct diagnostics; their common cause
+and remaining failures are not yet established. This run predates the connected
+readiness and Log-projection continuations above. Current-source hosted success
+remains a release gate; local passes cannot replace it.
+
+The current `839406e5` run ([41649018044](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41649018044))
+is also terminal failure; Pages and SVN pass, all eight validation lanes fail.
+Core now runs 3,413 tests with the same two supplementary-read assertions.
+Distribution advances past the repaired Log labels and reaches a later fixture
+that reuses a permanently invalidated Log model. Other verified stops concern
+Commit menu invocation readiness, a heterogeneous snapshot fixture compile error,
+optional LFS warning ownership, regex child ownership, a zero-sized editor
+viewport, an AppKit accessibility timeout, bookmark creation, About reopen and
+a later Switch tracking choice. These distinct diagnostics do not establish one
+shared cause or demonstrate every affected product workflow is broken. Their
+source-versus-fixture/platform distinctions remain explicit work; a complete
+corrected-source hosted pass is still required.
+
+The subsequent [direct Revert batch](qa/revert-direct-selection-2026-11-03.json)
+connects source-style list invocation, confirmation, complete mixed selections,
+Retry, captured recovery policy and actual cancellation/retirement drainage.
+It also repairs the identified supplementary-read, Commit invocation and retired
+Log fixtures without weakening their behavior checks. Its 43 distinct Core
+methods, bundled subset, Debug build and eight native case/engine combinations
+pass cumulatively after documented targeted repairs. This source continuation
+is not installed52 and has no complete hosted or signed physical acceptance yet.
+
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
 for nested folder selection. Core permission, Debug build and actual menu/context
@@ -513,13 +547,13 @@ hosted CI remains required. Installed build48 includes the repair.
 | --- | --- |
 | Source behavior and layout | [Family records](PORTING.md#current-component-and-workflow-state--october-25-2026) describe connected implementations. The [resource ledger](DIALOG-COVERAGE.md) keeps partial controls and unmapped platform/example resources explicit. Complete dialog states, command eligibility, layout, keyboard and accessibility acceptance must be established from their actual consumers, rather than counting screens. |
 | Connected workflow defects | Commit cross-presentation workflows have a [grouped checkpoint](qa/commit-presentation-workflows-2026-10-29.json). Explicit working-file Compare/conflict intent, captured requesting-repository routing, and Browser read-to-panel/launch ownership now pass their [connected native checkpoint](qa/file-comparison-browser-ownership-2026-10-29.json) with both Git engines and affected regressions. Explicit unchanged-file, copy/rename, Amend first-parent and added/deleted gitlink comparisons pass their [content checkpoint](qa/working-file-content-selection-2026-10-29.json), including read-only index preservation. The later [Log file inspection checkpoint](qa/log-streamed-file-navigation-2026-10-29.json) covers historical navigation and delivery during streamed history; its shared list-control regression is recorded separately. Current Commit screenshots cover both layouts and appearances; signed workflow acceptance remains separate. |
-| Current hosted integration | Installed [build49](qa/signed-consolidation-build49-2026-11-01.json) is exact `84c8b428`. A complete matching-source hosted pass has not been established. The [bounded older-source snapshot](qa/hosted-history-lfs-2026-10-31.json) separates pending/current and active/failed older jobs from successful Pages deployment. The [Sync/LFS repair](qa/hosted-history-lfs-repair-2026-10-31.json) passes focused local checks and is included in48. Earlier Intel fixture compilation limits retain their [source-preserving repair](qa/native-receiver-compilation-boundary-2026-10-31.json); hosted Intel timing remains open. |
-| Installed workflow acceptance | [Build41 physical acceptance](qa/signed-consolidation-build41-2026-10-30.json) covers Commit headers/staging, Log inspection, Remote selection and Settings dismissal in a private repository. [Build45](qa/signed-consolidation-build45-2026-10-31.json) adds signed runtime/package checks and actual About/global Settings ownership/listing observations; installed Updates acceptance was not established. All owned app processes exited and attributable geometry was restored. [Build49](qa/signed-consolidation-build49-2026-11-01.json) is installed and left closed after package/CLI runtime checks; no new shipping UI acceptance is claimed. Wider recovery, Finder/grants and representative large-repository behavior remain separate. |
+| Current hosted integration | Latest source `839406e5` has a [terminal failed macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41649018044); Pages and SVN pass. Verified Core, Commit/Log, editor, Finder and Switch diagnostics are listed above. Installed [build52](qa/signed-consolidation-build52-2026-11-03.json) binds source `3702643e`. Neither source has a complete matching hosted pass. |
+| Installed workflow acceptance | [Build52](qa/signed-consolidation-build52-2026-11-03.json) is installed and left closed after strict package/runtime checks and a bounded physical workspace/Commit startup observation on a private 34,304-path repository. Earlier [build41 acceptance](qa/signed-consolidation-build41-2026-10-30.json) retains Commit headers/staging, Log, Remote and Settings observations. Current-version wider recovery, Finder/grants and representative cold repositories remain separate. |
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
-| Startup and large repositories | [Finder publication](qa/finder-publication-pipeline-2026-10-27.json) and [shared Commit reads](qa/commit-shared-display-read-2026-10-27.json) have measured improvements. Complete installed startup/status latency and representative large repositories remain separate measurements; synthetic command counts are not an end-user timing guarantee. |
+| Startup and large repositories | The [connected readiness batch](qa/finder-readiness-publication-2026-11-03.json) separates usable workspace facts from optional Finder publication. Installed52 first shows usable commands at1.225s while publication continues, and correct Commit rows at the first successful5.569s observation. These include automation overhead and warm filesystem/cache state; cold Finder delivery and every-repository latency remain unproven. |
 | Image menu ownership | The [native image menu family](qa/image-main-menu-2026-10-31.json) connects comparison, standalone selection and repository conflict File/View commands, toolbar state and key ownership. Its record distinguishes hidden native checks from physical menu/keyboard/VoiceOver acceptance. Installed build48 contains this family. |
 | Editor Open ownership | The [text Open transaction checkpoint](qa/text-open-transaction-2026-10-31.json) records cumulative native source/Open/replacement/Scene passes and final patch permission transfer/retirement. Installed build48 contains this family. Complete physical/signed and full-source behavior acceptance remains separate. |
-| Blame navigation | The [caret/navigation checkpoint](qa/blame-caret-navigation-2026-10-31.json) covers actual caret starts, rapid repeated searches, manual interruption, Find rebinding/retirement and physical sheet-drain ownership with bounded Core/native evidence. The unsafe upstream terminal reverse loop is an explicit adaptation. Installed build47 predates this family; physical, translated and signed acceptance remain separate. |
+| Blame navigation | The [caret/navigation checkpoint](qa/blame-caret-navigation-2026-10-31.json) covers actual caret starts, rapid repeated searches, manual interruption, Find rebinding/retirement and physical sheet-drain ownership with bounded Core/native evidence. The unsafe upstream terminal reverse loop is an explicit adaptation. Installed52 includes this family; complete physical, translated and signed workflow acceptance remains separate. |
 | Text, image and document compatibility | [Comparison](IMAGE-COMPARISON.md), [metafile compatibility](IMAGE-METAFILE-PARITY.md), [formatted text](METAFILE-TEXT-PARITY.md) and the document-tool records retain unsupported formats, encodings, font/locale differences and external application boundaries. Explicit refusals must remain visible; a passed corpus is not universal format support. |
 | Historical filename boundaries | [Historical materialization/comparison](RAW-HISTORY-PARITY.md#materializationcomparison-checkpoint), [folder archives](BROWSER-ARCHIVE-PARITY.md) and [safe individual-file transfers](RAW-HISTORICAL-FILE-TRANSFER-PARITY.md) are implemented and separately checked. Raw original-path checkout, working-tree mutation/comparison, literal folder promises/exports with raw descendants and submodule checkout resolution retain the explicit [namespace boundaries](REPOSITORY-BROWSER-NAMESPACE-PARITY.md). A native-host filename probe does not establish every filesystem's capabilities. |
 | Provider and external transport acceptance | Native issue adapters, credentials, SSH, hooks, Git/LFS/SVN and Office adapters have their own bounded records. Authenticated public services, vendor-specific providers, receiving applications and real external permissions remain separate from private loopback/stub tests. |

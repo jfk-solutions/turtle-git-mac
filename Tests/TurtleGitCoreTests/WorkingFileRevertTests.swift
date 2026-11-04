@@ -75,14 +75,18 @@ final class WorkingFileRevertTests: XCTestCase {
         let staged = try await repo.run(["show", ":" + path]).stdout, afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
         XCTAssertEqual(staged, base); XCTAssertEqual(afterHead, head)
     }
-    func testInvalidMixedStaleAndIndexLockedSelectionsDoNotMoveWorkingFiles() async throws {
+    func testInvalidStaleAndIndexLockedSelectionsDoNotMoveWorkingFiles() async throws {
         let (root, repo, path) = try await GitPatchTests().fixture()
         defer { try? FileManager.default.removeItem(at: root) }
         let bytes = Data("working".utf8); try bytes.write(to: root.appendingPathComponent(path))
         try Data("untracked".utf8).write(to: root.appendingPathComponent("new"))
         let status = try await repo.status(), selected = status.filter { $0.path == path }
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        do { _ = try await repo.revertWorkingFiles(status); XCTFail("Mixed untracked selection accepted") } catch {}
+        // A valid mixed request now reaches the real Git result (covered by
+        // WorkingFileRevertMixedTests). An invalid member must still reject the
+        // entire request before any valid tracked or untracked file is moved.
+        let invalid = status + [StatusEntry(path: "../outside", originalPath: nil, index: "?", worktree: "?")]
+        do { _ = try await repo.revertWorkingFiles(invalid); XCTFail("Outside mixed request accepted") } catch {}
         let lock = root.appendingPathComponent(".git/index.lock"); try Data("external lock".utf8).write(to: lock)
         do { _ = try await repo.revertWorkingFiles(selected); XCTFail("External index lock accepted") } catch {}
         XCTAssertEqual(try Data(contentsOf: lock), Data("external lock".utf8))

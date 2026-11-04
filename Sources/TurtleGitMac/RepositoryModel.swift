@@ -217,6 +217,64 @@ extension RequestPullWindowController:FinderFilesystemWorkflowWindow {var finder
     deinit { if let observer { NotificationCenter.default.removeObserver(observer) } }
 }
 
+/// A status-list selection is modal to its source owner, but does not create
+/// the separate shell Revert planning dialog. Its result/Retry window and native
+/// question remain retained until their actual workers and sheets have drained.
+@MainActor private final class DirectWorkingFileRevertRequest {
+    let id=UUID()
+    private let source:RepositoryWindowOwner
+    private weak var window:NSWindow?
+    private let entries:[StatusEntry],policy:WorkingFileRevertPolicy,needsQuestion:Bool
+    private let available:()->Bool,completed:(Bool)->Void
+    private let present:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool
+    private let makeProgress:(@escaping(Bool)->Void)->RevertProgressWindowController?
+    private var question:(UUID,NSAlert)?
+    private var progress:RevertProgressWindowController?
+    private var retired=false,finished=false,drainingQuestion=false
+    init(window:NSWindow?,entries:[StatusEntry],policy:WorkingFileRevertPolicy,needsQuestion:Bool,
+         available:@escaping()->Bool,present:@escaping(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool,
+         makeProgress:@escaping(@escaping(Bool)->Void)->RevertProgressWindowController?,completed:@escaping(Bool)->Void) {
+        self.window=window;source=RepositoryWindowOwner(window:window);self.entries=entries;self.policy=policy;self.needsQuestion=needsQuestion
+        self.available=available;self.present=present;self.makeProgress=makeProgress;self.completed=completed
+        source.onCancelled={ [weak self] in self?.retire() }
+    }
+    private var current:Bool {!retired && !source.cancellation.isCancelled && available()}
+    func begin() {
+        guard current,!entries.isEmpty else{finish(false);return}
+        guard needsQuestion else{startProgress();return}
+        guard let window,window.attachedSheet==nil else{finish(false);return}
+        let alert=WorkingFileRevertPresentation.question(count:entries.count,policy:policy),identity=UUID()
+        alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance;window.makeFirstResponder(nil)
+        question=(identity,alert)
+        if !present(window,alert,{ [weak self] response in self?.answer(identity,accepted:response == .alertFirstButtonReturn) }) {answer(identity,accepted:false)}
+    }
+    private func answer(_ identity:UUID,accepted:Bool) {
+        guard let pending=question,pending.0==identity else{return};question=nil;drainingQuestion=true
+        Task { [self] in
+            await FileOperationWindowDrain.detach(pending.1.window);drainingQuestion=false
+            guard accepted,current else{finish(false);return}
+            startProgress()
+        }
+    }
+    private func startProgress() {
+        guard current else{finish(false);return}
+        let child=makeProgress{ [weak self] succeeded in guard let self else{return};self.finish(succeeded && self.current)}
+        if !finished {progress=child;if child==nil{finish(false)}}
+    }
+    func cancel() {
+        if let question {answer(question.0,accepted:false)}
+        else if let progress {if progress.model.busy {progress.model.cancel()} else {progress.model.close()}}
+        else if drainingQuestion {retired=true;source.cancellation.cancel()}
+    }
+    func retire() {
+        guard !retired else{return};retired=true;source.cancellation.cancel()
+        if let question {answer(question.0,accepted:false)}
+        else if let progress {progress.close()}
+        else if !drainingQuestion {finish(false)}
+    }
+    private func finish(_ succeeded:Bool) {guard !finished else{return};finished=true;progress=nil;completed(succeeded)}
+}
+
 /// UserDefaults' typed getters call object(forKey:). Keep that primitive and
 /// writes in an instance-local dictionary: a custom volatile domain is not in
 /// the search list, while NSArgumentDomain is shared across defaults instances.
@@ -559,7 +617,7 @@ private enum TransportBatchPresentationContext {
         let bare:Bool, rebase:Bool, merging:Bool
         let gitlinks:GitPathSet
         var paths:[String] { entries.map(\.path) }
-        var canRevert:Bool { !bare && !entries.isEmpty && entries.allSatisfy {![FileState.untracked,.ignored].contains($0.state)} }
+        var canRevert:Bool {!bare && entries.first.map{![FileState.untracked,.ignored].contains($0.state)} == true}
         var canRename:Bool { !bare && entries.count == 1 && ![FileState.untracked,.ignored,.deleted].contains(entries[0].state) }
         var canBlame:Bool {canRename && entries[0].index != "A" && entries[0].index != "D" && entries[0].worktree != "A" && !gitlinks.contains(entries[0].path)}
         var canMove:Bool { !bare && !entries.isEmpty && entries.allSatisfy {![FileState.untracked,.ignored,.deleted].contains($0.state)} }
@@ -664,6 +722,9 @@ private enum TransportBatchPresentationContext {
     private var switchProgressWindows: [UUID: SwitchProgressWindowController] = [:]
     private var switchWindows = RepositoryCommandWindowMap<SwitchWindowController>()
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
+    private var directRevertRequests:[UUID:DirectWorkingFileRevertRequest]=[:]
+    var presentRevertQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
+    var makeDirectRevertProgress:((GitRepository,RepositoryAccessLease?,[StatusEntry],Bool,Bool,UserDefaults,WorkingFileRevertPolicy)->RevertProgressWindowController)?
     private var addWindows = RepositoryCommandWindowMap<AddWindowController>()
     private var addUnifiedWindows = RepositoryCommandWindowMap<PatchWindowController>()
     private var svnWindows = RepositoryCommandWindowMap<SVNWindowController>()
@@ -815,7 +876,7 @@ private enum TransportBatchPresentationContext {
     }
     private var completedRepositoryHandoff: CompletedRepositoryHandoff?
     var hasPendingRepositoryHandoff: Bool { completedRepositoryHandoff != nil }
-    var hasPendingRepositoryWork: Bool { !finderAuthorityPreparations.isEmpty || !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || imageToolLaunches.values.contains { $0.hasPendingWork } || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
+    var hasPendingRepositoryWork: Bool { !directRevertRequests.isEmpty || !finderAuthorityPreparations.isEmpty || !inaccessiblePreparations.isEmpty || !fileComparisonSessions.isEmpty || hasPendingFinderServiceWork || commandRepositoryBatchCancellation != nil || commandTransportFolderChoice != nil || imageToolLaunches.values.contains { $0.hasPendingWork } || mergeToolLaunches.values.contains { $0.hasPendingWork } || hasPendingRepositoryHandoff || !addPreparations.isEmpty || !lfsPreparations.isEmpty || !mailPreparations.isEmpty || resolutionCommandPreparation != nil || !silentResolveSessions.isEmpty || conflictEditorPreparationCount > 0 || settingsPreparation != nil || transferPreparation != nil || creationFolderChoice != nil || sourceTransferOwner != nil || sourceWorktreeOwner != nil || commandImportOwner != nil || !commandOutputOwners.isEmpty }
     private var resolutionCommandPreparation: RepositoryWindowOwner?
     private var resolutionCommandFolderChoice: RepositoryCreationFolderChoice?
     private var silentResolveSessions = GitPathMap<FileListComparisonSession>()
@@ -928,7 +989,7 @@ private enum TransportBatchPresentationContext {
     private var eventRefresh:RepositoryEventRefresh?
     private var watchIdentity=UUID()
     private var watchPaths:[URL]=[]
-    func stopMonitoringForTermination() { retired = true;for token in finderAuthorityPreparations.values { token.cancel() };workspaceServicesCancellation?.cancel();for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() };for session in imageToolLaunches.values {session.cancel()}; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
+    func stopMonitoringForTermination() { retired = true;for request in Array(directRevertRequests.values) {request.retire()};for token in finderAuthorityPreparations.values { token.cancel() };workspaceServicesCancellation?.cancel();for controller in Array(rebaseCompletionMailWindows.values) {controller.close()};for token in finderRegistrations.values {token.cancel()}; for token in inaccessiblePreparations.values { token.cancel() };for prompt in inaccessibleFolderPrompts.values { prompt.cancel() };for controller in Array(inaccessibleWindows.values) { controller.close() }; for session in fileComparisonSessions.values { session.cancel() };cancelFinderServicePreparation(); for token in finderPublicationReads.values { token.cancel() }; for session in mergeToolLaunches.values { session.cancel() };for session in imageToolLaunches.values {session.cancel()}; for session in silentResolveSessions.values { session.cancel() }; resolutionCommandPreparation?.cancellation.cancel(); resolutionCommandFolderChoice?.cancel(); transferPreparation?.cancellation.cancel(); transferFolderChoice?.cancel(); settingsPreparation?.cancellation.cancel(); settingsFolderChoice?.cancel(); completedRepositoryHandoff = nil; creationFolderChoice?.cancel(); cancelFinderSourceTransfer(); cancelFinderWorktreeCreation(); for controller in Array(dropTransfers.values) { controller.close() }; commandImportOwner?.cancellation.cancel(); commandImportFolderChoice?.cancel(); for owner in addPreparations.values { owner.cancellation.cancel() }; for owner in lfsPreparations.values { owner.cancellation.cancel() }; for owner in mailPreparations.values { owner.cancellation.cancel(); owner.onCancelled() }; commandLineInputCancellation?.cancel(); cancelCommandTransportBatch(); for token in commandLineOutputOperations.values { token.cancel() };for owner in commandOutputOwners.values { owner.cancellation.cancel(); owner.onCancelled() };for controller in Array(commandReferenceWindows.values) { controller.close() }; repositoryAccessWindow?.model.retire();repositoryAccessWindow?.close();adoptionCancellation?.cancel();repositoryPermissionPrompt?.cancel();cancelConflictEditorPreparations(); stopFileMonitoring() }
     private func stopFileMonitoring() {
         watchIdentity=UUID();fileMonitor?.stop();fileMonitor=nil;watchPaths=[];eventRefresh?.retire();eventRefresh=nil
     }
@@ -1725,6 +1786,16 @@ private enum TransportBatchPresentationContext {
         workspaceClipboard.clearContents();workspaceClipboard.setString(values.joined(separator:"\n"),forType:.string)
     }
     func copyWorkspaceItems(_ paths:[String]) {guard let repository else{return};showCopy(repository:repository,access:activeAccess,sources:workspaceURLs(paths))}
+    func revertWorkspaceSelection(_ context:FileMenuSnapshot) {
+        guard context.canRevert,claimWorkspaceMenu(context),let repository else{return}
+        let generation=adoptionGeneration,selected=context.entries,policy=WorkingFileRevertPolicy.load(from:fileComparisonPreferences)
+        let directories=WorkingFileRevertPresentation.directories(selected,root:repository.root,known:context.gitlinks)
+        cancelWorkspaceFinderPublication();busy=true
+        showDirectRevert(repository:repository,access:activeAccess,entries:selected,owner:workspaceWindow,preferences:fileComparisonPreferences,policy:policy,
+            needsConfirmation:WorkingFileRevertPresentation.needsConfirmation(selected,directories:directories),
+            available:{[weak self] in self?.adoptionGeneration==generation && self?.entries.filter{row in selected.contains(row)}.count==selected.count},
+            completion:{[weak self] _ in guard let self,!self.retired,self.adoptionGeneration==generation else{return};self.busy=false;Task{await self.refresh()}})
+    }
     func showCommit(_ hash: String) { perform { try await $0.run(["show", "--no-ext-diff", "--no-color", hash, "--"]).text } }
     func commit() {
         let text = message
@@ -2825,10 +2896,12 @@ private enum TransportBatchPresentationContext {
                     self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if let self, self.root == repository.root { self.output = output; Task { await self.refresh() } }
                 }
-                controller.model.onRevert = CommandProgressContext.capture { [weak self, weak model = controller.model] entries, done in
-                    guard let self else { done(false); return {} }
-                    let progress = self.showRevertProgress(repository: repository, access: access, entries: entries, autoCloseSuccess: true, policy: model?.pendingRevertPolicy, completion: done)
-                    return { [weak progress] in progress?.model.cancel() }
+                controller.model.onRevert = CommandProgressContext.capture { [weak self,weak controller] entries,done in
+                    guard let self,let controller else{done(false);return{}}
+                    let model=controller.model,preferences=model.presentationPreferences
+                    return self.showDirectRevert(repository:repository,access:access,entries:entries,owner:controller.window,preferences:preferences,
+                        policy:model.pendingRevertPolicy ?? .load(from:preferences),needsConfirmation:false,
+                        available:{[weak model] in guard let model else{return false};return !model.retired && model.reverting && !model.confirmingQuit && entries.allSatisfy{entry in model.entries.contains{$0.status==entry}}},completion:done)
                 }
                 controller.model.onRestoreChanged = CommandProgressContext.capture { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
                 controller.model.onDeleteChanged = controller.model.onIgnoreChanged
@@ -3881,9 +3954,27 @@ private enum TransportBatchPresentationContext {
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
-    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, policy: WorkingFileRevertPolicy? = nil, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
+    @discardableResult func showDirectRevert(repository:GitRepository,access:RepositoryAccessLease?,entries:[StatusEntry],owner:NSWindow?,
+        preferences:UserDefaults,policy:WorkingFileRevertPolicy,needsConfirmation:Bool,amend:Bool=false,againstHead:Bool=false,
+        available:@escaping()->Bool,completion:@escaping(Bool)->Void) -> ()->Void {
+        guard !retired,!confirmingQuit,!entries.isEmpty else{completion(false);return{}}
+        let identity=UUID()
+        let request=DirectWorkingFileRevertRequest(window:owner,entries:entries,policy:policy,needsQuestion:needsConfirmation,
+            available:{ [weak self] in self?.retired==false && self?.confirmingQuit==false && available() },present:presentRevertQuestion,
+            makeProgress:{ [weak self] done in self?.showRevertProgress(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:true,policy:policy,preferences:preferences,completionOnClose:true,directFactory:true,completion:done) },
+            completed:{ [weak self] result in self?.directRevertRequests.removeValue(forKey:identity);completion(result) })
+        directRevertRequests[identity]=request
+        request.begin()
+        return{[weak request] in request?.cancel()}
+    }
+    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, policy: WorkingFileRevertPolicy? = nil, preferences:UserDefaults? = nil, completionOnClose:Bool = false, directFactory:Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()
-        let controller = RevertProgressWindowController(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences:fileComparisonPreferences, policy: policy)
+        let inherited=preferences ?? fileComparisonPreferences,capturedPolicy=policy ?? WorkingFileRevertPolicy.load(from:inherited)
+        let controller:RevertProgressWindowController
+        if directFactory,let makeDirectRevertProgress {controller=makeDirectRevertProgress(repository,access,entries,amend,againstHead,inherited,capturedPolicy)}
+        else {controller=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:autoCloseSuccess,preferences:inherited,policy:capturedPolicy)}
+        var result=false,answered=false
+        func finish(_ succeeded:Bool){guard !answered else{return};answered=true;completion(succeeded)}
         controller.model.confirmingQuit=confirmingQuit
         controller.model.externalAvailability=CommandProgressContext.capture { [weak self] in self?.retired == false && self?.confirmingQuit == false }
         let preferences=controller.model.preferences
@@ -3891,9 +3982,10 @@ private enum TransportBatchPresentationContext {
             guard let self,!self.retired,!self.confirmingQuit else{return}
             self.showLog(repository:repository,access:access,paths:[path],preferences:preferences)
         }
-        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.revertProgressWindows.removeValue(forKey: id) }
+        controller.onClosed = CommandProgressContext.capture { [weak self] in self?.revertProgressWindows.removeValue(forKey:id);if completionOnClose {finish(result)} }
         controller.model.onFinished = CommandProgressContext.capture { [weak self] output, succeeded in
-            completion(succeeded)
+            result=succeeded
+            if !completionOnClose {completion(succeeded)}
             self?.refreshRepositoryLogs(root)
             self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() }
             guard let self, self.root == root else { return }
@@ -3931,6 +4023,11 @@ private enum TransportBatchPresentationContext {
             guard let controller, !controller.model.retired, !controller.model.busy, !controller.model.confirmingQuit else { return false }
             return self?.receiveTransferDrop(providers, repository: repository, access: access, owner: controller.window) ?? false
         }
+        controller.model.onRevert=CommandProgressContext.capture { [weak self,weak controller] rows,policy,needsQuestion,done in
+            guard let self,let controller else{done(false);return{}}
+            return self.showDirectRevert(repository:repository,access:access,entries:rows,owner:controller.window,preferences:preferences,policy:policy,needsConfirmation:needsQuestion,
+                available:{[weak model=controller.model] in model?.revertSelectionIsCurrent==true},completion:done)
+        }
         controller.model.onAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             guard let self, let controller, !controller.model.controlsBlocked, let owner = controller.window else { return }
             if action == .diff {
@@ -3947,6 +4044,7 @@ private enum TransportBatchPresentationContext {
             }
             // Working Tree belongs to this repository even when the workspace is displaying another one.
             switch action {
+            case .revert: controller.model.requestRevert(controller.model.fileMenu(paths));return
             case .remove, .removeKeep: self.showRemove(repository: repository, access: access, paths: paths, keepLocal: action == .removeKeep); return
             case .move: self.showMove(repository: repository, access: access, paths: paths); return
             case .stash: self.showStash(repository: repository, access: access, preferences: preferences); return
@@ -4443,10 +4541,14 @@ private enum TransportBatchPresentationContext {
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
         }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
-        controller.model.onWorkingFiles = CommandProgressContext.capture { [weak self] action, paths in
-            if action == .add { self?.showAdd(repository: repository, access: access, paths: paths) }
-            else if action == .commit { self?.showCommitDialog(repository: repository, access: access, paths: paths) }
-            else if action == .revert { self?.showRevert(repository: repository, access: access, paths: paths) }
+        controller.model.onWorkingFiles = CommandProgressContext.capture { [weak self] action,paths in
+            if action == .add {self?.showAdd(repository:repository,access:access,paths:paths)}
+            else if action == .commit {self?.showCommitDialog(repository:repository,access:access,paths:paths)}
+        }
+        controller.model.onWorkingRevert=CommandProgressContext.capture { [weak self,weak controller] rows,policy,needsQuestion,done in
+            guard let self,let controller else{done(false);return{}}
+            return self.showDirectRevert(repository:repository,access:access,entries:rows,owner:controller.window,preferences:operationPreferences,policy:policy,needsConfirmation:needsQuestion,
+                available:{[weak model=controller.model] in model?.workingRevertSelectionIsCurrent==true},completion:done)
         }
         controller.model.onWorkingAdd = CommandProgressContext.capture { [weak self] paths, mode in
             self?.showAddProgress(repository: repository, access: access, paths: paths, mode: mode, preservePathOrder:true)
@@ -4835,9 +4937,11 @@ private enum TransportBatchPresentationContext {
             else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice, preferences: preferences) }
         }
         model.onIgnore = CommandProgressContext.capture { [weak self] action, paths in self?.showIgnore(repository: repository, access: access, paths: paths, action: action) }
-        model.onRevert = CommandProgressContext.capture { [weak self, weak model] entries, amend, againstHead, done in
-            guard let self else { done(false); return }
-            self.showRevertProgress(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: !entries.contains(where: { model?.submodules.contains($0.path) == true }), policy: model?.pendingRevertPolicy, completion: done)
+        model.onRevert = CommandProgressContext.capture { [weak self,weak model] entries,amend,againstHead,done in
+            guard let self,let model else{done(false);return{}}
+            return self.showDirectRevert(repository:repository,access:access,entries:entries,owner:model.comparisonWindow,preferences:preferences,
+                policy:model.pendingRevertPolicy ?? .load(from:preferences),needsConfirmation:model.pendingRevertNeedsConfirmation,amend:amend,againstHead:againstHead,
+                available:{[weak model] in model?.revertSelectionIsCurrent==true && model?.amend==amend && model?.amendDiffToLastCommit==againstHead},completion:done)
         }
         model.onCopyAdd = CommandProgressContext.capture { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
         model.onPasteFiles = CommandProgressContext.capture { [weak self] copy, urls in self?.showFileTransfer(copy: copy, repository: repository, access: access, urls: urls) }

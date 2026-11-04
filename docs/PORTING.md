@@ -28,6 +28,26 @@ removed or restored. See the
 Complete hosted CI, physical/platform and full-port requirements remain open.
 No public binary upload, notarization or App Store submission occurred.
 
+## Direct file-list Revert — November 3–4, 2026
+
+Commit, Add, Status, Log Working Tree and workspace file-list actions now retain
+the captured selection through confirmation and progress instead of inserting
+the repository/Finder selection planner. The source's modified/type-change
+ordinary-file warning defaults to Yes. Mixed unversioned/ignored selections keep
+their actual Git error and recovery copies; Retry retains the complete intent
+and captured disposal policy. Parent cancellation, sheet dismissal and forced
+retirement keep their actual workers and access alive until drainage.
+
+The [grouped checkpoint](qa/revert-direct-selection-2026-11-03.json) records 43
+distinct Core methods passing cumulatively, the bundled mixed/read subset, one
+Debug build and eight native case/engine combinations. The first Core run caught
+a rename-counterpart Retry policy regression; its targeted repair retains the
+existing recovery and symlink assertions. Native fixture API, route-admission and
+retired-owner corrections retain the original behavior checks. All 11 attempted
+receivers are reaped and independently absent. Four native list routes are
+exercised; workspace physical/menu acceptance remains separate. Installed52 is
+unchanged; complete hosted, signed/physical and full-dialog acceptance remain open.
+
 ## Native Log label and history projection continuation
 
 The older hosted replay checkpoint reached a nil cell in a fixture-created,

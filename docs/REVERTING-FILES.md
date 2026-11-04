@@ -2,11 +2,14 @@
 
 Revert replaces selected versioned files and their index entries with the chosen
 baseline. It does not make a commit. Added files are removed from the index while
-their working copies remain. Replaced working contents are moved to Trash for
-recovery; the result offers **Show saved copies in Finder**.
+their working copies remain. By default replaced working contents move to Trash
+for recovery; the result offers **Show saved copies in Finder**. The configured
+recycling preferences can disable those recovery copies.
 
-Open Revert from a file list or Finder command, select the paths, review the
-baseline options and confirm. The progress table records Action and Path while
+From Commit, Add or a Working Tree file list, Revert uses the highlighted files
+directly. Modified or type-changed ordinary files ask for confirmation first.
+The repository/Finder Revert command opens the selection window, where you can
+review paths and baseline options. The progress table records Action and Path while
 Git output appears below it. The final result includes any error or cancellation
 and retains recovery locations.
 
@@ -39,8 +42,16 @@ may ask whether to queue this cancellation; No lets the operation continue.
 A failed or cancelled result offers **Retry**. Retry rereads only the originally
 selected paths and their renamed counterparts. It uses their current status,
 rather than the old rows, and retains saved copies from previous attempts. It does
-not automatically revert unrelated modifications. An item that is no longer
-versioned cannot be restored by Retry.
+not automatically revert unrelated modifications or silently omit requested names.
+Git reports a path that cannot be restored from the baseline as an error.
+
+A versioned row can enable Revert for a mixed highlighted selection that also
+contains unversioned or ignored files. All selected names belong to the operation.
+With recycling enabled, their existing ordinary working files can move to Trash
+before Git reports that an unknown path cannot be restored. The failed result
+retains those recovery locations. The real index stays unchanged on failure;
+completed working-file effects remain. Review the result and restore any needed
+copies before another attempt.
 
 The configured Git progress close policy is captured when the window opens.
 Manual keeps the result open. No options closes a successful result when no

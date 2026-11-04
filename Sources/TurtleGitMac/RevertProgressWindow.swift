@@ -3,6 +3,21 @@ import SwiftUI
 import TurtleGitCore
 
 enum WorkingFileRevertPresentation {
+    static func directories(_ entries:[StatusEntry],root:URL,known:GitPathSet = [])->GitPathSet {
+        GitPathSet(entries.filter {known.contains($0.path) || (try? FileManager.default.attributesOfItem(atPath:root.appendingPathComponent($0.path).path)[.type] as? FileAttributeType) == .typeDirectory}.map(\.path))
+    }
+    /// GitStatusListCtrl asks only for modified/type-changed nondirectories.
+    /// Aggregated .modified also represents clean, renamed and copied rows.
+    static func needsConfirmation(_ entries:[StatusEntry],directories:GitPathSet)->Bool {
+        entries.contains{!directories.contains($0.path) && [$0.index,$0.worktree].contains{$0=="M" || $0=="T"}}
+    }
+    static func question(count:Int,policy:WorkingFileRevertPolicy)->NSAlert {
+        let alert=NSAlert();alert.messageText="Are you sure you want to revert \(count) item(s)?"
+        alert.informativeText="You will lose ALL changes since the last update! "+confirmation(policy)
+        let yes=alert.addButton(withTitle:"Yes");alert.addButton(withTitle:"No")
+        yes.keyEquivalent="\r";alert.window.defaultButtonCell=yes.cell as? NSButtonCell
+        return alert
+    }
     static func disposition(_ policy:WorkingFileRevertPolicy)->String {
         if !policy.recycle {return "Replaced working contents will not be saved to Trash. This cannot be undone."}
         if !policy.recycleRenamedFiles {return "Replaced working contents move to Trash, except renamed files. Replaced contents of renamed files will not be saved."}

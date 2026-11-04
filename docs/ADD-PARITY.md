@@ -85,10 +85,12 @@ retained, and saved restoration copies remain available for explicit restoration
 Failures refresh the available rows and retain checks for rows that remain. Clean tracked
 rows explicitly selected in a mixed Add scope are now accepted by the shared
 backend, with the same stale-status check as changed rows. Modified contents are
-recoverable in Trash and unrelated staged files are preserved. The backend still
-rejects mixed unversioned/ignored selections before moving any files; broader
-mixed-status behavior remains an explicit parity gap, rather than silently
-filtering requested files. See [the Revert record](qa/add-revert-2026-10-06.json)
+recoverable in Trash and unrelated staged files are preserved. The earlier backend
+rejected mixed unversioned/ignored selections. The
+[direct Revert continuation](REVERT-PARITY.md#direct-selection-and-mixed-path-invocation--november-3-2026)
+retains those paths, the source's Git pathspec error and actual recovery copies;
+Retry no longer silently narrows the request. Its confirmation also adopts the
+source Yes default. See [the earlier Revert record](qa/add-revert-2026-10-06.json)
 for actual Add/progress receivers, full regression and pending native acceptance.
 
 Index-flag commands now follow the marked versioned row: Skip worktree excludes

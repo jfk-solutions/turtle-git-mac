@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "26819ab0ab1be92c2e2050e7c8e1478a5a5f4cad71c448f4ab06995e0509df4d",
+    "Contents/Info.plist": "b965201c440c1f60da8a3c5c8c2e0b5033d5dd471f07ae7ac79c8785403a9668",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "25d04d51dec9a0e28cf188aef74042ab05e86f586b11216e9de757a1ed6f2ac2",
@@ -51,7 +51,7 @@
     "Contents/Resources/en.lproj/REPORT-PROBLEM.html": "0df059cfed0c4ead4822a12d3ddbdd4a67e96977c6454815c883ac1c5b3f140b",
     "Contents/Resources/en.lproj/REPOSITORY-FOLDER-ACCESS.html": "d11e62aeb77d6e79a8b7da8b01398538ecb7d9b1cd180ad9bdf1362951f2cbed",
     "Contents/Resources/en.lproj/REVERT-COMMIT.html": "e495b9815015bf6bb3913634bf3e6d08308764d1c5957d4a852e299eb1941522",
-    "Contents/Resources/en.lproj/REVERTING-FILES.html": "068ee4b6a0403f7e350d2a8cf00e965a3b30171ba63ad90e8e0efd17fd92f0b3",
+    "Contents/Resources/en.lproj/REVERTING-FILES.html": "ca3cc205ca599857368e03858b431263cbf6e93b365473657086decfd5a3c22b",
     "Contents/Resources/en.lproj/REVISION-EXPORT.html": "bd22d2e6c07285db5ae65770d8c21e6939e13052eb9ebef27870cc5ea189b4c9",
     "Contents/Resources/en.lproj/REVISION-GRAPH.html": "cd5e5b2741919bf15317de70ab0ce089e9d4a139daf5d1cfe113f2fc1ce8f8a7",
     "Contents/Resources/en.lproj/SAVE-AS-TARGETS.html": "a8f685a512c620f5642f4dbefda4ba3f639038026a53cf6c68a22f22c2ae7c5c",
@@ -148,7 +148,7 @@
     "docs/REPORT-PROBLEM.md": "b946999890457db6f28b68d28efcf361d6307b2e296b9bd4b5d5a6aafc7b2cb3",
     "docs/REPOSITORY-FOLDER-ACCESS.md": "403c7b08f6de01a471885f158d4bd5c2eb37b719f83fd2fef3dbd2c3644cb2df",
     "docs/REVERT-COMMIT.md": "f3876bf700da4933a754e2f6b40b6c1bb2d144634182717cbc99ef29bd84b879",
-    "docs/REVERTING-FILES.md": "d2965b300220e6cd6c946bd38b4af97ef56f07c097311d84c2782e57023e6e4a",
+    "docs/REVERTING-FILES.md": "8ea8b01fbb99afcbbf8ed1ad50825c90762ed82c640932e3e9139fe33c7ef057",
     "docs/REVISION-EXPORT.md": "4aba935a7e46d8d27c7a8250f646aeea207f0038c183eacb46eccbb4ed175f40",
     "docs/REVISION-GRAPH.md": "51fd6fa851e90a45ae7d0682c8869bb6284c2ad4bc18e29f9b44ad871ba7399d",
     "docs/SAVE-AS-TARGETS.md": "f459f2e8eecf636479352dbcc36f220d4f6efec6f9f8f75c0c95e1cc3d3e19c8",
