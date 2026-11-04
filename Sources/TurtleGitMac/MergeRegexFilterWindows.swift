@@ -182,7 +182,11 @@ extension Notification.Name {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 570, height: 350), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
         window.title = "Regex Filters"; window.isReleasedWhenClosed = false; window.contentMinSize = .init(width: 450, height: 290)
         super.init(window: window); window.delegate = self; window.center()
-        window.contentViewController = NSHostingController(rootView: MergeRegexFilterListView(model: model))
+        let host=NSHostingController(rootView:MergeRegexFilterListView(model:model))
+        // The native window owns its resizable viewport; the table's intrinsic
+        // fitting size must not replace the intended initial dialog geometry.
+        host.sizingOptions=[];window.contentViewController=host
+        window.setContentSize(.init(width:570,height:350))
         model.edit = { [weak self] in self?.edit($0) }; model.close = { [weak self] in self?.window?.performClose(nil) }
         model.importFile = { [weak self] in self?.chooseTransfer(exporting:false,context:$0) }
         model.exportFile = { [weak self] in self?.chooseTransfer(exporting:true,context:$0) }
@@ -290,7 +294,11 @@ extension Notification.Name {
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 570, height: 230), styleMask: [.titled, .closable], backing: .buffered, defer: false)
         window.title = "Regex Filter"; window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
-        window.contentViewController = NSHostingController(rootView: MergeRegexFilterEditView(model: model).frame(width: 570, height: 230))
+        let host=NSHostingController(rootView:MergeRegexFilterEditView(model:model).frame(width:570,height:230))
+        // RegexFilterDlg is a fixed-size child. Keep that native content size
+        // explicit instead of delegating the sheet frame to host autosizing.
+        host.sizingOptions=[];window.contentViewController=host
+        window.setContentSize(.init(width:570,height:230))
         model.accepted = { [weak self] value in self?.finish(value) }
         model.close = { [weak self] in self?.cancel() }
     }

@@ -48,6 +48,21 @@ receivers are reaped and independently absent. Four native list routes are
 exercised; workspace physical/menu acceptance remains separate. Installed52 is
 unchanged; complete hosted, signed/physical and full-dialog acceptance remain open.
 
+## Commit read feedback and file-action consumers — November 4–5, 2026
+
+Optional lock/template notices now remain with the accepted Commit file list
+after alert acknowledgement. Hide/reset/retry retain unrelated diagnostics and
+retire only the corresponding ownership warning. The fixed feedback area preserves
+the actual report/header geometry. Regex list/editor content sizes are explicit,
+and primary file menus retain concrete per-owner eligibility checks.
+
+The [grouped checkpoint](qa/commit-file-actions-feedback-2026-11-04.json) passes
+one Debug build and nine native cases/engine combinations. Core code is unchanged
+and its suite was not repeated. All 11 attempted receivers are reaped and absent.
+Current `f7a0a97f` CI exposed an older compiler rejecting the discarded function
+returned by workspace Revert; this batch uses an explicit discard. Corrected-source
+hosted confirmation remains open. Installed52 is unchanged.
+
 ## Native Log label and history projection continuation
 
 The older hosted replay checkpoint reached a nil cell in a fixture-created,

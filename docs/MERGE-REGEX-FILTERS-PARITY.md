@@ -144,3 +144,13 @@ through actual sheet detachment. A replacement editor cannot enter during that
 drain; accepted values are adopted after modal release. Validation, cancellation,
 stale bindings and concurrent persistence retain their existing guards. The
 Debug build passes; the affected native workflow still needs runtime validation.
+
+The [November 4–5 continuation](qa/commit-file-actions-feedback-2026-11-04.json)
+makes the list's initial native content size of 570×350 points and minimum of
+450×290 explicit; the fixed editor owns 570×230 content. Both hosts disable automatic intrinsic
+window sizing. Mounted sheet/title/size and parent/session exclusion are checked
+separately, preserving the original composite conditions. Source list/editor,
+actual comparison filtering and INI file workflows now pass their grouped native
+checkpoint, including real retirement and helper drainage. This supersedes the
+scoped runtime gap above. The old hosted conjunction did not identify its exact
+failing component; no complete old-SDK, physical or full-regex acceptance is claimed.

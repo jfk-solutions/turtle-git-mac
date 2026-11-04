@@ -119,6 +119,12 @@ resize columns. Row height follows the configured file-list font and leaves room
 for checkboxes and status icons. Hover for full values; copying retains the
 original filenames, including Unicode and embedded line breaks.
 
+If the **LFS Lock** column is visible and lock lookup fails, the current changed
+files still load. The warning remains in the status area after you acknowledge its
+alert; lock actions stay unavailable while ownership is unknown. Refresh to retry
+the lookup after fixing the connection or credentials. A successful lookup clears
+the warning and updates the owners.
+
 Use the compact selector at the upper right to choose **Classic** or
 **Git Gui-style staging**. The choice is remembered for later Commit windows.
 

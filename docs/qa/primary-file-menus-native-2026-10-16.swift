@@ -1,5 +1,13 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func primaryFileMenuOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;setFrameOrigin(.init(x:-28000,y:-28000));primaryFileMenuOrder(mode,relativeTo:number)
+    }
+    @objc func primaryFileMenuConstrain(_ frame:NSRect,to screen:NSScreen?)->NSRect {frame}
+}
 
 @main struct PrimaryFileMenusVerification {
     struct Failure: Error, CustomStringConvertible { let description:String }
@@ -8,8 +16,34 @@ import TurtleGitCore
         for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
         throw Failure(description:"Primary file menu timeout")
     }
-    @MainActor static func main() async {
-        do { try await verify() } catch { fputs("Primary file menus failed: \(error)\n",stderr); exit(1) }
+    @MainActor static var clearPreferences:(()->Void)?
+    @MainActor static func drain() async -> Bool {
+        for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)};window.close()}
+        for _ in 0..<3000 {
+            if StatusWindowModel.activeOperations==0,CommitWindowModel.activeReloads==0,
+               CommitWindowModel.activeFileOperations==0,CommitWindowModel.activeMetadataOperations==0,
+               CommitWindowModel.activePreferenceOperations==0,CommitWindowModel.activeFileDrops==0,
+               CommitWindowModel.activeIssueProviderOperations==0,CommitWindowModel.activeCommitPreflights==0,
+               AddProgressWindowModel.activeOperations==0,AddProgressWindowController.activeReleases==0,
+               NSApp.windows.allSatisfy({!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}) {return true}
+            try? await Task.sleep(nanoseconds:10_000_000)
+        }
+        return false
+    }
+    @MainActor static func main() async throws {
+        NSApp.setActivationPolicy(.prohibited)
+        method_exchangeImplementations(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,class_getInstanceMethod(NSWindow.self,#selector(NSWindow.primaryFileMenuOrder(_:relativeTo:)))!)
+        method_exchangeImplementations(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:)))!,class_getInstanceMethod(NSWindow.self,#selector(NSWindow.primaryFileMenuConstrain(_:to:)))!)
+        defer {
+            method_exchangeImplementations(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,class_getInstanceMethod(NSWindow.self,#selector(NSWindow.primaryFileMenuOrder(_:relativeTo:)))!)
+            method_exchangeImplementations(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.constrainFrameRect(_:to:)))!,class_getInstanceMethod(NSWindow.self,#selector(NSWindow.primaryFileMenuConstrain(_:to:)))!)
+        }
+        var failure:Error?
+        do {try await verify()} catch {failure=error}
+        guard await drain() else {throw Failure(description:"Primary file menu readers/windows did not drain; original failure: \(String(describing:failure))")}
+        clearPreferences?();clearPreferences=nil
+        if let failure {throw failure}
+        print("PASS: primary marked-row mixed menus, Shift Add variants/directory gate, captured Commit paths/stale retirement, native force Add progress and staged modes, mixed index flags/partial diagnostic, unrelated index and HEAD preservation; owned windows and readers drained")
     }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath:CommandLine.arguments[1]), git = URL(fileURLWithPath:CommandLine.arguments[2])
@@ -30,7 +64,7 @@ import TurtleGitCore
         let head = try await repo.run(["rev-parse","HEAD"]).stdout
         let outside = try await repo.run(["ls-files","--stage","-z","--","outside"]).stdout
         let suite = "TurtleGit.PrimaryFileMenus." + UUID().uuidString, defaults = UserDefaults(suiteName:suite)!
-        defer { defaults.removePersistentDomain(forName:suite) }
+        clearPreferences={defaults.removePersistentDomain(forName:suite)}
         defaults.set(true,forKey:"AddBeforeCommit")
         let status = StatusWindowController(repository:repo,access:nil,defaults:defaults), model = status.model
         let commit = CommitWindowController(repository:repo,access:nil,defaults:defaults), cm = commit.model
@@ -42,11 +76,14 @@ import TurtleGitCore
         let selected:Set<String> = ["tracked",unknown]
         let statusTracked = model.fileMenu(selected,mark:"tracked"), statusUnknown = model.fileMenu(selected,mark:unknown)
         let commitTracked = cm.fileMenu(selected,mark:"tracked"), commitUnknown = cm.fileMenu(selected,mark:unknown)
-        for menu in [statusTracked,commitTracked] { try require(menu.offersCompare && menu.offersRevert && !menu.offersAdd && !menu.offersIgnore,"Tracked mark must gate mixed selection") }
-        for menu in [statusUnknown,commitUnknown] {
-            try require(menu.offersAdd && menu.offersIgnore && !menu.offersCompare && !menu.offersRevert,"Untracked mark must gate mixed selection")
-            try require(menu.addModes(extended:false) == [.normal] && menu.addModes(extended:true) == [.normal,.executable,.symlink],"Shift Add mode list differs from source")
-        }
+        // These are deliberately different concrete owner snapshots. Preserve
+        // each owner's public menu behavior instead of erasing both to Any.
+        try require(statusTracked.offersCompare && statusTracked.offersRevert && !statusTracked.offersAdd && !statusTracked.offersIgnore,"Status tracked mark must gate mixed selection")
+        try require(commitTracked.offersCompare && commitTracked.offersRevert && !commitTracked.offersAdd && !commitTracked.offersIgnore,"Commit tracked mark must gate mixed selection")
+        try require(statusUnknown.offersAdd && statusUnknown.offersIgnore && !statusUnknown.offersCompare && !statusUnknown.offersRevert,"Status untracked mark must gate mixed selection")
+        try require(commitUnknown.offersAdd && commitUnknown.offersIgnore && !commitUnknown.offersCompare && !commitUnknown.offersRevert,"Commit untracked mark must gate mixed selection")
+        try require(statusUnknown.addModes(extended:false) == [.normal] && statusUnknown.addModes(extended:true) == [.normal,.executable,.symlink],"Status Shift Add mode list differs from source")
+        try require(commitUnknown.addModes(extended:false) == [.normal] && commitUnknown.addModes(extended:true) == [.normal,.executable,.symlink],"Commit Shift Add mode list differs from source")
         // Synthetic conflict models exercise both owners without manufacturing a
         // merge or dispatching a write through an invented index state.
         let conflict = StatusEntry.parse(Data("UU conflict\0".utf8))[0]
@@ -104,6 +141,5 @@ import TurtleGitCore
         model.commitSelection(flaggedUnknown); model.addSelection(flaggedUnknown,mode:.normal)
         try require(commits.count == 1 && dispatched.count == 3,"Retired owner dispatched context action")
         for child in progress { child.close() }; commit.close(); status.close()
-        print("PASS: primary marked-row mixed menus, Shift Add variants/directory gate, captured Commit paths/stale retirement, native force Add progress and staged modes, mixed index flags/partial diagnostic, unrelated index and HEAD preservation; owned windows closed")
     }
 }

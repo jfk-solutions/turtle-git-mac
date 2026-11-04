@@ -1,0 +1,130 @@
+{
+  "date": "2026-11-04",
+  "completed_date": "2026-11-05",
+  "source_parent": "f7a0a97f87481793ac217bc477967a434866a1e1",
+  "status": "grouped_native_checkpoint_passed",
+  "upstream": {
+    "commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "optional_lfs": "src/Git/GitStatusListCtrl.cpp:396-404,4229-4233",
+    "regex": [
+      "src/TortoiseMerge/RegexFiltersDlg.cpp",
+      "src/TortoiseMerge/RegexFilterDlg.cpp",
+      "IDD_REGEXFILTERS",
+      "IDD_REGEXFILTER"
+    ]
+  },
+  "implementation": [
+    "Accepted Commit read warnings retain explicit message-seed/LFS-lock origins and remain in the existing fixed-height feedback area after modal acknowledgement.",
+    "Pending, failed and cancelled reads retain the accepted warning snapshot; successful reads and LFS hide/direct Reset/confirmed Reset retire only the appropriate ownership/notice. Other action diagnostics and template warnings remain separate.",
+    "Regex list and fixed editor hosts explicitly retain native initial content sizes with host automatic sizing disabled; parent/session, validation, cancellation, file-panel and persistence guards remain.",
+    "Primary Status/Commit menu checks retain concrete owner snapshot types and every marked-row/Shift Add/index-flag assertion.",
+    "Workspace Revert explicitly discards its returned cancellation function, repairing the old hosted compiler unused-function error without changing ownership or behavior."
+  ],
+  "validation": {
+    "core": {
+      "run": false,
+      "reason": "No Core source or Git algorithm changed. Native checks execute actual Git and bundled regex consumers; the preceding Core checkpoint is retained without another full suite."
+    },
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/commit-file-actions-debug-2026-11-04.log",
+      "configuration": "Unsigned arm64 Debug, existing derived data. Existing CoreSimulator and compiler diagnostics retained."
+    },
+    "native": {
+      "case_engine_combinations": 9,
+      "passed": true,
+      "scope": [
+        "Commit complete refresh/optional feedback snapshot with system and bundled Git",
+        "Commit/Status/Revert native list position with system and bundled Git",
+        "Primary marked-row file menus with system and bundled Git",
+        "Regex source list/editor, comparison and INI workflows using the packaged parser"
+      ],
+      "passing_logs": [
+        "build/qa/commit-file-actions-native-refresh-repair-2026-11-05.log",
+        "build/qa/commit-file-actions-native-menus-2026-11-04.log",
+        "build/qa/commit-file-actions-native-regex-2026-11-04.log"
+      ],
+      "initial_failures": [
+        {
+          "log": "build/qa/commit-file-actions-native-refresh-2026-11-04.log",
+          "diagnostic": "Geometry assertion compared hidden parent screen origin; next diagnostic identified no table/header change."
+        },
+        {
+          "log": "build/qa/commit-file-actions-native-geometry-diagnosis-2026-11-05.log",
+          "diagnostic": "Identical table/header identities, window size1280x1012, viewport(21,137,1238,415.5) and header(22,523.5,1236,28); AppKit moved offscreen parent from(-30000,-30000) to(-510,-351) when attaching alert. Fixture now compares actual window size and exact internal window-coordinate rectangles/identities, allowing that private screen relocation."
+        }
+      ],
+      "receiver_pids": [
+        42002,
+        42158,
+        42337,
+        42526,
+        42550,
+        42576,
+        43441,
+        44731,
+        45066,
+        45410,
+        45676
+      ],
+      "receiver_absence": {
+        "exit_code": 1,
+        "output": ""
+      },
+      "ownership": "Private repositories, preferences/config/temp and injected responses; invisible/offscreen windows including sheets; actual read/window retirement before PASS and exact-image/private-resource helper cleanup on every path. No installed app was launched.",
+      "cache": "Shared app-object cache retained. Commit receiver generated sources use stable paths and original source directives; existing generated fileID warnings retained.",
+      "not_claimed": [
+        "Physical screen placement or full theme/locale/accessibility acceptance",
+        "Complete hosted CI or old-SDK validation",
+        "Full upstream dialog certification"
+      ]
+    },
+    "resources": {
+      "localizations": {
+        "write_exit_code": 0,
+        "check_exit_code": 0,
+        "languages": 38,
+        "keys": 1392
+      },
+      "help": {
+        "write_exit_code": 0,
+        "check_exit_code": 0,
+        "documents": 64,
+        "topics": 53,
+        "files": 98,
+        "bytes": 9405090
+      },
+      "dialog_coverage": {
+        "exit_code": 0,
+        "log": "build/qa/commit-file-actions-dialog-coverage-2026-11-05.log",
+        "dialogs": 130,
+        "partial_family_audits": 120,
+        "pending_family_reviews": 10,
+        "pending_control_reviews": 85,
+        "certified_complete": 0,
+        "meaning": "Review references, not feature-completion percentages."
+      }
+    }
+  },
+  "hosted": {
+    "run": 41927023904,
+    "source": "f7a0a97f87481793ac217bc477967a434866a1e1",
+    "observed": "2026-11-05",
+    "svn": "success",
+    "completed_validation_lanes": "Seven failed at step74 Application and embedded Finder extension; distribution still in progress at observation.",
+    "exact_compile_diagnostic": "RepositoryModel.swift1794 function is unused: discarded function-valued showDirectRevert result.",
+    "repair_in_this_batch": "Explicit `_ =` assignment. Modern local Debug passes; corrected-source hosted confirmation remains required."
+  },
+  "remaining": [
+    "Current-source complete hosted CI pass, including older SDK/Intel consumers.",
+    "Compare/Merge mounted history and true-system-AX workflow investigation.",
+    "Signed/physical Finder, external permissions, complete dialog states and full-port acceptance."
+  ],
+  "installed": "Build52 remains installed at source3702643e. No new signed candidate, installation, publication or App Store submission.",
+  "changed_production_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "f598714c0871caa123dd44e503ead9d01e6551af11e8fd7808d324f700b84d35",
+    "Sources/TurtleGitMac/MergeRegexFilterWindows.swift": "17a1e76fb24a28792e78df07385291bab5add69b689f5cb03c6e2bc2c69d0030",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "86543976f02ae3436d09478833948c4a3cc1df49305b145e5adeccb96c9b3b83"
+  },
+  "native_receiver_generation": "f2efe7c4103053c46f70b83121b8eaea8ed41243b94b3e158f9fc76a69834ede"
+}

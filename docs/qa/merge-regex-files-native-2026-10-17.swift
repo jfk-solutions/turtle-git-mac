@@ -57,6 +57,7 @@ struct MergeRegexFilesVerification {
         try require(model.filters==draft && model.error != nil && scopes==0,"Invalid regex partially replaced the library")
         try originalBytes.write(to:input)
         var readGate:CheckedContinuation<Void,Never>?, reading=false
+        defer {readGate?.resume();readGate=nil}
         list.readFile={ _,_,token in reading=true;await withCheckedContinuation { readGate=$0 };try token.check();return imported }
         model.importFile(model.context);let staleCancel=model.context;open!.1(.OK)
         try await wait { reading }
@@ -81,6 +82,7 @@ struct MergeRegexFilesVerification {
         defer { writing.retire() }
         let lateOutput=root.appendingPathComponent("accepted-export.ini")
         var writeGate:CheckedContinuation<Void,Never>?,started=false,writeReply:((NSApplication.ModalResponse)->Void)?,writePanel:NSSavePanel?
+        defer {writeGate?.resume();writeGate=nil}
         writing.presentSave={ panel,_,reply in writePanel=panel;writeReply=reply };writing.chosenSaveURL={ _ in lateOutput }
         writing.startScope={ _ in scopes += 1;return true };writing.stopScope={ _ in scopes -= 1 }
         writing.writeFile={ data,url,token in try token.check();started=true;await withCheckedContinuation { writeGate=$0 };try data.write(to:url,options:.atomic) }

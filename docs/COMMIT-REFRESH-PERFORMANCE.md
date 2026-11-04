@@ -269,3 +269,22 @@ This is a scheduling hypothesis, not a proven App Nap cause or production speedu
 The hidden probe bypasses application-main Git permission preparation. Current
 signed application/Finder delivery must be measured before changing shipping
 performance policy. The earlier 10.56-second sample and first-load gate remain.
+
+## Accepted optional lookup feedback — November 4–5, 2026
+
+Visible LFS lock lookup remains optional: fresh file rows can be accepted while
+ownership stays unknown. Its warning now belongs to that accepted snapshot,
+alongside independently identified message-seed warnings. The existing fixed-height
+status area keeps the warning after modal acknowledgement, with full details
+available, and uses warning coloring. This adds no Git query or periodic refresh.
+Pending, failed and cancelled reads retain the accepted warning. A healthy accepted
+read or hiding/resetting the lock column retires only its own notice and ownership;
+unrelated action errors and template warnings remain separate.
+
+The [grouped record](qa/commit-file-actions-feedback-2026-11-04.json) passes actual
+mounted Commit table/header identity and internal geometry checks, complete refresh
+and list-position workflows with both Git engines, plus connected menus/regex
+consumers. The initial assertion compared an invisible parent's screen origin;
+diagnostics proved unchanged internal controls while AppKit repositioned that
+parent for its alert. The repaired assertion retains exact internal geometry and
+window size. Physical screen placement and complete hosted acceptance remain open.

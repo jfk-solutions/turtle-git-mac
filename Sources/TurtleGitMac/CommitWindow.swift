@@ -1083,6 +1083,22 @@ import TurtleGitCore
     private var reloadTask: Task<Void, Never>?
     private var reloadCancellation: OperationCancellation?
     private var reloadError:String?
+    private var reloadErrorIsAcceptedWarning=false
+    private struct FileListReadWarning {
+        enum Origin:Equatable {case messageSeed,lfsLocks}
+        let origin:Origin,message:String
+    }
+    private var acceptedFileListReadWarnings:[FileListReadWarning]=[]
+    private func retireLFSReadWarning() {
+        guard acceptedFileListReadWarnings.contains(where:{$0.origin == .lfsLocks}) else{return}
+        acceptedFileListReadWarnings.removeAll{$0.origin == .lfsLocks}
+        fileListReadWarnings=acceptedFileListReadWarnings.map(\.message)
+        guard reloadErrorIsAcceptedWarning else{return}
+        let previousReloadError=reloadError
+        reloadError=fileListReadWarnings.isEmpty ? nil:fileListReadWarnings.joined(separator:"\n\n")
+        reloadErrorIsAcceptedWarning=reloadError != nil
+        if self.error==previousReloadError {self.error=reloadError}
+    }
     enum ReloadPhase: String {
         case identity = "Checking Git user data…"
         case changes = "Reading changes…"
@@ -1103,6 +1119,7 @@ import TurtleGitCore
     var feedbackMessages:[String] {
         var result:[String]=[]
         if let issueProviderError,!issueProviderError.isEmpty {result.append(issueProviderError)}
+        result.append(contentsOf:fileListReadWarnings)
         if !fileOperationTitle.isEmpty {result.append(fileOperationCancelling ? NSLocalizedString("Cancelling…",comment:""):fileOperationTitle)}
         if let fileListLoadingStatus {result.append(fileListLoadingStatus)}
         if loadingAmendMessage {result.append(NSLocalizedString("Reading last commit message…",comment:""))}
@@ -1119,6 +1136,10 @@ import TurtleGitCore
         return NSLocalizedString(stem, comment: "") + "\n" + NSLocalizedString(reloadPhase.rawValue, comment: "")
     }
     @Published private(set) var fileListReadError:String?
+    /// Optional failures belong to the accepted file-list snapshot. Dismissing
+    /// its alert must not erase the lock-ownership uncertainty from the footer;
+    /// a pending, failed or cancelled refresh still displays that same snapshot.
+    @Published private(set) var fileListReadWarnings:[String]=[]
     @Published private(set) var fileListReadCancelled=false
     @Published private(set) var unversionedPromptVisible=false
     private var unversionedPromptPending=false
@@ -1733,11 +1754,18 @@ import TurtleGitCore
         guard messageFocusAvailable, column != .path, availableFileColumns.contains(column), !inputsBlocked else { return }
         if visible { fileColumns.visible.insert(column) } else { fileColumns.visible.remove(column) }
         fileColumns.save(to: dialogDefaults)
-        if column == .lfsOwner { if visible { reload() } else { lfsOwners = [:]; lfsLockedPaths = []; lfsOwnershipKnown = false } }
+        if column == .lfsOwner { if visible { reload() } else {retireLFSOwnership()} }
+    }
+    private func retireLFSOwnership() {
+        lfsOwners=[:];lfsLockedPaths=[];lfsOwnershipKnown=false;retireLFSReadWarning()
+    }
+    private func resetFileColumnSettings() {
+        fileColumns=StatusListColumnSettings();fileColumns.save(to:dialogDefaults)
+        if !fileColumns.visible.contains(.lfsOwner) {retireLFSOwnership()}
     }
     @discardableResult func resetFileColumns() -> Bool {
         guard messageFocusAvailable, !inputsBlocked else { return false }
-        fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults); return true
+        resetFileColumnSettings();return true
     }
     func requestResetFileColumns(choose: @escaping () async -> Bool, onAccepted: @escaping () -> Void) {
         guard messageFocusAvailable, !inputsBlocked else { return }
@@ -1745,7 +1773,7 @@ import TurtleGitCore
         Task {
             defer { busy = false }
             guard await choose(), messageFocusAvailable, !confirmingQuit else { return }
-            fileColumns = StatusListColumnSettings(); fileColumns.save(to: dialogDefaults)
+            resetFileColumnSettings()
             onAccepted()
         }
     }
@@ -2398,7 +2426,7 @@ import TurtleGitCore
                 } else { nextIssueProperties=nil;nextProjectSettings=nil;nextHistory=nil;seed=nil }
                 NativeDialogStartupTrace.mark("commit.message-provider.ready", began: loadBegan)
                 var nextOwners:GitPathMap<String>=[:],nextLocked=GitPathSet(),nextOwnershipKnown=false
-                var warnings=seed?.warnings ?? []
+                var warnings=(seed?.warnings ?? []).map{FileListReadWarning(origin:.messageSeed,message:$0)}
                 if nextHasLFS && fileColumns.visible.contains(.lfsOwner) {
                     setReloadPhase(.locks, token: token)
                     lfsOwnerCancellation=token
@@ -2409,7 +2437,7 @@ import TurtleGitCore
                         nextLocked=GitPathSet(locks.map(\.path));nextOwnershipKnown=true
                     } catch {
                         try token.check()
-                        warnings.append("Could not get LFS locks: " + error.localizedDescription)
+                        warnings.append(.init(origin:.lfsLocks,message:"Could not get LFS locks: " + error.localizedDescription))
                     }
                 }
                 var nextMessage=draftMessage,nextIssueID=draftIssueID
@@ -2458,6 +2486,7 @@ import TurtleGitCore
                 statistics=nextStatistics;stagedStatistics=nextStaged;unstagedStatistics=nextUnstaged
                 stagingStates=nil;stagingStateNeedsRefresh=false
                 lfsOwners=nextOwners;lfsLockedPaths=nextLocked;lfsOwnershipKnown=nextOwnershipKnown
+                acceptedFileListReadWarnings=warnings;fileListReadWarnings=warnings.map(\.message)
                 nativeIssueProvider=provider.provider;issueProviderError=provider.error
                 if resetChecks {
                     checked=GitPathSet(visibleEntries.filter {entry in
@@ -2496,8 +2525,17 @@ import TurtleGitCore
                     // first; failed/obsolete reloads cannot retire the draft.
                     if pendingRecommitSession {pendingRecommitSession=false;supersedeFocusIntent();messageEditorSession=UUID()}
                 }
-                if !warnings.isEmpty {reloadError=warnings.joined(separator:"\n\n");self.error=reloadError}
-                else if self.error == reloadError {self.error=nil;reloadError=nil}
+                if !warnings.isEmpty {
+                    let previousReloadError=reloadError
+                    reloadError=fileListReadWarnings.joined(separator:"\n\n");reloadErrorIsAcceptedWarning=true
+                    // Optional lookup feedback must not replace a different
+                    // action's unacknowledged diagnostic. Its accepted warning
+                    // remains available in the fixed footer either way.
+                    if self.error==nil || self.error==previousReloadError {self.error=reloadError}
+                } else {
+                    if self.error==reloadError {self.error=nil}
+                    reloadError=nil;reloadErrorIsAcceptedWarning=false
+                }
                 refreshPartial();prepareMessageCompletions(force:true)
                 if !gitGuiInterface, preferences?.showPatch == true {if stagingEnabled {showPartial(false)} else {showViewPatch()}}
                 if !position.remember {selection=[]}
@@ -2506,7 +2544,7 @@ import TurtleGitCore
             } catch {
                 if messageFocusAvailable,reloadCancellation === token {
                     if token.isCancelled || error is OperationCancellationFailure || error is CancellationError {fileListReadCancelled=true}
-                    else {fileListReadError=error.localizedDescription;reloadError=error.localizedDescription;self.error=reloadError}
+                    else {fileListReadError=error.localizedDescription;reloadError=error.localizedDescription;reloadErrorIsAcceptedWarning=false;self.error=reloadError}
                 }
             }
         }
@@ -3695,7 +3733,7 @@ struct CommitDialog: View {
                     Text(summary.isEmpty ? " ":summary).font(.caption).lineLimit(1).truncationMode(.tail)
                     Image(systemName:"chevron.down").font(.caption2).opacity(details.isEmpty ? 0:1)
                 }.frame(maxWidth:.infinity,alignment:.leading)
-            }.buttonStyle(.plain).foregroundStyle(model.issueProviderError == nil ? Color.secondary:Color.red)
+            }.buttonStyle(.plain).foregroundStyle(model.issueProviderError != nil ? Color.red:model.fileListReadWarnings.isEmpty ? Color.secondary:Color.orange)
                 .disabled(details.isEmpty).opacity(details.isEmpty ? 0:1).accessibilityHidden(details.isEmpty)
                 .accessibilityLabel("Commit status").accessibilityValue(details).help(details)
                 .popover(isPresented:Binding(get:{feedbackDetails != nil},set:{if !$0 {feedbackDetails=nil}})) {

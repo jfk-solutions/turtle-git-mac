@@ -6,6 +6,15 @@ checkbox/staging routes. Its grouped checkpoint is separate from older evidence.
 
 Current light/dark main-window review: [primary dialog visual review](PRIMARY-DIALOG-VISUAL-REVIEW.md).
 
+The [November 4–5 file-action/read continuation](qa/commit-file-actions-feedback-2026-11-04.json)
+retains optional LFS/template warnings with the accepted file list after their
+alert is acknowledged. Hide, direct Reset, confirmed Reset and successful Retry
+retire only the appropriate lock state/notice. Mounted native checks retain the
+actual table/header identities and internal frames through warning, acknowledgement
+and recovery. Concrete Status and Commit menu consumers retain their separate
+captured-selection types. The grouped native checkpoint is bounded evidence;
+complete hosted, signed/physical and full-dialog acceptance remain open.
+
 The [October 30 bounded Commit source audit](qa/commit-controls-source-audit-2026-10-30.json)
 found no additional proven missing control/action in its stated Classic and Git
 Gui staging scope. It does not certify complete behavioral or visual parity.

@@ -1791,7 +1791,7 @@ private enum TransportBatchPresentationContext {
         let generation=adoptionGeneration,selected=context.entries,policy=WorkingFileRevertPolicy.load(from:fileComparisonPreferences)
         let directories=WorkingFileRevertPresentation.directories(selected,root:repository.root,known:context.gitlinks)
         cancelWorkspaceFinderPublication();busy=true
-        showDirectRevert(repository:repository,access:activeAccess,entries:selected,owner:workspaceWindow,preferences:fileComparisonPreferences,policy:policy,
+        _ = showDirectRevert(repository:repository,access:activeAccess,entries:selected,owner:workspaceWindow,preferences:fileComparisonPreferences,policy:policy,
             needsConfirmation:WorkingFileRevertPresentation.needsConfirmation(selected,directories:directories),
             available:{[weak self] in self?.adoptionGeneration==generation && self?.entries.filter{row in selected.contains(row)}.count==selected.count},
             completion:{[weak self] _ in guard let self,!self.retired,self.adoptionGeneration==generation else{return};self.busy=false;Task{await self.refresh()}})

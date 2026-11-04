@@ -41,7 +41,12 @@ struct MergeRegexSourceVerification {
         model.requestEdit(versions, context: oldContext)
         guard let child = list.editor else { throw Failure(description: "Child sheet missing") }
         try await wait {child.window?.sheetParent === list.window && list.window?.attachedSheet === child.window}
-        try require(child.window?.sheetParent === list.window && child.window?.title == "Regex Filter" && (child.window?.frame.width ?? 0) >= 520 && !model.canEdit && MergeRegexFilterListController.activeEditors == 1, "Owned child session missing")
+        guard let childWindow=child.window,let host=childWindow.contentViewController?.view else {throw Failure(description:"Regex child hosting view missing")}
+        host.layoutSubtreeIfNeeded()
+        try require(childWindow.sheetParent === list.window && list.window?.attachedSheet === childWindow,"Regex child lost its exact sheet parent")
+        try require(childWindow.title == "Regex Filter","Regex child title changed: \(String(reflecting:childWindow.title))")
+        try require(childWindow.frame.width >= 520 && host.window === childWindow && host.bounds.width >= 520 && host.bounds.height >= 200,"Regex child mounted geometry is empty or compressed: frame=\(childWindow.frame), host=\(host.bounds), attached=\(host.window === childWindow)")
+        try require(!model.canEdit && MergeRegexFilterListController.activeEditors == 1,"Regex child lost parent exclusion/session ownership: editable=\(model.canEdit), editors=\(MergeRegexFilterListController.activeEditors)")
         try require(child.window?.alphaValue == 0, "Owned regex child escaped invisible presentation")
         try require(!list.windowShouldClose(list.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Child allowed close/Quit")
         model.remove(); model.saveAndClose(); model.cancel(); model.accept(timestamps, oldName: "Versions"); model.requestEdit(nil, context: oldContext)
