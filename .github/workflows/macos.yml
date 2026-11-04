@@ -700,8 +700,17 @@ jobs:
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-window-byte-identities.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Compare and Merge pane header commands and ownership
+        id: pane_headers
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' }}
         run: python3 scripts/test-merge-pane-header.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Preserve pane header system accessibility diagnostics
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' && steps.pane_headers.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: pane-header-diagnostics-${{ github.run_attempt }}
+          path: build/qa/merge-pane-header-diagnostics/**
+          if-no-files-found: warn
+          retention-days: 7
       - name: Compare and Merge folded keyboard input and aligned deletion
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' }}
         run: python3 scripts/test-merge-pane-input.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

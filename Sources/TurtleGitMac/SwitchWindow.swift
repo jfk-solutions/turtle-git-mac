@@ -409,8 +409,12 @@ extension UserDefaults {
             guard self.accepts(context) else { return }
             if key == \CheckoutOptions.branchName || key == \CheckoutOptions.overrideBranch { guard self.options.createBranch else { return } }
             if key == \CheckoutOptions.tracking { guard self.options.createBranch && self.remote else { return } }
+            let previousName = self.options.branchName
             self.options[keyPath:key] = value
-            if key == \CheckoutOptions.branchName { self.branchNameChanged() }
+            // A field-editor write-back may repeat the current value after a
+            // later Track click. Only a real name edit should clear that choice.
+            // Git names are byte-distinct, including canonical Unicode variants.
+            if key == \CheckoutOptions.branchName, !self.options.branchName.utf8.elementsEqual(previousName.utf8) { self.branchNameChanged() }
             if key == \CheckoutOptions.createBranch, !self.options.createBranch { self.options.overrideBranch = false; self.options.tracking = .noTrack }
         })
     }

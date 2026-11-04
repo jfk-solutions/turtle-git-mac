@@ -322,6 +322,43 @@ class MacOSLaneTests(unittest.TestCase):
                         if s.get('name') == ci.STATISTICS_EXPORT_CONSUMER)
             step[field] = replacement
             with self.subTest(field=field), self.assertRaises(AssertionError): self.verify(value)
+    def testPaneHeaderEvidenceRequiresItsFailedReadyOwnerAndExactPlacement(self):
+        name=ci.PANE_HEADER_FAILURE_EVIDENCE['name']
+        steps=self.workflow['jobs']['validation']['steps']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==name)
+        self.assertEqual(steps[index],ci.PANE_HEADER_FAILURE_EVIDENCE)
+        self.assertEqual(steps[index-1]['name'],ci.PANE_HEADER_CONSUMER)
+        self.assertEqual(steps[index-1]['id'],'pane_headers')
+        self.assertTrue(self.eligible(name,'editors',{'pane_headers':'failure'}))
+        for lane,outcomes,cancelled in [
+            ('core',{'pane_headers':'failure'},False),
+            ('editors',{'pane_headers':'success'},False),
+            ('editors',{'pane_headers':'skipped'},False),
+            ('editors',{'native_ready':'failure','pane_headers':'failure'},False),
+            ('editors',{'pane_headers':'failure'},True),
+        ]:
+            with self.subTest(lane=lane,outcomes=outcomes,cancelled=cancelled):
+                self.assertFalse(self.eligible(name,lane,outcomes,cancelled))
+        self.verify()
+    def testPaneHeaderEvidenceCannotBroadenOrHideConsumerChanges(self):
+        for mutation in ['missing','duplicate','before-owner','broad-path','extra-path',
+                         'always','retention','hidden-files','consumer-command','consumer-id','consumer-guard']:
+            value=copy.deepcopy(self.workflow);steps=value['jobs']['validation']['steps']
+            index=next(i for i,step in enumerate(steps) if step.get('name')==ci.PANE_HEADER_FAILURE_EVIDENCE['name'])
+            step=steps[index]
+            owner=next(s for s in steps if s.get('name')==ci.PANE_HEADER_CONSUMER)
+            if mutation=='missing':steps.pop(index)
+            if mutation=='duplicate':steps.insert(index+1,copy.deepcopy(step))
+            if mutation=='before-owner':steps.insert(index-1,steps.pop(index))
+            if mutation=='broad-path':step['with']['path']='build/**'
+            if mutation=='extra-path':step['with']['path']+='\n**'
+            if mutation=='always':step['if']='always()'
+            if mutation=='retention':step['with']['retention-days']=90
+            if mutation=='hidden-files':step['with']['include-hidden-files']=True
+            if mutation=='consumer-command':owner['run']='true'
+            if mutation=='consumer-id':owner['id']='other'
+            if mutation=='consumer-guard':owner['if']='always()'
+            with self.subTest(mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
     def testNoFailFastCancellationOrMissingAggregate(self):
         for change in ['fail-fast', 'aggregate', 'cancel', 'timeout']:
             value = copy.deepcopy(self.workflow)

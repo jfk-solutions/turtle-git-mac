@@ -89,6 +89,30 @@ the observation. This batch fixes the call with an explicit discard. A new
 complete hosted pass is still required; the earlier consumer failures remain
 separate from this compile failure.
 
+The [November 5 Compare/Merge checkpoint](qa/compare-document-owners-2026-11-05.json)
+passes complete document-history scenarios with both Git engines and six
+pane-header Compare/Merge/ownership cases. Replacement hosts now match production
+native sizing; zero-viewport caret deferral remains explicitly checked. A focused
+AX diagnostic initially returned an immediate root-children failure rather than
+a timeout. Public array paging and bounded root-publication diagnosis preserve
+the complete system AX oracle; passing local cases do not explain the earlier
+hosted stall. The exact failed consumer now retains bounded diagnostics in CI.
+No product/Core source or installed build changes belong to this checkpoint.
+The latest source's macOS run41931678755 was queued at observation; Pages
+run41931678672 passed. A complete corrected-source hosted pass remains required.
+
+The [November 5 Switch/Finder checkpoint](qa/finder-switch-owners-2026-11-05.json)
+fixes the real Switch tracking reset on unchanged native name write-back. One
+Debug build and fourteen native case-and-engine combinations pass, retaining
+complete source-form, picker, checkout/progress, cold/warm launch and cache
+Settings/lifecycle/root assertions. Finder fixtures now discover their private
+Settings owner, await captured asynchronous Service Open, retain window close
+ownership and use consistent temporary-root spelling. Foundation app-scoped
+bookmarks run in a private identified ad-hoc app host without weakening scope
+options. Initial failures and AppKit/sandbox-extension output remain explicit;
+these local checks do not establish hosted or signed physical acceptance.
+Installed build52 remains unchanged; no public binary distribution occurred.
+
 The [November 3 Finder registration batch](qa/finder-root-grants-2026-11-03.json)
 adds directory-only menu admission and an owned containing-root grant recovery
 for nested folder selection. Core permission, Debug build and actual menu/context

@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "4d23487b98a3524dbf178960eea5655320ac93ae",
+  "status": "grouped_local_native_checkpoint_passed_hosted_pending",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Compare document-owned editing history and mounted replacement caret",
+    "Compare/Merge pane-header saved paths, source comparison, exports and ownership",
+    "System accessibility query diagnostics and exact failed-consumer CI evidence"
+  ],
+  "changes": [
+    "Editor-only replacement fixture follows production sizingOptions=[] and native content dimensions; requires exact mounted editor/viewport identities.",
+    "Explicit zero-to-positive viewport transition retains and later consumes the real document history caret; no product guard relaxed.",
+    "System AX root bulk query retains count/paged public API fallback and bounded publication retry; populated trees missing required controls fail without retry.",
+    "Per-IPC trace records status/time and array materialization; failure uploader preserves only output/trace/sample after the exact failed editors consumer. Original consumer command/env/guards remain strictly inventoried."
+  ],
+  "validation": {
+    "core": {
+      "run": false,
+      "reason": "No Core or product app source changed in this checkpoint."
+    },
+    "debug": {
+      "run": false,
+      "reason": "Existing unchanged app-object generation reused; fixture-only cached compilation."
+    },
+    "native": {
+      "passed": true,
+      "case_engine_combinations": 8,
+      "history": [
+        "system",
+        "bundled"
+      ],
+      "headers": [
+        "compare/system",
+        "merge/system",
+        "ownership/system",
+        "merge/bundled",
+        "ownership/bundled",
+        "compare/bundled"
+      ],
+      "logs": [
+        "build/qa/compare-document-history-native-2026-11-05.log",
+        "build/qa/compare-document-ax-publication-2026-11-05.log",
+        "build/qa/compare-document-headers-grouped-2026-11-05.log",
+        "build/qa/compare-document-headers-bundled-compare-2026-11-05.log"
+      ],
+      "receiver_pids": [
+        49906,
+        49932,
+        51502,
+        51564,
+        51612,
+        51745,
+        51870,
+        52054
+      ],
+      "ownership": "Private repositories/config/preferences/temp; invisible/offscreen windows and actual owner/helper drainage. Exact receivers reaped.",
+      "independent_receiver_absence": {
+        "exit_code": 1,
+        "output": ""
+      }
+    },
+    "workflow_contract": {
+      "exit_code": 0,
+      "tests": 32,
+      "log": "build/qa/compare-document-ci-contract-2026-11-05.log"
+    },
+    "dialog_coverage": {
+      "exit_code": 0,
+      "log": "build/qa/compare-document-dialog-coverage-2026-11-05.log",
+      "meaning": "Partial review references, not feature completion."
+    }
+  },
+  "initial_failure": {
+    "receiver_pid": 49294,
+    "log": "build/qa/compare-document-ax-diagnosis-2026-11-05.log",
+    "retained_diagnostics": "build/qa/merge-pane-header-diagnostics/compare-0-sodzyu06",
+    "result": "Matching owned AXWindow available, AXChildren status -25200 in0.0016387s, no children/control/header; immediate failure, not timeout.",
+    "not_proven": "Later passing attempt1 does not distinguish paged fallback versus publication/environment timing; does not explain earlier hosted300s stall."
+  },
+  "hosted": {
+    "source": "4d23487b98a3524dbf178960eea5655320ac93ae",
+    "macos_run": 41931678755,
+    "observed_status": "queued",
+    "pages_run": 41931678672,
+    "pages_conclusion": "success",
+    "complete_macos_pass": false
+  },
+  "installed_app": "Build52 unchanged; no signed package/install or public binary distribution performed.",
+  "remaining": [
+    "Corrected-source complete hosted CI including earlier AX hang diagnostics",
+    "Physical keyboard/VoiceOver and signed deployment acceptance",
+    "Complete source/dialog/format and end-to-end port parity"
+  ]
+}

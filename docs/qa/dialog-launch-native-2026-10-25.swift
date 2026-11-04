@@ -102,6 +102,14 @@ import TurtleGitCore
             let appearance=AppAppearance(preferences:preferences),service=SettingsPresentationService();appearances.append(appearance);settings.append(service)
             delegate.makeStandaloneWorkspace={model}
             delegate.configureStandaloneServices={workspace,_ in service.install(workspace:workspace,appearance:appearance)}
+            // The fixture installs a private Settings service instead of the
+            // production shared/scoped owner. Register that same native owner
+            // with reopen admission, while retaining real About/other fallbacks.
+            let presentExistingUtility=delegate.presentExistingApplicationUtility
+            delegate.presentExistingApplicationUtility={
+                if service.hasOwnedUtilityWindow {_ = service.presentExistingUtility();return true}
+                return presentExistingUtility()
+            }
             delegate.startupDirectory=folder.path;delegates.append(delegate);return model
         }
         // A URL launch may arrive without OpenConfiguration.arguments. Capture
@@ -207,7 +215,11 @@ import TurtleGitCore
             phase("cold command "+command+" presented")
             let actionChildren=children(since:baseline),actionWindows=actionChildren.compactMap(\.window)
             let beforeReopenWindows=Set(NSApp.windows.map(ObjectIdentifier.init)),beforeReopenActivations=forcedActivations
-            try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true),"Visible cold dialog did not retain normal AppKit reopen: "+command)
+            // Retained application utilities raise their own native owner and
+            // consume reopen (false). Repository dialogs keep AppKit's normal
+            // handling (true); both routes must preserve the exact owner.
+            let appKitHandlesReopen=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true)
+            try require(appKitHandlesReopen == (command=="log"),"Visible cold dialog used the wrong utility/AppKit reopen route: "+command)
             try require(workspacePresentations==0 && forcedActivations==beforeReopenActivations && model.workspaceWindow==nil && Set(NSApp.windows.map(ObjectIdentifier.init))==beforeReopenWindows && actionChildren.allSatisfy{child in actionWindows.contains{$0 === child.window}},"Visible cold dialog reopen created/replaced/activated workspace: "+command)
             phase("cold command "+command+" visible reopen retained")
             // Explicit Open is deliberately a new workspace intent, whereas the
@@ -233,6 +245,14 @@ import TurtleGitCore
             }
             let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()};board.writeObjects([folder as NSURL])
             var error:NSString?;delegate.finderServicesProvider.openInTurtleGit(board,userData:"open",error:&error)
+            // About admission intentionally skips Git configuration. Public
+            // Service Open owns its captured selection while that real async
+            // gate completes; do not resend it or bypass preparation.
+            if error==nil {
+                try await wait("generic Service Open configuration and captured delivery") {
+                    delegate.gitConfigurationReadsReady && delegate.pendingOpenServiceSelection==nil
+                }
+            }
             try require(error==nil && opened.count==1 && opened[0].map(\.path)==[folder.path] && forwarded.isEmpty,"Generic public Service did not explicitly route workspace Open")
             phase("cold command "+command+" explicit Open retained; closing")
             try await closeChildren(since:baseline)
@@ -257,7 +277,8 @@ import TurtleGitCore
             }
             try require(existing.root==originalRoot && existing.workspaceWindow===originalWindow && requested==before && delegate.actionRepositoryModel === privateModel && privateModel.workspaceWindow==nil,"Warm dialog retargeted/presented existing workspace: "+action.rawValue)
             let warmWindows=Set(NSApp.windows.map(ObjectIdentifier.init))
-            try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && requested==before && Set(NSApp.windows.map(ObjectIdentifier.init))==warmWindows && existing.workspaceWindow===originalWindow,"Warm visible dialog reopen presented/retargeted workspace: "+action.rawValue)
+            let appKitHandlesReopen=delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true)
+            try require(appKitHandlesReopen == (action == .log) && requested==before && Set(NSApp.windows.map(ObjectIdentifier.init))==warmWindows && existing.workspaceWindow===originalWindow,"Warm visible dialog reopen presented/retargeted workspace or used the wrong utility/AppKit route: "+action.rawValue)
             if action == .settings {
                 guard let owner=children(since:baseline).first(where:{$0.window?.contentViewController is SettingsNavigationController}),let navigation=owner.window?.contentViewController as? SettingsNavigationController else {throw Failure(description:"Actual private Settings navigation missing")}
                 var dirty=true
@@ -266,7 +287,7 @@ import TurtleGitCore
                 try require(delegate.applicationShouldTerminate(NSApp) == .terminateCancel && dirty && navigation.transaction.modified && !navigation.completionPending,"Quit discarded/retired dirty private Settings")
                 guard let settingsWindow=owner.window,let sheet=settingsWindow.attachedSheet else {throw Failure(description:"Dirty private Settings did not retain its owned warning sheet")}
                 let heldController=owner,heldNavigation=navigation,beforeSheetReopen=requested
-                try require(delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && requested==beforeSheetReopen && settingsWindow.attachedSheet === sheet && owner === heldController && owner.window?.contentViewController === heldNavigation && dirty && navigation.transaction.modified && !navigation.completionPending,"Reopen replaced dirty scoped Settings, dismissed its sheet or requested workspace")
+                try require(!delegate.applicationShouldHandleReopen(NSApp,hasVisibleWindows:true) && requested==beforeSheetReopen && settingsWindow.attachedSheet === sheet && owner === heldController && owner.window?.contentViewController === heldNavigation && dirty && navigation.transaction.modified && !navigation.completionPending,"Reopen replaced dirty scoped Settings, dismissed its sheet or requested workspace")
                 phase("warm Settings dirty sheet reopen retained; ending sheet")
                 settingsWindow.endSheet(sheet);sheet.close()
                 navigation.transaction.unregister("launch-dirty")

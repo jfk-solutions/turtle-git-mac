@@ -1,5 +1,27 @@
 # Switch/Checkout dialog parity
 
+## November 5 tracking write-back continuation
+
+The Switch form previously reapplied its remote-name suffix rule on every branch
+name binding write, including an unchanged field-editor write-back after an
+explicit Track choice. It now applies that rule only when the name's UTF-8 bytes
+change. This matches the existing Branch/Tag name-change guard and retains the
+pinned `CGitSwitchDlg::OnEnChangeEditBranch` behavior for actual edits: a name
+that no longer matches the selected remote suffix clears tracking. Canonically
+equivalent Unicode spellings remain distinct Git names. New reference choices
+still apply their source defaults; disabling Create New Branch still clears Track
+and Override, and busy/retired forms still reject retained callbacks.
+
+The native source receiver retains its full tri-state, preferences, checkout and
+progress sequence, with added unchanged-write, actual native name-edit,
+Unicode-change and busy/retired name coverage. The runner isolates configuration,
+preferences and home directories, keeps automated windows and sheets offscreen,
+and drains owned work on success and failure. The full source, picker and progress
+scenarios pass with both Git engines. The
+[connected Finder/Switch batch record](qa/finder-switch-owners-2026-11-05.json)
+retains actual outcomes, AppKit diagnostics and remaining hosted/signed/physical
+limits. No Core algorithm or installed build changed at this checkpoint.
+
 Reference: `src/TortoiseProc/GitSwitchDlg.cpp`, `Commands/SwitchCommand.cpp`,
 `IDD_GITSWITCH` in `src/Resources/TortoiseProcENG.rc`, and the shared
 `CChooseVersion` implementation, pinned to `upstream.json`.

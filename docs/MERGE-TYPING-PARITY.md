@@ -87,3 +87,21 @@ possible three-pane view replacement or native IME interaction. The source icons
 menus and shortcuts remain the existing native controls. See
 [batch evidence](qa/merge-edit-history-2026-10-18.json) for the reproduced failure,
 grouped validation and remaining hosted/visual limits.
+
+## Mounted replacement checkpoint — November 5, 2026
+
+The later hosted history failure used an editor-only replacement host with
+automatic intrinsic sizing. Its native clip viewport collapsed to zero; the
+production window disables that automatic sizing and owns its initial content
+size. The receiver now follows that policy for both replacement hosts and
+requires actual window, document-view, editor-owner and positive viewport
+identity before editing or consuming a restored caret.
+
+The complete history scenario passes with system and bundled Git. It also makes
+an attached viewport temporarily zero-sized, verifies the real document caret
+request remains pending, and restores the viewport through ordinary native
+layout callbacks. Document-owned Undo/Redo, stale-role refusal, Unicode/ending/
+row metadata, shared-pane ordering, pending comparisons, busy/Quit/close fences
+and unchanged input-byte assertions remain. No product caret guard was relaxed.
+See the [connected checkpoint](qa/compare-document-owners-2026-11-05.json).
+This is local native evidence, not complete hosted or physical-input acceptance.

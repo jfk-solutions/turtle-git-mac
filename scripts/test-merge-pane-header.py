@@ -61,7 +61,10 @@ def retire_owned_helpers(context, approved_images):
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=['compare', 'merge', 'ownership'], action='append')
+parser.add_argument('--diagnostic-timeout', type=float, help='Explicit focused-diagnostic receiver cap in seconds; normal workflow bound remains 300 seconds.')
 args = parser.parse_args()
+if args.diagnostic_timeout is not None and not 0 < args.diagnostic_timeout <= 300:
+    parser.error('Diagnostic timeout must be positive and no greater than the normal 300-second bound.')
 root = next(parent for parent in Path(__file__).resolve().parents if (parent / 'Sources/TurtleGitMac').is_dir())
 generated = root / 'build/qa/merge-pane-header-native-sources'
 generated.mkdir(parents=True, exist_ok=True)
@@ -83,12 +86,35 @@ for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'bu
                                HOME=str(context / 'home'), CFFIXED_USER_HOME=str(context / 'preferences'),
                                XDG_CONFIG_HOME=str(context / 'xdg'), TMPDIR=str(context / 'temporary') + '/',
                                DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'))
+            environment['TURTLEGIT_HEADER_AX_TRACE'] = str(context / 'owned-ax.trace.log')
             print('Checking Merge pane header ' + case + ' with ' + str(git), flush=True)
             passed = False
+            retained = False
+
+            def retain_failure():
+                # Keep full private context locally. CI receives only the exact
+                # diagnostics below, never preferences or fixture input files.
+                failures = root / 'build/qa/native-merge-pane-header-failures'
+                failures.mkdir(parents=True, exist_ok=True)
+                evidence = Path(tempfile.mkdtemp(prefix=case + '-' + str(engine_index) + '-', dir=failures))
+                shutil.copytree(context, evidence, dirs_exist_ok=True, symlinks=True)
+                diagnostics = root / 'build/qa/merge-pane-header-diagnostics'
+                diagnostics.mkdir(parents=True, exist_ok=True)
+                diagnostic = Path(tempfile.mkdtemp(prefix=case + '-' + str(engine_index) + '-', dir=diagnostics))
+                for name in ['receiver.stdout.log', 'receiver.stderr.log', 'owned-ax.trace.log', 'timeout.sample.txt']:
+                    source = context / name
+                    if source.is_file():
+                        shutil.copy2(source, diagnostic / name)
+                print('Retained private pane-header evidence: ' + str(evidence), flush=True)
+                print('Pane-header trace/output/sample diagnostics: ' + str(diagnostic), flush=True)
+
             try:
                 result = run_receiver([str(receiver), str(context / 'fixture'), str(git), case],
                                       cwd=root, env=environment, capture_output=True, text=True,
+                                      timeout=300 if args.diagnostic_timeout is None else args.diagnostic_timeout,
                                       timeout_sample=context / 'timeout.sample.txt')
+                (context / 'receiver.stdout.log').write_text(result.stdout)
+                (context / 'receiver.stderr.log').write_text(result.stderr)
                 print(result.stdout, end='')
                 print(result.stderr, end='')
                 passed = result.returncode == 0 and 'PASS: Merge pane header ' + case in result.stdout and 'reentrant operation in its NSTableView delegate' not in result.stderr
@@ -99,17 +125,29 @@ for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'bu
                 result.check_returncode()
                 if not passed:
                     raise RuntimeError('Merge pane header receiver exited before completion')
+            except BaseException as error:
+                for name, payload in [('receiver.stdout.log', getattr(error, 'stdout', None)), ('receiver.stderr.log', getattr(error, 'stderr', None))]:
+                    if payload is not None and not (context / name).is_file():
+                        text = payload if isinstance(payload, str) else payload.decode('utf-8', errors='replace')
+                        (context / name).write_text(text)
+                retain_failure();retained = True
+                raise
             finally:
-                sample = context / 'timeout.sample.txt'
-                if sample.is_file():
-                    shutil.copy2(sample, root / ('build/qa/merge-pane-header-' + case + '-' + str(engine_index) + '-timeout.sample.txt'))
-                approved = {str(Path('/usr/sbin/screencapture').resolve()), str(git.resolve()), str((root / 'build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2').resolve()), str((root / 'build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2').resolve())}
-                approved.update(str((root / relative).resolve()) for relative in ['build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/MergeDiff/merge-diff', 'build/merge-diff-runtime/MergeDiff/bin/merge-diff'])
-                resolved = subprocess.run(['/usr/bin/xcrun', '--find', 'git'], capture_output=True, text=True)
-                if resolved.returncode == 0:
-                    approved.add(str(Path(resolved.stdout.strip()).resolve()))
-                cleanup_needed = retire_owned_helpers(context, approved)
-                if passed and cleanup_needed:
-                    results[-1].update(passed=False, helper_cleanup_needed=True)
-                    (root / 'build/qa/merge-pane-header-native-results.json').write_text(json.dumps(results, indent=2) + '\n')
-                    raise RuntimeError('Successful Merge pane header case left owned helper processes running')
+                try:
+                    sample = context / 'timeout.sample.txt'
+                    if sample.is_file():
+                        shutil.copy2(sample, root / ('build/qa/merge-pane-header-' + case + '-' + str(engine_index) + '-timeout.sample.txt'))
+                    approved = {str(Path('/usr/sbin/screencapture').resolve()), str(git.resolve()), str((root / 'build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2').resolve()), str((root / 'build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2').resolve())}
+                    approved.update(str((root / relative).resolve()) for relative in ['build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/MergeDiff/merge-diff', 'build/merge-diff-runtime/MergeDiff/bin/merge-diff'])
+                    resolved = subprocess.run(['/usr/bin/xcrun', '--find', 'git'], capture_output=True, text=True, timeout=10)
+                    if resolved.returncode == 0:
+                        approved.add(str(Path(resolved.stdout.strip()).resolve()))
+                    cleanup_needed = retire_owned_helpers(context, approved)
+                    if passed and cleanup_needed:
+                        results[-1].update(passed=False, helper_cleanup_needed=True)
+                        (root / 'build/qa/merge-pane-header-native-results.json').write_text(json.dumps(results, indent=2) + '\n')
+                        raise RuntimeError('Successful Merge pane header case left owned helper processes running')
+                except BaseException:
+                    if not retained:
+                        retain_failure();retained = True
+                    raise

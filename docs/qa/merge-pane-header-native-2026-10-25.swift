@@ -38,37 +38,138 @@ private extension NSWindow {
     // MainActor services accessibility callbacks. Never request TCC permission.
     static func systemHeader(_ header:MergePaneHeaderView,in window:NSWindow?,expected:Set<String>)async->SystemHeader {
         let pid=getpid(),title=window?.title ?? "",label=header.accessibilityLabel() ?? "",help=header.accessibilityHelp() ?? ""
+        let tracePath=ProcessInfo.processInfo.environment["TURTLEGIT_HEADER_AX_TRACE"] ?? CommandLine.arguments[1]+"/owned-ax.trace.log"
         return await Task.detached {
-            var result=SystemHeader(),windows:CFTypeRef?
-            let deadline=ProcessInfo.processInfo.systemUptime+25
-            let application=AXUIElementCreateApplication(pid)
-            // Bound IPC on each exact owned AX object; do not change the
-            // process-global timeout or ask for accessibility permission.
-            _=AXUIElementSetMessagingTimeout(application,1)
-            let status=AXUIElementCopyAttributeValue(application,kAXWindowsAttribute as CFString,&windows)
-            guard status == .success else{result.diagnostics=["Owned AX server error \(status.rawValue)"];return result}
-            var remaining=4096,seen=Set<CFHashCode>()
-            func value(_ element:AXUIElement,_ name:String)->CFTypeRef? {
-                guard ProcessInfo.processInfo.systemUptime<deadline else{return nil}
-                _=AXUIElementSetMessagingTimeout(element,1)
-                var value:CFTypeRef?;return AXUIElementCopyAttributeValue(element,name as CFString,&value) == .success ? value:nil
+            var result=SystemHeader()
+            let traceURL=URL(fileURLWithPath:tracePath)
+            if !FileManager.default.fileExists(atPath:tracePath) {_ = FileManager.default.createFile(atPath:tracePath,contents:nil)}
+            guard let trace=try? FileHandle(forWritingTo:traceURL) else {
+                result.diagnostics=["Owned AX trace could not be opened: "+tracePath];return result
             }
-            func visit(_ element:AXUIElement,_ depth:Int) {
-                guard depth<48,remaining>0,ProcessInfo.processInfo.systemUptime<deadline,seen.insert(CFHash(element)).inserted else{return};remaining-=1
-                let role=value(element,kAXRoleAttribute) as? String,caption=(value(element,kAXDescriptionAttribute) as? String) ?? (value(element,kAXTitleAttribute) as? String),location=value(element,kAXHelpAttribute) as? String
-                var raw:CFArray?;_ = AXUIElementCopyActionNames(element,&raw)
+            _ = trace.seekToEndOfFile()
+            var sequence=0
+            func stamp(_ message:String) {
+                let line=String(format:"%.6f",ProcessInfo.processInfo.systemUptime)+" "+message+"\n"
+                do {try trace.write(contentsOf:Data(line.utf8))}
+                catch {fputs("Owned AX trace write failed: \(error)\n",stderr)}
+            }
+            defer {stamp("traversal complete control=\(result.control) header=\(result.element != nil)");try? trace.close()}
+            let deadline=ProcessInfo.processInfo.systemUptime+25
+            func withinBudget()->Bool {ProcessInfo.processInfo.systemUptime<deadline}
+            // Every IPC has its own begin/end record. A blocked framework call
+            // leaves the precise operation in the private trace, which the
+            // parent runner preserves with its timeout sample before reaping.
+            func ipc(_ name:String,depth:Int = -1,_ body:()->AXError)->AXError? {
+                guard withinBudget() else {stamp("budget exhausted before \(name) depth=\(depth)");return nil}
+                sequence+=1;let call=sequence,began=ProcessInfo.processInfo.systemUptime
+                stamp("begin call=\(call) depth=\(depth) operation=\(name)")
+                let status=body()
+                stamp("end call=\(call) depth=\(depth) operation=\(name) status=\(status.rawValue) elapsed=\(ProcessInfo.processInfo.systemUptime-began)")
+                return status
+            }
+            func prepare(_ element:AXUIElement,depth:Int)->Bool {
+                // This is per-object; do not modify the global AX timeout or
+                // request accessibility permission for the test process.
+                guard let status=ipc("SetMessagingTimeout",depth:depth,{AXUIElementSetMessagingTimeout(element,1)}) else{return false}
+                if status != .success {stamp("per-object timeout refused status=\(status.rawValue)")}
+                return status == .success
+            }
+            func value(_ element:AXUIElement,_ name:String,depth:Int)->CFTypeRef? {
+                guard prepare(element,depth:depth) else{return nil}
+                var value:CFTypeRef?
+                guard ipc("CopyAttributeValue "+name,depth:depth,{AXUIElementCopyAttributeValue(element,name as CFString,&value)}) == .success else{return nil}
+                return value
+            }
+            func actionNames(_ element:AXUIElement,depth:Int)->[String] {
+                guard prepare(element,depth:depth) else{return []}
+                var raw:CFArray?
+                guard ipc("CopyActionNames",depth:depth,{AXUIElementCopyActionNames(element,&raw)}) == .success else{return []}
+                stamp("begin materialize action names depth=\(depth)")
                 let names=raw as? [String] ?? []
+                stamp("end materialize action names depth=\(depth) names=\(String(reflecting:names))")
+                return names
+            }
+            func actionDescription(_ element:AXUIElement,_ action:String,depth:Int)->String? {
+                guard prepare(element,depth:depth) else{return nil}
+                var raw:CFString?
+                guard ipc("CopyActionDescription "+action,depth:depth,{AXUIElementCopyActionDescription(element,action as CFString,&raw)}) == .success,let raw else{return nil}
+                return raw as String
+            }
+            func rootChildren(_ element:AXUIElement)->[AXUIElement] {
+                if let raw=value(element,kAXChildrenAttribute,depth:0) {
+                    let children=raw as? [AXUIElement] ?? []
+                    stamp("root bulk children count=\(children.count)")
+                    return children
+                }
+                // Keep the external system AX oracle. Array count and paged
+                // access distinguish a bulk-copy failure from an unpublished
+                // root; neither reads NSAccessibility getters directly.
+                guard prepare(element,depth:0) else{return []}
+                var count:CFIndex=0
+                let countStatus=ipc("GetAttributeValueCount AXChildren",depth:0,{AXUIElementGetAttributeValueCount(element,kAXChildrenAttribute as CFString,&count)})
+                stamp("root counted children status=\(countStatus?.rawValue.description ?? "budget") count=\(count)")
+                if countStatus == .success && count==0 {return []}
+                var children=[AXUIElement]()
+                let limit=countStatus == .success ? min(max(count,0),4096):4096
+                while children.count<limit && withinBudget() {
+                    guard prepare(element,depth:0) else{break}
+                    let start=children.count,requested=min(64,limit-start)
+                    var raw:CFArray?
+                    guard ipc("CopyAttributeValues AXChildren index=\(start) max=\(requested)",depth:0,{AXUIElementCopyAttributeValues(element,kAXChildrenAttribute as CFString,start,requested,&raw)}) == .success else{break}
+                    stamp("begin materialize paged root children index=\(start)")
+                    let page=raw as? [AXUIElement] ?? []
+                    stamp("end materialize paged root children index=\(start) count=\(page.count)")
+                    children += page
+                    if page.count<requested {break}
+                }
+                return children
+            }
+            stamp("traversal begin ownedPID=\(pid) title=\(String(reflecting:title)) label=\(String(reflecting:label)) help=\(String(reflecting:help)) expected=\(expected.sorted())")
+            stamp("begin create owned AX application");let application=AXUIElementCreateApplication(pid);stamp("end create owned AX application")
+            var remaining=4096,seen=Set<CFHashCode>()
+            func visit(_ element:AXUIElement,_ depth:Int,root:[AXUIElement]? = nil) {
+                guard depth<48,remaining>0,withinBudget(),result.element == nil || !result.control else{return}
+                stamp("begin element hash depth=\(depth)");let hash=CFHash(element);stamp("end element hash depth=\(depth) hash=\(hash)")
+                guard seen.insert(hash).inserted else{return};remaining-=1
+                let role=value(element,kAXRoleAttribute,depth:depth) as? String
+                let caption=(value(element,kAXDescriptionAttribute,depth:depth) as? String) ?? (value(element,kAXTitleAttribute,depth:depth) as? String)
+                let location=value(element,kAXHelpAttribute,depth:depth) as? String
+                let names=actionNames(element,depth:depth)
                 if role==kAXButtonRole && caption=="Save" && names.contains(kAXPressAction){result.control=true}
                 if result.diagnostics.count<100 {result.diagnostics.append("depth=\(depth) role=\(String(reflecting:role)) caption=\(String(reflecting:caption)) help=\(String(reflecting:location))")}
                 if role==kAXButtonRole,caption==label,location==help {
                     var described=[String:String]()
-                    for action in names where ProcessInfo.processInfo.systemUptime<deadline {var description:CFString?;if AXUIElementCopyActionDescription(element,action as CFString,&description) == .success,let description {described[description as String]=action}}
+                    for action in names where withinBudget() {if let description=actionDescription(element,action,depth:depth) {described[description]=action}}
                     if expected.isSubset(of:Set(described.keys)) && names.contains(kAXShowMenuAction) {result.element=element;result.actions=described}
                 }
-                for child in value(element,kAXChildrenAttribute) as? [AXUIElement] ?? [] {visit(child,depth+1)}
+                guard result.element == nil || !result.control else{return}
+                stamp("begin materialize children depth=\(depth)")
+                let children=root ?? (value(element,kAXChildrenAttribute,depth:depth) as? [AXUIElement] ?? [])
+                stamp("end materialize children depth=\(depth) count=\(children.count)")
+                for child in children {visit(child,depth+1)}
             }
-            for window in windows as? [AXUIElement] ?? [] where (value(window,kAXTitleAttribute) as? String)==title {visit(window,0)}
-            result.diagnostics.append("Owned AX traversal visited=\(4096-remaining), deadlineReached=\(ProcessInfo.processInfo.systemUptime>=deadline)")
+            var attempt=0,populatedRoot=false
+            while withinBudget() && remaining>0 {
+                attempt+=1;seen.removeAll(keepingCapacity:true)
+                stamp("root publication attempt=\(attempt)")
+                let windows=value(application,kAXWindowsAttribute,depth:-1)
+                stamp("begin materialize owned windows")
+                let ownedWindows=windows as? [AXUIElement] ?? []
+                stamp("end materialize owned windows count=\(ownedWindows.count)")
+                for window in ownedWindows where withinBudget() && (value(window,kAXTitleAttribute,depth:0) as? String)==title {
+                    let children=rootChildren(window)
+                    populatedRoot = !children.isEmpty
+                    stamp("matching root attempt=\(attempt) populated=\(populatedRoot) children=\(children.count)")
+                    visit(window,0,root:children)
+                    if populatedRoot {break}
+                }
+                // Once a real populated hierarchy is available, absent controls
+                // are a failure, not a publication condition to retry away.
+                if populatedRoot {break}
+                let pause=min(0.1,max(0,deadline-ProcessInfo.processInfo.systemUptime))
+                if pause>0 {try? await Task.sleep(nanoseconds:UInt64(pause*1_000_000_000))}
+            }
+            result.diagnostics.append("Owned AX traversal visited=\(4096-remaining), attempts=\(attempt), populatedRoot=\(populatedRoot), deadlineReached=\(!withinBudget())")
             return result
         }.value
     }

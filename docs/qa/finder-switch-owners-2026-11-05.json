@@ -1,0 +1,168 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "4d23487b98a3524dbf178960eea5655320ac93ae",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "grouped_local_native_checkpoint_passed_hosted_pending",
+  "scope": [
+    "Switch tracking, native name write-back and full chooser/checkout/progress lifetime",
+    "Cold/warm Finder About/Settings/Log/Commit launch and explicit workspace delivery",
+    "Finder cache settings, persistence, service restart and root identities with real Foundation bookmarks"
+  ],
+  "implementation": [
+    "Switch remote-suffix tracking reset only on an actual UTF8 name change; unchanged native write-back preserves all three explicit tracking states. Canonically equivalent spellings remain distinct Git names.",
+    "Native source test retains real field callbacks, reference defaults, create/override gates, captured preference/checkout/progress behavior and busy/retired refusal.",
+    "Retained About/Settings utility reopen consumes AppKit reopening while Log uses the normal route, preserving exact owner and no-workspace assertions.",
+    "Cache lifecycle runs unchanged Foundation bookmark creation/resolution in a uniquely identified private ad-hoc .app host; no security-scope option weakened, no Launch Services registration, Team identity or signed sandbox acceptance.",
+    "Private test homes/config/preferences/temp, automated offscreen child/sheet ownership, cached receiver inputs and error cleanup; local failure contexts retained without grant upload."
+  ],
+  "validation": {
+    "debug": {
+      "exit_code": 0,
+      "log": "build/qa/finder-switch-debug-2026-11-05.log",
+      "notes": "Unsigned arm64 existing derived data; existing simulator, compiler warnings and exit0 diagnostics retained."
+    },
+    "core": {
+      "run": false,
+      "reason": "Native-only Switch binding and fixture/runner changes; no Core or Git algorithm change."
+    },
+    "switch": {
+      "passed": true,
+      "case_engine_combinations": 6,
+      "cases": [
+        "source",
+        "pickers",
+        "progress"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "log": "build/qa/finder-switch-native-switch-2026-11-05.log",
+      "receiver_pids": [
+        52769,
+        52873,
+        52931,
+        53160,
+        53407,
+        53633
+      ],
+      "warnings": "Picker AppKit split-view zero-bounds diagnostic remains in passing output; no clean diagnostic/complete visual claim."
+    },
+    "finder": {
+      "passed": true,
+      "initial_cache_log": "build/qa/finder-switch-native-cache-2026-11-05.log",
+      "initial_launch_log": "build/qa/finder-switch-native-launch-2026-11-05.log",
+      "failures": [
+        "Cache settings/system receiver52765 SIGSEGV11. Exact crash report shows objc_release/autoreleasepool on main thread, no product frame; retained manually closed window lacked isReleasedWhenClosed=false. Exact object not proven.",
+        "Cold About reopen passed then generic Service Open asserted synchronously before queued Git configuration and delivery. Later Settings/Log cohort and bundled case not executed.",
+        "After retaining the Settings window, cache predicate timed out; retained writers show manual /private/var root and actual discovered /var root aliases. Runner canonicalization introduced the literal mismatch.",
+        "Launch advanced past About after awaiting captured Service delivery; private injected Settings owner was absent from the test delegate utility discovery closure. Fixture now composes its actual private service with the original utility fallback, retaining strict owner and return checks."
+      ],
+      "launch": {
+        "passed": true,
+        "case_engine_combinations": 2,
+        "log": "build/qa/finder-switch-native-launch-ownership-2026-11-05.log",
+        "receiver_pids": [
+          55613,
+          55905
+        ],
+        "scope": "Complete default launch sequence: raw events, tools and typed actions; cold/warm About/Settings/Log owner reopen; actual Commit draft/minimized reopen; dirty Settings sheet; queued public Service Open; explicit final workspace routing; original byte and no-workspace assertions."
+      },
+      "repair_logs": [
+        "build/qa/finder-switch-native-cache-repair-2026-11-05.log",
+        "build/qa/finder-switch-native-launch-repair-2026-11-05.log"
+      ],
+      "cache": {
+        "passed": true,
+        "case_engine_combinations": 6,
+        "log": "build/qa/finder-switch-native-cache-paths-2026-11-05.log",
+        "cases": [
+          "settings",
+          "lifecycle",
+          "roots"
+        ],
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "receiver_pids": [
+          56655,
+          56758,
+          56862,
+          56935,
+          57000,
+          57169
+        ],
+        "worker_pids": [
+          56655,
+          56758,
+          56862,
+          56875,
+          56935,
+          56947,
+          57000,
+          57002,
+          57003,
+          57169,
+          57227,
+          57228
+        ],
+        "warnings": "sandbox_extension_issue_file_to_process Operation not permitted diagnostics remain in ad-hoc host output; not a clean diagnostic, Team identity or signed sandbox claim."
+      },
+      "final_repairs": [
+        "Manually retained Settings window uses isReleasedWhenClosed=false; original close/cleanup preserved.",
+        "Runner restores original /var spelling; manual and discovered publication identities match without weakening state assertions or enabling unrelated production bootstrap.",
+        "Private injected Settings utility discovery composes its real retained owner with original About/utility fallback.",
+        "Public Service Open awaits actual Git configuration and queued captured delivery once, retaining exact routing/count/path/owner assertions."
+      ]
+    },
+    "native_case_engine_combinations": 14,
+    "independent_receiver_worker_absence": {
+      "pids": [
+        52765,
+        52769,
+        52873,
+        52931,
+        53160,
+        53407,
+        53633,
+        54597,
+        55613,
+        55905,
+        56655,
+        56758,
+        56862,
+        56875,
+        56935,
+        56947,
+        57000,
+        57002,
+        57003,
+        57169,
+        57227,
+        57228
+      ],
+      "exit_code": 1,
+      "output": ""
+    },
+    "dialog_coverage": {
+      "exit_code": 0,
+      "log": "build/qa/finder-switch-dialog-coverage-2026-11-05.log",
+      "meaning": "Review references, not feature completion."
+    }
+  },
+  "installed_app": "Build52 unchanged. No signed package/install, public binary distribution or App Store submission.",
+  "remaining": [
+    "Complete corrected-source hosted CI",
+    "Signed/physical Finder, keyboard and accessibility acceptance",
+    "All remaining source/dialog/layout/end-to-end port requirements"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/SwitchWindow.swift": "08b5d3292c5cabf24f8f0b33f833a8be48145d043767a9368f441688dbace87c",
+    "docs/qa/switch-source-native-2026-10-17.swift": "d368652a101a967a5f812263590ec954e0022a1c7e11b5b762a36a5cb651d8f8",
+    "docs/qa/dialog-launch-native-2026-10-25.swift": "a20447bfc8d33f7893592ea12bfcfd841c15d001caff0146cdce88d00aa9364d",
+    "docs/qa/finder-cache-persistence-native-2026-10-19.swift": "eb2b18c6c3c2896e3a73293b6c1c6d6172dc1e7a7a59befbced1ebe82badd1df",
+    "scripts/test-finder-cache-persistence.py": "e849ac5842e072bdec852c9a98f2288e2bfd43e7a8aeb0800df86579172e7955",
+    "scripts/test-switch-source.py": "7ba21117f31f4f4080fdb5c05714b021c82f110882e1e5f516afd475a90dd889"
+  }
+}

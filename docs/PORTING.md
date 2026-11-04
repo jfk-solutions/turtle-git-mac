@@ -1,5 +1,32 @@
 # TurtleGit for Mac — full port tracking
 
+## Switch tracking and Finder owners — November 5, 2026
+
+The [connected checkpoint](qa/finder-switch-owners-2026-11-05.json) fixes Switch
+tracking being reset by an unchanged native branch-name write-back. Real UTF-8
+name edits still apply the upstream suffix rule; all three tracking states,
+reference defaults, native callbacks and busy/retired ownership are retained.
+One Debug build and fourteen native case-and-engine combinations pass: full
+Switch source/pickers/progress, Finder cold/warm launch and cache Settings/
+lifecycle/roots. The Finder corrections concern actual utility discovery,
+asynchronous Service delivery, private application identity and explicit fixture
+window/path ownership. Initial failures and passing-output diagnostics remain in
+the record. No Core suite was repeated and installed build52 is unchanged;
+complete hosted, signed/physical and full source/layout acceptance remain open.
+
+## Compare/Merge document owners — November 5, 2026
+
+The [connected local checkpoint](qa/compare-document-owners-2026-11-05.json)
+passes complete editing-history scenarios with both Git engines and all six
+Compare/Merge header command/ownership case-and-engine combinations. Mounted
+replacement hosts use production sizing and exact editor/viewport ownership;
+zero-sized viewports retain pending caret restoration until native layout resumes.
+System AX assertions remain intact, with per-call traces, public paged root
+queries and bounded publication retries. The initial local root query failure
+and the earlier hosted timeout remain distinct diagnostics. These fixture and
+workflow corrections change no product/Core code and are not a new installed
+build or complete hosted/physical/source-parity acceptance.
+
 ## Installed consolidated local build52
 
 [Build52](qa/signed-consolidation-build52-2026-11-03.json), source `3702643e`,

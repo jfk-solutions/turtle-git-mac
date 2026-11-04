@@ -56,6 +56,7 @@ import TurtleGitCore
         let original=AdvancedSettingsModel(defaults:prefs,publishFinderMenu:{_ in},publishCachePersistence:publisher,publishCacheTray:{_ in})
         let coordinator=AdvancedSettingsTable.Coordinator(model:original),scroll=coordinator.makeScrollView()
         let window=NSWindow(contentRect:.init(x:-12000,y:-12000,width:720,height:460),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        window.isReleasedWhenClosed=false
         window.alphaValue=0;window.contentView=scroll;windows.append(window)
         guard let table=coordinator.table,let row=AdvancedSettingDefinition.all.firstIndex(where:{$0.name=="CacheSave"}) else {throw Failure(description:"Missing native CacheSave row")}
         var rect=NSRect.zero

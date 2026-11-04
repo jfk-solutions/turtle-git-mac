@@ -5,6 +5,26 @@ Clone/Create/Switch retain their pinned Git workflows. **Add to TurtleGit…** i
 macOS permission/watch adaptation, separate from Git Add and without a fabricated
 upstream menu-mask bit.
 
+## Launch and cache owner checkpoint — November 5, 2026
+
+The [connected checkpoint](qa/finder-switch-owners-2026-11-05.json) passes the
+complete cold/warm launch family and cache Settings/lifecycle/root families with
+both Git engines. Retained About and Settings utilities consume AppKit reopen
+without creating a workspace; Log retains normal AppKit handling. The receiver's
+private Settings service participates in that same utility discovery contract.
+Public Service Open retains its captured selection while real Git configuration
+prepares, then delivers exactly once to the explicit workspace handler.
+
+Actual Foundation app-scoped bookmark creation/resolution runs in an identified,
+private ad-hoc application host, preserving the service restart, persisted grant,
+warm/cold cache and separate-process assertions. No scope option is weakened.
+The Settings fixture's manually retained window now has explicit close ownership;
+its root spelling matches the discovered Git path instead of mixing `/var` and
+`/private/var` keys. Initial failures and subsequent scoped repairs remain in the
+record. App-host sandbox-extension diagnostics remain in passing output; this is
+not signed sandbox, physical Finder or complete hosted CI acceptance. No Finder
+product behavior or installed application was changed by these fixture repairs.
+
 ## Discovery and permission
 
 Finder registers a command-discovery namespace so a selected, previously unknown

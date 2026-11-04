@@ -196,3 +196,27 @@ boundaries and bounds self-process AX queries without removing the original
 button, Show Menu or named-action assertions. The timeout's cause and current
 native runtime result remain unresolved; the historical local pass above does
 not establish a corrected-source hosted pass.
+
+## Owned system accessibility checkpoint — November 5, 2026
+
+A focused local diagnostic failed immediately: the matching owned AXWindow was
+available, but its bulk AXChildren query returned `-25200`. This was not a local
+timeout and does not identify the cause of the earlier hosted 300-second stall.
+The receiver now records per-call operations, status and timing, including array
+materialization, and preserves its stdout/stderr, AX trace and timeout sample on
+failure. CI uploads only those diagnostic files after this specific failed
+consumer; its original command and readiness/lane guards remain unchanged.
+
+For an unavailable root, the fixture additionally uses the public AX array-count
+and paged-value APIs on that same owned window, then bounds root-publication
+retries within the existing 25-second traversal budget. A populated tree missing
+the standard Save control or product header fails without retrying it away.
+The actual system button role, description/help, Show Menu and complete named
+action assertions remain. No direct AppKit getter substitutes for system AX,
+and no accessibility permission or visible automated window is requested.
+
+The [connected checkpoint](qa/compare-document-owners-2026-11-05.json) records
+the six local Compare/Merge/ownership case-and-engine results alongside the
+complete editing-history checks. These results do not prove whether paging,
+publication timing or another environmental difference explains the first
+failure; the earlier hosted stall and signed/physical VoiceOver gates remain.

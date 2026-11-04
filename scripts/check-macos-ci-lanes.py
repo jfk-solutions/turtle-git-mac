@@ -39,7 +39,9 @@ EDITOR_SETUP = {'name': 'Prepare SwiftPM editor for native and Core consumers',
 STORE_BUILD = 'Build and audit unsigned universal App Store candidate'
 REPLAY_BUILD = 'Build isolated older Git runtimes for replay tests'
 STORE_AUDIT = 'Preserve unsigned distribution audit'
-COLLECTION_IDS = {STORE_BUILD: 'store_ready', REPLAY_BUILD: 'replay_ready'}
+PANE_HEADER_CONSUMER = 'Compare and Merge pane header commands and ownership'
+COLLECTION_IDS = {STORE_BUILD: 'store_ready', REPLAY_BUILD: 'replay_ready',
+                  PANE_HEADER_CONSUMER: 'pane_headers'}
 COLLECTION_DEPENDENCIES = {
     STORE_AUDIT: ['store_ready'],
     'Revision Graph through built Debug and Store frameworks and helpers': ['store_ready'],
@@ -97,6 +99,17 @@ STATISTICS_FAILURE_EVIDENCE = {
 ARTIFACT_NAMES = {
     'wrapped-editor-timeout-stacks': 'wrapped-editor-timeout-stacks-${{ matrix.lane }}',
     'unsigned-appstore-distribution-audit': 'unsigned-appstore-distribution-audit-${{ matrix.lane }}',
+}
+PANE_HEADER_FAILURE_EVIDENCE = {
+    'name': 'Preserve pane header system accessibility diagnostics',
+    'if': "${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' && steps.pane_headers.outcome == 'failure' }}",
+    'uses': 'actions/upload-artifact@v4',
+    'with': {
+        'name': 'pane-header-diagnostics-${{ github.run_attempt }}',
+        'path': 'build/qa/merge-pane-header-diagnostics/**',
+        'if-no-files-found': 'warn',
+        'retention-days': 7,
+    },
 }
 
 def yaml_document(text):
@@ -167,6 +180,17 @@ def verify(workflow, inventory, originals):
     require(actual[statistics_evidence[0]] == STATISTICS_FAILURE_EVIDENCE,
             'Changed Statistics failure artifact action, owner/condition, name, paths, retention or missing-file policy')
     actual.pop(statistics_evidence[0])
+    header_evidence = [i for i, step in enumerate(actual)
+                       if step.get('name') == PANE_HEADER_FAILURE_EVIDENCE['name']]
+    header_consumers = [i for i, step in enumerate(actual)
+                        if step.get('name') == PANE_HEADER_CONSUMER]
+    require(len(header_evidence) == 1 and len(header_consumers) == 1,
+            'Missing or duplicate pane-header consumer/evidence step')
+    require(header_evidence[0] == header_consumers[0] + 1,
+            'Pane-header evidence must immediately follow its owned consumer')
+    require(actual[header_evidence[0]] == PANE_HEADER_FAILURE_EVIDENCE,
+            'Changed pane-header diagnostic owner/guards/action/paths/retention')
+    actual.pop(header_evidence[0])
     app_index = next(i for i, step in enumerate(originals) if step.get('name') == 'Application and embedded Finder extension')
     require(actual[app_index + 1] == EDITOR_SETUP,
             'Every lane needs the unconditional SwiftPM executable before native/Core consumers')

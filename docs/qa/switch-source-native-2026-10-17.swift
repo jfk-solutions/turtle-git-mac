@@ -51,8 +51,46 @@ struct SwitchSourceVerification {
         model.option(\.branchName,context:model.formContext).wrappedValue="Cafe\u{301}"
         try require(model.options.tracking == .noTrack,"Exact Unicode name edit failed to disable tracking")
         model.option(\.tracking,context:model.formContext).wrappedValue = .track
+        try require(model.options.tracking == .track,"Explicit Track choice was rejected before native updates")
+        let nameWriteback=model.option(\.branchName,context:model.formContext),exactName=model.options.branchName
+        nameWriteback.wrappedValue=exactName
+        try require(model.options.tracking == .track,"Unchanged exact branch-name write-back cleared explicit Track")
         // There must be no delayed view onChange resetting a later explicit click.
         try await Task.sleep(nanoseconds:150_000_000);try require(model.options.tracking == .track,"Later Track click overwritten")
+        try await wait { views(owner.window?.contentView).compactMap{$0 as? NSTextField}.contains{$0.isEditable && !($0 is NSComboBox) && $0.stringValue.utf8.elementsEqual(exactName.utf8)} }
+        let nameField=views(owner.window?.contentView).compactMap{$0 as? NSTextField}.first{$0.isEditable && !($0 is NSComboBox) && $0.stringValue.utf8.elementsEqual(exactName.utf8)}!
+        try require(nameField.delegate?.responds(to:#selector(NSControlTextEditingDelegate.controlTextDidChange(_:)))==true,"Native branch-name field has no editing callback")
+        func nativeName(_ value:String) {
+            nameField.stringValue=value
+            (nameField.currentEditor() as? NSTextView)?.string=value
+            nameField.delegate?.controlTextDidChange?(Notification(name:NSControl.textDidChangeNotification,object:nameField))
+        }
+        nativeName(exactName)
+        try require(model.options.tracking == .track,"Native unchanged branch-name callback cleared explicit Track")
+        nativeName("native-manual-name")
+        try require(model.options.branchName.utf8.elementsEqual("native-manual-name".utf8) && model.options.tracking == .noTrack,"Actual native branch-name edit did not reach source tracking behavior")
+        nativeName(exactName)
+        // Equivalent Swift strings still represent different Git names. Real
+        // edits clear tracking; repeated native binding delivery preserves each
+        // explicit tri-state choice, rather than only the checked state.
+        for choice in [CheckoutTracking.track,.automatic,.noTrack] {
+            model.option(\.tracking,context:model.formContext).wrappedValue=choice
+            nameWriteback.wrappedValue=exactName
+            try require(model.options.tracking == choice,"Repeated name write-back changed explicit tracking intent: \(choice)")
+        }
+        model.option(\.tracking,context:model.formContext).wrappedValue = .track
+        nameWriteback.wrappedValue="Café"
+        try require(model.options.branchName.utf8.elementsEqual("Café".utf8) && model.options.tracking == .track,"Matching remote name incorrectly cleared Track")
+        nameWriteback.wrappedValue=exactName
+        try require(model.options.branchName.utf8.elementsEqual(exactName.utf8) && model.options.tracking == .noTrack,"Canonically equivalent real name edit did not clear Track")
+        model.option(\.tracking,context:model.formContext).wrappedValue = .track
+        nameWriteback.wrappedValue="manual-name"
+        try require(model.options.tracking == .noTrack,"Different manual branch name retained Track")
+        model.revisionBinding(.branch,context:model.formContext).wrappedValue="refs/remotes/origin/team/topic"
+        try require(model.options.branchName=="team/topic" && model.options.tracking == .automatic,"New reference did not reset source defaults")
+        model.revisionBinding(.branch,context:model.formContext).wrappedValue="refs/remotes/origin/Café"
+        model.option(\.branchName,context:model.formContext).wrappedValue=exactName
+        model.option(\.tracking,context:model.formContext).wrappedValue = .track
         model.option(\.overrideBranch,context:model.formContext).wrappedValue=true
         model.option(\.createBranch,context:model.formContext).wrappedValue=false
         let blockedName=model.option(\.branchName,context:model.formContext),blockedTrack=model.option(\.tracking,context:model.formContext)
@@ -63,13 +101,14 @@ struct SwitchSourceVerification {
         let track=views(owner.window?.contentView).compactMap{$0 as? NSButton}.first{$0.title=="Track"}!
         try await wait { (track.target as? TrackingCheckbox.Coordinator)?.value == .automatic }
         for expected in [CheckoutTracking.noTrack,.track,.automatic] { track.performClick(nil);try require(model.options.tracking==expected,"Native source Track cycle differs") }
-        let force=model.option(\.overwriteChanges,context:model.formContext),target=track.target as? TrackingCheckbox.Coordinator
+        let force=model.option(\.overwriteChanges,context:model.formContext),target=track.target as? TrackingCheckbox.Coordinator,pendingName=model.option(\.branchName,context:model.formContext),readyName=model.options.branchName
         model.busy=true;try await wait {!track.isEnabled};force.wrappedValue=true;target?.clicked(track)
-        try require(!model.options.overwriteChanges && model.options.tracking == .automatic,"Busy source form accepted stale callbacks")
+        pendingName.wrappedValue="busy name"
+        try require(!model.options.overwriteChanges && model.options.tracking == .automatic && model.options.branchName.utf8.elementsEqual(readyName.utf8),"Busy source form accepted stale callbacks")
         model.busy=false;try await wait {track.isEnabled}
         if let path=ProcessInfo.processInfo.environment["TURTLEGIT_SWITCH_SOURCE_CAPTURE"] { try await capture(owner.window!,folder:URL(fileURLWithPath:path)) }
-        let retained=model.option(\.merge,context:model.formContext);owner.window?.close();retained.wrappedValue=true;target?.clicked(track)
-        try require(!model.options.merge && (track as? ReferenceChoiceButton)?.retired==true && !track.isEnabled,"Retired source owner/native target remained writable")
+        let retained=model.option(\.merge,context:model.formContext),retiredName=model.option(\.branchName,context:model.formContext);owner.window?.close();retained.wrappedValue=true;target?.clicked(track);retiredName.wrappedValue="retired name"
+        try require(!model.options.merge && model.options.branchName.utf8.elementsEqual(readyName.utf8) && (track as? ReferenceChoiceButton)?.retired==true && !track.isEnabled,"Retired source owner/native target remained writable")
         // Source remembers tag/commit choice only once validation has accepted it.
         prefs.set(false,forKey:"SwitchToTagNewBranch");prefs.set(0,forKey:"AutoCloseGitProgress")
         let transaction=SwitchWindowModel(repository:repo,access:nil,revision:"refs/tags/release",preferences:prefs)
