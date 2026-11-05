@@ -446,13 +446,16 @@ private final class NativeImageEffects {
         return (result,outputSpace)
     }
     func apply(_ href:String,effect:JSValue)throws->String {
-        try transform(href,prepared:prepare(parse(effect)),outputAssociations:2)
+        // Preserve source preparation before the effect. Device filtering and
+        // its output/Picture copy now supply the two result association stages;
+        // pre-baking them here would apply those lossy roundtrips twice.
+        try transform(href,prepared:prepare(parse(effect)),outputAssociations:0)
     }
     /// Internal bitmap-loading operation, never a serialized effect kind. A
-    /// plain draw has two measured association boundaries in total. An ignored
-    /// serialized block selected by E additionally enters source preparation.
+    /// Plain draws enter device sampling directly. An ignored serialized block
+    /// selected by E additionally enters source preparation before that sampler.
     func prepareOrdinary(_ href:String,effectPipeline:Bool)throws->String {
-        try transform(href,prepared:.ordinary,outputAssociations:effectPipeline ? 2:1)
+        try transform(href,prepared:.ordinary,outputAssociations:0)
     }
     private func decode(_ href:String,normalizeStraight:Bool=true)throws->(pixels:Data,width:Int,height:Int,space:CGColorSpace) {
         let prefix="data:image/png;base64,"
@@ -562,10 +565,26 @@ private final class NativeImageEffects {
         let canvasWidth=try integer(geometry,"canvasWidth",range:1...32768),canvasHeight=try integer(geometry,"canvasHeight",range:1...32768)
         let wrap=try integer(geometry,"wrap",range:0...4),clamp=try real(geometry,"clamp",range:0...Double(UInt32.max))
         guard clamp.rounded()==clamp else {throw invalid("invalid spatial sample clamp")}
+        let interpolation:SpatialImageSampling.Interpolation
+        if geometry.hasProperty("interpolationMode") {
+            switch try integer(geometry,"interpolationMode",range:0...7) {
+            // Native GDI+ file replay treats serialized LowQuality (1) like
+            // 0/3, despite the protocol enum's stated nearest alias. Preserve
+            // actual file playback; the independent raw-alias corpus records
+            // that distinction separately from API setter normalization.
+            case 0,1,3:interpolation = .bilinear
+            case 5:interpolation = .nearest
+            default:throw invalid("unsupported recorded image interpolation kernel")
+            }
+        } else {interpolation = .bilinear}
+        let pixelOffsetMode:Int?
+        if geometry.hasProperty("pixelOffsetMode") {
+            pixelOffsetMode=try integer(geometry,"pixelOffsetMode",range:0...4)
+        } else {pixelOffsetMode=nil}
         guard let output=try SpatialImageSampling.affine(decoded.pixels,width:decoded.width,height:decoded.height,
             originX:originX,originY:originY,logicalWidth:logicalWidth,logicalHeight:logicalHeight,matrix:matrix,
             source:.init(x:source[0],y:source[1],width:source[2],height:source[3]),canvasWidth:canvasWidth,canvasHeight:canvasHeight,
-            wrap:wrap,clamp:UInt32(clamp),associateOutput:!picturePlan.needed,budget:&spatialBudget) else {return ["skipsDrawing":true]}
+            wrap:wrap,clamp:UInt32(clamp),associateOutput:!picturePlan.needed,interpolation:interpolation,pixelOffsetMode:pixelOffsetMode,budget:&spatialBudget) else {return ["skipsDrawing":true]}
         return ["href":try encode(output.pixels,width:output.width,height:output.height,space:decoded.space),
                 "coverage":try encode(output.coverage,width:output.width,height:output.height,space:decoded.space),
                 "width":output.width,"height":output.height,"originX":output.x,"originY":output.y]
@@ -1556,7 +1575,7 @@ private final class NativeStrokeGeometry {
     private var inputPoints=0, outlinePoints=0, markupBytes=0, primitives=0
     private var coveragePaths:[String:CGPath]=[:]
     private var coveragePathPoints:[String:Int]=[:]
-    private var coverageLines:[String:(CGPoint,CGPoint)]=[:]
+    private var coverageLines:[String:(CGPoint,CGPoint,deviceHairline:Bool)]=[:]
     private var coveragePoints=0, coveragePixels=0, qualityPaints=0, coverageEdgeWork=0, qualityCurvePoints=0
     private let maximumPoints=1_048_576
     private static func invalid(_ text:String)->ConversionError {.invalid("Metafile pen: "+text)}
@@ -2075,11 +2094,16 @@ private final class NativeStrokeGeometry {
             coveragePathPoints[id]=finalPoints
             // Keep the actual source centerline for the measured one-device-
             // pixel alias fastpath; never infer it from a normalized outline.
-            if retainQualityCoverage,rawWidth==1,matrix==[1,0,0,1,0,0],
+            if retainQualityCoverage,(hairline || rawWidth==1 && matrix==[1,0,0,1,0,0]),
                bands==[0,1],dash.isEmpty,startCap==0,endCap==0,alignment==0,
                !alternate,customStart==nil,customEnd==nil,figures.count==1,
                !figures[0].closed,figures[0].points.count==2 {
-                coverageLines[id]=(figures[0].points[0],figures[0].points[1])
+                // Hairlines were outlined in device space, then mapped back by
+                // output. Retain their centerline in that SAME final outline
+                // coordinate space so quality coverage reapplies world once.
+                let first=figures[0].points[0].applying(output),last=figures[0].points[1].applying(output)
+                try finite(first);try finite(last)
+                coverageLines[id]=(first,last,deviceHairline:hairline)
             }
             receipt["coverageID"]=id
         }
@@ -2200,11 +2224,11 @@ private final class NativeStrokeGeometry {
     /// Native-recorded one-pixel flat lines use a fixed-point DDA, not a
     /// filled geometric quad. Floor the projected starting intercept once to
     /// 1/16; flooring each subsequent intercept is observably different.
-    private func qualityLineFigures(_ line:(CGPoint,CGPoint),world:CGAffineTransform,left:CGFloat,top:CGFloat,width:Int,height:Int)throws->[Figure]? {
+    private func qualityLineFigures(_ line:(CGPoint,CGPoint,deviceHairline:Bool),world:CGAffineTransform,left:CGFloat,top:CGFloat,width:Int,height:Int)throws->[Figure]? {
         let sum=world.a*world.a+world.b*world.b+world.c*world.c+world.d*world.d
         let determinant=world.a*world.d-world.b*world.c
         let largest=sqrt(max(0,(sum+sqrt(max(0,sum*sum-4*determinant*determinant)))/2))
-        guard largest<=1,left.rounded()==left,top.rounded()==top else {return nil}
+        guard (line.deviceHairline || largest<=1),left.rounded()==left,top.rounded()==top else {return nil}
         var a=line.0.applying(world),b=line.1.applying(world)
         try finite(a);try finite(b)
         let alongX=abs(b.x-a.x)>=abs(b.y-a.y)

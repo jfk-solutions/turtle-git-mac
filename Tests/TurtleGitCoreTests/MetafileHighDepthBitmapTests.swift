@@ -37,11 +37,59 @@ final class MetafileHighDepthBitmapTests:XCTestCase {
         return Raster(width:image.width,height:image.height,rgba:bytes)
     }
     private func embedded(_ name:String)throws->Raster {
-        let svg=String(decoding:try converted(name),as:UTF8.self)
-        let start=try XCTUnwrap(svg.range(of:"data:image/png;base64,")),tail=svg[start.upperBound...]
-        let end=try XCTUnwrap(tail.firstIndex(of:"\"")),data=try XCTUnwrap(Data(base64Encoded:String(tail[..<end])))
+        let converted=try converted(name),text=String(decoding:converted,as:UTF8.self)
+        XCTAssertNil(text.range(of:"<!DOCTYPE",options:.caseInsensitive))
+        XCTAssertNil(text.range(of:"<!ENTITY",options:.caseInsensitive))
+        let document=try XMLDocument(data:converted,options:[.nodeLoadExternalEntitiesNever])
+        let root=try XCTUnwrap(document.rootElement())
+        func all(_ element:XMLElement)->[XMLElement] {
+            [element]+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{all($0)}
+        }
+        // The final Picture image can retain its original source scene in defs.
+        // Inspect that scene deliberately; the first base64 URI may instead be
+        // an independent white geometry-coverage mask or final canvas image.
+        let retained=all(root).filter{$0.attribute(forName:"id")?.stringValue=="turtle-picture-source-scene"}
+        XCTAssertLessThanOrEqual(retained.count,1)
+        let scene:XMLElement
+        if let source=retained.first {
+            XCTAssertEqual((source.parent as? XMLElement)?.localName,"defs")
+            let scenes=(source.children ?? []).compactMap{$0 as? XMLElement}
+            XCTAssertEqual(scenes.count,1)
+            scene=try XCTUnwrap(scenes.first)
+            XCTAssertEqual(scene.localName,"svg")
+        } else {scene=root}
+        func paints(_ element:XMLElement)->[XMLElement] {
+            guard !["defs","mask","clipPath"].contains(element.localName ?? "") else{return []}
+            return (element.localName=="image" ? [element]:[])+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{paints($0)}
+        }
+        let images=paints(scene)
+        XCTAssertEqual(images.count,1,"High-depth direct record must retain one actual device paint plane")
+        let paint=try XCTUnwrap(images.first)
+        func coordinate(_ name:String)throws->Int {
+            let number=try XCTUnwrap(Double(try XCTUnwrap(paint.attribute(forName:name)?.stringValue)))
+            XCTAssertEqual(number,number.rounded())
+            return Int(number)
+        }
+        let left=try coordinate("x"),top=try coordinate("y"),width=try coordinate("width"),height=try coordinate("height")
+        // generate-high-depth-bitmaps.py maps source2x2 to(8,8,48,48).
+        // Integer-centered source samples are device(8+24*x,8+24*y).
+        XCTAssertEqual(left,8);XCTAssertEqual(top,8);XCTAssertEqual(width,48);XCTAssertEqual(height,48)
+        let prefix="data:image/png;base64,",href=try XCTUnwrap(paint.attribute(forName:"href")?.stringValue)
+        XCTAssertTrue(href.hasPrefix(prefix))
+        let data=try XCTUnwrap(Data(base64Encoded:String(href.dropFirst(prefix.count))))
         let source=try XCTUnwrap(CGImageSourceCreateWithData(data as CFData,nil))
-        return try raster(XCTUnwrap(CGImageSourceCreateImageAtIndex(source,0,nil)))
+        let actual=try raster(XCTUnwrap(CGImageSourceCreateImageAtIndex(source,0,nil)))
+        XCTAssertEqual(actual.width,width);XCTAssertEqual(actual.height,height)
+        var selected=[UInt8]()
+        for y in 0..<2 {for x in 0..<2 {
+            let px=8+24*x-left,py=8+24*y-top
+            guard (0..<actual.width).contains(px),(0..<actual.height).contains(py) else{throw NSError(domain:"High-depth source center outside device plane",code:1)}
+            let offset=(py*actual.width+px)*4
+            selected.append(contentsOf:actual.rgba[offset..<(offset+4)])
+        }}
+        // A logical2x2 sample grid of actual decoded paint pixels, not a claim
+        // that the renderer still embeds the original2x2 image representation.
+        return Raster(width:2,height:2,rgba:selected)
     }
     private func display(_ name:String)throws->Raster {
         let input=try bytes(name),original=input,image=try XCTUnwrap(ComparisonImage(bytes:input),"Native image refused \(name)")

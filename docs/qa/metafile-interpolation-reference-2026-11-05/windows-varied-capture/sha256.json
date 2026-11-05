@@ -1,0 +1,682 @@
+﻿[
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\interpolation-observations.json",
+        "Hash":  "F663AD3131632B4ED924B93D4E76AFF90F239A8B97B8E3CD3E97AE12756AED36"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-affine-direct.rgba",
+        "Hash":  "A0DBD520D7A6C53F2011656D50FF7E2BAA38B3169CB3FF511FD9FB6D44B15156"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-affine-natural.rgba",
+        "Hash":  "A0DBD520D7A6C53F2011656D50FF7E2BAA38B3169CB3FF511FD9FB6D44B15156"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-affine-picture.rgba",
+        "Hash":  "80E31F189B28E59A68374114F4F10FA40F5B765256ECA8C51AA886B29AE6B57C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-affine-records.json",
+        "Hash":  "538BFAB6C26A03CCB46B1E492D58D163CBF893EF837EC906A7B3C774B3B6ECE7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-affine.emf",
+        "Hash":  "A8EC0845414EC5850A7E79BED11987A4F82755835895E697A584CAF05C2C30D8"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-crop-direct.rgba",
+        "Hash":  "1BF151124AA6B54E4F5A9B3BFB5FAD0EDF85143DC79958750861BB2AFFFA722C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-crop-natural.rgba",
+        "Hash":  "1BF151124AA6B54E4F5A9B3BFB5FAD0EDF85143DC79958750861BB2AFFFA722C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-crop-picture.rgba",
+        "Hash":  "3E45107BF033F980F4C1AE55F2840E2A1CA8C70AB891BF82CA050898EF2F3CBC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-crop-records.json",
+        "Hash":  "5B15D4D68D2A3612B9DBEA503417DEF10BF5470ED3AC78E30CEA71DB729588D8"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-crop.emf",
+        "Hash":  "E8E9F31CA724C0FEB580BB3AD69AC62D65C23B47981E6C5699AAD2B7AD3BF861"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-half-direct.rgba",
+        "Hash":  "500372944E1258B75FD5014104CE0F9A5BA8723AF80820112213722572C40791"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-half-natural.rgba",
+        "Hash":  "500372944E1258B75FD5014104CE0F9A5BA8723AF80820112213722572C40791"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-half-picture.rgba",
+        "Hash":  "8F830DAC4BE659ABFBC3115CE241963A85C567C449A071C79E1D897072C1789C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-half-records.json",
+        "Hash":  "AE3DFFCDE687447567A0DFE8C200BBABA0C4BCF7BDC08AAA555C9DE401C484D1"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-half.emf",
+        "Hash":  "179E10C58576F7B5E1FDEF9E5FD22B49850099F97B3E2BC340551AD2CF8804B9"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-integer-direct.rgba",
+        "Hash":  "20CA05EF201082BB3C26F837F98592FEC029FC05CF11EA816C2A14D1BADD9036"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-integer-natural.rgba",
+        "Hash":  "20CA05EF201082BB3C26F837F98592FEC029FC05CF11EA816C2A14D1BADD9036"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-integer-picture.rgba",
+        "Hash":  "FF00E6398FA211C4D0F6E0EE53BA05CFD60D6E042509265AED2F6DBB417F46F5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-integer-records.json",
+        "Hash":  "0860317EAB5ED7A306378D87F1D183CA6D6B692052A433042B8A6BB416104536"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-integer.emf",
+        "Hash":  "11B038ED4EFCFFCF351CBBA077A25D4B6F5321118BE2D0BFD1BACDFD6E051F9F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-negative-direct.rgba",
+        "Hash":  "ACAD21BC08A7A51668FBB4C14E6FAF34EDE36271C96AA3D355C752B7E2EE59EF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-negative-natural.rgba",
+        "Hash":  "ACAD21BC08A7A51668FBB4C14E6FAF34EDE36271C96AA3D355C752B7E2EE59EF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-negative-picture.rgba",
+        "Hash":  "E80449D970B5F8CBEB7E30E862D68AF70C464439CCE787FDD858171F07F80186"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-negative-records.json",
+        "Hash":  "B158CD8D8192E908BB5CA51BCCEF4E7ED62ACB73A3C15759C060976D2C7AD8CC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-negative.emf",
+        "Hash":  "8C6099AF201C7293515EBF6754AF6606BAE7898C8565CD324951ADE9CB2525EB"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-quarter-direct.rgba",
+        "Hash":  "C0716BC4CC275924DEA0A7F2865E05EB4A67183401C379EA34369D13A2619ABA"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-quarter-natural.rgba",
+        "Hash":  "C0716BC4CC275924DEA0A7F2865E05EB4A67183401C379EA34369D13A2619ABA"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-quarter-picture.rgba",
+        "Hash":  "CBD848DC36B1FBA5F5E5292F67F7E5F9BF92DB434A697EB8A7275D8E92C87EAC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-quarter-records.json",
+        "Hash":  "2777F72431EEC62F3E00EBDCB7BB9BD9258CB7F957474782276054BF3093D844"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-quarter.emf",
+        "Hash":  "438D0DE0A4517BD9587635963D391BD2DF84BF92ED10CB860BBB795FE71C2257"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-reflection-direct.rgba",
+        "Hash":  "206A16CCC9BB48C8A2B9EBC9696C5624A21BF81B83375557B888CF742239D1D3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-reflection-natural.rgba",
+        "Hash":  "206A16CCC9BB48C8A2B9EBC9696C5624A21BF81B83375557B888CF742239D1D3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-reflection-picture.rgba",
+        "Hash":  "8A0AA5B590981AE32FD85CEA4341EA34CDE11F308DF38B1A101900B252F8331A"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-reflection-records.json",
+        "Hash":  "771BD87A3EECA093AB6C6F15FC6F24D23D30E6FED657ABFCD8AE910CA7FBE9F5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-reflection.emf",
+        "Hash":  "EB5E5F8A1292A10226FFC4799C42984E1FBC9D49D9B8FCB37409C778BBBCC0C2"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-three-quarter-direct.rgba",
+        "Hash":  "152F897ACEA33CED7913544E912FF80EF6F320F186D1EF26E0AC7C56B92EE832"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-three-quarter-natural.rgba",
+        "Hash":  "152F897ACEA33CED7913544E912FF80EF6F320F186D1EF26E0AC7C56B92EE832"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-three-quarter-picture.rgba",
+        "Hash":  "B15076F0F173ECD971C6AE7EC0B4F6FE556DEE9C748BE080C02B32F4A8140D8D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-three-quarter-records.json",
+        "Hash":  "325AAE2D67F430FFBFDC00784C6CB96904A797BA3D999413F63916EE1A93420B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p0-three-quarter.emf",
+        "Hash":  "09044B5CEE2AB934D35937B63E3D5255DBF31A73BFDB900830E517D6C23F5029"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-affine-direct.rgba",
+        "Hash":  "3FD3536E089D112C675065EA81829D98AF680826D658FAA7C69582613952F567"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-affine-natural.rgba",
+        "Hash":  "A05008C454C767DF793EBE4EEE0567A6D405273265C8AF92516A2EA56915742B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-affine-picture.rgba",
+        "Hash":  "2FFF9661E117E555C35B170BB2EDD4CF0DDF3776A6A891F013A549B7ED85102F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-affine-records.json",
+        "Hash":  "F0F24EA6BD084FA167D4AD5D5F2AEB4A1A38F0394C786DCE39BF2F8FBCC6DF28"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-affine.emf",
+        "Hash":  "2769E16AB296FF860777F5EF2FF9D2BEF04C94AB9B5533A20309FAB9A69A46BC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-crop-direct.rgba",
+        "Hash":  "69E674EE2231ACCC75A13E79079DC1FEAB8D19D0EBE73651FDE039475096C55F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-crop-natural.rgba",
+        "Hash":  "D512CCC4DD15970BD94DA9A000504138DDD24EE5921DC8CCAF52F019BE69152C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-crop-picture.rgba",
+        "Hash":  "199341F1479F6854754DB6CA744205081866551EE4A314F3D6B4DA45A7F62E05"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-crop-records.json",
+        "Hash":  "ECA2E5C8E32A06147F3FFDF6E82C53A9336292AB7CAC3A2C1C494D440D24A203"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-crop.emf",
+        "Hash":  "E4C5E16D817450115229092572635A4FEB5D3EA1115512E1FAF0339BDF5A3E90"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-half-direct.rgba",
+        "Hash":  "349EB6A01D1A435BEB1B45FB55DD556990AC3411526750796B390A90034AF2BA"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-half-natural.rgba",
+        "Hash":  "8FE361DD33F2F501A1F549807337A732708F3DE3B763368E1A74049509DB491E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-half-picture.rgba",
+        "Hash":  "45AB8B08ED270409CAE6BD49F25CE80E4222E5B8D6CDC8CF5EE2E7608A313E13"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-half-records.json",
+        "Hash":  "5BCA352516E22DF176980D7573D210763841610E9D24DB4D53CC97547C9A478F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-half.emf",
+        "Hash":  "AB53F278CAB526479518961695C66AA69871194387547F514B41D9605D0A2B4D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-integer-direct.rgba",
+        "Hash":  "D62C426866503CD17BEDF960641E2AD14FCDEDCFFAD87760FFDCEE75097417F2"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-integer-natural.rgba",
+        "Hash":  "7029D9C5255E5E7911170CF95C5146DF2379AC13B96A6E4DB302DD15FAF173AF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-integer-picture.rgba",
+        "Hash":  "63933644955C53313720C6ADE421C898354218E4816956B7C9F3ACE3EDCDA117"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-integer-records.json",
+        "Hash":  "0C4E32FAB3DA16419F7BB1ED5E73EECA693E415A5410F5646D38C72BAF88DCBC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-integer.emf",
+        "Hash":  "BF00B6CB275775C7BD018C49B9D08894C84BB4DBFAA650813728A2FA9D858BB7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-negative-direct.rgba",
+        "Hash":  "3F282876EBA6F336F815D37F96625ABC3858A1ED3F029538D2884D7A58DCF8CE"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-negative-natural.rgba",
+        "Hash":  "A633FFEFA574FE50AA15702D2E00D5A54D2011A604A9F3C5579520D43D3FC8A5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-negative-picture.rgba",
+        "Hash":  "B25B5E194F22422E2B18489A8F5C8EFDCC682131DAC442F27017E06CB40712B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-negative-records.json",
+        "Hash":  "D9A140812157E413ACD616C7AC8FF46A8CE6BAD2761F786EFA1BED96C26B3947"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-negative.emf",
+        "Hash":  "FFE8F8FCA8CCF13EFE523FF37CE5B60C7798803DE9461419C359B0BC1096C232"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-quarter-direct.rgba",
+        "Hash":  "21FCB66AEC0BEBEC11AE0B2F7A0D594E93CF47A275ECF8ABCF11A8EE3369AD11"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-quarter-natural.rgba",
+        "Hash":  "BC93856409175AF0632AAE2C61E0700C67DA24EDC1C003B581AF081BF569C491"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-quarter-picture.rgba",
+        "Hash":  "8132AB79C5004EE36133ECEBD40B72F0AEFB67E9254C1305307DAF8AC5290B58"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-quarter-records.json",
+        "Hash":  "591CA81198A14E715F06318C01DB0FDAD2883BCBB93C6391F60427E2EE693542"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-quarter.emf",
+        "Hash":  "A79453AD0DB14E8AEDE32492C5AE8862919FC9B2FDFF52C739C8233D39C36746"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-reflection-direct.rgba",
+        "Hash":  "009F4245C5F40510D197FA08C15E14DB13099A9BA745D469A126D02D5D67F0BE"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-reflection-natural.rgba",
+        "Hash":  "8ABD9D1A0C5797131C4F1B921FE25BDF352CAF09FC3059877C80E2D8F8554BDD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-reflection-picture.rgba",
+        "Hash":  "02C8610B54F8F011413EB0B3D6D1709CE75D9C67FED0DCBAEE3C55C7C7130D6F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-reflection-records.json",
+        "Hash":  "7427698A4313E06B293E6E6FB03A4EB6FA41E72152AD149E98942571D8096D67"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-reflection.emf",
+        "Hash":  "A7270BB8B66D9FC7835F8E104210D029DE9A7DC4ABD5A07EE2FE933917B9538E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-three-quarter-direct.rgba",
+        "Hash":  "EB89869EDC8EC6057C8D6541A1389A32C83B69620F104B38AF441004F97B754C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-three-quarter-natural.rgba",
+        "Hash":  "DDBC05CD00C3821998540C2DEF413A11CF9E999084F5DC74C4001BE703BDDAED"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-three-quarter-picture.rgba",
+        "Hash":  "7895A00DF669F15F5A39910DCF98D5B6072B2BC3DCD2B5164C537896995753C5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-three-quarter-records.json",
+        "Hash":  "A0CC89771377ECF5AFE568E52EA1E998177C11987C1B91505E9ED8EFAEDA21F5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i0-p4-three-quarter.emf",
+        "Hash":  "26CEE00B7EE2F2B4CFE4436CD20957EB461BD62553661BE2C44885CBD2A4D171"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-affine-direct.rgba",
+        "Hash":  "5C067E66F24F46E10645DDBE5D81AEB470B68AEF007640D4DB1D7912AB4B1F19"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-affine-natural.rgba",
+        "Hash":  "5C067E66F24F46E10645DDBE5D81AEB470B68AEF007640D4DB1D7912AB4B1F19"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-affine-picture.rgba",
+        "Hash":  "84286F88E970088E3885844E273BE2CA8789C178BDA40EEAF070E119548B0B7C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-affine-records.json",
+        "Hash":  "320D086CBA0C1CA521DEA47590DDE87F627B264EB392EA0FDCA730C5BEA68169"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-affine.emf",
+        "Hash":  "856326690D3E5813D0E32FDCED950670815500FEB2E3EA986231DDFF8D6F8DC5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-crop-direct.rgba",
+        "Hash":  "A8FABC78D9FF77AB57FBDD072561D6F4D61A1C315683678AB357168A15FB0620"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-crop-natural.rgba",
+        "Hash":  "A8FABC78D9FF77AB57FBDD072561D6F4D61A1C315683678AB357168A15FB0620"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-crop-picture.rgba",
+        "Hash":  "CDDA34CAD6F512152CDD0BA82CB2003F99F3CB55F9B08DA609FABBF5FB658D28"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-crop-records.json",
+        "Hash":  "FF9247629C3A126F150D2E9FD6255BAEBDCDB0F73604CD462D99812A8E9099D6"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-crop.emf",
+        "Hash":  "4CCEDCCB9E258F3F949173A833538DA57BC027F2865B61364404D1F5041173DA"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-half-direct.rgba",
+        "Hash":  "A5B426B1D7C0FC6FB1706E43AF396784CA6AC4F9C9271D3E8AF6C4376F315C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-half-natural.rgba",
+        "Hash":  "A5B426B1D7C0FC6FB1706E43AF396784CA6AC4F9C9271D3E8AF6C4376F315C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-half-picture.rgba",
+        "Hash":  "50FE1A57D4833C6D7CD1E941B57E3B6F64051644420E758866039BE5E52AF7A5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-half-records.json",
+        "Hash":  "0ABE5CFF2B1A1F466A235D49E9F730F0E8262B3BEE621ACDC6F86B17BEEBA36E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-half.emf",
+        "Hash":  "023A8035D7DBC463B062AD34A4AAD7F50081279155B57CF4B139EC188A104BA1"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-integer-direct.rgba",
+        "Hash":  "C8AE42470A42F8D1565BA960970569A4A74BE8DF64D199A672C55855F45DA732"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-integer-natural.rgba",
+        "Hash":  "C8AE42470A42F8D1565BA960970569A4A74BE8DF64D199A672C55855F45DA732"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-integer-picture.rgba",
+        "Hash":  "967CF352C2523C7218C469E2CC0ADFF0E3234AD8BB44EB11900449564AB45407"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-integer-records.json",
+        "Hash":  "DF69252440913189C73AB3AA09DEF10CBFE4BB35795749189A5A30BB9D5D3DBF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-integer.emf",
+        "Hash":  "B35487181A5E183E9C040EBE7404764842478DF80F99BADCD599667C5C57705C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-negative-direct.rgba",
+        "Hash":  "BFC44BA8E4E9F1D1793F20E81FE3AFC235E034CB8A8707541481081709B0DA59"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-negative-natural.rgba",
+        "Hash":  "BFC44BA8E4E9F1D1793F20E81FE3AFC235E034CB8A8707541481081709B0DA59"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-negative-picture.rgba",
+        "Hash":  "F3BC620E14BD794A0D4F28080BA8442A3BDD414D4119D15B0441052D10EB3F78"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-negative-records.json",
+        "Hash":  "878D4B6DFA645A775FD67FB949A15B78FD7A32E70E33B0A93AF9A4F2E5029F3B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-negative.emf",
+        "Hash":  "193BDC5CC53D841C287459EA4E7FA0118F3D416B7A44E5DC7343F157900B9221"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-quarter-direct.rgba",
+        "Hash":  "A5B426B1D7C0FC6FB1706E43AF396784CA6AC4F9C9271D3E8AF6C4376F315C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-quarter-natural.rgba",
+        "Hash":  "A5B426B1D7C0FC6FB1706E43AF396784CA6AC4F9C9271D3E8AF6C4376F315C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-quarter-picture.rgba",
+        "Hash":  "50FE1A57D4833C6D7CD1E941B57E3B6F64051644420E758866039BE5E52AF7A5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-quarter-records.json",
+        "Hash":  "B8EE54CA811B7976D0D53AB10E3E5AC726E106E5F02FB3D976058096135AAC4F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-quarter.emf",
+        "Hash":  "E6F8F9606A9D67CBFD7FF80A4E64755E3F7FCBBF88C232A156D1C5A8754BF37A"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-reflection-direct.rgba",
+        "Hash":  "D62582754E43780B43C2DAE917B12BE6433798620FB9E4066432A836A9BAF055"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-reflection-natural.rgba",
+        "Hash":  "D62582754E43780B43C2DAE917B12BE6433798620FB9E4066432A836A9BAF055"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-reflection-picture.rgba",
+        "Hash":  "667F455D3A598DA7F42DDA7BF3235311A03E7E60F0FE22EEF6AA971A0C311D27"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-reflection-records.json",
+        "Hash":  "E35859DAB9CFB0DE067F092D3156AF9E1A22AECCF5AAFD8F1F7708F7525F0C63"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-reflection.emf",
+        "Hash":  "8808DD18CDFF9FFB2A296B229B53F93141FF8344BA16004ABE7ECBB26B1EC5B3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-three-quarter-direct.rgba",
+        "Hash":  "A5B426B1D7C0FC6FB1706E43AF396784CA6AC4F9C9271D3E8AF6C4376F315C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-three-quarter-natural.rgba",
+        "Hash":  "A5B426B1D7C0FC6FB1706E43AF396784CA6AC4F9C9271D3E8AF6C4376F315C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-three-quarter-picture.rgba",
+        "Hash":  "50FE1A57D4833C6D7CD1E941B57E3B6F64051644420E758866039BE5E52AF7A5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-three-quarter-records.json",
+        "Hash":  "C883B7A24CEABFAC57B87317375691A9F76BC04749B9EE1C0EB3C9EF5709F1DD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p0-three-quarter.emf",
+        "Hash":  "AD8B8EB2B11EB0A1B3324E931589BC9A71869A7F3B98CBEF62C3D1E87F47FF03"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-affine-direct.rgba",
+        "Hash":  "2EF8E84189E5D76B4D294CF14E7723676C0FBA1BBCD3D46CFA56F0038004293C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-affine-natural.rgba",
+        "Hash":  "20356D4B3742797BC29C22AB22EF5EC589C477F2F54738B5D5B88EF3891A1422"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-affine-picture.rgba",
+        "Hash":  "A9C4258904C13F10622022BE0EC272476C7173EF9A969586F9CD8D34351F4ACC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-affine-records.json",
+        "Hash":  "E48B5F94E2B16E2A0EF7813063548F11A5731C24ACF95361E6D87E2665741648"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-affine.emf",
+        "Hash":  "ED2DE0ABD9F3132C8970A4A7CDB4027D42E3B2B3F518B8AB1BE5B097F6B02EA4"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-crop-direct.rgba",
+        "Hash":  "AE9C118FD8BAB13CFEA37EA1E60322D04720D45F0F8499AC8FC200CB190FEE7D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-crop-natural.rgba",
+        "Hash":  "752CDA300CA7D8D85405DEFF1B591A91554F09E69EACE54F1B2CB138E8758E52"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-crop-picture.rgba",
+        "Hash":  "CC6811634C6B9B5876D036DB4B4FAE77B56D1FD0E3B0CCD4C9FEF308863C1A8C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-crop-records.json",
+        "Hash":  "F4FD4BF5CB3D0CECB45025C39C6E168BE4AD3E6D55DA701080F9CD5E994656E0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-crop.emf",
+        "Hash":  "5433F65811630BE663A0321E7DA2E6702F47E22A5D6C6FCA1EC96A8B4CBCC808"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-half-direct.rgba",
+        "Hash":  "AE9C118FD8BAB13CFEA37EA1E60322D04720D45F0F8499AC8FC200CB190FEE7D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-half-natural.rgba",
+        "Hash":  "45AC5F70B14A6702F3D362654A2F92270BE5C79ACD3E7740DF4B4ADD8B114923"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-half-picture.rgba",
+        "Hash":  "609EAC6D024DA3BCC02ECDB7841AF5CF8D56E21CF1990E79F6B07E6D4CFF963B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-half-records.json",
+        "Hash":  "F8D69C06EB7883C2F2826F3C2EBE1173E3B2AC8C1DD452383950D888C15A590E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-half.emf",
+        "Hash":  "29F5F3B17106A18439E5A01398864BE16365B57A1328D776BD88ECA740EB012E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-integer-direct.rgba",
+        "Hash":  "AE9C118FD8BAB13CFEA37EA1E60322D04720D45F0F8499AC8FC200CB190FEE7D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-integer-natural.rgba",
+        "Hash":  "45AC5F70B14A6702F3D362654A2F92270BE5C79ACD3E7740DF4B4ADD8B114923"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-integer-picture.rgba",
+        "Hash":  "609EAC6D024DA3BCC02ECDB7841AF5CF8D56E21CF1990E79F6B07E6D4CFF963B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-integer-records.json",
+        "Hash":  "EE2736EDDDCD4FA74DB4AE73F7BB70D846EBAEE4528ADCBDA3D6D2F73F218A5D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-integer.emf",
+        "Hash":  "D14C1BF98B36FD041CD0FF800E99A097CB14606F8461BDAFDCE2ECDF6F387C3C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-negative-direct.rgba",
+        "Hash":  "78C93D7727D53D5D39EC9040BB276E04AE85F0817F30C0C22812B30EADED47BD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-negative-natural.rgba",
+        "Hash":  "C80DE915691A73CC5384CEB63A58F46212C7D2A8B9D68FDDCC6B48217A89C9C8"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-negative-picture.rgba",
+        "Hash":  "4BB879F727C4075B3F065D80D5AF6A5AF11928DF698B5D5C3FD64F44E1FFB62D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-negative-records.json",
+        "Hash":  "A1FC834C990556DCAD538510F09210CB1DD2B3BA15039C57C353D9710F89C8E0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-negative.emf",
+        "Hash":  "9FE8DE38E6F6A1B359A4FBEB72CB0DFEE849A0EBC97DF88FA0ABAC8B2C78B3FD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-quarter-direct.rgba",
+        "Hash":  "AE9C118FD8BAB13CFEA37EA1E60322D04720D45F0F8499AC8FC200CB190FEE7D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-quarter-natural.rgba",
+        "Hash":  "45AC5F70B14A6702F3D362654A2F92270BE5C79ACD3E7740DF4B4ADD8B114923"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-quarter-picture.rgba",
+        "Hash":  "609EAC6D024DA3BCC02ECDB7841AF5CF8D56E21CF1990E79F6B07E6D4CFF963B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-quarter-records.json",
+        "Hash":  "C3897084D48B6186282E7497171838FC5BC97AD4BF08C9A431F9AD094B3B0A53"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-quarter.emf",
+        "Hash":  "16B361A700AF9018FEA7A11BC7BBB03370CE78FFD0E9FF04208FD8E45BDC6E22"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-reflection-direct.rgba",
+        "Hash":  "3B3FE8D10AAD84533436B70FDBD0D5634E994178A1B2565CCB380B418B24DE26"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-reflection-natural.rgba",
+        "Hash":  "1220CC6A455D606EDCD10A5170676AB1E31CF40BA3BFA2A9EE51A6C294EF3C7B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-reflection-picture.rgba",
+        "Hash":  "221657F51ED745F8FF8AA3B79F072C36A15A1448E966EDFEE67F922C69AA3D01"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-reflection-records.json",
+        "Hash":  "7EDC61A523FCB773F1AA1C867608D81A385127A11FF720E9BBE8A10DBA81730E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-reflection.emf",
+        "Hash":  "3CCF6D8B1C4F94CE39456F5071C6712511CF79247D5552D5BD2F2742C5CF64E3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-three-quarter-direct.rgba",
+        "Hash":  "464E6A45FDCC3ED09C873E8AA936EC7A4742B0D2D9F10B2FD5BDCCF751DAFECF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-three-quarter-natural.rgba",
+        "Hash":  "59735B4150E303607EB71E3503C407039E1973EBAE32C7B496096A244CC27A15"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-three-quarter-picture.rgba",
+        "Hash":  "F6B41ED28EF179F45F5DC10FAC007477F48A38ACAA614556CDF9151E85A0DA9A"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-three-quarter-records.json",
+        "Hash":  "523996211F117E61066DE5C6BEFBA90CE8531E9889D60F0F1B1ECBB7B921B6A3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\output\\varied-i5-p4-three-quarter.emf",
+        "Hash":  "1400EC45930AC2C2DD776BBFE9EF393F8CE9EBCE58F801CF5D4942DB2F9F4732"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\VariedReference.cpp",
+        "Hash":  "EF569F719ADB333B18E8CB8743F540343856F99CA5D5BF5509FC17AB8423A4A9"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\VariedReference.exe",
+        "Hash":  "40E6DEF34E0C06E0ED869D95FD4D55BCFBE1FC54A4287E3B8CB30BD92F5F79A7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\compiler.txt",
+        "Hash":  "D6D7B0E190CF1ABBC18BE89D4650CFB51F403A4D42FF10FE5962FF5915DF6A4B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\execution.txt",
+        "Hash":  "DFB6E588DF79D7766A8EB2338EEFCFF59FB742E45F3BD5F0A0E3851836E669DE"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\environment.json",
+        "Hash":  "B732554C6E29B9705E82FBAD2DE10A08AC425769247163DA75B32439A304CBFC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitVariedInterpolation-9cda5e47-d207-487d-8647-cd52e23d266a\\runtime-versions.json",
+        "Hash":  "E73F6F2256D7C8D1BEA1C29A56CEBD38444A681318AAD1D6E1E8744C8D5B13E2"
+    },
+    {
+        "Path":  "C:\\WINDOWS\\System32\\gdiplus.dll",
+        "Hash":  "EE3AC593C76F88204EDDDFDE23FA130CE1E2A4BE82590B88BAA0215B92A31A2F"
+    },
+    {
+        "Path":  "C:\\WINDOWS\\System32\\gdi32.dll",
+        "Hash":  "D030DB7B41326258E8837D10E85A4D9A55C594776E6497745D3788281540A42C"
+    },
+    {
+        "Path":  "C:\\WINDOWS\\System32\\win32u.dll",
+        "Hash":  "345D86E4357CCD1773929361863A6A8FE39CA7AC2995851C88495D0C42B3726E"
+    }
+]

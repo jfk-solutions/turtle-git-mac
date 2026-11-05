@@ -1,0 +1,1905 @@
+{
+  "cases": [
+    {
+      "file": "implicit-default.emf",
+      "sourceSHA256": "7f36bffafba116b9cc07663786cd685d26569196cc26bbf1d0d71ac3b5738d79",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque red/green; blue/white 2x2 checkerboard, source(0,0,2,2), destination(8,8,32,32).",
+      "mode": null,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 8,
+          "rgba": [
+            191,
+            64,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            159,
+            64,
+            64,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "bilinear-default.emf",
+      "sourceSHA256": "683e14b6267d35c9d68ac771ef8cd72c9510db154a89537b5eccbbdcb2424674",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque red/green; blue/white 2x2 checkerboard, source(0,0,2,2), destination(8,8,32,32).",
+      "mode": 0,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 8,
+          "rgba": [
+            191,
+            64,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            159,
+            64,
+            64,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "bilinear-low.emf",
+      "sourceSHA256": "983f9bddd949ae9660a1f438920268b8fae141f1ed250d4fb30442dd2a41af04",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque red/green; blue/white 2x2 checkerboard, source(0,0,2,2), destination(8,8,32,32).",
+      "mode": 1,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 8,
+          "rgba": [
+            191,
+            64,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            159,
+            64,
+            64,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "bilinear.emf",
+      "sourceSHA256": "98912abf38396db7538254c83766a6467a16e9d76a68470ae245da6a6095c97b",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque red/green; blue/white 2x2 checkerboard, source(0,0,2,2), destination(8,8,32,32).",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 8,
+          "rgba": [
+            191,
+            64,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            159,
+            64,
+            64,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "nearest.emf",
+      "sourceSHA256": "e231cebd4d5de5006f4ea31be30f71743022232b89d47896daa2a72467270413",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque red/green; blue/white 2x2 checkerboard, source(0,0,2,2), destination(8,8,32,32).",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "nearest-reserved-flags.emf",
+      "sourceSHA256": "0d90a0f7d9d737d8928939c827fb92aab8d90aa3fe7f485c68ccc95994a38d46",
+      "width": 97,
+      "height": 65,
+      "description": "Reserved high interpolation flags do not change the low-byte nearest kernel.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "alpha-bilinear.emf",
+      "sourceSHA256": "a00628156ebe7715b1e1a4f0e0e98c92491b336c0f4c1e1080bd010aa7450952",
+      "width": 97,
+      "height": 65,
+      "description": "Original straight RGBA with partial and zero alpha; no implicit background.",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          128
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          0
+        ],
+        [
+          255,
+          255,
+          255,
+          64
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            128,
+            0,
+            0,
+            128
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 24,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            64,
+            64,
+            64,
+            64
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            76,
+            52,
+            4,
+            124
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "affine-bilinear.emf",
+      "sourceSHA256": "851a2553771bc86e0f9af13b05930db00ca813d33738c7eded063e38d979e463",
+      "width": 97,
+      "height": 65,
+      "description": "Affine parallelogram with source basis(16,4),(4,16) and origin(8,8).",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            133,
+            102,
+            102,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 20,
+          "y": 12,
+          "rgba": [
+            76,
+            187,
+            17,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 20,
+          "rgba": [
+            76,
+            17,
+            187,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            173,
+            204,
+            204,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "crop-bilinear.emf",
+      "sourceSHA256": "d7eed478c3deeecf41fb8b393fd3fa170921c60d82f33b3eb1011fe06efbbdde",
+      "width": 97,
+      "height": 65,
+      "description": "Fractional source rectangle(.5,0,1,2), with actual original-image neighbors.",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 20,
+          "y": 8,
+          "rgba": [
+            0,
+            191,
+            0,
+            191
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 24,
+          "rgba": [
+            128,
+            128,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "clamp-bilinear.emf",
+      "sourceSHA256": "495306cbf8eca5066590354be6c271bc8b60316fe7729e834d31408cafd095f5",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque magenta clamp outside original bitmap, enlarged negative source rectangle.",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 16,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            255,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "wrap-bilinear.emf",
+      "sourceSHA256": "f22af0dd413c86e1167ae81bc8add85c2558a3313090b983b7348468b38d7685",
+      "width": 97,
+      "height": 65,
+      "description": "TileFlipXY repeats original source through negative and positive coordinates.",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 8,
+          "rgba": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 32,
+          "y": 8,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "source-copy-bilinear.emf",
+      "sourceSHA256": "2f096c6dc33872f78aff223a2cb14fb648cf57b8209f15daeaf1d11b494ead39",
+      "width": 97,
+      "height": 65,
+      "description": "SourceCopy replaces prior gray paint including transparent covered pixels.",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          128
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          0
+        ],
+        [
+          255,
+          255,
+          255,
+          64
+        ]
+      ],
+      "samples": [
+        {
+          "x": 4,
+          "y": 4,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            128,
+            0,
+            0,
+            128
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 24,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            64,
+            64,
+            64,
+            64
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "clip-bilinear.emf",
+      "sourceSHA256": "e279268a800998db479ead351b06c9ba925d2b445b2f0546130fcad001625bba",
+      "width": 97,
+      "height": 65,
+      "description": "Device clip must restrict the sampled image rather than only its original SVG bounds.",
+      "mode": 3,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 4,
+          "y": 4,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            159,
+            64,
+            64,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 19,
+          "y": 12,
+          "rgba": [
+            104,
+            175,
+            64,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 20,
+          "y": 12,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "alpha-nearest.emf",
+      "sourceSHA256": "b643c676a471bbb4e375f09fb16aece01b481ba2f2d7a45ac85a16067b38d314",
+      "width": 97,
+      "height": 65,
+      "description": "Original straight RGBA with partial and zero alpha; no implicit background.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          128
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          0
+        ],
+        [
+          255,
+          255,
+          255,
+          64
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            128,
+            0,
+            0,
+            128
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 24,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            64,
+            64,
+            64,
+            64
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            128,
+            0,
+            0,
+            128
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "affine-nearest.emf",
+      "sourceSHA256": "0550c1df021668444c877284daaf047874fee5c9cfe3e8641ebdb47ed3b83d74",
+      "width": 97,
+      "height": 65,
+      "description": "Affine parallelogram with source basis(16,4),(4,16) and origin(8,8).",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 20,
+          "y": 12,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 20,
+          "rgba": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "crop-nearest.emf",
+      "sourceSHA256": "9175d8c80469664a474b0b59cb26b70bcd4862f5556a695c6f10033b16cf7820",
+      "width": 97,
+      "height": 65,
+      "description": "Fractional source rectangle(.5,0,1,2), with actual original-image neighbors.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 20,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 24,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "clamp-nearest.emf",
+      "sourceSHA256": "7b3d2f9d643a675616b2642ac9587b1816c16616a4119d34cf48878e6777d03c",
+      "width": 97,
+      "height": 65,
+      "description": "Opaque magenta clamp outside original bitmap, enlarged negative source rectangle.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 16,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 32,
+          "y": 16,
+          "rgba": [
+            255,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "wrap-nearest.emf",
+      "sourceSHA256": "1e24e010decacbf14f508bd09691a91eac9f1fba80e0db3b3c371dedf88325ab",
+      "width": 97,
+      "height": 65,
+      "description": "TileFlipXY repeats original source through negative and positive coordinates.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 8,
+          "rgba": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 8,
+          "rgba": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 32,
+          "y": 8,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "source-copy-nearest.emf",
+      "sourceSHA256": "29f683c00085401f76abc1d56ade8c3007fd433fd23f1aea5a259ad2e1f01e60",
+      "width": 97,
+      "height": 65,
+      "description": "SourceCopy replaces prior gray paint including transparent covered pixels.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          128
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          0
+        ],
+        [
+          255,
+          255,
+          255,
+          64
+        ]
+      ],
+      "samples": [
+        {
+          "x": 4,
+          "y": 4,
+          "rgba": [
+            128,
+            128,
+            128,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 8,
+          "rgba": [
+            128,
+            0,
+            0,
+            128
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 8,
+          "y": 24,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 24,
+          "y": 24,
+          "rgba": [
+            64,
+            64,
+            64,
+            64
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "clip-nearest.emf",
+      "sourceSHA256": "fa93f799b437f959ef69694bdda98feafc996e70c0fc5f4e49dd07095c0c872e",
+      "width": 97,
+      "height": 65,
+      "description": "Device clip must restrict the sampled image rather than only its original SVG bounds.",
+      "mode": 5,
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "samples": [
+        {
+          "x": 4,
+          "y": 4,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 12,
+          "y": 12,
+          "rgba": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 16,
+          "y": 16,
+          "rgba": [
+            255,
+            255,
+            255,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 19,
+          "y": 12,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 20,
+          "y": 12,
+          "rgba": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "tolerance": 2
+        }
+      ]
+    },
+    {
+      "file": "saved-container-state.emf",
+      "sourceSHA256": "75a479f76e4e6a429ff1436c9556e494c0599e93288af281b38f2c425c9fee19",
+      "width": 97,
+      "height": 65,
+      "description": "Four panels: changed bilinear; restored nearest; container default bilinear; restored parent nearest.",
+      "atlas": [
+        [
+          255,
+          0,
+          0,
+          255
+        ],
+        [
+          0,
+          255,
+          0,
+          255
+        ],
+        [
+          0,
+          0,
+          255,
+          255
+        ],
+        [
+          255,
+          255,
+          255,
+          255
+        ]
+      ],
+      "panelModes": [
+        3,
+        5,
+        0,
+        5
+      ],
+      "samples": [
+        {
+          "x": 10,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 34,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 58,
+          "y": 8,
+          "rgba": [
+            128,
+            128,
+            0,
+            255
+          ],
+          "tolerance": 2
+        },
+        {
+          "x": 82,
+          "y": 8,
+          "rgba": [
+            0,
+            255,
+            0,
+            255
+          ],
+          "tolerance": 2
+        }
+      ]
+    }
+  ],
+  "refused": [
+    "refused-mode-2.emf",
+    "refused-mode-4.emf",
+    "refused-mode-6.emf",
+    "refused-mode-7.emf",
+    "refused-mode-8.emf",
+    "refused-mode-255.emf",
+    "refused-body.emf",
+    "refused-late-body.emf"
+  ],
+  "nativeRoles": {
+    "nearest": "nearest.emf",
+    "bilinear": "bilinear.emf",
+    "state": "saved-container-state.emf",
+    "affine": "affine-nearest.emf"
+  },
+  "sampleRepresentation": "Premultiplied sRGB RGBA8, no matte. Original checkerboard analytical quarter/tie/interior probes; tolerances cover existing byte association and final Picture copy, never a substituted expected render.",
+  "phaseEvidence": "Independent Windows11 ARM64 GDI+ recorded-file interpolation captures in docs/qa/metafile-interpolation-reference-2026-11-05. Default/None inverse integer device points; nearest5 selects floor(q+.5). Actual raw1 is bilinear despite the MS-EMFPLUS enum alias."
+}

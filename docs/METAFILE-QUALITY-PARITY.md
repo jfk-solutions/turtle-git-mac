@@ -86,6 +86,9 @@ profile. Existing device-clip rasterization, partially transparent destination
 gamma combinations, text/ClearType, raw bitmap interpolation and path-gradient
 geometry are not certified by ordinary-shape quality controls. Their existing
 separate profiles and explicit refusals remain in force.
+The subsequent [recorded image interpolation family](METAFILE-IMAGE-INTERPOLATION-PARITY.md)
+connects bitmap kernels, pixel-offset phase and native image workflows; its own
+Windows observations and grouped Mac checkpoint do not inherit this shape pass.
 The new brush controls establish opaque linear/hatch colors and the captured
 default periodic texture interpolation, rather than every translucent ramp or
 arbitrary texture interpolation kernel.

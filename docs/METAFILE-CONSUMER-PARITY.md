@@ -131,7 +131,16 @@ scale and require exact analytic bilinear interior pixels. Compare, explicit
 image input and real conflict preview/Reload retain original EMF bytes and
 HEAD/index/working snapshots. See [region/pattern painting](METAFILE-REGION-PATTERN-PARITY.md#bounded-ordinary-texture-sampling--november-5-2026).
 
-The remaining negative inventory, including raw DrawImage tile-budget refusal,
-and existing cancellation/late-publication tests are unchanged. The focused checkpoint passes three Core methods and four selected native
+At that texture-only checkpoint the remaining negative inventory, including
+raw DrawImage tile-budget refusal, was unchanged, as were cancellation and
+late-publication assertions. The focused checkpoint passes three Core methods and four selected native
 cohort/engine combinations; see [dated evidence](qa/metafile-texture-budget-2026-11-05.json).
 It does not establish a complete consumer inventory or new Windows full-frame oracle.
+
+The subsequent [recorded image interpolation batch](METAFILE-IMAGE-INTERPOLATION-PARITY.md)
+connects ordinary DrawImage to bounded sampling too. Its independent ordinary
+noise-image contract moves `unsupported-image-tile-budget.emf` to the explicit
+positive inventory without changing its bytes. Its own
+[grouped checkpoint](qa/metafile-interpolation-2026-11-05.json) passes 43 affected
+Core methods and six native engine/cohort pairs, retaining its original failures;
+it does not inherit the texture-only pass or prove a complete inventory run.

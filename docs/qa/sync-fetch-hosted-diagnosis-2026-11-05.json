@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-05",
+  "source_commit": "e996dc44416e4eeb3db7a8c8d72f3606c4fd2826",
+  "scope": "Two distinct bounded reproductions of hosted failed consumers 407/408; no edits were justified by their local passing behavior.",
+  "results": [
+    {
+      "scope": "typed Fetch results to captured Log",
+      "git": "/usr/bin/git",
+      "result": "pass",
+      "log": "build/qa/sync-fetch-result-diagnosis-2026-11-05.log",
+      "log_sha256": "53ad0665ccd22f39567c4409b4fca2c4cfe2adf5306ea6201618da1847d354c2",
+      "owned_reaped_pids": [
+        16538,
+        16553
+      ]
+    },
+    {
+      "scope": "Sync refspec lifecycle and Settings return",
+      "git": "/usr/bin/git",
+      "result": "pass",
+      "log": "build/qa/fetch-refspec-owner-diagnosis-2026-11-05.log",
+      "log_sha256": "07d2fd580068fb207be7da02490557eaa345d310172e73a84bd2a6baf5041329",
+      "owned_reaped_pids": [
+        17270,
+        17280
+      ]
+    }
+  ],
+  "all_recorded_owned_processes_independently_absent": true,
+  "hosted_run": 42008244039,
+  "hosted_replay_job": 127180998667,
+  "hosted_failure_cause": "Unknown: no logs or diagnostic artifacts for these consumers available through the connected interfaces.",
+  "application_changes": "None",
+  "installed_build_unchanged": 52,
+  "not_run": [
+    "Second Git engine",
+    "Broader legacy Sync history/outgoing drivers with unisolated user environments",
+    "Core/full app rebuild",
+    "Physical/signed external transport"
+  ],
+  "next_action": "Inspect the demonstrated lifetime/ownership phase contracts in a connected Fetch/Sync batch; do not rerun the already-passing actual/sync cases as a substitute.",
+  "later_authenticated_browser_observation": {
+    "source": "Actual GitHub View raw logs links after the user unlocked the Mac; no job rerun",
+    "sync_transfer_failed_case": "lifetime",
+    "sync_transfer_error": "Sync transfer notifications failed: Sync notifications readiness timeout at 150",
+    "fetch_refspec_failed_case": "ownership",
+    "fetch_refspec_error": "Fetch refspec lifecycle failed: Sync notifications readiness timeout at 110",
+    "scope_note": "The earlier local actual and sync cases passed before these unavailable logs identified the later failing cases. Those passes never proved lifetime or ownership."
+  }
+}

@@ -1,0 +1,450 @@
+{
+  "date": "2026-11-05",
+  "status": "grouped_local_repaired_checkpoint_passed_hosted_pending",
+  "source_parent": "e996dc44416e4eeb3db7a8c8d72f3606c4fd2826",
+  "scope": [
+    "EMF+ recorded ordinary image interpolation0/1/3 bilinear and5 nearest, exact mode/PixelOffset state and bounded unsupported-mode refusal",
+    "Ordinary nearest measured Float32 sampling phase and affine/translated/reflected/cropped images; legacy spatial/effect profiles retained",
+    "Plain/effected image preparation, output and Picture association boundaries; separate complete natural/Picture Windows references",
+    "Connected native Compare/Reload/drop/conflict/cancellation owners and historical/malformed consumer probes"
+  ],
+  "independent_reference": {
+    "directory": "docs/qa/metafile-interpolation-reference-2026-11-05",
+    "native_original_cases": 192,
+    "raw_interpolation_alias1_cases": 48,
+    "raw_pixeloffset_alias2_cases": 32,
+    "varied_rgba_cases": 32,
+    "imported_cases": 304,
+    "dimensions": [
+      32,
+      24
+    ],
+    "consumers": "Both untouched natural and Picture RGBA retained independently; product Picture test requires expectedPicture/picture_sha256, not natural aliases.",
+    "wire_aliases": "Measured Windows raw interpolation1 equals0/3 bilinear despite MS-EMFPLUS enum text; raw PixelOffset2 equals4. Native5 is nearest.",
+    "nearest_profile": "Row-start inverse nearestFloat; increments toward-zeroFloat; incremental adds nearestFloat; Float32 source-phase subtraction and nearest0.5 addition; device scanline preserved. Independent model matches all48 primary opaque/alpha nearest natural cases; arbitrary affine behavior beyond corpus not proved.",
+    "varied_source_rgba": [
+      [
+        70,
+        140,
+        210,
+        248
+      ],
+      [
+        37,
+        91,
+        143,
+        127
+      ],
+      [
+        197,
+        63,
+        121,
+        7
+      ],
+      [
+        254,
+        195,
+        83,
+        64
+      ]
+    ],
+    "normalization": "Varied native natural and Picture bytes visibly differ; source, filter/output and Picture boundaries remain distinct. No reference pixel or header normalization/padding/cropping.",
+    "recording_hdc_comparison": "Separate screen-HDC and96DPI Bitmap/Graphics.GetHDC recordings:192 EMFs and576 direct/natural/Picture RGBA files byte-identical. Both original provenance sets retained.",
+    "manifest": {
+      "path": "Tests/TurtleGitCoreTests/Fixtures/Metafile/Interpolation/Windows/manifest.json",
+      "bytes": 389626,
+      "sha256": "4f4c57ab772fe26300729ba5b7d01facc2db0726bb0bc0a33d1f5eb2ace2a21a"
+    },
+    "category_counts": {
+      "native-api": 192,
+      "raw-interpolation-alias1": 48,
+      "raw-pixeloffset-alias2": 32,
+      "varied-native-api": 32
+    },
+    "binaries": "Generated Windows executables/objects removed after hash verification; hashes retained; no Windows DLL copied. Unique guest Temp directories removed after capture."
+  },
+  "initial_failures": {
+    "core": {
+      "log": "build/qa/metafile-interpolation-core-2026-11-05.log",
+      "methods_executed": 187,
+      "failed_methods": 19,
+      "assertion_failures": 498,
+      "unexpected_failures": 0,
+      "failed_method_names": [
+        "TurtleGitCoreTests.MetafileCompressedRasterTests testGIFDefaultDistinguishesAnimationFromUntimedStaticComposite",
+        "TurtleGitCoreTests.MetafileEmbeddedImageTests testMalformedNestedImagesFailWholePictureWithBoundedRecursionAndCancellation",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testFourRawWordFormatsHaveIndependentColorAndAlphaSamples",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testLowWordBytesDoNotBecomeRoundedOrThirteenBitDisplayValues",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testPremultipliedWordsQuantizeBeforeAlphaConversionAndAcceptBothDocumentedEnums",
+        "TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsBrightnessContrastUsesIndependentNativeRamps",
+        "TurtleGitCoreTests.MetafileImageTests testCustomArrowCapsHaveDistinctFilledNotchDiamondAndOutlineGeometry",
+        "TurtleGitCoreTests.MetafileImageTests testImageEffectFlagWithoutSerializedEffectUsesNativeOrdinaryImageFallback",
+        "TurtleGitCoreTests.MetafileImageTests testOpaquePenAndHalfAlphaBrushPreserveSeparateSVGOpacity",
+        "TurtleGitCoreTests.MetafileImageTests testPenFlatDirectionalAndAsymmetricCapsPaintAnalyticalOutlines",
+        "TurtleGitCoreTests.MetafileImageTests testPenLinearTransformIgnoresTranslationAndRespectsCapturedWorldClip",
+        "TurtleGitCoreTests.MetafileImageTests testRecordedImageInterpolationMatchesIndependentWindowsRGBA",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseColorBalanceMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseCurveEveryModeAndChannelMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseHueSaturationLightnessMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseIgnoredCurveInterpositionAndPlainDrawUseActualNativeStatePixels",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseLevelsMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseOriginalRecordedCurveCompatibilityRemainsPlain",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseReservedSerializableFlagsRetainActualNativePixels"
+      ],
+      "diagnostic_clusters": [
+        "Windows interpolation test initially selected natural playback rather than explicit product Picture consumer; Half-quarter leading-row viewport loss and varied RGB exposed association-boundary errors.",
+        "Existing pointwise/high-depth/compressed compatibility oracles exposed source preparation versus effect/output cycles; existing captured effect goldens were retained.",
+        "Custom style had one equal adjacent default-None aliased pair with280 red pixels, not white/missing paint; explicit-AA geometry observations preserve style distinctions.",
+        "Width-zero/hairline-world versus width-one differed at two endpoint pixels because raw-width-only DDA receipt eligibility diverged.",
+        "Opaque-pen old vector markup assertion no longer matched native coverage presentation; rendered coverage assertion retained.",
+        "Paint-heavy playback-count fixture exhausted aggregate paint sample budget before child-image breadth budget; a separate no-paint child fixture now independently tests exact image-count guard."
+      ]
+    },
+    "native": {
+      "log": "build/qa/metafile-interpolation-native-2026-11-05.log",
+      "interpolation_passed_engine_combinations": 2,
+      "historical_failure": "System-Git historical-positive stopped at legacy effect-flag probe: independently expected primary at16,16 but actual native ordinary fallback pixel was[128,128,128,255]. This was a stale native consumer oracle, not proven conversion failure.",
+      "remaining_cohorts_not_claimed_passed_before_repair": true
+    }
+  },
+  "repairs": [
+    "Corrected Half-phase viewport bounds and measured ordinary nearest arithmetic without globally changing legacy spatial bilinear arithmetic.",
+    "Kept plain ordinary pre-effect preparation bypass separate from effect source preparation; removed redundant post-effect baking association cycles while retaining required filter/output/Picture boundaries.",
+    "Imported immutable full Windows natural and Picture captures; corrected product comparison to its explicit Picture consumer.",
+    "Retained custom local cap/join inequality under explicit AA observation; default-None aliasing does not imply missing geometry or justify globally forcing AA.",
+    "Retained effective one-device-pixel hairline centerlines in final coordinate space, preserving exact width-zero/width-one and world-transform pixel assertions.",
+    "Retained exact recursion, aggregate paint coverage and image-count refusals independently, unchanged source bytes, cancellation typing and post-refusal control.",
+    "Repaired historical ordinary fallback consumer probe to independently specified gray effect-flag source instead of stale primary-color expectation."
+  ],
+  "validation": {
+    "universal_helpers": [
+      {
+        "log": "build/qa/metafile-interpolation-runtime-2026-11-05.log",
+        "exit_code": 0,
+        "scope": "Universal macOS13 helper/runtime build and structure validation; not app build, signing or full rendering acceptance."
+      },
+      {
+        "log": "build/qa/metafile-interpolation-runtime-repair-2026-11-05.log",
+        "exit_code": 0,
+        "scope": "Universal macOS13 helper/runtime build and structure validation; not app build, signing or full rendering acceptance."
+      }
+    ],
+    "core_repair": {
+      "log": "build/qa/metafile-interpolation-core-repair-2026-11-05.log",
+      "exit_code": 0,
+      "methods": 43,
+      "failures": 0,
+      "unexpected_failures": 0,
+      "passed_method_names": [
+        "TurtleGitCoreTests.MetafileCompressedRasterTests testGIFDefaultDistinguishesAnimationFromUntimedStaticComposite",
+        "TurtleGitCoreTests.MetafileEmbeddedImageTests testMalformedNestedImagesFailWholePictureWithBoundedRecursionAndCancellation",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testFourRawWordFormatsHaveIndependentColorAndAlphaSamples",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testLowWordBytesDoNotBecomeRoundedOrThirteenBitDisplayValues",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testNegativeStrideAndNonzeroRowPaddingPreserveSourceOrientation",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testPremultipliedWordsQuantizeBeforeAlphaConversionAndAcceptBothDocumentedEnums",
+        "TurtleGitCoreTests.MetafileHighDepthBitmapTests testTexturesAndThreePointWorldMappingMatchIndependentLowDepthControls",
+        "TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsBrightnessContrastUsesIndependentNativeRamps",
+        "TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsFallback16BitPNGPreservesAsymmetricRowsAndNamedSRGB",
+        "TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsMalformedProfilesRefuseWholeConversionAndPreserveBytes",
+        "TurtleGitCoreTests.MetafileImageEffectsTests testImageEffectsRecordedWindowsStateAndActualPixels",
+        "TurtleGitCoreTests.MetafileImageTests testCustomArrowCapsHaveDistinctFilledNotchDiamondAndOutlineGeometry",
+        "TurtleGitCoreTests.MetafileImageTests testHistoricalImageTileBudgetUsesBoundedWrappedSampling",
+        "TurtleGitCoreTests.MetafileImageTests testImageEffectFlagWithoutSerializedEffectUsesNativeOrdinaryImageFallback",
+        "TurtleGitCoreTests.MetafileImageTests testIndexedAnd16BitTextureBrushesMatchIndependentlyCheckedImageColors",
+        "TurtleGitCoreTests.MetafileImageTests testOpaquePenAndHalfAlphaBrushPreserveSeparateSVGOpacity",
+        "TurtleGitCoreTests.MetafileImageTests testPenFlatDirectionalAndAsymmetricCapsPaintAnalyticalOutlines",
+        "TurtleGitCoreTests.MetafileImageTests testPenLinearTransformIgnoresTranslationAndRespectsCapturedWorldClip",
+        "TurtleGitCoreTests.MetafileImageTests testRaw16BitMasksAlphaAndRetained24And32BitFormats",
+        "TurtleGitCoreTests.MetafileImageTests testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows",
+        "TurtleGitCoreTests.MetafileImageTests testRecordedImageInterpolationMatchesIndependentWindowsPictureRGBA",
+        "TurtleGitCoreTests.MetafileImageTests testRecordedImageInterpolationModesStateAndAffinePixels",
+        "TurtleGitCoreTests.MetafileInitialAlphaTests testDualGetDCAddsOnlyActualGDIPaintAndReturnsToTransparentPlusState",
+        "TurtleGitCoreTests.MetafileInitialAlphaTests testExplicitClearOwnsWholeCanvasRegardlessOfCompositingMode",
+        "TurtleGitCoreTests.MetafileInitialAlphaTests testFullRetainedWindowsEffectPicturesPreserveUnpaintedAndPaintedAlpha",
+        "TurtleGitCoreTests.MetafileInitialAlphaTests testSourceOverAndSourceCopyOnEmptyCanvasPreserveLiteralSourceAlpha",
+        "TurtleGitCoreTests.MetafileInitialAlphaTests testUnpaintedOnlyAndDualStreamsRetainTransparentAllocationThroughStateChanges",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseColorBalanceMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseCurveEveryModeAndChannelMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseHueSaturationLightnessMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseIgnoredCurveInterpositionAndPlainDrawUseActualNativeStatePixels",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseLevelsMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseMalformedProfilesRefuseWholeConversionAndPreserveOriginalBytes",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseOriginalRecordedCurveCompatibilityRemainsPlain",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseReservedSerializableFlagsRetainActualNativePixels",
+        "TurtleGitCoreTests.MetafilePointwiseEffectsTests testPointwiseTintMatchesFullNativeWindowsRaster",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testEachOverlappingRectangleIsAnOrderedReplacementRatherThanFlattenedSourceOver",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testGradientHatchTextureAndImageCoverageIsIndependentOfSourceOpacity",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testInvalidModesPaintAndClearTypeRefuseWholePrefixAndDoNotLeakState",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testPenAndBothNativeGlyphPathsReplaceWithSourceAlphaOnlyOnInkCoverage",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testSaveContainersGetDCPreserveModeAndClearIgnoresCompositingMode",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testTransparentPathRegionAndClipHolesPreserveDestinationOutsideActualGeometry",
+        "TurtleGitCoreTests.MetafileSourceCopyTests testTransparentSemiAndOpaqueSourceCopyReplaceAllChannelsAgainstLiteralPNGControls"
+      ],
+      "scope": "Affected43-method repair group, including full304 Windows Picture corpus, existing effect compatibility/goldens, source/alpha/SourceCopy, compressed/high-depth, pen geometry and independent embedded budget limits. The complete187-method initial selection was NOT rerun clean on final source."
+    },
+    "native_interpolation": {
+      "log": "build/qa/metafile-interpolation-native-2026-11-05.log",
+      "passed_engine_combinations": 2,
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "scope": "Recorded mode/state/affine Compare, Reload, file drop, malformed refusal, original-byte conflict resolution and cancellation/owner drainage."
+    },
+    "native_historical_repair": {
+      "log": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log",
+      "exit_code": 0,
+      "passed_engine_combinations": 4,
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "cohorts": [
+        "historical-positive",
+        "negative-3"
+      ],
+      "historical_positive_cases_per_engine": 8,
+      "selected_malformed_cases_per_engine": 64,
+      "complete_malformed_inventory": 515,
+      "scope": "Selected historical8 + deterministic malformed64 per engine, unchanged input bytes and owner/helper drainage. This is NOT a complete515-case malformed inventory run."
+    },
+    "effect_golden_integrity": {
+      "tracked_fixture_changes": [
+        "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-embedded.py"
+      ],
+      "meaning": "No existing captured effect PNG/RGBA/EMF golden fixture bytes changed in this working-tree batch; generator extension is additive and new independent interpolation references/one no-paint refusal fixture are separate."
+    }
+  },
+  "process_ownership": {
+    "reported_reaped": [
+      {
+        "role": "compiler",
+        "pid": 33893,
+        "log": "build/qa/metafile-interpolation-native-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 33944,
+        "log": "build/qa/metafile-interpolation-native-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 34175,
+        "log": "build/qa/metafile-interpolation-native-2026-11-05.log"
+      },
+      {
+        "role": "compiler",
+        "pid": 34666,
+        "log": "build/qa/metafile-interpolation-native-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 35058,
+        "log": "build/qa/metafile-interpolation-native-2026-11-05.log"
+      },
+      {
+        "role": "compiler",
+        "pid": 36377,
+        "log": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 36874,
+        "log": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 37244,
+        "log": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 37525,
+        "log": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log"
+      },
+      {
+        "role": "receiver",
+        "pid": 37723,
+        "log": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log"
+      }
+    ],
+    "independent_absence_check": {
+      "checked_at_utc": "2026-11-05T14:15:28.849932+00:00",
+      "method": "os.kill(pid,0), read-only existence check of exact reported PIDs; no process terminated",
+      "results": [
+        {
+          "pid": 33893,
+          "state": "absent"
+        },
+        {
+          "pid": 33944,
+          "state": "absent"
+        },
+        {
+          "pid": 34175,
+          "state": "absent"
+        },
+        {
+          "pid": 34666,
+          "state": "absent"
+        },
+        {
+          "pid": 35058,
+          "state": "absent"
+        },
+        {
+          "pid": 36377,
+          "state": "absent"
+        },
+        {
+          "pid": 36874,
+          "state": "absent"
+        },
+        {
+          "pid": 37244,
+          "state": "absent"
+        },
+        {
+          "pid": 37525,
+          "state": "absent"
+        },
+        {
+          "pid": 37723,
+          "state": "absent"
+        }
+      ],
+      "all_absent": true
+    },
+    "ownership": "Private fixture repositories/preferences/pasteboards and transparent offscreen native owners; process-group cleanup reports retained. No unrelated user app termination performed."
+  },
+  "current_identities": {
+    "sources": [
+      {
+        "path": "Sources/TurtleGitMetafile/SpatialImageSampling.swift",
+        "bytes": 14768,
+        "sha256": "15bddd95570b71c1bdfc86597b21aaa1af79d8356e7ae2103b9235d367e892a8"
+      },
+      {
+        "path": "Sources/TurtleGitMetafile/main.swift",
+        "bytes": 247398,
+        "sha256": "5f4855356ec307799f2dc4f6b4fb81d81aec9b57b0f690720eeef5cfa578589d"
+      },
+      {
+        "path": "patches/metafile-renderer.patch",
+        "bytes": 336285,
+        "sha256": "a652cb7700f4b58845f1de6ccd18fcbc0656fcf5f0831492a7b64011026a9e38"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+        "bytes": 251431,
+        "sha256": "821345f7a6fcb874c0c0599f897c0be408f013cdddb9e366efd9fe1d099fd99d"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/MetafileEmbeddedImageTests.swift",
+        "bytes": 11205,
+        "sha256": "ef66477a68204fa9f1403cc1daa09394b68b2ed66c05cacce347ac6f850f5abc"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/MetafileCompressedRasterTests.swift",
+        "bytes": 10791,
+        "sha256": "1833c4f7b8b6012d4a07adb137a05f25122da736b2ef4a5b572f0705b14ff617"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/MetafileHighDepthBitmapTests.swift",
+        "bytes": 10977,
+        "sha256": "c231cc44a28ae5d6d8273a8c4a8e0e062a8904f962c217e812c6e3b5e771710c"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/MetafileSourceCopyTests.swift",
+        "bytes": 10507,
+        "sha256": "cfea06ebf69231566caeb014752afe6860bc713a698f76b2450e17ee851ca0e4"
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-embedded.py",
+        "bytes": 12010,
+        "sha256": "81d854ed934be6fedf613b97355e64ab5d8e597bff0d640727ba3930d3eec01f"
+      },
+      {
+        "path": "docs/qa/metafile-image-interpolation-native-2026-11-05.swift",
+        "bytes": 17049,
+        "sha256": "b426289d0fda336986bdf79e37ff48a481ecd4f4a6c6e14da6ff22aa95cbda51"
+      },
+      {
+        "path": "docs/qa/metafile-consumers-native-2026-10-18.swift",
+        "bytes": 114998,
+        "sha256": "720720c150fdc93d821a89810c07ea806080752796de0c1394d078875b1d77bf"
+      },
+      {
+        "path": "scripts/test-metafile-image-effects.py",
+        "bytes": 8651,
+        "sha256": "9c06c7453b98d6112773b86cd15566d99e080c438ded728bbfca9b93e46c0720"
+      },
+      {
+        "path": "scripts/test-metafile-workflows.py",
+        "bytes": 18386,
+        "sha256": "007d39bdda39df0f5293e2dbb34432ae95fe545fc52edd17c6d9fb1bb99c8145"
+      }
+    ],
+    "helper_runtime": [
+      {
+        "path": "build/metafile-runtime/Metafile/metafile-convert",
+        "bytes": 2188184,
+        "sha256": "75653c227a386b50ea2fbbf2abb3abe584a123d75ee37be1f5694424e7950857"
+      },
+      {
+        "path": "build/metafile-runtime/Metafile/renderer.js",
+        "bytes": 701680,
+        "sha256": "849e70e35608a5c670f401c52198713a38b6e0cb923f6ed1fc78ba7f1da427c8"
+      },
+      {
+        "path": "build/metafile-runtime/Metafile/provenance.json",
+        "bytes": 15752,
+        "sha256": "3f5459ab109b430c8692663717e687932042184751c6b2cc11bd0729e3708103"
+      }
+    ],
+    "manifest": {
+      "path": "Tests/TurtleGitCoreTests/Fixtures/Metafile/Interpolation/Windows/manifest.json",
+      "bytes": 389626,
+      "sha256": "4f4c57ab772fe26300729ba5b7d01facc2db0726bb0bc0a33d1f5eb2ace2a21a"
+    },
+    "logs": {
+      "core_initial": {
+        "path": "build/qa/metafile-interpolation-core-2026-11-05.log",
+        "bytes": 517618,
+        "sha256": "6138740d563c96559151615d76612ee49b33c0601f66ce8646ecbae707b21612"
+      },
+      "core_repair": {
+        "path": "build/qa/metafile-interpolation-core-repair-2026-11-05.log",
+        "bytes": 15048,
+        "sha256": "bd4bfd1524303aa024fb2b89c1c28da2dd4de11bf9c765108eda7afba09d6f10"
+      },
+      "native_initial": {
+        "path": "build/qa/metafile-interpolation-native-2026-11-05.log",
+        "bytes": 5025,
+        "sha256": "20a78e6dcd19c5918792e5d12a0fc94067cc10de039ee7d09d32b1cbf0401f80"
+      },
+      "native_repair": {
+        "path": "build/qa/metafile-interpolation-native-historical-repair-2026-11-05.log",
+        "bytes": 150208,
+        "sha256": "c7d8ad0a84e840d8b7c0161bb09294081a14bddc2806ea7b1b6504ed82e82ee0"
+      },
+      "runtime_initial": {
+        "path": "build/qa/metafile-interpolation-runtime-2026-11-05.log",
+        "bytes": 1461,
+        "sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+      },
+      "runtime_repair": {
+        "path": "build/qa/metafile-interpolation-runtime-repair-2026-11-05.log",
+        "bytes": 1461,
+        "sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+      }
+    }
+  },
+  "installed_app": "Build52 not installed/replaced by this batch. Separate physical cleanup evidence: docs/qa/installed-finder52-2026-11-05.json; do not infer physical format parity from these native receivers.",
+  "remaining": [
+    "Complete hosted CI for the current source, including unrelated preexisting failures, remains open.",
+    "No final clean rerun of the full187-method initial Core selection; final-source Core validation is43 affected methods only.",
+    "Full515 malformed inventory, arbitrary interpolation kernels/modes and exhaustive affine/format parity are not established.",
+    "Physical Finder/UI, signed distribution and full upstream dialog/format parity remain separate acceptance."
+  ]
+}

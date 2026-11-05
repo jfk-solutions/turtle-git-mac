@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,576 @@
+@@ -0,0 +1,577 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -157,15 +157,15 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    return text;
 +  }
-+  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],compositing:0,compositingQuality:null,textHint:0,smoothingMode:3,antialias:false,pixelOffsetMode:0,saves:[],objectParts:null}); }
++  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],compositing:0,compositingQuality:null,interpolationMode:0,textHint:0,smoothingMode:3,antialias:false,pixelOffsetMode:0,saves:[],objectParts:null}); }
 +  function baseMatrix(d) {
 +    const t=d.coordinateTransformer, o=t.transform(0,0), x=t.transform(1,0), y=t.transform(0,1);
 +    return [x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
 +  }
 +  function currentMatrix(d) { const s=state(d); return mul(baseMatrix(d),mul([s.page,0,0,s.page,0,0],s.world)); }
 +  function unitScale(unit,dpi) { const scales={0:1,1:dpi/75,2:1,3:dpi/72,4:dpi,5:dpi/300,6:dpi/25.4}; if(!(unit in scales)) fail('unsupported page unit '+unit); return scales[unit]; }
-+  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip,renderingOrigin:s.renderingOrigin.slice(),compositing:s.compositing,compositingQuality:s.compositingQuality,textHint:s.textHint,smoothingMode:s.smoothingMode,antialias:s.antialias,pixelOffsetMode:s.pixelOffsetMode}); if(container){s.smoothingMode=3;s.antialias=false;s.pixelOffsetMode=0;s.compositingQuality=null;} }
-+  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.renderingOrigin=old.renderingOrigin.slice();s.compositing=old.compositing;s.compositingQuality=old.compositingQuality;s.textHint=old.textHint;s.smoothingMode=old.smoothingMode;s.antialias=old.antialias;s.pixelOffsetMode=old.pixelOffsetMode;s.saves.length=index; }
++  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip,renderingOrigin:s.renderingOrigin.slice(),compositing:s.compositing,compositingQuality:s.compositingQuality,interpolationMode:s.interpolationMode,textHint:s.textHint,smoothingMode:s.smoothingMode,antialias:s.antialias,pixelOffsetMode:s.pixelOffsetMode}); if(container){s.smoothingMode=3;s.antialias=false;s.pixelOffsetMode=0;s.compositingQuality=null;s.interpolationMode=0;} }
++  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.renderingOrigin=old.renderingOrigin.slice();s.compositing=old.compositing;s.compositingQuality=old.compositingQuality;s.interpolationMode=old.interpolationMode;s.textHint=old.textHint;s.smoothingMode=old.smoothingMode;s.antialias=old.antialias;s.pixelOffsetMode=old.pixelOffsetMode;s.saves.length=index; }
 +  function updateWorld(d,m,flags) { const s=state(d); s.world=flags&0x2000 ? mul(m,s.world):mul(s.world,m); matrix(s.world); }
 +  // Clips live in device coordinates: later world changes cannot move an existing clip.
 +  // SVG luminance masks express all six GDI+ combine operations without region approximation.
@@ -296,7 +296,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  const rawPaint=Object.fromEntries(['fill','fillRect','fillText','fillGlyphPaths'].map(name=>[name,SvgContext.prototype[name]]));
 +  const embedded=require('./turtleGitEmbedded')({fail,u32,escape,matrix,renderDocument,charge:embeddedMarkup,currentMatrix,state,mask,combineMasks,masked,mul});
 +  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap,paths,embedded});
-+  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded});
++  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,state,embedded});
 +  const pens=require('./turtleGitPens')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint,paths});
 +  const quality=require('./turtleGitQuality')({SvgContext,fail,u32,escape,matrix,currentMatrix,state,paint});
 +  const sourceCopy=require('./turtleGitSourceCopy')({EmfPlusDrawer,SvgContext,fail,escape,matrix,currentMatrix,masked,raw:rawPaint});
@@ -310,6 +310,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      case 0x4001: if(data.length<16) fail('truncated EMF+ header'); s.dpiX=u32(data,8)||96;s.dpiY=u32(data,12)||96;return;
 +      case 0x401D: if(data.length!==8)fail('invalid rendering origin');s.renderingOrigin=[i32(data,0),i32(data,4)];return;
 +      case 0x401E: if(data.length!==0||((flags>>>1)&127)>5)fail('invalid smoothing mode');s.smoothingMode=(flags>>>1)&127;s.antialias=!!(flags&1);return;
++      case 0x4021: if(data.length!==0||(flags&255)>7)fail('invalid EMF+ interpolation mode');s.interpolationMode=flags&255;return;
 +      case 0x4022: if(data.length!==0||(flags&255)>4)fail('invalid EMF+ pixel offset mode');s.pixelOffsetMode=flags&255;return;
 +      case 0x4025: if(data.length!==4)fail('invalid EMF+ saved graphics record');snapshot(this,u32(data,0),false);return;
 +      case 0x4026: if(data.length!==4)fail('invalid EMF+ saved graphics record');restore(this,u32(data,0),false);return;
@@ -973,18 +974,18 @@ diff --git a/src/turtleGitHatch.js b/src/turtleGitHatch.js
 diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 --- /dev/null
 +++ b/src/turtleGitImages.js
-@@ -0,0 +1,291 @@
+@@ -0,0 +1,262 @@
 +// Original TurtleGit adaptation, MIT. MS-EMFPLUS 2.2.1.5, 2.2.2.21/22/37,
 +// 2.3.4.8/9. No document-derived resource or executable access.
-+module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded}) {
-+  const ep=EmfPlusDrawer.prototype, oldImage=ep._drawImageObj;
++module.exports = function installImages({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,state,embedded}) {
++  const ep=EmfPlusDrawer.prototype;
 +  // Serialized effects belong to this playback owner, not an image table slot.
 +  // A child metafile has a distinct drawer; neither source object replacement
 +  // nor graphics-state copies can share mutable effect parameters.
 +  const effects=new WeakMap();
 +  const ordinaryFallback=Object.freeze({ordinaryFallback:true});
 +  const skipsDrawing=Symbol('native-spatial-no-paint');
-+  const preparedImages=new WeakSet(),ordinaryImages=new WeakMap(),fallbackImages=new WeakMap();
++  const preparedImages=new WeakSet(),fallbackImages=new WeakMap();
 +  function curveEffect(data,count) {
 +    if(count!==12)fail('invalid color curve effect length');
 +    const adjustment=u32(data,20),channel=u32(data,24),adjustValue=u32(data,28)|0;
@@ -1094,7 +1095,10 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +  }
 +  function ordinaryImage(drawer,image,effectPipeline=false) {
 +    if(image.type!=='imageData'||preparedImages.has(image))return image;
-+    const cache=effectPipeline?fallbackImages:ordinaryImages;
++    // Ordinary source pixels enter the bounded device sampler directly. It
++    // supplies the measured association stages instead of duplicating them.
++    if(!effectPipeline)return image;
++    const cache=fallbackImages;
 +    const previous=cache.get(image);if(previous)return previous;
 +    if(typeof globalThis.turtleGitPrepareImage!=='function')fail('native bitmap preparation unavailable');
 +    const result=prepareBitmap(drawer,image,()=>globalThis.turtleGitPrepareImage(image.href,effectPipeline));
@@ -1131,7 +1135,6 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    if(typeof globalThis.turtleGitApplyImageEffect!=='function')fail('native image effect adapter unavailable');
 +    return prepareBitmap(drawer,image,()=>globalThis.turtleGitApplyImageEffect(image.href,effect));
 +  }
-+  const color=value=>'#'+(value&0xffffff).toString(16).padStart(6,'0');
 +  function short(data,offset) {if(offset<0||offset+2>data.length)fail('truncated image point');return(data[offset]|data[offset+1]<<8)<<16>>16;}
 +  function tail(data,used) {if(data.length<used||data.length-used>3)fail('invalid image record length');}
 +  function attributes(drawer,id) {
@@ -1148,13 +1151,19 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    if(source.w<=0||source.h<=0)fail('invalid nonpositive image source extent');
 +    return{image,source,attrs:attributes(drawer,u32(data,0))};
 +  }
++  function interpolation(drawer) {
++    const recorded=state(drawer);
++    return Object.freeze({interpolationMode:recorded.interpolationMode,pixelOffsetMode:recorded.pixelOffsetMode});
++  }
 +  ep.processEmfPlusDrawImage=function(flags,data) {
++    const receipt=interpolation(this);
 +    const p=parameters(this,flags,data),compressed=!!(flags&0x4000),read=compressed?short:f32,stride=compressed?2:4;
 +    const x=read(data,24),y=read(data,24+stride),w=read(data,24+stride*2),h=read(data,24+stride*3);
 +    tail(data,24+stride*4);
-+    this._drawImageObj(p.image,x,y,x+w,y,x,y+h,p.source,p.attrs);
++    this._drawImageObj(p.image,x,y,x+w,y,x,y+h,p.source,p.attrs,receipt);
 +  };
 +  ep.processEmfPlusDrawImagePoints=function(flags,data) {
++    const receipt=interpolation(this);
 +    // P=0x0800 is relative, E=0x2000 selects an image effects block; C is
 +    // undefined when P is set. Ordinary draws still prepare bitmap playback.
 +    const p=parameters(this,flags,data);if(u32(data,24)!==3)fail('invalid bitmap destination point count');
@@ -1176,24 +1185,35 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +    // when E is clear. No-draw Save/Restore and containers leave it pending.
 +    const effect=effects.get(this);effects.delete(this);
 +    const image=flags&0x2000?effectedImage(this,p.image,effect,p.source):p.image;
-+    this._drawImageObj(image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs);
++    this._drawImageObj(image,a.x,a.y,b.x,b.y,c.x,c.y,p.source,p.attrs,receipt);
 +  };
-+  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src,attrs=null) {
++  ep._drawImageObj=function(img,x1,y1,x2,y2,x3,y3,src,attrs=null,receipt=interpolation(this)) {
 +    if(img._turtleSkipsDrawing===true)return;
 +    img=ordinaryImage(this,img);
 +    if(img.type==='imageMetafile') {
 +      return embedded.draw(this,img,x1,y1,x2,y2,x3,y3,src,attrs);
 +    }
++    // A draw captures quality before preparing/looking up a mutable image slot.
++    // Metafile children above retain vector playback and their own state.
++    const mode=receipt.interpolationMode;
++    if(![0,1,3,5].includes(mode))fail('unsupported bitmap interpolation mode '+mode);
 +    const iw=img.logicalWidth||img.width,ih=img.logicalHeight||img.height,ox=img.originX||0,oy=img.originY||0;
 +    const sx=src?src.x:0,sy=src?src.y:0,sw=src?src.w:iw,sh=src?src.h:ih;
 +    if(sw<=0||sh<=0)fail('invalid bitmap source extent');
 +    const a=(x2-x1)/sw,b=(y2-y1)/sw,c=(x3-x1)/sh,d=(y3-y1)/sh,e=x1-a*sx-c*sy,f=y1-b*sx-d*sy;
-+    const transform=matrix([a,b,c,d,e,f]);if(a*d-b*c===0)return;
-+    const ctx=this.ctx,id='turtle-image-clip-'+ctx._defs.length;
-+    if(img._turtleSpatialImage) {
++    matrix([a,b,c,d,e,f]);if(a*d-b*c===0)return;
++    const ctx=this.ctx;
++    { // Ordinary and spatial images share bounded device sampling; no SVG image filter.
 +      if(typeof globalThis.turtleGitSampleSpatialImage!=='function')fail('native spatial image sampling unavailable');
 +      const world=currentMatrix(this),combined=[world[0]*a+world[2]*b,world[1]*a+world[3]*b,world[0]*c+world[2]*d,world[1]*c+world[3]*d,world[0]*e+world[2]*f+world[4],world[1]*e+world[3]*f+world[5]];
-+      const output=globalThis.turtleGitSampleSpatialImage(img.href,{matrix:combined,source:[sx,sy,sw,sh],originX:ox,originY:oy,logicalWidth:iw,logicalHeight:ih,canvasWidth:ctx.canvas.width,canvasHeight:ctx.canvas.height,wrap:attrs?attrs.wrap:4,clamp:attrs?attrs.color>>>0:0});
++      const sampling={matrix:combined,source:[sx,sy,sw,sh],originX:ox,originY:oy,logicalWidth:iw,logicalHeight:ih,canvasWidth:ctx.canvas.width,canvasHeight:ctx.canvas.height,wrap:attrs?attrs.wrap:4,clamp:attrs?attrs.color>>>0:0};
++      // Windows11 raw-record captures group0/1/3 as bilinear, despite the
++      // protocol enum's LowQuality alias description. Keep the raw receipt;
++      // only5 chooses nearest at an effect's final placement, not effect pixels.
++      if(!img._turtleSpatialImage||mode===5) {
++        sampling.interpolationMode=mode;sampling.pixelOffsetMode=receipt.pixelOffsetMode;
++      }
++      const output=globalThis.turtleGitSampleSpatialImage(img.href,sampling);
 +      if(output&&output.skipsDrawing===true){if(Object.keys(output).length!==1)fail('invalid spatial sample no-paint');return {spatialCoverage:[]};}
 +      if(!output||!Number.isInteger(output.width)||!Number.isInteger(output.height)||output.width<1||output.height<1||output.width>32768||output.height>32768||output.width*output.height>16777216||!Number.isInteger(output.originX)||!Number.isInteger(output.originY)||output.originX<0||output.originY<0||output.originX+output.width>ctx.canvas.width||output.originY+output.height>ctx.canvas.height)fail('invalid spatial sample geometry');
 +      for(const href of [output.href,output.coverage])if(typeof href!=='string'||!href.startsWith('data:image/png;base64,')||href.length>64*1024*1024)fail('invalid native spatial sample PNG');
@@ -1205,54 +1225,6 @@ diff --git a/src/turtleGitImages.js b/src/turtleGitImages.js
 +      ctx.rawPush(node(output.href));
 +      return {spatialCoverage:[node(output.coverage)]};
 +    }
-+    const rect='<rect x="'+sx+'" y="'+sy+'" width="'+sw+'" height="'+sh+'"/>';
-+    ctx._defs.push('<clipPath id="'+id+'" clipPathUnits="userSpaceOnUse">'+rect+'</clipPath>');
-+    function image(extra='') {return'<image x="'+ox+'" y="'+oy+'" width="'+img.width+'" height="'+img.height+'" href="'+escape(img.href)+'" preserveAspectRatio="none" '+extra+'/>';}
-+    let body;
-+    if(attrs&&attrs.wrap<4) {
-+      const flipX=attrs.wrap===1||attrs.wrap===3,flipY=attrs.wrap===2||attrs.wrap===3;
-+      const world=currentMatrix(this),combined=[world[0]*a+world[2]*b,world[1]*a+world[3]*b,world[0]*c+world[2]*d,world[1]*c+world[3]*d,world[0]*e+world[2]*f+world[4],world[1]*e+world[3]*f+world[5]];
-+      const det=combined[0]*combined[3]-combined[1]*combined[2];if(!det)return;
-+      const inverse=(x,y)=>{x-=combined[4];y-=combined[5];return[(combined[3]*x-combined[2]*y)/det,(-combined[1]*x+combined[0]*y)/det];};
-+      const corners=[inverse(-1,-1),inverse(ctx.canvas.width+1,-1),inverse(-1,ctx.canvas.height+1),inverse(ctx.canvas.width+1,ctx.canvas.height+1)];
-+      const left=Math.max(sx,Math.min(...corners.map(p=>p[0]))),right=Math.min(sx+sw,Math.max(...corners.map(p=>p[0]))),top=Math.max(sy,Math.min(...corners.map(p=>p[1]))),bottom=Math.min(sy+sh,Math.max(...corners.map(p=>p[1])));
-+      if(right<=left||bottom<=top)return;
-+      const firstX=Math.floor(left/iw),lastX=Math.ceil(right/iw)-1,firstY=Math.floor(top/ih),lastY=Math.ceil(bottom/ih)-1;
-+      const count=(lastX-firstX+1)*(lastY-firstY+1);
-+      if(!Number.isFinite(count)||count>16384)fail('visible bitmap tile count limit');
-+      this._turtleImageTiles=(this._turtleImageTiles||0)+count;if(this._turtleImageTiles>65536)fail('metafile bitmap tile count limit');
-+      // Each visible copy embeds the PNG. Reserve conservative serialized space
-+      // before concatenation, including clip/transform markup, across records.
-+      // A small viewport can still request thousands of copies of a large PNG.
-+      const projected=count*(escape(img.href).length+4096);
-+      this._turtleImageMarkup=(this._turtleImageMarkup||0)+projected;
-+      if(!Number.isSafeInteger(this._turtleImageMarkup)||this._turtleImageMarkup>64*1024*1024)fail('metafile bitmap tile markup budget exceeded');
-+      body='';
-+      // CoreSVG misplaces bitmap pattern cells. Explicit visible copies retain
-+      // the actual tile phase, including negative indices and axis reflection.
-+      for(let row=firstY;row<=lastY;row++)for(let column=firstX;column<=lastX;column++) {
-+        const x=column*iw,y=row*ih,fx=flipX&&column%2!==0,fy=flipY&&row%2!==0;
-+        const l=Math.max(sx,x)-x,r=Math.min(sx+sw,x+iw)-x,t=Math.max(sy,y)-y,bot=Math.min(sy+sh,y+ih)-y;
-+        if(r<=l||bot<=t)continue;
-+        let clip='';
-+        if(l>0||t>0||r<iw||bot<ih||ox||oy||img.width!==iw||img.height!==ih) {
-+          const key='turtle-tile-clip-'+ctx._defs.length;
-+          ctx._defs.push('<clipPath id="'+key+'" clipPathUnits="userSpaceOnUse"><rect x="'+(fx?iw-r:l)+'" y="'+(fy?ih-bot:t)+'" width="'+(r-l)+'" height="'+(bot-t)+'"/></clipPath>');
-+          clip='clip-path="url(#'+key+')"';
-+        }
-+        body+='<g transform="translate('+(x+(fx?iw:0))+' '+(y+(fy?ih:0))+') scale('+(fx?-1:1)+' '+(fy?-1:1)+')">'+image(clip)+'</g>';
-+      }
-+    } else {
-+      body='';
-+      if(attrs&&attrs.color>>>24) {
-+        // ClampColor applies only outside the intrinsic bitmap, never underneath
-+        // translucent bitmap pixels. The outer source clip bounds the XOR path.
-+        const outside='M '+sx+' '+sy+' h '+sw+' v '+sh+' h '+(-sw)+' Z M 0 0 H '+iw+' V '+ih+' H 0 Z';
-+        body='<path d="'+outside+'" fill-rule="evenodd" fill="'+color(attrs.color)+'" fill-opacity="'+((attrs.color>>>24)/255)+'" clip-path="url(#'+id+')"/>';
-+      }
-+      body+=image('clip-path="url(#'+id+')"');
-+    }
-+    ctx.rawPush('<g transform="matrix('+transform+')">'+body+'</g>');
 +  };
 +  return{parseEffect,parseAttributes(id,data) {
 +    if(id>63||data.length!==24)fail('invalid image attributes object');

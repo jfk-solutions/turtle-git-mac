@@ -54,7 +54,7 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
         let acceptedHistoricalRasterSamples=acceptedLegacyBitmap16Samples.union(["unsupported-rop.emf"])
         // Core MetafileImageTests establishes ordinary E-without-effect image
         // fallback, ROP2 XOR, complete BGRX and empty prior-DC WMF positives.
-        let acceptedHistoricalSamples=acceptedHistoricalRasterSamples.union(["unsupported-image-effect.emf","unsupported-texture-tile-budget.emf"])
+        let acceptedHistoricalSamples=acceptedHistoricalRasterSamples.union(["unsupported-image-effect.emf","unsupported-texture-tile-budget.emf","unsupported-image-tile-budget.emf"])
         let wmfBitmap16Samples:Set<String>=Set(["wmf-bitmap16-bitblt-native.wmf","wmf-bitmap16-stretch-upscale.wmf","wmf-bitmap16-word-padding17.wmf","wmf-bitmap16-crop.wmf","wmf-bitmap16-mirror-dest-x.wmf","wmf-bitmap16-live-colors.wmf","wmf-bitmap16-save-restore.wmf","wmf-bitmap16-rop-66.wmf","wmf-bitmap16-rop-c0.wmf","wmf-bitmap16-clip.wmf","wmf-bitmap16-mapped.wmf","wmf-bitmap16-source-independent-color24-bitblt.wmf","wmf-bitmap16-embedded-affine.emf","wmf-bitmap16-pattern-bitmap16.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-widthbytes-negative.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-self-stretchblt-copy.wmf","wmf-bitmap16-shrink-mode1.wmf","wmf-bitmap16-shrink-mode2.wmf","wmf-bitmap16-shrink-mode3.wmf","wmf-bitmap16-halftone-integer-box.wmf","wmf-bitmap16-halftone-lanczos-quality.wmf","wmf-bitmap16-self-bitblt-mapped.wmf","wmf-bitmap16-self-stretchblt-outside-preserve.wmf"]).union(acceptedLegacyBitmap16Samples).union(["classic-gdi-empty-prior-bitblt-white-patcopy-control.wmf","classic-gdi-empty-prior-stretchblt-white-patcopy-control.wmf"])
         let wmfTextSamples:Set<String>=["wmf-text-textout-odd.wmf","wmf-text-ext-dx.wmf","wmf-text-ext-clip-opaque.wmf","wmf-text-ext-empty-opaque.wmf","wmf-text-ext-updatecp-dx.wmf","wmf-text-font-decorated.wmf","wmf-text-font-cell.wmf","wmf-text-font-angle.wmf","wmf-text-restore.wmf","wmf-text-translated.wmf","wmf-text-charset-204.wmf","wmf-text-dbcs-128.wmf","wmf-text-embedded-affine.emf","wmf-text-charset-oem437.wmf","wmf-text-dbcs-johab.wmf","wmf-text-extra-dx-positive.wmf","wmf-text-justify-dx-positive.wmf","wmf-text-extra-natural-negative.wmf","wmf-text-embedded-clip-affine.emf","wmf-text-justify-natural-positive.wmf","wmf-text-ext-pdy-ignored.wmf","wmf-text-dbcs-single-johab.wmf","wmf-text-dbcs-repeat-128.wmf"]
         let classicTextSamples:Set<String>=["classic-text-compact-small.emf","classic-text-compact-low-unicode.emf","classic-text-compact-clip-opaque.emf","classic-text-compact-updatecp.emf","classic-text-compact-world.emf","classic-text-poly-wide-dx.emf","classic-text-poly-wide-pdy.emf","classic-text-poly-ansi-clip-opaque.emf","classic-text-poly-ansi-updatecp.emf","classic-text-ext-ansi-cp1252.emf","classic-text-poly-ansi-cp1252.emf","classic-text-ext-charset-204.emf","classic-text-poly-charset-222.emf","classic-text-ext-dbcs-128.emf","classic-text-poly-dbcs-pdy-134.emf","classic-text-compact-no-rect-opaque.emf","classic-text-poly-wide-offdx-zero-updatecp.emf"]
@@ -179,10 +179,21 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                     func color(_ x:Int,_ y:Int)->[UInt8] {let start=(y*image.width+x)*4;return Array(pixels[start..<(start+4)])}
                     if sample.lastPathComponent=="unsupported-texture-tile-budget.emf" {
                         try boundedTexturePixels(image,source:inputs[index])
+                    } else if sample.lastPathComponent=="unsupported-image-tile-budget.emf" {
+                        try boundedOrdinaryImagePixels(image,source:inputs[index])
                     } else if sample.lastPathComponent=="unsupported-image-effect.emf" {
-                        for (channel,x,y) in [(0,16,16),(1,32,16),(2,16,32)] {
+                        // Retain the original probes: recorded default playback
+                        // bilinearly mixes these positions rather than choosing
+                        // their former nearest-neighbor source primaries.
+                        for (x,y,expected) in [(16,16,[128,128,128,255]),(32,16,[64,128,64,128]),(16,32,[64,64,128,128])] {
                             let rgba=color(x,y)
-                            try require(rgba[channel]>204 && (0..<3).filter{$0 != channel}.allSatisfy{rgba[$0]<64} && rgba[3]==255,"Ordinary image fallback lost independently specified source primary at \(x),\(y): \(rgba)")
+                            try require((0..<4).allSatisfy{abs(Int(rgba[$0])-expected[$0])<=2},"Ordinary image fallback lost measured bilinear RGBA at \(x),\(y): \(rgba), expected \(expected)")
+                        }
+                        // Integer source texel centers still reproduce the
+                        // independent opaque red/green/blue source palette.
+                        for (x,y,expected) in [(8,8,[255,0,0,255]),(24,8,[0,255,0,255]),(8,24,[0,0,255,255])] {
+                            let rgba=color(x,y)
+                            try require((0..<4).allSatisfy{abs(Int(rgba[$0])-expected[$0])<=2},"Ordinary image fallback lost source texel center at \(x),\(y): \(rgba), expected \(expected)")
                         }
                     } else if sample.lastPathComponent=="unsupported-rop.emf" {
                         try require(color(12,12)==[0,255,255,255] && color(58,12)==[255,255,0,255],"ROP2 XOR against opaque white lost independent cyan/yellow pixels")
@@ -203,16 +214,22 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 if first == nil {first=owner} else {owner.close()}
                 try phase("positive complete",sample:sample.lastPathComponent,state:comparisonState(owner))
             }
-            if !negativeOnly, let textureIndex=samples.firstIndex(where:{$0.lastPathComponent=="unsupported-texture-tile-budget.emf"}) {
+            for budgetName in ["unsupported-texture-tile-budget.emf","unsupported-image-tile-budget.emf"] {
+            if !negativeOnly, let textureIndex=samples.firstIndex(where:{$0.lastPathComponent==budgetName}) {
+                // Ordinary DrawImage and texture paints have different phase
+                // contracts. Keep separate independent oracles for shared UI.
+                let checkPixels:(CGImage,Data)throws->Void
+                if budgetName=="unsupported-image-tile-budget.emf" {checkPixels={try boundedOrdinaryImagePixels($0,source:$1)}}
+                else {checkPixels={try boundedTexturePixels($0,source:$1)}}
                 let texture=samples[textureIndex],bytes=inputs[textureIndex]
-                try phase("bounded wrapped texture explicit images and conflict",sample:texture.lastPathComponent)
+                try phase("bounded wrapped image/texture explicit images and conflict",sample:texture.lastPathComponent)
                 let standalone=track(FileComparisonWindowController(images:try ImageFileComparison(base:texture,destination:nil),permissions:[],preferences:prefs))
                 standalone.model.load();try await wait{!standalone.model.busy && standalone.model.document != nil}
                 guard let image=standalone.model.imageComparison?.base?.pixels else {throw Failure(message:"Explicit bounded texture image missing")}
-                try boundedTexturePixels(image,source:bytes)
+                try checkPixels(image,bytes)
                 try require(standalone.model.document?.base.bytes==bytes,"Standalone texture replaced raw EMF bytes")
                 standalone.close();try await wait{drained()}
-                let directory=root.appendingPathComponent("bounded-texture-conflict",isDirectory:true)
+                let directory=root.appendingPathComponent(budgetName+"-conflict",isDirectory:true)
                 try FileManager.default.createDirectory(at:directory,withIntermediateDirectories:true)
                 let repository=GitRepository(root:directory,executable:git),path="texture.emf",file=directory.appendingPathComponent(path)
                 let base=try Data(contentsOf:corpus.appendingPathComponent("plus-transform.emf")),theirs=try Data(contentsOf:corpus.appendingPathComponent("plus-texture-world.emf"))
@@ -227,16 +244,17 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
                 let conflict=track(ImageConflictWindowController(repository:repository,access:nil,document:document,preferences:prefs))
                 try await wait{!conflict.model.busy && conflict.model.images.count==3}
                 guard let mine=conflict.model.panes[.mine]?.currentImage(base:true)?.pixels else {throw Failure(message:"Bounded texture conflict image missing")}
-                try boundedTexturePixels(mine,source:bytes)
+                try checkPixels(mine,bytes)
                 try require(conflict.model.document.contents[.mine]==bytes && conflict.model.document.contents[.base]==base && conflict.model.document.contents[.theirs]==theirs,"Conflict texture preview replaced original stage bytes")
                 let previous=conflict.model.images[.mine]?.id
                 conflict.model.perform(.reload);try require(conflict.model.busy,"Bounded texture conflict Reload not admitted")
                 try await wait{!conflict.model.busy && conflict.model.images[.mine]?.id != previous}
                 guard let reloaded=conflict.model.panes[.mine]?.currentImage(base:true)?.pixels else {throw Failure(message:"Reloaded bounded texture missing")}
-                try boundedTexturePixels(reloaded,source:bytes)
+                try checkPixels(reloaded,bytes)
                 conflict.close();try await wait{drained()}
                 let after=try await repository.run(["rev-parse","HEAD"]).stdout
                 try require(after==head && (try Data(contentsOf:directory.appendingPathComponent(".git/index")))==index && (try Data(contentsOf:file))==working && (try Data(contentsOf:texture))==bytes,"Bounded texture preview changed HEAD/index/working/original bytes")
+            }
             }
             if compressedRaster {
                 for names in [["compressed-raster-image-gif.emf","compressed-raster-control-image-opaque.emf"],["compressed-raster-texture-tiff-alpha.emf","compressed-raster-control-texture-tiff-alpha.emf"],["compressed-raster-alpha-tiff-alpha-copy.emf","compressed-raster-control-tiff-alpha-copy.emf"]] {
@@ -776,6 +794,22 @@ private final class MetafileConsumerBookmarks:RepositoryBookmarkProvider {
             if FileManager.default.fileExists(atPath:url.path) {result[leaf]=try identity(url)}
         }
         return result
+    }
+    private static func boundedOrdinaryImagePixels(_ image:CGImage,source:Data)throws {
+        try require(SHA256.hash(data:source).map{String(format:"%02x",$0)}.joined()=="46b86164a30f47d16712bc56bc4b036303001590469d24a3c92274f8256b06cd","Historical ordinary DrawImage bytes changed")
+        try require(image.width==97 && image.height==65,"Bounded DrawImage lost natural frame")
+        let pixels=try textRGBA(image,fullCanvas:true)
+        var noise=[UInt8](),state:UInt32=0x74757274
+        for _ in 0..<(128*128) {for _ in 0..<3 {state=1664525 &* state &+ 1013904223;noise.append(UInt8(state>>24))}}
+        // The recorded source rectangle is (0,0,12800,12800), destination
+        // (0,0,96,64), WrapModeTile. Native default0 uses integer device
+        // samples: x=3*n maps exactly to400*n, y maps exactly to200*y.
+        // This ordinary-image phase is distinct from texture center sampling.
+        for y in 1...4 {for n in 1...4 {
+            let x=3*n,sx=(400*n)%128,sy=(200*y)%128,sourceOffset=(sy*128+sx)*3,destination=(y*image.width+x)*4
+            let expected=Array(noise[sourceOffset..<(sourceOffset+3)]),actual=Array(pixels[destination..<(destination+4)])
+            try require((0..<3).allSatisfy{abs(Int(actual[$0])-Int(expected[$0]))<=1} && actual[3]==255,"Independent bounded ordinary DrawImage mismatch at \(x),\(y): \(actual), expected \(expected)+255")
+        }}
     }
     private static func boundedTexturePixels(_ image:CGImage,source:Data)throws {
         try require(SHA256.hash(data:source).map{String(format:"%02x",$0)}.joined()=="003aede24432cfa122a74ddf167db09bea33de7f4a36298c6b17f52b80689c68","Historical texture bytes changed")

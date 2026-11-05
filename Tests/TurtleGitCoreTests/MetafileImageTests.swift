@@ -149,6 +149,61 @@ final class MetafileImageTests: XCTestCase {
             return EmbeddedPaint(x:x,y:y,width:width,height:height,pixels:image,rgba:bytes)
         }
     }
+    private var bitmapQuad:[[Int]] {[[255,0,0,255],[0,255,0,255],[0,0,255,255],[255,255,255,255]]}
+    /// Independent bilinear source oracle for original authored bitmap fixtures.
+    /// The source tuples are literal generator texels, never renderer output.
+    /// Matrix maps integer-centered source samples to device coordinates.
+    @discardableResult private func ordinaryBitmapSamples(_ name:String,width:Int,height:Int,texels:[[Int]],matrix:[Double],points:[(Int,Int)],wrap:Int=4,clamp:[Int]=[0,0,0,0],white:Bool=false)throws->ComparisonImage {
+        XCTAssertEqual(texels.count,width*height)
+        let value=try image(name),finalPixels=try rawDecodedPixels(value)
+        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).first,"Missing sampled bitmap plane for \(name)")
+        let determinant=matrix[0]*matrix[3]-matrix[1]*matrix[2]
+        XCTAssertNotEqual(determinant,0)
+        func index(_ n:Int,_ length:Int,_ flip:Bool)->Int {
+            let period=flip ? length*2:length,q=(n%period+period)%period
+            return flip && q>=length ? period-1-q:q
+        }
+        func source(_ x:Int,_ y:Int)->[Int] {
+            if (0..<width).contains(x),(0..<height).contains(y){return texels[y*width+x]}
+            if wrap==4{return clamp}
+            return texels[index(y,height,wrap==2 || wrap==3)*width+index(x,width,wrap==1 || wrap==3)]
+        }
+        for (x,y) in points {
+            let dx=Double(x)-matrix[4],dy=Double(y)-matrix[5]
+            let u=(matrix[3]*dx-matrix[2]*dy)/determinant,v=(-matrix[1]*dx+matrix[0]*dy)/determinant
+            let sx=Int(floor(u)),sy=Int(floor(v)),fx=u-floor(u),fy=v-floor(v)
+            let expected=(0..<4).map {channel -> Int in
+                var sum=0.0
+                for by in 0...1 {for bx in 0...1 {
+                    let pixel=source(sx+bx,sy+by),associated=channel==3 ? pixel[3]:(pixel[channel]*pixel[3]+127)/255
+                    sum += Double(associated)*(bx==0 ? 1-fx:fx)*(by==0 ? 1-fy:fy)
+                }}
+                return Int(sum.rounded())
+            }
+            let px=x-paint.x,py=y-paint.y
+            XCTAssertTrue((0..<paint.width).contains(px) && (0..<paint.height).contains(py),"Original probe outside device ROI for \(name): \(x),\(y)")
+            guard (0..<paint.width).contains(px),(0..<paint.height).contains(py) else{continue}
+            let offset=(py*paint.width+px)*4,actual=Array(paint.rgba[offset..<(offset+4)]).map(Int.init)
+            for channel in 0..<4 {XCTAssertEqual(actual[channel],expected[channel],accuracy:2,"\(name) source sample \(x),\(y): \(actual) expected \(expected)")}
+            let composited=finalPixels.pixel(x,y).map(Int.init)
+            if !white || expected[3]==255 || expected[3]==0 {
+                let displayed=white && expected[3]==0 ? [255,255,255,255]:expected
+                for channel in 0..<4 {XCTAssertEqual(composited[channel],displayed[channel],accuracy:2,"\(name) final sample \(x),\(y)")}
+            } else {XCTAssertEqual(composited[3],255,"Recorded white background lost beneath alpha bitmap")}
+        }
+        return value
+    }
+    /// Original generate.py palettes/rows, including retained alpha and channel order.
+    private func rawBitmapProfile(_ name:String)->(width:Int,height:Int,texels:[[Int]]) {
+        let r=[255,0,0,255],g=[0,255,0,255],b=[0,0,255,255],w=[255,255,255,255],k=[0,0,0,255],y=[255,255,0,255],t=[0,0,0,0],half=[255,0,0,128]
+        if name.hasPrefix("indexed1-"){return (9,2,[r,b,b,b,b,b,b,b,r,b,r,r,r,r,r,r,r,b])}
+        if name.hasPrefix("indexed-alpha"){return (3,2,[half,g,t,t,g,half])}
+        if name.hasPrefix("argb1555-"){return (3,2,[r,g,t,t,b,w])}
+        if name.hasPrefix("argb32-") || name.hasPrefix("pargb32-"){return (3,2,[half,g,t,t,b,w])}
+        if name.hasPrefix("rgb"){return (3,2,[r,g,b,w,k,y])}
+        if name=="indexed-gray" {return (3,2,[[85,85,85,255],[170,170,170,255],w,w,[170,170,170,255],[85,85,85,255]])}
+        return (3,2,[r,g,b,b,g,r])
+    }
     private func rasterDiagnostic(_ image:ComparisonImage)->String{
         "finalCGImage=\(image.pixels.width)x\(image.pixels.height),profile=\(String(describing:image.pixels.colorSpace?.name)),bits=\(image.pixels.bitsPerComponent)/\(image.pixels.bitsPerPixel),alpha=\(image.pixels.alphaInfo.rawValue)"
     }
@@ -159,7 +214,8 @@ final class MetafileImageTests: XCTestCase {
         return (0..<3).map{alpha>0 ? CGFloat(paint.rgba[offset+$0])/(255*alpha):0}+[alpha]
     }
     private func halfAlphaRed(_ name:String)throws {
-        let pixel=try embeddedRGBA(name)
+        let source=try XCTUnwrap(embeddedPaints(name,plane:.paint).first)
+        let pixel=try source.sample(4,4)
         XCTAssertEqual(pixel[0],1,accuracy:1.0/255);XCTAssertEqual(pixel[1],0,accuracy:1.0/255);XCTAssertEqual(pixel[2],0,accuracy:1.0/255)
         XCTAssertEqual(pixel[3],CGFloat(128)/255,accuracy:1.0/255,"Raw decoder changed actual source alpha")
         // Source alpha is checked above before native display color handling.
@@ -261,35 +317,30 @@ final class MetafileImageTests: XCTestCase {
         try primary(value,2,58,12)
     }
     func testClassicAndPlusBitmapsDecodeOriginalChannelOrderAndKeepTextFace() throws {
-        for name in ["classic-bitmap.emf","plus-bitmap-text.emf"] {
-            let value = try image(name)
-            XCTAssertEqual(value.size,CGSize(width:97,height:65))
-            // Sample the source-pixel centers after each captured destination
-            // transform; shared coordinates would sample different interpolation.
-            let first = name.hasPrefix("classic") ? 16 : 12
-            let second = first + 16
-            try primary(value,0,first,first)
-            try primary(value,1,second,first)
-            try primary(value,2,first,second)
-        }
+        let classic=try image("classic-bitmap.emf")
+        XCTAssertEqual(classic.size,CGSize(width:97,height:65))
+        try primary(classic,0,16,16);try primary(classic,1,32,16);try primary(classic,2,16,32)
+        let plus=try ordinaryBitmapSamples("plus-bitmap-text.emf",width:2,height:2,texels:bitmapQuad,matrix:[16,0,0,16,4,4],points:[(12,12),(28,12),(12,28),(4,4),(20,4),(4,20)])
+        XCTAssertEqual(plus.size,CGSize(width:97,height:65))
         let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-bitmap-text.emf"))),as:UTF8.self)
         XCTAssertTrue(svg.contains("Helvetica"));XCTAssertTrue(svg.contains("TurtleGit"));XCTAssertTrue(svg.contains("data:image/png;base64,"))
     }
     func testPlusPathContainerAndContinuedObjectKeepCapturedGeometry() throws {
         let path = try image("plus-path-container.emf")
-        try primary(path,0,40,12)
-        try primary(path,2,10,44)
-        let bitmap = try image("plus-continued-bitmap.emf")
-        try primary(bitmap,0,12,12)
-        try primary(bitmap,1,30,12)
+        try primary(path,0,40,12);try primary(path,2,10,44)
+        try ordinaryBitmapSamples("plus-continued-bitmap.emf",width:2,height:2,texels:bitmapQuad,matrix:[16,0,0,16,4,4],points:[(12,12),(30,12),(4,4),(20,4),(4,20)])
     }
     func testCompressedPlusBitmapUsesSignatureDimensionsAndSourceCrop() throws {
-        let value = try image("plus-compressed-crop.emf")
-        // Source green pixel center (1.5,0.5) through crop/destination
-        // matrix (32,0,0,16,-24,8) lands exactly at (24,16).
-        try primary(value,1,24,16)
-        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-compressed-crop.emf"))),as:UTF8.self)
-        XCTAssertTrue(svg.contains("turtle-image-clip"));XCTAssertTrue(svg.contains("width=\"2\""))
+        // Keep the original probe(24,16): source(1.5,.5) is a bilinear
+        // green/white/transparent mix, not an integer-centered green texel.
+        let name="plus-compressed-crop.emf"
+        let value=try ordinaryBitmapSamples(name,width:2,height:2,texels:bitmapQuad,matrix:[32,0,0,16,-24,8],points:[(24,16),(8,8),(8,24)])
+        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).first)
+        XCTAssertEqual(paint.x,8);XCTAssertEqual(paint.y,8);XCTAssertEqual(paint.width,32);XCTAssertEqual(paint.height,32)
+        // The cropped red source column cannot leak beyond the selected source
+        // rectangle, nor can resized intrinsic PNG geometry select another crop.
+        let pixels=try rawDecodedPixels(value)
+        XCTAssertEqual(pixels.pixel(7,16),[0,0,0,0]);XCTAssertEqual(pixels.pixel(40,16),[0,0,0,0])
     }
     func testLinearGradientPresetColorsComposeBrushAndWorldTransforms() throws {
         let value = try image("plus-gradient-transform.emf")
@@ -360,39 +411,42 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertTrue(try displayRGBOnWhite(value, 92, 30).allSatisfy { $0 > 0.9 })
     }
     func testImageAttributesDefaultClampColorAndTileFlipPreserveOriginalPixels() throws {
-        let plain = try image("plus-image-attributes.emf")
-        try primary(plain, 0, 16, 16)
-        try primary(plain, 1, 32, 16)
-        try primary(plain, 2, 16, 32)
-        let ignoredClamp = try image("plus-image-attributes-clamp-ignored.emf")
-        for y in [16,32] { for x in [16,32] { XCTAssertEqual(try displayRGBOnWhite(ignoredClamp,x,y),try displayRGBOnWhite(plain,x,y),"GDI+ 1.0 ignores SetWrapMode clamp BOOL") } }
-        let clamped = try image("plus-image-clamp.emf")
-        for x in [16, 64] {
-            let color = try displayRGBOnWhite(clamped, x, 16)
-            XCTAssertGreaterThan(color[0], 0.8); XCTAssertLessThan(color[1], 0.25); XCTAssertGreaterThan(color[2], 0.8)
-        }
-        try primary(clamped, 0, 32, 16)
-        try primary(clamped, 1, 48, 16)
-        let wrapped = try image("plus-image-wrap.emf")
-        let tile = [0, 1, 0, 1, 0, 1], reflected = [1, 0, 0, 1, 1, 0]
-        for index in 0..<6 {
-            try primary(wrapped, tile[index], 8 + 16 * index, 12)
-            try primary(wrapped, reflected[index], 8 + 16 * index, 40)
+        let matrix:[Double]=[16,0,0,16,8,8],probes=[(16,16),(32,16),(16,32),(8,8),(24,8),(8,24)]
+        let plain=try ordinaryBitmapSamples("plus-image-attributes.emf",width:2,height:2,texels:bitmapQuad,matrix:matrix,points:probes)
+        let ignored=try ordinaryBitmapSamples("plus-image-attributes-clamp-ignored.emf",width:2,height:2,texels:bitmapQuad,matrix:matrix,points:probes)
+        for y in [16,32] {for x in [16,32] {XCTAssertEqual(try displayRGBOnWhite(ignored,x,y),try displayRGBOnWhite(plain,x,y),"GDI+ ignores SetWrapMode clamp BOOL")}}
+        try ordinaryBitmapSamples("plus-image-clamp.emf",width:2,height:2,texels:bitmapQuad,matrix:[16,0,0,16,24,8],points:[(16,16),(64,16),(32,16),(48,16),(24,8),(40,8)],clamp:[255,0,255,255])
+        // Two independent source mappings retain negative tiles and reflection.
+        let paints=try embeddedPaints("plus-image-wrap.emf",plane:.paint)
+        let finalWrapped=try rawDecodedPixels(image("plus-image-wrap.emf"))
+        XCTAssertEqual(paints.count,2)
+        for (wrap,origin) in [(0,8),(1,36)] {
+            // Each scene has two paint planes; compare its selected source plane
+            // directly, keeping all original x8+16n probes in both bands.
+            let paint=paints[wrap]
+            for column in 0..<6 {
+                let u=Double(column)-1.5
+                let ix=Int(floor(u)),fx=u-floor(u)
+                func sourceX(_ n:Int)->Int {let q=(n%4+4)%4;return wrap==0 ? (n%2+2)%2:q<2 ? q:3-q}
+                let left=sourceX(ix),right=sourceX(ix+1)
+                var expected=[CGFloat]()
+                for channel in 0..<3 {expected.append(CGFloat((Double(bitmapQuad[left][channel])+Double(bitmapQuad[2+left][channel]))*0.5*(1-fx)+(Double(bitmapQuad[right][channel])+Double(bitmapQuad[2+right][channel]))*0.5*fx)/255)}
+                let actual=try paint.sample(8+16*column,origin+4)
+                for channel in 0..<3{
+                    XCTAssertEqual(actual[channel],expected[channel],accuracy:2.0/255)
+                    XCTAssertEqual(Int(finalWrapped.pixel(8+16*column,origin+4)[channel]),Int((expected[channel]*255).rounded()),accuracy:2)
+                }
+                XCTAssertEqual(actual[3],1,accuracy:1.0/255)
+                XCTAssertEqual(finalWrapped.pixel(8+16*column,origin+4)[3],255)
+            }
         }
     }
     func testRelativeSigned7And15AndAbsoluteInt16ImagePointsUseActualFlags() throws {
-        let relative = try image("plus-image-relative.emf")
-        // P=0x0800 wins over C=0x4000. Delta pairs (160,8),(-128,0),
-        // (128,32) include both scalar widths/signs; world transform maps them.
-        try primary(relative, 0, 68, 20)
-        try primary(relative, 1, 36, 20)
-        try primary(relative, 2, 68, 36)
-        let absolute = try image("plus-image-int16.emf")
-        // C alone means signed absolute Int16, including initial x=-16.
-        try primary(absolute, 0, 24, 20)
-        try primary(absolute, 1, 56, 20)
-        try primary(absolute, 2, 24, 36)
-        XCTAssertTrue(try displayRGBOnWhite(absolute, 88, 52).allSatisfy { $0 > 0.9 })
+        // P wins over C; signed7/15 deltas and separate world map yield a
+        // horizontally mirrored(-32,16) source mapping, origin(84,12).
+        try ordinaryBitmapSamples("plus-image-relative.emf",width:2,height:2,texels:bitmapQuad,matrix:[-32,0,0,16,84,12],points:[(68,20),(36,20),(68,36),(83,12),(52,12),(52,28)])
+        let absolute=try ordinaryBitmapSamples("plus-image-int16.emf",width:2,height:2,texels:bitmapQuad,matrix:[32,0,0,16,8,12],points:[(24,20),(56,20),(24,36),(8,12),(40,12),(8,28)])
+        XCTAssertTrue(try displayRGBOnWhite(absolute,88,52).allSatisfy{$0>0.9})
     }
     func testOpaquePenAndHalfAlphaBrushPreserveSeparateSVGOpacity() throws {
         let value = try image("plus-alpha-pen.emf")
@@ -404,8 +458,11 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertLessThan(translucent[channel], 0.85)
         }
         let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-alpha-pen.emf"))), as: UTF8.self)
-        let opaqueOutline = try NSRegularExpression(pattern: ##"<path\b[^>]*fill="#ff0000"[^>]*fill-opacity="1(?:\.0+)?""##)
-        XCTAssertNotNil(opaqueOutline.firstMatch(in: svg, range: NSRange(svg.startIndex..., in: svg)), "Opaque pen outline lost its separate full-opacity paint")
+        // Quality coverage can rasterize the opaque outline. Its actual source
+        // alpha/ink, rather than one SVG path serialization, must remain fully
+        // opaque independently of the following half-alpha brush.
+        let pixels=try rawDecodedPixels(value)
+        XCTAssertEqual(pixels.pixel(20,8),[255,0,0,255],"Opaque pen inherited the following brush alpha")
         XCTAssertTrue(svg.contains("fill=\"#ff0000\""))
         let expression = try NSRegularExpression(pattern: #"fill-opacity="([0-9.]+)""#)
         let opacities = expression.matches(in: svg, range: NSRange(svg.startIndex..., in: svg)).compactMap { match -> Double? in
@@ -622,43 +679,38 @@ final class MetafileImageTests: XCTestCase {
     }
     func testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows() throws {
         for sign in ["positive","negative"] {
-            let one=try image("plus-raw-indexed1-\(sign).emf")
-            try primary(one,0,8,12);try primary(one,2,16,12);try primary(one,0,72,12)
-            try primary(one,2,8,28);try primary(one,0,16,28)
-            for bits in [4,8] {
-                let value=try image("plus-raw-indexed\(bits)-\(sign).emf")
-                try primary(value,0,12,12);try primary(value,1,28,12);try primary(value,2,44,12)
-                try primary(value,2,12,28);try primary(value,0,44,28)
+            for bits in [1,4,8] {
+                let profile=rawBitmapProfile("indexed\(bits)-\(sign)")
+                let old=bits==1 ? [(8,12),(16,12),(72,12),(8,28),(16,28)]:[(12,12),(28,12),(44,12),(12,28),(44,28)]
+                let centers=bits==1 ? [(4,4),(12,4),(68,4),(4,20),(12,20)]:[(4,4),(20,4),(36,4),(4,20),(36,20)]
+                try ordinaryBitmapSamples("plus-raw-indexed\(bits)-\(sign).emf",width:profile.width,height:profile.height,texels:profile.texels,matrix:[bits==1 ? 8:16,0,0,16,4,4],points:old+centers,white:true)
             }
         }
         for name in ["indexed-alpha","indexed-alpha-unflagged"] {
-            let value=try image("plus-raw-\(name).emf"),color=try displayRGBOnWhite(value,12,12)
-            XCTAssertGreaterThan(color[0],0.95);try halfAlphaRed("plus-raw-\(name).emf")
-            XCTAssertTrue(try displayRGBOnWhite(value,44,12).allSatisfy{$0>0.95},"Transparent palette blue stained the explicit white display background")
-            try assertRecordedWhiteBackground(value,name:"plus-raw-\(name).emf",44,12)
+            let profile=rawBitmapProfile(name)
+            let value=try ordinaryBitmapSamples("plus-raw-\(name).emf",width:3,height:2,texels:profile.texels,matrix:[16,0,0,16,4,4],points:[(12,12),(44,12),(4,4),(20,4),(36,4)],white:true)
+            try halfAlphaRed("plus-raw-\(name).emf")
+            try assertRecordedWhiteBackground(value,name:"plus-raw-\(name).emf",36,4)
         }
-        let gray=try displayRGBOnWhite(image("plus-raw-indexed-gray.emf"),12,12)
-        for channel in gray{XCTAssertEqual(channel,CGFloat(85)/255,accuracy:0.03)}
-        let halftone=try image("plus-raw-indexed-halftone.emf")
-        try primary(halftone,0,12,12);try primary(halftone,1,28,12);try primary(halftone,2,44,12)
+        let gray=rawBitmapProfile("indexed-gray")
+        try ordinaryBitmapSamples("plus-raw-indexed-gray.emf",width:3,height:2,texels:gray.texels,matrix:[16,0,0,16,4,4],points:[(12,12),(4,4),(20,4),(36,4)],white:true)
+        let halftone=rawBitmapProfile("indexed-halftone")
+        try ordinaryBitmapSamples("plus-raw-indexed-halftone.emf",width:3,height:2,texels:halftone.texels,matrix:[16,0,0,16,4,4],points:[(12,12),(28,12),(44,12),(4,4),(20,4),(36,4)],white:true)
     }
     func testRaw16BitMasksAlphaAndRetained24And32BitFormats() throws {
         for sign in ["positive","negative"] {
             for format in ["rgb555","rgb565","rgb24","rgb32"] {
-                let value=try image("plus-raw-\(format)-\(sign).emf")
-                try primary(value,0,12,12);try primary(value,1,28,12);try primary(value,2,44,12)
-                XCTAssertTrue(try displayRGBOnWhite(value,12,28).allSatisfy{$0>0.95})
-                XCTAssertTrue(try displayRGBOnWhite(value,28,28).allSatisfy{$0<0.05})
-                let yellow=try displayRGBOnWhite(value,44,28);XCTAssertGreaterThan(yellow[0],0.9);XCTAssertGreaterThan(yellow[1],0.9);XCTAssertLessThan(yellow[2],0.1)
+                let profile=rawBitmapProfile("\(format)-\(sign)")
+                try ordinaryBitmapSamples("plus-raw-\(format)-\(sign).emf",width:3,height:2,texels:profile.texels,matrix:[16,0,0,16,4,4],points:[(12,12),(28,12),(44,12),(12,28),(28,28),(44,28),(4,4),(20,4),(36,4),(4,20),(20,20),(36,20)],white:true)
             }
-            let alpha=try image("plus-raw-argb1555-\(sign).emf")
-            try primary(alpha,0,12,12);try primary(alpha,1,28,12);try primary(alpha,2,28,28)
-            for point in [(44,12),(12,28)] {XCTAssertTrue(try displayRGBOnWhite(alpha,point.0,point.1).allSatisfy{$0>0.95},"ARGB1555 transparent bit was ignored");try assertRecordedWhiteBackground(alpha,name:"plus-raw-argb1555-\(sign).emf",point.0,point.1)}
+            let profile=rawBitmapProfile("argb1555-\(sign)")
+            let alpha=try ordinaryBitmapSamples("plus-raw-argb1555-\(sign).emf",width:3,height:2,texels:profile.texels,matrix:[16,0,0,16,4,4],points:[(12,12),(28,12),(28,28),(44,12),(12,28),(4,4),(20,4),(20,20),(36,4),(4,20)],white:true)
+            for point in [(36,4),(4,20)] {try assertRecordedWhiteBackground(alpha,name:"plus-raw-argb1555-\(sign).emf",point.0,point.1)}
             for format in ["argb32","pargb32"] {
-                let retained=try image("plus-raw-\(format)-\(sign).emf"),red=try displayRGBOnWhite(retained,12,12)
-                XCTAssertGreaterThan(red[0],0.95);try halfAlphaRed("plus-raw-\(format)-\(sign).emf")
-                try primary(retained,1,28,12);try primary(retained,2,28,28)
-                XCTAssertTrue(try displayRGBOnWhite(retained,44,12).allSatisfy{$0>0.95});try assertRecordedWhiteBackground(retained,name:"plus-raw-\(format)-\(sign).emf",44,12)
+                let profile=rawBitmapProfile("\(format)-\(sign)")
+                let retained=try ordinaryBitmapSamples("plus-raw-\(format)-\(sign).emf",width:3,height:2,texels:profile.texels,matrix:[16,0,0,16,4,4],points:[(12,12),(28,12),(28,28),(44,12),(4,4),(20,4),(20,20),(36,4)],white:true)
+                try halfAlphaRed("plus-raw-\(format)-\(sign).emf")
+                try assertRecordedWhiteBackground(retained,name:"plus-raw-\(format)-\(sign).emf",36,4)
             }
         }
         for (name,expected) in [("rgb555-mid",[24,90,206]),("rgb565-mid",[57,69,189])] {
@@ -668,12 +720,13 @@ final class MetafileImageTests: XCTestCase {
     }
     func testIndexedAnd16BitTextureBrushesMatchIndependentlyCheckedImageColors() throws {
         for name in ["indexed1-positive","indexed4-negative","indexed8-positive","rgb555-negative","rgb565-positive","argb1555-negative","indexed-alpha"] {
-            let direct=try image("plus-raw-\(name).emf"),texture=try image("plus-raw-texture-\(name).emf")
-            let points=name.hasPrefix("indexed1") ? [(8,12),(16,12),(72,12),(8,28),(16,28)]:[(12,12),(28,12),(44,12),(12,28),(28,28),(44,28)]
-            for point in points {
-                let a=try displayRGBOnWhite(direct,point.0,point.1),b=try displayRGBOnWhite(texture,point.0,point.1)
-                for channel in 0..<3{XCTAssertEqual(a[channel],b[channel],accuracy:0.035,"Raw texture differed for \(name) at \(point)")}
-            }
+            let profile=rawBitmapProfile(name),sx=profile.width==9 ? 8.0:16.0
+            let points=profile.width==9 ? [(8,12),(16,12),(72,12),(8,28),(16,28)]:[(12,12),(28,12),(44,12),(12,28),(28,28),(44,28)]
+            // Ordinary image and texture have distinct captured sampling phases.
+            // Require the same literal source colors through each actual map,
+            // rather than forcing unequal device samples to look identical.
+            try ordinaryBitmapSamples("plus-raw-\(name).emf",width:profile.width,height:profile.height,texels:profile.texels,matrix:[sx,0,0,16,4,4],points:points,white:true)
+            let texture=try ordinaryBitmapSamples("plus-raw-texture-\(name).emf",width:profile.width,height:profile.height,texels:profile.texels,matrix:[sx,0,0,16,4+sx/2-0.5,11.5],points:points,white:true)
             XCTAssertTrue(try displayRGBOnWhite(texture,80,48).allSatisfy{$0>0.95},"Clamp repeated raw image beyond its tile")
         }
     }
@@ -726,7 +779,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(try data(name),source,"Bounded sampling changed historical source bytes")
     }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
-        for name in ["unsupported-region.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-canonical-precision.emf"] {
+        for name in ["unsupported-region.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-gradient-canonical-precision.emf"] {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)),name)
             XCTAssertNil(ComparisonImage(bytes: try data(name)),name)
         }
@@ -736,12 +789,111 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertThrowsError(try MetafileImageDecoder.convert(malformed),"invalid classic-vector.emf record extent")
         XCTAssertNil(try MetafileImageDecoder.convert(Data("ordinary text".utf8)),"unrecognized ordinary text")
     }
+
+    func testRecordedImageInterpolationModesStateAndAffinePixels() throws {
+        let directory=fixtures.appendingPathComponent("Interpolation")
+        let manifest=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:directory.appendingPathComponent("native-reference.json"))) as? [String:Any])
+        let cases=try XCTUnwrap(manifest["cases"] as? [[String:Any]])
+        XCTAssertEqual(cases.count,21,"Keep mode aliases, state, crop/wrap/clamp, affine, alpha, clip and SourceCopy controls")
+        var decoded=[String:PenPixels]()
+        for item in cases {
+            let name=try XCTUnwrap(item["file"] as? String),url=directory.appendingPathComponent(name)
+            let source=try Data(contentsOf:url),hash=SHA256.hash(data:source).map{String(format:"%02x",$0)}.joined()
+            XCTAssertEqual(hash,item["sourceSHA256"] as? String,name)
+            let pixels=try rawDecodedPixels(try XCTUnwrap(ComparisonImage(bytes:source),name))
+            XCTAssertEqual(pixels.width,item["width"] as? Int,name);XCTAssertEqual(pixels.height,item["height"] as? Int,name)
+            let samples=try XCTUnwrap(item["samples"] as? [[String:Any]],name)
+            XCTAssertGreaterThanOrEqual(samples.count,4,"Independent samples missing for "+name)
+            for sample in samples {
+                let x=try XCTUnwrap(sample["x"] as? Int),y=try XCTUnwrap(sample["y"] as? Int)
+                let expected=try XCTUnwrap(sample["rgba"] as? [Int]),tolerance=try XCTUnwrap(sample["tolerance"] as? Int)
+                XCTAssertEqual(expected.count,4);XCTAssertLessThanOrEqual(tolerance,2)
+                let actual=pixels.pixel(x,y)
+                for channel in 0..<4 {XCTAssertLessThanOrEqual(abs(Int(actual[channel])-expected[channel]),tolerance,"\(name) at \(x),\(y), channel\(channel)")}
+            }
+            XCTAssertEqual(try Data(contentsOf:url),source,"Interpolation changed source document "+name)
+            decoded[name]=pixels
+        }
+        let nearest=try XCTUnwrap(decoded["nearest.emf"]),bilinear=try XCTUnwrap(decoded["bilinear.emf"])
+        XCTAssertNotEqual(nearest.bytes,bilinear.bytes,"Recorded modes must change actual pixels")
+        XCTAssertEqual(try XCTUnwrap(decoded["bilinear-default.emf"]).bytes,bilinear.bytes)
+        XCTAssertEqual(try XCTUnwrap(decoded["implicit-default.emf"]).bytes,bilinear.bytes)
+        XCTAssertEqual(try XCTUnwrap(decoded["bilinear-low.emf"]).bytes,bilinear.bytes,"Native recorded LowQuality alias")
+        XCTAssertEqual(try XCTUnwrap(decoded["nearest-reserved-flags.emf"]).bytes,nearest.bytes)
+    }
+
+    func testHistoricalImageTileBudgetUsesBoundedWrappedSampling() throws {
+        let name="unsupported-image-tile-budget.emf",source=try data(name)
+        XCTAssertEqual(SHA256.hash(data:source).map{String(format:"%02x",$0)}.joined(),"46b86164a30f47d16712bc56bc4b036303001590469d24a3c92274f8256b06cd")
+        let rendered=try rawDecodedPixels(try image(name));XCTAssertEqual(rendered.width,97);XCTAssertEqual(rendered.height,65)
+        // The original wire maps source(0,0,12800,12800) to device(0,0,96,64)
+        // using Tile. At x=3n,y=m the independent mathematical source point is
+        // exactly(400n,200m); no source bitmap is expanded to that virtual size.
+        // Recreate only the authored 128x128 source's LCG, not the sampler.
+        var noise=[UInt8](),state:UInt32=0x74757274
+        for _ in 0..<(128*128) {for _ in 0..<3 {state=1664525 &* state &+ 1013904223;noise.append(UInt8(state>>24))}}
+        for n in 1...4 {for y in 1...4 {
+            let x=3*n,offset=((200*y)%128*128+(400*n)%128)*3
+            let expected=Array(noise[offset..<offset+3])+[255],actual=rendered.pixel(x,y)
+            for channel in 0..<4 {XCTAssertLessThanOrEqual(abs(Int(actual[channel])-Int(expected[channel])),1,"Bounded image Tile at \(x),\(y), channel\(channel)")}
+        }}
+        XCTAssertEqual(try data(name),source,"Interpolation changed historical source bytes")
+    }
+
+    func testMalformedAndUnsupportedRecordedImageInterpolationRefusesPartialPaint() throws {
+        let directory=fixtures.appendingPathComponent("Interpolation")
+        let manifest=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:directory.appendingPathComponent("native-reference.json"))) as? [String:Any])
+        let names=try XCTUnwrap(manifest["refused"] as? [String]);XCTAssertEqual(names.count,8)
+        for name in names {
+            let url=directory.appendingPathComponent(name),source=try Data(contentsOf:url)
+            XCTAssertThrowsError(try MetafileImageDecoder.convert(source),name)
+            XCTAssertNil(ComparisonImage(bytes:source),"Unsupported interpolation returned earlier paint: "+name)
+            XCTAssertEqual(try Data(contentsOf:url),source,name)
+        }
+    }
+    func testRecordedImageInterpolationMatchesIndependentWindowsPictureRGBA() throws {
+        let directory=fixtures.appendingPathComponent("Interpolation/Windows")
+        let manifest=try XCTUnwrap(JSONSerialization.jsonObject(with:Data(contentsOf:directory.appendingPathComponent("manifest.json"))) as? [String:Any])
+        let cases=try XCTUnwrap(manifest["cases"] as? [[String:Any]])
+        let width=try XCTUnwrap(manifest["width"] as? Int),height=try XCTUnwrap(manifest["height"] as? Int)
+        XCTAssertEqual(width,32);XCTAssertEqual(height,24);XCTAssertEqual(cases.count,304)
+        func sha(_ data:Data)->String {SHA256.hash(data:data).map{String(format:"%02x",$0)}.joined()}
+        for item in cases {
+            let name=try XCTUnwrap(item["name"] as? String)
+            let url=directory.appendingPathComponent(try XCTUnwrap(item["file"] as? String)),source=try Data(contentsOf:url)
+            let reference=try Data(contentsOf:directory.appendingPathComponent(try XCTUnwrap(item["expectedPicture"] as? String)))
+            XCTAssertEqual(sha(source),item["emf_sha256"] as? String,name);XCTAssertEqual(sha(reference),item["picture_sha256"] as? String,name)
+            XCTAssertEqual(reference.count,width*height*4,name)
+            let actual=try rawDecodedPixels(try XCTUnwrap(ComparisonImage(bytes:source),name))
+            XCTAssertEqual(actual.width,width,name);XCTAssertEqual(actual.height,height,name)
+            guard actual.width==width,actual.height==height,reference.count==actual.bytes.count else {continue}
+            // ComparisonImage is the file-backed Picture consumer. Its stored
+            // oracle remains separate from direct Metafile/Graphics playback.
+            // Windows stores complete straight GetPixel RGBA. Normalize only
+            // the comparison representation to our actual premultiplied sRGB
+            // display buffer, without cropping, painting or changing references.
+            var failures=0,first="",maximum=0
+            for offset in stride(from:0,to:reference.count,by:4) {
+                let alpha=Int(reference[offset+3])
+                for channel in 0..<4 {
+                    let expected=channel==3 ? alpha:(Int(reference[offset+channel])*alpha+127)/255
+                    let difference=abs(Int(actual.bytes[offset+channel])-expected)
+                    maximum=max(maximum,difference)
+                    if difference>2 {
+                        failures+=1
+                        if first.isEmpty {first="pixel\(offset/4%width),\(offset/4/width) channel\(channel): \(actual.bytes[offset+channel]) expected\(expected)"}
+                    }
+                }
+            }
+            XCTAssertEqual(failures,0,"\(name): \(failures) channels differ, max\(maximum); first \(first)")
+            XCTAssertEqual(try Data(contentsOf:url),source,"Native reference render changed original EMF "+name)
+        }
+    }
     func testImageEffectFlagWithoutSerializedEffectUsesNativeOrdinaryImageFallback() throws {
         // Historical filename retained byte-for-byte. Actual Windows playback
         // accepts E without a pending serialized effect and draws the source.
         let bytes=try data("unsupported-image-effect.emf")
-        let value=try XCTUnwrap(ComparisonImage(bytes:bytes))
-        try primary(value,0,16,16);try primary(value,1,32,16);try primary(value,2,16,32)
+        try ordinaryBitmapSamples("unsupported-image-effect.emf",width:2,height:2,texels:bitmapQuad,matrix:[16,0,0,16,8,8],points:[(16,16),(32,16),(16,32),(8,8),(24,8),(8,24)])
         XCTAssertEqual(try data("unsupported-image-effect.emf"),bytes)
     }
     func testLargeOffsetDistortedGradientUsesGeneralBoundaryAndTranslatedControl()throws {
@@ -1687,8 +1839,78 @@ extension MetafileImageTests {
         // arrow tip x=76; (79,32) crosses its antialiased sloping boundary.
         XCTAssertGreaterThan(outline.pixel(77,32)[0],240);XCTAssertLessThan(outline.pixel(77,32)[1],15)
         XCTAssertGreaterThan(filled.pixel(77,32)[1],240)
-        let styled=try (0..<4).map {try penPixels("custom-stroke-style-"+String($0)).bytes}
-        for index in 1..<styled.count {XCTAssertNotEqual(styled[index],styled[index-1],"Custom local cap/join style was ignored")}
+        func antialiased(_ input:Data)throws->Data {
+            var bytes=[UInt8](input)
+            func word(_ offset:Int)throws->UInt32 {
+                guard offset>=0,offset<=bytes.count-4 else{throw NSError(domain:"Custom style EMF word bounds",code:1)}
+                return (0..<4).reduce(UInt32(0)){$0 | UInt32(bytes[offset+$1]) << UInt32($1*8)}
+            }
+            guard bytes.count>=88,try word(0)==1,try word(4)>=88,try word(40)==0x464d4520,try word(48)==UInt32(bytes.count) else{throw NSError(domain:"Custom style EMF header",code:1)}
+            let declaredCount=try word(52)
+            var offset=0,recordCount=0,insertion:Int?,comment:Int?,commentSize=0,commentDataSize=0,sawEOF=false
+            while offset<bytes.count {
+                let type=try word(offset),size=Int(try word(offset+4))
+                guard size>=8,size%4==0,size<=bytes.count-offset,!sawEOF else{throw NSError(domain:"Custom style EMF record framing",code:1)}
+                recordCount+=1
+                if type==70 {
+                    guard size>=16 else{throw NSError(domain:"Custom style comment header",code:1)}
+                    let dataSize=Int(try word(offset+8))
+                    guard dataSize>=4,dataSize<=size-12 else{throw NSError(domain:"Custom style comment bounds",code:1)}
+                    if try word(offset+12)==0x2b464d45 {
+                        guard comment==nil else{throw NSError(domain:"Custom style multiple EMF+ streams",code:1)}
+                        comment=offset;commentSize=size;commentDataSize=dataSize
+                        var plus=offset+16,plusCount=0
+                        let end=offset+12+dataSize
+                        while plus<end {
+                            guard end-plus>=12 else{throw NSError(domain:"Custom style EMF+ header bounds",code:1)}
+                            let kind=Int(bytes[plus]) | Int(bytes[plus+1])<<8,length=Int(try word(plus+4)),body=Int(try word(plus+8))
+                            guard length>=12,length%4==0,length<=end-plus,body<=length-12 else{throw NSError(domain:"Custom style EMF+ record framing",code:1)}
+                            if kind==0x4001 {
+                                guard plusCount==0,insertion==nil,body>=16 else{throw NSError(domain:"Custom style duplicate/misplaced EMF+ header",code:1)}
+                                insertion=plus+length
+                            }
+                            plus+=length;plusCount+=1
+                        }
+                        guard plus==end,plusCount>=2 else{throw NSError(domain:"Custom style incomplete EMF+ stream",code:1)}
+                    }
+                }
+                if type==14 {sawEOF=true}
+                offset+=size
+            }
+            guard offset==bytes.count,sawEOF,recordCount==Int(declaredCount),let insertion,let comment else{throw NSError(domain:"Custom style incomplete EMF envelope",code:1)}
+            // Add one zero-body SetAntiAliasMode(mode5,AA=true) after the
+            // checked EMF+ Header. Outer EMF record count is unchanged.
+            let record:[UInt8]=[0x1e,0x40,11,0,12,0,0,0,0,0,0,0]
+            func put(_ offset:Int,_ value:Int)throws {
+                guard offset>=0,offset<=bytes.count-4,value>=0,value<=Int(UInt32.max) else{throw NSError(domain:"Custom style EMF length overflow",code:1)}
+                for i in 0..<4 {bytes[offset+i]=UInt8(truncatingIfNeeded:UInt32(value)>>UInt32(i*8))}
+            }
+            try put(48,bytes.count+record.count);try put(comment+4,commentSize+record.count);try put(comment+8,commentDataSize+record.count)
+            bytes.insert(contentsOf:record,at:insertion)
+            return Data(bytes)
+        }
+        var styled=[PenPixels]()
+        for style in 0..<4 {
+            let name="plus-pen-custom-stroke-style-\(style).emf",original=try data(name)
+            let normal=try penPixels("custom-stroke-style-"+String(style))
+            XCTAssertTrue(stride(from:0,to:normal.bytes.count,by:4).contains{normal.bytes[$0]>240 && normal.bytes[$0+1]<15 && normal.bytes[$0+2]<15},"Default custom style\(style) lost actual ink")
+            let derived=try antialiased(original)
+            let decoded=try XCTUnwrap(ComparisonImage(bytes:derived),"Explicit AA custom style\(style) refused")
+            styled.append(try rawDecodedPixels(decoded))
+            XCTAssertEqual(try data(name),original,"AA derivative changed original custom-cap fixture")
+        }
+        // Distinct vector caps can share the same integer-center aliased cells.
+        // Explicit AA8x8 preserves all three original adjacent-style inequalities
+        // while observing the geometry between those lattice points.
+        for index in 1..<styled.count {XCTAssertFalse(styled[index].bytes==styled[index-1].bytes,"Custom local cap/join style pair\(index-1)/\(index) was ignored under explicit AA8x8")}
+        // At endpoint(64,40), radius2, sample(62.25,39.75) is inside the
+        // round cap but outside the triangle: tangent+abs(normal)>radius.
+        // It is also outside the shaft(y30...34) and on the pixel62,40 AA grid.
+        let dx=62.25-64,dy=39.75-40,length=sqrt(13.0)
+        let tangent=(-3*dx+2*dy)/length,normal=(-2*dx-3*dy)/length
+        XCTAssertLessThan(hypot(dx,dy),2);XCTAssertGreaterThan(tangent+abs(normal),2)
+        XCTAssertGreaterThan(39.75,34)
+        XCTAssertGreaterThan(styled[2].pixel(62,40)[3],styled[3].pixel(62,40)[3],"Round cap must cover more of the independently identified AA cell than triangle cap")
     }
     func testCustomPenCapsRespectPenWorldClipAndEmbeddedBrushPainting() throws {
         try penAssert("custom-transform") {x,y in

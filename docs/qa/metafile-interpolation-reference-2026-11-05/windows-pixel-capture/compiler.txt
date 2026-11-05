@@ -1,0 +1,6 @@
+﻿**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.7.3
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'arm64'
+PixelOffsetVariants.cpp

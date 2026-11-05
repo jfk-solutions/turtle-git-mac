@@ -66,12 +66,38 @@ final class MetafileSourceCopyTests:XCTestCase {
             for y in 12..<52{for x in 12..<52{for c in 0..<4{XCTAssertLessThanOrEqual(abs(Int(copy[(y*64+x)*4+c])-Int(isolated[(y*64+x)*4+c])),2,kind+" geometric coverage")};XCTAssertEqual(over[(y*64+x)*4+3],255,kind+" SourceOver opacity")}}
             pixel(copy,4,4,[0,0,255,255]);XCTAssertTrue(stride(from:3,to:copy.count,by:4).contains{copy[$0]<200},kind+" lost source alpha")
         }
-        let image=try pixels("sourcecopy-image.emf")
         let control=try pixels("sourcecopy-image-control.png")
-        // Interior clamped-texel points avoid asserting an unverified default
-        // interpolation kernel at the boundary between source pixels.
-        for(x,y)in[(14,14),(50,14),(14,50),(50,50),(4,4)]{pixel(image,x,y,sample(control,x,y))}
-        pixel(image,14,14,[0,0,0,0]);pixel(image,50,14,[0,128,0,128]);pixel(image,50,50,[64,0,0,64])
+        // Authored wire: four straight-alpha texels (transparent red,
+        // half-green, opaque blue, quarter-red), source2x2 mapped to the
+        // destination(8,8,48,48). Integer device samples map to u=(x-8)/24,
+        // v=(y-8)/24. Interpolate associated colors/alpha, never transparent
+        // red's hidden RGB; samples beyond the bitmap are transparent.
+        let texels=[[0,0,0,0],[0,128,0,128],[0,0,255,255],[64,0,0,64]]
+        func expected(_ x:Int,_ y:Int)->[Int] {
+            guard (8..<56).contains(x),(8..<56).contains(y) else{return [0,0,255,255]}
+            let u=Double(x-8)/24,v=Double(y-8)/24,sx=Int(floor(u)),sy=Int(floor(v)),fx=u-floor(u),fy=v-floor(v)
+            return (0..<4).map {channel in
+                var sum=0.0
+                for dy in 0...1 {for dx in 0...1 {
+                    guard (0..<2).contains(sx+dx),(0..<2).contains(sy+dy) else{continue}
+                    sum += Double(texels[(sy+dy)*2+sx+dx][channel])*(dx==0 ? 1-fx:fx)*(dy==0 ? 1-fy:fy)
+                }}
+                return Int(sum.rounded())
+            }
+        }
+        for name in ["sourcecopy-image.emf","sourcecopy-image-affine.emf"] {
+            let image=try pixels(name)
+            // Retain every original sample, now against the bilinear oracle.
+            for(x,y)in[(14,14),(50,14),(14,50),(50,50),(4,4)]{pixel(image,x,y,expected(x,y))}
+            // The literal quadrant PNG remains an independent source-texel
+            // control at the four actual integer-lattice texel centers.
+            for(x,y)in[(8,8),(32,8),(8,32),(32,32)] {
+                pixel(image,x,y,sample(control,x,y));pixel(image,x,y,expected(x,y))
+            }
+            // A filtered near-transparent edge still replaces blue inside
+            // SourceCopy coverage; immediate outside pixels preserve blue.
+            for(x,y)in[(55,32),(55,55),(7,32),(56,32),(56,55)]{pixel(image,x,y,expected(x,y))}
+        }
     }
     func testTransparentPathRegionAndClipHolesPreserveDestinationOutsideActualGeometry()throws{
         for kind in ["path-hole","region-hole","path-clip"]{

@@ -1,0 +1,1 @@
+﻿Captured 32 native interpolation cases

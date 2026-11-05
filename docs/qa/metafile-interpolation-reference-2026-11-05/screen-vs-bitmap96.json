@@ -1,0 +1,39 @@
+{
+  "direct": {
+    "differentCases": 0,
+    "differentPixels": 0,
+    "cases": []
+  },
+  "natural": {
+    "differentCases": 0,
+    "differentPixels": 0,
+    "cases": []
+  },
+  "picture": {
+    "differentCases": 0,
+    "differentPixels": 0,
+    "cases": []
+  },
+  "header": {
+    "bounds": [
+      0,
+      0,
+      11,
+      11
+    ],
+    "frame100mm": [
+      0,
+      0,
+      610,
+      446
+    ],
+    "devicePx": [
+      1728,
+      1084
+    ],
+    "deviceMM": [
+      340,
+      210
+    ]
+  }
+}

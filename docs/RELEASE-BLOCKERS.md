@@ -7,6 +7,34 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The later `f90bffd9` [macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42008244039)
+has passed the earlier inventory/preparation boundary. SVN and the separate Pages
+deployment pass. Core, Replay/Transport, History/References and Commit/Repository
+and Settings/Finder have terminal failures; the other three validation lanes were still running at
+the latest job-level observation. The available metafile artifact proves one
+stale negative fixture: the bounded texture sampler now supports its historical
+tile-budget input. That consumer correction and its three focused Core methods
+and four native case/engine checks are recorded in the
+[texture checkpoint](qa/metafile-texture-budget-2026-11-05.json).
+
+The [connected Revert and Reference/RefLog checkpoint](qa/reference-revert-command-checkpoint-2026-11-05.json)
+then passes six affected system-Git native cases. It repairs authored command gates
+and child-close/refresh sequencing without changing application behavior. Other
+hosted failures remain unclassified: local scoped passes are not evidence that
+the hosted run passed. Full corrected-source CI remains a release gate.
+
+The [installed52 Finder observation](qa/installed-finder52-2026-11-05.json)
+now records actual folder-consent preselection, successful private-repository
+registration, repository context menus and cold Finder Commit. Settled Commit
+geometry and staging/unstaging were observed without changing HEAD or the final
+staged state. Badges, complete frame-by-frame stability and precise cold latency
+are not established. The owned app processes are stopped and the changed
+preferences restored. After the user unlocked the Mac, the owned Finder window,
+saved permission, watch, registered root and cached subtree were removed through
+the native UI. The cleanup app quit normally, preferences exactly match the
+baseline, and the private fixture was removed after verifying unchanged Git
+state. No new build has been installed.
+
 The [November 5 delivery-guide continuation](qa/delivery-guide-2026-11-05.json)
 updates the local-testing/distribution guide to installed52, preserves historical
 section links, clarifies Finder/Commit/Log instructions and refreshes online and

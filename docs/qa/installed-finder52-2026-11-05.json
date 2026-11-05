@@ -46,13 +46,7 @@
     "original_Classic_preference_restoration_pending": false,
     "limits": "No all-frame transient-flicker or all-repository timing certification. One unintended ruler sheet from stale target cancelled without OK."
   },
-  "cleanup_pending": {
-    "Finder_window": "TurtleGit-Finder-Acceptance-t11t083w",
-    "registered_and_recent_private_records": true,
-    "preferences": false,
-    "fixture": true,
-    "reason": "Native tool reports Mac locked; requested manual unlock; no bypass attempted."
-  },
+  "cleanup_pending": {},
   "Git_after_stage_roundtrip": {
     "HEAD_unchanged": true,
     "status_unchanged": true,
@@ -71,7 +65,33 @@
   "main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
   "limitations": [
     "No final Log selection, physical badges/background refresh or complete first-use/nested grant acceptance.",
-    "One owned Finder window and exact private registration/fixture cleanup await manual unlock; no unrelated app/window terminated.",
-    "Preference backup contains user data and stays private locally; it is not included in this record."
-  ]
+    "Initial manual-unlock deferral was resolved by the user; native cleanup closed only the owned Finder window and removed only its private saved/watch/cache records.",
+    "Preference baseline was restored and compared exactly; its private backup was removed with the owned fixture and is not included in this record."
+  ],
+  "initial_cleanup_deferral": {
+    "Finder_window": "TurtleGit-Finder-Acceptance-t11t083w",
+    "registered_and_recent_private_records": true,
+    "preferences": false,
+    "fixture": true,
+    "reason": "Native tool reports Mac locked; requested manual unlock; no bypass attempted."
+  },
+  "final_cleanup": {
+    "owned_finder_window_closed": true,
+    "original_user_finder_window_preserved": "elytra",
+    "native_saved_permission_forgotten": true,
+    "native_watch_and_cache_removed": true,
+    "persisted_private_root_absence": {
+      "repositories.json": true,
+      "watched-repositories.json": true,
+      "registered-roots.json": true,
+      "status.json": true
+    },
+    "cleanup_app_pid": 37889,
+    "cleanup_app_quit_normally": true,
+    "preferences_equal_original_baseline": true,
+    "preference_baseline_sha256": "904e038ce03030b3751596e11a9d7d72face675ae44368b0dd5c6e25ba51b984",
+    "HEAD_and_status_preserved": true,
+    "staged_diff_empty": true,
+    "private_fixture_removed": true
+  }
 }

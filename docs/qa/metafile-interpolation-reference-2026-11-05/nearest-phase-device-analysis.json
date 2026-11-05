@@ -1,0 +1,598 @@
+{
+  "model": "inverse(device+offset)+wireSrc-offset; nearest=floor(sample+.5); offset=.5 for wire PixelOffsetHalf otherwise0; geometry at same device point",
+  "cases": [
+    {
+      "name": "opaque-i5-p0-integer",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p0-quarter",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p0-half",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p0-three-quarter",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p0-negative",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p0-reflection",
+      "mismatches": 6,
+      "first": [
+        {
+          "xy": [
+            16,
+            4
+          ],
+          "source": [
+            0.0,
+            0.0
+          ],
+          "sample": [
+            0.0,
+            0.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            255,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            5
+          ],
+          "source": [
+            0.0,
+            0.25
+          ],
+          "sample": [
+            0.0,
+            0.25
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            255,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            6
+          ],
+          "source": [
+            0.0,
+            0.5
+          ],
+          "sample": [
+            0.0,
+            0.5
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            7
+          ],
+          "source": [
+            0.0,
+            0.75
+          ],
+          "sample": [
+            0.0,
+            0.75
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            8
+          ],
+          "source": [
+            0.0,
+            1.0
+          ],
+          "sample": [
+            0.0,
+            1.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            9
+          ],
+          "source": [
+            0.0,
+            1.25
+          ],
+          "sample": [
+            0.0,
+            1.25
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "name": "opaque-i5-p0-affine",
+      "mismatches": 2,
+      "first": [
+        {
+          "xy": [
+            5,
+            5
+          ],
+          "source": [
+            0.0,
+            0.0
+          ],
+          "sample": [
+            0.0,
+            0.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            255,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            9,
+            6
+          ],
+          "source": [
+            1.0,
+            0.0
+          ],
+          "sample": [
+            1.0,
+            0.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            255,
+            0,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "name": "opaque-i5-p0-crop",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p3-integer",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p3-quarter",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p3-half",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p3-three-quarter",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p3-negative",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p3-reflection",
+      "mismatches": 6,
+      "first": [
+        {
+          "xy": [
+            16,
+            4
+          ],
+          "source": [
+            0.0,
+            0.0
+          ],
+          "sample": [
+            0.0,
+            0.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            255,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            5
+          ],
+          "source": [
+            0.0,
+            0.25
+          ],
+          "sample": [
+            0.0,
+            0.25
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            255,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            6
+          ],
+          "source": [
+            0.0,
+            0.5
+          ],
+          "sample": [
+            0.0,
+            0.5
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            7
+          ],
+          "source": [
+            0.0,
+            0.75
+          ],
+          "sample": [
+            0.0,
+            0.75
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            8
+          ],
+          "source": [
+            0.0,
+            1.0
+          ],
+          "sample": [
+            0.0,
+            1.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        },
+        {
+          "xy": [
+            16,
+            9
+          ],
+          "source": [
+            0.0,
+            1.25
+          ],
+          "sample": [
+            0.0,
+            1.25
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            0,
+            255,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "name": "opaque-i5-p3-affine",
+      "mismatches": 2,
+      "first": [
+        {
+          "xy": [
+            5,
+            5
+          ],
+          "source": [
+            0.0,
+            0.0
+          ],
+          "sample": [
+            0.0,
+            0.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            255,
+            0,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            9,
+            6
+          ],
+          "source": [
+            1.0,
+            0.0
+          ],
+          "sample": [
+            1.0,
+            0.0
+          ],
+          "native": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "model": [
+            0,
+            255,
+            0,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "name": "opaque-i5-p3-crop",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-integer",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-quarter",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-half",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-three-quarter",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-negative",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-reflection",
+      "mismatches": 0,
+      "first": []
+    },
+    {
+      "name": "opaque-i5-p4-affine",
+      "mismatches": 2,
+      "first": [
+        {
+          "xy": [
+            11,
+            8
+          ],
+          "source": [
+            1.0,
+            0.0
+          ],
+          "sample": [
+            0.5,
+            -0.5
+          ],
+          "native": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "model": [
+            0,
+            255,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            12,
+            12
+          ],
+          "source": [
+            1.0,
+            1.0
+          ],
+          "sample": [
+            0.5,
+            0.5
+          ],
+          "native": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "model": [
+            255,
+            255,
+            0,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "name": "opaque-i5-p4-crop",
+      "mismatches": 0,
+      "first": []
+    }
+  ]
+}

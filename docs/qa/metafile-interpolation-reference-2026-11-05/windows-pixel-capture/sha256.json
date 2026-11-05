@@ -1,0 +1,558 @@
+﻿[
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-affine-pixel2-natural.rgba",
+        "Hash":  "45822BDA8173C7186A88184929CE05F80E3B1A2E0A1F66BBFBE51F4C7ED338D5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-affine-pixel2-picture.rgba",
+        "Hash":  "60F9963A12C2321BCB0B75E2A1D0359C516B1F911B363218113061538ECA1FCD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-affine-pixel2-records.json",
+        "Hash":  "1E35E7D514BF832FA72769590C5BFA61C3B456A69A39F92CE8CF17D8F59FFE57"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-affine-pixel2.emf",
+        "Hash":  "0772FE0ED2D0206689B7B19D9916FA6BDB93D27B6E85F944E5A5B0291F613DEC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-crop-pixel2-natural.rgba",
+        "Hash":  "63A024F3EA83C719ADA2D5CC48CF1FE2B0D92E642F7C24ED4D915202D3185099"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-crop-pixel2-picture.rgba",
+        "Hash":  "EC953D2C8E0765DDC60B4EE630CD29126593C038E2D5CC0CE7E32E47EAF9E73B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-crop-pixel2-records.json",
+        "Hash":  "49B5EFFDAF386E23BBE5B1CB39582506AF9863F817B5AE7C99D6E34157C7CC0D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-crop-pixel2.emf",
+        "Hash":  "BABCC809617E1CDB531EAE07347A25552922DC08DEB0349DAB4E8CDF38956CB7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-half-pixel2-natural.rgba",
+        "Hash":  "05CA890AA872D20E9D66E96FA57759DB5E796C4B04905EC0568AA1B64126B4AA"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-half-pixel2-picture.rgba",
+        "Hash":  "E42A61E15B0A14F23BAFA63E1764BE2E7D5B98AF3EDD50E130DE165D6E0BFCBB"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-half-pixel2-records.json",
+        "Hash":  "ECD7D784CF983A1E276A47EDB814699893F30139D38772210436FBBD867E782F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-half-pixel2.emf",
+        "Hash":  "67D580BDBFDDD8A8844C5766CD65232CA0A4C29E3984885C5665621B3810F582"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-integer-pixel2-natural.rgba",
+        "Hash":  "62F85F886FD3CAABB1E03836A510D7010EEA1AEB3071248494C7571B689F4464"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-integer-pixel2-picture.rgba",
+        "Hash":  "BA87304C9E37034BD1A2A302BB7DD4EF13315C0DB36E58856369A3B82045EBD0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-integer-pixel2-records.json",
+        "Hash":  "680B58BC06C2DCCCEA74509BFC0363D5DE6940A3ACB98277ABDE6567B2F28503"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-integer-pixel2.emf",
+        "Hash":  "DB567B749093940CAAD713F684F6E74A4B4412CBADA12FE6EB4EEBBBC4FA157E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-negative-pixel2-natural.rgba",
+        "Hash":  "F6D816522B431C5C4E6A4D3C855706E78CD746BDBF46F73EF20574E8164C91F8"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-negative-pixel2-picture.rgba",
+        "Hash":  "8AC1EBF976F003D46F0F69138A80FD1209C90D3D2E3F5B5C204B2DB16FE7F031"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-negative-pixel2-records.json",
+        "Hash":  "D0BCCF27E56509AB2C7838616436349ED641EF55AD6F59C1F8BE7B0C097B2B86"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-negative-pixel2.emf",
+        "Hash":  "A86E1F009B5CC1920D3492C117F79984ABAD71099AAE2A2C5C517F9C09975E74"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-quarter-pixel2-natural.rgba",
+        "Hash":  "6166CF57B1AFD08106DAB60307C08450DDDE9486728B338DAD96A4F8F6B72109"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-quarter-pixel2-picture.rgba",
+        "Hash":  "76DF3EF4C9A0E661D95C570A3FF3C7DD84609AF738C0AE5BA203BC2AED9BCC57"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-quarter-pixel2-records.json",
+        "Hash":  "225AEE79C2C92C7C747E10B226551D02DA93954CCF0759B0F879F04F3EF1DA10"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-quarter-pixel2.emf",
+        "Hash":  "0F0C33EFD9F66E89A926F2BF0FE6D8B81CBEEA02B4A3F3D54DD87859FF85473C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-reflection-pixel2-natural.rgba",
+        "Hash":  "2701266C8413026BC3ABF2257E5065A2EEB4B9D37EC3EBF59141F4F33A256190"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-reflection-pixel2-picture.rgba",
+        "Hash":  "C6556E13D249AB0824B2ABCDFD4A84DDF19CBC2216FA802BCE679C0C0380B126"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-reflection-pixel2-records.json",
+        "Hash":  "FC633A6C05485C59F77C27BC753B68431B2B6A78E5935D821521A1A072BF1E8A"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-reflection-pixel2.emf",
+        "Hash":  "D319C74EE87CCBFC616A28FC7694299F3FCB7CAD3FDE1F73F8A6A28D2E7A6D35"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-three-quarter-pixel2-natural.rgba",
+        "Hash":  "027FF68B162CDE719E9705D61B724DF44E577B15A57163FD2A99E21730C60744"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-three-quarter-pixel2-picture.rgba",
+        "Hash":  "C629054A690DAE4ADC7F2ECAF3528C20284F2AA36B03E2BDA8C54F920B07B768"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-three-quarter-pixel2-records.json",
+        "Hash":  "1338DC7CDE6F4364A35C646277670EA61EF0F09E5C785154E8CFDF0AFAB55A13"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i3-p4-three-quarter-pixel2.emf",
+        "Hash":  "E1148023FE42BE6AF3C02A1D9F266BEB8804C7A016EFA2A730211B77DBDCB75F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-affine-pixel2-natural.rgba",
+        "Hash":  "C0D491F870CF327A934700CEC4FA90BAEB863AF1D9D79E7379636D8A9C4B1638"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-affine-pixel2-picture.rgba",
+        "Hash":  "C0D491F870CF327A934700CEC4FA90BAEB863AF1D9D79E7379636D8A9C4B1638"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-affine-pixel2-records.json",
+        "Hash":  "62F55F3327781C2FA51489CFB01F61EF3D01D12DDA13B89F88806FDCEE01F8EF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-affine-pixel2.emf",
+        "Hash":  "33B8C7EAF14F6572899B443EF824BBE6279ED1F7A9A39B0A2FE06A3100D1E481"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-crop-pixel2-natural.rgba",
+        "Hash":  "5C386E6DAC66F07C0E30193650419B2DB9941FD3BE068D4EAF65A076D8BA9C6B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-crop-pixel2-picture.rgba",
+        "Hash":  "5C386E6DAC66F07C0E30193650419B2DB9941FD3BE068D4EAF65A076D8BA9C6B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-crop-pixel2-records.json",
+        "Hash":  "C8437DF79F46BC941C0A4A2FF0027518646575475CF5386FBABCED6C40EF9831"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-crop-pixel2.emf",
+        "Hash":  "6D648BC869876955A6AA38A8E08A1293F62DBBFF030820228E2E86A9674FAFCA"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-half-pixel2-natural.rgba",
+        "Hash":  "435C94D2A540D848B9D82B8C29BF33CEA071449360C5A84817DCD09C994D15B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-half-pixel2-picture.rgba",
+        "Hash":  "435C94D2A540D848B9D82B8C29BF33CEA071449360C5A84817DCD09C994D15B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-half-pixel2-records.json",
+        "Hash":  "6B4F5CA06E499EF3346D5C51E2F6D784BBDCB51687263E98702E237A04CBCD22"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-half-pixel2.emf",
+        "Hash":  "4B86410CD6E822004E13D7E672F57618DE1B2D0CBCDB8CF81A370173C49EC559"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-integer-pixel2-natural.rgba",
+        "Hash":  "435C94D2A540D848B9D82B8C29BF33CEA071449360C5A84817DCD09C994D15B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-integer-pixel2-picture.rgba",
+        "Hash":  "435C94D2A540D848B9D82B8C29BF33CEA071449360C5A84817DCD09C994D15B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-integer-pixel2-records.json",
+        "Hash":  "25BB9E84D7BC500E58D7AA4236D52B1DE5DAD6FEB678A4D7A05DA426457F7905"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-integer-pixel2.emf",
+        "Hash":  "58C7584F13525F045EE2B63D16155460DB3D0C9BC79CCE1AA67E3A7FD6FC8213"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-negative-pixel2-natural.rgba",
+        "Hash":  "0C3E908CC3C16DB8B11AF8DEC3BAC22E23A3D010AFC97C266ECB36B4989402D3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-negative-pixel2-picture.rgba",
+        "Hash":  "0C3E908CC3C16DB8B11AF8DEC3BAC22E23A3D010AFC97C266ECB36B4989402D3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-negative-pixel2-records.json",
+        "Hash":  "BEFD95802F487BDAF181F4F7DE3F6451BCACA4592AEAEB3B21114D43DA4634F7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-negative-pixel2.emf",
+        "Hash":  "771EA9B24434DFEE4245A6D205792053F2A8A6E2E01187A49C4C065AD408BEB7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-quarter-pixel2-natural.rgba",
+        "Hash":  "435C94D2A540D848B9D82B8C29BF33CEA071449360C5A84817DCD09C994D15B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-quarter-pixel2-picture.rgba",
+        "Hash":  "435C94D2A540D848B9D82B8C29BF33CEA071449360C5A84817DCD09C994D15B0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-quarter-pixel2-records.json",
+        "Hash":  "675B300680FAE81B5A25AA5901A0EF47EB249DFCFFC7BC7050EF6DC1ED75441F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-quarter-pixel2.emf",
+        "Hash":  "D658E4E2F3B95A564C0E0094E41444BD9F776853227BEF2AC12FB321F25399A4"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-reflection-pixel2-natural.rgba",
+        "Hash":  "4B7B9CA9B391BC5B8C9550F561B4CC08A1DC610D1DF44EA20CE234145C9BB67E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-reflection-pixel2-picture.rgba",
+        "Hash":  "4B7B9CA9B391BC5B8C9550F561B4CC08A1DC610D1DF44EA20CE234145C9BB67E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-reflection-pixel2-records.json",
+        "Hash":  "3EEFC48AE36F5A881D214FF58E56022DB767D1D72EF5D58BAE9606F2C2A3AAAD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-reflection-pixel2.emf",
+        "Hash":  "39DEF799048BDEAA8B196B7591EC77ABBE45460DDC81D360A958E176E23B7653"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-three-quarter-pixel2-natural.rgba",
+        "Hash":  "2DCEAB9E459BE0BF0DCF57B3297F12BA0286D15A8D28B741F5B58B2EFF0E99D0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-three-quarter-pixel2-picture.rgba",
+        "Hash":  "2DCEAB9E459BE0BF0DCF57B3297F12BA0286D15A8D28B741F5B58B2EFF0E99D0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-three-quarter-pixel2-records.json",
+        "Hash":  "AE0E14E70C84D7E4F7046668AAAB12AB786E3034C465779E41FDFF0863C37C2C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\alpha-i5-p4-three-quarter-pixel2.emf",
+        "Hash":  "5E7EDDAE107B9F0B4FA9D5B325D54429F9BE83F8168FBF3D61B7E648F78F5763"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-affine-pixel2-natural.rgba",
+        "Hash":  "87355C4565738B0B90AFDE71A106DC2BA9F0618FEE7DC32F2F24A5BA529F0D23"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-affine-pixel2-picture.rgba",
+        "Hash":  "024199861447884DB61BCD57F583ED08C3C93D015DE8C54FCD8AC31318E30392"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-affine-pixel2-records.json",
+        "Hash":  "E53E553EC4E3AB2B8725658D56796B7779320B327D7B47FA07FFA4D800120EA0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-affine-pixel2.emf",
+        "Hash":  "940F6A07178FED9916137774E8CCAD1D860518816C91D793D7FDE16678D196D0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-crop-pixel2-natural.rgba",
+        "Hash":  "703673E921DCCA755227435C9D1FC3C043D35E949039F04D896D1603B84C6FE2"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-crop-pixel2-picture.rgba",
+        "Hash":  "E09BC11B3236464B28F20E53ADA23AB1EE0F769267A6BF7C8E14786E87918F82"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-crop-pixel2-records.json",
+        "Hash":  "188E1D0E7B294C25A442E684623AEE40CF2F48C300023748B6A563241A620E97"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-crop-pixel2.emf",
+        "Hash":  "83044CFEB0FBD9B42D45B6DB5946C2E657817D8553DAE10B0E4295ABB28CC49E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-half-pixel2-natural.rgba",
+        "Hash":  "C8F65B59174AB84F593D09D7AA077293482A935BA70FD47C0C7AC30E04D3233E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-half-pixel2-picture.rgba",
+        "Hash":  "0FF750526CE4BF23501C119DFD3605C78D8EFE42FEE7BC5F5EABE6B4AA9F4A5F"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-half-pixel2-records.json",
+        "Hash":  "5C84F7BB594D6E9A261B25D7FB7CB590FF05E57607A9FDA008C25E90491B9E11"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-half-pixel2.emf",
+        "Hash":  "926A121216B3B989C09445350A4402E131D26F0167D26868B7330E45140498BE"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-integer-pixel2-natural.rgba",
+        "Hash":  "15355D80802A0887D508AFFB6302BF2BDC00526B82AE065738E68177987A3185"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-integer-pixel2-picture.rgba",
+        "Hash":  "22FEC4B1D639F271EDCED791F180BA9A78076BAB1E7340615B97184CE3A0B217"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-integer-pixel2-records.json",
+        "Hash":  "E7E5C89DA53909241D36C45C436E32DA6A72B68BF8A286A59CCFE4EB78898886"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-integer-pixel2.emf",
+        "Hash":  "49198F30FBC4A9CE41AD48E22C0AAA9B206E3004FCEC0D8D52997ED9BB4DF169"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-negative-pixel2-natural.rgba",
+        "Hash":  "F7ADA101C50197DFF9D283E6C3D414176EB44CDAEEFAAB9271A0FA207970AE66"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-negative-pixel2-picture.rgba",
+        "Hash":  "62BA45E2707EAFC11E1556EECBAC91162F5E5DA1EF3DCF726E39DC5C6FE570AB"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-negative-pixel2-records.json",
+        "Hash":  "6297C3F5539B305A6010D03EAC6E14FEE9F434AFF3659D0631FFDCF9AE025C63"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-negative-pixel2.emf",
+        "Hash":  "5B5DAC2C2AD3314E13E2C996FFF3005E9FA128F7D5F30F1C2A21734AFD1B9427"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-quarter-pixel2-natural.rgba",
+        "Hash":  "329E742B6AE0EBF0BCCFA1999E2E7265EC5E732FBCE3CEF3F0DC891635475E8E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-quarter-pixel2-picture.rgba",
+        "Hash":  "2564E3391F19ADF5658D65B4F9881A7941BB50CA299CB7345AB30BA4DED8A237"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-quarter-pixel2-records.json",
+        "Hash":  "B45BD99320E762BFD467C8EE339B8984904BF236A419D16EBB6486BF8F8FB1FB"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-quarter-pixel2.emf",
+        "Hash":  "430D67D38D9499669A543BB61FA381C4477D33392F4AFA02058228CCFB44E928"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-reflection-pixel2-natural.rgba",
+        "Hash":  "FF6C6334927A4C853EB414CBF4970741731CA65A6F5C55E05252F05F578D622D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-reflection-pixel2-picture.rgba",
+        "Hash":  "9A395BFD40BEE31A5A80EAB9CD1F57C07DF54B6819D4858F5CEE1557919CC18B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-reflection-pixel2-records.json",
+        "Hash":  "6EAAED4075D2A2C161D914129C626ECB54874A74BE00E5437674EB436F3ED756"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-reflection-pixel2.emf",
+        "Hash":  "E94ECE4A9AD0320308759C48D90DDBF5B9C0021C5E3141634775A391DED72F74"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-three-quarter-pixel2-natural.rgba",
+        "Hash":  "77E26D4F1E96786F3110A9F2B86F5D21698748000AC259542FB47944406559FF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-three-quarter-pixel2-picture.rgba",
+        "Hash":  "2387285DB6D6E91BC1755CCEBE2266F352CE9F08FC62925EF865B3A0D200BE53"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-three-quarter-pixel2-records.json",
+        "Hash":  "92332BB0C629997BA0A8E36A192C50A44C7778F2AEF835D91417093F6CC83ACE"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i3-p4-three-quarter-pixel2.emf",
+        "Hash":  "F446D9E6C152C86002E79976C6685AFF9AF931E787EE2C00FA622C0090B1CCB3"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-affine-pixel2-natural.rgba",
+        "Hash":  "6BC0DC1AC8CB3F6EE5DED70AA9FA83ED0E56C7E8D94D1A63AD36A2645F87F3CF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-affine-pixel2-picture.rgba",
+        "Hash":  "6BC0DC1AC8CB3F6EE5DED70AA9FA83ED0E56C7E8D94D1A63AD36A2645F87F3CF"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-affine-pixel2-records.json",
+        "Hash":  "779D870B1427D2C929ADA23C703225DB24F3D45DE0BAF338D84D1A87EDEAC737"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-affine-pixel2.emf",
+        "Hash":  "D4F72D998F4AD37620AE5157917132F51250534CB6BE4869D17AB5D9A15B286E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-crop-pixel2-natural.rgba",
+        "Hash":  "DD12B090BBB5D0D63B8E061B47C6CD56CC0DAC3D4419D5C1A508B9630F943DDD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-crop-pixel2-picture.rgba",
+        "Hash":  "DD12B090BBB5D0D63B8E061B47C6CD56CC0DAC3D4419D5C1A508B9630F943DDD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-crop-pixel2-records.json",
+        "Hash":  "70E217719AD99D903EA3FBEC830D70FF8127EA250A4D0677E72CE930D5B350E4"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-crop-pixel2.emf",
+        "Hash":  "5457AA46CE9E74D21F9CF8353F23B8A9C9103691A1A025A0B6BA574009681BC5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-half-pixel2-natural.rgba",
+        "Hash":  "CE902442CC3A49704494BB6707CB107A4768FECAD23BC807CDC499270BAF777D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-half-pixel2-picture.rgba",
+        "Hash":  "CE902442CC3A49704494BB6707CB107A4768FECAD23BC807CDC499270BAF777D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-half-pixel2-records.json",
+        "Hash":  "99ED16EE0FB0AD7D1A48293AD11B2E515C7CF4059A5CB5BA384C7B97DBE901F4"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-half-pixel2.emf",
+        "Hash":  "EEF987FFF71648DFCC1BED754C5719F2A196B516F013828E6AC8B038466D227B"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-integer-pixel2-natural.rgba",
+        "Hash":  "CE902442CC3A49704494BB6707CB107A4768FECAD23BC807CDC499270BAF777D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-integer-pixel2-picture.rgba",
+        "Hash":  "CE902442CC3A49704494BB6707CB107A4768FECAD23BC807CDC499270BAF777D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-integer-pixel2-records.json",
+        "Hash":  "BA8C01181E0394A63B27C49DA2ACFF80633BD1AE64316434E8629F87C010E469"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-integer-pixel2.emf",
+        "Hash":  "69751130BD33C8B9FEFA0CA2EA3ACBAD97E47167B5BD71A530AB7B8498BC79C7"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-negative-pixel2-natural.rgba",
+        "Hash":  "8F3B031A125B63909D3352B3B78BE23A5BA52AA5B7747C40AD9EAAD2B46EFA0D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-negative-pixel2-picture.rgba",
+        "Hash":  "8F3B031A125B63909D3352B3B78BE23A5BA52AA5B7747C40AD9EAAD2B46EFA0D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-negative-pixel2-records.json",
+        "Hash":  "24B0E4BAE878CA5F10B6EA617C2982E3B6F7D7054CE4A07DBDB80398FF69185D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-negative-pixel2.emf",
+        "Hash":  "DE3B7E223E7A8C538803029D5767A72FE46FD352499C447002871CFF2296ED6A"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-quarter-pixel2-natural.rgba",
+        "Hash":  "CE902442CC3A49704494BB6707CB107A4768FECAD23BC807CDC499270BAF777D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-quarter-pixel2-picture.rgba",
+        "Hash":  "CE902442CC3A49704494BB6707CB107A4768FECAD23BC807CDC499270BAF777D"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-quarter-pixel2-records.json",
+        "Hash":  "33E606F28354FFCD93D862B440D1C7C75ACE5B7D2B0FDEAE18C7521F1BF3185E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-quarter-pixel2.emf",
+        "Hash":  "DF00E51EA242030AFDB81C4B07968EACA7E5C02D2DDA4F85E51D9FCC45F0E001"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-reflection-pixel2-natural.rgba",
+        "Hash":  "08263E9C4AF5B1848472F9E898209203E16D16068DBB25F05894D7126831B7CD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-reflection-pixel2-picture.rgba",
+        "Hash":  "08263E9C4AF5B1848472F9E898209203E16D16068DBB25F05894D7126831B7CD"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-reflection-pixel2-records.json",
+        "Hash":  "D1688ABF7F2275962796EA0145A08DB9736DA1F511A2401879AE026ECE399032"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-reflection-pixel2.emf",
+        "Hash":  "789FF6A802F421173B942AB4FBCA18D8348714AAF2C929C230B573D1CDC07C6E"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-three-quarter-pixel2-natural.rgba",
+        "Hash":  "6ED94FC4A9F80E597DAB425C57C95551A959A4E59C6AA98A60C6D3DC5558D7D2"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-three-quarter-pixel2-picture.rgba",
+        "Hash":  "6ED94FC4A9F80E597DAB425C57C95551A959A4E59C6AA98A60C6D3DC5558D7D2"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-three-quarter-pixel2-records.json",
+        "Hash":  "1EFE90D1F723D71EACAA4F59227A034D765DAA66CD7824AF5772EF4E155AEBB2"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\opaque-i5-p4-three-quarter-pixel2.emf",
+        "Hash":  "B7FA18D7EBCD7E7205B401CCF6FF77BE2B4F24A1D060C9021DA0D97C66AC4A62"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\output\\pixel-alias-observations.json",
+        "Hash":  "F356AC5045BBFADE26530DA11C758BFAB4E03F0B52981870F7BA753A6EC9D2BC"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\InterpolationReference.cpp",
+        "Hash":  "66D9256C446E7C411A50BF4E4837EFBC61454202CB3C39698B13CDA33BEEA656"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\PixelOffsetVariants.cpp",
+        "Hash":  "0931EC25E831FAB918B4074DA54ADCDEA74CBE508C7860E0DB8134A4A98879B5"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\PixelOffsetVariants.exe",
+        "Hash":  "0E0BDE48661F105E6A90B1CEE90F841A9F2CA4891820208633B9D30CCD4781F0"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\compiler.txt",
+        "Hash":  "6608EDA715B19874EF555D8D75C7FE4CAED50D2D7B287E45042F2A5E445CA18C"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\execution.txt",
+        "Hash":  "09F9AC760CF02EDC9D2CE019464FBAEB5B3123C4321AA6F606385DE4F446C6DB"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\environment.json",
+        "Hash":  "3E803BC9C9CE06D769E4FDFBE7255B762B6455453D6587065223BEB90C359B74"
+    },
+    {
+        "Path":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34\\runtime-versions.json",
+        "Hash":  "E73F6F2256D7C8D1BEA1C29A56CEBD38444A681318AAD1D6E1E8744C8D5B13E2"
+    },
+    {
+        "Path":  "C:\\WINDOWS\\System32\\gdiplus.dll",
+        "Hash":  "EE3AC593C76F88204EDDDFDE23FA130CE1E2A4BE82590B88BAA0215B92A31A2F"
+    },
+    {
+        "Path":  "C:\\WINDOWS\\System32\\gdi32.dll",
+        "Hash":  "D030DB7B41326258E8837D10E85A4D9A55C594776E6497745D3788281540A42C"
+    },
+    {
+        "Path":  "C:\\WINDOWS\\System32\\win32u.dll",
+        "Hash":  "345D86E4357CCD1773929361863A6A8FE39CA7AC2995851C88495D0C42B3726E"
+    }
+]

@@ -701,3 +701,39 @@ actual white paint and classic EMF's opaque initial device surface. Original
 source-omitted BitBlt copies internally white-composited DC pixels only into its
 16-by-16 destination; the zero-source StretchBlt is a no-op. A white display matte
 or a production canvas clear is not a substitute for these alpha contracts.
+
+## Recorded image interpolation
+
+`Interpolation/generate.py` authors 21 original checkerboard controls and eight
+malformed/unsupported records. `native-reference.json` retains fixed analytical
+premultiplied RGBA probes at original integer, quarter and tie positions; it is
+not a TurtleGit-rendered golden. The controls cover raw mode aliases, implicit
+default, reserved flags, Save/Restore and containers, crop, wrap/clamp, affine
+placement, alpha, clipping and SourceCopy over earlier paint.
+
+`Interpolation/Windows/manifest.json` separately pins 304 original native Windows
+files with **both** complete natural Metafile and file-backed Picture RGBA.
+The original recording, raw-alias witnesses, varied-color source readback,
+compiler/runtime identities and byte-verifying importer are retained in
+`docs/qa/metafile-interpolation-reference-2026-11-05/`. No native header or
+expected pixel was changed to fit the Mac consumer. Core's ComparisonImage check
+uses the Picture oracle; natural output remains a distinct reference.
+
+Observed raw interpolation `1` follows `0/3` bilinear despite the protocol enum's
+nearest alias; raw `5` is nearest. Pixel-offset `2` matches `4`. The measured
+nearest Float32 start/increment/addition boundaries and device/source half-pixel
+phases are separate from bilinear, texture and final Picture sampling. Cubic and
+prefiltered `2/4/6/7` remain explicit unsupported bitmap modes.
+
+`unsupported-image-tile-budget.emf` also retains its original name and bytes but
+is now positive: bounded ordinary sampling needs no repeated embedded PNG tiles.
+Its source is the original opaque 128-by-128 LCG image. At device `(3n,m)` its
+wrapped source point is exactly `(400n,200m)`; these assertions do not reuse the
+texture-brush phase oracle.
+
+The additive `embedded-refused-playback-count-no-paint.emf` keeps the original
+4100-draw topology with a paint-free Header/EOF child, isolating the exact image
+count guard. The original painted count fixture instead requires the exact
+aggregate paint-coverage limit, and the original recursive input retains the
+exact depth limit. All prior fixture bytes and the three independent bounds stay
+intact. See the [connected checkpoint](../../../../docs/qa/metafile-interpolation-2026-11-05.json).

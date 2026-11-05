@@ -131,7 +131,7 @@ observed_cases={'path-gradients','dib-profiles','wmf-bitmap16','wmf-text'}
 # Keep the original generic native coverage complete as its malformed corpus
 # grows. Each receiver retains the ordinary 300-second bound; partitions never
 # shorten an assertion or run another receiver concurrently.
-accepted_historical={'unsupported-raster-device-bitblt.wmf','unsupported-raster-device-stretchblt.wmf','unsupported-raster-wmf-without-bitmap-source-bitblt.wmf','unsupported-raster-wmf-without-bitmap-source-stretchblt.wmf','unsupported-rop.emf','unsupported-image-effect.emf','unsupported-texture-tile-budget.emf'}
+accepted_historical={'unsupported-raster-device-bitblt.wmf','unsupported-raster-device-stretchblt.wmf','unsupported-raster-wmf-without-bitmap-source-bitblt.wmf','unsupported-raster-wmf-without-bitmap-source-stretchblt.wmf','unsupported-rop.emf','unsupported-image-effect.emf','unsupported-texture-tile-budget.emf','unsupported-image-tile-budget.emf'}
 corpus=root/'Tests/TurtleGitCoreTests/Fixtures/Metafile'
 negative_files=sorted((path for path in corpus.iterdir() if path.suffix.lower() in {'.wmf','.emf'} and path.name.startswith('unsupported-') and path.name not in accepted_historical),key=lambda path:path.name.encode('utf-8'))
 negative_names=[path.name for path in negative_files]

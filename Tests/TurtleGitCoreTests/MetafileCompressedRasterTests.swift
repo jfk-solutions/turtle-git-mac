@@ -40,10 +40,27 @@ final class MetafileCompressedRasterTests:XCTestCase {
         let staticImage=try pixels("compressed-raster-image-gif-two-frames-visible.emf")
         pixel(staticImage,20,20,[0,0,255,255]);pixel(staticImage,44,44,[0,0,255,255]);pixel(staticImage,4,4,[255,255,255,255])
         let delta=try pixels("compressed-raster-image-gif-two-frames-delta-noloop.emf")
-        // The final 8x8 transparent delta changes only odd checker positions;
-        // prior source pixels survive both the delta holes and untouched canvas.
-        pixel(delta,12,12,[255,0,0,255]);pixel(delta,15,12,[0,255,0,255])
+        // The final8x8 delta paints green only at odd checker positions;
+        // transparent holes retain the authored first-frame quadrants. Source
+        //16x16 maps to(8,8,48,48): integer device samples use(x-8)/3,(y-8)/3.
+        // Keep original12/15 probes, which are bilinear checker mixtures now.
+        func deltaSource(_ x:Int,_ y:Int)->[Int] {
+            if x<8 && y<8 && (x+y)%2==1{return [0,255,0,255]}
+            if y<8{return x<8 ? [255,0,0,255]:[0,255,0,255]}
+            return x<8 ? [0,0,255,255]:[255,255,0,255]
+        }
+        func expectedDelta(_ x:Int,_ y:Int)->[Int] {
+            let u=Double(x-8)/3,v=Double(y-8)/3,sx=Int(floor(u)),sy=Int(floor(v)),fx=u-floor(u),fy=v-floor(v)
+            return (0..<4).map {channel in
+                var total=0.0
+                for by in 0...1 {for bx in 0...1 {total += Double(deltaSource(sx+bx,sy+by)[channel])*(bx==0 ? 1-fx:fx)*(by==0 ? 1-fy:fy)}}
+                return Int(total.rounded())
+            }
+        }
+        for (x,y) in [(12,12),(15,12),(44,20),(44,44),(11,11),(14,11),(11,14),(14,14)]{pixel(delta,x,y,expectedDelta(x,y))}
+        pixel(delta,11,11,[255,0,0,255]);pixel(delta,14,11,[0,255,0,255])
         pixel(delta,44,20,[0,255,0,255]);pixel(delta,44,44,[255,255,0,255])
+        pixel(delta,4,4,[0,0,255,255]);pixel(delta,56,20,[0,0,255,255])
     }
     func testJPEGEXIFDoesNotInventAnImplicitOrientationTransform()throws{
         equal(try pixels("compressed-raster-image-exif-orientation6.emf"),try pixels("compressed-raster-image-jpeg.emf"),"GDI+ ignores EXIF orientation for serialized image playback")

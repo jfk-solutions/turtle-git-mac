@@ -1,0 +1,162 @@
+{
+  "model": "existing SpatialImageSampling affine scanline; phase-offset scan y, ceil(minx-phase)..ceil(maxx-phase), original ceil bbox; Float32 down/steps; source sample minus phase; nearest floor(sample+.5)",
+  "cases": [
+    {
+      "name": "opaque-i5-p0-integer",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-quarter",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-half",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-three-quarter",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-negative",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-reflection",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-affine",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p0-crop",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-integer",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-quarter",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-half",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-three-quarter",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-negative",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-reflection",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-affine",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p3-crop",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-integer",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-quarter",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-half",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-three-quarter",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-negative",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-reflection",
+      "mismatches": 0,
+      "differences": []
+    },
+    {
+      "name": "opaque-i5-p4-affine",
+      "mismatches": 2,
+      "differences": [
+        {
+          "xy": [
+            11,
+            8
+          ],
+          "native": [
+            255,
+            0,
+            0,
+            255
+          ],
+          "scanline": [
+            0,
+            255,
+            0,
+            255
+          ]
+        },
+        {
+          "xy": [
+            12,
+            12
+          ],
+          "native": [
+            0,
+            0,
+            255,
+            255
+          ],
+          "scanline": [
+            0,
+            255,
+            0,
+            255
+          ]
+        }
+      ]
+    },
+    {
+      "name": "opaque-i5-p4-crop",
+      "mismatches": 0,
+      "differences": []
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+﻿[
+    {
+        "FileName":  "C:\\WINDOWS\\System32\\gdiplus.dll",
+        "FileVersion":  "10.0.26100.8655 (WinBuild.160101.0800)",
+        "ProductVersion":  "10.0.26100.8655"
+    },
+    {
+        "FileName":  "C:\\WINDOWS\\System32\\gdi32.dll",
+        "FileVersion":  "10.0.26100.8521 (WinBuild.160101.0800)",
+        "ProductVersion":  "10.0.26100.8521"
+    },
+    {
+        "FileName":  "C:\\WINDOWS\\System32\\win32u.dll",
+        "FileVersion":  "10.0.26100.8655 (WinBuild.160101.0800)",
+        "ProductVersion":  "10.0.26100.8655"
+    }
+]

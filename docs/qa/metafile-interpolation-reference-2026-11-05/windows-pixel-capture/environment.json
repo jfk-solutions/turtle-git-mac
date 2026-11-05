@@ -1,0 +1,6 @@
+﻿{
+    "architecture":  "ARM64",
+    "version":  "Microsoft Windows NT 10.0.26200.0",
+    "build":  "call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Professional\\VC\\Auxiliary\\Build\\vcvarsall.bat\" arm64 \u0026\u0026 cl /nologo /std:c++17 /EHsc /W4 PixelOffsetVariants.cpp /Fe:PixelOffsetVariants.exe /link gdiplus.lib user32.lib gdi32.lib",
+    "guestDirectory":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitPixelAlias-7df9c145-bca0-46c0-9bbb-652c50562b34"
+}

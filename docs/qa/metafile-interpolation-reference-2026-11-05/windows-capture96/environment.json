@@ -1,0 +1,7 @@
+﻿{
+    "architecture":  "ARM64",
+    "version":  "Microsoft Windows NT 10.0.26200.0",
+    "build":  "call \"C:\\Program Files\\Microsoft Visual Studio\\18\\Professional\\VC\\Auxiliary\\Build\\vcvarsall.bat\" arm64 \u0026\u0026 cl /nologo /std:c++17 /EHsc /W4 InterpolationReference96DPI.cpp /Fe:InterpolationReference96DPI.exe /link gdiplus.lib user32.lib gdi32.lib",
+    "guestDirectory":  "C:\\Users\\jkuehner\\AppData\\Local\\Temp\\TurtleGitInterpolation96-0f43512a-9488-41f9-a9da-1ebf8b3c884a",
+    "count":  192
+}

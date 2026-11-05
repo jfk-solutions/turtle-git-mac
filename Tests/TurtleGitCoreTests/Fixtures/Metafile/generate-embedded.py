@@ -156,6 +156,10 @@ nested=children[4]
 for _ in range(10):nested=plus([obj(5,image(4,nested)),draw(dest=(0,0,16,16))],16,16,False)
 write('embedded-refused-recursion',scene(4,nested))
 write('embedded-refused-playback-count',plus([obj(5,image(4,children[4]))]+[draw(dest=(0,0,16,16))]*4100))
+# Isolate the image-count guard from the aggregate paint-coverage guard above.
+# Header/EOF-only EMF+ is structurally valid and still enters each child playback,
+# but does not spend the paint budget before the 4097th child invocation.
+write('embedded-refused-playback-count-no-paint',plus([obj(5,image(4,plus([],16,16,False)))]+[draw(dest=(0,0,16,16))]*4100))
 # All existing original fixtures are immutable across generator extension.
 assert old=={name:hashlib.sha256((P/name).read_bytes()).hexdigest() for name in old}
 print(json.dumps({'accepted':len(list(P.glob('embedded-*.emf')))-len(list(P.glob('embedded-refused-*.emf'))),'refused':len(list(P.glob('embedded-refused-*.emf'))),'controls':len(list(P.glob('embedded-*.png'))),'earlier_unchanged':len(old)},sort_keys=True))

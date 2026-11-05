@@ -127,14 +127,22 @@ final class MetafileEmbeddedImageTests:XCTestCase {
     }
     func testMalformedNestedImagesFailWholePictureWithBoundedRecursionAndCancellation()throws{
         let names=try FileManager.default.contentsOfDirectory(atPath:directory.path).filter{$0.hasPrefix("embedded-refused-") && $0.hasSuffix(".emf")}.sorted()
-        XCTAssertEqual(names.count,15)
+        XCTAssertEqual(names.count,16)
+        // Keep each independent refusal observable. The original painted child
+        // now exhausts aggregate coverage before image count; the no-paint
+        // sibling preserves the exact breadth guard without bypassing playback.
+        let expectedBudgets=[
+            "embedded-refused-recursion.emf":"embedded metafile recursion budget exceeded",
+            "embedded-refused-playback-count.emf":"aggregate paint coverage sample limit",
+            "embedded-refused-playback-count-no-paint.emf":"embedded metafile image count budget exceeded"
+        ]
         for name in names{
             let original=try data(name)
             do{_ = try MetafileImageDecoder.convert(original,executable:helper);XCTFail("Accepted "+name)}
             catch{
-                if name.contains("recursion") || name.contains("playback-count"){
+                if let expected=expectedBudgets[name]{
                     guard case MetafileImageFailure.failed(let diagnostic)=error else{XCTFail("Budget must fail explicitly, not time out: \(error)");continue}
-                    XCTAssertTrue(diagnostic.contains(name.contains("recursion") ? "embedded metafile recursion budget exceeded":"embedded metafile image count budget exceeded"),diagnostic)
+                    XCTAssertTrue(diagnostic.contains(expected),name+": "+diagnostic)
                 }
             }
             XCTAssertEqual(try data(name),original)

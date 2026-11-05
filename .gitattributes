@@ -25,3 +25,8 @@ Tests/TurtleGitCoreTests/Fixtures/Metafile/**/*.rgba binary
 # Preserve original Windows reference metadata and its CRLF byte provenance.
 docs/qa/metafile-dib-profile-reference-2026-10-29/windows/* -text -whitespace
 docs/qa/metafile-dib-profile-reference-2026-10-29/windows/*.rgba binary
+
+# Keep interpolation captures and their native metadata byte-exact across hosts.
+docs/qa/metafile-interpolation-reference-2026-11-05/windows-*/** -text -whitespace
+docs/qa/metafile-interpolation-reference-2026-11-05/windows-*/**/*.rgba binary
+docs/qa/metafile-interpolation-reference-2026-11-05/guest-*.log -text -whitespace

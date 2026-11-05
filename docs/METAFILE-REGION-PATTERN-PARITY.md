@@ -168,7 +168,11 @@ three-stage conflict preview/Reload. The focused checkpoint passes three Core me
 cohort/engine combinations; see [dated evidence](qa/metafile-texture-budget-2026-11-05.json).
 No complete inventory or new Windows full-frame identity is asserted.
 
-Only this historical texture fixture moves to the explicit positive inventory.
+Only this historical texture fixture moved to the explicit positive inventory
+at the texture-only checkpoint.
 Invalid texture flags/wrap/image data, region work limits and the separate
-`unsupported-image-tile-budget.emf` DrawImage serialization limit remain negative
-controls. Cancellation, owner retirement and delayed-result checks are retained.
+`unsupported-image-tile-budget.emf` DrawImage serialization limit remained negative
+controls then. The later [ordinary image interpolation batch](METAFILE-IMAGE-INTERPOLATION-PARITY.md)
+also replaces DrawImage's repeated PNG serialization with bounded device sampling
+and gives that original image its own positive noise-source contract. Cancellation,
+owner retirement and delayed-result checks are retained in both families.

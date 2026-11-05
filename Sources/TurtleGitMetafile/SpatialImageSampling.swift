@@ -5,6 +5,10 @@ import Foundation
 /// draw's affine placement and the final file-backed Picture rectangle copy.
 /// Inputs remain immutable. Color and geometric coverage are separate planes.
 enum SpatialImageSampling {
+    /// Recorded ordinary-image kernels. Texture brushes and the final Picture
+    /// copy keep their separate sampling contracts rather than inheriting a
+    /// mutable graphics-state setting.
+    enum Interpolation:Equatable { case bilinear, nearest }
     struct Rect { let x:Double,y:Double,width:Double,height:Double }
     struct Output {let pixels:Data,coverage:Data,width:Int,height:Int,x:Int,y:Int}
     static func down(_ value:Double)->Double {
@@ -65,16 +69,33 @@ enum SpatialImageSampling {
         // image/composition boundary supplies association, not a pre-filter LUT.
         return (straight(channels.0,channels.3),straight(channels.1,channels.3),straight(channels.2,channels.3),UInt8(channels.3))
     }
+    private static func nearest(_ source:UnsafeRawBufferPointer,width:Int,height:Int,
+                                u:Double,v:Double,originX:Int,originY:Int,
+                                logicalWidth:Int,logicalHeight:Int,wrap:Int,clamp:UInt32,phase:Double)->(UInt8,UInt8,UInt8,UInt8) {
+        // These are two recorded Float32 boundaries, not a Double tie fix.
+        let x=Int(floor(Double(Float(Float(u)-Float(phase))+0.5)))
+        let y=Int(floor(Double(Float(Float(v)-Float(phase))+0.5)))
+        let alpha=pixel(source,width:width,height:height,x:x,y:y,channel:3,premultiplied:false,
+                        originX:originX,originY:originY,logicalWidth:logicalWidth,logicalHeight:logicalHeight,wrap:wrap,clamp:clamp)
+        func channel(_ index:Int)->UInt8 {
+            straight(pixel(source,width:width,height:height,x:x,y:y,channel:index,premultiplied:false,
+                           originX:originX,originY:originY,logicalWidth:logicalWidth,logicalHeight:logicalHeight,wrap:wrap,clamp:clamp),alpha)
+        }
+        return (channel(0),channel(1),channel(2),UInt8(alpha))
+    }
     static func affine(_ pixels:Data,width:Int,height:Int,originX:Int,originY:Int,
                        logicalWidth:Int,logicalHeight:Int,matrix:[Double],source:Rect,
                        canvasWidth:Int,canvasHeight:Int,wrap:Int,clamp:UInt32,associateOutput:Bool,
+                       interpolation:Interpolation = .bilinear,
+                       pixelOffsetMode:Int? = nil,
                        budget:inout SpatialImageEffectBudget)throws->Output? {
         try SpatialImageEffects.validate(pixels:pixels,width:width,height:height)
         guard matrix.count==6,matrix.allSatisfy({$0.isFinite && abs($0)<=1e12}),
               [source.x,source.y,source.width,source.height].allSatisfy({$0.isFinite && abs($0)<=1e9}),
               source.width>0,source.height>0,canvasWidth>0,canvasHeight>0,
               canvasWidth<=32768,canvasHeight<=32768,canvasWidth<=16_777_216/canvasHeight,
-              logicalWidth>0,logicalHeight>0,logicalWidth<=32768,logicalHeight<=32768,(0...4).contains(wrap)
+              logicalWidth>0,logicalHeight>0,logicalWidth<=32768,logicalHeight<=32768,(0...4).contains(wrap),
+              (pixelOffsetMode.map({(0...4).contains($0)}) ?? true)
         else {throw SpatialImageEffectError.invalid("invalid spatial sampling geometry")}
         let a=matrix[0],b=matrix[1],c=matrix[2],d=matrix[3],tx=matrix[4],ty=matrix[5],det=a*d-b*c
         guard det.isFinite else {throw SpatialImageEffectError.invalid("invalid spatial sampling determinant")}
@@ -83,10 +104,15 @@ enum SpatialImageSampling {
         func point(_ x:Double,_ y:Double)->(Double,Double) {(a*x+c*y+tx,b*x+d*y+ty)}
         let corners=[point(source.x,source.y),point(source.x+source.width,source.y),point(source.x+source.width,source.y+source.height),point(source.x,source.y+source.height)]
         guard corners.allSatisfy({$0.0.isFinite && $0.1.isFinite && abs($0.0)<=1e12 && abs($0.1)<=1e12}) else {throw SpatialImageEffectError.invalid("invalid spatial sampling extent")}
-        let left=Int(max(0,min(Double(canvasWidth),ceil(corners.map(\.0).min()!))))
-        let right=Int(max(0,min(Double(canvasWidth),ceil(corners.map(\.0).max()!))))
-        let top=Int(max(0,min(Double(canvasHeight),ceil(corners.map(\.1).min()!))))
-        let bottom=Int(max(0,min(Double(canvasHeight),ceil(corners.map(\.1).max()!))))
+        // Recorded Half/HighQuality draws locate destination centers at +.5
+        // and source centers at +.5 as well. The wire source rectangle already
+        // contains any adjustment made by the Windows recorder; retain it.
+        // Absent options preserve the separate measured effect/texture profile.
+        let phase:Double=(pixelOffsetMode==2 || pixelOffsetMode==4) ? 0.5:0
+        let left=Int(max(0,min(Double(canvasWidth),ceil(corners.map(\.0).min()!-phase))))
+        let right=Int(max(0,min(Double(canvasWidth),ceil(corners.map(\.0).max()!-phase))))
+        let top=Int(max(0,min(Double(canvasHeight),ceil(corners.map(\.1).min()!-phase))))
+        let bottom=Int(max(0,min(Double(canvasHeight),ceil(corners.map(\.1).max()!-phase))))
         if right<=left || bottom<=top {return nil}
         let outWidth=right-left,outHeight=bottom-top,count=outWidth*outHeight
         // Both independent destination planes and all scalar visits are charged
@@ -94,43 +120,57 @@ enum SpatialImageSampling {
         try budget.reserve(outputPixels:count*2,work:count*64+outHeight*32)
         var output=Data(count:count*4),coverage=Data(count:count*4)
         let axisAligned=b==0 && c==0
-        let stepU=axisAligned ? Double(Float(1/Float(a))):down(d/det)
-        let stepV=axisAligned ? 0:down(-b/det)
-        let verticalStep=axisAligned ? down(source.height*down(1/(d*source.height))):0
+        let nearestProfile=interpolation == .nearest
+        // Independent recorded nearest controls establish nearest-rounded row
+        // starts/additions and increments truncated toward zero. The measured
+        // bilinear/effect profile retains downward rounding at those stages.
+        func roundPosition(_ value:Double)->Double {nearestProfile ? Double(Float(value)):down(value)}
+        func step(_ value:Double)->Double {nearestProfile && value<0 ? -down(-value):down(value)}
+        let stepU=axisAligned ? Double(Float(1/Float(a))):step(d/det)
+        let stepV=axisAligned ? 0:step(-b/det)
+        let verticalStep=axisAligned ? step(source.height*step(1/(d*source.height))):0
         let destinationOrigin=point(source.x,source.y)
         var invalidCoordinate=false
         pixels.withUnsafeBytes {(input:UnsafeRawBufferPointer) in
             output.withUnsafeMutableBytes {(target:UnsafeMutableRawBufferPointer) in
                 coverage.withUnsafeMutableBytes {(mask:UnsafeMutableRawBufferPointer) in
                     for y in top..<bottom {
+                        let deviceY=Double(y)+phase
                         var minX=Double.infinity,maxX = -Double.infinity
                         for edge in 0..<4 {
                             let p=corners[edge],q=corners[(edge+1)%4]
-                            if p.1==q.1 || Double(y)<min(p.1,q.1) || Double(y)>=max(p.1,q.1) {continue}
-                            let x=p.0+(q.0-p.0)*(Double(y)-p.1)/(q.1-p.1)
+                            if p.1==q.1 || deviceY<min(p.1,q.1) || deviceY>=max(p.1,q.1) {continue}
+                            let x=p.0+(q.0-p.0)*(deviceY-p.1)/(q.1-p.1)
                             minX=min(minX,x);maxX=max(maxX,x)
                         }
                         if !minX.isFinite || !maxX.isFinite {continue}
-                        let start=max(left,min(right,Int(ceil(minX)))),end=max(left,min(right,Int(ceil(maxX))))
+                        let start=max(left,min(right,Int(ceil(minX-phase)))),end=max(left,min(right,Int(ceil(maxX-phase))))
                         if end<=start {continue}
                         var u:Double,v:Double
                         if axisAligned {
-                            u=down(Double(Float(source.x))+down((Double(start)-destinationOrigin.0)*stepU))
-                            v=down(Double(Float(source.y))+down((Double(y)-destinationOrigin.1)*verticalStep))
+                            u=roundPosition(Double(Float(source.x))+roundPosition((Double(start)+phase-destinationOrigin.0)*stepU))
+                            v=roundPosition(Double(Float(source.y))+roundPosition((deviceY-destinationOrigin.1)*verticalStep))
                         } else {
-                            u=down((d*(Double(start)-tx)-c*(Double(y)-ty))/det)
-                            v=down((-b*(Double(start)-tx)+a*(Double(y)-ty))/det)
+                            u=roundPosition((d*(Double(start)+phase-tx)-c*(deviceY-ty))/det)
+                            v=roundPosition((-b*(Double(start)+phase-tx)+a*(deviceY-ty))/det)
                         }
                         for x in start..<end {
                             guard u.isFinite,v.isFinite,abs(u)<=1e12,abs(v)<=1e12 else {invalidCoordinate=true;break}
-                            let value=filtered(input,width:width,height:height,u:u-Double(originX),v:v-Double(originY),premultiplied:false,
+                            let value:(UInt8,UInt8,UInt8,UInt8)
+                            switch interpolation {
+                            case .bilinear:
+                                value=filtered(input,width:width,height:height,u:u-Double(originX)-phase,v:v-Double(originY)-phase,premultiplied:false,
                                                originX:originX,originY:originY,logicalWidth:logicalWidth,logicalHeight:logicalHeight,wrap:wrap,clamp:clamp)
+                            case .nearest:
+                                value=nearest(input,width:width,height:height,u:u-Double(originX),v:v-Double(originY),
+                                              originX:originX,originY:originY,logicalWidth:logicalWidth,logicalHeight:logicalHeight,wrap:wrap,clamp:clamp,phase:phase)
+                            }
                             let offset=((y-top)*outWidth+x-left)*4
                             let alpha=Int(value.3)
                             func output(_ channel:UInt8)->UInt8 {associateOutput ? straight((Int(channel)*alpha+127)/255,alpha):channel}
                             target[offset]=output(value.0);target[offset+1]=output(value.1);target[offset+2]=output(value.2);target[offset+3]=value.3
                             mask[offset]=255;mask[offset+1]=255;mask[offset+2]=255;mask[offset+3]=255
-                            u=down(u+stepU);v=down(v+stepV)
+                            u=roundPosition(u+stepU);v=roundPosition(v+stepV)
                         }
                     }
                 }

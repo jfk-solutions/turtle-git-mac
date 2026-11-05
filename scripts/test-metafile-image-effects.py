@@ -54,10 +54,11 @@ def retire_owned_helpers(context, approved):
 
 CASES = {
     'image-effects': ('metafile-image-effects-native-2026-10-27.swift', 'MetafileImageEffectsVerification'),
+    'interpolation': ('metafile-image-interpolation-native-2026-11-05.swift', 'MetafileImageInterpolationVerification'),
     'pointwise-effects': ('metafile-pointwise-effects-native-2026-10-27.swift', 'MetafilePointwiseEffectsVerification'),
     'spatial-effects': ('metafile-spatial-effects-native-2026-10-27.swift', 'MetafileSpatialEffectsVerification'),
 }
-CORPORA = {'image-effects': 'ImageEffects', 'pointwise-effects': 'PointwiseEffects', 'spatial-effects': 'SpatialEffects'}
+CORPORA = {'interpolation': 'Interpolation', 'image-effects': 'ImageEffects', 'pointwise-effects': 'PointwiseEffects', 'spatial-effects': 'SpatialEffects'}
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
