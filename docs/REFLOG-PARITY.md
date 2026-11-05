@@ -616,3 +616,43 @@ connects native menu/header/filter captions with literal metadata and unchanged
 command ownership. Its [grouped checkpoint](qa/history-languages-2026-10-31.json)
 keeps actual German/French menu evidence separate from complete localization,
 physical/VoiceOver and signed acceptance. Installed build47 predates this family.
+
+
+## Refresh/deletion command receipts — November 5, 2026
+
+RefLog commands preserve exact reference spelling through a command-only
+`-c core.precomposeunicode=false` prefix. Native refresh, parent/diff reads,
+partial deletion, continued deletion and retry retain their original ownership
+and stale-snapshot guards. Those global arguments are not a subcommand or a
+selector and must remain present in the authored acceptance helpers.
+
+The refreshed lifecycle and partial-failure fixtures parse Git's global-option
+prefix semantically before selecting their hold/failure injection. They forward
+the original argv unchanged and record each invocation in a separate NUL-delimited
+receipt. Assertions require the actual command-only configuration, ordinary
+`reflog delete -- <selector>` versus `stash drop -- <selector>`, reverse deletion
+order and complete selectors. In addition to HEAD and stash, a decomposed Unicode
+named-reference case checks exact namespace/selector bytes, middle failure,
+continued deletion, retry and unchanged branch/HEAD identity. Existing native
+Delete/Abort defaults, missing-ref fallback, superseded F5, Quit protection,
+parent/diff cancellation, failure-sheet retirement and child-process reaping
+assertions remain.
+
+The connected driver isolates HOME, preferences, temporary/XDG directories and
+Git configuration for each case/engine. A global owned-window ordering guard
+keeps every native window and sheet alpha-zero and offscreen before ordering;
+cleanup waits for actual RefLog readers/windows and checks exact-image/private-
+resource helpers on success, failure and timeout. The standalone partial-failure
+entry delegates to that same private driver. No protected reference-batch script
+is used or changed.
+
+`scripts/test-reflog-lifecycle.py --only lifecycle --only partial` selected the
+affected refresh/deletion cases. The [family diagnosis](qa/reference-refresh-family-diagnosis-2026-11-05.json)
+records the initial Reference reproduction separately; it does not claim these
+RefLog cases had passed before the implementation freeze. Both then passed the
+[connected native checkpoint](qa/reference-revert-command-checkpoint-2026-11-05.json)
+with system Git; table/deletion cases and a second engine were not repeated.
+All nine recorded compiler/receiver processes across the connected checkpoint
+were reaped and independently absent. This consumer repair does
+not weaken the application's busy, mutation, cancellation or exact-name policy,
+and does not establish physical/signed Finder or complete hosted acceptance.

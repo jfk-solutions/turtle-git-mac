@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import TurtleGitCore
 
 @main struct RemoteTagVerification {
@@ -21,6 +22,9 @@ import TurtleGitCore
         for remote in ["alpha", "zeta"] { let bare = root.appendingPathComponent(remote + ".git"); _ = try await repo.run(["clone", "--bare", root.path, bare.path]); _ = try await repo.run(["remote", "add", remote, bare.path]); _ = try await repo.run(["fetch", remote]) }
         let head = try Data(contentsOf: root.appendingPathComponent(".git/HEAD")), index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), file = try Data(contentsOf: root.appendingPathComponent("file"))
         let owner = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "refs", preferences: prefs, picking: false) { _ in }; defer { owner.close() }
+        var catalogPublications=0
+        let catalogObserver=owner.model.$snapshot.dropFirst().sink {if $0 != nil {catalogPublications += 1}}
+        defer {catalogObserver.cancel()}
         owner.presentRemoteTags = { _, _ in true }; var phases: [String] = []
         owner.configureRemoteTags = { child in child.presentProgress = { [weak child] _, _ in if let phase = child?.model.phase { phases.append(phase.rawValue) }; return true } }
         owner.model.load(); try await wait { !owner.model.busy && owner.model.snapshot != nil }; owner.window!.contentView!.layoutSubtreeIfNeeded()
@@ -44,12 +48,20 @@ import TurtleGitCore
         child.model.delete(); try await wait { answer != nil }; let yes = answer; answer = nil; yes?.resume(returning: true); try await wait { !child.model.busy && child.model.tags.count == 2 }
         try require(child.model.selection.isEmpty && child.model.selectAllState == .off && child.progressWindow == nil && owner.remoteTagDialog === child && phases == ["Loading…", "Deleting remote refs…", "Loading…"], "Delete progress/Refresh/owned lifetime")
         let other = try await repo.remoteTags(remote: "zeta"); try require(other.count == 4, "Retargeted other remote")
-        child.close(); try require(owner.remoteTagDialog == nil && !owner.model.hasChild, "Owner release")
-        owner.model.setFolder("refs/remotes/alpha"); update(); try require(menu.items.contains { $0.title == "Delete remote tags…" } && menu.items.contains { $0.title == "Fetch from \"alpha\"" }, "Remote folder commands")
+        let beforeTagClose=catalogPublications
+        child.close()
+        try await wait {owner.remoteTagDialog == nil && !owner.model.hasChild && !owner.model.busy && !owner.model.hasPendingWork && ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeFilters==0}
+        try require(owner.remoteTagDialog == nil && !owner.model.hasChild && catalogPublications==beforeTagClose+1,"Owner release/once-only fresh catalog")
+        child.close();try require(catalogPublications==beforeTagClose+1,"Repeated retired tag close refreshed parent twice")
+        try require(owner.model.snapshot?.remotes==["alpha","zeta"] && owner.model.folders.contains("refs/remotes/alpha"),"Refresh lost actual remote namespace")
+        owner.model.setFolder("refs/remotes/alpha");try require(owner.model.folder=="refs/remotes/alpha" && owner.model.folderRemote=="alpha","Remote folder selection preceded catalog readiness")
+        update(); try require(menu.items.contains { $0.title == "Delete remote tags…" } && menu.items.contains { $0.title == "Fetch from \"alpha\"" }, "Remote folder commands")
         owner.model.setFolder("refs/remotes/zeta"); owner.presentFetch = { _, _ in true }; var configuredFetch = 0; owner.model.configureFetch = { _ in configuredFetch += 1 }
         try invoke("Fetch from \"zeta\""); guard let fetch = owner.fetchDialog else { throw Failure(message: "No actual folder Fetch dialog") }; try await wait { !fetch.model.busy }
         try require(configuredFetch == 1 && fetch.model.options.remote == "zeta" && !fetch.model.options.allRemotes && !fetch.model.options.arbitraryURL && owner.model.hasChild, "Actual folder Fetch preset/configuration")
-        fetch.close(); try await wait { !owner.model.busy }; try require(owner.fetchDialog == nil && !owner.model.hasChild, "Folder Fetch close/Refresh")
+        let beforeFetchClose=catalogPublications
+        fetch.close();try await wait {owner.fetchDialog == nil && !owner.model.hasChild && !owner.model.busy && !owner.model.hasPendingWork && ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeFilters==0}
+        try require(owner.fetchDialog == nil && !owner.model.hasChild && catalogPublications==beforeFetchClose+1,"Folder Fetch close/once-only Refresh")
         owner.model.setFolder("refs/remotes/alpha")
         var fetches: [String] = []; owner.model.onFetchFolder = { fetches.append($0) }; try invoke("Fetch from \"alpha\""); try require(fetches == ["alpha"], "Remote folder fetch preset")
         try invoke("Delete remote tags…"); guard let closing = owner.remoteTagDialog else { throw Failure(message: "No remote folder dialog") }; try await wait { !closing.model.busy }; closing.model.select(["keep"]); closing.model.confirm = { _ in await withCheckedContinuation { answer = $0 } }; closing.model.delete(); try await wait { answer != nil }; owner.close(); let late = answer; answer = nil; late?.resume(returning: true); try await Task.sleep(nanoseconds: 100_000_000); let still = try await repo.remoteTags(remote: "alpha"); try require(still.contains { $0.name == "keep" }, "Late Yes deleted")

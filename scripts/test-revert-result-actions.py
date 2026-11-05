@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Grouped Revert completed-file actions and retained operation/retry lifecycle."""
 import argparse
+import json
 import os
+import shutil
 from pathlib import Path
 import tempfile
 from native_receiver import build_receiver, run_receiver
@@ -66,15 +68,44 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-revert-results-') as temporar
         for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
             directory = folder/(case+str(index));directory.mkdir()
             config = directory/'global.config';config.write_text('')
-            private_tmp = directory/'temporary';private_tmp.mkdir(mode=0o700)
-            env = dict(base, GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'), TMPDIR=str(private_tmp), TURTLEGIT_REVERT_RESULT_CASE=case)
+            for name in ['temporary', 'home', 'preferences', 'xdg']:
+                (directory/name).mkdir(mode=0o700)
+            env = dict(base, GIT_CONFIG_GLOBAL=str(config), XDG_CONFIG_HOME=str(directory/'xdg'),
+                       HOME=str(directory/'home'), CFFIXED_USER_HOME=str(directory/'preferences'),
+                       TMPDIR=str(directory/'temporary')+'/', TURTLEGIT_REVERT_RESULT_CASE=case)
             if args.captures and case == 'result-actions' and index == 0:
                 env['TURTLEGIT_REVERT_RESULT_CAPTURES'] = str(args.captures.absolute())
             else:
                 env.pop('TURTLEGIT_REVERT_RESULT_CAPTURES', None)
             print('Checking Revert '+case+' with '+str(git), flush=True)
-            result = run_receiver([str(receiver), str(directory), str(git.absolute())], cwd=root, env=env,
-                                  capture_output=True, text=True, timeout_sample=directory/'timeout.sample.txt')
-            print(result.stdout, end='');print(result.stderr, end='');result.check_returncode()
-            if 'PASS: Revert result actions native case completed' not in result.stdout:
-                raise SystemExit('Revert result receiver exited before completion: '+case)
+            result = None
+            try:
+                result = run_receiver([str(receiver), str(directory), str(git.absolute())], cwd=root, env=env,
+                                      capture_output=True, text=True, timeout_sample=directory/'timeout.sample.txt')
+                print(result.stdout, end='');print(result.stderr, end='');result.check_returncode()
+                if 'PASS: Revert result actions native case completed' not in result.stdout:
+                    raise RuntimeError('Revert result receiver exited before completion: '+case)
+            except BaseException as error:
+                failures = root/'build/qa/revert-result-family-failures'
+                failures.mkdir(parents=True, exist_ok=True)
+                evidence = Path(tempfile.mkdtemp(prefix=case+'-'+str(index)+'-', dir=failures))
+                # Keep only bounded diagnostics, not repositories, preferences,
+                # user-like input or recovery copies. run_receiver has already
+                # reaped this exact receiver and its process group.
+                (evidence/'failure.json').write_text(json.dumps(dict(
+                    case=case, git=str(git.absolute()), error_type=type(error).__name__,
+                    error=str(error), returncode=result.returncode if result else None), indent=2)+'\n')
+                for name in ['stdout', 'stderr']:
+                    text = getattr(result, name, None) if result else getattr(error, name, None)
+                    if text is not None:
+                        if isinstance(text, bytes): text = text.decode('utf-8', errors='replace')
+                        (evidence/('receiver.'+name+'.log')).write_text(text[-65_536:])
+                sample = directory/'timeout.sample.txt'
+                if sample.is_file(): shutil.copy2(sample, evidence/sample.name)
+                for phase in ['cancel', 'retire']:
+                    for suffix in ['argv', 'stdin']:
+                        receipt = directory/'.git'/('revert-'+phase+'.'+suffix)
+                        if receipt.is_file() and receipt.stat().st_size <= 65_536:
+                            shutil.copy2(receipt, evidence/receipt.name)
+                print('Retained private Revert family diagnostics: '+str(evidence), flush=True)
+                raise

@@ -1,24 +1,15 @@
 #!/usr/bin/env python3
-"""Headless native RefLog deletion partial failures and continuation workflow checks; no displayed prompt or signed UI acceptance."""
-from native_receiver import build_receiver, run_receiver
+"""Compatibility entry for the private connected RefLog partial-failure case."""
 import argparse
-import os
 from pathlib import Path
-import platform
 import subprocess
-import tempfile
+import sys
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
-products = root / 'build/Build/Products/Debug'
-with tempfile.TemporaryDirectory(prefix='turtlegit-reflog-partial-failure-native-') as temporary:
-    directory = Path(temporary)
-    executable = build_receiver(root, [root / 'docs/qa/reflog-partial-failure-native-2026-10-08.swift'], directory)
-    environment = os.environ.copy()
-    environment['DYLD_FRAMEWORK_PATH'] = str(products)
-    for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
-        fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
-        print('Checking ' + str(git), flush=True)
-        run_receiver([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, check=True)
+command = [sys.executable, str(root / 'scripts/test-reflog-lifecycle.py'), '--only', 'partial']
+for git in args.git or [Path('/usr/bin/git')]:
+    command.extend(['--git', str(git)])
+subprocess.run(command, cwd=root, check=True)

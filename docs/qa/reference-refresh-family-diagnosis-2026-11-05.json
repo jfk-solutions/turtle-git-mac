@@ -1,0 +1,49 @@
+{
+  "date": "2026-11-05",
+  "scope": "One complete connected Reference source/remote-tag family invocation, systemGit only; driver stopped at first failed case. Cached Debug receiver; no app/Core rebuild.",
+  "driver": "scripts/test-reference-source-family.py",
+  "argv": [
+    "--git",
+    "/usr/bin/git"
+  ],
+  "SDKROOT": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+  "result": {
+    "exit": 1,
+    "passed_cases": [
+      "filters",
+      "source",
+      "presentation",
+      "targets"
+    ],
+    "failed_case": "tags",
+    "not_reached": [
+      "owned"
+    ],
+    "failure": "Remote folder commands",
+    "fixture": "docs/qa/remote-tags-native-2026-10-09.swift:48"
+  },
+  "log": "build/qa/reference-source-system-reproduction-2026-11-05.log",
+  "private_failure_evidence": "build/qa/native-reference-source-failures/tags-0-shu04ecc",
+  "receiver_pids": [
+    11793,
+    11867,
+    11945,
+    12013,
+    12143
+  ],
+  "receiver_reaped_markers": true,
+  "independent_ps_output": "",
+  "independent_receiver_absence": true,
+  "source_sha256": {
+    "scripts/test-reference-source-family.py": "017addfaf15e3f2b9664b1f5a0c73a754ba1ebcf36d8b0cc2ca47244dd52f484",
+    "docs/qa/remote-tags-native-2026-10-09.swift": "227803de7620daee5863098f4fb003046d6c1ea2602556c99a9de84e5fabcb87",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "aec6f4e3b15f4fe4c97b77c6ef331e3283d479d6687f9f42d99ba98b8d43e0bb"
+  },
+  "source_vs_fixture": "Fixture invokes remote-folder change immediately after owned tag-child close starts asynchronous parent refresh; current setFolder rejects busy model. Missing consumer drainage, not evidence of a missing production folder command.",
+  "plan": [
+    "Await tag-child retirement and actual parent refresh drainage before selecting remote namespace; retain callback-count, real snapshot, folder, menu command and Fetch preset assertions.",
+    "Repair related RefLog authored wrappers to parse complete Git global options instead of fixed positional subcommand indices; preserve cancellation/deletion fault injection and process ownership assertions.",
+    "Freeze connected family before affected grouped native validation; do not repeat already passing reference cases without changes."
+  ],
+  "changes_made": "QA evidence only; no production or fixture repair, no second engine, Core/fullapp build or GUI/VM command."
+}

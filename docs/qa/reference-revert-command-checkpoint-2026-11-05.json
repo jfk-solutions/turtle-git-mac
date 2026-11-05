@@ -1,0 +1,86 @@
+{
+  "date": "2026-11-05",
+  "base_commit": "93a2d8a50c7f0eff36fad3982e41913df0d77a32",
+  "scope": "Affected connected Revert and Reference/RefLog native checkpoint after implementation freeze. Existing Debug framework; fixture compilation only.",
+  "checks": [
+    {
+      "family": "revert",
+      "cases": [
+        "retained-operation",
+        "retained-add-resolve"
+      ],
+      "git": "/usr/bin/git",
+      "log": "build/qa/revert-retained-repair-2026-11-05.log",
+      "log_sha256": "94e2b9934f4dd516877ce7d180596c986b6f9636c8e60f4b3fe64eab8915e536",
+      "owned_reaped_pids": [
+        13945,
+        14072,
+        14282
+      ],
+      "completion_markers": 2,
+      "result": "pass"
+    },
+    {
+      "family": "reference",
+      "cases": [
+        "tags",
+        "owned"
+      ],
+      "git": "/usr/bin/git",
+      "log": "build/qa/reference-refresh-repair-2026-11-05.log",
+      "log_sha256": "5914b318fbb35e5a983ceed3e21b349fbf86af9662d1ce5ad05ea88fe083e38b",
+      "owned_reaped_pids": [
+        14462,
+        14476,
+        14617
+      ],
+      "completion_markers": 2,
+      "result": "pass"
+    },
+    {
+      "family": "reflog",
+      "cases": [
+        "lifecycle",
+        "partial"
+      ],
+      "git": "/usr/bin/git",
+      "log": "build/qa/reflog-command-repair-2026-11-05.log",
+      "log_sha256": "0a0bf4460b060f31419dc94ceef32767ff56f4238a30a9b29930afca6d43bc99",
+      "owned_reaped_pids": [
+        14776,
+        14801,
+        15847
+      ],
+      "completion_markers": 2,
+      "result": "pass"
+    }
+  ],
+  "passed_case_engine_pairs": 6,
+  "all_recorded_owned_pids_independently_absent": true,
+  "source_sha256": {
+    "docs/qa/revert-progress-family-native-2026-10-14.swift": "6a478d70ead10bf2c041f208e5ff8845475224f73531958b52dbde14b3c78a20",
+    "docs/qa/remote-tags-native-2026-10-09.swift": "8bf5351b89936e7f75e1f15a8c15e34a27a3285bc5c3eff0fb44600413a2a3e2",
+    "docs/qa/reflog-lifecycle-native-2026-10-16.swift": "6561615ca1d5f2fd59877b8da4e8f9ed12a2cf2ab9c7312cf9a2a22f4bb57bd5",
+    "docs/qa/reflog-partial-failure-native-2026-10-08.swift": "d25c45f9e7b7338a534c45634e324d4c2fb93711c78463dbb8496e339981e038",
+    "scripts/test-revert-result-actions.py": "a187e70e61d644f7a824df83f4edbb4fb74d3cbae1fc134857a90a68d2b3c9ff",
+    "scripts/test-reference-source-family.py": "017addfaf15e3f2b9664b1f5a0c73a754ba1ebcf36d8b0cc2ca47244dd52f484",
+    "scripts/test-reflog-lifecycle.py": "4cb6f6baf9e230aa707e6d830de20111e1a10e7d9c035d79a040700bd72b0c51",
+    "scripts/test-reflog-partial-failure.py": "df2a35fb5b995f2b852cc55f09c6ceb1dcb93fc1d2aa8fe5e261a385549a31ee",
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "838ddd1de3fd41e36ca74c5e59c992a2dc8af7c0e94cdeb55350b707c94dbef2",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "aec6f4e3b15f4fe4c97b77c6ef331e3283d479d6687f9f42d99ba98b8d43e0bb"
+  },
+  "warnings": [
+    "Hidden zero-size RemoteTag split-view layout warning; assertions passed; not a physical layout acceptance.",
+    "RefLog copied-fixture sourceLocation fileID warnings; fixture compilation and assertions passed."
+  ],
+  "not_run": [
+    "Previously passed Revert completed result-actions",
+    "Previously passed Reference filters/source/presentation/targets",
+    "Untouched RefLog table/deletion cases",
+    "Bundled Git engine",
+    "Core or app rebuild/full suites",
+    "Physical or signed Finder acceptance"
+  ],
+  "installed_build_unchanged": 52,
+  "limits": "Local scoped passes do not establish current hosted CI success, complete source parity, minimum OS, external authentication, or App Store distribution readiness."
+}

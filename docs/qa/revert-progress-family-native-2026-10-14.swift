@@ -27,26 +27,70 @@ import TurtleGitCore
         let helper = root.appendingPathComponent("gated-revert"), marker = root.appendingPathComponent(".git/revert-ready"), release = root.appendingPathComponent(".git/revert-release")
         let script = #"""
         #!/bin/sh
-        if [ "$4" = restore ];then
+        # Inspect a function-local argv copy; exec always receives the original.
+        locate_command() {
+          [ "$#" -ge 4 ] && [ "$1" = --literal-pathspecs ] && [ "$2" = -C ] || exit 91
+          repository=$3
+          shift 3
+          while [ "$#" -gt 0 ] && [ "$1" = -c ];do
+            [ "$#" -ge 3 ] || exit 92
+            shift 2
+          done
+          command=$1
+        }
+        locate_command "$@"
+        if [ "$command" = restore ];then
+          case "$TG_REVERT_PHASE" in cancel|retire) ;; *) exit 93 ;; esac
+          receipt="$repository/.git/revert-$TG_REVERT_PHASE"
+          printf '%s\0' "$@" > "$receipt.argv"
+          /bin/cat > "$receipt.stdin"
           printf 'Restore: 10%%\rRestore: 80%%\r\n'
-          : > "$3/.git/revert-ready"
-          while [ ! -f "$3/.git/revert-release" ];do /bin/sleep 0.05;done
+          : > "$repository/.git/revert-ready"
+          while [ ! -f "$repository/.git/revert-release" ];do /bin/sleep 0.05;done
+          exec "$TG_REVERT_GIT" "$@" < "$receipt.stdin"
         fi
         exec "$TG_REVERT_GIT" "$@"
         """#
-        try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path); setenv("TG_REVERT_GIT", git.path, 1); defer { unsetenv("TG_REVERT_GIT") }
+        try Data(script.utf8).write(to: helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        let oldGit=ProcessInfo.processInfo.environment["TG_REVERT_GIT"],oldPhase=ProcessInfo.processInfo.environment["TG_REVERT_PHASE"]
+        setenv("TG_REVERT_GIT",git.path,1);setenv("TG_REVERT_PHASE","cancel",1)
+        defer {
+            if let oldGit {setenv("TG_REVERT_GIT",oldGit,1)}else{unsetenv("TG_REVERT_GIT")}
+            if let oldPhase {setenv("TG_REVERT_PHASE",oldPhase,1)}else{unsetenv("TG_REVERT_PHASE")}
+        }
+        func verifyReceipt(_ phase:String)throws {
+            let receipt=root.appendingPathComponent(".git/revert-"+phase)
+            func read(_ suffix:String)throws->Data {
+                let url=URL(fileURLWithPath:receipt.path+suffix),size=try FileManager.default.attributesOfItem(atPath:url.path)[.size] as? NSNumber
+                try require(size != nil && size!.intValue<=65_536,"Protected restore receipt is oversized: "+phase+suffix)
+                return try Data(contentsOf:url)
+            }
+            let arguments=try read(".argv"),input=try read(".stdin")
+            try require(arguments.last==0,"Protected restore argv receipt is incomplete")
+            var actual:[String]=[]
+            for field in arguments.split(separator:0,omittingEmptySubsequences:false).dropLast() {
+                guard let value=String(data:field,encoding:.utf8) else{throw Failure(description:"Protected restore argv is not exact UTF-8")}
+                actual.append(value)
+            }
+            let expected=["--literal-pathspecs","-C",root.path,"-c","core.precomposeunicode=false","restore","--source="+head.trimmingCharacters(in:.newlines),"--staged","--worktree","--pathspec-from-file=-","--pathspec-file-nul"]
+            try require(actual.map{Data($0.utf8)}==expected.map{Data($0.utf8)},"Protected restore changed exact global options, command or NUL pathspec framing: "+phase)
+            try require(input.count<=65_536 && input==Data((path+"\0").utf8),"Protected restore lost its exact literal selected-name packet: "+phase)
+        }
         prefs.set(true, forKey: "ConfirmKillProcess")
         let slow = RevertProgressWindowController(repository: GitRepository(root: root, executable: helper), access: nil, entries: missing, amend: false, againstHead: false, autoCloseSuccess: false, preferences: prefs); defer { try? Data().write(to: release); slow.close() }
         var answer: CheckedContinuation<Bool, Never>?, finished = 0
+        defer{answer?.resume(returning:false);answer=nil}
         slow.model.confirmCancellation = { await withCheckedContinuation { answer = $0 } }; slow.model.onFinished = { _, _ in finished += 1 }
         slow.model.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) && slow.model.commandOutput.contains("Restore: 80%") }
+        try verifyReceipt("cancel")
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")); slow.model.cancel(); try await wait { answer != nil }; answer?.resume(returning: false); answer = nil; try await wait { !slow.model.confirmingCancellation }; try require(slow.model.busy && !slow.model.cancelRequested, "No cancelled protected step")
         slow.model.cancel(); try await wait { answer != nil }; answer?.resume(returning: true); answer = nil; try await wait { slow.model.cancelRequested }
         try require(slow.model.busy && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Queued cancellation lost lifetime")
         try Data().write(to: release); try await wait { !slow.model.busy }; try require(slow.model.cancelled && !slow.model.failed && finished == 1 && Data(contentsOf: root.appendingPathComponent(".git/index")) == index, "Cancelled protected step published index or lost completion"); slow.close()
         // Forced retirement retains a pending operation and rejects late result callbacks.
         try FileManager.default.removeItem(at: marker); try FileManager.default.removeItem(at: release); try FileManager.default.removeItem(at: file)
-        let lateEntries = try await repo.status().filter { ![FileState.untracked, .ignored].contains($0.state) }, late = RevertProgressWindowController(repository: GitRepository(root: root, executable: helper), access: nil, entries: lateEntries, amend: false, againstHead: false, autoCloseSuccess: false, preferences: prefs); defer { try? Data().write(to: release); late.close() }; var lateFinished = 0; late.model.onFinished = { _, _ in lateFinished += 1 }; late.model.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) }; late.close(); let frozen = late.model.commandOutput
+        setenv("TG_REVERT_PHASE","retire",1)
+        let lateEntries = try await repo.status().filter { ![FileState.untracked, .ignored].contains($0.state) }, late = RevertProgressWindowController(repository: GitRepository(root: root, executable: helper), access: nil, entries: lateEntries, amend: false, againstHead: false, autoCloseSuccess: false, preferences: prefs); defer { try? Data().write(to: release); late.close() }; var lateFinished = 0; late.model.onFinished = { _, _ in lateFinished += 1 }; late.model.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) };try verifyReceipt("retire"); late.close(); let frozen = late.model.commandOutput
         try require(late.model.retired && RevertProgressWindowModel.activeOperations > 0, "Forced closure lost protected lifetime"); try Data().write(to: release); try await wait { RevertProgressWindowModel.activeOperations == 0 }; try require(lateFinished == 0 && late.model.commandOutput == frozen, "Retired result published")
         let after = try await repo.run(["rev-parse", "HEAD"]).text; try require(head == after, "Revert changed HEAD")
         try await verifyPolicies(root:root,git:git)

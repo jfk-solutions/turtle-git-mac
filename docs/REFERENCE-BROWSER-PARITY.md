@@ -849,3 +849,34 @@ connects native menu/header/filter captions with literal metadata and unchanged
 command ownership. Its [grouped checkpoint](qa/history-languages-2026-10-31.json)
 keeps actual German/French menu evidence separate from complete localization,
 physical/VoiceOver and signed acceptance. Installed build47 predates this family.
+
+
+## Remote-tag retirement and parent refresh — November 5, 2026
+
+Closing the owned remote-tag dialog releases its actual sheet/window before the
+browser refreshes the live reference catalog. The browser's busy/child guards
+remain in force through that transition; a folder action cannot target the old
+catalog while the replacement read or filter is pending. A subsequent remote
+namespace popup uses the refreshed folder and its captured remote for Fetch and
+Delete remote tags. Returning from that Fetch repeats the same owned-release and
+refresh boundary.
+
+The current connected fixture follows that existing production contract. It
+observes accepted catalog publications, checks one refresh per completed child,
+refuses duplicate retired-child refresh, then verifies the actual remote folder,
+menu commands and native Fetch preset after real drainage. Abort/Delete, the
+other remote's unchanged tags, late affirmative replies, forced process cleanup
+and unchanged local HEAD/index/config/files remain asserted. The earlier immediate
+folder invocation after `child.close()` was stale: close begins asynchronous
+refresh rather than making the new catalog synchronously ready.
+
+The [diagnosis record](qa/reference-refresh-family-diagnosis-2026-11-05.json)
+retains the one system-Git reproduction: four preceding Reference cases passed,
+then Remote Tags failed at that premature folder action. The connected RefLog
+consumer changes below share the refresh/deletion ownership checkpoint, not an
+assumed common application defect. `scripts/test-reference-source-family.py
+--only tags --only owned` selected the two affected cases. Both passed the
+[connected native checkpoint](qa/reference-revert-command-checkpoint-2026-11-05.json)
+after the implementation freeze. The four already-passing cases were not
+repeated. This does not establish a
+hosted pass, physical menus, signed access or complete source parity.

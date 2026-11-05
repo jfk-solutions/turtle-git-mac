@@ -437,3 +437,21 @@ rechecks. The native group covers four direct source dialogs, retained file flow
 Commit controls and Log flag/Add/Commit continuations. Workspace physical/menu
 acceptance, signed Trash permissions and all source dialog states remain open;
 installed52 is unchanged.
+
+
+The retained file-progress receiver locates the Git command after the exact
+`--literal-pathspecs -C <repository>` prefix and its global `-c` pairs. It forwards
+the original argument vector and captured stdin unchanged. Separate bounded
+NUL receipts assert `core.precomposeunicode=false`, the baseline object ID,
+protected staged/worktree restore flags, and the exact selected filename packet
+for queued cancellation and forced retirement. These observations preserve the
+existing lock/Retry, Trash recovery, captured policies, CR output, completion and
+late-publication assertions; they do not replace them with an injected operation.
+The connected driver isolates each case's home, preferences, Git configuration
+and temporary directory, and retains bounded failed-receiver output, timeout
+samples and owned restore receipts. A focused system-Git diagnosis passed completed
+result actions, then exposed the old fixed-position restore gate at its own wait;
+the corrected retained-operation and Add/Resolve cases then passed the
+[connected native checkpoint](qa/reference-revert-command-checkpoint-2026-11-05.json)
+with system Git. The completed result-actions case was not repeated. No Core or
+application source changed or rebuild was needed; installed build52 is unchanged.

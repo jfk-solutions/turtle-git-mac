@@ -25,16 +25,35 @@ import TurtleGitCore
         let quoted="'"+git.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
         let script="""
         #!/bin/sh
+        task_receipt=$(/usr/bin/mktemp -d "$0.receipts/call.XXXXXX") || exit 78
+        printf '%s\\0' "$@" > "$task_receipt/argv"
+        task_parse() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              --literal-pathspecs|--no-literal-pathspecs|--no-pager|--paginate|--no-optional-locks|--no-replace-objects|--no-lazy-fetch|--no-advice|--bare) shift ;;
+              --version|--help|--exec-path|--html-path|--man-path|--info-path) break ;;
+              -C|-c|--git-dir|--work-tree|--namespace|--config-env|--attr-source)
+                [ "$#" -ge 2 ] || return 2
+                shift 2 ;;
+              -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*|--attr-source=*) shift ;;
+              --) shift; break ;;
+              -*) printf 'Unexpected authored wrapper global option: %s\\n' "$1" >&2; return 2 ;;
+              *) break ;;
+            esac
+          done
+          printf '%s' "${1-}"
+        }
+        task_command=$(task_parse "$@") || exit 79
         task_mode=$(/bin/cat "$0.mode" 2>/dev/null)
-        if [ "$task_mode" = fail-load ] && [ "$4" = for-each-ref ]; then
+        if [ "$task_mode" = fail-load ] && [ "$task_command" = for-each-ref ]; then
           printf 'owned refresh failure\\n' >&2
           exit 1
         fi
-        if [ "$task_mode" = fail-delete ] && [ "$4" = reflog ]; then
+        if [ "$task_mode" = fail-delete ] && [ "$task_command" = reflog ]; then
           printf 'owned deletion failure\\n' >&2
           exit 1
         fi
-        if [ "$task_mode" = "$4" ] && [ -f "$0.pause" ]; then
+        if [ "$task_mode" = "$task_command" ] && [ -f "$0.pause" ]; then
           /bin/rm "$0.pause"
           /bin/sleep 30 &
           task_child=$!
@@ -45,6 +64,8 @@ import TurtleGitCore
         fi
         exec \(quoted) "$@"
         """
+        let receipts=URL(fileURLWithPath:helper.path+".receipts")
+        try FileManager.default.createDirectory(at:receipts,withIntermediateDirectories:true)
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         let wrapped=GitRepository(root:root,executable:helper),suite="TurtleGit.RefLogLifecycle."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(false,forKey:"EnableGravatar");defer{prefs.removePersistentDomain(forName:suite)}
@@ -113,8 +134,17 @@ import TurtleGitCore
         failure.model.delete([failure.model.entries[0].id]);try await answer(failure,"Delete",default:"Delete")
         try await wait {failure.window?.attachedSheet?.defaultButtonCell?.title=="OK"};try owned();failure.close()
         try await wait {ReferenceLogWindowModel.activeOwnedOperations==0 && ReferenceLogWindowModel.activeRevisionReads==0}
+        let invocations=try FileManager.default.contentsOfDirectory(at:receipts,includingPropertiesForKeys:nil).map {directory -> [String] in
+            let bytes=try Data(contentsOf:directory.appendingPathComponent("argv"))
+            try require(bytes.last==0,"Wrapper argv receipt lost NUL termination")
+            return bytes.split(separator:0,omittingEmptySubsequences:false).dropLast().map{String(decoding:$0,as:UTF8.self)}
+        }
+        for command in ["for-each-ref","reflog"] {
+            let records=invocations.filter{GitCommandIdentity($0).command==command}
+            try require(!records.isEmpty && records.allSatisfy {arguments in arguments.indices.dropLast().contains{arguments[$0]=="-c" && arguments[$0+1]=="core.precomposeunicode=false"}},"RefLog wrapper did not observe exact command-only Unicode configuration for \(command)")
+        }
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(afterHead==head && (try Data(contentsOf:headLog))==logBytes && (try Data(contentsOf:root.appendingPathComponent(".git/index")))==index && (try Data(contentsOf:file))==Data("third\n".utf8),"Read/Abort/cancelled deletion changed repository")
-        print("PASS: RefLog missing-ref HEAD fallback, superseded F5 load, parent/diff cancellation, actual Delete/Abort and Clear defaults, pending/failure-sheet retirement, exclusive cancelled deletion, Quit lifetime, helper reaping and unchanged HEAD/log/index/working bytes; owned windows closed")
+        print("PASS: RefLog missing-ref HEAD fallback, superseded F5 load, parent/diff cancellation, actual Delete/Abort and Clear defaults, pending/failure-sheet retirement, exclusive cancelled deletion, Quit lifetime, semantic Git-prefix/NUL receipts, helper reaping and unchanged HEAD/log/index/working bytes; owned windows closed")
     }
 }
