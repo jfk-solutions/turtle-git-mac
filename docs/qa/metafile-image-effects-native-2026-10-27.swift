@@ -30,9 +30,9 @@ import TurtleGitCore
     static let generalCrossing="brightness-30-25.emf"
     static var reference:[ReferenceCase]=[]
     static func require(_ value:Bool,_ message:String,line:Int = #line)throws {if !value {throw Failure(message:"\(line): "+message)}}
-    static func wait(line:Int = #line,_ ready:()->Bool)async throws {
+    static func wait(line:Int = #line,diagnostic:()->String = {""},_ ready:()->Bool)async throws {
         for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(message:"Image-effect native timeout at \(line)")
+        throw Failure(message:"Image-effect native timeout at \(line): \(diagnostic())")
     }
     static func views(_ root:NSView?)->[NSView] {
         guard let root else{return []};var result=[root]
@@ -70,7 +70,7 @@ import TurtleGitCore
         }
         return bytes
     }
-    static func alphaAndBackground(_ window:NSWindow,_ presentation:ImageWindowPresentation,_ images:[(ComparisonImage,String)])async throws {
+    static func alphaAndBackground(_ window:NSWindow,_ presentation:ImageWindowPresentation,_ images:[(ComparisonImage,String)],commandsReady:()->Bool)async throws {
         try require(!images.isEmpty,"Missing live alpha consumers")
         let before=try images.map {try rgba($0.0.pixels)}
         for (image,name) in images {
@@ -83,12 +83,16 @@ import TurtleGitCore
         try await wait{window.attachedSheet != nil && views(window.attachedSheet?.contentView).contains{$0 is NSColorWell}}
         guard let sheet=window.attachedSheet,let well=views(sheet.contentView).compactMap({$0 as? NSColorWell}).first else {throw Failure(message:"Missing owned Transparent color dialog")}
         try require(!sheet.isVisible || sheet.alphaValue==0,"Owned transparency question became visible")
+        try require(!commandsReady(),"Image commands remained admitted during owned color question")
         well.color=NSColor(deviceRed:0.2,green:0.4,blue:0.6,alpha:1)
         window.endSheet(sheet,returnCode:.alertFirstButtonReturn)
-        try await wait {
+        // The completion's color publication and attachedSheet becoming nil
+        // precede the owner's deferred admission release on some AppKit SDKs.
+        // Consume physical detachment AND the actual next command's readiness.
+        try await wait(diagnostic:{"color sheet: attached=\(window.attachedSheet != nil), parent=\(sheet.sheetParent != nil), commands=\(commandsReady()), color=\(presentation.transparentColor != nil)"}) {
             window.contentView?.layoutSubtreeIfNeeded()
             let panes=views(window.contentView).compactMap{$0 as? ImageComparisonScrollView}
-            return window.attachedSheet==nil && presentation.transparentColor != nil && panes.count==images.count && panes.allSatisfy{$0.transparentColor==presentation.transparentColor}
+            return window.attachedSheet==nil && sheet.sheetParent==nil && commandsReady() && presentation.transparentColor != nil && panes.count==images.count && panes.allSatisfy{$0.transparentColor==presentation.transparentColor}
         }
         let background=[51,102,153]
         guard let color=CGColorSpace(name:CGColorSpace.sRGB),let backdrop=CGColor(colorSpace:color,components:[0.2,0.4,0.6,1]) else {throw Failure(message:"Cannot prepare independent background")}
@@ -141,9 +145,10 @@ import TurtleGitCore
                 try require(owner.model.document?.base.bytes==c.inputs[left] && owner.model.document?.destination.bytes==c.inputs[right],"Native view replaced original EMF bytes with PNG")
                 if leftName==scanlineName && rightName==triangleName {
                     guard let window=owner.window,let images=owner.model.imageComparison,let base=images.base,let destination=images.destination else {throw Failure(message:"Missing actual Compare alpha panes")}
-                    try await alphaAndBackground(window,owner.model.imagePresentation,[(base,leftName),(destination,rightName)])
+                    try await alphaAndBackground(window,owner.model.imagePresentation,[(base,leftName),(destination,rightName)],commandsReady:{owner.model.imageViewerModel.commandState(.reload).enabled})
                     let previous=images.id
-                    owner.model.load()
+                    owner.model.imageViewerModel.perform(.reload)
+                    try require(owner.model.busy,"Recovered Compare Reload command was not admitted")
                     try await wait{!owner.model.busy && owner.model.imageComparison?.id != previous && owner.model.imageComparison != nil}
                     try pixels(owner.model.imageComparison?.base,leftPixels,leftName);try pixels(owner.model.imageComparison?.destination,rightPixels,rightName)
                 }
@@ -192,12 +197,16 @@ import TurtleGitCore
         try pixels(owner.model.panes[.mine]?.currentImage(base:true),samples(generalCubic),generalCubic)
         try require(owner.model.document.contents[.base]==base && owner.model.document.contents[.theirs]==theirs && owner.model.document.contents[.mine]==mine,"Conflict displayed PNG replaced raw Git stages")
         guard let window=owner.window,let baseImage=owner.model.panes[.base]?.currentImage(base:true),let theirsImage=owner.model.panes[.theirs]?.currentImage(base:true),let mineImage=owner.model.panes[.mine]?.currentImage(base:true) else {throw Failure(message:"Missing actual conflict alpha panes")}
-        try await alphaAndBackground(window,owner.model.presentation,[(baseImage,generalCrossing),(theirsImage,generalContour),(mineImage,generalCubic)])
+        try await alphaAndBackground(window,owner.model.presentation,[(baseImage,generalCrossing),(theirsImage,generalContour),(mineImage,generalCubic)],commandsReady:{owner.model.commandState(.reload)?.enabled==true})
 
         let ids=owner.model.images.mapValues(\.id),decode=owner.model.decodeImages
         var reply:CheckedContinuation<Void,Never>?,token:OperationCancellation?
         owner.model.decodeImages={document,request in let actual=try await decode(document,request);token=request;await withCheckedContinuation{reply=$0};return actual}
-        c.releases.append{reply?.resume();reply=nil};owner.model.reload();try await wait{reply != nil};owner.close()
+        c.releases.append{reply?.resume();reply=nil}
+        owner.model.perform(.reload)
+        let state={"conflict reload: busy=\(owner.model.busy), decoding=\(owner.model.decoding), retired=\(owner.model.retired), operations=\(ImageConflictWindowModel.activeOperations), ready=\(owner.model.commandState(.reload)?.enabled==true), sheet=\(window.attachedSheet != nil), tokenCancelled=\(token?.isCancelled==true), error=\(owner.model.error ?? "none")"}
+        try require(owner.model.busy && owner.model.decoding && ImageConflictWindowModel.activeOperations==1,"Recovered conflict Reload command was not admitted: \(state())")
+        try await wait(diagnostic:state){reply != nil};owner.close()
         try require(token?.isCancelled==true && owner.model.retired && ImageConflictWindowModel.activeOperations==1 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Closed conflict lost actual decode retirement/Quit ownership")
         reply?.resume();reply=nil;try await wait{drained()}
         try require(owner.model.images.mapValues(\.id)==ids,"Retired conflict replaced accepted native panes")

@@ -178,3 +178,18 @@ separate grouped checkpoint and does not inherit this earlier pointwise pass. Th
 installed build19 includes this earlier three-effect source batch; it predates
 the supplementary five-effect source batch. A green Windows reference run proves
 the reference assay, not that the new macOS decoder or whole port has passed.
+
+## Native reload admission continuation — November 5, 2026
+
+The hosted image-effects receiver attempted conflict Reload after observing
+`attachedSheet == nil`, before the image owner's deferred sheet gate reopened.
+The consumer now requires both captured-sheet physical detachment and the actual
+Reload command's readiness. It also checks that commands are blocked during the
+question. Compare and Conflict dispatch their real Reload command and assert
+worker admission before waiting for completion or the held decoder reply.
+
+Existing actual-helper pixels, original EMF bytes, Git stages, resolved output,
+HEAD/index safety, cancellation, retirement and Quit ownership checks remain.
+No decoder shortcut or application command-gate bypass is introduced.
+[The connected acceptance record](qa/document-command-acceptance-2026-11-05.json)
+retains the validation scope and remaining hosted/physical gates.

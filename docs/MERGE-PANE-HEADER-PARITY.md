@@ -220,3 +220,36 @@ the six local Compare/Merge/ownership case-and-engine results alongside the
 complete editing-history checks. These results do not prove whether paging,
 publication timing or another environmental difference explains the first
 failure; the earlier hosted stall and signed/physical VoiceOver gates remain.
+
+## Hosted accessibility consumer continuation — November 5, 2026
+
+The hosted `57cd45de` failure differs from the earlier unpublished-root case:
+artifact `13391844529` records a populated six-child root, followed by a stalled
+child `AXChildren` query. The detached self-query enters SwiftUI on a background
+thread while main-thread layout waits for its lock; menu notification delivery
+then waits for the main thread. A per-object AX messaging timeout cannot interrupt
+that same-process callback.
+
+The receiver now queries its own PID through the same public AX API on MainActor,
+with cooperative yields between nodes, pages and action descriptions. Trace and
+call assertions record the actual execution context. The private window receives
+a temporary UUID accessibility identifier, independently rediscovered through
+public AXIdentifier and restored afterward; a deferred frame-title update cannot
+select or discard the wrong owner. Bounded diagnostics retain actual and captured
+captions. The receiver requests accessory activation policy before its windows
+are created: the SDK prohibits window creation under prohibited policy. Windows
+remain transparent, offscreen and nonactivating. Public Save control,
+Show Menu and custom-action discovery remain required. The external runner's
+independent sample/reap watchdog remains the bound for a framework stall. This
+changes verification ownership, not application command behavior or TCC settings.
+Local and hosted results are recorded separately in
+[the connected acceptance record](qa/document-command-acceptance-2026-11-05.json).
+
+
+The current local candidate has **not passed** the public AX positive controls.
+On macOS 27.0.1 its AX window candidate still has the process caption and no
+owner identifier. Trusted external diagnostics also observed an application alias,
+but used prohibited policy and therefore do not establish correct-policy behavior.
+Initial environment, compile and ownership failures remain in the record. Further
+local guess-driven attempts stopped; hosted macOS 15 must independently evaluate
+the candidate. No private hierarchy fallback or assertion removal is used.

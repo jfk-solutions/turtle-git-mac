@@ -34,12 +34,25 @@ private extension NSWindow {
     }
     // NSHostingView.accessibilityChildren is not the external AX hierarchy:
     // an isolated standard SwiftUI Button is absent there too. Query only this
-    // owned process through the public AX server, from a background task while
-    // MainActor services accessibility callbacks. Never request TCC permission.
+    // owned PID through the public AX API. Its synchronous self-query shortcut
+    // can enter SwiftUI directly on the calling thread: hosted macOS 15 sampled
+    // background AXChildren waiting for main-thread menu notification delivery,
+    // while layout waited for the SwiftUI lock held by that query. Keep these
+    // callbacks on MainActor and yield between nodes/pages so layout can settle.
+    // This is not a substitute direct NSAccessibility getter traversal and does
+    // not request TCC permission or modify the user's desktop settings.
+    nonisolated static func isMainThread()->Bool {Thread.isMainThread}
     static func systemHeader(_ header:MergePaneHeaderView,in window:NSWindow?,expected:Set<String>)async->SystemHeader {
-        let pid=getpid(),title=window?.title ?? "",label=header.accessibilityLabel() ?? "",help=header.accessibilityHelp() ?? ""
+        guard let window,header.window === window else{return SystemHeader(diagnostics:["Owned header window is detached"])}
+        // A deferred load may publish another frame title after this capture.
+        // Mark only this private fixture window, then discover the same marker
+        // through public AXIdentifier; a mutable caption is not window identity.
+        let identifier="TurtleGit.Header.Owner."+UUID().uuidString,previousIdentifier=window.accessibilityIdentifier()
+        window.setAccessibilityIdentifier(identifier)
+        defer{window.setAccessibilityIdentifier(previousIdentifier)}
+        let pid=getpid(),title=window.title,label=header.accessibilityLabel() ?? "",help=header.accessibilityHelp() ?? ""
         let tracePath=ProcessInfo.processInfo.environment["TURTLEGIT_HEADER_AX_TRACE"] ?? CommandLine.arguments[1]+"/owned-ax.trace.log"
-        return await Task.detached {
+        return await Task { @MainActor in
             var result=SystemHeader()
             let traceURL=URL(fileURLWithPath:tracePath)
             if !FileManager.default.fileExists(atPath:tracePath) {_ = FileManager.default.createFile(atPath:tracePath,contents:nil)}
@@ -59,7 +72,11 @@ private extension NSWindow {
             // Every IPC has its own begin/end record. A blocked framework call
             // leaves the precise operation in the private trace, which the
             // parent runner preserves with its timeout sample before reaping.
+            // The loop deadline bounds work between calls; per-object messaging
+            // timeouts cannot interrupt synchronous callbacks into this process.
+            // The runner remains the independent watchdog for a framework stall.
             func ipc(_ name:String,depth:Int = -1,_ body:()->AXError)->AXError? {
+                precondition(isMainThread(),"Owned AX self-query left MainActor")
                 guard withinBudget() else {stamp("budget exhausted before \(name) depth=\(depth)");return nil}
                 sequence+=1;let call=sequence,began=ProcessInfo.processInfo.systemUptime
                 stamp("begin call=\(call) depth=\(depth) operation=\(name)")
@@ -95,7 +112,7 @@ private extension NSWindow {
                 guard ipc("CopyActionDescription "+action,depth:depth,{AXUIElementCopyActionDescription(element,action as CFString,&raw)}) == .success,let raw else{return nil}
                 return raw as String
             }
-            func rootChildren(_ element:AXUIElement)->[AXUIElement] {
+            @MainActor func rootChildren(_ element:AXUIElement)async->[AXUIElement] {
                 if let raw=value(element,kAXChildrenAttribute,depth:0) {
                     let children=raw as? [AXUIElement] ?? []
                     stamp("root bulk children count=\(children.count)")
@@ -112,7 +129,8 @@ private extension NSWindow {
                 var children=[AXUIElement]()
                 let limit=countStatus == .success ? min(max(count,0),4096):4096
                 while children.count<limit && withinBudget() {
-                    guard prepare(element,depth:0) else{break}
+                    await Task.yield()
+                    guard withinBudget(),prepare(element,depth:0) else{break}
                     let start=children.count,requested=min(64,limit-start)
                     var raw:CFArray?
                     guard ipc("CopyAttributeValues AXChildren index=\(start) max=\(requested)",depth:0,{AXUIElementCopyAttributeValues(element,kAXChildrenAttribute as CFString,start,requested,&raw)}) == .success else{break}
@@ -124,10 +142,11 @@ private extension NSWindow {
                 }
                 return children
             }
-            stamp("traversal begin ownedPID=\(pid) title=\(String(reflecting:title)) label=\(String(reflecting:label)) help=\(String(reflecting:help)) expected=\(expected.sorted())")
+            stamp("traversal begin ownedPID=\(pid) execution=MainActor mainThread=\(isMainThread()) activationPolicy=\(NSRunningApplication.current.activationPolicy.rawValue) active=\(NSApp.isActive) owner=\(String(reflecting:identifier)) title=\(String(reflecting:title)) label=\(String(reflecting:label)) help=\(String(reflecting:help)) expected=\(expected.sorted())")
             stamp("begin create owned AX application");let application=AXUIElementCreateApplication(pid);stamp("end create owned AX application")
             var remaining=4096,seen=Set<CFHashCode>()
-            func visit(_ element:AXUIElement,_ depth:Int,root:[AXUIElement]? = nil) {
+            @MainActor func visit(_ element:AXUIElement,_ depth:Int,root:[AXUIElement]? = nil)async {
+                await Task.yield()
                 guard depth<48,remaining>0,withinBudget(),result.element == nil || !result.control else{return}
                 stamp("begin element hash depth=\(depth)");let hash=CFHash(element);stamp("end element hash depth=\(depth) hash=\(hash)")
                 guard seen.insert(hash).inserted else{return};remaining-=1
@@ -139,28 +158,42 @@ private extension NSWindow {
                 if result.diagnostics.count<100 {result.diagnostics.append("depth=\(depth) role=\(String(reflecting:role)) caption=\(String(reflecting:caption)) help=\(String(reflecting:location))")}
                 if role==kAXButtonRole,caption==label,location==help {
                     var described=[String:String]()
-                    for action in names where withinBudget() {if let description=actionDescription(element,action,depth:depth) {described[description]=action}}
+                    for action in names {
+                        await Task.yield()
+                        guard withinBudget() else{break}
+                        if let description=actionDescription(element,action,depth:depth) {described[description]=action}
+                    }
                     if expected.isSubset(of:Set(described.keys)) && names.contains(kAXShowMenuAction) {result.element=element;result.actions=described}
                 }
                 guard result.element == nil || !result.control else{return}
                 stamp("begin materialize children depth=\(depth)")
                 let children=root ?? (value(element,kAXChildrenAttribute,depth:depth) as? [AXUIElement] ?? [])
                 stamp("end materialize children depth=\(depth) count=\(children.count)")
-                for child in children {visit(child,depth+1)}
+                for child in children {await visit(child,depth+1)}
             }
-            var attempt=0,populatedRoot=false
+            var attempt=0,populatedRoot=false,titleSnapshots=0
             while withinBudget() && remaining>0 {
+                await Task.yield()
+                guard withinBudget() else{break}
                 attempt+=1;seen.removeAll(keepingCapacity:true)
                 stamp("root publication attempt=\(attempt)")
                 let windows=value(application,kAXWindowsAttribute,depth:-1)
                 stamp("begin materialize owned windows")
                 let ownedWindows=windows as? [AXUIElement] ?? []
                 stamp("end materialize owned windows count=\(ownedWindows.count)")
-                for window in ownedWindows where withinBudget() && (value(window,kAXTitleAttribute,depth:0) as? String)==title {
-                    let children=rootChildren(window)
+                for candidate in ownedWindows where withinBudget() {
+                    let actualTitle=value(candidate,kAXTitleAttribute,depth:0) as? String
+                    let actualIdentifier=value(candidate,kAXIdentifierAttribute,depth:0) as? String
+                    let matches=actualIdentifier==identifier
+                    if titleSnapshots<12 {
+                        let diagnostic="owned window candidate attempt=\(attempt) matches=\(matches) AXIdentifier=\(String(reflecting:actualIdentifier)) AXTitle=\(String(reflecting:actualTitle)) capturedTitle=\(String(reflecting:title)) currentNativeTitle=\(String(reflecting:window.title))"
+                        stamp(diagnostic);result.diagnostics.append(diagnostic);titleSnapshots+=1
+                    }
+                    guard matches else{continue}
+                    let children=await rootChildren(candidate)
                     populatedRoot = !children.isEmpty
                     stamp("matching root attempt=\(attempt) populated=\(populatedRoot) children=\(children.count)")
-                    visit(window,0,root:children)
+                    await visit(candidate,0,root:children)
                     if populatedRoot {break}
                 }
                 // Once a real populated hierarchy is available, absent controls
@@ -431,7 +464,15 @@ private extension NSWindow {
         try await c.witness()
     }
     static func main()async throws {
-        NSApplication.shared.setActivationPolicy(.prohibited);NSApp.finishLaunching()
+        // NSRunningApplication.h documents prohibited as unable to create
+        // windows. This receiver owns real native windows and their public AX
+        // publication, so use accessory (UI without a Dock icon/menu bar).
+        // Window ordering remains alpha-zero/offscreen and never activates it.
+        let acceptedPolicy=NSApplication.shared.setActivationPolicy(.accessory)
+        let actualPolicy=NSApp.activationPolicy()
+        print("Pane header policy: accepted=\(acceptedPolicy) actual=\(actualPolicy.rawValue) expected=\(NSApplication.ActivationPolicy.accessory.rawValue) active=\(NSApp.isActive)");fflush(stdout)
+        try require(acceptedPolicy && actualPolicy == .accessory,"Owned-window accessory activation policy was not accepted")
+        NSApp.finishLaunching()
         guard let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let replacement=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.headerVerificationOrder(_:relativeTo:))) else{throw Failure(description:"Private window ownership unavailable")}
         method_exchangeImplementations(original,replacement);defer{method_exchangeImplementations(original,replacement)}
         let c=try Context();try await c.seed()

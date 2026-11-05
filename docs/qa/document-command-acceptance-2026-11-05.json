@@ -1,0 +1,152 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "030cf9b8",
+  "status": "partial-native-checkpoint-image-and-Log-passed-AX-hosted-confirmation-required",
+  "scope": [
+    "Image Compare/Conflict Reload admission after owned color sheet; original pixels/stages/retirement retained.",
+    "Owned-PID public pane-header AX traversal MainActor context, public controls/actions, deadline/sample/reap.",
+    "Log Merge moved-reference refusal, refreshed canonical target, unlabelled hash fallback and operation ownership."
+  ],
+  "application_source_changed": false,
+  "core_repeated": false,
+  "app_rebuilt": false,
+  "initial_validation_failures": [
+    {
+      "log": "build/qa/document-command-image-2026-11-05.log",
+      "failure": "Inherited SDKROOT points to missing CommandLineTools SDK; no receiver compilation or launch."
+    },
+    {
+      "log": "build/qa/document-command-image-sdk-2026-11-05.log",
+      "failure": "Unsetting SDKROOT still resolves cached missing SDK; no receiver compilation or launch."
+    }
+  ],
+  "validation_environment": "Per-command SDKROOT explicitly selects existing Xcode MacOSX.sdk; no global developer settings changed.",
+  "checks": [
+    {
+      "name": "image-effects",
+      "status": "passed",
+      "combinations": 2,
+      "results": [
+        {
+          "case": "image-effects",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "image-effects",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "log": "build/qa/document-command-image-sdk-explicit-2026-11-05.log",
+      "log_sha256": "6813a0939d3290a44e1ddd7da9c94dcad3c358eaac76c965c7799b0a2d7c436d"
+    },
+    {
+      "name": "pane-header-first-MainActor-check",
+      "status": "failed",
+      "case": "compare/system",
+      "scope": "AXWindows and AXTitle queries succeed but no title-matching root; visited0 after231 attempts, no deadlock observed.",
+      "log": "build/qa/document-command-ax-2026-11-05.log",
+      "evidence": "build/qa/native-merge-pane-header-failures/compare-0-j94nf84r",
+      "log_sha256": "785255bb43b9904d51014d50d23e6a7a91a508e21ad4254bf3360cbb5d25795a"
+    },
+    {
+      "name": "log-integration",
+      "status": "passed",
+      "combinations": 2,
+      "results": [
+        {
+          "case": "log-integration",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true,
+          "timeout_seconds": 240
+        },
+        {
+          "case": "log-integration",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true,
+          "timeout_seconds": 240
+        }
+      ],
+      "log": "build/qa/document-command-log-2026-11-05.log",
+      "log_sha256": "4b2d1cb3966aeb047b2d16f4a1fe64e976137d3f0bbe6e8bb691eadafc878bb0"
+    },
+    {
+      "name": "pane-header-public-owner-identifier-first",
+      "status": "failed-before-receiver-launch",
+      "log": "build/qa/document-command-ax-identity-repair-2026-11-05.log",
+      "failure": "Thread helper inherited MainActor isolation; synchronous local function could not call it. Pure helper is now nonisolated; runtime thread assertion retained.",
+      "log_sha256": "e509c17545763f7982d09ea112ad1fe19532a26931ccabf73248b5b842ae75d9"
+    },
+    {
+      "name": "pane-header-public-owner-identifier-compiled",
+      "status": "failed",
+      "case": "compare/system",
+      "scope": "AXWindows candidate has receiver binary caption and nil AXIdentifier while actual native title remains correct; no owner root found. This does not establish title publication race.",
+      "log": "build/qa/document-command-ax-compile-repair-2026-11-05.log",
+      "evidence": "build/qa/native-merge-pane-header-failures/compare-0-aliv3qv2",
+      "log_sha256": "ca519ca6c37dbda65a62a2002f4480652a991d16805dd7890872bd6dc5ce4643"
+    },
+    {
+      "name": "dialog-coverage-reconcile",
+      "status": "passed",
+      "log": "build/qa/document-command-coverage-2026-11-05.log",
+      "scope": "Generated ledger only; counts are not completion percentage.",
+      "log_sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+    },
+    {
+      "name": "pane-header-accessory-policy-candidate",
+      "status": "failed",
+      "case": "compare/system",
+      "log": "build/qa/document-command-ax-policy-repair-2026-11-05.log",
+      "scope": "Same process-caption/nil-identifier result, visited0 after235 attempts. This run requested accessory but did not yet assert the returned Bool/current policy. No public Save/header/actions pass established.",
+      "evidence": "build/qa/native-merge-pane-header-failures/compare-0-5rhevvn0",
+      "log_sha256": "19b589fab92f21ae935522f776b06c3c173dea81b77c544b8c177d2cbd436a8f"
+    }
+  ],
+  "release_scope": [
+    "Installed build52 unchanged.",
+    "No complete hosted pass established, no physical Finder/VoiceOver or signed deployment acceptance.",
+    "No binary publication or App Store submission."
+  ],
+  "AX_root_identity_repair": "Initial MainActor run established successful AXWindows/AXTitle calls but no title-matched root. Fixture now assigns/restores an exact owned-window public AXIdentifier, rediscovers it through AX API, and records bounded actual/captured title diagnostics. Existing public Save/header/actions remain required.",
+  "AX_diagnostics": [
+    {
+      "receipt": "build/qa/owned-external-ax-probe-2026-11-05.json",
+      "sha256": "d96416cb26403c214ace15cef424f2d346bda8c9d31db37e70d6250fdb2a6f75"
+    },
+    {
+      "receipt": "build/qa/owned-external-ax-ready-probe-2026-11-05.json",
+      "sha256": "e5e75432cc509f308a70487d692fb18759cd8e85b908365125155252f0a2bda4"
+    }
+  ],
+  "AX_diagnostic_scope": "Authorized trusted external observer probes target exact owned hidden process only; readiness marker confirmed real native window before sampling. AXWindows returned application alias; all owned processes reaped, no prompts/settings changes. Both probes used prohibited policy, so they do not establish correct-policy AX failure.",
+  "AX_policy_repair": "Primary SDK NSRunningApplication.h defines prohibited as may not create windows. Receiver selects accessory before finishLaunching/window creation, retaining alpha-zero/offscreen windows, no activation/Dock icon. Public UUID owner matching, Save/header/ShowMenu/custom-action assertions remain.",
+  "native_passed_combinations": 4,
+  "AX_remaining": "Current candidate retains MainActor execution, legal requested UI policy, exact public owner UUID and every positive control. Local macOS27.0.1 discovery still fails; no platform-wide root cause or hosted repair is certified. Further local guess-driven attempts stopped. Candidate needs independent macOS15 hosted result.",
+  "environment": {
+    "macos": "27.0.1",
+    "os_build": "26A434",
+    "xcode": "27.2",
+    "xcode_build": "27B52",
+    "sdk_build": "26B118"
+  },
+  "final_candidate_note": "After the failed accessory-request run, receiver logs/asserts policy acceptance and actual current-process policy before window creation. These final diagnostic assertions have not been locally rerun; hosted compilation and behavior remain unproven.",
+  "lightweight_validation": {
+    "python_compile": "scripts/check-cherry-pick-native.py passed",
+    "whitespace": "git diff --check passed",
+    "coverage_log": "build/qa/document-command-coverage-final-2026-11-05.log",
+    "coverage_log_sha256": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651",
+    "help_localization": "No registered Help guide or native distribution UI literal changed; no Help/localization regeneration needed."
+  },
+  "final_candidate_source_sha256": {
+    "docs/qa/merge-pane-header-native-2026-10-25.swift": "80e863f2c346e36020cb2ad2163199f268712c5c8b81aeed7eca05987daae9db",
+    "docs/qa/metafile-image-effects-native-2026-10-27.swift": "b446bcb2b559175059e646475574c59ac8df5d9de8482f91880bb05125624d00",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "a2dd68c8a2537c8f2bca31c78948c9342a97b5a9e8b1c7e4191dad557f4bea20",
+    "scripts/check-cherry-pick-native.py": "e26435092fb0186de43942e0adcef103050189f8cbfb3cf7ec6af8e83ad22469"
+  }
+}

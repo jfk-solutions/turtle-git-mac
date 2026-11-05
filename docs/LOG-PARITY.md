@@ -3046,3 +3046,15 @@ literal. Reviewed German/French templates use the existing named-field validator
 The [batch record](qa/history-feedback-languages-2026-11-01.json) records the
 checkpoint and limits. Complete language coverage, graph accessibility prose,
 physical/signed acceptance and full source parity remain separate requirements.
+
+## Moved reference acceptance continuation — November 5, 2026
+
+The older integrated Log receiver still expected Merge to fall through from a
+moved first tag to a later branch. That conflicts with the owned-source target
+contract above. It now requires stale-target refusal with no Merge handoff,
+refreshes the selected row from current history, and makes a fresh explicit
+Merge request against the refreshed reference. Unlabelled commit fallback and
+existing operation/HEAD/worktree guards remain required. This is a consumer
+correction; production does not silently change the requested target.
+See [the connected acceptance record](qa/document-command-acceptance-2026-11-05.json)
+for actual local scope and outstanding hosted acceptance.

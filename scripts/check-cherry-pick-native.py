@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Native Cherry Pick/replay assertions with cached Debug app objects.
 
-The full default suite still requires its SwiftPM editor. The focused Log family
-and compile-only mode use no editor. Receivers use private repositories/preferences and hidden owners;
+The full default suite still requires its SwiftPM editor. Most focused Log families and compile-only mode use no editor. The complete
+Log integration family exercises paused replay and requires the SwiftPM editor. Receivers use private repositories/preferences and hidden owners;
 this does not establish physical keyboard, accessibility or signed acceptance.
 """
 import argparse
@@ -27,12 +27,12 @@ focus.add_argument('--references-only',action='store_true',help='Run only native
 focus.add_argument('--menus-only',action='store_true',help='Run only native Rebase revision-menu fixtures.')
 focus.add_argument('--commit-selection-only',action='store_true',help='Run only native Commit visible-selection and full-index fixtures.')
 focus.add_argument('--log-paths-only',action='store_true',help='Run only native Log path/filter/status-color fixtures.')
-focus.add_argument('--only',choices=['log-deferred-refresh','log-submodule','log-add-modes','log-history-labels','log-revert-flags'],help='Run one complete native workflow family.')
+focus.add_argument('--only',choices=['log-deferred-refresh','log-submodule','log-add-modes','log-history-labels','log-revert-flags','log-integration'],help='Run one complete native workflow family.')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 products=root/'build/Build/Products/Debug'
 editor=root/'.build/debug/TurtleGitMac'
-if not (products/'TurtleGitCore.framework').is_dir() or (not args.compile_only and args.only is None and not editor.is_file()):
+if not (products/'TurtleGitCore.framework').is_dir() or (not args.compile_only and args.only in (None,'log-integration') and not editor.is_file()):
     parser.error('Build the unsigned Debug Xcode product and, for the full/default modes, the SwiftPM editor first.')
 gits=args.git or [Path('/usr/bin/git')]
 for git in gits:
@@ -121,7 +121,8 @@ for index,git in enumerate(gits):
                'TURTLEGIT_NATIVE_LOG_SUBMODULE_ONLY':args.only=='log-submodule',
                'TURTLEGIT_NATIVE_LOG_ADD_MODES_ONLY':args.only=='log-add-modes',
                'TURTLEGIT_NATIVE_LOG_HISTORY_LABELS_ONLY':args.only=='log-history-labels',
-               'TURTLEGIT_NATIVE_LOG_REVERT_FLAGS_ONLY':args.only=='log-revert-flags'}
+               'TURTLEGIT_NATIVE_LOG_REVERT_FLAGS_ONLY':args.only=='log-revert-flags',
+               'TURTLEGIT_NATIVE_LOG_INTEGRATION_ONLY':args.only=='log-integration'}
         environment.update({key:'1' if enabled else '0' for key,enabled in flags.items()})
         if args.only:environment['TURTLEGIT_NATIVE_DEFERRED_ROOT']=str(directory/'repository')
         approved={str(git.resolve()),str(Path('/usr/bin/git').resolve())}
@@ -137,7 +138,7 @@ for index,git in enumerate(gits):
             (directory/'receiver.stdout.log').write_text(result.stdout);(directory/'receiver.stderr.log').write_text(result.stderr)
             print(result.stdout,end='');print(result.stderr,end='')
             result.check_returncode()
-            focused_markers={'log-deferred-refresh':'PASS: Log deferred refresh family','log-submodule':'PASS: Log submodule history family','log-add-modes':'PASS: Log Add modes family','log-history-labels':'PASS: Log history labels and native projections family','log-revert-flags':'PASS: Log working-file Revert and flags family'}
+            focused_markers={'log-deferred-refresh':'PASS: Log deferred refresh family','log-submodule':'PASS: Log submodule history family','log-add-modes':'PASS: Log Add modes family','log-history-labels':'PASS: Log history labels and native projections family','log-revert-flags':'PASS: Log working-file Revert and flags family','log-integration':'PASS: Log integration source targets, moved-ref refresh and ownership family'}
             passed=args.only is None or focused_markers[args.only] in result.stdout
             if not passed:raise RuntimeError('Focused Log receiver exited before final assertions/cleanup')
             results.append(dict(case=args.only or 'default',git=str(git),returncode=result.returncode,passed=True,timeout_seconds=timeout))

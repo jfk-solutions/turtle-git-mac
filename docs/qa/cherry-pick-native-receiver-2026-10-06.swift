@@ -392,6 +392,7 @@ import TurtleGitCore
 }
 @MainActor func verifyLogIntegration(_ repo: GitRepository, revisions: [LogEntry], editor: URL) async throws {
     let log = LogWindowModel(repository: repo, access: nil); log.entries = revisions; log.graph = CommitGraph.layout(revisions); log.selected = [revisions[0].hash]; log.currentBranch = "target"
+    defer {log.invalidate()}
     log.bare = try await repo.isBare(); log.currentBranch = try await repo.branch()
     var merges: [String] = [], rebases: [String] = []
     log.onMergeRevision = { merges.append($0) }; log.onRebaseRevision = { rebases.append($0) }
@@ -471,9 +472,23 @@ import TurtleGitCore
         precondition(!mergeModel.busy && mergeModel.error == nil && mergeModel.target == target && mergeModel.revision == preset)
     }
 
+    let staleMergeCount=merges.count,capturedReferences=log.entries[0].references.map(\.name)
     _ = try await repo.run(["update-ref", "refs/tags/integration-tag", revisions.last!.hash])
-    coordinator.mergeRevision(); try await wait(); precondition(merges.last == "refs/heads/main")
-    log.selected = [revisions.last!.hash]; log.requestIntegration(.rebase); try await wait(); precondition(rebases.last == revisions.last!.hash)
+    coordinator.mergeRevision(); try await wait()
+    precondition(merges.count==staleMergeCount && log.error?.contains("reference changed")==true,"Moved captured Merge reference silently selected another label/hash")
+    precondition(log.entries[0].references.map(\.name)==capturedReferences,"Ref validation silently replaced the displayed reference snapshot")
+    // A fresh request can use a different preferred reference only after the
+    // displayed row has refreshed, matching source first-reference precedence.
+    let refreshedReferences=try await repo.history(options:historyOptions)
+    guard let refreshedEntry=refreshedReferences.first(where:{$0.hash==revisions[0].hash}) else {preconditionFailure("Refreshed Merge row disappeared")}
+    precondition(refreshedEntry.references.first?.name=="refs/heads/main" && !refreshedEntry.references.contains(where:{$0.name=="refs/tags/integration-tag"}))
+    log.entries[0].references=refreshedEntry.references;coordinator.menuNeedsUpdate(menu)
+    coordinator.mergeRevision();try await wait()
+    precondition(log.error==nil && merges.count==staleMergeCount+1 && merges.last=="refs/heads/main","Refreshed Merge did not use its fresh preferred reference")
+    // Unlabelled entries still use their captured commit hash directly.
+    log.selected = [revisions.last!.hash];precondition(log.revision?.references.isEmpty==true)
+    log.requestIntegration(.merge);try await wait();precondition(log.error==nil && merges.last==revisions.last!.hash)
+    log.requestIntegration(.rebase); try await wait(); precondition(rebases.last == revisions.last!.hash)
     log.selected = [revisions[0].hash, revisions[2].hash]; precondition(!log.integrationAvailable)
     log.selected = [revisions[0].hash]; log.entries[0].isHead = true; precondition(!log.integrationAvailable); log.entries[0].isHead = false
     log.bare = true; precondition(!log.canIntegrate(.merge)); log.bare = false
@@ -505,7 +520,7 @@ import TurtleGitCore
     let after = try await repo.rebaseCommit("HEAD"), afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
     precondition(after.hash == head.hash && afterIndex == index)
     _ = try await repo.run(["tag", "-d", "integration-tag"])
-    print("Actual native Log integration: original menu titles/icons/selectors, Merge/tag and Rebase/local-branch presets, moved-ref and hash fallback, native Merge model preset, stale/multiple/HEAD/stash/bare/busy-state guards, fresh active Merge/Rebase rejection and unchanged HEAD/index passed. Handoffs injected.")
+    print("Actual native Log integration: original menu titles/icons/selectors, Merge/tag and Rebase/local-branch presets, moved-ref refusal/refreshed first-reference Merge and unlabelled hash fallback, native Merge model preset, stale/multiple/HEAD/stash/bare/busy-state guards, fresh active Merge/Rebase rejection and unchanged HEAD/index passed. Handoffs injected.")
 }
 
 @MainActor func verifyNativeRebaseMenus(_ repo: GitRepository, editor: URL?, revisions: [LogEntry]) async throws {
@@ -2922,6 +2937,26 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_INTEGRATION_ONLY"] == "1" {
+        var failure:Error?
+        do {try await verifyLogIntegration(repo,revisions:[merge,parent,side,base],editor:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))}
+        catch {failure=error}
+        for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+        var drained=false
+        for _ in 0..<3000 {
+            if LogWindowModel.activeReferenceReads==0,LogWindowModel.activeHistoryLoads==0,
+               MergeWindowModel.activeReads==0,MergeProgressWindowModel.activeOperations==0,
+               ExportWindowModel.activeReads==0,ExportWindowModel.activeOperations==0,
+               ExportProgressWindowModel.activeOperations==0,ExportWindowController.activeReleases==0,
+               RebaseWindowModel.activePreparationReads==0,RebaseWindowModel.activeColumnReads==0,
+               RebaseWindowModel.activeReplayOperations==0,RebaseWindowModel.activeStashRestorations==0,
+               NSApp.windows.allSatisfy({!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}) {drained=true;break}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        guard drained else {throw NSError(domain:"TurtleGit.Native.LogIntegration",code:1,userInfo:[NSLocalizedDescriptionKey:"Owned Log integration readers/windows did not drain"])}
+        if let failure {throw failure}
+        print("PASS: Log integration source targets, moved-ref refresh and ownership family");return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
     try await verifyNativeBisect(executable: repo.executable)
     try await verifyNativeLogWorkingConflicts(executable: repo.executable)

@@ -7,6 +7,16 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 5 document-command acceptance continuation](qa/document-command-acceptance-2026-11-05.json)
+corrects image Reload readiness after physical sheet detachment, keeps public AX
+self-queries on MainActor, and updates the integrated Log consumer to refuse a
+moved preferred reference before accepting a freshly refreshed target. Production
+command gates and target precedence remain intact. Its focused native results
+and initial environment failures are recorded separately from complete hosted
+acceptance. Image and Log combinations pass locally, but the AX positive control
+still fails local window discovery; its candidate requires independent hosted
+confirmation. Installed52 is unchanged.
+
 The [November 5 exact-name operation batch](qa/operation-identity-retry-2026-11-05.json)
 repairs scoped Revert/Retry spelling, physical unversioned-file ownership, native
 Push chooser receipts and late Stash diagnostics/result-log retention. It passes
