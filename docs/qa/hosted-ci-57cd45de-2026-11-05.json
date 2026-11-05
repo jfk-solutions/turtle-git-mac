@@ -1,0 +1,71 @@
+{
+  "observed": "2026-11-05",
+  "source": "57cd45de",
+  "run": 41937123585,
+  "status": "completed-failure",
+  "completed_at": "2026-11-05T07:00:19Z",
+  "svn": "passed",
+  "pages": "passed",
+  "preceding_run": {
+    "source": "490d99bf",
+    "run": 41934758431,
+    "status": "cancelled-after-newer-push"
+  },
+  "lanes": [
+    {
+      "lane": "Core",
+      "job": 127026022717,
+      "step": 79,
+      "diagnostic": "3418 tests, three skipped, one unexpected failure: GitPathIdentityTests.testRevertAndRetryRestoreOnlyExactSelectedIndexName. Retry rejects NFD cafe\\u0301.txt after successful Revert.",
+      "hypothesis": "Scoped ls-files/status path queries lack core.precomposeunicode=false; source analysis, not local reproduction."
+    },
+    {
+      "lane": "History",
+      "job": 127026022641,
+      "step": 120,
+      "diagnostic": "Reference refresh Rebase passes both Git engines; metadata fixture161 fails: Push native NFD selection lost."
+    },
+    {
+      "lane": "Images",
+      "job": 127026022685,
+      "step": 157,
+      "diagnostic": "Image-effects timeout200 while awaiting injected ImageConflict reload decoder reply."
+    },
+    {
+      "lane": "Editors",
+      "job": 127026022668,
+      "step": 174,
+      "diagnostic": "Compare panes load; system AX expected-actions=2 inspection reaches 300-second timeout."
+    },
+    {
+      "lane": "Replay",
+      "job": 127026022672,
+      "step": 194,
+      "diagnostic": "Source forms and Push/Fetch history pass both engines; preparation times out62 waiting for wrapper remote gate."
+    },
+    {
+      "lane": "Commit",
+      "job": 127026022761,
+      "step": 205,
+      "diagnostic": "Real progress model hid the command failure."
+    },
+    {
+      "lane": "Settings",
+      "job": 127026022624,
+      "step": 298,
+      "diagnostic": "Action-log fixture42 compares complete failureText to an individual stored line twice after Retry/close."
+    },
+    {
+      "lane": "Distribution",
+      "job": 127026022680,
+      "step": 430,
+      "diagnostic": "Fixture475 mergeRevision fallback assertion after moving integration-tag: expected refs/heads/main."
+    }
+  ],
+  "scope": [
+    "Bounded read-only earliest-failure inspection; not complete job assertion inventories.",
+    "No local tests, source edits, workflow reruns or cancellations.",
+    "Owned browser tab closed.",
+    "Other lane failures require source-versus-consumer diagnosis; no shared cause established."
+  ]
+}

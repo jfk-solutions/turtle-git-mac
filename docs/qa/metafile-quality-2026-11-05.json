@@ -1,0 +1,327 @@
+{
+  "date": "2026-11-05",
+  "family": "EMF+ ordinary paint quality and native image consumers",
+  "status": "focused-source-batch-passed-with-explicit-remaining-profiles",
+  "installed_app_changed": false,
+  "public_distribution": false,
+  "windows_reference": {
+    "run": 41938727574,
+    "source": "d39b4ff42a0e5f9161ca6b4f40d0436c7400c19c",
+    "cases": 53,
+    "verified_capture_hashes": 377,
+    "zip_sha256": "bca1e883888e790f92174fdf0803b3b3202b3435b79c902cf5091acff7f5cfee",
+    "first_run": 41938313535,
+    "first_run_failure": "MSVC rejected Status check of void Graphics.ReleaseHDC; corrected source uses GetLastStatus separately."
+  },
+  "checks": [
+    {
+      "name": "universal-helper-reconstruction",
+      "status": "passed",
+      "log": "build/qa/metafile-quality-runtime-2026-11-05.log",
+      "log_sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+    },
+    {
+      "name": "focused-Core",
+      "status": "failed",
+      "methods": 30,
+      "assertion_failures": 208,
+      "unexpected_failures": 5,
+      "log": "build/qa/metafile-quality-core-2026-11-05.log",
+      "summary": "build/qa/metafile-quality-first-core-summary-2026-11-05.json",
+      "log_sha256": "3a27f8d01bd2b6302daa655dbf88c216c2b31713414b1bf98daf252abd2beeee"
+    },
+    {
+      "name": "Debug-app-build",
+      "status": "passed-first-candidate-before-renderer-repairs",
+      "log": "build/qa/metafile-quality-app-2026-11-05.log",
+      "log_sha256": "2e05479ba0c01ad6613fd18be55375434bd6cb6dd464a218eb987f6b0eb8ff05",
+      "notes": "Terminal exit 0. Out-of-date CoreSimulator warning retained; macOS build succeeded. Later helper repairs require matching runtime acceptance."
+    },
+    {
+      "name": "native-consumers",
+      "status": "superseded-by-native-consumers-repair1",
+      "phase": "initial-plan-before-repairs"
+    },
+    {
+      "name": "universal-helper-reconstruction-repair1",
+      "status": "passed",
+      "log": "build/qa/metafile-quality-runtime-repair1-2026-11-05.log",
+      "log_sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+    },
+    {
+      "name": "focused-Core-repair1",
+      "status": "failed",
+      "log": "build/qa/metafile-quality-core-repair1-2026-11-05.log",
+      "methods": 30,
+      "assertion_failures": 31,
+      "unexpected_failures": 0,
+      "log_sha256": "6df5d248ca19911b0dbaca397a392249f0a91dd701f7fd8ff5ad01eecfc143b9"
+    },
+    {
+      "name": "universal-helper-reconstruction-repair2",
+      "status": "passed",
+      "log": "build/qa/metafile-quality-runtime-repair2-2026-11-05.log",
+      "log_sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+    },
+    {
+      "name": "focused-Core-repair2",
+      "status": "failed",
+      "log": "build/qa/metafile-quality-core-repair2-2026-11-05.log",
+      "log_sha256": "7e7875256218a67e778834761231cf29ddcb9aa8df7801f1355db2a553583ed7",
+      "methods": 3,
+      "assertion_failures": 9,
+      "unexpected_failures": 0
+    },
+    {
+      "name": "universal-helper-reconstruction-repair3",
+      "status": "passed",
+      "log": "build/qa/metafile-quality-runtime-repair3-2026-11-05.log",
+      "log_sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+    },
+    {
+      "name": "focused-Core-repair3",
+      "status": "passed",
+      "methods": 3,
+      "assertion_failures": 0,
+      "log": "build/qa/metafile-quality-core-repair3-2026-11-05.log",
+      "log_sha256": "3e71a1be5c6a7c8eff8598df79ee3abdaaff1b49a19d51e20d03b214836a6bbd"
+    },
+    {
+      "name": "native-consumers-first-attempt",
+      "status": "failed",
+      "log": "build/qa/metafile-quality-native-2026-11-05.log",
+      "failure": "Texture brush incorrectly reused DrawImage literal sample expectations after independent wrapped-bilinear texture implementation.",
+      "log_sha256": "5d79473757e985e2360f47e0aad40ff645d6128ea96c18ba75dd28c989024bed"
+    },
+    {
+      "name": "native-runtime-identity-diagnostic",
+      "status": "failed-same-texture-assertion",
+      "log": "build/qa/metafile-quality-native-diagnostic-2026-11-05.log",
+      "finding": "Actual native decoder binary, renderer and curve resource match the current development runtime; stale-runtime hypothesis disproved.",
+      "log_sha256": "86294d771e20def8a1a19bfb4a0264e8cea5d7533b23259732cdbaad0b03d435"
+    },
+    {
+      "name": "native-consumers-repair1",
+      "status": "passed",
+      "case_engine_combinations": 8,
+      "log": "build/qa/metafile-quality-native-repair1-2026-11-05.log",
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "consumers",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "consumers",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "conflict",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "conflict",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "quality",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "quality",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "quality-conflict",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "quality-conflict",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "log_sha256": "6dfe4f362a06214e8f8d78a3a871eb1e974277f3ced47a62c2c898ba95362b1f"
+    }
+  ],
+  "boundaries": [
+    "Stroke endpoint/cap and curve metrics are not fully Windows certified.",
+    "Existing clip kernel and general partially-transparent destination gamma remain separate compatibility profiles.",
+    "Ordinary geometry quality does not certify text/ClearType, raw image interpolation or path-gradient profiles.",
+    "No full Core, hosted CI, signed installed or physical Finder acceptance established by this batch.",
+    "The first Debug bundle embeds an earlier candidate. Final bundled/signed deployment and current-source hosted success remain separate gates.",
+    "Opaque linear/hatch controls and periodic default texture controls do not certify every translucent ramp or arbitrary texture/interpolation/alpha combination.",
+    "Qualified alias straight-line DDA excludes Half offsets, AA, wider/compound/dashed/custom-cap or magnifying transforms."
+  ],
+  "reference_analyses": [
+    {
+      "script": "docs/qa/metafile-quality-reference-2026-11-05/analyze-quality.py",
+      "output": "build/qa/metafile-quality-geometry-analysis-2026-11-05.json",
+      "scope": "Independent filled-shape/stroke-interior sample lattice; not Mac helper output."
+    },
+    {
+      "script": "docs/qa/metafile-quality-reference-2026-11-05/analyze-compositing.py",
+      "output": "build/qa/metafile-quality-compositing-analysis-2026-11-05.json",
+      "scope": "Independent fixed-point gamma/SourceCopy controls; not Mac helper output."
+    },
+    {
+      "script": "docs/qa/metafile-quality-reference-2026-11-05/analyze-brush.py",
+      "output": "build/qa/metafile-quality-brush-analysis-2026-11-05.json",
+      "scope": "Both 10,353-pixel opaque brush ROIs: quantized linear and wrapped bilinear texture candidates match all RGBA values. Hatch palette floor explains all captured colors. Not Mac helper output."
+    },
+    {
+      "script": "docs/qa/metafile-quality-reference-2026-11-05/analyze-transform.py",
+      "output": "build/qa/metafile-quality-transform-analysis-2026-11-05.json",
+      "scope": "Seven transformed fill ROIs and twenty None-alias line-control entries; rejected quantizers and Half endpoint counterexamples retained. Independent Windows data, not Mac renderer output."
+    }
+  ],
+  "repair1_retained_passes": [
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testEllipticalPathGradientUsesBoundaryToCenterPresetOrderAndTransforms]' passed (0.764 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testEMFPlusTransformsClipsAndIndexedRestoreRenderDifferentTargets]' passed (0.154 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testHatchAlphaDeviceScaleRenderingOriginAndRestoreRemainIndependent]' passed (0.520 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testLinearGradientHorizontalBlendFactorsRetainPlateausAndMidpoint]' passed (0.098 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testLinearGradientPresetColorsComposeBrushAndWorldTransforms]' passed (0.148 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testLinearGradientTileAndFlipRetainDifferentStopOrders]' passed (0.203 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testPenCompoundBandsAndClosedInsetRetainDistinctGeometry]' passed (0.876 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testPenDashPatternsOffsetsAndIndependentDashCapsHaveActualGaps]' passed (1.446 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testPenFlatDirectionalAndAsymmetricCapsPaintAnalyticalOutlines]' passed (3.458 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testPenLinearTransformIgnoresTranslationAndRespectsCapturedWorldClip]' passed (1.203 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testPlusPathContainerAndContinuedObjectKeepCapturedGeometry]' passed (0.169 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testRegionClipCapturesDeviceTransformAndIndexedRestore]' passed (0.093 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileImageTests testTextureBrushWorldAndDoNotTransformMappingsKeepAlphaAndRegionFills]' passed (0.406 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testInvalidQualityModesRefuseTheWholeConversion]' passed (0.225 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testPixelOffsetBrushPlanesMatchIndependentWindowsColors]' passed (0.627 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testQualityRecordsWithUnexpectedBodiesRefuseTheWholeConversion]' passed (0.258 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testReservedQualityFlagBytesPreserveTheCapturedWindowsResult]' passed (0.191 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testSourceCopyAntialiasedPaintReplacesDestinationRatherThanFadingIt]' passed (0.527 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testSourceOverGammaAndQualityAliasesFollowIndependentWindowsControls]' passed (0.488 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testWindowsFixtureIdentitiesAndIndependentNaturalCapture]' passed (0.033 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testEachOverlappingRectangleIsAnOrderedReplacementRatherThanFlattenedSourceOver]' passed (0.068 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testGradientHatchTextureAndImageCoverageIsIndependentOfSourceOpacity]' passed (1.196 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testInvalidModesPaintAndClearTypeRefuseWholePrefixAndDoNotLeakState]' passed (0.509 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testPenAndBothNativeGlyphPathsReplaceWithSourceAlphaOnlyOnInkCoverage]' passed (0.643 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testSaveContainersGetDCPreserveModeAndClearIgnoresCompositingMode]' passed (0.478 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testTransparentPathRegionAndClipHolesPreserveDestinationOutsideActualGeometry]' passed (0.368 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileSourceCopyTests testTransparentSemiAndOpaqueSourceCopyReplaceAllChannelsAgainstLiteralPNGControls]' passed (0.829 seconds)."
+  ],
+  "repair1_remaining_methods": [
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testAllRecordedQualityModesMatchIndependentFillAndStrokeInteriorGrids]' failed (5.701 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testSavedAndContainerQualityStateUsesCapturedDefaultsAndRestoration]' failed (0.461 seconds).",
+    "Test Case '-[TurtleGitCoreTests.MetafileQualityTests testWorldAndDeviceClipKeepTheIndependentQualityLattice]' failed (0.200 seconds)."
+  ],
+  "repair1_findings": [
+    "All 13 selected legacy image tests pass after paint/coverage plane selection and integer analytic sample coordinates.",
+    "All seven existing SourceCopy methods pass with unchanged literal pixel controls.",
+    "All brush, compositing, identity and malformed/reserved-record methods pass.",
+    "Remaining three quality geometry methods expose upstream two-decimal SVG path serialization before coverage; preserve finite ordinary-path coordinates rather than change expected pixels."
+  ],
+  "repair2_findings": [
+    "Scoped ordinary-path formatting preserves Float32 coordinates instead of rounding to hundredths; measured path-gradient formatting remains separate.",
+    "All 30 ordinary mode combinations now pass exact wedge, rectangle and stroke-interior controls. Device clip checks pass.",
+    "Only saved/container and affine state geometry methods remain failing (nine assertions), including thin marker strokes.",
+    "Independent scaled/affine wedge analysis identifies ceil(device-coordinate*16)/16 quantization; full reference ROIs match exactly before Mac implementation."
+  ],
+  "native_receiver_compile": {
+    "status": "passed",
+    "log": "build/qa/metafile-quality-native-compile-2026-11-05.log",
+    "execution": "not-run-yet"
+  },
+  "validation_summary": {
+    "distinct_Core_methods_cumulative": 31,
+    "Core_suite_repeated": false,
+    "native_combinations": 8,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "architecture": "arm64 native execution; universal arm64/x86_64 helper slices built and structurally verified",
+    "ownership": "Private repositories, homes, preferences and temporary directories; hidden/offscreen native windows; receiver/helper retirement retained on success and failure. Eight successful owned receiver reaps recorded.",
+    "artifact_scope": "Native fixtures link Debug app objects and verify the current development helper binary, renderer and curve bytes before exercising actual production image paths. The initial Debug app build predates renderer repairs; no final signed or installed bundle acceptance claimed."
+  },
+  "final_helper_identity": {
+    "binary_sha256": "586d031534ff0d06f377b1795b2660920b9e9bf412850c7c8445b6ea30fd5486",
+    "renderer_sha256": "c9d0cc31293f1733bbb27a62cfae2f72ddd95d963bb68568eb26d3530658f259",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+      "NOTICE": "aa047a6debcb6af9073e8dd9361105746be8da0cb94821544face9338763dbee",
+      "Configuration/MetafileRuntime.json": "aede7bfd5c52bec93bcb49fcf0dd9bad54e642a6697a458c23d11dfad85f9db8",
+      "Sources/TurtleGitMetafile/main.swift": "101ef6f77c24a7f40128a4b4eed744128ae096a2b39d316d7aab05e1745e03ce",
+      "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab",
+      "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "8501d0fb85ad2b3f035a98bb105d54531acedb8f9b5233aa4aab66e238074c15",
+      "Sources/TurtleGitMetafile/SpatialImageSampling.swift": "ecfc3c0b3226ba9db7befdfe801fa206ce07f2310ed1d9360ef0a4de712e3313",
+      "patches/metafile-renderer.patch": "5910c6ac5faa90a8ebd30f904127bbeb5200d073688f3ae6f9524edc130b3514",
+      "scripts/build-metafile-runtime.py": "021b9612232f960ba32f7d47fc9f3cc01ba95d681bca1bd007fa3e22fb6bfc7d",
+      "scripts/validate-metafile-runtime.py": "695aff48c2cfefc316633ce132cbf9419520731dce6d565cbe6ec8e007ba7d04",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+      "Sources/TurtleGitMetafile/Resources/color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+      "Sources/TurtleGitMetafile/Resources/color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609",
+      "scripts/build-metafile-curve-data.py": "d9f35ab69a5d1a9c5bcae6604a72e92e5d6d1cbe5cc3cc5eeb17cafb4626decd",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984"
+    },
+    "compiler": "Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.0.0\n",
+    "sdk_version": "27.2",
+    "cache_key": "f79891a2d98562d238e4c144b516d3be476b49308dc625b7e683c94bab8b2756"
+  },
+  "repairs_completed": [
+    "Replaced touched-cell Core Graphics coverage with bounded half-open exact-lattice scan conversion.",
+    "Corrected opaque linear/hatch quantization and wrapped bilinear texture brush paint planes against independent Windows captures.",
+    "Classified coverage versus source-paint PNGs in older SVG assertions, preserving their original color/count checks.",
+    "Corrected quality mutation scanner to accept legal eight-byte outer EMF records before testing malformed quality bodies.",
+    "Used the same ordinary SVG SourceOver path for omitted/default and explicit plain quality aliases 0/1/4; retained gamma 2/3 ordered blending.",
+    "Retained source coordinates for ordinary shapes; excluded path-gradient records before path construction using actual brush/pen metadata.",
+    "Quantized transformed fill vertices upward to 1/16 device units; preserved separate retained stroke geometry.",
+    "Retained qualified two-point source lines and implemented the independently identified one-time starting-intercept-floor16 DDA for None aliases.",
+    "Added exact independent full vertical/diagonal endpoint controls for all nine None-alias frames.",
+    "Native texture samples now use analytic bilinear weights from the authored scale24/translation8 matrix; DrawImage expectations and all original document/index/lifecycle assertions remain."
+  ],
+  "repair1_helper_identity": {
+    "binary_sha256": "3d72eb52a73f96ca1b9ad4c4fd44c6c17811a913638e5e5529b6aee787b8531e",
+    "renderer_sha256": "6f58dab8b6debd7926fd10bb2b9a1588c154058a1e2142db07fbf39231b37fd9",
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+      "NOTICE": "aa047a6debcb6af9073e8dd9361105746be8da0cb94821544face9338763dbee",
+      "Configuration/MetafileRuntime.json": "aede7bfd5c52bec93bcb49fcf0dd9bad54e642a6697a458c23d11dfad85f9db8",
+      "Sources/TurtleGitMetafile/main.swift": "960935c9165af76ed6d4bfd1c6517b9e54209b6aa40fd77b71ecf84dfb55e541",
+      "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab",
+      "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "8501d0fb85ad2b3f035a98bb105d54531acedb8f9b5233aa4aab66e238074c15",
+      "Sources/TurtleGitMetafile/SpatialImageSampling.swift": "ecfc3c0b3226ba9db7befdfe801fa206ce07f2310ed1d9360ef0a4de712e3313",
+      "patches/metafile-renderer.patch": "e88b20fbe5b92b0bbf8bdc63aea3ca982b9da504104a7a08827df4231b70032c",
+      "scripts/build-metafile-runtime.py": "021b9612232f960ba32f7d47fc9f3cc01ba95d681bca1bd007fa3e22fb6bfc7d",
+      "scripts/validate-metafile-runtime.py": "695aff48c2cfefc316633ce132cbf9419520731dce6d565cbe6ec8e007ba7d04",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+      "Sources/TurtleGitMetafile/Resources/color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+      "Sources/TurtleGitMetafile/Resources/color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609",
+      "scripts/build-metafile-curve-data.py": "d9f35ab69a5d1a9c5bcae6604a72e92e5d6d1cbe5cc3cc5eeb17cafb4626decd",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984"
+    },
+    "cache_key": "367b497d5060d42245d3871945b6bfb5577bb51dba3d70b7de4e3f4997e97c4a",
+    "sdk_version": "27.2",
+    "compiler": "Apple Swift version 6.4.2 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)\nTarget: arm64-apple-macosx27.0.0\n"
+  }
+}

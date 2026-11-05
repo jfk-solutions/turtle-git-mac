@@ -7,6 +7,26 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 5 ordinary metafile quality batch](qa/metafile-quality-2026-11-05.json)
+has a successful independent 53-case Windows capture and a reconstructed universal
+Mac helper. Connected coverage, brush, fixed-point geometry and thin-line repairs
+pass 31 distinct Core methods cumulatively and eight native case/engine checks.
+Initial failures and texture-fixture repairs remain recorded; independent Windows
+pixels remain unchanged controls. The native checks verify current helper identity.
+This source batch is not installed52 and establishes no signed/hosted release
+acceptance. Its explicit remaining rendering profiles are in
+[ordinary paint quality](METAFILE-QUALITY-PARITY.md).
+
+The subsequent [hosted source `57cd45de` observation](qa/hosted-ci-57cd45de-2026-11-05.json)
+is terminal failure: SVN and Pages pass; all eight validation lanes stop. Core
+now reaches 3,418 tests with one unexpected Revert/Retry decomposed-name failure;
+History separately loses native Push NFD selection. Other stops concern injected
+image reload, system accessibility, a preparation gate, progress failure display,
+action-log line expectations and a moved-tag merge fixture. These are distinct
+diagnostics awaiting source-versus-consumer repairs. The preceding `490d99bf` macOS
+run was cancelled after the newer push; it is no longer pending. Neither local
+image-quality checks nor the independent Windows oracle replace hosted acceptance.
+
 The [signed build52 checkpoint](qa/signed-consolidation-build52-2026-11-03.json)
 is built, installed and locally packaged, including the connected cache/readiness
 repair. Build51 is preserved for rollback. Strict signatures, universal components,

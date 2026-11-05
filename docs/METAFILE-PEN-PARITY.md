@@ -129,8 +129,10 @@ finish every classic EMF/WMF variant. The connected [classic extended-pen family
 adds EMR_EXTCREATEPEN arrays, stroke brushes and bounded InsideFrame/state consumers;
 its checkpoint is recorded separately. Other painting records, alternate record
 formats and Windows font substitution remain separate compatibility work. The
-existing anti-alias, pixel-offset and compositing-quality records do not select
-GDI+ rasterization quality or its pixel grid. Standard anchor dimensions are
+new [ordinary paint-quality continuation](METAFILE-QUALITY-PARITY.md) connects
+anti-alias, pixel-offset and compositing-quality records to measured Windows
+coverage and compositing controls. It does not certify exact cap or endpoint
+geometry. Standard anchor dimensions are
 compared with the [Wine GDI+ implementation](https://github.com/wine-mirror/wine/blob/master/dlls/gdiplus/graphics.c) policy; a Windows capture oracle is still
 needed to certify their exact metrics. Windows
 pixel certification, every pathological self-intersection, platform edge

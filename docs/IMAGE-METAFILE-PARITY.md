@@ -68,6 +68,12 @@ APIs do not imply invented serialized setter records.
 
 ## Intrinsic size and metadata
 
+The [ordinary paint-quality continuation](METAFILE-QUALITY-PARITY.md) adds
+recorded smoothing, pixel placement, independent brush coverage and ordered
+SourceOver/SourceCopy compositing against an independent 53-case Windows capture.
+Its validation and remaining curve, endpoint, clipping and text boundaries are
+recorded separately from earlier checkpoints.
+
 EMF follows GDI+ physical frame/device metadata, rather than treating its ink
 `bounds` as the image's pixel dimensions. Device pixels/millimetres establish DPI;
 frame extents in 0.01 mm establish rounded raster dimensions at that DPI. The frame

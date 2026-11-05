@@ -3,8 +3,12 @@
 This is a Windows GDI+ observation program, independent of TurtleGit's renderer.
 It links only Windows/GDI+ system libraries. The manual-only
 `metafile-quality-reference.yml` workflow compiles it with MSVC on Windows 2022;
-there is no push trigger. No Windows capture has been run merely by adding these
-files. The complete implementation batch has its own later grouped checkpoint.
+there is no push trigger. Windows run
+[41938727574](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41938727574)
+completed all 53 cases from source `d39b4ff42a0e5f9161ca6b4f40d0436c7400c19c`.
+The preceding run failed to compile the ReleaseHDC status check and supplies no
+pixel evidence. The complete implementation batch has its own later grouped
+checkpoint; successful reference capture alone is not a Mac renderer pass.
 
 The 53 native API cases comprise:
 

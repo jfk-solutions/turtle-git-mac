@@ -24,6 +24,14 @@ private extension NSWindow {
     static let gray=[Sample(x:20,y:20,red:0,green:0,blue:0,alpha:0),Sample(x:4,y:4,red:0,green:0,blue:255)]
     static let rgb=[Sample(x:20,y:20,red:128,green:0,blue:0,alpha:128),Sample(x:4,y:4,red:0,green:0,blue:255)]
     static let image=[Sample(x:14,y:14,red:0,green:0,blue:0,alpha:0),Sample(x:50,y:14,red:0,green:128,blue:0,alpha:128),Sample(x:14,y:50,red:0,green:0,blue:255),Sample(x:50,y:50,red:64,green:0,blue:0,alpha:64)]
+    // Texture filtering differs from DrawImage's existing clamped-texel profile.
+    // The authored texture matrix is scale24 + translation8. At device pixel
+    // centers, texel coordinates are (pixel+.5-8)/24-.5. Transparent Clamp
+    // neighbors give green128*(35/48)*(37/48)=71.94, blue255 times the same
+    // weights=143.33, and red64*(35/48)^2=34.03, rounded to display bytes.
+    // Keep the original source-alpha replacement assertions; do not reuse the
+    // nearest/clamped DrawImage samples for this bilinear texture brush.
+    static let texture=[Sample(x:14,y:14,red:0,green:0,blue:0,alpha:0),Sample(x:50,y:14,red:0,green:72,blue:0,alpha:72),Sample(x:14,y:50,red:0,green:0,blue:143,alpha:143),Sample(x:50,y:50,red:34,green:0,blue:0,alpha:34),Sample(x:4,y:4,red:0,green:0,blue:255)]
     static let state=[Sample(x:16,y:16,red:0,green:128,blue:127),Sample(x:48,y:16,red:0,green:0,blue:0,alpha:0),Sample(x:16,y:48,red:128,green:0,blue:127),Sample(x:48,y:48,red:128,green:0,blue:0,alpha:128)]
     static let grayName="sourcecopy-solid-transparent.emf"
     static let rgbName="sourcecopy-solid-semi.emf"
@@ -61,7 +69,7 @@ private extension NSWindow {
     }
     static func consumers(_ c:Context)async throws {
         let alpha=image
-        let pairs:[(String,String,[Sample],[Sample])]=[(grayName,rgbName,gray,rgb),(argbName,pargbName,alpha,alpha),("sourcecopy-state.emf","sourcecopy-image-affine.emf",state,alpha)]
+        let pairs:[(String,String,[Sample],[Sample])]=[(grayName,rgbName,gray,rgb),(argbName,pargbName,alpha,texture),("sourcecopy-state.emf","sourcecopy-image-affine.emf",state,alpha)]
         for explicit in [false,true] {
             for(leftName,rightName,leftPixels,rightPixels)in pairs {
                 let left=try c.input(leftName),right=try c.input(rightName),owner:FileComparisonWindowController
@@ -104,9 +112,58 @@ private extension NSWindow {
         reply?.resume();reply=nil;try await wait{drained() && !late.model.busy}
         try require(late.model.document==nil && late.model.imageComparison==nil,"Retired comparison published late actual-helper pixels")
     }
-    static func conflict(_ c:Context)async throws {
+    static func qualityPixels(_ image:ComparisonImage?,_ c:Context,_ name:String)throws {
+        guard let image,let windows=ComparisonImage(bytes:try Data(contentsOf:c.input("Quality/"+name+".windows.png"))) else {throw Failure(message:"Quality native/Windows image absent: "+name)}
+        try require(image.pixels.width==128 && image.pixels.height==96 && windows.pixels.width==128 && windows.pixels.height==96,"Quality image extent changed: "+name)
+        func rgba(_ image:CGImage)throws->[UInt8] {
+            var bytes=[UInt8](repeating:0,count:128*96*4)
+            try bytes.withUnsafeMutableBytes {buffer in
+                guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:buffer.baseAddress,width:128,height:96,bitsPerComponent:8,bytesPerRow:128*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(message:"Cannot inspect quality native pixels")}
+                context.interpolationQuality = .none;context.draw(image,in:CGRect(x:0,y:0,width:128,height:96))
+            }
+            return bytes
+        }
+        let actual=try rgba(image.pixels),expected=try rgba(windows.pixels)
+        let area:CGRect
+        if name.hasPrefix("ordinary-") {area=CGRect(x:46,y:4,width:41,height:28)}
+        else if name.hasPrefix("brush-") {area=CGRect(x:5,y:5,width:119,height:87)}
+        else {area=CGRect(x:14,y:14,width:16,height:11)}
+        let channels=name.hasPrefix("ordinary-") ? [3]:[0,1,2,3]
+        var mismatches=0,first=""
+        for y in Int(area.minY)..<Int(area.maxY) {for x in Int(area.minX)..<Int(area.maxX) {for channel in channels {
+            let index=(y*128+x)*4+channel
+            if actual[index] != expected[index] {mismatches += 1;if first.isEmpty {first="\(x),\(y),c\(channel):\(actual[index])!=\(expected[index])"}}
+        }}}
+        try require(mismatches==0,"Quality Windows control mismatch \(name): \(mismatches), \(first)")
+    }
+    static func quality(_ c:Context)async throws {
+        for explicit in [false,true] {
+            for (leftName,rightName) in [("ordinary-s3-p3","ordinary-s5-p4"),("compositing-quality-0","compositing-quality-2"),("brush-linear-p3","brush-linear-p4")] {
+                let left=try c.input("Quality/"+leftName+".emf"),right=try c.input("Quality/"+rightName+".emf"),owner:FileComparisonWindowController
+                if explicit {owner=c.track(FileComparisonWindowController(images:try ImageFileComparison(base:left,destination:right),permissions:[],preferences:c.preferences))}
+                else {owner=c.track(FileComparisonWindowController(comparison:try WorkingFileComparison(base:left,destination:right),permissions:[],preferences:c.preferences))}
+                owner.model.load();try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.imageComparison != nil && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==2}
+                try require(owner.model.viewerSelection == .image,"Quality file did not route to actual IDiff")
+                try qualityPixels(owner.model.imageComparison?.base,c,leftName);try qualityPixels(owner.model.imageComparison?.destination,c,rightName)
+                try require(owner.model.document?.base.bytes==c.inputs[left] && owner.model.document?.destination.bytes==c.inputs[right],"Quality preview replaced original EMF bytes")
+                if leftName=="compositing-quality-0" {
+                    let decoded=owner.model.imageComparison?.destination?.id
+                    owner.reloadEditor(nil);try await wait{!owner.model.busy && owner.model.imageComparison?.destination?.id != decoded}
+                    try qualityPixels(owner.model.imageComparison?.destination,c,rightName)
+                    let dropped=c.base.appendingPathComponent("quality [drop] 雪.emf"),newBytes=try Data(contentsOf:c.input("Quality/ordinary-s4-p3.emf"))
+                    try newBytes.write(to:dropped);let pane=owner.model.imageViewerModel
+                    try require(pane.dropFile(dropped,base:false),"Actual quality image drop refused")
+                    try await wait{!pane.receivingDrop && pane.droppedFiles[false] != nil}
+                    try qualityPixels(pane.currentImage(base:false),c,"ordinary-s4-p3")
+                    try require(pane.droppedFiles[false]?.bytes==newBytes && owner.model.document?.destination.bytes==c.inputs[right],"Quality drop changed the accepted original")
+                }
+                owner.close();try await wait{drained()}
+            }
+        }
+    }
+    static func conflict(_ c:Context,quality:Bool=false)async throws {
         let alpha=image
-        let baseURL=try c.input(grayName),theirsURL=try c.input(rgbName),mineURL=try c.input(argbName)
+        let baseURL=try c.input(quality ? "Quality/compositing-quality-0.emf":grayName),theirsURL=try c.input(quality ? "Quality/compositing-quality-2.emf":rgbName),mineURL=try c.input(quality ? "Quality/source-copy-compositing-quality-2.emf":argbName)
         let base=try Data(contentsOf:baseURL),theirs=try Data(contentsOf:theirsURL),mine=try Data(contentsOf:mineURL)
         let root=c.base.appendingPathComponent("repository",isDirectory:true);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo=GitRepository(root:root,executable:c.git,askpass:nil,libgit2Configuration:.init(enabled:false)),path="drawing [SourceCopy]; 雪.emf",file=root.appendingPathComponent(path)
@@ -122,9 +179,15 @@ private extension NSWindow {
         let owner=c.track(ImageConflictWindowController(repository:repo,access:nil,document:document,preferences:c.preferences))
         try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.images.count==3 && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==3}
         try require(ImageConflictSide.allCases.allSatisfy{owner.model.canSelect($0)},"New image stages lost selectable native conflict panes")
-        try pixels(owner.model.panes[.base]?.currentImage(base:true),gray,"grayscale conflict base")
-        try pixels(owner.model.panes[.theirs]?.currentImage(base:true),rgb,"RGB48 theirs")
-        try pixels(owner.model.panes[.mine]?.currentImage(base:true),alpha,"ARGB64 mine")
+        if quality {
+            try qualityPixels(owner.model.panes[.base]?.currentImage(base:true),c,"compositing-quality-0")
+            try qualityPixels(owner.model.panes[.theirs]?.currentImage(base:true),c,"compositing-quality-2")
+            try qualityPixels(owner.model.panes[.mine]?.currentImage(base:true),c,"source-copy-compositing-quality-2")
+        } else {
+            try pixels(owner.model.panes[.base]?.currentImage(base:true),gray,"grayscale conflict base")
+            try pixels(owner.model.panes[.theirs]?.currentImage(base:true),rgb,"RGB48 theirs")
+            try pixels(owner.model.panes[.mine]?.currentImage(base:true),alpha,"ARGB64 mine")
+        }
         try require(owner.model.document.contents[.base]==base && owner.model.document.contents[.theirs]==theirs && owner.model.document.contents[.mine]==mine,"Conflict displayed PNG replaced raw Git stages")
         let ids=owner.model.images.mapValues(\.id),decode=owner.model.decodeImages
         var reply:CheckedContinuation<Void,Never>?,token:OperationCancellation?
@@ -152,9 +215,15 @@ private extension NSWindow {
         defer{method_exchangeImplementations(frame,offscreen);method_exchangeImplementations(original,hidden)}
         let c=Context()
         do {
+            let actualHelper=try MetafileImageDecoder.executable().deletingLastPathComponent()
+            let expectedHelper=URL(fileURLWithPath:CommandLine.arguments[5],isDirectory:true)
+            for file in ["metafile-convert","renderer.js","color-curves.bin"] {
+                try require(try Data(contentsOf:actualHelper.appendingPathComponent(file)) == Data(contentsOf:expectedHelper.appendingPathComponent(file)),"Native consumer selected a different metafile runtime: "+actualHelper.path+"/"+file)
+            }
+            print("Native consumer verified current metafile runtime: "+actualHelper.path)
             let which=CommandLine.arguments[4]
             try await ComparisonToolInvocation.$alternate.withValue(false) {
-                switch which {case "consumers":try await consumers(c);case "conflict":try await conflict(c);default:throw Failure(message:"Unknown native case")}
+                switch which {case "consumers":try await consumers(c);case "conflict":try await conflict(c);case "quality":try await quality(c);case "quality-conflict":try await conflict(c,quality:true);default:throw Failure(message:"Unknown native case")}
             }
             try c.unchanged();await c.clean();try require(drained() && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Owned native images/helpers did not drain")
             print("PASS: SourceCopy native "+which)

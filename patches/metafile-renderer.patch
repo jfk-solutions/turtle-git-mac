@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,567 @@
+@@ -0,0 +1,576 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -157,15 +157,15 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    }
 +    return text;
 +  }
-+  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],compositing:0,textHint:0,smoothingMode:0,antialias:false,saves:[],objectParts:null}); }
++  function state(d) { return d._turtle || (d._turtle={world:identity(),page:1,unit:2,dpiX:96,dpiY:96,clip:null,renderingOrigin:[0,0],compositing:0,compositingQuality:null,textHint:0,smoothingMode:3,antialias:false,pixelOffsetMode:0,saves:[],objectParts:null}); }
 +  function baseMatrix(d) {
 +    const t=d.coordinateTransformer, o=t.transform(0,0), x=t.transform(1,0), y=t.transform(0,1);
 +    return [x.x-o.x,x.y-o.y,y.x-o.x,y.y-o.y,o.x,o.y];
 +  }
 +  function currentMatrix(d) { const s=state(d); return mul(baseMatrix(d),mul([s.page,0,0,s.page,0,0],s.world)); }
 +  function unitScale(unit,dpi) { const scales={0:1,1:dpi/75,2:1,3:dpi/72,4:dpi,5:dpi/300,6:dpi/25.4}; if(!(unit in scales)) fail('unsupported page unit '+unit); return scales[unit]; }
-+  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip,renderingOrigin:s.renderingOrigin.slice(),compositing:s.compositing,textHint:s.textHint,smoothingMode:s.smoothingMode,antialias:s.antialias}); }
-+  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.renderingOrigin=old.renderingOrigin.slice();s.compositing=old.compositing;s.textHint=old.textHint;s.smoothingMode=old.smoothingMode;s.antialias=old.antialias;s.saves.length=index; }
++  function snapshot(d,id,container) { const s=state(d); if(s.saves.length>=4096) fail('graphics state nesting limit'); s.saves.push({id,container,world:s.world.slice(),page:s.page,unit:s.unit,clip:s.clip,renderingOrigin:s.renderingOrigin.slice(),compositing:s.compositing,compositingQuality:s.compositingQuality,textHint:s.textHint,smoothingMode:s.smoothingMode,antialias:s.antialias,pixelOffsetMode:s.pixelOffsetMode}); if(container){s.smoothingMode=3;s.antialias=false;s.pixelOffsetMode=0;s.compositingQuality=null;} }
++  function restore(d,id,container) { const s=state(d); let index=s.saves.length-1; for(;index>=0;index--) if(s.saves[index].id===id&&s.saves[index].container===container) break; if(index<0) fail('unmatched graphics restore'); const old=s.saves[index]; s.world=old.world.slice();s.page=old.page;s.unit=old.unit;s.clip=old.clip;s.renderingOrigin=old.renderingOrigin.slice();s.compositing=old.compositing;s.compositingQuality=old.compositingQuality;s.textHint=old.textHint;s.smoothingMode=old.smoothingMode;s.antialias=old.antialias;s.pixelOffsetMode=old.pixelOffsetMode;s.saves.length=index; }
 +  function updateWorld(d,m,flags) { const s=state(d); s.world=flags&0x2000 ? mul(m,s.world):mul(s.world,m); matrix(s.world); }
 +  // Clips live in device coordinates: later world changes cannot move an existing clip.
 +  // SVG luminance masks express all six GDI+ combine operations without region approximation.
@@ -298,6 +298,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  const paint=require('./turtleGitPaint')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,escape,matrix,currentMatrix,rawBitmap,paths,embedded});
 +  const images=require('./turtleGitImages')({EmfPlusDrawer,fail,u32,f32,escape,matrix,currentMatrix,embedded});
 +  const pens=require('./turtleGitPens')({EmfPlusDrawer,SvgContext,fail,u32,i32,f32,state,unitScale,currentMatrix,paint,paths});
++  const quality=require('./turtleGitQuality')({SvgContext,fail,u32,escape,matrix,currentMatrix,state,paint});
 +  const sourceCopy=require('./turtleGitSourceCopy')({EmfPlusDrawer,SvgContext,fail,escape,matrix,currentMatrix,masked,raw:rawPaint});
 +  // Existing drawing routines operate in local coordinates. Wrap each completed
 +  // record in the captured full affine matrix, preserving rotated ellipses/text/pens.
@@ -309,6 +310,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      case 0x4001: if(data.length<16) fail('truncated EMF+ header'); s.dpiX=u32(data,8)||96;s.dpiY=u32(data,12)||96;return;
 +      case 0x401D: if(data.length!==8)fail('invalid rendering origin');s.renderingOrigin=[i32(data,0),i32(data,4)];return;
 +      case 0x401E: if(data.length!==0||((flags>>>1)&127)>5)fail('invalid smoothing mode');s.smoothingMode=(flags>>>1)&127;s.antialias=!!(flags&1);return;
++      case 0x4022: if(data.length!==0||(flags&255)>4)fail('invalid EMF+ pixel offset mode');s.pixelOffsetMode=flags&255;return;
 +      case 0x4025: if(data.length!==4)fail('invalid EMF+ saved graphics record');snapshot(this,u32(data,0),false);return;
 +      case 0x4026: if(data.length!==4)fail('invalid EMF+ saved graphics record');restore(this,u32(data,0),false);return;
 +      case 0x4028: if(data.length!==4)fail('invalid EMF+ saved graphics record');snapshot(this,u32(data,0),true);return;
@@ -350,6 +352,9 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +      case 0x4037:case 0x4039:case 0x403A: fail('unsupported EMF+ painting/region record 0x'+type.toString(16));
 +      case 0x4005:case 0x4006:case 0x4007: fail('unsupported EMF+ alternate-format records');
 +      case 0x4023: if(data.length!==0||(flags&255)>1)fail('invalid EMF+ compositing mode');s.compositing=flags&255;return;
++      // Native Windows recording/playback uses SDK values0..4, not the
++      // MS-EMFPLUS enumeration table's shifted1..5 labels. Preserve wire values.
++      case 0x4024: if(data.length!==0||(flags&255)>4)fail('invalid EMF+ compositing quality');s.compositingQuality=flags&255;return;
 +      case 0x401F: if(data.length!==0||(flags&255)>5)fail('invalid EMF+ text rendering hint');s.textHint=flags&255;return;
 +      case 0x4009: if(data.length!==4)fail('invalid EMF+ clear record');sourceCopy.clear(this,u32(data,0),combineMasks(this,s.clip,ctx._turtleInheritedClip||null,1));return;
 +    }
@@ -357,12 +362,16 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(s.compositing===1&&s.textHint===5&&(type===0x401C||type===0x4036))fail('unsupported SourceCopy ClearType text');
 +    const first=ctx._nodes.length, savedClip=ctx._state.clip;let recordClip=combineMasks(this,s.clip,ctx._turtleInheritedClip||null,1);ctx._state.clip=null;
 +    const direct=(type===0x401a||type===0x401b)&&this.emfPlusObjects[flags&255]&&this.emfPlusObjects[flags&255].type==='imageMetafile';
-+    const copy=s.compositing===1&&!direct?sourceCopy.begin(this):null;
++    // Windows raw qualities0/1/4 are identical to omitted SourceOver. Keep
++    // their established plain paint route; only2/3 require ordered gamma.
++    const composition=s.compositing===1?{mode:'source-copy',compositingQuality:s.compositingQuality}:[2,3].includes(s.compositingQuality)?{mode:'source-over',compositingQuality:s.compositingQuality}:null;
++    const copy=composition&&!direct?sourceCopy.begin(this,composition):null;
++    const previousQuality=ctx._turtleOrdinaryQuality;ctx._turtleOrdinaryQuality=quality.record(this,type,flags,data);
 +    try {
 +      if(type===0x4013)recordClip=combineMasks(this,recordClip,fillRegion(this,flags,data),1);
 +      else originalDispatch.call(this,type,flags,data);
 +    }
-+    finally {ctx._state.clip=savedClip;ctx._turtleStrokeReceipt=null;sourceCopy.abort(this);}
++    finally {ctx._state.clip=savedClip;ctx._turtleStrokeReceipt=null;ctx._turtleOrdinaryQuality=previousQuality;sourceCopy.abort(this);}
 +    if(direct)return;
 +    if(copy){sourceCopy.finish(this,copy,first,recordClip);return;}
 +    if(ctx._nodes.length>first) {
@@ -1262,7 +1271,7 @@ new file mode 100644
 index 0000000..0350971
 --- /dev/null
 +++ b/src/turtleGitPaint.js
-@@ -0,0 +1,724 @@
+@@ -0,0 +1,776 @@
 +// TurtleGit EMF+ gradient, hatch and bitmap texture painting. MIT, see repository LICENSE.
 +// Canonical hatch cell data is isolated in LGPL-2.1-or-later turtleGitHatch.js.
 +// Geometry remains in local drawing coordinates; the record's world/page/device
@@ -1516,7 +1525,16 @@ index 0000000..0350971
 +    }).concat(alpha);
 +  }
 +  function mixLinearColor(a,b,t,gamma) {
-+    if(!gamma)return mixColor(a,b,t,false);
++    if(!gamma) {
++      if(a[3]!==1||b[3]!==1)return mixColor(a,b,t,false);
++      // Independent ordinary Windows opaque ramps quantize all sixteen
++      // interval endpoints to bytes before interpolating the current factor.
++      const position=Math.max(0,Math.min(1,t))*16,index=Math.min(15,Math.floor(position)),fraction=position-index;
++      return [0,1,2].map(channel=>{
++        const lower=Math.round(a[channel]+(b[channel]-a[channel])*index/16),upper=Math.round(a[channel]+(b[channel]-a[channel])*(index+1)/16);
++        return lower+(upper-lower)*fraction;
++      }).concat(1);
++    }
 +    // Native linear gamma uses sixteen factor intervals. Interpolate the
 +    // associated-alpha gamma colors at the interval endpoints, rather than
 +    // applying an exact transfer curve independently at every pixel.
@@ -1806,7 +1824,7 @@ index 0000000..0350971
 +    const a=stops[low-1],b=stops[low];
 +    return blend(a.color,b.color,(t-a.position)/(b.position-a.position));
 +  }
-+  function rasterPaint(ctx,receipt,bounds) {
++  function rasterPaint(ctx,receipt,bounds,quality=null) {
 +    if(typeof currentMatrix!=='function' || typeof globalThis.__turtleBitmap!=='function') fail('native gradient raster adapter unavailable');
 +    const world=currentMatrix(receipt.owner),d=receipt.brush.descriptor;
 +    let left=0,top=0,right=Math.ceil(ctx.canvas.width),bottom=Math.ceil(ctx.canvas.height);
@@ -1826,7 +1844,11 @@ index 0000000..0350971
 +    const width=logicalWidth*scale,height=logicalHeight*scale;
 +    if(!Number.isSafeInteger(width)||!Number.isSafeInteger(height)||width<1||height<1||width>32768||height>32768||width*height>16777216) fail('gradient raster viewport exceeds limit');
 +    const origin=state(receipt.owner).renderingOrigin||[0,0];
-+    const key=[left,top,width,height,...world,...origin].join(',');
++    // Independent Windows p3/p4 controls change linear color phase by half a
++    // device pixel. Hatch and texture colors retain their prior phase.
++    const phase=d.kind==='linear'&&quality&&[2,4].includes(quality.pixelOffsetMode)?0.5:0;
++    const hatchFloor=!!quality&&d.kind==='hatch'&&d.foreground[3]===1&&d.background[3]===1;
++    const key=[left,top,width,height,...world,...origin,phase,hatchFloor?1:0].join(',');
 +    if(d.cached && d.cached.key===key) return {href:d.cached.href,world,left,top,width:logicalWidth,height:logicalHeight};
 +    ctx._turtleGradientPixels=(ctx._turtleGradientPixels||0)+width*height;
 +    if(ctx._turtleGradientPixels>67108864) fail('aggregate gradient raster budget exceeded');
@@ -1848,7 +1870,7 @@ index 0000000..0350971
 +      for(let x=0;x<width;x++) {
 +      // Native GDI+ path-gradient scan conversion samples its integer device
 +      // lattice, as does the native linear sampler. Hatch/radial sampling stays unchanged.
-+      const sample=d.kind==='pathGradient'||d.kind==='linear'?0:.5;
++      const sample=d.kind==='pathGradient'?0:d.kind==='linear'?phase:.5;
 +      const px=left+(x+sample)/scale,py=top+(y+sample)/scale;
 +      if(d.kind==='hatch') {
 +        // Canonical cells use bottom-up rows and high-bit-first columns.
@@ -1857,7 +1879,10 @@ index 0000000..0350971
 +        const bits=(0x10101*row)>>>((~(Math.floor(px)-origin[0]))&7);
 +        const coverage=d.cells[8]?((bits&1)?Math.SQRT2-.5:(bits&0x82)?.25:0):((bits&1)?1:0);
 +        const c=hatchCoverage(d.background,d.foreground,coverage),i=(y*width+x)*4;
-+        pixels[i]=Math.round(c[2]);pixels[i+1]=Math.round(c[1]);pixels[i+2]=Math.round(c[0]);pixels[i+3]=Math.round(c[3]*255);continue;
++        // Native ordinary opaque hatch controls floor the measured mixed RGB.
++        // Alpha and the established semi-transparent profile stay unchanged.
++        const quantize=hatchFloor?Math.floor:Math.round;
++        pixels[i]=quantize(c[2]);pixels[i+1]=quantize(c[1]);pixels[i+2]=quantize(c[0]);pixels[i+3]=Math.round(c[3]*255);continue;
 +      }
 +      const bx=inv[0]*px+inv[2]*py+inv[4],by=inv[1]*px+inv[3]*py+inv[5];
 +      if(d.kind==='pathGradient') {
@@ -1915,6 +1940,35 @@ index 0000000..0350971
 +      body+='<image x="0" y="0" width="'+image.width+'" height="'+image.height+'" preserveAspectRatio="none" href="'+href+'" transform="matrix('+matrix(mul(device,placement))+')"/>';
 +    }
 +    return {world,body};
++  }
++  function sampledTexturePaint(ctx,receipt,bounds) {
++    const world=currentMatrix(receipt.owner),d=receipt.brush.descriptor,image=d.image;
++    const device=d.doNotTransform?d.transform:mul(world,d.transform);
++    // The texture sampler observes device pixel centers against source texel
++    // centers, independent of the geometry's PixelOffsetMode. Existing bounded
++    // affine sampling visits integer device points: move its inverse origin by
++    // the equivalent A*(.5,.5)-(.5,.5) translation, then wrap actual neighbors.
++    const sampling=[device[0],device[1],device[2],device[3],device[4]+.5*(device[0]+device[2])-0.5,device[5]+.5*(device[1]+device[3])-0.5];
++    const back=inverse(sampling);
++    let left=0,top=0,right=Math.round(ctx.canvas.width/(ctx._scaleX||1)),bottom=Math.round(ctx.canvas.height/(ctx._scaleY||1));
++    const canvasWidth=right,canvasHeight=bottom;
++    if(bounds) {
++      const corners=[[bounds[0],bounds[1]],[bounds[2],bounds[1]],[bounds[0],bounds[3]],[bounds[2],bounds[3]]].map(([x,y])=>[world[0]*x+world[2]*y+world[4],world[1]*x+world[3]*y+world[5]]);
++      left=Math.max(left,Math.floor(Math.min(...corners.map(p=>p[0])))-1);top=Math.max(top,Math.floor(Math.min(...corners.map(p=>p[1])))-1);
++      right=Math.min(right,Math.ceil(Math.max(...corners.map(p=>p[0])))+1);bottom=Math.min(bottom,Math.ceil(Math.max(...corners.map(p=>p[1])))+1);
++    }
++    if(right<=left||bottom<=top)return null;
++    const corners=[[left,top],[right,top],[left,bottom],[right,bottom]].map(([x,y])=>[back[0]*x+back[2]*y+back[4],back[1]*x+back[3]*y+back[5]]);
++    const x=Math.min(...corners.map(p=>p[0]))-1,y=Math.min(...corners.map(p=>p[1]))-1;
++    const width=Math.max(...corners.map(p=>p[0]))-x+1,height=Math.max(...corners.map(p=>p[1]))-y+1;
++    if(typeof globalThis.turtleGitSampleSpatialImage!=='function')fail('native texture brush sampling unavailable');
++    const output=turtleGitSampleSpatialImage(image.href,{matrix:sampling,source:[x,y,width,height],originX:0,originY:0,logicalWidth:image.width,logicalHeight:image.height,canvasWidth,canvasHeight,wrap:d.wrap,clamp:0});
++    if(output&&output.skipsDrawing===true)return null;
++    if(!output||![output.originX,output.originY,output.width,output.height].every(Number.isSafeInteger)||output.originX<0||output.originY<0||output.width<1||output.height<1||output.width>32768||output.height>32768||output.width*output.height>16777216||output.originX+output.width>canvasWidth||output.originY+output.height>canvasHeight||typeof output.href!=='string'||!output.href.startsWith('data:image/png;base64,'))fail('invalid native texture brush sample');
++    ctx._turtleTextureSamplePixels=(ctx._turtleTextureSamplePixels||0)+output.width*output.height*2;
++    ctx._turtleTextureSampleMarkup=(ctx._turtleTextureSampleMarkup||0)+output.href.length+(output.coverage||'').length;
++    if(ctx._turtleTextureSamplePixels>67108864||ctx._turtleTextureSampleMarkup>64*1024*1024)fail('aggregate texture brush sample budget exceeded');
++    return{world,left:output.originX,top:output.originY,width:output.width,height:output.height,href:output.href};
 +  }
 +  // AppKit's SVG backend ignores repeat/reflect and converts gradient colors
 +  // differently from solid/bitmap paints. Rasterize only the brush at the
@@ -1985,7 +2039,14 @@ index 0000000..0350971
 +      else this._nodes.push('<image x="'+image.left+'" y="'+image.top+'" width="'+image.width+'" height="'+image.height+'" preserveAspectRatio="none" opacity="'+Math.max(0,Math.min(1,this.globalAlpha))+'" href="'+image.href+'" transform="matrix('+matrix(inverse(image.world))+')" '+(isText?'mask':'clip-path')+'="url(#'+id+')"/>');
 +    };
 +  }
-+  return {parseBrush};
++  return {
++    parseBrush,
++    // Supply an unclipped paint plane for independently sampled geometry.
++    // Only the measured linear-brush phase follows the captured pixel mode.
++    surface(ctx,receipt,bounds,quality) {
++      return receipt.brush.descriptor.kind==='texture'?sampledTexturePaint(ctx,receipt,bounds):rasterPaint(ctx,receipt,bounds,quality);
++    }
++  };
 +};
 diff --git a/src/turtleGitPaths.js b/src/turtleGitPaths.js
 --- /dev/null
@@ -2082,7 +2143,7 @@ new file mode 100644
 index 0000000..cf3cee4
 --- /dev/null
 +++ b/src/turtleGitPens.js
-@@ -0,0 +1,201 @@
+@@ -0,0 +1,203 @@
 +// Original TurtleGit EMF+ pen playback, MIT. MS-EMFPLUS 2.2.1.7,
 +// 2.2.2.33/34 and drawing records. Native outlines are painted by the existing
 +// bounded solid/gradient/hatch/texture pipeline; no pen becomes a guessed color.
@@ -2180,9 +2241,11 @@ index 0000000..cf3cee4
 +    if(path.length>8*1024*1024||typeof globalThis.__turtleStrokePath!=='function')fail('native pen outline adapter unavailable or path budget exceeded');
 +    const paint=this._turtlePaints&&this._turtlePaints.get(receipt.color);
 +    const aliased=paint&&paint.brush.descriptor.kind==='pathGradient'&&!state(paint.owner).antialias;
-+    const outline=__turtleStrokePath(path,aliased?{...receipt.options,retainAliasedCoverage:true}:receipt.options);
++    const quality=this._turtleOrdinaryQuality&&(!paint||paint.brush.descriptor.kind!=='pathGradient');
++    const outline=__turtleStrokePath(path,aliased?{...receipt.options,retainAliasedCoverage:true}:quality?{...receipt.options,retainQualityCoverage:true}:receipt.options);
 +    if(!outline||typeof outline.path!=='string'||outline.path.length>32*1024*1024||!Array.isArray(outline.bounds)||outline.bounds.length!==4||outline.bounds.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9))fail('invalid native pen outline');
 +    if(aliased&&(typeof outline.coverageID!=='string'||!outline.coverageID.length||outline.coverageID.length>128))fail('native aliased stroke coverage receipt unavailable');
++    if(quality&&outline.path&&(typeof outline.coverageID!=='string'||!outline.coverageID.length||outline.coverageID.length>128))fail('native quality stroke coverage receipt unavailable');
 +    const saved=this.fillStyle;this.fillStyle=receipt.color;
 +    try {this.fillGlyphPaths(outline);}finally{this.fillStyle=saved;}
 +  };
@@ -2630,7 +2693,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,613 @@
+@@ -0,0 +1,614 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -2783,12 +2846,13 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +    const result=__turtleRasterComposite(svg(ctx,destination),source?svg(ctx,source):null,pattern?svg(ctx,pattern):null,svg(ctx,coverage),width,height,op,{...request(ctx,destination,width,height,roi),...(selfSource?{selfSource,stretchMode:d._turtleRasterStretchMode||1,...(selfDestination?{selfDestination}:{} )}:{} )});
 +    checkpoint(ctx,result,width,height);
 +  }
-+  SvgContext.prototype._turtleCopyComposite=function(d,destination,source,coverage,roi){
++  SvgContext.prototype._turtleCopyComposite=function(d,destination,source,coverage,roi,composition={mode:'source-copy'},quality=null){
 +    const ctx=d.ctx,width=Math.round(ctx.canvas.width/(ctx._scaleX||1)),height=Math.round(ctx.canvas.height/(ctx._scaleY||1));dimension(width,height);
 +    if(typeof __turtleRasterTransfer!=='function')fail('native SourceCopy compositor unavailable');
 +    if(roi&&(!roi.width||!roi.height))return;
 +    destination=destination.filter(node=>!/^<desc>[\s\S]*<\/desc>$/.test(node));
-+    const result=__turtleRasterTransfer(svg(ctx,destination),svg(ctx,source),null,svg(ctx,coverage),null,width,height,{mode:'source-copy'},request(ctx,destination,width,height,roi));
++    const options=quality?{...composition,qualitySamples:quality.samples,qualitySource:svg(ctx,quality.sourcePlane),qualityGridExact:quality.gridExact}:composition;
++    const result=__turtleRasterTransfer(svg(ctx,destination),svg(ctx,source),null,svg(ctx,coverage),null,width,height,options,request(ctx,destination,width,height,roi));
 +    checkpoint(ctx,result,width,height);
 +  };
 +  // Intercept individual fill and stroke paints, not combined record output:
@@ -4055,7 +4119,7 @@ new file mode 100644
 index 0000000..7cc8a67
 --- /dev/null
 +++ b/src/turtleGitSourceCopy.js
-@@ -0,0 +1,99 @@
+@@ -0,0 +1,113 @@
 +// Original TurtleGit EMF+ alpha replacement, MIT.
 +// MS-EMFPLUS 2.3.6.2 / 2.1.1.5. Source alpha is paint, never coverage.
 +module.exports=function installSourceCopy({EmfPlusDrawer,SvgContext,fail,escape,matrix,currentMatrix,masked,raw}) {
@@ -4065,13 +4129,15 @@ index 0000000..7cc8a67
 +    if(!Number.isSafeInteger(total)||total>MAX_BYTES)fail('aggregate SourceCopy paint markup budget exceeded');
 +    ctx._turtleCopyBytes=total;
 +  }
-+  function remember(ctx,batch,start,coverage,bounds) {
++  function remember(ctx,batch,start,coverage,bounds,quality=null) {
 +    if(!coverage.length)return;
 +    const source=ctx._nodes.slice(start),end=ctx._nodes.length;
-+    charge(ctx,source.reduce((n,s)=>n+s.length,0)+coverage.reduce((n,s)=>n+s.length,0));
++    if(quality&&(![1,32,64].includes(quality.samples)||!Array.isArray(quality.sourcePlane)||quality.sourcePlane.some(node=>typeof node!=='string')))fail('invalid native-grid paint receipt');
++    const retained=quality?Object.freeze({samples:quality.samples,sourcePlane:quality.sourcePlane.slice()}):null;
++    charge(ctx,source.reduce((n,s)=>n+s.length,0)+coverage.reduce((n,s)=>n+s.length,0)+(retained?retained.sourcePlane.reduce((n,s)=>n+s.length,0):0));
 +    ctx._turtleCopyPaints=(ctx._turtleCopyPaints||0)+1;
 +    if(ctx._turtleCopyPaints>MAX_PAINTS)fail('aggregate SourceCopy paint count exceeded');
-+    batch.operations.push({start,end,source,coverage,bounds:bounds&&bounds.slice()});
++    batch.operations.push({start,end,source,coverage,bounds:bounds&&bounds.slice(),quality:retained});
 +  }
 +  for(const name of ['fill','fillRect','fillText','fillGlyphPaths']) {
 +    const paint=SvgContext.prototype[name];
@@ -4081,6 +4147,10 @@ index 0000000..7cc8a67
 +      const start=this._nodes.length;
 +      let result;batch.depth++;
 +      try {result=paint.apply(this,args);}finally{batch.depth--;}
++      const quality=this._turtleQualityPaintCoverage;
++      if(quality&&quality.method===name&&quality.argument===args[0]&&quality.start===start&&quality.end===this._nodes.length) {
++        remember(this,batch,start,quality.coverage,quality.bounds,quality);return result;
++      }
 +      const aliased=this._turtleAliasedPaintCoverage;
 +      if(aliased&&aliased.method===name&&aliased.argument===args[0]&&aliased.start===start&&aliased.end===this._nodes.length) {
 +        remember(this,batch,start,aliased.coverage,name==='fillGlyphPaths'?args[0].bounds:null);return result;
@@ -4119,15 +4189,18 @@ index 0000000..7cc8a67
 +    const right=Math.max(0,Math.min(width,Math.ceil(Math.max(...points.map(p=>p[0])))+1)),bottom=Math.max(0,Math.min(height,Math.ceil(Math.max(...points.map(p=>p[1])))+1));
 +    return{x:left,y:top,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
 +  }
-+  function apply(d,source,coverage,area) {
++  function apply(d,source,coverage,area,composition={mode:'source-copy'},quality=null) {
 +    const ctx=d.ctx;
 +    if(typeof ctx._turtleCopyComposite!=='function')fail('native SourceCopy adapter unavailable');
-+    ctx._turtleCopyComposite(d,ctx._nodes.slice(),source,coverage,area);
++    ctx._turtleCopyComposite(d,ctx._nodes.slice(),source,coverage,area,composition,quality);
 +  }
 +  return {
-+    begin(d) {
++    begin(d,composition={mode:'source-copy'}) {
 +      const ctx=d.ctx;if(ctx._turtleCopyBatch)fail('nested SourceCopy paint transaction');
-+      const batch={operations:[],depth:0};ctx._turtleCopyBatch=batch;return batch;
++      if(!composition||!['source-copy','source-over'].includes(composition.mode))fail('invalid captured composition mode');
++      if(composition.compositingQuality!=null&&(!Number.isInteger(composition.compositingQuality)||composition.compositingQuality<0||composition.compositingQuality>4))fail('invalid captured compositing quality');
++      if(composition.mode==='source-over'&&composition.compositingQuality==null)fail('missing captured compositing quality');
++      const batch={operations:[],depth:0,composition:Object.freeze({...composition})};ctx._turtleCopyBatch=batch;return batch;
 +    },
 +    abort(d){d.ctx._turtleCopyBatch=null;},
 +    finish(d,batch,first,clip) {
@@ -4142,7 +4215,12 @@ index 0000000..7cc8a67
 +      }
 +      for(const op of batch.operations) {
 +        const wrap=body=>masked(clip,'<g transform="matrix('+transform+')">'+body.join('')+'</g>');
-+        apply(d,[wrap(op.source)],[wrap(op.coverage)],roi(ctx,op.bounds,world));
++        // Intrinsic brush pixels must not acquire either geometry or DC clip
++        // coverage. Those belong only to the independent white operand.
++        // Once a DC clip is applied, its existing SVG raster alpha is not an
++        // exact ordinary-paint sample count, even if a byte lands on that grid.
++        const quality=op.quality?{samples:op.quality.samples,gridExact:clip==null,sourcePlane:['<g transform="matrix('+transform+')">'+op.quality.sourcePlane.join('')+'</g>']}:null;
++        apply(d,[wrap(op.source)],[wrap(op.coverage)],roi(ctx,op.bounds,world),batch.composition,quality);
 +      }
 +      for(const node of nodes)if(/^<desc>[\s\S]*<\/desc>$/.test(node))ctx._nodes.push(node);
 +    },
@@ -4349,4 +4427,100 @@ new file mode 100644
 +  // We therefore validate/retain metadata without applying an ICC transform
 +  // or resolving a linked filename, regardless of the recorded mode value.
 +  return {read,validate,pixels,mode,setMode,reserveCopy};
++};
+diff --git a/src/turtleGitQuality.js b/src/turtleGitQuality.js
+new file mode 100644
+--- /dev/null
++++ b/src/turtleGitQuality.js
+@@ -0,0 +1,91 @@
++// Original TurtleGit ordinary EMF+ geometry quality, MIT.
++// MS-EMFPLUS 2.3.6.1/5: captured graphics state is independent of source alpha.
++module.exports=function installQuality({SvgContext,fail,u32,escape,matrix,currentMatrix,state,paint}) {
++  const strokes=new Set([0x400b,0x400d,0x400f,0x4011,0x4012,0x4015,0x4017,0x4018,0x4019]);
++  const shapes=new Set([0x400a,0x400c,0x400e,0x4010,0x4014,0x4016,...strokes]);
++  // The source formatter rounds coordinates to hundredths. Ordinary coverage
++  // must retain the original Float32 values before any paths are constructed.
++  // A path-gradient record has no ordinary scope, preserving its measured route.
++  const format=SvgContext.prototype._fmt;
++  SvgContext.prototype._fmt=function(value) {
++    if(!this._turtleOrdinaryQuality)return format.call(this,value);
++    if(!Number.isFinite(value)||Math.abs(value)>1e9)fail('invalid ordinary quality coordinate');
++    return String(value);
++  };
++  function inverse(m) {
++    const det=m[0]*m[3]-m[1]*m[2];
++    if(!Number.isFinite(det)||Math.abs(det)<1e-14)fail('singular quality paint transform');
++    return[m[3]/det,-m[1]/det,-m[2]/det,m[0]/det,(m[2]*m[5]-m[3]*m[4])/det,(m[1]*m[4]-m[0]*m[5])/det];
++  }
++  function region(ctx,bounds,world) {
++    let left=0,top=0,right=Math.round(ctx.canvas.width/(ctx._scaleX||1)),bottom=Math.round(ctx.canvas.height/(ctx._scaleY||1));
++    if(bounds) {
++      if(bounds.length!==4||bounds.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9)||bounds[0]>bounds[2]||bounds[1]>bounds[3])fail('invalid quality paint bounds');
++      const corners=[[bounds[0],bounds[1]],[bounds[2],bounds[1]],[bounds[0],bounds[3]],[bounds[2],bounds[3]]].map(([x,y])=>[world[0]*x+world[2]*y+world[4],world[1]*x+world[3]*y+world[5]]);
++      left=Math.max(left,Math.floor(Math.min(...corners.map(p=>p[0])))-1);top=Math.max(top,Math.floor(Math.min(...corners.map(p=>p[1])))-1);
++      right=Math.min(right,Math.ceil(Math.max(...corners.map(p=>p[0])))+1);bottom=Math.min(bottom,Math.ceil(Math.max(...corners.map(p=>p[1])))+1);
++    }
++    const width=Math.max(0,right-left),height=Math.max(0,bottom-top);
++    if(![left,top,width,height].every(Number.isSafeInteger)||width>32768||height>32768||width*height>16777216)fail('quality paint raster viewport limit');
++    return{left,top,width,height};
++  }
++  function charge(ctx,size) {
++    ctx._turtleQualityMarkup=(ctx._turtleQualityMarkup||0)+size;
++    if(!Number.isSafeInteger(ctx._turtleQualityMarkup)||ctx._turtleQualityMarkup>64*1024*1024||ctx._defs.length>=65536)fail('quality paint markup budget exceeded');
++  }
++  for(const method of ['fill','fillRect','fillGlyphPaths']) {
++    const original=SvgContext.prototype[method];
++    SvgContext.prototype[method]=function(...args) {
++      this._turtleQualityPaintCoverage=null;
++      const q=this._turtleOrdinaryQuality;
++      // A glyph-path here must be this ordinary stroke's outline, not text.
++      // Text/images/classic GetDC keep their independently owned paint routes.
++      if(!q||(method==='fillGlyphPaths'&&!strokes.has(q.type)))return original.apply(this,args);
++      const brush=this._turtlePaints&&this._turtlePaints.get(this.fillStyle);
++      // Measured path-gradient scan conversion and color sampling retain
++      // their independent adapter. Other brushes supply only their paint plane.
++      if(brush&&brush.brush.descriptor.kind==='pathGradient')return original.apply(this,args);
++      let path,bounds,fillRule,coverageID;
++      if(method==='fillRect') {
++        const[x,y,w,h]=args;if(![x,y,w,h].every(Number.isFinite))fail('invalid quality rectangle');
++        path='M '+x+' '+y+' L '+(x+w)+' '+y+' L '+(x+w)+' '+(y+h)+' L '+x+' '+(y+h)+' Z';
++        bounds=[Math.min(x,x+w),Math.min(y,y+h),Math.max(x,x+w),Math.max(y,y+h)];fillRule='nonzero';
++      } else if(method==='fillGlyphPaths') {path=args[0].path;bounds=args[0].bounds;coverageID=args[0].coverageID;fillRule='nonzero';}
++      else {if(!this._hasSubpath)return;path=this._d();bounds=this._turtlePaintBounds;fillRule=this.fillRule==='evenodd'?'evenodd':'nonzero';}
++      if(!path)return;
++      if(typeof path!=='string'||path.length>32*1024*1024||typeof globalThis.__turtlePaintCoverage!=='function')fail('native quality paint coverage unavailable or path limit');
++      const area=region(this,bounds,q.world);if(!area.width||!area.height)return;
++      const surface=brush?paint.surface(this,brush,bounds,q):null;if(brush&&!surface)return;
++      if(method==='fillGlyphPaths'&&(typeof coverageID!=='string'||!coverageID.length||coverageID.length>128))fail('native quality outline coverage identity unavailable');
++      const options={...area,world:q.world,fillRule,smoothingMode:q.smoothingMode,antialias:q.antialias,pixelOffsetMode:q.pixelOffsetMode,...(coverageID?{coverageID}:{})};
++      const coverage=__turtlePaintCoverage(path,options);
++      if(!coverage||coverage.width!==area.width||coverage.height!==area.height||typeof coverage.href!=='string'||!coverage.href.startsWith('data:image/png;base64,'))fail('invalid native quality paint coverage');
++      const id='turtle-quality-'+this._defs.length,back=matrix(inverse(q.world));
++      const image='<image x="'+area.left+'" y="'+area.top+'" width="'+area.width+'" height="'+area.height+'" preserveAspectRatio="none" image-rendering="pixelated" href="'+escape(coverage.href)+'"/>';
++      const mask='<mask id="'+id+'" maskUnits="userSpaceOnUse" x="'+area.left+'" y="'+area.top+'" width="'+area.width+'" height="'+area.height+'" style="mask-type:luminance">'+image+'</mask>';
++      const alpha=Math.max(0,Math.min(1,this.globalAlpha)),start=this._nodes.length;
++      const paintPlane=surface?(surface.body||'<image x="'+surface.left+'" y="'+surface.top+'" width="'+surface.width+'" height="'+surface.height+'" preserveAspectRatio="none" image-rendering="pixelated" href="'+escape(surface.href)+'"/>'):'<rect x="'+area.left+'" y="'+area.top+'" width="'+area.width+'" height="'+area.height+'" fill="'+escape(this.fillStyle)+'"/>';
++      const plane='<g opacity="'+alpha+'">'+paintPlane+'</g>';
++      const node='<g transform="matrix('+back+')"><g mask="url(#'+id+')">'+plane+'</g></g>';
++      const unmasked='<g transform="matrix('+back+')">'+plane+'</g>';
++      const samples=q.antialias?(q.smoothingMode===5?64:32):1;
++      charge(this,mask.length+node.length+image.length+unmasked.length+1024);this._defs.push(mask);this._nodes.push(node);
++      this._turtleQualityPaintCoverage={method,argument:args[0],start,end:this._nodes.length,bounds:bounds&&bounds.slice(),coverage:['<g transform="matrix('+back+')">'+image+'</g>'],samples,sourcePlane:[unmasked]};
++    };
++  }
++  return {
++    record(owner,type,flags,data) {
++      if(!shapes.has(type))return null;
++      // Resolve the actual captured record metadata before path construction.
++      // Neither a prior fillStyle nor a previous stroke may choose this scope.
++      let brush;
++      if(strokes.has(type)) {
++        const pen=owner.emfPlusObjects[type===0x4015?u32(data,0):flags&255];
++        brush=pen&&pen.brush;
++      } else if(!(flags&0x8000))brush=owner.emfPlusObjects[u32(data,0)];
++      if(brush&&brush.type==='turtleGradientBrush'&&brush.descriptor.kind==='pathGradient')return null;
++      const s=state(owner);
++      return Object.freeze({owner,type,world:currentMatrix(owner),smoothingMode:s.smoothingMode,antialias:s.antialias,pixelOffsetMode:s.pixelOffsetMode});
++    }
++  };
 +};

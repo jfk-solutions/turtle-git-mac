@@ -56,7 +56,7 @@ def retire_owned_helpers(context, approved):
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['consumers', 'conflict'], action='append')
+parser.add_argument('--only', choices=['consumers', 'conflict', 'quality', 'quality-conflict'], action='append')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
 cache = root / 'build/qa/metafile-sourcecopy-native-sources'
@@ -67,7 +67,7 @@ approved = {str(path.resolve()) for path in [
     root / 'build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Metafile/metafile-convert',
 ] if path.is_file()}
 results = []
-for case in args.only or ['consumers', 'conflict']:
+for case in args.only or ['consumers', 'conflict', 'quality', 'quality-conflict']:
     for index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'build/git-runtime/Git/bin/git']):
         with tempfile.TemporaryDirectory(prefix='turtlegit-sourcecopy-' + case + '-') as temporary:
             context = Path(temporary)
@@ -84,7 +84,8 @@ for case in args.only or ['consumers', 'conflict']:
             completed = False
             try:
                 result = run_receiver([str(receiver), str(fixture), str(git.absolute()),
-                                       str(root / 'Tests/TurtleGitCoreTests/Fixtures/Metafile'), case],
+                                       str(root / 'Tests/TurtleGitCoreTests/Fixtures/Metafile'), case,
+                                       str(root / 'build/metafile-runtime/Metafile')],
                                       cwd=root, env=environment, capture_output=True, text=True,
                                       timeout_sample=context / 'timeout.sample.txt')
                 print(result.stdout, end='')

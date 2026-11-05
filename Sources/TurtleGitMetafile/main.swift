@@ -729,6 +729,19 @@ private final class SVGGuard: NSObject, XMLParserDelegate {
 /// Only renderer-generated, independently guarded SVG operands enter AppKit.
 private final class NativeRasterComposite {
     private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0,sampledPixels=0
+    // The native-recorded Windows controls use zero-based quality flags and
+    // 13-bit linear RGB quantization. Preserve their integer unpremultiplication
+    // before conversion; retaining unquantized brush RGB changes those pixels.
+    private static let gammaLinear13:[Int]=(0...255).map { (value:Int)->Int in
+        let encoded=Double(value)/255
+        let linear=encoded<=0.04045 ? encoded/12.92:pow((encoded+0.055)/1.055,2.4)
+        return Int((linear*8192).rounded())
+    }
+    private static let gammaEncoded13:[UInt8]=(0...8192).map { (value:Int)->UInt8 in
+        let linear=Double(value)/8192
+        let encoded=linear<=0.0031308 ? linear*12.92:1.055*pow(linear,1/2.4)-0.055
+        return UInt8(max(0,min(255,Int((encoded*255).rounded()))))
+    }
     private struct Region { let x:Int,y:Int,width:Int,height:Int;var pixels:Int{width*height} }
     /// Original, uncut transfer geometry. The rectangular lattice is only a
     /// bounding domain for a non-axis-aligned parallelogram; the inverse keeps
@@ -1212,12 +1225,32 @@ private final class NativeRasterComposite {
         guard widthValue.isFinite,heightValue.isFinite,widthValue.rounded()==widthValue,heightValue.rounded()==heightValue,
               widthValue>=1,heightValue>=1,widthValue<=32768,heightValue<=32768,widthValue*heightValue<=16777216,
               options.isObject,!options.isArray,let modeValue=options.forProperty("mode"),modeValue.isString,
-              let mode=modeValue.toString(),["mask","transparent","alpha","source-copy"].contains(mode) else{throw invalid("invalid transfer dimensions or mode")}
+              let mode=modeValue.toString(),["mask","transparent","alpha","source-copy","source-over"].contains(mode) else{throw invalid("invalid transfer dimensions or mode")}
         func integer(_ name:String,_ maximum:Double)throws->Int {
             guard let value=options.forProperty(name),value.isNumber else{throw invalid("missing transfer "+name)}
             let number=value.toDouble()
             guard number.isFinite,number.rounded()==number,number>=0,number<=maximum else{throw invalid("invalid transfer "+name)}
             return Int(number)
+        }
+        var compositingQuality=0
+        if let quality=options.forProperty("compositingQuality"),!quality.isUndefined,!quality.isNull {
+            guard mode=="source-copy" || mode=="source-over" else {throw invalid("compositing quality on a non-EMF+ transfer")}
+            // GDI+ emits API values 0...4 in the native-recorded EMF+ flags,
+            // rather than the specification enumeration's 1...5 numbering.
+            compositingQuality = try integer("compositingQuality",4)
+        }
+        let gamma=mode=="source-over" && (compositingQuality==2 || compositingQuality==3)
+        let planeValue=options.forProperty("qualitySource"),samplesValue=options.forProperty("qualitySamples"),gridValue=options.forProperty("qualityGridExact")
+        func supplied(_ value:JSValue?)->Bool {guard let value else{return false};return !value.isUndefined && !value.isNull}
+        var qualitySamples=0,qualityGridExact=true
+        if supplied(planeValue) || supplied(samplesValue) || supplied(gridValue) {
+            guard mode=="source-copy" || mode=="source-over",let planeValue,planeValue.isString else {throw invalid("invalid quality source plane")}
+            qualitySamples=try integer("qualitySamples",64)
+            guard [1,32,64].contains(qualitySamples) else {throw invalid("invalid quality coverage sample count")}
+            if supplied(gridValue),let gridValue {
+                guard gridValue.isBoolean else {throw invalid("invalid quality coverage grid receipt")}
+                qualityGridExact=gridValue.toBool()
+            }
         }
         let foreground=mode == "mask" ? try integer("foreground",255):0xcc
         let background=mode == "mask" ? try integer("background",255):0xaa
@@ -1238,11 +1271,13 @@ private final class NativeRasterComposite {
         calls += 1;compositePixels += pixels;renderedPixels += pixels*renders
         guard let destinationSVG=try svg(destination,size:size,required:true),let coverageSVG=try svg(coverage,size:size,required:true) else{throw invalid("missing canvas or coverage")}
         let sourceSVG=try svg(source,size:size,required:needsSource),patternSVG=try svg(pattern,size:size,required:needsPattern)
+        var paintSVG=sourceSVG
+        if qualitySamples>0,let planeValue {paintSVG=try svg(planeValue,size:size,required:true)}
         let selectionSVG=try svg(selection,size:size,required:mode == "mask")
         var output=try destinationPixels(destinationSVG,request:request,width:width,height:height)
         var tile=cropped(output,region:area,width:width)
         let coveragePixels=try render(coverageSVG,width:width,height:height,region:area)
-        let sourcePixels=needsSource ? try render(sourceSVG!,width:width,height:height,region:area):Data()
+        let sourcePixels=needsSource ? try render(paintSVG!,width:width,height:height,region:area):Data()
         let patternPixels=needsPattern ? try render(patternSVG!,width:width,height:height,region:area):Data()
         let selectionPixels=mode == "mask" ? try render(selectionSVG!,width:width,height:height,region:area):Data()
         try tile.withUnsafeMutableBytes { (dst:UnsafeMutableRawBufferPointer) in
@@ -1252,7 +1287,7 @@ private final class NativeRasterComposite {
                         try selectionPixels.withUnsafeBytes { (mono:UnsafeRawBufferPointer) in
                             try evaluateTransfer(dst:dst,area:coverageBytes,src:src,pat:pat,mono:mono,pixels:area.pixels,
                                                  mode:mode,foreground:foreground,background:background,
-                                                 key:key,constant:constant,perPixel:perPixel)
+                                                 key:key,constant:constant,perPixel:perPixel,gamma:gamma,qualitySamples:qualitySamples,qualityGridExact:qualityGridExact)
                         }
                     }
                 }
@@ -1319,22 +1354,66 @@ private final class NativeRasterComposite {
                                   src:UnsafeRawBufferPointer,pat:UnsafeRawBufferPointer,
                                   mono:UnsafeRawBufferPointer,pixels:Int,mode:String,
                                   foreground:Int,background:Int,key:Int,constant:Int,
-                                  perPixel:Bool)throws {
+                                  perPixel:Bool,gamma:Bool,qualitySamples:Int,qualityGridExact:Bool)throws {
         for pixel in 0..<pixels {
             let offset=pixel*4,c=Int(area[offset+3])
-            if mode == "source-copy" {
-                // Independent geometry carries edge/clip coverage even when
-                // the paint itself is fully transparent. The painted SVG has
-                // already applied that coverage to premultiplied RGBA; another
-                // multiplication would square antialiasing at every edge.
-                let alpha=Int(src[offset+3])
-                guard alpha<=c+2 else{throw invalid("SourceCopy paint escaped independent geometry")}
+            if mode == "source-copy" || mode == "source-over" {
+                // Ordinary-quality receipts retain the unmasked brush plane.
+                // Recover its exact box-grid count before the first RGBA8
+                // quantization; an already rounded mask alpha changes colors.
+                // A later native clip may produce an off-grid fraction. Keep
+                // that existing clip profile instead of inventing a box count.
+                let grid=qualitySamples>0 ? (c*qualitySamples+127)/255:0
+                let onGrid=qualitySamples>0 && qualityGridExact && (255*grid+qualitySamples/2)/qualitySamples==c
+                guard qualitySamples==0 || !qualityGridExact || onGrid else {throw invalid("quality coverage escaped its recorded sample grid")}
+                let numerator=onGrid ? grid:c,denominator=onGrid ? qualitySamples:255
+                func paint(_ channel:Int)->Int {
+                    let value=Int(src[offset+channel])
+                    return qualitySamples>0 ? (value*numerator+denominator/2)/denominator:value
+                }
+                let alpha=paint(3)
+                let operation=mode=="source-copy" ? "SourceCopy":"SourceOver"
+                guard alpha<=c+2 else{throw invalid(operation+" paint escaped independent geometry")}
                 for channel in 0..<3 {
-                    guard Int(src[offset+channel])<=alpha else{throw invalid("SourceCopy source is not premultiplied")}
+                    guard Int(src[offset+channel])<=Int(src[offset+3]),paint(channel)<=alpha else{throw invalid(operation+" source is not premultiplied")}
                 }
                 if c==0 {continue}
+                // Measured GDI+ SourceCopy overwrites every covered pixel,
+                // including fractional AA edges and fully transparent paint.
+                // Geometry is already present once in the painted RGBA; it is
+                // not a second destination-fade weight. Binary legacy coverage
+                // retains precisely the same result as before.
+                if mode=="source-copy" {
+                    for channel in 0..<4 {dst[offset+channel]=UInt8(paint(channel))}
+                    continue
+                }
+                if gamma {
+                    if alpha==0 {continue}
+                    let destinationAlpha=Int(dst[offset+3])
+                    if alpha==255 {
+                        for channel in 0..<4 {dst[offset+channel]=UInt8(paint(channel))}
+                        continue
+                    }
+                    let sourceWeight=alpha*255,destinationWeight=destinationAlpha*(255-alpha)
+                    let total=sourceWeight+destinationWeight
+                    // Gamma playback uses fixed-point alpha as well. Separate
+                    // truncation to and from 0...8192 preserves the recorded
+                    // transparent-destination edge values (half=127, quarter=63).
+                    let sourceAlpha13=alpha*8192/255,destinationAlpha13=destinationAlpha*8192/255
+                    let outputAlpha13=sourceAlpha13+destinationAlpha13*(8192-sourceAlpha13)/8192
+                    let outputAlpha=outputAlpha13*255/8192
+                    for channel in 0..<3 {
+                        let sourceColor=min(255,paint(channel)*255/alpha)
+                        let destinationColor=destinationAlpha>0 ? min(255,Int(dst[offset+channel])*255/destinationAlpha):0
+                        let linear=(Self.gammaLinear13[sourceColor]*sourceWeight+Self.gammaLinear13[destinationColor]*destinationWeight)/total
+                        let encoded=Int(Self.gammaEncoded13[linear])
+                        dst[offset+channel]=UInt8(min(outputAlpha,(encoded*outputAlpha+127)/255))
+                    }
+                    dst[offset+3]=UInt8(outputAlpha)
+                    continue
+                }
                 for channel in 0..<4 {
-                    let result=Int(src[offset+channel])+(Int(dst[offset+channel])*(255-c)+127)/255
+                    let result=paint(channel)+(Int(dst[offset+channel])*(255-alpha)+127)/255
                     dst[offset+channel]=UInt8(min(255,result))
                 }
                 continue
@@ -1476,7 +1555,9 @@ private final class NativeStrokeGeometry {
     }
     private var inputPoints=0, outlinePoints=0, markupBytes=0, primitives=0
     private var coveragePaths:[String:CGPath]=[:]
-    private var coveragePoints=0, coveragePixels=0
+    private var coveragePathPoints:[String:Int]=[:]
+    private var coverageLines:[String:(CGPoint,CGPoint)]=[:]
+    private var coveragePoints=0, coveragePixels=0, qualityPaints=0, coverageEdgeWork=0, qualityCurvePoints=0
     private let maximumPoints=1_048_576
     private static func invalid(_ text:String)->ConversionError {.invalid("Metafile pen: "+text)}
     private func number(_ options:JSValue,_ name:String,_ fallback:Double)->Double {
@@ -1981,11 +2062,25 @@ private final class NativeStrokeGeometry {
         if let serializationError {throw serializationError}
         let bounds=transformed.boundingBoxOfPath
         var receipt:[String:Any] = ["path":commands.joined(separator:" "),"bounds":transformed.isEmpty ? [0.0,0.0,0.0,0.0]:[Double(bounds.minX),Double(bounds.minY),Double(bounds.maxX),Double(bounds.maxY)]]
-        if options.forProperty("retainAliasedCoverage")?.toBool()==true {
+        var retainQualityCoverage=false
+        if let value=options.forProperty("retainQualityCoverage"),!value.isUndefined {
+            guard value.isBoolean else {throw Self.invalid("invalid quality coverage retention flag")}
+            retainQualityCoverage=value.toBool()
+        }
+        if options.forProperty("retainAliasedCoverage")?.toBool()==true || retainQualityCoverage {
             guard coveragePaths.count<4096,coveragePoints<=maximumPoints-finalPoints else {throw Self.invalid("retained stroke coverage limit")}
             coveragePoints += finalPoints
             let id=UUID().uuidString
             coveragePaths[id]=transformed
+            coveragePathPoints[id]=finalPoints
+            // Keep the actual source centerline for the measured one-device-
+            // pixel alias fastpath; never infer it from a normalized outline.
+            if retainQualityCoverage,rawWidth==1,matrix==[1,0,0,1,0,0],
+               bands==[0,1],dash.isEmpty,startCap==0,endCap==0,alignment==0,
+               !alternate,customStart==nil,customEnd==nil,figures.count==1,
+               !figures[0].closed,figures[0].points.count==2 {
+                coverageLines[id]=(figures[0].points[0],figures[0].points[1])
+            }
             receipt["coverageID"]=id
         }
         return receipt
@@ -2018,6 +2113,261 @@ private final class NativeStrokeGeometry {
         CGImageDestinationAddImage(encoder,image,nil)
         guard CGImageDestinationFinalize(encoder),data.length<=32*1024*1024 else {throw Self.invalid("stroke coverage PNG exceeds limit")}
         return ["href":"data:image/png;base64,"+(data as Data).base64EncodedString(),"width":width,"height":height]
+    }
+
+    /// Robust orientation for lattice ties. The fast determinant handles the
+    /// usual case; an error-free expansion resolves cancellation without an
+    /// epsilon that could move an otherwise exact half-open boundary.
+    private static func qualityOrientation(_ a:CGPoint,_ b:CGPoint,_ p:CGPoint)->Int {
+        let ax=Double(b.x),ay=Double(b.y),bx=Double(a.x),by=Double(a.y),px=Double(p.x),py=Double(p.y)
+        let dx=ax-bx,dy=ay-by,qx=px-bx,qy=py-by,l=dx*qy,r=dy*qx,d=l-r
+        if abs(d)>(abs(l)+abs(r))*Double.ulpOfOne*8 {return d>0 ? 1:-1}
+        func difference(_ a:Double,_ b:Double)->[Double] {
+            let x=a-b,v=a-x,error=(a-(x+v))+(v-b)
+            return [error,x]
+        }
+        var expansion=[Double]()
+        func accumulate(_ value:Double) {
+            var q=value,result=[Double]()
+            for e in expansion {
+                let sum=q+e,v=sum-q,error=(q-(sum-v))+(e-v)
+                if error != 0 {result.append(error)};q=sum
+            }
+            if q != 0 || result.isEmpty {result.append(q)}
+            expansion=result
+        }
+        func product(_ x:[Double],_ y:[Double],_ sign:Double) {
+            for a in x {for b in y {
+                let high=a*b,low=(-high).addingProduct(a,b)
+                accumulate(sign*low);accumulate(sign*high)
+            }}
+        }
+        product(difference(ax,bx),difference(py,by),1)
+        product(difference(ay,by),difference(px,bx),-1)
+        guard let sign=expansion.last(where:{$0 != 0}) else {return 0}
+        return sign>0 ? 1:-1
+    }
+    /// Flatten retained native paths in device coordinates. This has its own
+    /// bounded derived-point budget rather than charging original SVG input a
+    /// second time. It never serializes or reparses retained pen outlines.
+    private func qualityFigures(_ path:CGPath)throws->[Figure] {
+        var figures=[Figure](),points=[CGPoint](),current=CGPoint.zero,start=CGPoint.zero,failure:Error?
+        func append(_ point:CGPoint)throws {
+            try finite(point)
+            guard qualityCurvePoints<maximumPoints else {throw Self.invalid("aggregate quality outline point limit")}
+            qualityCurvePoints+=1;points.append(point)
+        }
+        func finish() {if !points.isEmpty {figures.append(Figure(points:points,closed:true));points=[]}}
+        func cubic(_ a:CGPoint,_ b:CGPoint,_ c:CGPoint,_ d:CGPoint,_ depth:Int)throws {
+            let chord=sub(d,a),square=dot(chord,chord)
+            func distance(_ p:CGPoint)->CGFloat {
+                let t=square>0 ? max(0,min(1,dot(sub(p,a),chord)/square)):0
+                return length(sub(p,add(a,mul(chord,t))))
+            }
+            if max(distance(b),distance(c))<=1/128 {try append(d);return}
+            guard depth<24 else {throw Self.invalid("quality curve subdivision limit")}
+            let ab=midpoint(a,b),bc=midpoint(b,c),cd=midpoint(c,d),abc=midpoint(ab,bc),bcd=midpoint(bc,cd),middle=midpoint(abc,bcd)
+            try cubic(a,ab,abc,middle,depth+1);try cubic(middle,bcd,cd,d,depth+1)
+        }
+        path.applyWithBlock {pointer in
+            guard failure==nil else {return}
+            do {
+                let element=pointer.pointee
+                let count:Int
+                switch element.type {
+                case .moveToPoint,.addLineToPoint: count=1
+                case .addQuadCurveToPoint: count=2
+                case .addCurveToPoint: count=3
+                case .closeSubpath: count=0
+                @unknown default: throw Self.invalid("unknown quality outline element")
+                }
+                for index in 0..<count {try finite(element.points[index])}
+                switch element.type {
+                case .moveToPoint: finish();current=element.points[0];start=current;try append(current)
+                case .addLineToPoint: current=element.points[0];try append(current)
+                case .addQuadCurveToPoint:
+                    let b=element.points[0],end=element.points[1]
+                    try cubic(current,add(current,mul(sub(b,current),2/3)),add(end,mul(sub(b,end),2/3)),end,0);current=end
+                case .addCurveToPoint:
+                    let end=element.points[2];try cubic(current,element.points[0],element.points[1],end,0);current=end
+                case .closeSubpath: finish();current=start
+                @unknown default: throw Self.invalid("unknown quality outline element")
+                }
+            } catch {failure=error}
+        }
+        if let failure {throw failure};finish();return figures
+    }
+    /// Native-recorded one-pixel flat lines use a fixed-point DDA, not a
+    /// filled geometric quad. Floor the projected starting intercept once to
+    /// 1/16; flooring each subsequent intercept is observably different.
+    private func qualityLineFigures(_ line:(CGPoint,CGPoint),world:CGAffineTransform,left:CGFloat,top:CGFloat,width:Int,height:Int)throws->[Figure]? {
+        let sum=world.a*world.a+world.b*world.b+world.c*world.c+world.d*world.d
+        let determinant=world.a*world.d-world.b*world.c
+        let largest=sqrt(max(0,(sum+sqrt(max(0,sum*sum-4*determinant*determinant)))/2))
+        guard largest<=1,left.rounded()==left,top.rounded()==top else {return nil}
+        var a=line.0.applying(world),b=line.1.applying(world)
+        try finite(a);try finite(b)
+        let alongX=abs(b.x-a.x)>=abs(b.y-a.y)
+        if (alongX ? a.x>b.x:a.y>b.y) {swap(&a,&b)}
+        let majorA=alongX ? a.x:a.y,majorB=alongX ? b.x:b.y
+        let minorA=alongX ? a.y:a.x,minorB=alongX ? b.y:b.x
+        guard majorB>majorA else {return nil}
+        let first=ceil(majorA-0.5),last=floor(majorB),slope=(minorB-minorA)/(majorB-majorA)
+        let base=floor((minorA+(first-majorA)*slope)*16)/16
+        let viewportFirst=alongX ? left:top,viewportLast=viewportFirst+CGFloat((alongX ? width:height)-1)
+        let begin=max(first,viewportFirst),end=min(last,viewportLast)
+        if begin>end {return []}
+        var result=[Figure]()
+        for index in 0...Int(end-begin) {
+            let major=begin+CGFloat(index),minor=ceil(base+(major-first)*slope-0.5)
+            let x=alongX ? major:minor,y=alongX ? minor:major
+            if x<left || x>=left+CGFloat(width) || y<top || y>=top+CGFloat(height) {continue}
+            guard qualityCurvePoints<=maximumPoints-4 else {throw Self.invalid("aggregate quality outline point limit")}
+            qualityCurvePoints+=4
+            result.append(Figure(points:[CGPoint(x:x,y:y),CGPoint(x:x+1,y:y),CGPoint(x:x+1,y:y+1),CGPoint(x:x,y:y+1)],closed:true))
+        }
+        return result
+    }
+    /// Independent device-grid coverage for ordinary EMF+ fills and completed
+    /// pen outlines. Brush opacity/color never participates in this mask. This
+    /// route deliberately leaves the measured path-gradient coverage above intact.
+    func paintCoverage(_ text:String,options:JSValue)throws->[String:Any] {
+        guard options.isObject else {throw Self.invalid("invalid paint coverage options")}
+        let left=number(options,"left",.nan),top=number(options,"top",.nan),w=number(options,"width",.nan),h=number(options,"height",.nan)
+        guard left.isFinite,top.isFinite,abs(left)<=1e9,abs(top)<=1e9,w.isFinite,h.isFinite,w>=1,h>=1,w<=32768,h<=32768,w.rounded()==w,h.rounded()==h,w*h<=16777216 else {throw Self.invalid("invalid paint coverage viewport")}
+        func enumeration(_ key:String,_ maximum:Int)throws->Int {
+            let value=number(options,key,.nan)
+            guard value.isFinite,value>=0,value<=Double(maximum),value.rounded()==value else {throw Self.invalid("invalid paint coverage "+key)}
+            return Int(value)
+        }
+        let smoothing=try enumeration("smoothingMode",5),offset=try enumeration("pixelOffsetMode",4)
+        guard let antialiasValue=options.forProperty("antialias"),antialiasValue.isBoolean,
+              let ruleValue=options.forProperty("fillRule"),ruleValue.isString,
+              let rule=ruleValue.toString(),rule=="nonzero" || rule=="evenodd" else {throw Self.invalid("invalid paint coverage flags or fill rule")}
+        let antialias=antialiasValue.toBool(),xSamples=antialias ? 8:1,ySamples=antialias ? (smoothing==5 ? 8:4):1
+        let width=Int(w),height=Int(h),pixels=width*height,samples=pixels*xSamples*ySamples
+        // Share the existing stroke-coverage raster budget, charging every
+        // binary sample rather than only the final downsampled mask pixels.
+        guard qualityPaints<4096,samples<=67108864-coveragePixels else {throw Self.invalid("aggregate paint coverage sample limit")}
+        qualityPaints += 1;coveragePixels += samples
+        let m=try array(options,"world",[1,0,0,1,0,0])
+        guard m.count==6 else {throw Self.invalid("invalid paint coverage transform")}
+        let world=CGAffineTransform(a:m[0],b:m[1],c:m[2],d:m[3],tx:m[4],ty:m[5])
+        let figures:[Figure]
+        if let identity=options.forProperty("coverageID"),!identity.isUndefined,!identity.isNull {
+            guard identity.isString,let id=identity.toString(),let original=coveragePaths[id] else {throw Self.invalid("unknown paint coverage receipt")}
+            // Retain native pen geometry directly, without reparsing its larger
+            // serialized outline or charging its original input points twice.
+            if !antialias,offset != 2,offset != 4,let line=coverageLines[id],
+               let cells=try qualityLineFigures(line,world:world,left:CGFloat(left),top:CGFloat(top),width:width,height:height) {
+                figures=cells
+            } else {
+                var transform=world
+                guard let transformed=original.copy(using:&transform) else {throw Self.invalid("cannot transform retained paint coverage")}
+                figures=try qualityFigures(transformed)
+            }
+        } else {
+            let pathBytes=text.utf8.count
+            guard pathBytes<=2*1024*1024,pathBytes<=32*1024*1024-markupBytes else {throw Self.invalid("paint coverage path markup limit")}
+            markupBytes += pathBytes
+            // Native GDI+ transformed fill controls quantize device vertices
+            // upward onto the 1/16 grid before scan conversion. This is distinct
+            // from the pixel-offset sample lattice. Apply it after world once;
+            // retained pen outlines have a separate geometry contract below.
+            figures=try parse(text,inverse:world,tolerance:1/128,radius:0).map { figure in
+                Figure(points:figure.points.map {point in
+                    CGPoint(x:ceil(point.x*16)/16,y:ceil(point.y*16)/16)
+                },closed:figure.closed)
+            }
+        }
+        // Core Graphics' non-AA rasterizer covers touched cells rather than
+        // testing the GDI+ sample point. Compute half-open crossings explicitly;
+        // moving the CGContext cannot correct fractional edges consistently.
+        struct Edge {let a:CGPoint,b:CGPoint,first:Int,end:Int;var direction:Int {b.y>a.y ? 1:-1}}
+        let phase:CGFloat=(offset==2 || offset==4) ? 0.5:0
+        let originX=CGFloat(left)+phase-(antialias ? 0.5:0)
+        let originY=CGFloat(top)+phase-(antialias ? 0.5:0)
+        let sampleWidth=width*xSamples,sampleHeight=height*ySamples
+        func rowCeiling(_ y:CGFloat)->Int {
+            let scaled=(y-originY)*CGFloat(ySamples)
+            if scaled<=0 {return 0};if scaled>=CGFloat(sampleHeight) {return sampleHeight}
+            var row=Int(ceil(scaled))
+            // Correct floating division at an exact lattice point by comparing
+            // the actual sample coordinates; at most one neighbor is possible.
+            if row>0,originY+CGFloat(row-1)/CGFloat(ySamples)>=y {row-=1}
+            if row<sampleHeight,originY+CGFloat(row)/CGFloat(ySamples)<y {row+=1}
+            return row
+        }
+        var edges=[Edge](),edgeWork=0
+        for figure in figures where figure.points.count>=3 {
+            for index in figure.points.indices {
+                let a=figure.points[index],b=figure.points[(index+1)%figure.points.count]
+                if a.y==b.y {continue}
+                let first=rowCeiling(min(a.y,b.y)),end=rowCeiling(max(a.y,b.y))
+                if first>=end {continue}
+                guard edges.count<maximumPoints,end-first<=16777216-coverageEdgeWork-edgeWork else {throw Self.invalid("aggregate paint coverage edge work limit")}
+                edgeWork+=end-first;edges.append(Edge(a:a,b:b,first:first,end:end))
+            }
+        }
+        coverageEdgeWork+=edgeWork
+        edges.sort {$0.first<$1.first}
+        var active=[Int](),next=0,counts=[Int](repeating:0,count:width)
+        var events=[(column:Int,direction:Int)]()
+        var output=Data(count:pixels*4)
+        try output.withUnsafeMutableBytes {(destination:UnsafeMutableRawBufferPointer) in
+            for row in 0..<sampleHeight {
+                if row%ySamples==0 {for column in counts.indices {counts[column]=0}}
+                active.removeAll {edges[$0].end<=row}
+                while next<edges.count,edges[next].first<=row {active.append(next);next+=1}
+                events.removeAll(keepingCapacity:true)
+                let y=originY+CGFloat(row)/CGFloat(ySamples)
+                for index in active {
+                    let edge=edges[index],a=edge.a,b=edge.b
+                    let crossing=a.x+(y-a.y)*(b.x-a.x)/(b.y-a.y)
+                    let scaled=(crossing-originX)*CGFloat(xSamples)
+                    var column=scaled<=0 ? 0:(scaled>=CGFloat(sampleWidth) ? sampleWidth:Int(ceil(scaled)))
+                    func rightOfCrossing(_ column:Int)->Bool {
+                        let x=originX+CGFloat(column)/CGFloat(xSamples)
+                        let sign=Self.qualityOrientation(a,b,CGPoint(x:x,y:y))
+                        return edge.direction>0 ? sign<=0:sign>=0
+                    }
+                    // Approximate intersection locates the candidate only.
+                    // Exact orientation resolves shared vertices and ties.
+                    for _ in 0..<2 {
+                        if column>0,rightOfCrossing(column-1) {column-=1}
+                        else if column<sampleWidth,!rightOfCrossing(column) {column+=1}
+                        else {break}
+                    }
+                    guard (column==0 || !rightOfCrossing(column-1)),(column==sampleWidth || rightOfCrossing(column)) else {throw Self.invalid("paint coverage crossing precision limit")}
+                    events.append((column,edge.direction))
+                }
+                events.sort {$0.column<$1.column}
+                var winding=0,previous=0,event=0
+                while event<events.count {
+                    let column=events[event].column
+                    if (rule=="evenodd" ? winding%2 != 0:winding != 0),previous<column {
+                        for sample in previous..<column {counts[sample/xSamples]+=1}
+                    }
+                    repeat {winding+=events[event].direction;event+=1} while event<events.count && events[event].column==column
+                    previous=column
+                }
+                if row%ySamples==ySamples-1 {
+                    let outputRow=row/ySamples,count=xSamples*ySamples
+                    for column in 0..<width {
+                        let alpha=UInt8((counts[column]*255+count/2)/count),position=(outputRow*width+column)*4
+                        destination[position]=alpha;destination[position+1]=alpha;destination[position+2]=alpha;destination[position+3]=alpha
+                    }
+                }
+            }
+        }
+        guard let space=CGColorSpace(name:CGColorSpace.sRGB),let provider=CGDataProvider(data:output as CFData),
+              let image=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else {throw Self.invalid("cannot prepare paint coverage")}
+        let encoded=NSMutableData()
+        guard let encoder=CGImageDestinationCreateWithData(encoded,UTType.png.identifier as CFString,1,nil) else {throw Self.invalid("cannot encode paint coverage")}
+        CGImageDestinationAddImage(encoder,image,nil)
+        guard CGImageDestinationFinalize(encoder),encoded.length<=32*1024*1024-markupBytes else {throw Self.invalid("paint coverage PNG markup limit")}
+        markupBytes += encoded.length
+        return ["href":"data:image/png;base64,"+(encoded as Data).base64EncodedString(),"width":width,"height":height]
     }
 }
 
@@ -2693,6 +3043,11 @@ private func run() throws {
         catch ConversionError.invalid(let message) {nativeError(message);return [:]}
         catch {nativeError("Metafile stroke coverage failed: "+String(describing:error));return [:]}
     }
+    let paintCoverage:@convention(block)(String,JSValue)->NSDictionary = {path,options in
+        do {return try strokeGeometry.paintCoverage(path,options:options) as NSDictionary}
+        catch ConversionError.invalid(let message) {nativeError(message);return [:]}
+        catch {nativeError("Metafile paint coverage failed: "+String(describing:error));return [:]}
+    }
     let regionGeometry=NativeRegionGeometry()
     let regionPath:@convention(block)(JSValue,Double,Double,Bool)->NSDictionary = {rectangles,width,height,frame in
         do{return try regionGeometry.path(rectangles,width,height,frame) as NSDictionary}
@@ -2915,6 +3270,7 @@ private func run() throws {
     context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
     context.setObject(strokeCoverage,forKeyedSubscript:"__turtleStrokeCoverage" as NSString)
+    context.setObject(paintCoverage,forKeyedSubscript:"__turtlePaintCoverage" as NSString)
     context.setObject(regionPath,forKeyedSubscript:"__turtleRegionPath" as NSString)
     context.setObject(floodCoverage,forKeyedSubscript:"__turtleFloodCoverage" as NSString)
     context.setObject(embeddedScope,forKeyedSubscript:"__turtleMetafileScope" as NSString)

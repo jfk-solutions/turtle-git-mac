@@ -120,13 +120,16 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(Double(image.width),width);XCTAssertEqual(Double(image.height),height)
         return scene
     }
-    /// Inspect the helper's source pixels without SVG, AppKit caching, clipping,
-    /// display profiles or reconstruction filters. Device placement comes from
-    /// image attributes; no hatch lookup table is duplicated in this oracle.
-    private func embeddedPaints(_ name:String)throws->[EmbeddedPaint]{
+    private enum EmbeddedPlane { case paint, coverage }
+    /// Inspect explicit source-paint or geometry-mask planes without rendering
+    /// their SVG. A mask's white PNG is independent coverage, never brush color.
+    /// Device placement still comes from the unchanged image attributes.
+    private func embeddedPaints(_ name:String,plane:EmbeddedPlane = .paint)throws->[EmbeddedPaint]{
         let scene=try sourceScene(XCTUnwrap(MetafileImageDecoder.convert(data(name))))
-        func paints(_ element:XMLElement)->[XMLElement] {
-            (element.localName=="image" ? [element]:[])+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{paints($0)}
+        func paints(_ element:XMLElement,coverage:Bool = false)->[XMLElement] {
+            let coverage=coverage || element.localName=="mask"
+            let selected=plane == .coverage ? coverage:!coverage
+            return (element.localName=="image" && selected ? [element]:[])+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{paints($0,coverage:coverage)}
         }
         return try paints(scene).map{element in
             func attribute(_ name:String)throws->String{
@@ -150,20 +153,10 @@ final class MetafileImageTests: XCTestCase {
         "finalCGImage=\(image.pixels.width)x\(image.pixels.height),profile=\(String(describing:image.pixels.colorSpace?.name)),bits=\(image.pixels.bitsPerComponent)/\(image.pixels.bitsPerPixel),alpha=\(image.pixels.alphaInfo.rawValue)"
     }
     private func embeddedRGBA(_ name:String,_ x:Int=0,_ y:Int=0)throws->[CGFloat] {
-        let scene=try sourceScene(XCTUnwrap(MetafileImageDecoder.convert(data(name))))
-        let svg=scene.xmlString
-        let start=try XCTUnwrap(svg.range(of:"data:image/png;base64,")),tail=svg[start.upperBound...]
-        let end=try XCTUnwrap(tail.firstIndex(of:"\"")),png=try XCTUnwrap(Data(base64Encoded:String(tail[..<end])))
-        let source=try XCTUnwrap(CGImageSourceCreateWithData(png as CFData,nil)),image=try XCTUnwrap(CGImageSourceCreateImageAtIndex(source,0,nil))
-        XCTAssertTrue((0..<image.width).contains(x) && (0..<image.height).contains(y))
-        var bytes=[UInt8](repeating:0,count:image.width*image.height*4)
-        return try bytes.withUnsafeMutableBytes{storage in
-            let space=try XCTUnwrap(CGColorSpace(name:CGColorSpace.sRGB))
-            let context=try XCTUnwrap(CGContext(data:storage.baseAddress,width:image.width,height:image.height,bitsPerComponent:8,bytesPerRow:image.width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue))
-            context.interpolationQuality = .none;context.draw(image,in:CGRect(x:0,y:0,width:image.width,height:image.height))
-            let values=storage.bindMemory(to:UInt8.self),offset=(y*image.width+x)*4,alpha=CGFloat(values[offset+3])/255
-            return (0..<3).map{alpha>0 ? CGFloat(values[offset+$0])/(255*alpha):0}+[alpha]
-        }
+        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).first,"No source paint plane")
+        XCTAssertTrue((0..<paint.width).contains(x) && (0..<paint.height).contains(y))
+        let offset=(y*paint.width+x)*4,alpha=CGFloat(paint.rgba[offset+3])/255
+        return (0..<3).map{alpha>0 ? CGFloat(paint.rgba[offset+$0])/(255*alpha):0}+[alpha]
     }
     private func halfAlphaRed(_ name:String)throws {
         let pixel=try embeddedRGBA(name)
@@ -309,7 +302,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertTrue(try displayRGBOnWhite(value, 44, 30).allSatisfy { $0 > 0.9 }, "Brush/world transforms misplaced the painted rectangle")
         // Final snapshots prune unreferenced semantic gradient definitions.
         // Verify the actual paint pixels before native SVG display instead.
-        let paints = try embeddedPaints("plus-gradient-transform.emf")
+        let paints = try embeddedPaints("plus-gradient-transform.emf",plane:.paint)
         XCTAssertEqual(paints.count, 1)
         let paint = try XCTUnwrap(paints.first)
         for (channel, x, y) in [(0, 70, 10), (1, 60, 32), (2, 49, 54)] {
@@ -348,7 +341,7 @@ final class MetafileImageTests: XCTestCase {
         XCTAssertEqual(middle[0], middle[2], accuracy: 0.08)
     }
     func testLinearGradientTileAndFlipRetainDifferentStopOrders() throws {
-        let paints=try embeddedPaints("plus-gradient-wrap.emf")
+        let paints=try embeddedPaints("plus-gradient-wrap.emf",plane:.paint)
         XCTAssertEqual(paints.count,2)
         if paints.count==2{
             // Independent Windows linear-gradient controls establish integer device
@@ -519,14 +512,14 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testHatchAlphaDeviceScaleRenderingOriginAndRestoreRemainIndependent() throws {
-        let scaledPaint=try XCTUnwrap(embeddedPaints("plus-hatch-alpha-world.emf").first)
+        let scaledPaint=try XCTUnwrap(embeddedPaints("plus-hatch-alpha-world.emf",plane:.paint).first)
         for y in 10..<34{
             let raw=try scaledPaint.sample(20,y),repeatRaw=try scaledPaint.sample(20,y+8)
             for channel in 0..<4{XCTAssertEqual(raw[channel],repeatRaw[channel],accuracy:1.0/255,"Source device hatch period inherited world scale: \(scaledPaint.diagnostic)")}
             XCTAssertEqual(raw[3],CGFloat(128)/255,accuracy:1.0/255,"Hatch source alpha changed before SVG")
             XCTAssertEqual(raw[0],y%8==0 ? 1:0,accuracy:1.0/255);XCTAssertEqual(raw[1],0,accuracy:1.0/255);XCTAssertEqual(raw[2],y%8==0 ? 0:1,accuracy:1.0/255)
         }
-        let origins=try embeddedPaints("plus-hatch-origin.emf")
+        let origins=try embeddedPaints("plus-hatch-origin.emf",plane:.paint)
         XCTAssertEqual(origins.count,3)
         if origins.count==3{for y in 8..<21{
             let baseline=try origins[0].sample(20,y),shifted=try origins[1].sample(60,y+3),restored=try origins[2].sample(20,y+32)
@@ -1282,7 +1275,11 @@ extension MetafileImageTests {
         // Both ink interiors and the complete surrounding white canvas count.
         for y in 0..<value.height {
             for x in 0..<value.width {
-                let d = distance(Double(x) + 0.5, Double(y) + 0.5)
+                // These ordinary EMF+ pen/path fixtures omit PixelOffsetHalf.
+                // The independent Windows quality capture establishes integer
+                // sample centers for that default; retain the same signed
+                // distances, complete canvas and one-pixel boundary margin.
+                let d = distance(Double(x), Double(y))
                 if abs(d) < 1 { continue }
                 let p = value.pixel(x, y), red = p[0] > 240 && p[1] < 15 && p[2] < 15 && p[3] > 240
                 let white = p[0] > 240 && p[1] > 240 && p[2] > 240 && p[3] > 240

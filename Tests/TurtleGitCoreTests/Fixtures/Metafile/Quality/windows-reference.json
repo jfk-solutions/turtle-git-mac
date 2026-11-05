@@ -1,0 +1,1825 @@
+{
+  "schema": 1,
+  "source_run": 41938727574,
+  "source_commit": "d39b4ff42a0e5f9161ca6b4f40d0436c7400c19c",
+  "artifact_id": 13374649845,
+  "artifact_zip_sha256": "bca1e883888e790f92174fdf0803b3b3202b3435b79c902cf5091acff7f5cfee",
+  "verified_capture_hashes": 377,
+  "source_identities": {
+    "QualityReference.cpp": {
+      "repository_sha256": "b039e754cffb2c488793ade987f5394c9afb9240753bae54c213a053533674c5",
+      "windows_checkout_sha256": "a1f89f392496da01bcc5df49356710799851d69af10efe3365464994e1a7cf3a"
+    },
+    "README.md": {
+      "repository_sha256": "b2f1e39709d86733ac0d772aefb15ab1a91628c301bf7badf641f4a6c98405a8",
+      "windows_checkout_sha256": "288dabea68334e09d3808b10e62f7a708387013ab2ac5664b4f47c64306edb37"
+    },
+    "metafile-quality-reference.yml": {
+      "repository_sha256": "95a2cd365f967592c7715abe59a4404d81030e400d4a928c3335e045cc87301f",
+      "windows_checkout_sha256": "0149cd81bff8870634fd5cb8cf5515837f14976b77bafa58313abb367f2717bb"
+    }
+  },
+  "width": 128,
+  "height": 96,
+  "expected_pixels": "Natural Windows GDI+ playback; PNG losslessly encodes complete top-down straight RGBA including transparent pixels. No TurtleGit output is used.",
+  "limits": "Captured ordinary fills and source state, not certification of every Windows stroke endpoint, native curve metric or arbitrary metafile.",
+  "cases": [
+    {
+      "name": "ordinary-s0-p0",
+      "requested": {
+        "smoothing": 0,
+        "pixelOffset": 0,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "c84ee8e039a04e9006aa829873e4b23aa6a7b5dcd619f7ccd6933caa58c5d413",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s0-p1",
+      "requested": {
+        "smoothing": 0,
+        "pixelOffset": 1,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "6076087ce7375dda75e8b1e80a28f604d3e1a6347caf7e6ce2b5874f04a0eb6b",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s0-p2",
+      "requested": {
+        "smoothing": 0,
+        "pixelOffset": 2,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "faec2098795fa0d2e0f7911ad185bb02a9f241f6e163caa72252e86afbdfa86d",
+      "windows_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "windows_png_sha256": "3c16bb2ccaadbce20b683ffc39f5a11be1a966b36da7063325ab563fd72bbed2",
+      "picture_rgba_sha256": "e55f61599e8ab0b8cfac21c400ce95fec618bd15b9a6edfd85eed60d55357a54",
+      "direct_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "picture_pixel_differences": 314,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s0-p3",
+      "requested": {
+        "smoothing": 0,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "b2f264df53b876a7f3c67eee65ae7b524500f6c66686009eabfe5ed900d3874a",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s0-p4",
+      "requested": {
+        "smoothing": 0,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "725b1993921b7964b1f294247f2e934eee2e3d750f4b53dd7f7bd804b7ff1353",
+      "windows_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "windows_png_sha256": "3c16bb2ccaadbce20b683ffc39f5a11be1a966b36da7063325ab563fd72bbed2",
+      "picture_rgba_sha256": "e55f61599e8ab0b8cfac21c400ce95fec618bd15b9a6edfd85eed60d55357a54",
+      "direct_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "picture_pixel_differences": 314,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s1-p0",
+      "requested": {
+        "smoothing": 1,
+        "pixelOffset": 0,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f62ce1562020914a4c54971a42bf71d4b7b65a2fca49277bcce3daa9da58c1f0",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s1-p1",
+      "requested": {
+        "smoothing": 1,
+        "pixelOffset": 1,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "6d2110ba12195201382e989202135c712ba4bf613ce11bbe2a501349af30459e",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s1-p2",
+      "requested": {
+        "smoothing": 1,
+        "pixelOffset": 2,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "09577e75ad25660fa16228fba2fba8be2fd74949472765af80b009973a7bb6ee",
+      "windows_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "windows_png_sha256": "3c16bb2ccaadbce20b683ffc39f5a11be1a966b36da7063325ab563fd72bbed2",
+      "picture_rgba_sha256": "e55f61599e8ab0b8cfac21c400ce95fec618bd15b9a6edfd85eed60d55357a54",
+      "direct_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "picture_pixel_differences": 314,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s1-p3",
+      "requested": {
+        "smoothing": 1,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f1995719bd9615d69c6cdb4950937bf1d881341a7650400f580b4580a3f5f660",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s1-p4",
+      "requested": {
+        "smoothing": 1,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "8660d6d300ed3f53fa3743be34cea2851e5618d5ad187a15e5f0f3b3a443f3c4",
+      "windows_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "windows_png_sha256": "3c16bb2ccaadbce20b683ffc39f5a11be1a966b36da7063325ab563fd72bbed2",
+      "picture_rgba_sha256": "e55f61599e8ab0b8cfac21c400ce95fec618bd15b9a6edfd85eed60d55357a54",
+      "direct_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "picture_pixel_differences": 314,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s2-p0",
+      "requested": {
+        "smoothing": 2,
+        "pixelOffset": 0,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "ef96de9ae562a5473117aca00c5c68493e43eec8ad993963cf66f3c32c333c47",
+      "windows_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "windows_png_sha256": "460c242f82ae88c6e76c3d8cecb289d4893653eace11cbdf52d68d31c669d566",
+      "picture_rgba_sha256": "21f5b98758bf9d6d1ea381c232436e2ce1f9ea269a7eb8f328c4c461e7085402",
+      "direct_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "picture_pixel_differences": 481,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s2-p1",
+      "requested": {
+        "smoothing": 2,
+        "pixelOffset": 1,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "a2c260a0cc867a49775245d5b3703481893a8d4b234a179711be41500cde87a6",
+      "windows_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "windows_png_sha256": "460c242f82ae88c6e76c3d8cecb289d4893653eace11cbdf52d68d31c669d566",
+      "picture_rgba_sha256": "21f5b98758bf9d6d1ea381c232436e2ce1f9ea269a7eb8f328c4c461e7085402",
+      "direct_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "picture_pixel_differences": 481,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s2-p2",
+      "requested": {
+        "smoothing": 2,
+        "pixelOffset": 2,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "8ee5900d676827295819e77fdf22c2467ee45d32afc704dcdcb6cf415d9bd776",
+      "windows_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "windows_png_sha256": "cc2f5c681791c20268ad542dba5af71bae9c6d4794ec689f4f7b81eea4c24b1e",
+      "picture_rgba_sha256": "ffe9388480adcfc4421274c29a16dc46c0adcdb6eacb37964a5640695fb684a7",
+      "direct_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "picture_pixel_differences": 479,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s2-p3",
+      "requested": {
+        "smoothing": 2,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "543b9585e4250fd39c1c0d2ce7ad2bda27970ba4156c5495b89240ac0de485fa",
+      "windows_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "windows_png_sha256": "460c242f82ae88c6e76c3d8cecb289d4893653eace11cbdf52d68d31c669d566",
+      "picture_rgba_sha256": "21f5b98758bf9d6d1ea381c232436e2ce1f9ea269a7eb8f328c4c461e7085402",
+      "direct_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "picture_pixel_differences": 481,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s2-p4",
+      "requested": {
+        "smoothing": 2,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "059eb595438eea95af279ef4d2766a6b05b296b0231bf1244941560ff4fbabd5",
+      "windows_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "windows_png_sha256": "cc2f5c681791c20268ad542dba5af71bae9c6d4794ec689f4f7b81eea4c24b1e",
+      "picture_rgba_sha256": "ffe9388480adcfc4421274c29a16dc46c0adcdb6eacb37964a5640695fb684a7",
+      "direct_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "picture_pixel_differences": 479,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s3-p0",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 0,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "4b1e5e23a340c0e7ca25a95591b98d8e97cc1e6ed37fcbe8d26b55cde7588a87",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s3-p1",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 1,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "254c5f787a2f0b42511c12e7886c21682408b25dc7380b7291f467ac39bbca1f",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s3-p2",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 2,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "a0164c6489a70c9846d7d70bbebcfef196ff0d64363eb0a04e9df50b61b6f2bd",
+      "windows_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "windows_png_sha256": "3c16bb2ccaadbce20b683ffc39f5a11be1a966b36da7063325ab563fd72bbed2",
+      "picture_rgba_sha256": "e55f61599e8ab0b8cfac21c400ce95fec618bd15b9a6edfd85eed60d55357a54",
+      "direct_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "picture_pixel_differences": 314,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s3-p3",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "4a7d77d6d3c16ebebf1558058911e17ee9dc53870e7bb43ff2d36cb24186b244",
+      "windows_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "windows_png_sha256": "daf6ac36882dbddda06a4498d546b0b97cd8932e7e7caf7cb3186af6b61b9b97",
+      "picture_rgba_sha256": "3e934bc1b105e2afb1846a53c4aa08e895500c395aa84c461a91c46d825d05be",
+      "direct_rgba_sha256": "1f7e7e27317bf54cf45bea5e13aa9ffb2e7c9ea5df4e91d023c8f48bdb6f860a",
+      "picture_pixel_differences": 318,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s3-p4",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f29877b86c6a0e895d7609c634674e564dbd849d883a882c13e4de35436643af",
+      "windows_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "windows_png_sha256": "3c16bb2ccaadbce20b683ffc39f5a11be1a966b36da7063325ab563fd72bbed2",
+      "picture_rgba_sha256": "e55f61599e8ab0b8cfac21c400ce95fec618bd15b9a6edfd85eed60d55357a54",
+      "direct_rgba_sha256": "8e92db6db3bcd1fabac0ce8d368b8ab5f62ba9775ded0dd10008ff4bb859ccab",
+      "picture_pixel_differences": 314,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s4-p0",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 0,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "fc58691483ba74fec8cf44b39bb01a33a270455423e9135a7db23d6cc0b72bef",
+      "windows_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "windows_png_sha256": "460c242f82ae88c6e76c3d8cecb289d4893653eace11cbdf52d68d31c669d566",
+      "picture_rgba_sha256": "21f5b98758bf9d6d1ea381c232436e2ce1f9ea269a7eb8f328c4c461e7085402",
+      "direct_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "picture_pixel_differences": 481,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s4-p1",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 1,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f5ce0a99f3b32ed5663d042bcbf2d76703c854f50527f9d6fe2138df463cda01",
+      "windows_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "windows_png_sha256": "460c242f82ae88c6e76c3d8cecb289d4893653eace11cbdf52d68d31c669d566",
+      "picture_rgba_sha256": "21f5b98758bf9d6d1ea381c232436e2ce1f9ea269a7eb8f328c4c461e7085402",
+      "direct_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "picture_pixel_differences": 481,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s4-p2",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 2,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "67b54f1933d6749ba084f1b9889a639068e792c3565e0401a52995aa920f4e3c",
+      "windows_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "windows_png_sha256": "cc2f5c681791c20268ad542dba5af71bae9c6d4794ec689f4f7b81eea4c24b1e",
+      "picture_rgba_sha256": "ffe9388480adcfc4421274c29a16dc46c0adcdb6eacb37964a5640695fb684a7",
+      "direct_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "picture_pixel_differences": 479,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s4-p3",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "fd0b7141c9c94ba2cf363600c904e1103b3ef98f3ee1dcaea7fbfd498be574c2",
+      "windows_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "windows_png_sha256": "460c242f82ae88c6e76c3d8cecb289d4893653eace11cbdf52d68d31c669d566",
+      "picture_rgba_sha256": "21f5b98758bf9d6d1ea381c232436e2ce1f9ea269a7eb8f328c4c461e7085402",
+      "direct_rgba_sha256": "0be022c5e3f43564bf49ae9ed3fcc68532a4dd8e7303b06f2e7a5793fdd41237",
+      "picture_pixel_differences": 481,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s4-p4",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "08732a2b586d683afcde012e4bb7a8fb042e096722c3a6638775fb112f3db65b",
+      "windows_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "windows_png_sha256": "cc2f5c681791c20268ad542dba5af71bae9c6d4794ec689f4f7b81eea4c24b1e",
+      "picture_rgba_sha256": "ffe9388480adcfc4421274c29a16dc46c0adcdb6eacb37964a5640695fb684a7",
+      "direct_rgba_sha256": "9e2695503ad7329825a56d22502779209f2b0237a565b77d4e2998d25dcd87f8",
+      "picture_pixel_differences": 479,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s5-p0",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 0,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "1220cbd63c477b3ebca821c99d527c2059991353cd25aa90e1f396392ca1adbe",
+      "windows_rgba_sha256": "4fffc834892a292fba20252d22ab07da970b0e31f8554292f96058ef2cf1f5e8",
+      "windows_png_sha256": "ea5576b01bbcdb22889bf93ca7ae43457f00aef7c5d5d604adeb19e9c74af321",
+      "picture_rgba_sha256": "e4af1f2e797f601ffbf7667fd9dd242bdf6d60f0f5914000da646e545fdf5f28",
+      "direct_rgba_sha256": "4fffc834892a292fba20252d22ab07da970b0e31f8554292f96058ef2cf1f5e8",
+      "picture_pixel_differences": 519,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s5-p1",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 1,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 1,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "8ddd599e6366aed4c1e0e80dc54ad87684b2b87c008c157815e86b32dce16407",
+      "windows_rgba_sha256": "4fffc834892a292fba20252d22ab07da970b0e31f8554292f96058ef2cf1f5e8",
+      "windows_png_sha256": "ea5576b01bbcdb22889bf93ca7ae43457f00aef7c5d5d604adeb19e9c74af321",
+      "picture_rgba_sha256": "e4af1f2e797f601ffbf7667fd9dd242bdf6d60f0f5914000da646e545fdf5f28",
+      "direct_rgba_sha256": "4fffc834892a292fba20252d22ab07da970b0e31f8554292f96058ef2cf1f5e8",
+      "picture_pixel_differences": 519,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s5-p2",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 2,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 2,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "9161434f6f013c9655a388eddc65f8b535ad90183f513184e9a0b7d0d73eceb6",
+      "windows_rgba_sha256": "8c6b54400107af8e126d6a3eb0755326c6a68abb40e70dd135a10961c6d9b843",
+      "windows_png_sha256": "4ac97f0331fe881372d8eebb4fc58c1a459e28bcaee94655941e6b3379e31036",
+      "picture_rgba_sha256": "b3f32bd83aac54e7afbc54d90fd7deac893881929b77d0ebb557b648ef34bc09",
+      "direct_rgba_sha256": "8c6b54400107af8e126d6a3eb0755326c6a68abb40e70dd135a10961c6d9b843",
+      "picture_pixel_differences": 520,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s5-p3",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "789e5fddf4f20156beb449b6fef0407a4b13c814618926c2b3060ccc9a1bbd72",
+      "windows_rgba_sha256": "4fffc834892a292fba20252d22ab07da970b0e31f8554292f96058ef2cf1f5e8",
+      "windows_png_sha256": "ea5576b01bbcdb22889bf93ca7ae43457f00aef7c5d5d604adeb19e9c74af321",
+      "picture_rgba_sha256": "e4af1f2e797f601ffbf7667fd9dd242bdf6d60f0f5914000da646e545fdf5f28",
+      "direct_rgba_sha256": "4fffc834892a292fba20252d22ab07da970b0e31f8554292f96058ef2cf1f5e8",
+      "picture_pixel_differences": 519,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "ordinary-s5-p4",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "7bca8480f6b0c8afbc0da478b386326b76c4bbb58a9ffd55870f2821750499b5",
+      "windows_rgba_sha256": "8c6b54400107af8e126d6a3eb0755326c6a68abb40e70dd135a10961c6d9b843",
+      "windows_png_sha256": "4ac97f0331fe881372d8eebb4fc58c1a459e28bcaee94655941e6b3379e31036",
+      "picture_rgba_sha256": "b3f32bd83aac54e7afbc54d90fd7deac893881929b77d0ebb557b648ef34bc09",
+      "direct_rgba_sha256": "8c6b54400107af8e126d6a3eb0755326c6a68abb40e70dd135a10961c6d9b843",
+      "picture_pixel_differences": 520,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "save-restore",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "inside-saved-state",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        },
+        {
+          "phase": "after-restore",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f6a5059dfe6fd401e7d4a603c6ff2a1a0c48b2a3e4ea32634dc5c88d008c1fe6",
+      "windows_rgba_sha256": "9cd3ebd4b3410a6ec952ca2271891aa882246e2ea7345d075bda31521aaf15ca",
+      "windows_png_sha256": "6b4fc6642d75cd8e62ce891a64ae3361dbcfd17f7b919c48975e99ca323f5579",
+      "picture_rgba_sha256": "baa38bba319565ac098ae62b72396538e60adab835b66b4552fdc2895c1b9974",
+      "direct_rgba_sha256": "9cd3ebd4b3410a6ec952ca2271891aa882246e2ea7345d075bda31521aaf15ca",
+      "picture_pixel_differences": 340,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "container",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "container-entry-before-quality-overrides",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "inside-saved-state",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        },
+        {
+          "phase": "after-container",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "after-restore",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "e8b1cbc2c450c84e2d340bf0fcd6b696b0cd004f6b56bc46f816afd4cc99a066",
+      "windows_rgba_sha256": "a877b854b145699a2dbcc01f348fc0f7fcb26409539feeffbe38d476648ce939",
+      "windows_png_sha256": "2b0b69fac5a2cb1741463a44d6e3b970e91cd64c5a0b9e1721856311682b3ba1",
+      "picture_rgba_sha256": "ec32acb09417fde5ed790946bcc2f6ef094adbb80b388f489912480a1fb530ca",
+      "direct_rgba_sha256": "a877b854b145699a2dbcc01f348fc0f7fcb26409539feeffbe38d476648ce939",
+      "picture_pixel_differences": 340,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "rectangle-container",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "container-entry-before-quality-overrides",
+          "smoothing": 3,
+          "pixelOffset": 0,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "inside-saved-state",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        },
+        {
+          "phase": "after-container",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "after-restore",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "5a5ea306ad937418397fc997b7e76f9026b1817e06c6ab94466681f6ef3c2b6b",
+      "windows_rgba_sha256": "de3f1e8a768a6b865c773ab34ac830b4415314ac531112fd157ef2593e3cdd29",
+      "windows_png_sha256": "692337f97ae8aac33e73ccc3dba71d2eedf3a1c4618578b8947de68261b464d6",
+      "picture_rgba_sha256": "2763be90346aa09037df881f0c739ec24421a28e4104d8914c3a5b5f70f10af2",
+      "direct_rgba_sha256": "de3f1e8a768a6b865c773ab34ac830b4415314ac531112fd157ef2593e3cdd29",
+      "picture_pixel_differences": 368,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "affine-transform",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "12cb781a3046752343ea386c88027fb58a4cfbc12086a0682efc8845cd3308e8",
+      "windows_rgba_sha256": "687e6714823315c3d2d69734e4986287f52aca70f275fa5dce090d9f8377ac54",
+      "windows_png_sha256": "742052cd2be53dcebdd5baaa27c2db0475678b3010280e53d67e651f5192eaa8",
+      "picture_rgba_sha256": "729b198141ab0e861b35a912a3850c0ea43c7a3eb7a3ca6a523a9cca6d9e5a20",
+      "direct_rgba_sha256": "687e6714823315c3d2d69734e4986287f52aca70f275fa5dce090d9f8377ac54",
+      "picture_pixel_differences": 316,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "device-clip",
+      "requested": {
+        "smoothing": 5,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 5,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 5,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "4e61bf12b82aaf7dcf9c7983172f688ccfbae39fcbc6e4283d775fdd3ae8ffd3",
+      "windows_rgba_sha256": "18d1b33c33de2ff6080c4c52514be60acd5187ec2d87cab287d67df785a4db86",
+      "windows_png_sha256": "bcc34654e8291c4768a0dff329df1ff016507abcd1806a6dd66c18363d2b78bf",
+      "picture_rgba_sha256": "f59dbeac369f40bdcdec99a1d56437c54f106453c4617bb744f0a6227b90c7a5",
+      "direct_rgba_sha256": "18d1b33c33de2ff6080c4c52514be60acd5187ec2d87cab287d67df785a4db86",
+      "picture_pixel_differences": 404,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-over-overlap",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f0c4b01439621a132018d3c45c19ac2bd69e8e73fa6de61d1624eada73134308",
+      "windows_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "windows_png_sha256": "26e10ab747897ec722af58a9c38071de7d1eb845e47177004e55a3cc255a4a3d",
+      "picture_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "direct_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-copy-overlap",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 1
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 1
+        }
+      ],
+      "wire_sha256": "d0ca32fef3c23445b07b32daec0b413c2ad93cf4a4d96155736df925b7d8ce79",
+      "windows_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "windows_png_sha256": "7faf71f9a13e2c27ab545b6e858e060b17c0abdaae335cace8181c1dc57ce7bd",
+      "picture_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "direct_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "compositing-quality-0",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "f0c4b01439621a132018d3c45c19ac2bd69e8e73fa6de61d1624eada73134308",
+      "windows_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "windows_png_sha256": "26e10ab747897ec722af58a9c38071de7d1eb845e47177004e55a3cc255a4a3d",
+      "picture_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "direct_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "compositing-quality-1",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 1
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 1,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 1,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 1,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "c62ef7e98e74cf4296cd32978e9679084215dc8716c2fbe855c52fed17a15a25",
+      "windows_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "windows_png_sha256": "26e10ab747897ec722af58a9c38071de7d1eb845e47177004e55a3cc255a4a3d",
+      "picture_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "direct_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "compositing-quality-2",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 2
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 2,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 2,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 2,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "d735964778a5cdf0c8c6b9beb0b0f6b43c6ee9f51bcc99b96c5c41f05b2275c9",
+      "windows_rgba_sha256": "45f24f319681985f0ec38af9b15d53a23e9a10952766efcc22bbb232a5b5c166",
+      "windows_png_sha256": "56008f2f7565ec261c896bb3666f9d300bb9e65f818d4cd4002d7ed1ec4cbe5d",
+      "picture_rgba_sha256": "2529f51a58985147142ea525691e8fe481ebced13220daedae2f1a2284e29418",
+      "direct_rgba_sha256": "45f24f319681985f0ec38af9b15d53a23e9a10952766efcc22bbb232a5b5c166",
+      "picture_pixel_differences": 416,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "compositing-quality-3",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 3
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "ca20303d9d112a82e2de61d60ccf16170ceda4451b6a36ff8bcf32d41ed27171",
+      "windows_rgba_sha256": "45f24f319681985f0ec38af9b15d53a23e9a10952766efcc22bbb232a5b5c166",
+      "windows_png_sha256": "56008f2f7565ec261c896bb3666f9d300bb9e65f818d4cd4002d7ed1ec4cbe5d",
+      "picture_rgba_sha256": "2529f51a58985147142ea525691e8fe481ebced13220daedae2f1a2284e29418",
+      "direct_rgba_sha256": "45f24f319681985f0ec38af9b15d53a23e9a10952766efcc22bbb232a5b5c166",
+      "picture_pixel_differences": 416,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "compositing-quality-4",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 4
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 4,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 4,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 4,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "b73a5b24d50fd51e906a43a9f309267ccfd34091d77977837f259df754d2e1ff",
+      "windows_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "windows_png_sha256": "26e10ab747897ec722af58a9c38071de7d1eb845e47177004e55a3cc255a4a3d",
+      "picture_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "direct_rgba_sha256": "a7102658ad5e2c93d235e11e365c6d6e693ae52aa6a1fd8ed8507f347a547850",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-copy-compositing-quality-0",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 1
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 1
+        }
+      ],
+      "wire_sha256": "d0ca32fef3c23445b07b32daec0b413c2ad93cf4a4d96155736df925b7d8ce79",
+      "windows_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "windows_png_sha256": "7faf71f9a13e2c27ab545b6e858e060b17c0abdaae335cace8181c1dc57ce7bd",
+      "picture_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "direct_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-copy-compositing-quality-1",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 1
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 1,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 1,
+          "compositingMode": 1
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 1,
+          "compositingMode": 1
+        }
+      ],
+      "wire_sha256": "0aeb37aff459ca6feea5bcedd432f1f33934b601d3ae535217103d3dce48db05",
+      "windows_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "windows_png_sha256": "7faf71f9a13e2c27ab545b6e858e060b17c0abdaae335cace8181c1dc57ce7bd",
+      "picture_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "direct_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-copy-compositing-quality-2",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 2
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 2,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 2,
+          "compositingMode": 1
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 2,
+          "compositingMode": 1
+        }
+      ],
+      "wire_sha256": "17a3ecf3c9889c1086960c68b3e59801d630966e6a0ebfd0665ed8ea8b20f509",
+      "windows_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "windows_png_sha256": "7faf71f9a13e2c27ab545b6e858e060b17c0abdaae335cace8181c1dc57ce7bd",
+      "picture_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "direct_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-copy-compositing-quality-3",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 3
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 3,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 3,
+          "compositingMode": 1
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 3,
+          "compositingMode": 1
+        }
+      ],
+      "wire_sha256": "2b10d06cefd272819d5a9d32428c6f461774f1df22636d8da987d242d7b691cb",
+      "windows_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "windows_png_sha256": "7faf71f9a13e2c27ab545b6e858e060b17c0abdaae335cace8181c1dc57ce7bd",
+      "picture_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "direct_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "source-copy-compositing-quality-4",
+      "requested": {
+        "smoothing": 4,
+        "pixelOffset": 3,
+        "compositingQuality": 4
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 4,
+          "compositingMode": 0
+        },
+        {
+          "phase": "before-overlap",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 4,
+          "compositingMode": 1
+        },
+        {
+          "phase": "final",
+          "smoothing": 4,
+          "pixelOffset": 3,
+          "compositingQuality": 4,
+          "compositingMode": 1
+        }
+      ],
+      "wire_sha256": "242eba9a3be12119e28c3e99580ae6f4983b57590f1451d976b6b9d0c8b05e01",
+      "windows_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "windows_png_sha256": "7faf71f9a13e2c27ab545b6e858e060b17c0abdaae335cace8181c1dc57ce7bd",
+      "picture_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "direct_rgba_sha256": "f4732476384fbd9f617d93f4443b4231c5679172dd27060e373783b79fb986e1",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "brush-linear-p3",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "195df4e695ec72854e7c1d3ea396889a8208c37071005d7b31336406f14598da",
+      "windows_rgba_sha256": "a8d58e88e9b4b87cfcc0467df4a96ca022914dad1be34644e931c98843873490",
+      "windows_png_sha256": "8347e5c86feef455187ed33d7f41e997f57b2f8db8ce52e46cdf4d2d00a18b17",
+      "picture_rgba_sha256": "a8d58e88e9b4b87cfcc0467df4a96ca022914dad1be34644e931c98843873490",
+      "direct_rgba_sha256": "a8d58e88e9b4b87cfcc0467df4a96ca022914dad1be34644e931c98843873490",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "brush-linear-p4",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "e58f2a67ac413102bf4db5a35206d8989ef104cd82a9f8a18cde421a940d0da3",
+      "windows_rgba_sha256": "e3fffef9d06baae832653be466d3e2e5c5794fb97b4985bf71d10f14b323828e",
+      "windows_png_sha256": "7a4a278efa3fb8d5224289438f06f2e7d21879bd4dd689c006db9849ab463e5a",
+      "picture_rgba_sha256": "e3fffef9d06baae832653be466d3e2e5c5794fb97b4985bf71d10f14b323828e",
+      "direct_rgba_sha256": "e3fffef9d06baae832653be466d3e2e5c5794fb97b4985bf71d10f14b323828e",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "brush-hatch-p3",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "6bdaac5a0fb368c3ebd660c6e6b7a17ef2c40407b09c8a0cd3a5aa54ab33e36e",
+      "windows_rgba_sha256": "12fc0860ef52df3ead1d53437264589738308f7652369ba5a77574776b53d9d8",
+      "windows_png_sha256": "56834d222b3c1703d7e8ab5e7809910462d445074c15f1ca8adcf3259d85a738",
+      "picture_rgba_sha256": "12fc0860ef52df3ead1d53437264589738308f7652369ba5a77574776b53d9d8",
+      "direct_rgba_sha256": "12fc0860ef52df3ead1d53437264589738308f7652369ba5a77574776b53d9d8",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "brush-hatch-p4",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "daf601452e063ca0e7b1a9213422627525fc7f4d047cac1c15641aed7bd9f7fa",
+      "windows_rgba_sha256": "a41d9690cafc71171cc5fcdd28f8e39480912aec6f72c15eefb619ce3936a609",
+      "windows_png_sha256": "58355871430003749d6ecc28fece37021ee741599cb8c4cedcdbac070c8362d5",
+      "picture_rgba_sha256": "a41d9690cafc71171cc5fcdd28f8e39480912aec6f72c15eefb619ce3936a609",
+      "direct_rgba_sha256": "a41d9690cafc71171cc5fcdd28f8e39480912aec6f72c15eefb619ce3936a609",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "brush-texture-p3",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 3,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 3,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "2f769913b57d532b63a09e058f71fb2f6bda0677028c81ae317e91a77aac31d4",
+      "windows_rgba_sha256": "0de371400ceab658e8ebf5838ed4b5a9d0457d0787609cbc02f7eec30d3f6ded",
+      "windows_png_sha256": "92b177765173bb771281b3a0d4635fc7695b055f694b168695546cfb989ad217",
+      "picture_rgba_sha256": "0de371400ceab658e8ebf5838ed4b5a9d0457d0787609cbc02f7eec30d3f6ded",
+      "direct_rgba_sha256": "0de371400ceab658e8ebf5838ed4b5a9d0457d0787609cbc02f7eec30d3f6ded",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    },
+    {
+      "name": "brush-texture-p4",
+      "requested": {
+        "smoothing": 3,
+        "pixelOffset": 4,
+        "compositingQuality": 0
+      },
+      "states": [
+        {
+          "phase": "configured",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        },
+        {
+          "phase": "final",
+          "smoothing": 3,
+          "pixelOffset": 4,
+          "compositingQuality": 0,
+          "compositingMode": 0
+        }
+      ],
+      "wire_sha256": "8fa7922868b38980b908cc688abd44be40fd669909f2a6a1d7439786f0088316",
+      "windows_rgba_sha256": "e270c190a0ad75b21836764f277a8bc9cc1d9d52eb11a0b316edac1e2a0a9f46",
+      "windows_png_sha256": "71dabd19f318e09450b1fb1c901cec9a7cd2f9ea5ff84741e27c7c6336e9efc4",
+      "picture_rgba_sha256": "e270c190a0ad75b21836764f277a8bc9cc1d9d52eb11a0b316edac1e2a0a9f46",
+      "direct_rgba_sha256": "e270c190a0ad75b21836764f277a8bc9cc1d9d52eb11a0b316edac1e2a0a9f46",
+      "picture_pixel_differences": 0,
+      "reserved_flag_pixel_differences": 0
+    }
+  ]
+}
