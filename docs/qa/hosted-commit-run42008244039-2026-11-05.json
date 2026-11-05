@@ -1,0 +1,617 @@
+{
+  "run": 42008244039,
+  "source": "f90bffd9dabcb4619fad37eb73dd8392460e8eff",
+  "job": 127180998911,
+  "lane": "commit-repository",
+  "terminal": "failure",
+  "terminal_log_fetch": {
+    "attempts": 1,
+    "result": "Transport closed"
+  },
+  "failed_steps": [
+    {
+      "name": "Revert completed results and shared file-progress ownership",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 108,
+      "command": "python3 scripts/test-revert-result-actions.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 481,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-revert-result-actions.py",
+          "fixtures": [
+            {
+              "fixture": "revert-result-actions-native-2026-10-19.swift",
+              "runner_line": 18
+            },
+            {
+              "fixture": "revert-progress-family-native-2026-10-14.swift",
+              "runner_line": 18
+            },
+            {
+              "fixture": "add-resolve-progress-native-2026-10-19.swift",
+              "runner_line": 18
+            },
+            {
+              "fixture": "RevertResultActionsMain.swift",
+              "runner_line": 24
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "WMF and EMF native comparison consumers and colors",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 159,
+      "command": "python3 scripts/test-metafile-workflows.py --only dib-profiles --only wmf-bitmap16 --only wmf-text --only classic-text-records --only formatted-digits --only positioned-text --only compressed-paths --only compressed-raster --only consumers --only colors --only drawing-state --only embedded-metafiles --only path-gradients --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "diagnostic_status": "Known native texture-budget assertion; already assigned and repaired separately",
+      "workflow_line": 648,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-metafile-workflows.py",
+          "fixtures": [
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 57
+            },
+            {
+              "fixture": "metafile-path-gradients-native-2026-10-25.swift",
+              "runner_line": 58
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 59
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 60
+            },
+            {
+              "fixture": "metafile-drawing-state-native-2026-10-23.swift",
+              "runner_line": 61
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 62
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 63
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 64
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 65
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 66
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 67
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 68
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 69
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 70
+            },
+            {
+              "fixture": "metafile-consumers-native-2026-10-18.swift",
+              "runner_line": 71
+            },
+            {
+              "fixture": "image-conflict-native-2026-10-10.swift",
+              "runner_line": 72
+            },
+            {
+              "fixture": "image-conflict-owned-native-2026-10-16.swift",
+              "runner_line": 73
+            },
+            {
+              "fixture": "image-frames-native-2026-10-10.swift",
+              "runner_line": 74
+            },
+            {
+              "fixture": "image-colors-native-2026-10-10.swift",
+              "runner_line": 75
+            },
+            {
+              "fixture": "image-toolbar-native-2026-10-15.swift",
+              "runner_line": 76
+            },
+            {
+              "fixture": "image-open-native-2026-10-10.swift",
+              "runner_line": 77
+            },
+            {
+              "fixture": "MetafileWorkflowMain.swift",
+              "runner_line": 99
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Git configuration source forms and owned editors",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 220,
+      "command": "python3 scripts/test-git-config-source-family.py",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 869,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-git-config-source-family.py",
+          "fixtures": [
+            {
+              "fixture": "git-config-source-native-2026-10-17.swift",
+              "runner_line": 6
+            },
+            {
+              "fixture": "configuration-lifecycle-native-2026-10-15.swift",
+              "runner_line": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native General source inputs and owned engine validation",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 222,
+      "command": "python3 scripts/test-general-source-family.py",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 875,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-general-source-family.py",
+          "fixtures": [
+            {
+              "fixture": "general-source-family-native-2026-10-17.swift",
+              "runner_line": 6
+            },
+            {
+              "fixture": "settings-family-native-2026-10-13.swift",
+              "runner_line": 6
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native filtered historical file output and owned filter cancellation",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 231,
+      "command": "python3 scripts/test-historical-materialization-native.py --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 905,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-historical-materialization-native.py",
+          "fixtures": [
+            {
+              "fixture": "historical-materialization-native-2026-10-19.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "HistoricalMaterializationFamilyMain.swift",
+              "runner_line": 18
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native optional libgit2 backend selection and owned Git authentication",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 240,
+      "command": "python3 scripts/test-libgit2-native.py --helper build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 932,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-libgit2-native.py",
+          "fixtures": [
+            {
+              "fixture": "SVNPromptWindow.swift",
+              "runner_line": 18
+            },
+            {
+              "fixture": "SVNPromptWindow.swift",
+              "runner_line": 19
+            },
+            {
+              "fixture": "LibGit2NativeVerification.swift",
+              "runner_line": 22
+            },
+            {
+              "fixture": "libgit2-native-2026-10-19.swift",
+              "runner_line": 23
+            },
+            {
+              "fixture": "LibGit2NativeFamilyMain.swift",
+              "runner_line": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Add Remote and Select Remote Ref source workflows",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 255,
+      "command": "python3 scripts/test-remote-dialog-source-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 991,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-remote-dialog-source-family.py",
+          "fixtures": [
+            {
+              "fixture": "remote-dialog-source-native-2026-10-17.swift",
+              "runner_line": 7
+            },
+            {
+              "fixture": "remote-dialogs-native-2026-10-13.swift",
+              "runner_line": 8
+            },
+            {
+              "fixture": "remote-management-family-native-2026-10-14.swift",
+              "runner_line": 9
+            },
+            {
+              "fixture": "RemoteDialogMain.swift",
+              "runner_line": 15
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native workspace completion handoffs",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 271,
+      "command": "python3 scripts/test-repository-handoffs.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git\npython3 scripts/test-repository-settings-handoffs.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"\n",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1042,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-repository-handoffs.py",
+          "fixtures": [
+            {
+              "fixture": "repository-handoffs-native-2026-10-18.swift",
+              "runner_line": 11
+            }
+          ]
+        },
+        {
+          "runner": "scripts/test-repository-settings-handoffs.py",
+          "fixtures": [
+            {
+              "fixture": "repository-settings-handoffs-native-2026-10-23.swift",
+              "runner_line": 68
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Commit report rows, fonts and geometry ownership",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 280,
+      "command": "python3 scripts/test-commit-report-rows.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1071,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-commit-report-rows.py",
+          "fixtures": [
+            {
+              "fixture": "categories-support.swift",
+              "runner_line": 69
+            },
+            {
+              "fixture": "commit-check-categories-native-2026-10-25.swift",
+              "runner_line": 70
+            },
+            {
+              "fixture": "commit-report-rows-native-2026-10-25.swift",
+              "runner_line": 71
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Source color conversion and native status text appearance",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 302,
+      "command": "python3 scripts/test-status-colors.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\"",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1140,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-status-colors.py",
+          "fixtures": [
+            {
+              "fixture": "status-colors-native-2026-10-09.swift",
+              "runner_line": 74
+            },
+            {
+              "fixture": "status-text-native-2026-10-15.swift",
+              "runner_line": 80
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Comparison savepoints, options, row edits and editor workflows",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 319,
+      "command": "python3 scripts/test-merge-whitespace-states.py",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1191,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-merge-whitespace-states.py",
+          "fixtures": [
+            {
+              "fixture": "merge-comparison-lifecycle-native-2026-10-16.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-in-place-native-2026-10-16.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-initial-navigation-native-2026-10-15.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-editor-history-native-2026-10-15.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-clipboard-native-2026-10-13.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-block-selection-native-2026-10-15.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "three-pane-engine-native-2026-10-12.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-block-navigation-native-2026-10-15.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-whitespace-states-native-2026-10-15.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "merge-one-pane-native-2026-10-12.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "two-pane-engine-native-2026-10-12.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "WhitespaceStatesMain.swift",
+              "runner_line": 17
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Save As source targets",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 322,
+      "command": "python3 scripts/test-save-as-targets.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1200,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-save-as-targets.py",
+          "fixtures": [
+            {
+              "fixture": "merge-result-copy-native-2026-10-17.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "save-as-targets-native-2026-10-15.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "merge-save-ownership-native-2026-10-16.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "merge-save-access-native-2026-10-16.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "merge-source-tools-native-2026-10-14.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "two-pane-engine-native-2026-10-12.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "three-pane-engine-native-2026-10-12.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "SaveMain.swift",
+              "runner_line": 19
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Commit identity repair and effective author controls",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 348,
+      "command": "python3 scripts/test-commit-preparation.py --only identity --only author --only focus --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1284,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-commit-preparation.py",
+          "fixtures": [
+            {
+              "fixture": "commit-identity-native-2026-10-20.swift",
+              "runner_line": 10
+            },
+            {
+              "fixture": "commit-author-field-native-2026-10-09.swift",
+              "runner_line": 11
+            },
+            {
+              "fixture": "commit-branch-focus-native-2026-10-09.swift",
+              "runner_line": 12
+            },
+            {
+              "fixture": "commit-refresh-snapshot-native-2026-10-17.swift",
+              "runner_line": 13
+            },
+            {
+              "fixture": "commit-last-action-native-2026-10-08.swift",
+              "runner_line": 14
+            },
+            {
+              "fixture": "commit-column-sorting-native-2026-10-08.swift",
+              "runner_line": 15
+            },
+            {
+              "fixture": "message-font-native-2026-10-08.swift",
+              "runner_line": 16
+            },
+            {
+              "fixture": "message-suggestions-native-2026-10-15.swift",
+              "runner_line": 17
+            },
+            {
+              "fixture": "commit-metadata-native-2026-10-09.swift",
+              "runner_line": 18
+            },
+            {
+              "fixture": "CommitPreparationMain.swift",
+              "runner_line": 35
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Commit, Rebase message editing and Fetch/Pull completion",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 371,
+      "command": "python3 scripts/test-operation-workflows.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1353,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-operation-workflows.py",
+          "fixtures": [
+            {
+              "fixture": "commit-option-transition-native-2026-10-18.swift",
+              "runner_line": 10
+            },
+            {
+              "fixture": "rebase-message-edit-native-2026-10-18.swift",
+              "runner_line": 11
+            },
+            {
+              "fixture": "fetch-pull-handoff-native-2026-10-18.swift",
+              "runner_line": 12
+            },
+            {
+              "fixture": "OperationWorkflowMain.swift",
+              "runner_line": 26
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Commit and Rebase encoding receiver",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 389,
+      "command": "python3 scripts/test-commit-message-encoding.py",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1409,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-commit-message-encoding.py",
+          "fixtures": [
+            {
+              "fixture": "commit-message-encoding-native-2026-10-07.swift",
+              "runner_line": 18
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Native Commit settings and selection receiver",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 395,
+      "command": "python3 scripts/test-commit-selection-settings.py",
+      "diagnostic_status": "Unavailable: terminal GitHub log connector returned Transport closed; no uploaded per-consumer failure artifact",
+      "workflow_line": 1427,
+      "source_entry_points": [
+        {
+          "runner": "scripts/test-commit-selection-settings.py",
+          "fixtures": [
+            {
+              "fixture": "commit-selection-settings-native-2026-10-07.swift",
+              "runner_line": 18
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "verified_successes": [
+    109,
+    74,
+    75
+  ],
+  "available_failure_artifact": 13411055891,
+  "scope": "Read-only connector and repository inspection; no GUI, local tests, edits to app/fixtures, reruns or workflow mutations. Cause/file/line for the 15 failures without stderr is not established."
+}

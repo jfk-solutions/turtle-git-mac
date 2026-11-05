@@ -687,10 +687,43 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testMalformedRegionAndPatternObjectsRefuseSuccessfulBlankOrApproximation() throws {
-        for name in ["unsupported-region-work-budget.emf", "unsupported-region-brush-id.emf", "unsupported-region-path-flags.emf", "unsupported-region-count.emf", "unsupported-region-trailing.emf", "unsupported-region-path-length.emf", "unsupported-region-depth.emf", "unsupported-region-id.emf", "unsupported-region-clip-mode.emf", "unsupported-hatch-style.emf", "unsupported-texture-flags.emf", "unsupported-texture-wrap.emf", "unsupported-texture-truncated.emf", "unsupported-texture-image.emf", "unsupported-texture-tile-budget.emf"] {
+        for name in ["unsupported-region-work-budget.emf", "unsupported-region-brush-id.emf", "unsupported-region-path-flags.emf", "unsupported-region-count.emf", "unsupported-region-trailing.emf", "unsupported-region-path-length.emf", "unsupported-region-depth.emf", "unsupported-region-id.emf", "unsupported-region-clip-mode.emf", "unsupported-hatch-style.emf", "unsupported-texture-flags.emf", "unsupported-texture-wrap.emf", "unsupported-texture-truncated.emf", "unsupported-texture-image.emf"] {
             XCTAssertThrowsError(try MetafileImageDecoder.convert(data(name)), name)
             XCTAssertNil(ComparisonImage(bytes: try data(name)), name)
         }
+    }
+    func testHistoricalTextureTileBudgetUsesBoundedWrappedSampling() throws {
+        let name="unsupported-texture-tile-budget.emf",source=try data(name)
+        XCTAssertEqual(SHA256.hash(data:source).map{String(format:"%02x",$0)}.joined(),"003aede24432cfa122a74ddf167db09bea33de7f4a36298c6b17f52b80689c68")
+        let rendered=try rawDecodedPixels(try image(name))
+        XCTAssertEqual(rendered.width,97);XCTAssertEqual(rendered.height,65)
+        // Independent original source bytes: generate.py's opaque LCG PNG.
+        // The decoded Float32 .01 brush scale maps these interior centers to
+        // (100*x+49.5,100*y+49.5). Rounding error is <1/4096 texel here,
+        // so each bilinear sample has four exactly equal Q11 weights.
+        let prefix=Data([2,16,192,219,2,0,0,0,2,0,0,0,0,0,0,0])
+        let transform=try XCTUnwrap(source.range(of:prefix)).upperBound
+        let bits=(0..<4).reduce(UInt32(0)){$0 | UInt32(source[transform+$1]) << UInt32($1*8)}
+        let scale=Double(Float(bitPattern:bits))
+        XCTAssertEqual(scale,0.009999999776482582)
+        var noise=[UInt8](),state:UInt32=0x74757274
+        for _ in 0..<(128*128) {
+            for _ in 0..<3 {state=1664525 &* state &+ 1013904223;noise.append(UInt8(state>>24))}
+        }
+        for y in 1...4 {for x in 1...4 {
+            let u=(Double(x)+0.5)/scale-0.5,v=(Double(y)+0.5)/scale-0.5
+            XCTAssertLessThan(abs(u-floor(u)-0.5),1.0/4096);XCTAssertLessThan(abs(v-floor(v)-0.5),1.0/4096)
+            let sx=Int(floor(u))%128,sy=Int(floor(v))%128
+            var expected=[UInt8]()
+            for channel in 0..<3 {
+                var total=0
+                for dy in 0...1 {for dx in 0...1 {total += Int(noise[(((sy+dy)%128)*128+(sx+dx)%128)*3+channel])}}
+                expected.append(UInt8((total+2)/4))
+            }
+            expected.append(255)
+            XCTAssertEqual(rendered.pixel(x,y),expected,"Wrapped noise texture at \(x),\(y)")
+        }}
+        XCTAssertEqual(try data(name),source,"Bounded sampling changed historical source bytes")
     }
     func testMalformedAndUnsupportedPaintingFailInsteadOfSuccessfulBlank() throws {
         for name in ["unsupported-region.emf", "unsupported-image-wrap.emf", "unsupported-image-attribute-type.emf", "unsupported-gradient-stops.emf", "unsupported-image-tile-budget.emf", "unsupported-gradient-canonical-precision.emf"] {

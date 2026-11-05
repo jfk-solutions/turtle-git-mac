@@ -414,4 +414,3 @@ archive was refused before export. The initial path-fixture and relocated-helper
 symbol-name checks were corrected without rebuilding the archive; exact UUID
 matching remains required. See [the scoped QA record](../qa/distribution-archive-2026-10-14.json).
 This is a local unsigned candidate, not an App Store submission-ready release.
-

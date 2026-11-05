@@ -1,0 +1,98 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "f90bffd9dabcb4619fad37eb73dd8392460e8eff",
+  "status": "focused-local-contract-repair-passed-hosted-open",
+  "hosted_evidence": {
+    "run": 42008244039,
+    "job": 127180998911,
+    "artifact": 13411055891,
+    "artifact_member_prefix": "metafile-workflow-failures/consumers-0-negative-6-4x40ixu1/",
+    "observed_failure": "Historical valid texture rendered97x65/no error; old negative consumer expected explicit unsupported.",
+    "raw_archive_persisted": false,
+    "inspection": "Authenticated connector ZIP inspected in memory by CI agent; no additional raw job log access established."
+  },
+  "fixture": {
+    "name": "unsupported-texture-tile-budget.emf",
+    "sha256": "003aede24432cfa122a74ddf167db09bea33de7f4a36298c6b17f52b80689c68",
+    "bytes_and_name_unchanged": true,
+    "contract": "Opaque128x128 LCG bitmap, serialized Float32 .01 Tile brush, fill96x64. Bounded device sampling avoids former per-tile SVG serialization duplication."
+  },
+  "changes": [
+    "Only this historical filename enters the independently declared driver/receiver positive inventory.",
+    "Three Core methods require16 exact analytic bilinear RGBA samples from independently regenerated LCG texels and decoded Float32 transform, source hash and97x65 dimensions; genuine texture/region/DrawImage refusals remain.",
+    "Actual native ordinary Compare, explicit image input and real conflict initial/Reload require same independent pixels, raw bytes, and HEAD/index/working invariants. Existing cancellation/retirement checks retained."
+  ],
+  "renderer_changed": false,
+  "validation": {
+    "Core": {
+      "methods": 3,
+      "passed": true,
+      "filter": "MetafileImageTests.test(HistoricalTextureTileBudget|MalformedRegionAndPatternObjects|MalformedAndUnsupportedPainting)",
+      "failures": 0
+    },
+    "native": {
+      "scope": "selected",
+      "cohorts": [
+        "historical-positive",
+        "negative-3"
+      ],
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "combinations": 4,
+      "passed": true,
+      "results": [
+        {
+          "case": "consumers",
+          "cohort": "historical-positive",
+          "git": "/usr/bin/git",
+          "passed": true,
+          "elapsed_seconds": 8.113331208999998
+        },
+        {
+          "case": "consumers",
+          "cohort": "negative-3",
+          "git": "/usr/bin/git",
+          "passed": true,
+          "elapsed_seconds": 26.538224082999996
+        },
+        {
+          "case": "consumers",
+          "cohort": "historical-positive",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "passed": true,
+          "elapsed_seconds": 5.833036375000006
+        },
+        {
+          "case": "consumers",
+          "cohort": "negative-3",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "passed": true,
+          "elapsed_seconds": 28.027291583000007
+        }
+      ],
+      "negative_images_per_engine": 64,
+      "positive_historical_names": 7,
+      "contains_genuine_DrawImage_budget_refusal": true,
+      "ownership": "Private repos/config/preferences/temp, hidden/offscreen owners. Compiler8353 and receivers8420,8532,8766,8895 reaped; success needed no orphan helper cleanup."
+    },
+    "app_build": false,
+    "reason_no_app_build": "No application/Core/renderer behavior or literal UI labels changed; native receivers reuse current Debug framework/app-object generation.",
+    "Help": "Exact changed-guide intersection with topics/additional_guides is empty; no Help regeneration needed for these two guides."
+  },
+  "logs": {
+    "build/qa/texture-budget-core-2026-11-05.log": "11a9ccc2808e0df521b052feef1327543e8a764a1f4c7ff52106fdec4e3b6e0d",
+    "build/qa/texture-budget-native-2026-11-05.log": "880c4c66e39527e88895ff8ba777f3ea410942807973029ec7b659f1a6a84107",
+    "build/qa/texture-budget-coverage-2026-11-05.log": "e99ad19659e14118b675e505722f9b76c8def3f3b811fb9866465a52d8c45651"
+  },
+  "remaining": [
+    "Corrected-source complete hosted acceptance.",
+    "Other current Commit/History errors are unclassified until raw diagnostics become available; this fixture repair does not explain them.",
+    "Independent Windows full-frame quality, signed/current physical delivery and full port acceptance remain separate."
+  ],
+  "scope_limits": [
+    "No installed52 change, binary publication, App Store/account change or new Windows oracle.",
+    "Local focused cohorts do not establish complete negative/positive inventory run."
+  ]
+}

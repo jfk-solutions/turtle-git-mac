@@ -148,3 +148,27 @@ No full local Core suite or current signed/hosted acceptance is claimed.
 The [compressed-path continuation](METAFILE-PATH-PARITY.md) supersedes the earlier
 relative/RLE region-path refusal. Region tree, coordinate and mask budgets remain
 independent of the shared path decoding/tracing budgets.
+
+## Bounded ordinary texture sampling — November 5, 2026
+
+Ordinary shape/stroke texture brushes now sample a bounded device plane with
+periodic bilinear neighbor lookup. Their bitmap decode, output-pixel, sampling
+work and aggregate64MiB markup limits remain enforced. The separate region,
+text and raw DrawImage routes retain their documented profiles and limits.
+
+The historical `unsupported-texture-tile-budget.emf` is valid texture metadata,
+not malformed input. Its Float32 .01 scale previously exceeded the old SVG
+implementation's duplicated-PNG serialization budget. The device sampler needs
+only a97×65 output plane for this file, so rejecting it solely to retain that
+old expectation would remove supported painting. Its original bytes/name/SHA
+remain pinned; Core and native consumer assertions require successful rendering,
+opaque analytic LCG/bilinear pixels and unchanged source/stage bytes. The native
+consumer coverage includes ordinary Compare, explicit image Open and real
+three-stage conflict preview/Reload. The focused checkpoint passes three Core methods and four selected native
+cohort/engine combinations; see [dated evidence](qa/metafile-texture-budget-2026-11-05.json).
+No complete inventory or new Windows full-frame identity is asserted.
+
+Only this historical texture fixture moves to the explicit positive inventory.
+Invalid texture flags/wrap/image data, region work limits and the separate
+`unsupported-image-tile-budget.emf` DrawImage serialization limit remain negative
+controls. Cancellation, owner retirement and delayed-result checks are retained.

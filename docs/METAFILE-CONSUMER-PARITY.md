@@ -118,3 +118,20 @@ profile-losing `NSBitmapImageRep.colorAt` access; the existing color thresholds
 remain unchanged. All 18 metafile Core methods passed after these repairs.
 Hosted integration, physical Windows equivalence and current signed distribution
 acceptance remain separate.
+
+## Historical texture budget classification — November 5, 2026
+
+`unsupported-texture-tile-budget.emf` retains its original bytes and historical
+name but belongs to the explicit positive cohort: ordinary texture brushes now
+use bounded wrapped device sampling instead of duplicated SVG PNG tiles.
+The inventory is declared independently in the workflow driver and receiver;
+it never asks the decoder whether a fixture should succeed. Both Core and
+native assertions regenerate opaque LCG texels, decode the serialized Float32
+scale and require exact analytic bilinear interior pixels. Compare, explicit
+image input and real conflict preview/Reload retain original EMF bytes and
+HEAD/index/working snapshots. See [region/pattern painting](METAFILE-REGION-PATTERN-PARITY.md#bounded-ordinary-texture-sampling--november-5-2026).
+
+The remaining negative inventory, including raw DrawImage tile-budget refusal,
+and existing cancellation/late-publication tests are unchanged. The focused checkpoint passes three Core methods and four selected native
+cohort/engine combinations; see [dated evidence](qa/metafile-texture-budget-2026-11-05.json).
+It does not establish a complete consumer inventory or new Windows full-frame oracle.

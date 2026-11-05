@@ -96,6 +96,15 @@ compatibility; no generated vector/image outputs were copied into these fixtures
   PNG, tiled100×100 (10000tiles, below the count limit) over a source rectangle
   mapped to96×64. Duplicated serialized image payload exceeds64MiB and must be
   rejected before concatenating the oversized SVG.
+- `unsupported-texture-tile-budget.emf`: historical filename and original bytes
+  retained (SHA256 `003aede24432cfa122a74ddf167db09bea33de7f4a36298c6b17f52b80689c68`).
+  This valid opaque128×128 LCG texture, scaled by serialized Float32 .01 and
+  tiled into96×64, is now a positive ordinary-brush case. The bounded wrapped
+  device sampler does not duplicate its PNG into thousands of SVG tiles.
+  Independent interior pixel expectations regenerate the LCG texels and use
+  the decoded transform's four equal bilinear weights. This is an analytic
+  sampling control, not a newly captured Windows full-frame golden.
+  `unsupported-image-tile-budget.emf` above remains a separate DrawImage refusal.
 - `plus-gradient-large-offset-distorted.emf`: the exact former
   `unsupported-gradient-precision.emf` bytes (SHA256
   `dac9ffe587ce0ea4a0a007b1bc16bb515fa4f3f54f3136c2b54e482f51dd2a12`).

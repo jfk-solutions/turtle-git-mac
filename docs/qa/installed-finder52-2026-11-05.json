@@ -1,0 +1,77 @@
+{
+  "base": "/Users/jkuehner/Desktop/TurtleGit-Finder-Acceptance-t11t083w",
+  "repository": "/Users/jkuehner/Desktop/TurtleGit-Finder-Acceptance-t11t083w/TurtleGit Finder sample",
+  "git_head": "5853844b59d2e679083c787cf370a0c6c0db3cfa",
+  "index_sha256": "012092dc98fdde79430668033706d7b62cc92509fc0cf7f76285f674aa89893c",
+  "status": "partial-installed-acceptance-cleanup-awaits-manual-unlock",
+  "scope": "Disposable synthetic repository, no remotes or user data. Created for installed52 physical Finder/Commit acceptance; no app started yet.",
+  "preferences_existed": true,
+  "Add_invoked": true,
+  "main_after_Add": [
+    "98689 /Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+  ],
+  "registration_saved_recent_and_watched": true,
+  "registered_Finder_menu_observed": true,
+  "normal_quit_before_cold_Commit_absent": true,
+  "access_panel": {
+    "title": "Add to TurtleGit",
+    "selected_folder": "TurtleGit Finder sample",
+    "preselected_exact_repository": true,
+    "message": "Allow access to this repository folder to enable Git commands and status badges in Finder.",
+    "Allow_Access_invoked": true,
+    "tool_click_returned_timeout": true
+  },
+  "cold_Commit_invoked": true,
+  "main_after_cold_Commit": [
+    "99221 /Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+  ],
+  "owned_cold_main_cleanup": {
+    "pid": 99221,
+    "exact_executable": "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac",
+    "signal": "SIGTERM",
+    "independently_absent": true,
+    "reason": "Mac locked; UI unavailable; owned Commit draft was emptied and stage/unstage settled."
+  },
+  "cold_Commit_first_observation_ms": 16645,
+  "cold_timing_limit": "Includes tool/model/observation delays between command and capture; not a precise cold benchmark.",
+  "Commit_acceptance": {
+    "Classic_three_expected_rows": true,
+    "message_input_real_keystroke_received": true,
+    "row_selection_received": true,
+    "amend_message_loaded": true,
+    "settled_header_geometry_unchanged": true,
+    "GUI_lists_bordered_and_striped": true,
+    "doubleclick_stage_then_unstage": true,
+    "draft_emptied": true,
+    "original_Classic_preference_restoration_pending": false,
+    "limits": "No all-frame transient-flicker or all-repository timing certification. One unintended ruler sheet from stale target cancelled without OK."
+  },
+  "cleanup_pending": {
+    "Finder_window": "TurtleGit-Finder-Acceptance-t11t083w",
+    "registered_and_recent_private_records": true,
+    "preferences": false,
+    "fixture": true,
+    "reason": "Native tool reports Mac locked; requested manual unlock; no bypass attempted."
+  },
+  "Git_after_stage_roundtrip": {
+    "HEAD_unchanged": true,
+    "status_unchanged": true,
+    "no_staged_changes": true,
+    "index_raw_sha256": "91e811d038811c7773267e2958fda5d9c1c8a490fddb721336c4f57edf8274bd",
+    "index_note": "Stage/Unstage can update index stat metadata; semantic index and working status checked separately."
+  },
+  "preferences_restored_keys": [
+    "TurtleGit.Commit.GitGuiInterface",
+    "NSOSPLastRootDirectory"
+  ],
+  "preference_restore_note": "First conservative attempt refused the integer-valued interface preference before writing; targeted integer/string/data support retains exact baseline property values. No whole-domain import.",
+  "version": "0.1.0",
+  "build": "52",
+  "installed_source": "3702643e020511fc09687cda58f352ad5d12e459",
+  "main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+  "limitations": [
+    "No final Log selection, physical badges/background refresh or complete first-use/nested grant acceptance.",
+    "One owned Finder window and exact private registration/fixture cleanup await manual unlock; no unrelated app/window terminated.",
+    "Preference backup contains user data and stays private locally; it is not included in this record."
+  ]
+}

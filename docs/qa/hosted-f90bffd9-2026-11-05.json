@@ -1,0 +1,145 @@
+{
+  "date": "2026-11-05",
+  "source": "f90bffd9dabcb4619fad37eb73dd8392460e8eff",
+  "observation": "Component observation during texture-budget repair; workflow remains nonterminal and was not restarted.",
+  "macOS_run": 42008244039,
+  "macOS_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42008244039",
+  "jobs": [
+    {
+      "id": 127180367534,
+      "name": "svn-runtime",
+      "status": "completed",
+      "conclusion": "success",
+      "failed_steps": []
+    },
+    {
+      "id": 127180998575,
+      "name": "validation (core)",
+      "status": "in_progress",
+      "conclusion": null,
+      "current_step": "Git integration tests",
+      "failed_steps": []
+    },
+    {
+      "id": 127180998661,
+      "name": "validation (settings-finder)",
+      "status": "in_progress",
+      "conclusion": null,
+      "current_step": "Application and embedded Finder extension",
+      "failed_steps": []
+    },
+    {
+      "id": 127180998667,
+      "name": "validation (replay-transport)",
+      "status": "in_progress",
+      "conclusion": null,
+      "current_step": "Native Synchronization child progress family",
+      "failed_steps": [
+        "Rebase source forms and connected workflows",
+        "Native Network source layout and SSH ownership",
+        "Native history navigation warnings Combine and child submodule inspections",
+        "Grouped native Submodule exact paths, source forms, selection and progress",
+        "Native Clone progress and repository setup/transition recovery",
+        "Native all-reference browser and Reset handoff",
+        "Native Resolve and Rebase exact conflict selection",
+        "Native primary command launch family",
+        "Rebase Revision Files and shared Changed Files workflows",
+        "Canonical Log integration and Rebase reference workflows",
+        "Native transport presentation",
+        "Native Log and Rebase font",
+        "Native Push partial result refresh",
+        "Native Push retained progress and post-actions",
+        "Grouped native Request Pull waiting, editor, mail and cancellation",
+        "Native ordinary Fetch progress and post-actions",
+        "Native Push cancellation",
+        "Check connected Stash and Submodule recovery workflows",
+        "Check connected Switch, Reset and Bisect workflows",
+        "Native Synchronization histories and revision lists",
+        "Native Synchronization outgoing, Fetch transports and owner lifetime",
+        "Native Synchronization literal branch selection and transport",
+        "Native Synchronization conflict file table and source actions"
+      ]
+    },
+    {
+      "id": 127180998715,
+      "name": "validation (history-references)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        "Source reference forms and owned remote-tag workflows",
+        "Native RefLog refresh and deletion lifetime",
+        "Native Blame captured source menus",
+        "Native tracked branch commands and remote-only picker",
+        "Native Export progress and ZIP cancellation",
+        "Exact Unicode repository paths and browser actions",
+        "Repository Browser raw Git names, stored objects and owned delivery",
+        "Captured reference menus and related native workflows",
+        "Three-pane ordinary block choices, navigation, history and ignored conflicts",
+        "Native revision table optional font",
+        "Native RefLog partial failures and continued deletion",
+        "Native commit-containing reference dialog and owned Log/picker routes",
+        "Native Log compressed graph rollup receiver",
+        "Native Revision Graph window and Filter with both Git engines"
+      ]
+    },
+    {
+      "id": 127180998732,
+      "name": "validation (distribution)",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 127180998741,
+      "name": "validation (editors)",
+      "status": "in_progress",
+      "conclusion": null,
+      "current_step": "Application and embedded Finder extension",
+      "failed_steps": []
+    },
+    {
+      "id": 127180998911,
+      "name": "validation (commit-repository)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        "Revert completed results and shared file-progress ownership",
+        "WMF and EMF native comparison consumers and colors",
+        "Native Git configuration source forms and owned editors",
+        "Native General source inputs and owned engine validation",
+        "Native filtered historical file output and owned filter cancellation",
+        "Native optional libgit2 backend selection and owned Git authentication",
+        "Native Add Remote and Select Remote Ref source workflows",
+        "Native workspace completion handoffs",
+        "Native Commit report rows, fonts and geometry ownership",
+        "Source color conversion and native status text appearance",
+        "Comparison savepoints, options, row edits and editor workflows",
+        "Native Save As source targets",
+        "Commit identity repair and effective author controls",
+        "Native Commit, Rebase message editing and Fetch/Pull completion",
+        "Native Commit and Rebase encoding receiver",
+        "Native Commit settings and selection receiver"
+      ]
+    },
+    {
+      "id": 127180999079,
+      "name": "validation (images-documents)",
+      "status": "queued",
+      "conclusion": null
+    }
+  ],
+  "Pages": {
+    "run": 42008244066,
+    "status": "completed",
+    "conclusion": "success",
+    "direct_deployment_check": "build/qa/deployed-f90-pages-2026-11-05.json",
+    "scope": "Three public HTTPS routes200/current text; homepage eight native screenshots, Getting Started eleven images, imprint links retained."
+  },
+  "diagnostics": {
+    "commit": "hosted-commit-run42008244039-2026-11-05.json",
+    "history": "hosted-history-run42008244039-2026-11-05.json",
+    "known_texture": "metafile-texture-budget-2026-11-05.json",
+    "limits": "Full job logs unavailable through connector (Transport closed); authorized unauthenticated exact public endpoint403. Other failure causes remain unclassified, not presumed compiler or production failures."
+  },
+  "physical": "installed-finder52-2026-11-05.json",
+  "scope": "Installed52 unchanged; first-use/cold Commit observations partial and cleanup awaits manual unlock. No signed/current-source or full-port acceptance."
+}

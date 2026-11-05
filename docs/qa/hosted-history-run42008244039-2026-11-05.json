@@ -1,0 +1,177 @@
+{
+  "run_id": 42008244039,
+  "job_id": 127180998715,
+  "lane": "history-references",
+  "observed_date": "2026-11-05",
+  "status": "terminal-failure",
+  "failed_step_count": 14,
+  "log_collection": {
+    "connector": "github.fetch_workflow_job_logs",
+    "result": "Transport closed; no decoded logs returned",
+    "cli_fallback": "gh api returned authentication-required exit4; no login or credential request attempted",
+    "scope": "Step conclusions are verified; underlying exceptions and source-versus-fixture causes remain unknown without logs. No GUI, guest commands, builds or test reruns.",
+    "public_api_fallback": {
+      "attempts": 1,
+      "http_status": 403,
+      "bytes": 0,
+      "authentication": "none",
+      "stopped_without_retry": true,
+      "receipt": "build/qa/history-public-log-fetch-42008244039.json"
+    }
+  },
+  "failed_steps": [
+    {
+      "name": "Source reference forms and owned remote-tag workflows",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 256,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 994,
+      "current_workflow_block": "      - name: Source reference forms and owned remote-tag workflows\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: >-\n          python3 scripts/test-reference-source-family.py\n          --git /usr/bin/git\n          --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+    },
+    {
+      "name": "Native RefLog refresh and deletion lifetime",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 266,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1027,
+      "current_workflow_block": "      - name: Native RefLog refresh and deletion lifetime\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-reflog-lifecycle.py --only lifecycle --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+    },
+    {
+      "name": "Native Blame captured source menus",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 273,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1050,
+      "current_workflow_block": "      - name: Native Blame captured source menus\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+    },
+    {
+      "name": "Native tracked branch commands and remote-only picker",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 290,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1101,
+      "current_workflow_block": "      - name: Native tracked branch commands and remote-only picker\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-reference-tracking.py"
+    },
+    {
+      "name": "Native Export progress and ZIP cancellation",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 293,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1110,
+      "current_workflow_block": "      - name: Native Export progress and ZIP cancellation\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-export-progress.py"
+    },
+    {
+      "name": "Exact Unicode repository paths and browser actions",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 314,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1176,
+      "current_workflow_block": "      - name: Exact Unicode repository paths and browser actions\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-browser-paths.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\""
+    },
+    {
+      "name": "Repository Browser raw Git names, stored objects and owned delivery",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 315,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1179,
+      "current_workflow_block": "      - name: Repository Browser raw Git names, stored objects and owned delivery\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-repository-browser-namespace.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\""
+    },
+    {
+      "name": "Captured reference menus and related native workflows",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 318,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1188,
+      "current_workflow_block": "      - name: Captured reference menus and related native workflows\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-reference-menu-targets.py --only folders --only comparison --only tracking --only rename --only standalone --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\""
+    },
+    {
+      "name": "Three-pane ordinary block choices, navigation, history and ignored conflicts",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 320,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1194,
+      "current_workflow_block": "      - name: Three-pane ordinary block choices, navigation, history and ignored conflicts\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-merge-ignored.py --git /usr/bin/git --git \"$PWD/build/git-runtime/Git/bin/git\""
+    },
+    {
+      "name": "Native revision table optional font",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 332,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1233,
+      "current_workflow_block": "      - name: Native revision table optional font\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-log-table-font.py"
+    },
+    {
+      "name": "Native RefLog partial failures and continued deletion",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 361,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1323,
+      "current_workflow_block": "      - name: Native RefLog partial failures and continued deletion\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-reflog-partial-failure.py"
+    },
+    {
+      "name": "Native commit-containing reference dialog and owned Log/picker routes",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 400,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1442,
+      "current_workflow_block": "      - name: Native commit-containing reference dialog and owned Log/picker routes\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-commit-containing-refs.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    },
+    {
+      "name": "Native Log compressed graph rollup receiver",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 402,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1448,
+      "current_workflow_block": "      - name: Native Log compressed graph rollup receiver\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-log-rollup.py"
+    },
+    {
+      "name": "Native Revision Graph window and Filter with both Git engines",
+      "status": "completed",
+      "conclusion": "failure",
+      "number": 426,
+      "underlying_exception": null,
+      "source_versus_fixture": "undetermined; step name alone is insufficient",
+      "current_workflow_line": 1531,
+      "current_workflow_block": "      - name: Native Revision Graph window and Filter with both Git engines\n        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}\n        run: python3 scripts/test-revision-graph-window.py --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    }
+  ],
+  "source_prefix": "f90",
+  "source_identity_scope": "Prefix supplied with the requested run; no full SHA inferred from step metadata.",
+  "repair_plan": {
+    "state": "awaiting underlying failure evidence",
+    "production_changes_authorized_by_evidence": false,
+    "steps": [
+      "Obtain the terminal job log through an available authorized headless route; preserve exact failing subcase, engine, exception and preceding completion markers for all14 steps.",
+      "Map each exception to its current source contract before deciding stale fixture versus production defect.",
+      "Group confirmed related reference/RefLog/browser selection, refresh and cancellation defects into a complete end-user family; retain independent Export/Merge/font/graph defects separately unless raw evidence demonstrates a shared cause.",
+      "Freeze the coherent implementation before one affected grouped native checkpoint; do not rerun unrelated passing cases or weaken assertions."
+    ],
+    "limits": "Step captions are not underlying exceptions. No common cause or completed repair is claimed."
+  }
+}
