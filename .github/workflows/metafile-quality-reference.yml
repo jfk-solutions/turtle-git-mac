@@ -1,0 +1,62 @@
+name: Independent EMF+ ordinary paint quality reference
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  reference:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: ilammy/msvc-dev-cmd@v1
+      - name: Compile independent GDI+ paint and wire observer
+        shell: cmd
+        run: >-
+          cl /nologo /std:c++17 /EHsc /W4
+          docs\qa\metafile-quality-reference-2026-11-05\QualityReference.cpp
+          /Fe:QualityReference.exe /link gdiplus.lib user32.lib gdi32.lib
+      - name: Capture fifty-three direct and recorded quality cases
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          ./QualityReference.exe quality-output
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $report = Get-Content -Raw quality-output/quality-observations.json | ConvertFrom-Json
+          if ($report.requestedCaseCount -ne 53 -or $report.completedCaseCount -ne 53 -or $report.cases.Count -ne 53) { throw 'Independent case inventory incomplete' }
+          if ($report.width -ne 128 -or $report.height -ne 96) { throw 'Unexpected observer dimensions' }
+          foreach ($case in $report.cases) {
+            foreach ($suffix in @('-direct.rgba', '-natural.rgba', '-picture.rgba')) {
+              $capturePath = Join-Path quality-output ($case.name + $suffix)
+              if (-not (Test-Path $capturePath) -or (Get-Item $capturePath).Length -ne (128 * 96 * 4)) { throw "Missing or wrong-size raw capture: $capturePath" }
+            }
+            if ($case.nativePlusRecordCount -le 0) { throw "No native EMF+ records: $($case.name)" }
+          }
+          # Direct/replay equality and reserved-bit behavior remain measured
+          # observations, not assumptions encoded as success requirements.
+      - name: Record source, compiler, native runtime and capture identities
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force quality-output | Out-Null
+          git rev-parse HEAD | Set-Content quality-output/source-revision.txt
+          cl 2>&1 | Out-File quality-output/compiler.txt
+          $compilerVersionExitCode = $LASTEXITCODE
+          $compilerVersionExitCode | Set-Content quality-output/compiler-version-exit-code.txt
+          # cl without input is informational here; the separate compile step
+          # remains strict. Preserve a usage-status observation, then clear it.
+          $global:LASTEXITCODE = 0
+          Get-ComputerInfo | Select-Object WindowsProductName,WindowsVersion,OsBuildNumber | ConvertTo-Json | Set-Content quality-output/windows.json
+          Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll" | ForEach-Object { $_.VersionInfo | Select-Object FileName,FileVersion,ProductVersion } | ConvertTo-Json | Set-Content quality-output/runtime-versions.json
+          $files = @(Get-ChildItem quality-output -File) + @(Get-Item docs/qa/metafile-quality-reference-2026-11-05/QualityReference.cpp, docs/qa/metafile-quality-reference-2026-11-05/README.md, .github/workflows/metafile-quality-reference.yml)
+          if (Test-Path QualityReference.exe) { $files += Get-Item QualityReference.exe }
+          $files += Get-Item "$env:WINDIR/System32/gdiplus.dll", "$env:WINDIR/System32/gdi32.dll", "$env:WINDIR/System32/win32u.dll"
+          $files | Get-FileHash -Algorithm SHA256 | Select-Object Path,Hash | ConvertTo-Json -Depth 4 | Set-Content quality-output/sha256.json
+          if ((Get-ChildItem quality-output -File | Measure-Object Length -Sum).Sum -gt 16MB) { throw 'Quality reference artifact exceeds16MiB' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: metafile-ordinary-paint-quality-windows-reference
+          path: quality-output
+          if-no-files-found: error
+          retention-days: 30
