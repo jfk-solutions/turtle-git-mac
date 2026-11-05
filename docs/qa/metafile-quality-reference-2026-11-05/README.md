@@ -26,6 +26,10 @@ transparent Clear retain intrinsic alpha so coverage can be measured without
 inferring it from a translucent source. State scenes record actual getter values
 before and after the restore/container boundaries; setter enum values must not be
 assumed to equal native serialized flags.
+Both container forms also observe getters and draw an isolated opaque fractional
+rectangle and thin diagonal immediately after entry, before any inner quality
+setters. These distinguish native container-default quality from inherited outer
+quality; later miniature scenes leave the markers exposed. No extra case is added.
 
 Brush controls fill a large fractional rectangle. Their gradient endpoints,
 colors, wrap mode, rendering origin, texture pixels and texture transform are

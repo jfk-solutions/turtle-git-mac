@@ -123,6 +123,14 @@ static std::string draw(Graphics& g, const Case& c) {
         GraphicsContainer container=0;
         if (c.scene==Scene::Container) {container=g.BeginContainer();ok(g.GetLastStatus(),"BeginContainer");}
         if (c.scene==Scene::RectContainer) {container=g.BeginContainer(RectF(48,0,76,48),RectF(0,0,128,96),UnitPixel);ok(g.GetLastStatus(),"rectangle BeginContainer");}
+        if (c.scene==Scene::Container || c.scene==Scene::RectContainer) {
+            // Observe the container's native defaults BEFORE any quality setter.
+            // This isolated marker is not covered by the later miniature scenes.
+            state(observations,g,"container-entry-before-quality-overrides",first);
+            SolidBrush marker(Color(255,18,170,200));Pen markerPen(Color(255,0,0,0),1.0f);
+            ok(g.FillRectangle(&marker,112.125f,6.25f,9.5f,8.25f),"container default-quality marker fill");
+            ok(g.DrawLine(&markerPen,112.25f,18.125f,123.75f,30.625f),"container default-quality marker line");
+        }
         ok(g.SetSmoothingMode(SmoothingModeNone),"inner smoothing");ok(g.SetPixelOffsetMode(PixelOffsetModeHalf),"inner pixel");
         ok(g.SetCompositingQuality(CompositingQualityGammaCorrected),"inner quality");state(observations,g,"inside-saved-state",first);
         if (c.scene!=Scene::RectContainer) {ok(g.TranslateTransform(56,0),"second state translation");ok(g.ScaleTransform(0.45f,0.45f),"second state scale");}
@@ -204,7 +212,7 @@ static void capture(const Case& c,const fs::path& out,std::ostream& report) {
     try {
         {Metafile image(filename.c_str(),hdc,RectF(0,0,REAL(W),REAL(H)),MetafileFrameUnitPixel,EmfTypeEmfPlusOnly);ok(image.GetLastStatus(),"native recording");Graphics g(&image);recordedStates=draw(g,c);}
     } catch (...) {referenceGraphics.ReleaseHDC(hdc);throw;}
-    ok(referenceGraphics.ReleaseHDC(hdc),"release reference HDC");
+    referenceGraphics.ReleaseHDC(hdc);ok(referenceGraphics.GetLastStatus(),"release reference HDC");
     auto wire=read(filename);auto audit=auditWire(wire);
     {std::ofstream records(out/(c.name+"-records.json"));records << audit.json;if (!records) throw std::runtime_error("write record report");}
     auto natural=replay(filename,false),picture=replay(filename,true);
