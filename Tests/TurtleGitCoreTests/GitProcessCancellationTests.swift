@@ -32,9 +32,12 @@ final class GitProcessCancellationTests: XCTestCase {
           /usr/bin/printf 'partial patch bytes' > "$6/0001-partial.patch"
           /usr/bin/printf '%s\\n' "$6/0001-partial.patch"
           /usr/bin/printf 'export helper started\\n' >&2
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
           /bin/sleep 30 &
           child=$!
-          /usr/bin/printf '%s\\n%s\\n' "$$" "$child" > \(quote(ready.path))
+          /usr/bin/printf '%s\\n%s\\n' "$$" "$child" > \(quote(ready.path+".pending"))
+          /bin/mv \(quote(ready.path+".pending")) \(quote(ready.path))
           wait "$child"
         else
           exec /usr/bin/git "$@"
@@ -62,6 +65,8 @@ final class GitProcessCancellationTests: XCTestCase {
         let started = Date(); token.cancel()
         do { _ = try await task.value; XCTFail("Cancelled export reported success") }
         catch let failure as GitCommandCancellationFailure {
+            XCTAssertTrue(token.isCancelled)
+            XCTAssertTrue([130,143,137].contains(failure.result.exitCode),"Runner must preserve its actual INT/TERM/KILL cancellation status")
             XCTAssertTrue(failure.result.text.contains("0001-partial.patch"))
             XCTAssertTrue(failure.result.text.contains("export helper started"))
         }

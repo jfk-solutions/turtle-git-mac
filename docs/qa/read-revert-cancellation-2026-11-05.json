@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-05",
+  "base_commit": "b176281d",
+  "scope": "Scoped Read/Revert cancellation and cancellable export ownership consumer contract; production runner and Git cancellation behavior unchanged.",
+  "hosted_failure": {
+    "run": 42008244039,
+    "job": 127180998575,
+    "test": "WorkingFileRevertPathReadTests.testCancellationDrainsAnInFlightScopedStatusWithoutPublishingASelection",
+    "actual": 143,
+    "stale_expected": 130
+  },
+  "implementation": [
+    "Atomic private shell/child readiness receipts; verify leader process-group ownership and shared child membership before cancellation.",
+    "Explicit INT\u2192130 and TERM\u2192143 traps in artificial held-command shells make the fixture signal contract independent of supported shell wait implementations; SIGKILL137 remains an allowed runner escalation. Production statuses are never normalized.",
+    "Require typed running GitCommandCancellationFailure plus cancelled token and only controlled INT/TERM/KILL status; no successful Retry selection.",
+    "Drain and assert absence of both owned processes. Preserve exact NUL argument/path framing and GIT_OPTIONAL_LOCKS=0 for supplemental status and full ownership inventory.",
+    "Unknown paths already present in primary Commit status do not invent a supplemental ignored-status query; full ownership inventory retains exact cached ls-files command.",
+    "Pre-cancelled reads launch no command; index bytes, HEAD, tracked and unknown working contents and absence of index.lock retained.",
+    "Export companion retains partial output and HEAD/index/worktree invariants with the same atomic process receipt and signal contract."
+  ],
+  "checks": [
+    {
+      "log": "build/qa/read-revert-cancellation-2026-11-05.log",
+      "sha256": "c18c5bf678120b90c78ca2d7e99f2afbd44623ccae655e1ab67c75272af8fd66",
+      "tests": 13,
+      "failed_methods": 2,
+      "assertion_failures": 5,
+      "result": "initial failure",
+      "diagnosis": "Stronger controls exposed native shell exit129 during untrapped wait and stale expectation of supplemental ignored status for a primary-status unknown path; all other11 methods passed."
+    },
+    {
+      "log": "build/qa/read-revert-cancellation-repair-2026-11-05.log",
+      "sha256": "fd6f05efe392e8aee1fb3d567b9ae0ecadf18c8730232d9a318600b698bc0b14",
+      "tests": 2,
+      "failures": 0,
+      "result": "pass",
+      "scope": "Only both changed cancellation methods; unaffected11 passing methods not repeated."
+    }
+  ],
+  "environment": {
+    "git": "/usr/bin/git",
+    "private": [
+      "HOME",
+      "CFFIXED_USER_HOME",
+      "TMPDIR",
+      "XDG_CONFIG_HOME",
+      "XDG_CACHE_HOME"
+    ],
+    "global_git_configuration": "disabled",
+    "core_only": true,
+    "windows": "none"
+  },
+  "owned_runner_pids_verified_absent": [
+    10136,
+    11130
+  ],
+  "process_cleanup": "Both leader and child absence asserted by each running cancellation method; private temporary environment and repository directories removed after completion.",
+  "source_sha256": {
+    "Tests/TurtleGitCoreTests/WorkingFileRevertPathReadTests.swift": "84f16fb1e83cba35d0ac1ff4bc2ba2237330b740ff287740f14b647aab4bcd86",
+    "Tests/TurtleGitCoreTests/GitProcessCancellationTests.swift": "38707e230cee2d2975d5865a9129740c14b2fecec2263ead76b4e63089e1000e",
+    "Sources/TurtleGitCore/CancellableGitProcess.swift": "2ca8a20c4fcd8414451de2b635d146233f2c6e1cebe8dfd6fa8a68a40f113e13",
+    "Sources/TurtleGitCore/GitRepository.swift": "6c6f39744302076ad44a033011f9d487c161d596c0264d0bf8290d95f040e4b2",
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "838ddd1de3fd41e36ca74c5e59c992a2dc8af7c0e94cdeb55350b707c94dbef2"
+  },
+  "not_run": [
+    "Full Core suite",
+    "App or native receiver build",
+    "Hosted rerun",
+    "Bundled Git engine",
+    "Physical Finder",
+    "Installed update"
+  ],
+  "limits": "Focused local consumer correction does not establish complete hosted CI success, full source parity, minimum-macOS behavior or distribution readiness."
+}

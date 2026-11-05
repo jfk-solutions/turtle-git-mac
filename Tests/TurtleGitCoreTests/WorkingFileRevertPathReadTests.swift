@@ -58,7 +58,13 @@ final class WorkingFileRevertPathReadTests:XCTestCase {
           printf '!! seed\\0D  seed\\0'; exit 0
         fi
         if { [ \(quote(mode)) = hold-status ] && [ "$kind" = status ]; } || { [ \(quote(mode)) = hold-ownership ] && [ "$kind" = ownership ]; }; then
-          printf '%s' "$$" > \(quote(ready.path))
+          trap 'exit 130' INT
+          trap 'exit 143' TERM
+          /bin/sleep 30 &
+          child=$!
+          printf '%s\\n%s\\n' "$$" "$child" > \(quote(ready.path+".pending"))
+          /bin/mv \(quote(ready.path+".pending")) \(quote(ready.path))
+          wait "$child"
           while [ -f \(quote(hold.path)) ]; do /bin/sleep 0.01; done
         fi
         exec \(quote(repo.executable.path)) "$@"
@@ -326,28 +332,73 @@ final class WorkingFileRevertPathReadTests:XCTestCase {
             let (root,repo)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
             let local=root.appendingPathComponent("unknown"),bytes=Data("private unknown\n".utf8)
             try bytes.write(to:local)
-            let (wrapped,_,ready,hold)=try reader(repo,mode:mode)
+            let (wrapped,log,ready,hold)=try reader(repo,mode:mode)
             try Data().write(to:hold)
-            let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),token=OperationCancellation()
+            let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+            let head=try await repo.run(["rev-parse","HEAD"]).stdout
+            let token=OperationCancellation()
             let selected=[StatusEntry(path:mode=="hold-status" ? "seed":"unknown",originalPath:nil,index:mode=="hold-status" ? " ":"?",worktree:mode=="hold-status" ? " ":"?")]
             let operation=Task{try await wrapped.workingFileRevertSelection(selected,cancellation:token)}
-            var reached=false
-            for _ in 0..<1000 {
-                if FileManager.default.fileExists(atPath:ready.path) {reached=true;break}
+            defer {token.cancel();try? FileManager.default.removeItem(at:hold)}
+            // The atomic receipt belongs to this private wrapper and its long-lived
+            // child. A readiness file alone does not prove process ownership.
+            var pids:[Int32]=[]
+            let deadline=Date().addingTimeInterval(10)
+            while Date()<deadline {
+                pids=((try? String(contentsOf:ready,encoding:.utf8)) ?? "").split(separator:"\n").compactMap{Int32($0)}
+                if pids.count==2 {break}
                 try? await Task.sleep(nanoseconds:10_000_000)
             }
+            guard pids.count==2 else {
+                token.cancel();_=await operation.result
+                XCTFail("The read never reached its owned cancellation gate: "+mode);continue
+            }
+            XCTAssertNotEqual(pids[0],pids[1])
+            XCTAssertEqual(getpgid(pids[0]),pids[0],"Reader must own its process group")
+            XCTAssertEqual(getpgid(pids[1]),pids[0],"Held child must belong to the reader")
             token.cancel()
             do {_=try await operation.value;XCTFail("Cancelled read published a Retry selection")}
-            catch let failure as GitCommandCancellationFailure {XCTAssertEqual(failure.result.exitCode,130);XCTAssertTrue(token.isCancelled)}
-            catch OperationCancellationFailure.cancelled {XCTAssertTrue(token.isCancelled)}
-            try? FileManager.default.removeItem(at:hold)
-            XCTAssertTrue(reached,"The read never reached its owned cancellation gate: "+mode)
-            if let text=try? String(contentsOf:ready,encoding:.utf8),let pid=Int32(text) {
-                XCTAssertEqual(kill(pid,0),-1);XCTAssertEqual(errno,ESRCH,"Cancelled Git wrapper was not reaped")
+            catch let failure as GitCommandCancellationFailure {
+                // The runner preserves the signal that actually ended the leader:
+                // SIGINT, then SIGTERM, then SIGKILL. Shell wait behavior differs
+                // across supported macOS versions; cancellation is a typed result.
+                XCTAssertTrue([130,143,137].contains(failure.result.exitCode),"Unexpected cancellation status: \(failure.result.exitCode)")
+                XCTAssertTrue(token.isCancelled)
             }
+            catch {XCTFail("A running owned query must return typed command cancellation: \(error)")}
+            let stopped=Date().addingTimeInterval(5)
+            while Date()<stopped && pids.contains(where:{kill($0,0)==0}) {try? await Task.sleep(nanoseconds:10_000_000)}
+            for pid in pids {
+                XCTAssertEqual(kill(pid,0),-1,"Cancelled read left an owned process: \(pid)")
+                XCTAssertEqual(errno,ESRCH,"Cancelled process was not reaped")
+            }
+            let receipts=try calls(log),statuses=receipts.filter{$0.kind=="status"},ownership=receipts.filter{$0.kind=="ownership"}
+            if mode=="hold-ownership" {
+                // Unknown paths already appear in the primary Commit status;
+                // supplemental ignored-status reads must not be invented.
+                XCTAssertTrue(statuses.isEmpty)
+                XCTAssertEqual(ownership.count,1)
+                XCTAssertEqual(ownership.first?.arguments,["-c","core.precomposeunicode=false","ls-files","--cached","-z"])
+                XCTAssertEqual(ownership.first?.locks,"0")
+            } else {
+                XCTAssertEqual(statuses.count,1)
+                let scoped=try XCTUnwrap(statuses.first)
+                XCTAssertEqual(scoped.locks,"0")
+                XCTAssertEqual(Array(scoped.arguments.prefix(2)),["-c","core.precomposeunicode=false"])
+                let separator=try XCTUnwrap(scoped.arguments.firstIndex(of:"--"))
+                XCTAssertEqual(raw(Array(scoped.arguments.dropFirst(separator+1))),raw(selected.map(\.path)))
+                XCTAssertTrue(ownership.isEmpty,"Scoped cancellation must not start ownership inventory")
+            }
+            let beforeCancel=try Data(contentsOf:log),preCancelled=OperationCancellation();preCancelled.cancel()
+            do {_=try await wrapped.workingFileRevertSelection(selected,cancellation:preCancelled);XCTFail("Pre-cancelled read launched")}
+            catch OperationCancellationFailure.cancelled {}
+            XCTAssertEqual(try Data(contentsOf:log),beforeCancel)
             XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
             XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("seed")),Data("seed\n".utf8))
             XCTAssertEqual(try Data(contentsOf:local),bytes)
+            let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+            XCTAssertEqual(afterHead,head)
+            XCTAssertFalse(FileManager.default.fileExists(atPath:root.appendingPathComponent(".git/index.lock").path))
         }
     }
 }
