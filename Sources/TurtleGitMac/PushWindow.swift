@@ -300,6 +300,7 @@ struct CommitPushContinuation {
     var pickSourceLog: () -> Void = {}
     var pickSourceRefLog: () -> Void = {}
     private var generation = 0
+    private var remoteChoiceRevision = UUID()
     private var key: String { "Push." + repository.root.path }
     var urlHistoryKey: String { "History.PushURLS." + repository.root.path }
     var destinationHistoryKey: String { "History.RemoteBranch." + repository.root.path }
@@ -366,6 +367,9 @@ struct CommitPushContinuation {
             } catch { if !invalidated, metadataToken === token { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
+    // Injection keeps delayed/cancelled metadata reads under the same ownership
+    // rules as the real repository reader; no transport operation uses this seam.
+    var readRefreshMetadata: ((String, OperationCancellation) async throws -> ([String], [CheckoutReference], PushDefaults))?
     /// Refresh after the remote manager without resetting the user's operation draft.
     func refreshRemoteCatalog() {
         guard !invalidated, !confirmingQuit, !busy, progress == nil else { return }
@@ -382,10 +386,15 @@ struct CommitPushContinuation {
             }
             do {
                 try validateRepositoryAccess()
-                let names = try await repository.remoteNames(cancellation: token)
-                let refs = try await repository.checkoutReferences(cancellation: token)
-                let defaults = try await repository.pushDefaults(source: snapshot.source, cancellation: token)
-                try token.check(); guard !invalidated, metadataToken === token else { return }
+                let names: [String], refs: [CheckoutReference], defaults: PushDefaults
+                if let readRefreshMetadata {
+                    (names, refs, defaults) = try await readRefreshMetadata(snapshot.source, token)
+                } else {
+                    names = try await repository.remoteNames(cancellation: token)
+                    refs = try await repository.checkoutReferences(cancellation: token)
+                    defaults = try await repository.pushDefaults(source: snapshot.source, cancellation: token)
+                }
+                try token.check(); guard !invalidated, !confirmingQuit, metadataToken === token else { return }
                 remotes = names; references = refs; localBranch = defaults.localBranch
                 if !snapshot.arbitraryURL, !names.contains(where:{GitReferenceName.equal($0,snapshot.remote)}) {
                     options.remote = names.contains(where:{GitReferenceName.equal($0,defaults.remote)}) ? defaults.remote : names.first ?? ""
@@ -424,9 +433,23 @@ struct CommitPushContinuation {
     }
     func urlBinding(_ context: FormContext) -> Binding<String> { Binding(get:{self.url},set:{if self.accepts(context),self.options.arbitraryURL {self.url=$0}}) }
     func remoteBinding(_ context: FormContext) -> Binding<String> {
-        Binding(get:{self.options.allRemotes ? "*" : self.options.remote},set:{value in
-            guard self.accepts(context),!self.options.arbitraryURL else {return}
-            self.options.allRemotes = value == "*"; if value != "*" {self.options.remote=value};self.adjustSettings()
+        // AppKit can deliver another selection before SwiftUI updates this
+        // representable. Advance only this action's accepted receipt, so two
+        // canonical-equivalent but byte-distinct remotes remain selectable.
+        // Unrelated source/mode/refresh/child/Quit changes still invalidate it.
+        var accepted = context
+        var acceptedChoiceRevision = remoteChoiceRevision
+        let sourceGeneration = generation
+        let catalog = remotes.map { GitReferenceName($0) }
+        return Binding(get:{self.options.allRemotes ? "*" : self.options.remote},set:{value in
+            guard self.accepts(accepted), !self.options.arbitraryURL,
+                  sourceGeneration == self.generation, acceptedChoiceRevision == self.remoteChoiceRevision,
+                  catalog == self.remotes.map({ GitReferenceName($0) }),
+                  value.isEmpty && self.remotes.isEmpty || value == "*" && self.remotes.count > 1 || self.remotes.contains(where:{ GitReferenceName.equal($0,value) }) else {return}
+            self.options.allRemotes = value == "*"
+            if value != "*" {self.options.remote=value}
+            self.adjustSettings(); accepted = self.formContext
+            self.remoteChoiceRevision = UUID(); acceptedChoiceRevision = self.remoteChoiceRevision
         })
     }
     func selectMode(arbitrary: Bool, context: FormContext) {
@@ -480,7 +503,7 @@ struct CommitPushContinuation {
             } catch { if !invalidated, sourceToken === token, request == generation { preparationNeedsRetry = true; self.error = error.localizedDescription } }
         }
     }
-    func cancelPreparation() { if preparing { preparationNeedsRetry = true }; metadataToken?.cancel(); sourceToken?.cancel() }
+    func cancelPreparation() { if preparing { preparationNeedsRetry = true; formRevision = UUID() }; metadataToken?.cancel(); sourceToken?.cancel() }
     func adjustSettings() {
         if !canTrack { options.setUpstream = false }
         if !canSave { options.savePushRemote = false; options.savePushBranch = false }
@@ -793,7 +816,16 @@ struct PushRemotePopup: NSViewRepresentable {
     }
     func updateNSView(_ button: NSPopUpButton, context: Context) {
         if let owned=button as? TransportRemotePopup,owned.lifetime.retired {owned.target=nil;owned.action=nil;owned.isEnabled=false;return}
-        if context.coordinator.values.map({GitReferenceName($0)}) != values.map({GitReferenceName($0)}) || button.numberOfItems == 0 { button.removeAllItems(); for value in values {button.menu?.addItem(NSMenuItem(title:value == "*" ? "– All –" : value.isEmpty ? "Choose remote" : value,action:nil,keyEquivalent:""))} }
+        if context.coordinator.values.map({GitReferenceName($0)}) != values.map({GitReferenceName($0)}) || button.numberOfItems == 0 {
+            button.removeAllItems(); button.menu?.autoenablesItems = false
+            for value in values {
+                let item = NSMenuItem(title:value == "*" ? "– All –" : value.isEmpty ? "Choose remote" : value,action:nil,keyEquivalent:"")
+                // Push keeps a visible placeholder when no default is selected;
+                // it is not a command that clears a configured remote choice.
+                item.isEnabled = !value.isEmpty || !values.contains(where:{ !$0.isEmpty && $0 != "*" })
+                button.menu?.addItem(item)
+            }
+        }
         context.coordinator.values = values; context.coordinator.change = { selection = $0 }
         if let index = values.firstIndex(where:{GitReferenceName.equal($0,selection)}) { button.selectItem(at: index) }
         button.isEnabled = enabled && (button as? TransportRemotePopup)?.lifetime.retired != true; button.setAccessibilityLabel("Remote archive")

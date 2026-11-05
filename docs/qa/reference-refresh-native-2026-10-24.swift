@@ -160,6 +160,30 @@ import TurtleGitCore
         _ = try await popup(owner.window!,values:pushValues(owner.model),selected:nfc)
         try choose(nfd,in:button);try await wait{!owner.model.preparing};try require(exact(owner.model.options.remote,nfd),"Push native NFD selection lost")
         _ = try await popup(owner.window!,values:pushValues(owner.model),selected:nfd)
+        phase="Push rapid native choices before representable publication"
+        // No await/layout between these actions: AppKit changes selectedItem
+        // immediately, while SwiftUI may still retain the previous binding.
+        try choose(nfc,in:button);try choose(nfd,in:button);try choose(nfc,in:button)
+        try require(exact(owner.model.options.remote,nfc),"Push rapid native choices were rejected by stale binding")
+        try choose(nfd,in:button)
+        try require(exact(owner.model.options.remote,nfd),"Push rapid exact NFD choice lost bytes")
+        let retiredChoice=owner.model.remoteBinding(owner.model.formContext)
+        owner.model.confirmingQuit=true;retiredChoice.wrappedValue=nfc
+        try require(exact(owner.model.options.remote,nfd),"Push selection changed during Quit")
+        owner.model.confirmingQuit=false;retiredChoice.wrappedValue=nfc
+        try require(exact(owner.model.options.remote,nfd),"Pre-Quit Push action survived cancelled Quit")
+        let invalidChoice=owner.model.remoteBinding(owner.model.formContext)
+        invalidChoice.wrappedValue="not-a-configured-remote"
+        try require(exact(owner.model.options.remote,nfd),"Push accepted a remote absent from its exact catalog")
+        invalidChoice.wrappedValue=""
+        try require(exact(owner.model.options.remote,nfd),"Push blank placeholder cleared a configured remote")
+        try require(button.itemArray.first(where:{$0.title=="Choose remote"})?.isEnabled==false,"Push placeholder remained an enabled command")
+        let olderChoice=owner.model.remoteBinding(owner.model.formContext)
+        let newerChoice=owner.model.remoteBinding(owner.model.formContext)
+        newerChoice.wrappedValue=nfc;newerChoice.wrappedValue=nfd
+        try require(exact(owner.model.options.remote,nfd),"Newer Push chooser failed exact A/B/A round trip")
+        olderChoice.wrappedValue=nfc
+        try require(exact(owner.model.options.remote,nfd),"Old Push chooser resurrected after A/B/A round trip")
         try await c.repo.removeRemote(name:nfd);_ = try await c.repo.run(["-c","core.precomposeunicode=false","config","branch.main.remote",nfd])
         let stored=try Data(contentsOf:c.root.appendingPathComponent(".git/config"))
         let window=owner.window as! PushNativeWindow;window.keyOwnerQuery={_ in true};_ = window.performKeyEquivalent(with:f5(window));try await wait{owner.model.pendingOperations==0 && !owner.model.busy && !owner.model.preparing}
@@ -202,6 +226,37 @@ import TurtleGitCore
         let retiredReceipt=try await beginManager(f);f.remoteManagerModel!.close();try await wait{reply != nil}
         fetch.window?.close();reply?.resume(returning:(names,defaults));reply=nil;try await wait{f.pendingOperations==0}
         let frozen=f.submissionIdentity;f.remoteManagerReturned(receipt);f.remoteManagerReturned(retiredReceipt);f.retryPreparation();try require(f.closed && f.submissionIdentity==frozen && f.pendingOperations==0,"Retired manager/Retry accepted late work")
+        phase="Push cancelled metadata preserves manual choice"
+        let push=PushWindowController(repository:c.repo,access:nil,preferences:c.prefs),p=push.model
+        c.pushes.append(push);offscreen(push.window);p.load()
+        try await wait{p.pendingOperations==0 && !p.preparing && !p.busy}
+        let chooser=p.remoteBinding(p.formContext);chooser.wrappedValue=nfc;chooser.wrappedValue=nfd
+        try require(exact(p.options.remote,nfd),"Push manual exact choice did not settle")
+        let acceptedPush=p.submissionIdentity,pushNames=try await c.repo.remoteNames(),pushRefs=try await c.repo.checkoutReferences(),pushDefaults=try await c.repo.pushDefaults(source:p.options.source)
+        var pushReply:CheckedContinuation<([String],[CheckoutReference],PushDefaults),Error>?
+        c.release.append{pushReply?.resume(throwing:CancellationError());pushReply=nil}
+        p.readRefreshMetadata={_,_ in try await withCheckedThrowingContinuation{pushReply=$0}}
+        p.refreshFromSourceCommand();try await wait{pushReply != nil}
+        chooser.wrappedValue=nfc
+        try require(p.submissionIdentity==acceptedPush,"Pre-refresh native choice changed pending Push metadata")
+        p.cancel();try require(p.busy && p.preparationNeedsRetry,"Push cancellation released a live metadata worker")
+        pushReply?.resume(returning:(pushNames,pushRefs,pushDefaults));pushReply=nil
+        try await wait{p.pendingOperations==0 && !p.preparing && !p.busy}
+        try require(p.submissionIdentity==acceptedPush && p.preparationNeedsRetry,"Cancelled Push metadata replaced manual draft")
+        // The cancelled read reports through the owner; acknowledge it before Retry.
+        if p.error != nil {try await acknowledgeError(push.window!)}
+        p.readRefreshMetadata={_,token in try token.check();return (pushNames,pushRefs,pushDefaults)}
+        p.retryPreparation();try await wait{p.pendingOperations==0 && !p.preparing && !p.busy}
+        try require(!p.preparationNeedsRetry && p.error==nil && p.submissionIdentity==acceptedPush,"Push Retry did not preserve manual exact choice")
+        chooser.wrappedValue=nfc
+        try require(p.submissionIdentity==acceptedPush,"Pre-refresh Push action survived successful Retry")
+        phase="Push retired metadata suppresses late publication"
+        p.readRefreshMetadata={_,_ in try await withCheckedThrowingContinuation{pushReply=$0}}
+        p.refreshFromSourceCommand();try await wait{pushReply != nil};push.window?.close()
+        pushReply?.resume(returning:(pushNames,pushRefs,pushDefaults));pushReply=nil
+        try await wait{p.pendingOperations==0}
+        p.retryPreparation();chooser.wrappedValue=nfc
+        try require(p.closed && p.submissionIdentity==acceptedPush && p.pendingOperations==0,"Retired Push accepted a late metadata reply/choice")
         // Source F5 during conflict recovery reads only the owned recovery snapshot.
         phase="actual conflict recovery F5";_ = try await c.repo.run(["switch","upstream"]);try Data("conflict\n".utf8).write(to:c.root.appendingPathComponent("file"));try await c.repo.stage(["file"]);_ = try await c.repo.commit(message:"upstream conflict");_ = try await c.repo.run(["switch","main"])
         _ = try await c.repo.run(["rebase","upstream"],successfulExitCodes:0...1)

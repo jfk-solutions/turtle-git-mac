@@ -35,6 +35,9 @@ import TurtleGitCore
         let preserved = [".git/HEAD", ".git/index", "file"].map { root.appendingPathComponent($0) }, baseline = try preserved.map { try Data(contentsOf: $0) }
         let suite = "TurtleGit.TransportPreparation." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
+        // The dialog captures its backend from these preferences during load,
+        // including replacement of a repository's inherited backend snapshot.
+        prefs.set(false, forKey: "UseLibgit2")
         let wrapper = root.appendingPathComponent("gated-git"), gate = root.appendingPathComponent("gate"), ready = root.appendingPathComponent("ready")
         let script = #"""
         #!/bin/sh
@@ -51,7 +54,10 @@ import TurtleGitCore
         """#
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
         setenv("TG_PREPARATION_GIT", git.path, 1); defer { unsetenv("TG_PREPARATION_GIT") }
-        let wrapped = GitRepository(root: root, executable: wrapper, askpass: nil)
+        // This fixture holds actual Git argv in its private shell wrapper.
+        // The master libgit2 metadata reader uses its own helper executable and
+        // cannot enter that gate; select the CLI path under test explicitly.
+        let wrapped = GitRepository(root: root, executable: wrapper, askpass: nil, libgit2Configuration: .init(enabled: false))
         func arm(_ command: String) throws { try? FileManager.default.removeItem(at: ready); try Data(command.utf8).write(to: gate) }
         func disarm() { try? FileManager.default.removeItem(at: gate) }
         defer { disarm() }

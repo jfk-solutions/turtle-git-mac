@@ -115,14 +115,57 @@ import TurtleGitCore
         try await wait {!model.busy && LocalGitCommandProgress.activeOperations==0}
         guard let text=descendants(window.contentView!).compactMap({$0 as? SubmoduleProgressTextView}).first else{throw Failure(description:"Native progress output missing")}
         try await wait {text.string==model.output}
-        try require(!model.success && model.output.contains("fatal:") && model.output.contains(" failed (128)"),"Real progress model hid the command failure")
+        guard let completionRange=model.completionRange else {throw Failure(description:"Real progress model lost its completion footer")}
+        let completion=(model.output as NSString).substring(with:completionRange)
+        try require(!model.success && model.commandFinished && !model.commandSucceeded && model.output.contains("fatal:") && completion.contains("git did not exit cleanly (exit code 128)"),"Real progress model hid the command failure or its actual native completion status")
         let board=NSPasteboard.withUniqueName();defer {board.releaseGlobally()};text.clipboard=board
         let selection=NSRange(location:0,length:min(5,text.string.utf16.count));text.setSelectedRange(selection)
         let menu=text.outputMenu();guard let all=menu.items.first(where:{$0.action==#selector(SubmoduleProgressTextView.copyAllInformation(_:))}) else{throw Failure(description:"Native Copy All action missing")}
         _=NSApp.sendAction(all.action!,to:all.target,from:all)
         try require(board.string(forType:.string)==model.output && text.selectedRange()==selection && all.image != nil,"Named diagnostic native Copy All/icon/selection")
         if ProcessInfo.processInfo.environment["TURTLEGIT_PROGRESS_DIAGNOSTIC_CAPTURE"] != nil {window.setContentSize(NSSize(width:760,height:460));window.contentView?.layoutSubtreeIfNeeded()}
-        try await capture(window);owner.close();try require(try log.read().contains(model.output),"Action log lost bounded diagnostic result")
+        try await capture(window);owner.close();try await wait {owner.presentationClosed};try require(try log.read().contains(model.output),"Action log lost bounded diagnostic result")
+        // A command receipt may finish its footer before a silent producer
+        // delivers its error. The preamble must not suppress that later fallback.
+        let silent=StashSaveProgressWindowModel(repository:repo,access:nil,options:StashSaveOptions(),followUp:StashSaveFollowUp(),preferences:prefs)
+        let silentOwner=StashSaveProgressWindowController(model:silent)
+        defer {silentOwner.close()}
+        silentOwner.window?.alphaValue=0;silentOwner.window?.orderFront(nil)
+        var pending:CheckedContinuation<StashSaveResult,Error>?
+        defer {pending?.resume(throwing:OperationCancellationFailure.cancelled);pending=nil}
+        silent.saveOperation={_,_,emit,finished in
+            emit(GitOutputChunk(stream:.stdout,data:Data("git stash push\n".utf8)))
+            finished(StashSaveCommandCompletion(success:false,cancelled:false,exitCode:9,elapsed:0))
+            return try await withCheckedThrowingContinuation {pending=$0}
+        }
+        silent.start();try await wait {pending != nil && silent.commandFinished}
+        try require(silent.busy && silent.hasPendingWork && silent.output.contains("exit code 9") && !silent.output.contains("SILENT_STASH_FAILURE"),"Receipt prematurely settled its owned operation")
+        pending?.resume(throwing:GitFailure(arguments:["stash","push"],code:9,message:"fatal: SILENT_STASH_FAILURE\n"));pending=nil
+        try await wait {!silent.busy && !silent.hasPendingWork}
+        try require(!silent.success && silent.output.contains("fatal: SILENT_STASH_FAILURE") && silent.output.contains("git stash push failed (9)") && silent.output.utf8.count<=silent.progressPresentation.outputLimit,"Finished command receipt hid the silent producer's diagnostic")
+        try require(silent.output.components(separatedBy:"git did not exit cleanly (exit code 9)").count==2,"Fallback duplicated the native completion footer")
+        silentOwner.close();try await wait {silentOwner.presentationClosed}
+        try require(try log.read().contains(silent.output),"Closing silent failure lost its complete displayed Action log")
+        // Accepted command success remains distinct from a later inspection
+        // failure, and that failure must be appended exactly once.
+        let inspection=StashSaveProgressWindowModel(repository:repo,access:nil,options:StashSaveOptions(),followUp:StashSaveFollowUp(),preferences:prefs)
+        let inspectionOwner=StashSaveProgressWindowController(model:inspection)
+        defer {inspectionOwner.close()}
+        inspectionOwner.window?.alphaValue=0;inspectionOwner.window?.orderFront(nil)
+        inspection.saveOperation={_,_,emit,finished in
+            emit(GitOutputChunk(stream:.stdout,data:Data("git stash push\n".utf8)))
+            finished(StashSaveCommandCompletion(success:true,cancelled:false,exitCode:0,elapsed:0))
+            return try await withCheckedThrowingContinuation {pending=$0}
+        }
+        inspection.start();try await wait {pending != nil && inspection.commandFinished}
+        try require(inspection.commandSucceeded && inspection.busy && inspection.hasPendingWork,"Accepted command lost its result-inspection owner")
+        pending?.resume(throwing:GitFailure(arguments:["rev-parse","refs/stash"],code:8,message:"fatal: INSPECTION_FAILURE\n"));pending=nil
+        try await wait {!inspection.busy && !inspection.hasPendingWork}
+        try require(!inspection.success && inspection.commandSucceeded && inspection.output.components(separatedBy:"INSPECTION_FAILURE").count==2 && inspection.postActions.isEmpty,"Inspection failure duplicated its detail, erased accepted success or exposed follow-ups")
+        guard let inspectionCompletion=inspection.completionRange else {throw Failure(description:"Inspection failure lost accepted completion footer")}
+        try require((inspection.output as NSString).substring(with:inspectionCompletion).contains("Success"),"Inspection failure rewrote accepted command completion")
+        inspectionOwner.close();try await wait {inspectionOwner.presentationClosed}
+        try require(try log.read().contains(inspection.output),"Inspection failure Action log lost accepted command/diagnostic")
         // Both the representable identity and native cache retain Unicode spelling.
         let nfc="fatal: café\n",nfd="fatal: cafe\u{301}\n"
         let host=NSHostingView(rootView:SubmoduleProgressOutputView(text:nfc,completed:true,preferences:prefs,clipboard:board))
@@ -136,6 +179,6 @@ import TurtleGitCore
         exactWindow.close()
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(finalHead==head && Data(contentsOf:repoRoot.appendingPathComponent(".git/index"))==index && Data(contentsOf:repoRoot.appendingPathComponent(".git/config"))==configuration,"Diagnostic presentation changed repository")
-        print("PASS: prefixed command diagnostics, silent later failure, bounded live/raw output, captured policy, cancellation/reaped group, native Stash result/Copy/action log, exact Unicode representable/cache and ownership")
+        print("PASS: prefixed command diagnostics, silent later failure, bounded live/raw output, captured policy, cancellation/reaped group, native Stash receipt/silent fallback/result/Copy/action log, exact Unicode representable/cache and ownership")
     }
 }

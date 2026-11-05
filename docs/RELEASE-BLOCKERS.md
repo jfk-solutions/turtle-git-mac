@@ -7,6 +7,16 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 5 exact-name operation batch](qa/operation-identity-retry-2026-11-05.json)
+repairs scoped Revert/Retry spelling, physical unversioned-file ownership, native
+Push chooser receipts and late Stash diagnostics/result-log retention. It passes
+39 distinct Core methods cumulatively and twelve native case/engine combinations;
+the affected two Revert combinations also pass against the rebuilt final Core.
+The filesystem guard refuses shared directory-entry aliases while retaining
+distinct hardlinks and mixed-selection recovery. Initial failures and fixture
+backend corrections remain recorded. Installed52 is unchanged. These source
+checks do not replace a new complete hosted or signed/physical checkpoint.
+
 The [November 5 ordinary metafile quality batch](qa/metafile-quality-2026-11-05.json)
 has a successful independent 53-case Windows capture and a reconstructed universal
 Mac helper. Connected coverage, brush, fixed-point geometry and thin-line repairs

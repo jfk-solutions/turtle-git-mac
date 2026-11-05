@@ -1,5 +1,10 @@
 # Push dialog parity
 
+The [exact-name operation continuation](OPERATION-IDENTITY-RETRY-PARITY.md)
+connects rapid native remote choices to monotonic, exact-catalog action receipts
+and preserves manual selection through owned refresh/cancel/Retry. Its focused
+native and Core scope is recorded in the [batch record](qa/operation-identity-retry-2026-11-05.json).
+
 Reference: `PushDlg.cpp`, `IDD_PUSH`, PushCommand and `CAppUtils::DoPush/Push`
 at the pinned commit in `upstream.json`.
 

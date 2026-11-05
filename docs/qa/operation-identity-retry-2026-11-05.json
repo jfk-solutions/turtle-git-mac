@@ -1,0 +1,208 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "f956af6c",
+  "status": "focused-source-batch-passed-with-explicit-release-gates",
+  "scope": [
+    "Exact-name working-file Revert scoped reads and protected mutations, clean Retry, explicit ignored rename obstructions and gitlink directory safety.",
+    "Rapid native Push remote choices, monotonic action receipts, exact catalog and source/refresh/Quit/cancel/retirement ownership.",
+    "Stash command completion versus late error/inspection diagnostics, captured bounds/footer, Retry/log/close ownership."
+  ],
+  "checks": [
+    {
+      "name": "focused-Core-initial",
+      "status": "failed",
+      "log": "build/qa/operation-identity-core-2026-11-05.log",
+      "log_sha256": "5e5e007e4adc5546ab2e8194da7ccb52c794743760624a6c22ba6c86e3eee805"
+    },
+    {
+      "name": "Debug-build-initial",
+      "status": "passed-before-filesystem-alias-guard",
+      "log": "build/qa/operation-identity-app-2026-11-05.log",
+      "log_sha256": "bf641f2d90bf0278bf2d94dfe48afcc12ed9e7d6dde3e88abd121b197aa3303f"
+    },
+    {
+      "name": "native-initial",
+      "status": "failed-after-six-passes",
+      "log": "build/qa/operation-identity-native-2026-11-05.log",
+      "log_sha256": "bea01212d46c00364100a3dd3c3df0d3818f2b02b225dde26157c0179ac87dbc"
+    },
+    {
+      "name": "native-continuation",
+      "status": "passed-six-remaining-combinations",
+      "log": "build/qa/operation-identity-native-continuation-2026-11-05.log",
+      "log_sha256": "f1ba38afea167be142207797ddd8e8d279dbbe722d7b437556e0407026216304"
+    },
+    {
+      "name": "focused-Core-repair1",
+      "status": "passed-11-affected-methods",
+      "log": "build/qa/operation-identity-core-repair1-2026-11-05.log",
+      "log_sha256": "29130e88e3493af668c0ee9f1062007b4b1432bb0c9877a4d4ddb14f545fcd9f"
+    },
+    {
+      "name": "Debug-build-repair1",
+      "status": "passed",
+      "log": "build/qa/operation-identity-app-repair1-2026-11-05.log",
+      "log_sha256": "dfda60f0371e6e09d671920dc1eaa96e60a8375ee0b2ce7183aafbe898b539c2"
+    },
+    {
+      "name": "native-Revert-repair1",
+      "status": "passed-system-and-bundled",
+      "log": "build/qa/operation-identity-native-revert-repair1-2026-11-05.log",
+      "log_sha256": "76383f19fa9293355bb94f41a145224fdb872fdd4494814d960a315c5bc0d336"
+    }
+  ],
+  "initial_Core": {
+    "methods": 37,
+    "failures": 4,
+    "unexpected": 3,
+    "failed_methods": [
+      "WorkingFileRevertPathReadTests.testCancellationDrainsAnInFlightScopedStatusWithoutPublishingASelection",
+      "WorkingFileRevertPathReadTests.testIgnoredAndAbsentRetryNamesRetainTheirExactScopedSpelling",
+      "WorkingFileRevertPathReadTests.testStaleUnknownOrIgnoredCanonicalAliasCannotBecomeATrackedPeer"
+    ]
+  },
+  "failures_retained": [
+    "Typed GitCommandCancellationFailure(exit130) is a valid cancellation result; fixture must preserve process/PID/index assertions.",
+    "init --template= intentionally creates no .git/info directory; fixture must create it before writing exclude.",
+    "An actual NFD unversioned Git status row can share the unselected tracked NFC filesystem object; require physical/index ownership validation before publication/disposal.",
+    "The first transport gate repair selected CLI on repository only; dialogs recapture backend from private preferences. Private UseLibgit2=false is also required to reach this actual Git wrapper gate."
+  ],
+  "native_cumulative": {
+    "combinations": 12,
+    "engines": [
+      "/usr/bin/git",
+      "build/git-runtime/Git/bin/git"
+    ],
+    "initial_passes": [
+      "revert-exact/system",
+      "revert-exact/bundled",
+      "metadata/system",
+      "metadata/bundled",
+      "lifetime/system",
+      "lifetime/bundled"
+    ],
+    "continuation_passes": [
+      "preparation/system",
+      "preparation/bundled",
+      "progress/system",
+      "progress/bundled",
+      "action-log/system",
+      "action-log/bundled"
+    ],
+    "unchanged_cases_repeated": false,
+    "ownership": "Private homes/preferences/repos/logs/pasteboards, hidden/offscreen windows; owned receiver/compiler reaps plus exact-image/private-resource helper cleanup. No success required orphan cleanup.",
+    "affected_recheck": {
+      "scope": "Two exact-name native Revert combinations repeated against the rebuilt final Core; other ten combinations retained because their source/routes did not change.",
+      "results": [
+        {
+          "case": "revert-exact",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "revert-exact",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ]
+    }
+  },
+  "filesystem_evidence": {
+    "receipt": "build/qa/revert-fs-alias-diagnostic-2026-11-05.json",
+    "scope": "One approved disposable CLI/CoreFoundation diagnostic; no Revert, Trash or UI. Raw UTF8/index/porcelain and matching lstat device/inode demonstrate Foundation filesystem projection. Fixture removed."
+  },
+  "private_artifact_cleanup": {
+    "scope": "The failed regression produced one reported private fixture Trash copy; root removed only that exact URL after verifying its bytes equal the private working peer. No Trash traversal or unrelated deletion."
+  },
+  "release_scope": [
+    "No installed app change, binary publication, App Store submission, signed deployment or physical Finder acceptance.",
+    "Final Debug build and native Revert recheck include the filesystem guard; unchanged Push/Stash/metadata/preparation/Action log cases retain their earlier focused passes.",
+    "Full current-source hosted success and other release gaps remain open."
+  ],
+  "Core_cumulative": {
+    "distinct_methods": 39,
+    "passing_methods": [
+      "-[TurtleGitCoreTests.GitPathIdentityTests testRevertAndRetryRestoreOnlyExactSelectedIndexName]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testMixedCancellationRetainsCompletedTrashWithoutPublishingPreparedIndex]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testMixedSymlinksRecycleTheirLinksWithoutFollowingOutsideTargets]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testMixedTrashFailureRetainsAllRequestedNamesRecoveryAndOriginalIndexOnRetry]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testNoTrashMixedCohortDoesNotRestoreEarlierVersionedBatchesBeforeUnknownError]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testRetryRefreshesIgnoredTransitionsAndFailsExplicitlyForLostVersionedIdentity]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testCancellationDrainsAnInFlightScopedStatusWithoutPublishingASelection]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testIgnoredAndAbsentRetryNamesRetainTheirExactScopedSpelling]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testOrdinaryParentDirectoryWithGitlinkDescendantIsRejectedBeforeMutation]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testRawRenameCounterpartKeepsItsPolicyUnlessItsIgnoredObstructionWasSelected]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testScopedDeletionAndLocalCopyCoalesceAfterCounterpartFilteringInEitherOrder]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testScopedReadRejectsIncompleteStatusOrIndexPacketsWithoutMutation]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testScopedRetryQueriesKeepCanonicalIndexPeerAndLiteralControlCharacters]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testStaleUnknownOrIgnoredCanonicalAliasCannotBecomeATrackedPeer]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testDisabledRenameRecyclingStillRefusesDirectoriesAndNeverFollowsOldNameSymlink]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testIndependentDefaultsAndCapturedNonzeroPreferences]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testNoTrashCancellationKeepsCompletedWorkingChangesButOriginalIndexAndNoRecoveryCopies]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testNoTrashFilterFailureKeepsIndexAndDoesNotInventRecoveryReceipt]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testPolicyMatrixRestoresFilesAndNamesPreservingAdditionsAndUnselectedIndex]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testAlreadyCancelledDoesNotTouchRepository]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testCancellationAfterTrashPreservesIndexAndReturnsExactRecoveryURL]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testCancellationAtRestoreStartDoesNotRunCheckout]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testCancellationBetweenBatchesStopsLaterWorkingFileChanges]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testSuccessReportsAllOperationsAndLeavesAddedWorkingFile]",
+      "-[TurtleGitCoreTests.WorkingFileRevertRetryTests testRetryReadsCurrentRowsWithoutIncludingUnselectedChanges]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testAddedLiteralFileRetainsWorkingContentsWhenRevertedBeforeInitialCommit]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testCheckoutFilterFailureKeepsRealIndexAndReportsRecoverableWorkingCopy]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testCleanTrackedStatusRowRevertsAndRejectsChangesAfterSelection]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testConflictedFileRevertRestoresHeadWhileKeepingMergeAndUnrelatedEdits]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testDeletedFileRestoredAndAmendUsesParentEvenWhenShowingHead]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testInvalidStaleAndIndexLockedSelectionsDoNotMoveWorkingFiles]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testLinkedWorktreeRevertUsesItsOwnIndex]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testModifiedBinaryRevertsIndexAndWorktreeAndRetainsLaterBytesInTrash]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testRevertGitlinkConflictPreservesInitializedAndUninitializedChildContents]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testRevertSymlinkAndRejectEscapingParent]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testStagedRenameReturnsOldNameAndRecyclesDestination]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testSubmoduleRenameReturnsCheckoutToOldPathWithoutLosingLocalEdits]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testDistinctUnversionedHardlinksKeepMixedGitFailureAndRecoveryPolicy]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testOwnershipReadRejectsIncompleteOrNonUTF8PacketsBeforeDisposal]"
+    ],
+    "repair_scope": "Only three failed methods, two new guard methods and six existing mixed-selection/Retry methods were rechecked (11 total). Full Core suite was not repeated."
+  },
+  "filesystem_guard": {
+    "trigger": "Present unversioned or ignored regular files/symlinks; clean versioned Retry does not scan the ownership inventory.",
+    "inventory": "One strict NUL/UTF8 index-name query with optional locks disabled; no NFC/NFD candidate heuristic.",
+    "ownership": "Actual lstat device/inode, parent identity and exact stored directory entries through an anchored root descriptor/openat walk; no escaping symlink parents.",
+    "hardlinks": "Distinct stored hardlink entries remain independent; directory scans rewind so repeated same-parent comparisons do not inherit an earlier offset.",
+    "timing": "Before Retry result publication and before locking/recycling in actual Revert.",
+    "tests": "Leaf and parent Unicode aliases, two same-parent hardlinks in a real mixed Git failure/recovery operation, malformed inventories and status/ownership cancellation."
+  },
+  "remaining_hosted_diagnoses": [
+    {
+      "lane": "Images",
+      "status": "read-only hypothesis, not repaired in this batch",
+      "pointer": "image-effects native color-sheet return then conflict reload",
+      "finding": "Fixture waits attachedSheet nil but not both physical detach sides/actual Reload command readiness; source gate intentionally releases asynchronously. No decoder fault established."
+    },
+    {
+      "lane": "Distribution",
+      "status": "read-only source-versus-fixture diagnosis, not repaired in this batch",
+      "pointer": "cherry-pick-native-receiver-2026-10-06.swift:475",
+      "finding": "Fixture expects fallback after the selected cached reference moves; current source intentionally refuses stale selected targets. Existing preparation fixture already checks that refusal."
+    },
+    {
+      "lane": "Editors",
+      "status": "read-only hosted evidence, repair not attempted in this batch",
+      "finding": "Root AXChildren succeeds with six children; call28 querying a child blocks. Hosted sample shows main SwiftUI layout waiting on its movable lock while detached same-process AX traversal enters AppKit/SwiftUI and waits through an NSMenu notification. In-process self-query bypasses intended IPC timeout; main-actor owned-PID traversal is an unverified bounded remedy. No TCC/visibility/root-publication cause inferred.",
+      "artifact": 13391844529,
+      "evidence": "build/qa/ci57-pane-header-13391844529/compare-0-jp2vdt30/"
+    }
+  ],
+  "dialog_coverage": {
+    "command": "python3 scripts/reconcile-dialog-coverage.py",
+    "status": "passed",
+    "log": "build/qa/operation-identity-dialog-coverage-2026-11-05.log",
+    "scope": "All pinned resource/id pairs regenerated; counts are not a feature completion percentage or complete dialog certification."
+  },
+  "ci_coverage": {
+    "new_step": "Exact-name Revert clean Retry and retired result ownership",
+    "scope": "Only the new revert-exact case with both Git engines; existing lanes retain reference-refresh, transport-preparation, progress-diagnostic and Action log consumers without a duplicate full grouped run."
+  }
+}

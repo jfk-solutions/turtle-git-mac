@@ -1,5 +1,10 @@
 # Working-file Revert parity
 
+The [exact-name/Retry continuation](OPERATION-IDENTITY-RETRY-PARITY.md) repairs
+scoped Unicode queries, raw status/index framing, explicit ignored rename
+obstructions and gitlink identity. Its filesystem-alias ownership guard and
+focused checkpoint remain tracked in the [batch record](qa/operation-identity-retry-2026-11-05.json).
+
 The references are the `IDGITLC_REVERT` branch in `GitStatusListCtrl.cpp` and
 [RevertProgressCommand.cpp](https://github.com/TortoiseGit/TortoiseGit/blob/7338078f8ddd924b8cddee35f512f2286072136d/src/TortoiseProc/ProgressCommands/RevertProgressCommand.cpp),
 pinned by `upstream.json`. The latter source blob was verified as

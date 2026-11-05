@@ -192,7 +192,9 @@ final class GitPathIdentityTests: XCTestCase {
     }
     func testRevertAndRetryRestoreOnlyExactSelectedIndexName() async throws {
         let a = "café.txt",b = "cafe\u{301}.txt"
-        let (root,repo,_) = try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let (root,seed,_) = try await GitPatchTests().fixture();defer {try? FileManager.default.removeItem(at:root)}
+        let git=URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_GROUP_TEST_GIT"] ?? seed.executable.path)
+        let repo=GitRepository(root:root,executable:git,askpass:nil,diffDetection:seed.diffDetection,libgit2Configuration:.init(enabled:false))
         _ = try await repo.run(["config","core.precomposeunicode","true"])
         let blob = try await repo.run(["hash-object","-w","--stdin"],input:bytes("base\n")).text.trimmingCharacters(in:.newlines)
         func packet(_ hash:String,_ path:String)->Data {bytes("100644 \(hash)\t\(path)\0")}
@@ -210,6 +212,12 @@ final class GitPathIdentityTests: XCTestCase {
         XCTAssertTrue(staged.split(separator:0).contains {$0.elementsEqual(bytes("100644 \(blob) 0\t\(b)"))})
         let retry = try await repo.workingFileRevertSelection(selected)
         XCTAssertEqual(retry.map {bytes($0.path)},[bytes(b)])
+        XCTAssertEqual(retry.first?.index," ");XCTAssertEqual(retry.first?.worktree," ")
+        let retried=try await repo.revertWorkingFiles(retry,policy:.init(recycle:false))
+        XCTAssertEqual(retried.revertedPaths.map(bytes),[bytes(b)]);XCTAssertTrue(retried.trashedFiles.isEmpty)
+        let retryIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertTrue(retryIndex.split(separator:0).contains {$0.elementsEqual(bytes("100644 \(neighbor) 0\t\(a)"))})
+        XCTAssertTrue(retryIndex.split(separator:0).contains {$0.elementsEqual(bytes("100644 \(blob) 0\t\(b)"))})
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(b)),bytes("base\n"))
         let finalHead = try await repo.run(["rev-parse","HEAD"]).stdout;XCTAssertEqual(finalHead,head)
     }

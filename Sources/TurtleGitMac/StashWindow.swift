@@ -426,14 +426,31 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         let saved:StashSaveResult
         do {saved=try await operation.value}
         catch let failure as GitFailure {
-            if !invalidated,!commandFinished {state.presentFailure(failure);output=state.output;currentWork=state.currentWork;percentage=state.percentage}
-            throw state.hasOutput && !commandSucceeded ? failure.markingOutputDelivered():failure
+            if presentStreamFailure(failure,state:&state) {throw failure.markingOutputDelivered()}
+            throw failure
         } catch let failure as GitCommandCancellationFailure {
-            if !invalidated,!commandFinished {state.presentFailure(failure);output=state.output;currentWork=state.currentWork;percentage=state.percentage}
-            throw state.hasOutput && !commandSucceeded ? failure.markingOutputDelivered():failure
+            if presentStreamFailure(failure,state:&state) {throw failure.markingOutputDelivered()}
+            throw failure
         }
         if !state.hasOutput,!commandFinished,!invalidated {output=LocalGitCommandProgress.bounded(saved.output,preferences:preferences)}
         return saved
+    }
+    private func presentStreamFailure(_ error:Error,state:inout GitProgressOutputState)->Bool {
+        guard !invalidated else{return false}
+        if commandFinished {
+            // A successful command followed by failed result inspection is
+            // presented by execute(), preserving its accepted success footer.
+            guard !commandSucceeded else{return false}
+            // A completion receipt can arrive before a silent producer throws.
+            // Preamble/earlier output is not proof that this failing command's
+            // diagnostic was delivered. Keep the finished footer in place and
+            // append only the missing bounded diagnostic after it.
+            let delivered=(error as? GitFailure)?.outputWasDelivered == true || (error as? GitCommandCancellationFailure)?.outputWasDelivered == true
+            if !delivered {appendDiagnostic(GitProgressFailureOutput.render(error,existing:"",limit:progressPresentation.outputLimit))}
+        } else {
+            state.presentFailure(error);output=state.output;currentWork=state.currentWork;percentage=state.percentage
+        }
+        return true
     }
     private func execute()async {
         defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}

@@ -37,37 +37,97 @@ public struct WorkingFileRevertFailure: LocalizedError, Sendable {
     }
 }
 
+private struct RevertFilesystemIdentity:Hashable {
+    let device:dev_t,inode:ino_t
+    init(_ value:stat) {device=value.st_dev;inode=value.st_ino}
+}
+private struct RevertLocalProjection {
+    let path:String,parent:RevertFilesystemIdentity,name:Data
+}
+
 extension GitRepository {
+    private func workingFileRevertReadFailure(_ kind:String)->GitFailure {
+        GitFailure(arguments:["revert"],code:1,message:"Git returned an invalid Revert "+kind+" inventory. Refresh before reverting.")
+    }
+    /// Scoped queries must retain the same literal Git names as the captured
+    /// rows. Never accept truncated packets or replace invalid UTF-8 with a
+    /// different filename before deciding that a selected path is tracked.
+    private func workingFileRevertStatusRows(_ bytes:Data,cancellation:OperationCancellation?)throws->[StatusEntry] {
+        try cancellation?.check()
+        guard bytes.isEmpty || bytes.last==0 else {throw workingFileRevertReadFailure("status")}
+        let packets=bytes.split(separator:0,omittingEmptySubsequences:false)
+        var cursor=0,rows:[StatusEntry]=[]
+        while cursor<packets.count-1 {
+            try cancellation?.check()
+            let record=Array(packets[cursor]);cursor += 1
+            guard record.count>=4,record[2]==32," MTADRCU?!".utf8.contains(record[0])," MTADRCU?!".utf8.contains(record[1]),
+                  (record[0]==63)==(record[1]==63),(record[0]==33)==(record[1]==33) else {throw workingFileRevertReadFailure("status")}
+            guard let path=String(data:Data(record.dropFirst(3)),encoding:.utf8) else {throw workingFileRevertReadFailure("status")}
+            var old:String?
+            if record[0]==82 || record[0]==67 || record[1]==82 || record[1]==67 {
+                guard cursor<packets.count-1,!packets[cursor].isEmpty else {throw workingFileRevertReadFailure("status")}
+                guard let source=String(data:packets[cursor],encoding:.utf8) else {throw workingFileRevertReadFailure("status")}
+                old=source;cursor += 1
+            }
+            rows.append(StatusEntry(path:path,originalPath:old,index:Character(UnicodeScalar(record[0])),worktree:Character(UnicodeScalar(record[1]))))
+        }
+        try cancellation?.check()
+        return rows
+    }
     /// Read ignored metadata only for requested names omitted by the Commit
     /// projection. Revert must neither inventory unrelated ignored trees nor
     /// silently turn an ignored item in a mixed request into an omitted item.
-    private func workingFileRevertStatus(_ requested: GitPathSet, amendToParent: Bool, cancellation: OperationCancellation?) throws -> [StatusEntry] {
+    private func workingFileRevertStatus(_ requested: GitPathSet, explicitlySelected:GitPathSet, amendToParent: Bool, cancellation: OperationCancellation?) throws -> [StatusEntry] {
         var current = try commitDialogStatus(amendToParent: amendToParent, cancellation: cancellation)
-        let represented = GitPathSet(current.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
+        let counterparts=GitPathSet(current.compactMap(\.originalPath))
+        let represented=GitPathSet(current.map(\.path)).union(counterparts.subtracting(explicitlySelected))
         let missing = GitPathOperationOrder.sorted(requested.subtracting(represented))
         for offset in stride(from: 0, to: missing.count, by: 64) {
             try cancellation?.check()
             let batch = Array(missing[offset..<min(offset + 64, missing.count)])
-            let rows = StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored", diffDetection.statusArgument, "--"] + batch,
-                                               environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout)
+            let rows = try workingFileRevertStatusRows(run(["-c","core.precomposeunicode=false","status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored", diffDetection.statusArgument, "--"] + batch,
+                                               environmentOverrides: ["GIT_OPTIONAL_LOCKS": "0"], cancellation: cancellation).stdout,cancellation:cancellation)
             // A directory pathspec may also report descendants. Only exact
             // requested names supplement this captured file selection.
-            current += rows.filter { requested.contains($0.path) && !represented.contains($0.path) }
+            current += rows.filter {
+                requested.contains($0.path) && !represented.contains($0.path) &&
+                // A scoped rename query can expose its old name as a deletion.
+                // Only an independently selected local obstruction supplements
+                // that existing rename; do not invent another versioned target.
+                (!counterparts.contains($0.path) || [FileState.untracked,.ignored].contains($0.state))
+            }
         }
-        let latest = GitPathMap(current.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
-        var seen = GitPathSet()
-        return current.compactMap { seen.insert($0.path).inserted ? latest[$0.path] : nil }
+        // Keep supplemental records separate until counterpart filtering above:
+        // coalescing D + ignored old-name bytes earlier would hide the explicitly
+        // selected obstruction. After filtering, retain the common status
+        // parser's versioned-row/local-copy semantics in either record order.
+        var positions=GitPathMap<Int>(),combined:[StatusEntry]=[]
+        for entry in current {
+            try cancellation?.check()
+            guard let position=positions[entry.path] else {positions[entry.path]=combined.count;combined.append(entry);continue}
+            let previous=combined[position],local=[FileState.untracked,.ignored].contains(entry.state),previousLocal=[FileState.untracked,.ignored].contains(previous.state)
+            var versioned=previousLocal && !local ? entry:previous
+            if (local || previousLocal) && versioned.index=="D" {versioned.hasUnversionedCopy=true}
+            combined[position]=versioned
+        }
+        return combined
     }
     private func workingFileRevertTrackedPaths(_ requested: GitPathSet, cancellation: OperationCancellation?) throws -> GitPathSet {
+        try cancellation?.check()
         let paths = GitPathOperationOrder.sorted(requested)
         var tracked = GitPathSet()
         for offset in stride(from: 0, to: paths.count, by: 64) {
             try cancellation?.check()
             let batch = Array(paths[offset..<min(offset + 64, paths.count)])
-            for path in try run(["ls-files", "-z", "--"] + batch, cancellation: cancellation).stdout.split(separator: 0) {
-                tracked.insert(String(decoding: path, as: UTF8.self))
+            let bytes=try run(["-c","core.precomposeunicode=false","ls-files", "-z", "--"] + batch,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
+            guard bytes.isEmpty || bytes.last==0 else {throw workingFileRevertReadFailure("index")}
+            for packet in bytes.split(separator:0,omittingEmptySubsequences:false).dropLast() {
+                try cancellation?.check()
+                guard !packet.isEmpty,let path=String(data:packet,encoding:.utf8) else {throw workingFileRevertReadFailure("index")}
+                if requested.contains(path) {tracked.insert(path)}
             }
         }
+        try cancellation?.check()
         return tracked
     }
     private func workingFileRevertAbsent(_ entry: StatusEntry, tracked: GitPathSet) throws -> Bool {
@@ -79,6 +139,108 @@ extension GitRepository {
         guard errno == ENOENT else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         return true
     }
+    /// Return an anchored raw-index parent. Git cannot own entries beneath an
+    /// escaping/symbolic-link parent; never follow such a path during this scan.
+    private func workingFileRevertIndexParent(_ path:String,root descriptor:Int32)throws->Int32? {
+        var parent=dup(descriptor),returned=false
+        guard parent>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+        defer{if !returned {close(parent)}}
+        for component in path.split(separator:"/").dropLast() {
+            let next=openat(parent,String(component),O_RDONLY|O_DIRECTORY|O_NOFOLLOW|O_CLOEXEC)
+            guard next>=0 else {
+                if [ENOENT,ENOTDIR,ELOOP].contains(errno) {return nil}
+                throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)
+            }
+            close(parent);parent=next
+        }
+        returned=true;return parent
+    }
+    /// Hardlinks may share an inode without sharing the directory entry that
+    /// Trash removes. Both exact stored names must exist to prove independence.
+    private func workingFileRevertDistinctEntries(_ descriptor:Int32,_ lhs:Data,_ rhs:Data,cancellation:OperationCancellation?)throws->Bool {
+        guard lhs != rhs else {return false}
+        let duplicate=dup(descriptor)
+        guard duplicate>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+        guard let directory=fdopendir(duplicate) else {close(duplicate);throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+        defer{closedir(directory)}
+        // dup shares its directory offset; each candidate needs a full scan.
+        rewinddir(directory)
+        var left=false,right=false
+        while true {
+            try cancellation?.check();errno=0
+            guard let entry=readdir(directory) else {
+                if errno != 0 {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+                return false
+            }
+            let length=Int(entry.pointee.d_namlen)
+            guard length<=MemoryLayout.size(ofValue:entry.pointee.d_name) else {throw POSIXError(.EIO)}
+            let name=withUnsafePointer(to:&entry.pointee.d_name){Data(bytes:UnsafeRawPointer($0),count:length)}
+            left = left || name==lhs;right = right || name==rhs
+            if left && right {return true}
+        }
+    }
+    /// A raw unknown Git spelling can be Foundation's filesystem projection of
+    /// an unselected tracked spelling. Check the actual object and directory
+    /// entry before admitting Retry or disposing contents, not Unicode guesses.
+    private func validateWorkingFileRevertProjection(_ selected:[StatusEntry],cancellation:OperationCancellation?)throws {
+        var projections:[RevertFilesystemIdentity:[RevertLocalProjection]]=[:]
+        for entry in selected where [FileState.untracked,.ignored].contains(entry.state) {
+            try cancellation?.check()
+            let location=try restoreLocation(entry.path)
+            let actual:String=try location.withUnsafeFileSystemRepresentation { pointer in
+                guard let pointer,let path=String(validatingUTF8:pointer) else {throw WorkingFileRestoreFailure.location}
+                return path
+            }
+            var info=stat()
+            guard lstat(actual,&info)==0 else {
+                if errno==ENOENT {continue}
+                throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)
+            }
+            guard [mode_t(S_IFREG),mode_t(S_IFLNK)].contains(info.st_mode & mode_t(S_IFMT)) else {continue}
+            guard let separator=actual.lastIndex(of:"/") else {throw WorkingFileRestoreFailure.location}
+            let parentPath=String(actual[..<separator]),name=Data(actual[actual.index(after:separator)...].utf8)
+            var owner=stat()
+            guard stat(parentPath,&owner)==0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+            let identity=RevertFilesystemIdentity(info)
+            projections[identity,default:[]].append(.init(path:entry.path,parent:RevertFilesystemIdentity(owner),name:name))
+        }
+        guard !projections.isEmpty else {return}
+        // Only present local/unversioned projections pay for this ownership
+        // inventory. Clean versioned Retry and Commit startup do not use it.
+        let bytes=try run(["-c","core.precomposeunicode=false","ls-files","--cached","-z"],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
+        guard bytes.isEmpty || bytes.last==0 else {throw workingFileRevertReadFailure("ownership")}
+        var names:[String]=[],seen=GitPathSet()
+        for packet in bytes.split(separator:0,omittingEmptySubsequences:false).dropLast() {
+            try cancellation?.check()
+            guard !packet.isEmpty,let path=String(data:packet,encoding:.utf8) else {throw workingFileRevertReadFailure("ownership")}
+            if seen.insert(path).inserted {names.append(path)}
+        }
+        guard !names.isEmpty else {return}
+        _=try RemovalRequest(paths:names,keepLocal:true)
+        let rootDescriptor=open(root.path,O_RDONLY|O_DIRECTORY|O_CLOEXEC)
+        guard rootDescriptor>=0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+        defer{close(rootDescriptor)}
+        for path in names {
+            try cancellation?.check()
+            guard let parent=try workingFileRevertIndexParent(path,root:rootDescriptor) else {continue}
+            defer{close(parent)}
+            let name=String(path.split(separator:"/").last!)
+            var info=stat()
+            guard fstatat(parent,name,&info,AT_SYMLINK_NOFOLLOW)==0 else {
+                if [ENOENT,ENOTDIR].contains(errno) {continue}
+                throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)
+            }
+            guard let local=projections[RevertFilesystemIdentity(info)] else {continue}
+            var owner=stat()
+            guard fstat(parent,&owner)==0 else {throw POSIXError(POSIXErrorCode(rawValue:errno) ?? .EIO)}
+            for projection in local where !GitReferenceName.equal(projection.path,path) && projection.parent==RevertFilesystemIdentity(owner) {
+                if try !workingFileRevertDistinctEntries(parent,projection.name,Data(name.utf8),cancellation:cancellation) {
+                    throw GitFailure(arguments:["revert"],code:1,message:"An unversioned path shares a filesystem entry with a different tracked Git name. Refresh before reverting: "+projection.path+" (tracked: "+path+")")
+                }
+            }
+        }
+        try cancellation?.check()
+    }
     /// A retry reads current selected-path status without narrowing the captured
     /// request. A former unknown/ignored file moved to Trash is still a requested
     /// Git pathspec; retain it while absent so Git reports its actual disposition.
@@ -87,8 +249,8 @@ extension GitRepository {
         try cancellation?.check()
         let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
         _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
-        let current = try workingFileRevertStatus(requested, amendToParent: amend && !againstHead, cancellation: cancellation)
         let explicitlySelected = GitPathSet(selected.map(\.path))
+        let current = try workingFileRevertStatus(requested, explicitlySelected:explicitlySelected, amendToParent: amend && !againstHead, cancellation: cancellation)
         // Rename counterparts belong to that captured rename, not to an
         // additional unknown-file selection. An old-name obstruction must keep
         // the rename's captured recycling policy unless explicitly selected too.
@@ -105,6 +267,7 @@ extension GitRepository {
             else if let previous = selected.first(where: { GitReferenceName.equal($0.path, path) }), try workingFileRevertAbsent(previous, tracked: tracked) { result.append(previous) }
             else { throw GitFailure(arguments: ["revert"], code: 1, message: "The requested path is no longer available. Refresh before retrying Revert: " + path) }
         }
+        try validateWorkingFileRevertProjection(result,cancellation:cancellation)
         try cancellation?.check(); return result
     }
     /// Revert selected status rows, preserving added working files and recycling
@@ -118,7 +281,7 @@ extension GitRepository {
         }
         let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
         _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
-        var current = GitPathMap(try workingFileRevertStatus(requested, amendToParent: amend && !amendDiffToLastCommit, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        var current = GitPathMap(try workingFileRevertStatus(requested, explicitlySelected:GitPathSet(selected.map(\.path)), amendToParent: amend && !amendDiffToLastCommit, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         let clean = selected.filter { current[$0.path] == nil && $0.index == " " && $0.worktree == " " && $0.originalPath == nil && !$0.hasUnversionedCopy }
         let absent = selected.filter { current[$0.path] == nil && [FileState.untracked, .ignored].contains($0.state) }
         if !clean.isEmpty || !absent.isEmpty {
@@ -129,6 +292,7 @@ extension GitRepository {
         guard selected.allSatisfy({ current[$0.path] == $0 }) else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "The selected files changed. Refresh before reverting.")
         }
+        try validateWorkingFileRevertProjection(selected,cancellation:cancellation)
         let source: String
         if amend { source = try commitComparisonBase(amendToParent: true, cancellation: cancellation) }
         else if let head = try? run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation).text { source = head.trimmingCharacters(in: .newlines) }
@@ -143,7 +307,10 @@ extension GitRepository {
             let location = try restoreLocation(entry.path)
             let attributes = try? manager.attributesOfItem(atPath: location.path)
             let directory = attributes?[.type] as? FileAttributeType == .typeDirectory
-            let gitlink = try run(["-c","core.precomposeunicode=false","ls-files", "--stage", "--", entry.path], cancellation: cancellation).text.split(separator: "\n").contains { $0.hasPrefix("160000 ") }
+            // Mode belongs to this exact NUL-framed index path. A newline in
+            // an ordinary filename, or a gitlink below a directory pathspec,
+            // must not turn the selected path itself into a submodule.
+            let gitlink=try commitDisplayIndex(paths:[entry.path],cancellation:cancellation).submodules.contains(entry.path)
             if gitlink { submodulePaths.insert((entry.index == "R" || entry.worktree == "R") ? entry.originalPath ?? entry.path : entry.path) }
             if directory && !gitlink { throw WorkingFileRestoreFailure.unsupported }
             if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
@@ -200,7 +367,7 @@ extension GitRepository {
                 let batch = Array(paths[offset..<min(offset + batchSize, paths.count)])
                 for path in batch { notify(step, path, finished: false) }
                 try cancellation?.check()
-                _ = try run(arguments + ["--pathspec-from-file=-","--pathspec-file-nul"],environmentOverrides:environment,input:literalPathPacket(batch),onOutput:onOutput)
+                _ = try run(["-c","core.precomposeunicode=false"] + arguments + ["--pathspec-from-file=-","--pathspec-file-nul"],environmentOverrides:environment,input:literalPathPacket(batch),onOutput:onOutput)
                 for path in batch { notify(step, path, finished: true) }
             }
         }

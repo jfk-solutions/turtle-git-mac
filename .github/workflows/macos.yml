@@ -481,6 +481,9 @@ jobs:
       - name: Revert completed results and shared file-progress ownership
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-revert-result-actions.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Exact-name Revert clean Retry and retired result ownership
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
+        run: python3 scripts/test-operation-identity-family.py --only revert-exact --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native file selection and Log workflows
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
         run: |

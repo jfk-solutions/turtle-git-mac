@@ -39,12 +39,21 @@ import TurtleGitCore
         await failed.run(); precondition(!failed.success && failed.postActions.contains(.retry)); let failureText = failed.output
         failed.perform(.retry); let afterRetry = try store.read(); precondition(afterRetry.contains(failureText))
         try await wait { !failed.busy }; failedController.close()
-        let afterFailedClose = try store.read(); precondition(ActionLogStore.lines(afterFailedClose).filter { $0 == failureText }.count == 2)
-        // Quiet successful operations still leave the date/repository header.
+        let retriedFailureText=failed.output
+        let afterFailedClose = try store.read(),beforeRetryLines=ActionLogStore.lines(afterRetry),afterRetryLines=ActionLogStore.lines(afterFailedClose),retriedLines=ActionLogStore.lines(retriedFailureText)
+        // Each result includes its command/completion footer, so compare whole
+        // ordered snapshots rather than treating a multiline result as one line.
+        precondition(afterRetryLines.starts(with:beforeRetryLines),"Retry replaced its saved previous attempt")
+        precondition(afterRetryLines.count==beforeRetryLines.count+2+retriedLines.count && Array(afterRetryLines.suffix(retriedLines.count))==retriedLines,"Close did not append exactly one complete retried attempt")
+        failed.saveActionLog();let afterRepeatedSave=try store.read();precondition(afterRepeatedSave==afterFailedClose,"Repeated save duplicated the retried attempt")
+        // A quiet Git command still displays and saves its native completion footer.
         let quiet = ResetProgressWindowModel(repository: repo, plan: try await repo.prepareReset(to: "HEAD", mode: .soft), preferences: prefs)
         let quietController = ResetProgressWindowController(model: quiet); quietController.window?.contentViewController = nil
-        await quiet.run(); precondition(quiet.success && quiet.output.isEmpty); let beforeQuiet = try store.read(); quietController.close()
-        let afterQuiet = try store.read(); precondition(afterQuiet != beforeQuiet)
+        await quiet.run(); precondition(quiet.success && quiet.rawOutput.isEmpty && quiet.commandFinished && quiet.commandSucceeded)
+        guard let quietCompletion=quiet.completionRange else {preconditionFailure("Quiet command lost its native completion footer")}
+        precondition((quiet.output as NSString).substring(with:quietCompletion).contains("Success"))
+        let beforeQuiet = try store.read(); quietController.close()
+        let afterQuiet = try store.read(); precondition(afterQuiet != beforeQuiet && ActionLogStore.lines(afterQuiet).suffix(ActionLogStore.lines(quiet.output).count)==ActionLogStore.lines(quiet.output))
         var shown: [URL] = []
         let settings = SavedDataSettingsModel(store: store, preferences: prefs, showFile: { shown.append($0); return true })
         precondition(settings.available && settings.maximumLines == "4000")
