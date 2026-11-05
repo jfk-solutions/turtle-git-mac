@@ -67,7 +67,8 @@ choose <strong>Add to TurtleGit…</strong>. The app requests folder access when
 the repository and saves it in Open Recent and Watched Repositories. Registration
 runs without opening a workspace and does not replace a repository already open there.
 When access is needed, the picker opens inside the selected folder; click
-<strong>Allow Access</strong> to approve it. Valid saved access avoids another picker.
+<strong>Allow Access</strong> to approve it. This is the sandbox's folder-access consent:
+TurtleGit cannot approve it automatically. Valid saved access avoids another picker.
 <strong>Add to TurtleGit…</strong> is offered for folders, rather than individual files.
 If you select a subfolder of an unregistered checkout and grant only that
 subfolder, TurtleGit asks you to choose the checkout root or a containing folder.
@@ -77,7 +78,12 @@ A sibling folder cannot authorize the selected checkout.</p>
 <p>Registered repository folders retain their general Git commands when TurtleGit
 is closed. The app restores folder permission and validates the repository when
 you invoke a command. File-state commands require a current status publication;
-registered-folder hints alone do not supply badges or tracked-file status.</p>
+registered-folder hints alone do not supply badges or tracked-file status.
+To commit from Finder, right-click the registered repository folder and choose
+<strong>TurtleGit → Commit…</strong>. This opens Commit directly, including when TurtleGit
+was closed. You do not need to open the workspace first. A command on selected
+files or a subfolder scopes the initial changed-file list; <strong>Show Whole Project</strong>
+in Commit expands it to the checkout.</p>
 <p>A successful Clone also registers its resulting repository using the destination
 permission you already granted. A registration failure is reported separately from
 the successful Git clone, so you can retry registration without cloning again.
@@ -124,8 +130,8 @@ change the saved font setting or the message. A new message session starts at
 the configured size. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/MESSAGE-EDITOR-COMMANDS-PARITY.html">message-editor behavior</a>
 for the source comparison and remaining acceptance work.</p>
 <h2 id="choose-a-commit-window">Choose a commit window</h2>
-<p>The <strong>Commit window</strong> selector offers <strong>Classic</strong> and <strong>Git Gui-style staging</strong>.
-Classic remains the default. The choice is saved for subsequent Commit windows.
+<p>Use the compact <strong>Commit window</strong> dropdown at the upper right to choose
+<strong>Classic</strong> or <strong>Git Gui-style staging</strong>. Classic remains the default. The choice is saved for subsequent Commit windows.
 The staging workspace shows unstaged files above staged files on the left, with
 an embedded patch and commit message on the right. Select a file in either list
 to review that side of the index. A partially staged file appears in both lists.
@@ -184,8 +190,10 @@ windows are available through supported routes. See <a href="https://jfk-solutio
 <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-GRAPH.html">Log graph</a> and <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SUBMODULE-DIFF-PARITY.html">comparison parity</a> for
 implemented commands and remaining differences.</p>
 <p>The Log window shows the revision graph before the commit list, with the selected
-commit's message and changed paths below. This example selects a merge so you can
-inspect its differences against each parent.</p>
+commit's message and changed paths below. Click a revision row to select it and
+load those details; selecting a commit does not change your checkout. Select a
+changed path below and use its context menu to compare or open that version.
+This example selects a merge so you can inspect its differences against each parent.</p>
 <p><img src="images/61bb4ff85220-mac-log-light-2026-10-27.png" alt="Log in light mode showing a branch and merge graph, message and changed files" /></p>
 <p><img src="images/3d106a75087c-mac-log-dark-2026-10-27.png" alt="The same Log window in dark mode" /></p>
 <p>These examples show the native controls using the offline Harbor sample

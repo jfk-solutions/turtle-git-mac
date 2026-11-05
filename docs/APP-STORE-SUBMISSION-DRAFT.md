@@ -1,4 +1,6 @@
-# App Store submission dossier — draft, 26 October 2026
+# App Store submission dossier — draft
+
+Listing copy drafted 26 October 2026; local delivery status reviewed 5 November 2026.
 
 This is a reviewable preparation artifact, **not an approved listing, signed export,
 license clearance or submission**. No App Store Connect fields were changed. The
@@ -75,6 +77,22 @@ Sources checked on 26 October 2026: [program overview](https://developer.apple.c
 The test app's signing, entitlements and Finder integration still need their own
 measured acceptance; an account answer is not evidence that a particular build
 has passed those checks.
+
+## Current local delivery checkpoint — 5 November 2026
+
+The installed app is [signed development build 52](qa/signed-consolidation-build52-2026-11-03.json),
+version **0.1.0 (52)**, from source `3702643e020511fc09687cda58f352ad5d12e459`.
+It is a local testing package with Apple Development signing, not a Store export.
+Later source changes are not installed merely because they have passed focused
+checks or been pushed to GitHub. Current acceptance and outstanding issues are
+tracked in [release blockers](RELEASE-BLOCKERS.md).
+
+Build 52's recorded workspace and Commit observations use a private synthetic
+repository and warm Finder cache. They do not establish cold-start performance
+for every repository, physical Finder acceptance or full upstream parity. The
+final reviewer instructions and screenshot set must name the actual accepted
+release build; neither this installed number nor a historical capture is an
+App Store Connect version/build reservation.
 
 ## Draft reviewer instructions
 
@@ -260,7 +278,7 @@ image was edited into a store asset or submitted.
 | Distribution certificate/profile and App Group entitlement | Final channel/account verification; Apple Development signatures are not a submitted distribution export |
 | Exact final archive/package/source+notice set | Match measured inputs, actual signed binary, symbols and corresponding source/reconstruction inputs; prior receipts remain historical |
 | Final screenshots and sample review attachment | Offline synthetic attachment prepared with checksums/reset instructions; final screenshots and owner/submission approval remain pending |
-| Hosted CI | Installed [build48](qa/signed-consolidation-build48-2026-10-31.json) is pinned to `d6ac61b8`. The [bounded earlier snapshot](qa/hosted-history-lfs-2026-10-31.json) records successful Pages deployment and older actual macOS failures; the [local Sync/LFS repairs](qa/hosted-history-lfs-repair-2026-10-31.json) are included in48. Complete matching-source hosted integration remains unproven; website deployment and local package checks do not establish it |
+| Hosted CI | Installed [build52](qa/signed-consolidation-build52-2026-11-03.json) predates current source. Current-source hosted validation is required separately; [release blockers](RELEASE-BLOCKERS.md) records focused passes and unresolved failures. Pages deployment and local package checks do not establish full integration acceptance |
 | Upload/validation/App Review/release | Not performed; only after owner approval and remaining gates |
 
 Existing [distribution engineering](DISTRIBUTION.md), [privacy](PRIVACY.md),

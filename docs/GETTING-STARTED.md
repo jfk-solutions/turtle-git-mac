@@ -83,7 +83,8 @@ choose **Add to TurtleGit…**. The app requests folder access when needed, vali
 the repository and saves it in Open Recent and Watched Repositories. Registration
 runs without opening a workspace and does not replace a repository already open there.
 When access is needed, the picker opens inside the selected folder; click
-**Allow Access** to approve it. Valid saved access avoids another picker.
+**Allow Access** to approve it. This is the sandbox's folder-access consent:
+TurtleGit cannot approve it automatically. Valid saved access avoids another picker.
 **Add to TurtleGit…** is offered for folders, rather than individual files.
 If you select a subfolder of an unregistered checkout and grant only that
 subfolder, TurtleGit asks you to choose the checkout root or a containing folder.
@@ -95,6 +96,11 @@ Registered repository folders retain their general Git commands when TurtleGit
 is closed. The app restores folder permission and validates the repository when
 you invoke a command. File-state commands require a current status publication;
 registered-folder hints alone do not supply badges or tracked-file status.
+To commit from Finder, right-click the registered repository folder and choose
+**TurtleGit → Commit…**. This opens Commit directly, including when TurtleGit
+was closed. You do not need to open the workspace first. A command on selected
+files or a subfolder scopes the initial changed-file list; **Show Whole Project**
+in Commit expands it to the checkout.
 
 A successful Clone also registers its resulting repository using the destination
 permission you already granted. A registration failure is reported separately from
@@ -156,8 +162,8 @@ for the source comparison and remaining acceptance work.
 
 ## Choose a commit window
 
-The **Commit window** selector offers **Classic** and **Git Gui-style staging**.
-Classic remains the default. The choice is saved for subsequent Commit windows.
+Use the compact **Commit window** dropdown at the upper right to choose
+**Classic** or **Git Gui-style staging**. Classic remains the default. The choice is saved for subsequent Commit windows.
 The staging workspace shows unstaged files above staged files on the left, with
 an embedded patch and commit message on the right. Select a file in either list
 to review that side of the index. A partially staged file appears in both lists.
@@ -229,8 +235,10 @@ windows are available through supported routes. See [Log parity](LOG-PARITY.md),
 implemented commands and remaining differences.
 
 The Log window shows the revision graph before the commit list, with the selected
-commit's message and changed paths below. This example selects a merge so you can
-inspect its differences against each parent.
+commit's message and changed paths below. Click a revision row to select it and
+load those details; selecting a commit does not change your checkout. Select a
+changed path below and use its context menu to compare or open that version.
+This example selects a merge so you can inspect its differences against each parent.
 
 ![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-27.png)
 

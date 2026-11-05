@@ -71,6 +71,12 @@ UTILITY_STARTUP = {
     'if': collection_condition('Repository-independent utility and local tool startup', 'settings-finder'),
     'run': 'python3 scripts/test-utility-startup.py',
 }
+REVERT_EXACT_ANCHOR = 'Revert completed results and shared file-progress ownership'
+REVERT_EXACT = {
+    'name': 'Exact-name Revert clean Retry and retired result ownership',
+    'if': collection_condition('Exact-name Revert clean Retry and retired result ownership', 'commit-repository'),
+    'run': 'python3 scripts/test-operation-identity-family.py --only revert-exact --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
 METAFILE_FAILURE_EVIDENCE = {
     'name': 'Retain failed metafile source and pixel evidence',
     'if': "matrix.lane == 'commit-repository' && failure()",
@@ -158,6 +164,15 @@ def verify(workflow, inventory, originals):
     require(utility[0] == anchors[0] + 1 and actual[utility[0]] == UTILITY_STARTUP,
             'Utility startup command, owner, condition or placement changed')
     actual.pop(utility[0])
+    revert_exact = [i for i, step in enumerate(actual) if step.get('name') == REVERT_EXACT['name']]
+    revert_anchors = [i for i, step in enumerate(actual) if step.get('name') == REVERT_EXACT_ANCHOR]
+    require(len(revert_exact) == 1 and len(revert_anchors) == 1,
+            'Missing or duplicate exact-name Revert consumer/anchor')
+    require(revert_exact[0] == revert_anchors[0] + 1 and actual[revert_exact[0]] == REVERT_EXACT,
+            'Exact-name Revert command, owner, readiness/cancellation condition or placement changed')
+    # Remove only this fully verified addition. The original Revert producer and
+    # every neighboring step still pass the immutable baseline comparison below.
+    actual.pop(revert_exact[0])
     evidence = [i for i, step in enumerate(actual)
                 if step.get('name') == METAFILE_FAILURE_EVIDENCE['name']]
     consumers = [i for i, step in enumerate(actual)

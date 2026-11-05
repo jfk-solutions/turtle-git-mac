@@ -6,7 +6,7 @@
   <meta name="description" content="TurtleGit for Mac is a native macOS Git client and a macOS fork of TortoiseGit. Review history, commit changes, compare files and work from Finder.">
   <link rel="icon" type="image/png" href="assets/application-favicon.png">
   <title>TurtleGit for Mac — Git in your Finder</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261105">
 </head>
 <body>
 <a class="skip" href="#main">Skip to content</a>
@@ -27,7 +27,7 @@
       <h2>Git, close at hand</h2>
       <p>Start from Finder with Git context menus and colored file status badges. Open the dialog you need: Commit, Log, branches, tags, remotes or synchronization. A repository workspace is available when you want a broader view.</p>
       <p>Follow branches and merges in the history graph, inspect each commit’s changed files, and use Blame to trace a line’s origin. Review changes with built-in comparison and conflict-resolution tools, then choose what to stage and commit.</p>
-      <p>Native Mac controls, light and dark appearances, keyboard shortcuts and offline help keep everyday Git work close at hand.</p>
+      <p>Native Mac controls, light and dark appearances, keyboard shortcuts and offline help keep everyday Git work close at hand. The sandboxed distribution build includes Git and OpenSSH.</p>
     </section>
     <aside aria-label="Resources">
       <section><h2>User manual</h2><p>Guides for everyday Git work.</p><ul>
@@ -35,10 +35,13 @@
         <li><a href="manual/MERGE-TOOL.html">Compare and merge files</a></li>
         <li><a href="manual/index.html">Browse the full manual</a></li>
       </ul></section>
-      <section><h2>Made for macOS</h2><p>Runs on Apple silicon and Intel Macs with macOS 13 or later. The sandboxed distribution build includes Git and OpenSSH.</p><p>Choose which repository folders TurtleGit can access. Enable its Finder extension for repository menus and status badges.</p></section>
-      <section id="support"><h2>Support</h2><p>Contact <a href="mailto:jochen.kuehner@gmx.de">jochen.kuehner@gmx.de</a> for TurtleGit support.</p><p>Found a problem or have an idea?</p><ul><li><a href="@@REPOSITORY_URL@@/issues">Report an issue</a></li><li><a href="@@REPOSITORY_URL@@">Browse the source</a></li></ul></section>
     </aside>
   </div>
+  <section class="finder-setup" aria-labelledby="finder-setup-title"><h2 id="finder-setup-title">Start in Finder</h2><ol>
+        <li>Open Settings → Icon Overlays → Manage Finder Extension… and enable TurtleGit in macOS.</li>
+        <li>Right-click a repository folder and choose TurtleGit → Add to TurtleGit…; approve folder access if asked.</li>
+        <li>Use the folder’s TurtleGit menu for Commit, Log and other Git commands, even when the app is closed.</li>
+      </ol><p>Registration enables repository menus and status badges without opening the workspace. See <a href="manual/GETTING-STARTED.html">Getting started</a> for access, background refresh and cloning.</p></section>
   <section id="screenshots" class="screenshots" aria-labelledby="screenshots-title">
     <h2 id="screenshots-title">Your repositories, in light and dark</h2>
     <p>Native Log, both Commit interfaces and editable patch documents using a sample repository. Select an image to see it at full size.</p>
@@ -53,6 +56,7 @@
       <figure><a href="assets/mac-unified-diff-dark-2026-10-27.png"><img src="assets/mac-unified-diff-dark-2026-10-27.png" width="2000" height="1024" alt="Unified Diff in dark appearance: Line numbers, colorful patch text and column selection." loading="lazy"></a><figcaption>Unified Diff in dark appearance. Line numbers, colorful patch text and column selection.</figcaption></figure>
     </div>
   </section>
+  <section id="support" class="support"><h2>Support</h2><p>Contact <a href="mailto:jochen.kuehner@gmx.de">jochen.kuehner@gmx.de</a> for TurtleGit support.</p><p>Found a problem or have an idea?</p><ul><li><a href="@@REPOSITORY_URL@@/issues">Report an issue</a></li><li><a href="@@REPOSITORY_URL@@">Browse the source</a></li></ul></section>
 </main>
 <footer><p>An independent, unofficial macOS project based on <a href="https://tortoisegit.org/">TortoiseGit</a>. Licensed under GPL v2.</p><p><a href="@@REPOSITORY_URL@@/blob/main/AUTHORS.md">Credits</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></p></footer>
 </body>

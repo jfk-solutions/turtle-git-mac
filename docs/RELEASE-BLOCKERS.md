@@ -7,6 +7,17 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 5 delivery-guide continuation](qa/delivery-guide-2026-11-05.json)
+updates the local-testing/distribution guide to installed52, preserves historical
+section links, clarifies Finder/Commit/Log instructions and refreshes online and
+offline guidance. The hosted [4f8b6879 observation](qa/hosted-4f8b6879-2026-11-05.json)
+is terminal failure before application validation: all eight lanes stop at the
+workflow inventory guard, and Pages stops at stale generated image-effects Help.
+The exact Revert addition now has strict guard coverage (34 focused checks and
+immutable-baseline verification pass); regenerated Help, static site links/search
+and visual homepage review pass locally. This establishes no app, AX or full
+hosted acceptance. Installed52 is unchanged; corrected-source CI is required.
+
 The [November 5 document-command acceptance continuation](qa/document-command-acceptance-2026-11-05.json)
 corrects image Reload readiness after physical sheet detachment, keeps public AX
 self-queries on MainActor, and updates the integrated Log consumer to refuse a

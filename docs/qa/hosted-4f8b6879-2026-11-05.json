@@ -1,0 +1,119 @@
+{
+  "date": "2026-11-05",
+  "source": "4f8b6879e33ba1afad14cd5ec04ddd4eee698527",
+  "status": "terminal-hosted-failure-before-application-validation",
+  "macOS": {
+    "id": 42005065421,
+    "status": "completed",
+    "conclusion": "failure",
+    "updated_at": "2026-11-05T09:48:47Z",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42005065421",
+    "jobs": [
+      {
+        "id": 127169620649,
+        "name": "svn-runtime",
+        "status": "completed",
+        "conclusion": "success",
+        "failed_steps": []
+      },
+      {
+        "id": 127170198297,
+        "name": "validation (editors)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198356,
+        "name": "validation (settings-finder)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198362,
+        "name": "validation (replay-transport)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198420,
+        "name": "validation (distribution)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198469,
+        "name": "validation (core)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198479,
+        "name": "validation (commit-repository)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198519,
+        "name": "validation (images-documents)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170198580,
+        "name": "validation (history-references)",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Check workflow lane contracts"
+        ]
+      },
+      {
+        "id": 127170915947,
+        "name": "build-and-test",
+        "status": "completed",
+        "conclusion": "failure",
+        "failed_steps": [
+          "Require every validation lane and runtime producer"
+        ]
+      }
+    ]
+  },
+  "pages": {
+    "id": 42005065450,
+    "status": "completed",
+    "conclusion": "failure",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42005065450",
+    "failed_step": "Check bundled Mac help sources",
+    "diagnostic": "Regenerate METAFILE-IMAGE-EFFECTS-PARITY.html, Help Info.plist and manifest.json; deploy skipped."
+  },
+  "diagnosis": [
+    "New exact-name Revert workflow step was not registered in immutable-baseline checker exceptions. All eight lanes stopped at workflow contract; no app/Core/native result is inferred.",
+    "Previous image-effects documentation is in Help additional_guides; generated payload was stale. Site was not deployed."
+  ],
+  "local_repairs": [
+    "Checker now admits only exact Revert command/ready owner/anchor position and removes only verified addition before unchanged immutable-baseline comparison;34 contract tests and baseline verification pass.",
+    "Help book regenerated after documentation freeze;--check passes."
+  ],
+  "release_scope": "Installed build52 unchanged. Final corrected-source hosted run remains required; no AX positive control, signed deployment, physical Finder or Store acceptance established."
+}

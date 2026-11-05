@@ -1,0 +1,88 @@
+{
+  "date": "2026-11-05",
+  "source_parent": "4f8b6879e33ba1afad14cd5ec04ddd4eee698527",
+  "status": "documentation-and-focused-workflow-repair-local-checkpoint-passed-hosted-required",
+  "scope": [
+    "Current installed52/source/archive/runtime/local-testing distribution guide, preserved historical evidence and section links.",
+    "Finder-first homepage and illustrated manual: registration consent, cold command entry, staging primary actions, compact selector and Log details.",
+    "Store dossier and machine-readable draft point to actual local52; seller/email/provisionalprice retained, no account/listing changes.",
+    "Actual hosted workflow blocker repair: exact Revert exception preserves immutable pre-split inventory and strict placement/readiness/cancellation command."
+  ],
+  "installed_readback": {
+    "version": "0.1.0",
+    "build": "52",
+    "main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "updated": false
+  },
+  "validation": {
+    "Core": {
+      "run": false,
+      "reason": "No Core behavior changed."
+    },
+    "native_app": {
+      "build_or_receiver_run": false,
+      "reason": "No native application behavior changed; generated Help consistency does not prove an installed app updated."
+    },
+    "workflow_contract": {
+      "tests": 34,
+      "passed": true,
+      "baseline_verification_passed": true,
+      "scope": "Agent-ran focused checker and its mutation/readiness tests; no native/Core checks."
+    },
+    "Help": {
+      "regenerated": true,
+      "check_passed": true,
+      "documents": 64,
+      "topics": 53,
+      "files": 98,
+      "correction": "Previous image-effects parity addition is in additional_guides; stale generated page/plist/manifest fixed together with current Getting Started."
+    },
+    "site": {
+      "build_passed": true,
+      "documents": 525,
+      "unresolved_fragments": [],
+      "full_link_tests": 3,
+      "full_link_tests_passed": true,
+      "affected_layout_route_rechecks_passed": true,
+      "search_passed": true,
+      "final_after_acceptance_record_links": "Final build and affected generated-route/fragment check pass after Release Blockers freezes; remaining assertion fixtures unchanged."
+    },
+    "legacy_distribution_anchors": {
+      "original_anchors": 39,
+      "preserved": 39,
+      "missing": []
+    },
+    "visual": {
+      "desktop": "Reviewed local homepage default1280px, Finder instructions and existing native screenshot gallery; moved setup out of tall sidebar, moved support beneath gallery.",
+      "narrow": "390px viewport, one setup column, documentWidth390 equals viewport390; no horizontal overflow. Temporary override reset.",
+      "screenshot": "build/qa/delivery-docs-homepage-2026-11-05.png",
+      "screenshot_sha256": "ade6584e8c1ae8c265d32b089ca2eb79c5a9001571420c4cba03c289d80d49e1",
+      "app_screenshot_recapture": false,
+      "ownership": "Owned hidden IAB tab closed; localhost server exited; separate private-profile headless capture process94352 exited0/reaped with no surviving process group. No user app terminated."
+    }
+  },
+  "initial_failures_retained": [
+    "First site-link check was incorrectly started alongside site generation, before its required build/site input was complete:808 missing routes. Sequential rerun passed; no link assertions removed.",
+    "Initial homepage sidebar made a large blank area; layout corrected and affected routes reviewed/rechecked.",
+    "Cached stylesheet initially hid new setup columns in browser; versioned stylesheet URL refreshed them."
+  ],
+  "logs": {
+    "build/qa/delivery-docs-help-write-2026-11-05.log": "bf0b19e39542c038017962b96ab547f5fb154fcee839b883fc86de28f0204d77",
+    "build/qa/delivery-docs-help-check-2026-11-05.log": "143869e01ee3a7630b04052266ffd7f34eccbb11f009ba1bd082614bbedc9cd9",
+    "build/qa/delivery-docs-site-build-2026-11-05.log": "f2fb5fff80488ffdbe718cc4c7c76f15ce42bbcb1c652e1bac044e841b010a7b",
+    "build/qa/delivery-docs-site-links-2026-11-05.log": "febfec5e5874d0dd3d8e384e48dc6fe6c7499782e1d038c9879af784ff8a31dd",
+    "build/qa/delivery-docs-site-links-sequential-2026-11-05.log": "fa8d2e155e52c72ec88482021ccf138cfbe2125f6ab418cf22eb8b0431b15edb",
+    "build/qa/delivery-docs-search-2026-11-05.log": "115f54416e94fc2660c3476d444277ea01a96fafd7cecb7b58b39c95b6afcf36",
+    "build/qa/delivery-docs-site-layout-build-2026-11-05.log": "f2fb5fff80488ffdbe718cc4c7c76f15ce42bbcb1c652e1bac044e841b010a7b",
+    "build/qa/delivery-docs-site-layout-links-2026-11-05.log": "0be9ab25443e148458321b3e0f5fa16ef7f9073657ccc36b760b2d8e7f3d84e3",
+    "build/qa/delivery-docs-site-cache-build-2026-11-05.log": "f2fb5fff80488ffdbe718cc4c7c76f15ce42bbcb1c652e1bac044e841b010a7b",
+    "build/qa/delivery-docs-site-cache-links-2026-11-05.log": "c92e1b541e549cfe8159dde4b345fbe83531fdc82cb83fa8c44aa27f65963ea5",
+    "build/qa/delivery-docs-site-final-build-2026-11-05.log": "f2fb5fff80488ffdbe718cc4c7c76f15ce42bbcb1c652e1bac044e841b010a7b",
+    "build/qa/delivery-docs-site-final-links-2026-11-05.log": "4698ac24b585d7d7cecfad8f9592e37abee4c4a810f6f64d8234e882918b93d4"
+  },
+  "release_scope": [
+    "No App Store submission, account change, sale, license clearance, binary publication, notarization, installed update or physical Finder/VoiceOver acceptance.",
+    "Previous4f8 hosted run failed workflow guard before app validation and Help source check before Pages deployment. Corrected-source full hosted acceptance remains required.",
+    "Public AX positive controls remain locally unresolved; no passing claim from documentation or workflow checks."
+  ]
+}

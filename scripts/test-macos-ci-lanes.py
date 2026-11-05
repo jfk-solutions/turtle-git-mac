@@ -166,6 +166,45 @@ class MacOSLaneTests(unittest.TestCase):
             if mutation == 'command': steps[index]['run'] = 'true'
             if mutation == 'lane': steps[index]['if'] = "matrix.lane == 'editors'"
             with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testExactNameRevertHasReadyOwnerAndExactPlacement(self):
+        steps = self.workflow['jobs']['validation']['steps']
+        index = next(i for i, step in enumerate(steps) if step.get('name') == ci.REVERT_EXACT['name'])
+        self.assertEqual(steps[index], ci.REVERT_EXACT)
+        self.assertEqual(steps[index - 1]['name'], ci.REVERT_EXACT_ANCHOR)
+        self.assertTrue(self.eligible(ci.REVERT_EXACT['name'], 'commit-repository', {'earlier_native': 'failure'}))
+        for lane in ci.LANES:
+            with self.subTest(lane=lane):
+                self.assertEqual(self.eligible(ci.REVERT_EXACT['name'], lane), lane == 'commit-repository')
+        for outcome in ['failure', 'skipped', 'cancelled', '']:
+            with self.subTest(outcome=outcome):
+                self.assertFalse(self.eligible(ci.REVERT_EXACT['name'], 'commit-repository', {'native_ready': outcome}))
+        self.assertFalse(self.eligible(ci.REVERT_EXACT['name'], 'commit-repository', cancelled=True))
+
+    def testExactNameRevertAdditionCannotDriftOrHideOriginalChanges(self):
+        mutations = ['missing', 'duplicate', 'before-anchor', 'late', 'wrong-lane',
+                     'wrong-command', 'omit-bundled-git', 'broaden-cases', 'drop-ready',
+                     'implicit-success', 'always', 'environment', 'missing-anchor', 'anchor-command']
+        for mutation in mutations:
+            value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+            index = next(i for i, step in enumerate(steps) if step.get('name') == ci.REVERT_EXACT['name'])
+            step = steps[index]
+            owner = next(s for s in steps if s.get('name') == ci.REVERT_EXACT_ANCHOR)
+            if mutation == 'missing': steps.pop(index)
+            if mutation == 'duplicate': steps.insert(index + 1, copy.deepcopy(step))
+            if mutation == 'before-anchor': steps.insert(index - 1, steps.pop(index))
+            if mutation == 'late': steps.append(steps.pop(index))
+            if mutation == 'wrong-lane': step['if'] = step['if'].replace('commit-repository', 'editors')
+            if mutation == 'wrong-command': step['run'] = 'true'
+            if mutation == 'omit-bundled-git': step['run'] = step['run'].replace(' --git "$PWD/build/git-runtime/Git/bin/git"', '')
+            if mutation == 'broaden-cases': step['run'] = step['run'].replace(' --only revert-exact', '')
+            if mutation == 'drop-ready': step['if'] = step['if'].replace("steps.native_ready.outcome == 'success' && ", '')
+            if mutation == 'implicit-success': step['if'] = "matrix.lane == 'commit-repository'"
+            if mutation == 'always': step['if'] = step['if'].replace('!cancelled()', 'always()')
+            if mutation == 'environment': step['env'] = {'SKIP_ASSERTIONS': '1'}
+            if mutation == 'missing-anchor': steps.remove(owner)
+            if mutation == 'anchor-command': owner['run'] = 'true'
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+
     def testMissingDuplicateAndUnknownStepsRefused(self):
         for operation in ['remove', 'duplicate', 'unknown']:
             value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
