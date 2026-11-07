@@ -210,6 +210,11 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
                 if active,generation==request {savedProxy=proxy}
             }
             if !GitRuntime.isAppStoreBuild, ssh != savedSSH {
+                // Apply has accepted this immutable draft before its bounded
+                // executable validation. Retirement cancels page reads, but
+                // cannot revoke that write or reactivate the page on return.
+                guard acceptedWrite==request || active && generation==request && self.proxy==proxy && self.ssh==ssh else {return false}
+                acceptedWrite=request
                 let token = OperationCancellation()
                 let version: String
                 if let sshVersion { version = try await sshVersion(ssh, token) } else { version = try await Task.detached { try ssh.version(cancellation: token) }.value }

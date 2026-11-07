@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @main struct RebaseReferencesVerification {
@@ -28,7 +29,7 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName: suite) }
         let controller = RebaseWindowController(repository: repo, access: nil, preferences: prefs), model = controller.model
         defer { controller.close() }
-        @MainActor func settled() -> Bool { !model.busy && !model.loadingPlan && RebaseWindowModel.activePreparationReads == 0 && RebaseWindowModel.activeColumnReads == 0 }
+        @MainActor func settled() -> Bool { !model.busy && !model.loadingPlan && model.pickingReference == nil && controller.referencePicker == nil && RebaseWindowController.activeReferencePickers == 0 && RebaseWindowModel.activePreparationReads == 0 && RebaseWindowModel.activeColumnReads == 0 }
         model.load(upstream: "refs/heads/upstream"); try await wait(settled)
         try require(model.plan != nil && model.referenceChoices(nil).contains { $0.name == "refs/remotes/origin/foreign" } && !model.referenceChoices(nil).contains { $0.name == "refs/tags/alias-topic" }, "Branch dropdown does not include exactly source branch kinds")
         try require(model.referenceChoices(.upstream).contains { $0.name == "FETCH_HEAD" } && model.referenceChoices(.upstream).contains { $0.name == "refs/tags/alias-topic" }, "Upstream omitted tag/FETCH_HEAD")
@@ -89,27 +90,48 @@ import TurtleGitCore
         let previous = model.options.upstream; controller.close(); late?("refs/tags/alias-topic")
         try require(model.retired && model.options.upstream == previous && RebaseWindowController.activeReferencePickers == 0, "Retired picker changed fields")
         // Initial-load Git children stay cancellable/owned after the source is removed.
-        let helper = root.appendingPathComponent("slow-reference-git"), marker = root.appendingPathComponent("reference-started")
+        let helper = root.appendingPathComponent("slow-reference-git"), marker = root.appendingPathComponent("slow-reference-git.started")
         let script = #"""
         #!/bin/sh
-        task_command() {
-          if [ "${1-}" = --literal-pathspecs ] || [ "${1-}" = --no-literal-pathspecs ]; then shift; fi
-          if [ "${1-}" = -C ]; then shift 2; fi
-          while [ "${1-}" = -c ]; do shift 2; done
-          printf '%s' "${1-}"
+        task_matches_command() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree) shift; [ "$#" -gt 0 ] && shift ;;
+              --literal-pathspecs|--no-literal-pathspecs|--no-optional-locks|--no-pager) shift ;;
+              *) [ "$1" = for-each-ref ]; return ;;
+            esac
+          done
+          return 1
         }
-        if [ "$(task_command "$@")" = for-each-ref ]; then
-          : > "$3/reference-started"
-          /bin/sleep 30
+        if task_matches_command "$@"; then
+          printf '%s\0' "$@" > "$0.argv"
+          /bin/sleep 30 &
+          task_child=$!
+          trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
+          printf '%s %s\n' "$$" "$task_child" > "$0.started.pending"
+          /bin/mv "$0.started.pending" "$0.started"
+          wait "$task_child"
         fi
         exec "$TG_REBASE_REF_GIT" "$@"
         """#
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
         setenv("TG_REBASE_REF_GIT", git.path, 1); defer { unsetenv("TG_REBASE_REF_GIT") }
-        let slow = RebaseWindowModel(repository: GitRepository(root: root, executable: helper), access: nil, messageDefaults: prefs)
-        slow.load(upstream: "refs/heads/upstream"); try await wait { FileManager.default.fileExists(atPath: marker.path) }
+        // This phase intentionally exercises a held CLI child. Keep default
+        // native reference reads above, but capture the explicit CLI backend
+        // here so source7 cannot bypass the independently owned process.
+        let heldRepository=GitRepository(root:root,executable:helper,libgit2Configuration:.init(enabled:false))
+        let slow = RebaseWindowModel(repository:heldRepository, access:nil,messageDefaults:prefs)
+        defer{slow.retire()}
+        slow.load(upstream:"refs/heads/upstream",acceptedRepository:heldRepository)
+        try await wait { FileManager.default.fileExists(atPath: marker.path) }
+        let pids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}
+        let arguments=try Data(contentsOf:URL(fileURLWithPath:helper.path+".argv"))
+        let expectedArguments=["--literal-pathspecs","-C",heldRepository.root.path,"-c","core.precomposeunicode=false","for-each-ref","--sort=refname","--format=%(refname)%00%(symref)%00","refs/heads","refs/remotes","refs/tags"]
+        let expectedBytes=Data((expectedArguments.joined(separator:"\0")+"\0").utf8)
+        try require(pids.count==2 && pids.allSatisfy{kill($0,0)==0} && arguments==expectedBytes,"Held CLI reference query lost exact argv or owned shell/child receipt")
         slow.retire(); try require(RebaseWindowModel.activePreparationReads > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Removed initial reader lost Quit ownership")
         try await wait { RebaseWindowModel.activePreparationReads == 0 && RebaseWindowModel.activeColumnReads == 0 }
+        try require(pids.allSatisfy{kill($0,0) != 0 && errno==ESRCH},"Retired reference query left its owned shell or child alive")
         try require(slow.references.isEmpty && slow.plan == nil && slow.error == nil, "Retired initial load published data/error")
         let after = try await repo.run(["rev-parse", "HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))

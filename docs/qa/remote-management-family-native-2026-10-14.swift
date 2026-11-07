@@ -20,6 +20,9 @@ import TurtleGitCore
         let head = try await repo.run(["rev-parse","HEAD"]).stdout, index = try Data(contentsOf:root.appendingPathComponent(".git/index")), bytes = try Data(contentsOf:file)
         let suite = "TurtleGit.RemoteManagement." + UUID().uuidString, prefs = UserDefaults(suiteName:suite)!
         defer { prefs.removePersistentDomain(forName:suite) }
+        // This consumer owns real held CLI commands for each supplied Git.
+        // The master libgit2 catalog bypasses that wrapper by design.
+        prefs.set(false,forKey:"UseLibgit2")
         let settings = RemoteSettingsWindowModel(repository:repo,access:nil,preferences:prefs,noFetch:true); defer { settings.invalidate() }
         settings.originHintDelay = 0; settings.load(); try await wait { !settings.busy && settings.originHint != nil }
         settings.edit(.url) { $0.url = root.path }; try require(settings.draft.name == "origin" && settings.originHint == nil,"URL autofill/hint lifetime")
@@ -44,8 +47,17 @@ import TurtleGitCore
             let fetch = FetchWindowModel(repository:repo,access:nil,isPull:pull,preferences:prefs); defer { fetch.invalidate() }
             fetch.load(); try await wait { !fetch.busy && FetchWindowModel.activePreparationReads == 0 }
             fetch.options.branch = "typed-remote-branch"; fetch.squash = true; fetch.options.tags = .enabled
-            fetch.remoteSettings.remotes = ["replacement"]; fetch.reloadRemotes(); try await wait { FetchWindowModel.activePreparationReads == 0 }
-            try require(fetch.options.remote == "replacement" && fetch.options.branch == "typed-remote-branch" && fetch.squash && fetch.options.tags == .enabled,"Fetch/Pull remote adoption reset draft")
+            // Exercise the actual captured manager return. Refresh reseeds the
+            // tracked branch just like PullFetchDlg::Refresh; unrelated user
+            // transport options remain untouched.
+            fetch.manage(fetch.formContext)
+            guard let receipt=fetch.remoteManagerReceipt,let manager=fetch.remoteManagerModel else {throw Failure.assertion("Fetch/Pull manager was not captured")}
+            try require(fetch.managing,"Manager ownership was not retained")
+            manager.invalidate();fetch.closeRemoteManager(receipt);fetch.remoteManagerReturned(receipt)
+            try await wait {fetch.remoteManagerModel==nil && !fetch.busy && fetch.pendingOperations==0 && FetchWindowModel.activePreparationReads==0}
+            try require(fetch.error==nil && fetch.options.remote == "replacement" && fetch.options.branch == "main" && fetch.squash && fetch.options.tags == .enabled,"Fetch/Pull manager return lost tracked branch or reset unrelated draft")
+            fetch.remoteManagerReturned(receipt)
+            try require(fetch.pendingOperations==0,"Duplicate manager return launched another catalog read")
         }
         let sync = SynchronizationWindowModel(repository:repo,access:nil,preferences:prefs); defer { sync.invalidate() }
         sync.localBranch = "main"; sync.remote = "renamed"; sync.remoteWasSelected = true; sync.remoteBranch = "typed-branch"

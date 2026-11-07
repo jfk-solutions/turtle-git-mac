@@ -136,7 +136,7 @@ import TurtleGitCore
             try require(changed.error==nil && changed.visibleFiles.contains{$0.path==f.path && $0.isSubmodule},"Changed Files omitted actual child gitlink")
             var logRoot:URL?,logHash:String?
             changed.onSubmoduleLog={logRoot=$0;logHash=$1};try c.clear();changed.logSubmodules([f.path]);try await wait{!changed.busy && RevisionComparisonWindowModel.activeFileOperations==0}
-            try require(sameFilesystemRoot(logRoot,f.child.root) && logHash==nil && (try c.log()).contains("turtlegit-merge-base")==enabled,"Changed Files child Log inspection lost accepted source7")
+            try require(sameFilesystemRoot(logRoot,f.child.root) && logHash==nil && changed.acceptedNavigationRepository?.libgit2Configuration?.enabled==enabled && !(try c.log()).contains("turtlegit-merge-base"),"Changed Files working child Log lost captured backend/root or performed unrelated ancestry inspection")
             changed.invalidate()
             let session=SubmoduleWorkingLogSession(repository:repo,access:grant,preferences:c.prefs);let child=try await session.load(f.path);session.retire()
             try require(sameFilesystemRoot(child.root,f.child.root) && child.libgit2Configuration?.enabled==enabled,"Working-submodule Log lost configured child")

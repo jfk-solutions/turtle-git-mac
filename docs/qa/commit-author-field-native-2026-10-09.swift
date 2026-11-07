@@ -3,6 +3,10 @@ import SwiftUI
 import TurtleGitCore
 import Darwin
 
+@MainActor private final class CommitAuthorHiddenWindow:NSWindow {
+    override func constrainFrameRect(_ frameRect:NSRect,to screen:NSScreen?)->NSRect {frameRect}
+}
+
 @main struct CommitAuthorFieldVerification {
     struct Failure: Error, CustomStringConvertible { var description: String }
     static func require(_ value: @autoclosure () -> Bool, file: StaticString = #filePath, line: UInt = #line) throws {
@@ -52,8 +56,9 @@ import Darwin
         for _ in 0..<3000 { if !model.busy { break }; try await Task.sleep(nanoseconds:10_000_000) }
         try require(model.commitIdentityPrepared && !model.busy && model.error == nil)
         let host = NSHostingView(rootView: CommitDialog(model: model).defaultAppStorage(prefs))
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 760), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = CommitAuthorHiddenWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 760), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host
+        window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000));window.orderFront(nil)
         defer { window.close() }
         try await settle(host)
         guard let field = authorField(in: host) else { throw Failure(description: "Author field missing") }
@@ -97,7 +102,7 @@ import Darwin
         guard let afterBranch = field.currentEditor() as? NSTextView else { throw Failure(description: "Author field editor missing: afterBranch") }
         try require(!afterBranch.isEditable && afterBranch.writeSelection(to: clipboard, types: afterBranch.writablePasteboardTypes))
         try require(clipboard.string(forType: .string) == configured)
-        try require(!window.isVisible && NSApplication.shared.activationPolicy() == .prohibited)
+        try require(window.alphaValue==0 && window.frame.maxX<0 && NSApplication.shared.activationPolicy() == .prohibited)
         print("PASS: full hidden Commit author remains selectable/copyable while read-only, native editing updates model, selection survives unrelated updates, unchecked author reseeds configured identity and disables editing, busy disables field; branch focus/select-all and subsequent read-only copy coexist; private pasteboard and no main app")
     }
 }

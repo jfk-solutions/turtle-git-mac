@@ -131,6 +131,10 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification:Notification) {
         guard !retired else{return};retired=true
+        let closingWindow=window, presentingWindow=window?.sheetParent
+        // A result belongs to the presenting workflow until AppKit has actually
+        // detached this sheet, including forced controller closure.
+        if let closingWindow,let presentingWindow {presentingWindow.endSheet(closingWindow,returnCode:.abort)}
         let child=model.unifiedWindow,sheet=window?.attachedSheet
         findController?.close();findController=nil
         model.invalidate();retireAlert();notePresenter?.close()
@@ -139,7 +143,7 @@ import TurtleGitCore
         if let completion=selectionCompletion {selectionCompletion=nil;selectionDelivery={completion(nil)}}
         releasing=true
         let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,sheet] in
-            !model.hasPendingWork && child?.model.busy != true && sheet?.sheetParent==nil
+            closingWindow?.sheetParent==nil && closingWindow?.attachedSheet==nil && (closingWindow == nil || presentingWindow?.attachedSheet !== closingWindow) && !model.hasPendingWork && child?.model.busy != true && sheet?.sheetParent==nil
         },completion:{ [self,child] in
             releasing=false;let delivery=selectionDelivery;selectionDelivery=nil;delivery?()
             let finish=onClosed;onClosed={};finish();withExtendedLifetime(child){}

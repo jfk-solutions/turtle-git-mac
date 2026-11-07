@@ -880,3 +880,12 @@ assumed common application defect. `scripts/test-reference-source-family.py
 after the implementation freeze. The four already-passing cases were not
 repeated. This does not establish a
 hosted pass, physical menus, signed access or complete source parity.
+
+## Captured child result delivery — November 7, 2026
+
+The [connected child-delivery continuation](REFERENCE-CHILD-DELIVERY-PARITY.md)
+keeps Browser/RefLog selection and close callbacks behind actual native sheet
+and worker retirement. It also distinguishes delivered picker results from
+initial visual/model closure in Rebase, Reset and Current Branch consumers.
+Its grouped evidence and explicit remaining acceptance apply to that boundary,
+without certifying the complete dialogs.

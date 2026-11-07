@@ -101,3 +101,7 @@ activation, signed grants and all-dialog parity remain separate acceptance work.
 comparison controls, exact file selections/caches, compared-range Log routing,
 owned Save/Export/Open With/list panels and exact Revert/Export backends. Its
 grouped evidence and explicit acceptance limits supplement this family.
+
+The [captured child-delivery continuation](REFERENCE-CHILD-DELIVERY-PARITY.md)
+keeps the Finder pair-viewer consumer behind actual asynchronous presentation,
+while preserving its captured alternate-tool choice and exact repository bytes.

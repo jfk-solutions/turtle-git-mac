@@ -57,6 +57,57 @@ final class CommitMessageTests: XCTestCase {
         file.remove(); XCTAssertFalse(FileManager.default.fileExists(atPath: file.directory.path))
     }
 
+    func testEncodingRefusalPrecedesEverySelectionPreparationAndBranchMutation() async throws {
+        let helper=CommitSelectionTests(),(root,repo)=try await helper.fixture()
+        defer {try? FileManager.default.removeItem(at:root)}
+        for name in ["checked","unchecked"] {try helper.write(root,name,"base\n")}
+        try await repo.stage(["checked","unchecked"]);_ = try await repo.commit(message:"base")
+        try helper.write(root,"unchecked","staged unrelated\n");try await repo.stage(["unchecked"])
+        try helper.write(root,"checked","checked worktree\n")
+        _ = try await repo.run(["config","i18n.commitencoding","utf-16"])
+        let indexURL=root.appendingPathComponent(".git/index")
+        let index=try Data(contentsOf:indexURL),head=try await repo.run(["rev-parse","HEAD"]).stdout
+        let refs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
+        let branch=try await repo.run(["symbolic-ref","HEAD"]).stdout
+        for enabled in [false,true] {
+            for style in 0..<4 {
+                var options=CommitOptions();options.newBranch="refused-\(enabled)-\(style)"
+                if style==1 {options.checkboxIndexPolicy = .init(paths:["checked","unchecked"],readdUnchecked:true)}
+                if style==2 {options.amend=true;options.amendDiffToLastCommit=false}
+                if style==3 {options.messageOnly=true}
+                do {
+                    _ = try await repo.commitSelected(message:"refused",paths:["checked"],options:options,backend:.init(enabled:enabled))
+                    XCTFail("Unsupported encoding accepted")
+                } catch let failure as GitFailure {
+                    XCTAssertTrue(failure.message.contains("utf-16"),failure.message)
+                }
+                XCTAssertEqual(try Data(contentsOf:indexURL),index,"Encoding refusal changed the actual index")
+                let nextHead=try await repo.run(["rev-parse","HEAD"]).stdout
+                let nextRefs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
+                let nextBranch=try await repo.run(["symbolic-ref","HEAD"]).stdout
+                XCTAssertEqual(nextHead,head);XCTAssertEqual(nextRefs,refs);XCTAssertEqual(nextBranch,branch)
+                XCTAssertEqual(try String(contentsOf:root.appendingPathComponent("checked")),"checked worktree\n")
+                XCTAssertEqual(try String(contentsOf:root.appendingPathComponent("unchecked")),"staged unrelated\n")
+                XCTAssertFalse(FileManager.default.fileExists(atPath:indexURL.path+".lock"))
+            }
+        }
+        var options=CommitOptions();options.newBranch="refused-index"
+        do {_ = try await repo.commitIndex(message:"refused",options:options);XCTFail("Index commit accepted unsupported encoding")}
+        catch let failure as GitFailure {XCTAssertTrue(failure.message.contains("utf-16"),failure.message)}
+        XCTAssertEqual(try Data(contentsOf:indexURL),index)
+        // Positive control: a supported encoding still commits the exact selected
+        // payload on its new branch while preserving unrelated staged content.
+        _ = try await repo.run(["config","i18n.commitencoding","windows-1252"])
+        options.newBranch="accepted-encoding"
+        _ = try await repo.commitSelected(message:"café",paths:["checked"],options:options,backend:.init(enabled:false))
+        let object=try await repo.run(["cat-file","commit","HEAD"]).stdout
+        let split=try XCTUnwrap(object.range(of:Data([10,10])))
+        XCTAssertEqual(object.subdata(in:split.upperBound..<object.count),Data([0x63,0x61,0x66,0xe9,10]))
+        let retained=try await repo.run(["show",":unchecked"]).text
+        let committed=try await repo.run(["show","HEAD:checked"]).text
+        XCTAssertEqual(retained,"staged unrelated\n");XCTAssertEqual(committed,"checked worktree\n")
+    }
+
     func testMessageFileFormattingMatchesSourceWhitespaceAndDraftMutation() {
         let raw = " \r\nTitle   \r\n\r\n\r\nBody \t \r\n\r\n "
         let result = CommitMessageFile.format(raw)

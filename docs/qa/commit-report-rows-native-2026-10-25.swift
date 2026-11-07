@@ -163,7 +163,7 @@ private extension NSWindow {
         table.selectRowIndexes(native,byExtendingSelection:false)
         try await wait(owner.window){owner.model.selection==GitPathSet([first])}
         try require(owner.model.checked==GitPathSet([last]),"Native highlight changed independent inclusion")
-        try await wait(owner.window){views(table).compactMap{$0 as? NSButton}.contains{$0.accessibilityLabel()=="Include "+last && $0.isEnabled}}
+        try await wait(owner.window){views(table).compactMap{$0 as? NSButton}.contains{$0.accessibilityLabel()=="Include "+last && $0.isEnabled && $0.state == .on}}
         let button=views(table).compactMap{$0 as? NSButton}.first{$0.accessibilityLabel()=="Include "+last}!
         try require(NSApp.sendAction(button.action!,to:button.target,from:button),"Actual checkbox action refused")
         try await wait(owner.window){!owner.model.checked.contains(last)}

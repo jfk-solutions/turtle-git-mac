@@ -36,7 +36,9 @@ import TurtleGitCore
         """
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:helper)})
-        workspace.fileComparisonPreferences=prefs;workspace.fileComparisonQuestion={_ in true};workspace.open(root)
+        workspace.fileComparisonPreferences=prefs;workspace.fileComparisonQuestion={_ in true}
+        workspace.fileComparisonWindowPresentation={controller in controller.window?.orderOut(nil)}
+        workspace.open(root)
         try await wait {!workspace.busy};try require(workspace.error==nil,"Private Finder context adoption failed")
         let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
         var observed:[Bool]=[],opened:[String]=[]
@@ -58,8 +60,14 @@ import TurtleGitCore
         for choice in [false,true] {
             let before=Set(NSApp.windows.map {ObjectIdentifier($0)})
             ComparisonToolInvocation.$alternate.withValue(!choice) {workspace.handle(FinderRequest(action:.diff,paths:[root.appendingPathComponent(path),root.appendingPathComponent(other)],alternateTool:choice).url!)}
-            let owned=NSApp.windows.filter {!before.contains(ObjectIdentifier($0))}.compactMap {$0.windowController as? FileComparisonWindowController}
-            try require(owned.count==1 && owned[0].model.alternateTool==choice,"Finder file-pair viewer lost explicit tool choice")
+            var owned:[FileComparisonWindowController]=[]
+            // Finder discovery, access and file reads deliberately suspend before
+            // the viewer is constructed. Observe actual presentation, not dispatch.
+            try await wait {
+                owned=NSApp.windows.filter {!before.contains(ObjectIdentifier($0))}.compactMap {$0.windowController as? FileComparisonWindowController}
+                return owned.count==1 || workspace.error != nil
+            }
+            try require(workspace.error==nil && owned.count==1 && owned[0].model.alternateTool==choice,"Finder file-pair viewer lost explicit tool choice")
             try await wait {owned.allSatisfy {!$0.model.busy && !$0.model.filtering}}
             try require(owned[0].model.error==nil,"Private Finder pair did not load")
             owned.forEach {$0.close()}

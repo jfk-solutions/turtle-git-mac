@@ -12,7 +12,8 @@ with tempfile.TemporaryDirectory(prefix='tg-git-config-source-') as temporary:
         receiver=build_receiver(root,[root/'docs/qa'/source],folder)
         for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
             fixture=folder/(name+str(index));fixture.mkdir();global_config=fixture/'global.config';global_config.write_text('')
-            env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=str(global_config),GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',XDG_CONFIG_HOME=str(fixture/'xdg'))
+            home=fixture/'home';home.mkdir(mode=0o700);private_tmp=fixture/'temporary';private_tmp.mkdir(mode=0o700)
+            env={key:value for key,value in os.environ.items() if not key.startswith('GIT_')};env.update(HOME=str(home),CFFIXED_USER_HOME=str(home),TMPDIR=str(private_tmp)+'/',DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=str(global_config),GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',XDG_CONFIG_HOME=str(fixture/'xdg'))
             env.pop('TURTLEGIT_GIT_CONFIG_CAPTURE',None)
             if args.captures and name=='source' and index==0:env['TURTLEGIT_GIT_CONFIG_CAPTURE']=str(args.captures.absolute())
             print('Checking Git config '+name+' with '+str(git),flush=True)

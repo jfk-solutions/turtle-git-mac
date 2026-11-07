@@ -49,7 +49,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-commit-preparation-') as temp
             private_tmp = context / 'temporary'; private_tmp.mkdir(mode=0o700)
             env = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
             env.update(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
-                       CFFIXED_USER_HOME=str(home), XDG_CONFIG_HOME=str(fixture / 'xdg'), TMPDIR=str(private_tmp),
+                       HOME=str(home), CFFIXED_USER_HOME=str(home), XDG_CONFIG_HOME=str(fixture / 'xdg'), TMPDIR=str(private_tmp),
                        DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'),
                        TURTLEGIT_COMMIT_PREPARATION_CASE=case)
             env.pop('TURTLEGIT_COMMIT_IDENTITY_CAPTURE_DIR', None)

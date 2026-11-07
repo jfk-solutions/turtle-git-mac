@@ -68,7 +68,8 @@ private actor NetworkSourcePasswords:ProxyPasswordStoring {
         /bin/sleep 30 &
         task_child=$!
         trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-        echo "$$ $task_child" > "$0.ready"
+        printf '%s %s\n' "$$" "$task_child" > "$0.ready.pending"
+        /bin/mv "$0.ready.pending" "$0.ready"
         wait "$task_child"
         echo OpenSSH_fixture
         """#.utf8).write(to:helper);try fm.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)

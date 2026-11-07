@@ -28,6 +28,7 @@ import TurtleGitCore
         let suite = "TurtleGit.MessageEncoding.QA." + UUID().uuidString, defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let model = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: defaults, dialogDefaults: defaults)
+        defer {model.invalidateForClose()}
         let rows: [(String, String, [UInt8])] = [
             ("windows-1252", "café €", [0x63,0x61,0x66,0xe9,0x20,0x80,0x0a]),
             ("iso-8859-1", "café", [0x63,0x61,0x66,0xe9,0x0a]),

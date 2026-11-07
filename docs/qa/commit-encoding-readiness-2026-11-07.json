@@ -1,0 +1,208 @@
+{
+  "date": "2026-11-07",
+  "base_commit": "7e20f3d7",
+  "scope": "Commit encoding-before-mutation across index/selection engines, branch input deferred native focus and captured selection/report consumers.",
+  "implementation": [
+    "Read-only conflict preflight avoids optional index-stat writes before refusal.",
+    "Accept and own one encoded message file before selection status/clean/index/branch work; carry identical file across library/CLI/checkbox/parent paths and cleanup once. Direct separate/library entry points encode before index work.",
+    "Branch insertion waits for native presentation under captured focus authority; disabled/retired/superseded input never steals focus.",
+    "Native source controls are invisible/offscreen; author copy/UTF-16 selection and delayed presentation/revocation preserved.",
+    "Captured preferences verified with newly changed descendant and staged rows across scopes. Native checkbox must display accepted checked state before action."
+  ],
+  "builds": [
+    {
+      "log": "build/qa/commit-child-readiness-build-2026-11-07.log",
+      "result": "pass"
+    },
+    {
+      "log": "build/qa/commit-network-readiness-build-2026-11-07.log",
+      "result": "pass",
+      "reason": "Actual encoding mutation failure required Core ordering repair; grouped with already frozen Network Settings Apply repair."
+    }
+  ],
+  "core": {
+    "log": "build/qa/commit-encoding-core-private-2026-11-07.log",
+    "methods": 11,
+    "failures": 0,
+    "environment": "Private HOME/CF/TMP/XDG, Git globals disabled, Core-only. Initial compile-only launch interrupted with owned SIGINT37137 before tests because private environment was missing; not a validation pass."
+  },
+  "native_initial": [
+    {
+      "case": "author-focus",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-commit-preparation.py",
+        "--only",
+        "author",
+        "--only",
+        "focus",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 1,
+      "seconds": 5.292,
+      "log": "build/qa/commit-readiness-author-focus-2026-11-07.log"
+    },
+    {
+      "case": "encoding",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-commit-message-encoding.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 1,
+      "seconds": 9.15,
+      "log": "build/qa/commit-readiness-encoding-2026-11-07.log"
+    },
+    {
+      "case": "selection",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-commit-selection-settings.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "seconds": 13.097,
+      "log": "build/qa/commit-readiness-selection-2026-11-07.log"
+    },
+    {
+      "case": "geometry",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-commit-report-rows.py",
+        "--only",
+        "geometry",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "seconds": 10.433,
+      "log": "build/qa/commit-readiness-geometry-2026-11-07.log"
+    }
+  ],
+  "initial_diagnoses": [
+    "Author focus behavior passed but test window constrained itself onto screen despite alpha0; custom test window now refuses frame constraint, retaining both offscreen and transparency assertions.",
+    "Encoding refusal still changed actual index/HEAD: real Core selection preparation/branch ordering defect, repaired by early shared message file.",
+    "Selection and geometry both engines passed and were not repeated after unaffected changes."
+  ],
+  "native_repair": [
+    {
+      "case": "author-focus",
+      "exit_code": 0,
+      "seconds": 17.368,
+      "log": "build/qa/commit-readiness-author-focus-repair-2026-11-07.log",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-commit-preparation.py",
+        "--only",
+        "author",
+        "--only",
+        "focus",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ]
+    },
+    {
+      "case": "encoding",
+      "exit_code": 0,
+      "seconds": 22.527,
+      "log": "build/qa/commit-readiness-encoding-repair-2026-11-07.log",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-commit-message-encoding.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ]
+    }
+  ],
+  "native_combinations_pass_cumulative": 10,
+  "engines": [
+    "/usr/bin/git",
+    "build/git-runtime/Git/bin/git"
+  ],
+  "native_owned_pids": [
+    34735,
+    34739,
+    34846,
+    34857,
+    35527,
+    35557,
+    35985,
+    36373,
+    36393,
+    36610,
+    39813,
+    39817,
+    39897,
+    39975,
+    40029,
+    40105,
+    40110,
+    40774
+  ],
+  "independently_absent": [
+    34735,
+    34739,
+    34846,
+    34857,
+    35527,
+    35557,
+    35985,
+    36373,
+    36393,
+    36610,
+    39813,
+    39817,
+    39897,
+    39975,
+    40029,
+    40105,
+    40110,
+    40774
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "a0ada1110add5e6c62c6c87b4c700bec83de66351e0299be206f6893ee0db15c",
+    "Sources/TurtleGitCore/CommitAmend.swift": "9ef6ecb2648431b0be512bf9d6dccdd7e952c17ab73764e86520f5c48ad71143",
+    "Sources/TurtleGitCore/CommitSelection.swift": "6694fc7ea92fe542a0e04af3bd7cf8641f59b1199435e3016f52c7f1c286876b",
+    "Tests/TurtleGitCoreTests/CommitMessageTests.swift": "876b8b51d90a5948d50af9fb6aeaec495e80ae92857bf3aa7e1eff61da3c2a61",
+    "docs/qa/commit-author-field-native-2026-10-09.swift": "2b0a1abc1d11dfccb87ec8d13ae85cb70e40ddb95a534142ef1c2e41bf38c642",
+    "docs/qa/commit-branch-focus-native-2026-10-09.swift": "690d365ea745626e7fe207dfcd3926a0a63d78a406a76ac07b4b198a3790cbeb",
+    "docs/qa/commit-message-encoding-native-2026-10-07.swift": "4e4bfb5f38392ac23f6c60e6cad0254033b8237ceee32fbaaa5457fc58b6c3a1",
+    "docs/qa/commit-report-rows-native-2026-10-25.swift": "649f31f6c683debd4121e88922310a511fbc5f36cb5476a6733444b20207cb2f",
+    "docs/qa/commit-selection-settings-native-2026-10-07.swift": "4b1944e9a634f46f2ab86f6c914af3fa64efef00f2b9f01ad91232e524558626",
+    "scripts/test-commit-message-encoding.py": "d731774b6970185305c251e9be99f4fa0834b656be3d8fd0492f8208c5a5ba82",
+    "scripts/test-commit-selection-settings.py": "0d90210f969064a1e2bac6494bb5ba65967282dacccb5edd30f9f872f87dfc69",
+    "scripts/test-commit-preparation.py": "9939970d7942f8368919da621a1e20c318ba934ed387731c13187cd344d34fc0"
+  },
+  "log_sha256": {
+    "build/qa/commit-readiness-author-focus-2026-11-07.log": "baf6cdb6c7b817997af047140a5b8960692806440b2d2212bc8d9c11a85177e9",
+    "build/qa/commit-readiness-encoding-2026-11-07.log": "0cd7a0f5f46d97a4a20f29554ae3cd39dd900b489611e40c47fb1631dcf9fe1a",
+    "build/qa/commit-readiness-selection-2026-11-07.log": "a1698e6894ed6f5902786fa9272f6d7bda0db78d5feff6ba246d1e5a722f56a3",
+    "build/qa/commit-readiness-geometry-2026-11-07.log": "bc7b164dcbcd0db7b2feba9653381fa8cd3be77264dc55a1c54ec38f02c78b5a",
+    "build/qa/commit-readiness-author-focus-repair-2026-11-07.log": "67e7904298a06ac8b8a7b08cf69e03e6ae58283dfa762befc1e860be828c954b",
+    "build/qa/commit-readiness-encoding-repair-2026-11-07.log": "2d8d7dd768bd2880679626755a215422a097971c949604044b296ed48947cfe4",
+    "build/qa/commit-encoding-core-private-2026-11-07.log": "fc3fc7ee07d55dfc148acc1514f6eb63068c18fe192dc44b8d598edadbef8a4b",
+    "build/qa/commit-network-readiness-build-2026-11-07.log": "1fbfdc90ab90cda988625781a2804d0851279a96d64b3b4ec21577147f764db4"
+  },
+  "not_established": [
+    "Full Core/hosted CI pass",
+    "Every Commit dialog control or frame-by-frame physical stability",
+    "Minimum macOS/Intel signed acceptance",
+    "New installed build or App Store distribution"
+  ],
+  "installed_build": "52 unchanged"
+}

@@ -1,24 +1,15 @@
 #!/usr/bin/env python3
-"""Headless native reference browser and Reset reference handoff checks. No displayed UI or signed acceptance."""
-from native_receiver import build_receiver, run_receiver
-import argparse
-import os
-from pathlib import Path
-import platform
-import subprocess
-import tempfile
+"""Native reference Browser/Reset handoffs and actual sheet-delivery ownership.
 
-parser = argparse.ArgumentParser(description=__doc__)
-parser.add_argument('--git', type=Path, action='append')
-args = parser.parse_args()
-root = Path(__file__).resolve().parent.parent
-products = root / 'build/Build/Products/Debug'
-with tempfile.TemporaryDirectory(prefix='turtlegit-reference-browser-native-') as temporary:
-    directory = Path(temporary)
-    executable = build_receiver(root, [root / 'docs/qa/reference-browser-native-2026-10-09.swift'], directory)
-    environment = os.environ.copy()
-    environment['DYLD_FRAMEWORK_PATH'] = str(products)
-    for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
-        fixture = directory / ('fixture-' + str(index)); fixture.mkdir()
-        print('Checking ' + str(git), flush=True)
-        run_receiver([str(executable), str(fixture), str(git.resolve())], cwd=root, env=environment, check=True)
+Keep the hosted entry point while sharing the grouped receiver's compilation,
+private environment and native window/process cleanup. Existing --git arguments
+retain their order and are passed to both complete cases.
+"""
+import runpy
+import sys
+from pathlib import Path
+
+if __name__ == '__main__':
+    sys.argv = [str(Path(__file__).with_name('test-reference-child-delivery.py')),
+                *sys.argv[1:], '--only', 'sheets', '--only', 'browser']
+    runpy.run_path(sys.argv[0], run_name='__main__')

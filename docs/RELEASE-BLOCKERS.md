@@ -7,6 +7,55 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The [November 7 child-delivery checkpoint](qa/reference-child-delivery-2026-11-07.json)
+passes fourteen native case/engine combinations cumulatively. Real Browser and
+RefLog acceptance, Cancel and forced closure detach before ordered exactly-once
+callbacks. Connected Rebase/Switch, Finder comparison, Resolve and child-submodule
+Log consumers retain their captured roots, backends and exact names. Initial
+fixture/API/backend/readiness failures remain recorded. All 34 owned native
+processes are independently absent; the existing hosted Browser entry point now
+includes the sheet regression. These focused passes establish no complete hosted,
+physical visual or signed/platform acceptance.
+
+The next connected Synchronization batch remains open. Its Fast-forward progress
+currently replaces the repository actor that produced the accepted merge state,
+while Core correctly requires that exact producer; this can refuse the action
+before Git. Same-combo history deletion also needs receipt continuity across the
+native selection-to-SwiftUI update. Held Fetch controls must distinguish metadata
+helper invocations from actual transfer work; F5/key-window and later conflict
+child readiness require native consumer corrections without weakening production
+ownership guards. These findings are implementation work, not completed fixes.
+
+The [November 7 Settings return checkpoint](qa/remote-settings-return-2026-11-07.json)
+passes ten native case/engine combinations for captured remote-manager return,
+Git configuration source controls, executable process ownership and SSH Apply.
+An already accepted SSH-only Apply now finishes its captured validated write after
+page retirement without reactivating that page; failed validation still preserves
+the saved client. The [ordinary SourceOver checkpoint](qa/metafile-ordinary-sourceover-2026-11-07.json)
+passes eleven quality Core methods and four native case/engine combinations,
+retaining independent Windows pixel controls. Corrected Intel hosted rendering,
+complete source parity and signed/platform acceptance remain open.
+
+The [November 7 Commit readiness checkpoint](qa/commit-encoding-readiness-2026-11-07.json)
+passes 11 focused Core methods and ten native case/engine combinations cumulatively.
+Unsupported encoding is now refused before index preparation or branch creation;
+all selection engines consume the same accepted message bytes. Delayed branch
+focus remains bound to its presented owner. Initial native failures and the
+subsequent source/consumer repairs are retained; unaffected selection/geometry
+passes were not repeated. All 18 owned native processes are independently absent.
+Installed52 remains unchanged. This is a source checkpoint, not complete hosted,
+physical stability, minimum-platform or whole-dialog acceptance.
+
+The [actual f90 hosted logs](qa/hosted-f90-failures-2026-11-07.json) identify 12 failed
+Core methods (128 assertions across 3,439 tests), 16 Commit/Repository failed steps
+and 26 Replay/Transport failed steps. These are distinct rendering, command,
+owned-child delivery, Settings and native-consumer diagnostics. Several are
+addressed by the linked local source batches; a complete corrected-source hosted
+pass is still required. Earlier-phase focused passes cannot stand in for later
+failed phases. The [Read/Revert cancellation checkpoint](qa/read-revert-cancellation-2026-11-05.json)
+retains production signal statuses and verifies both owned process drains instead
+of requiring every cancellation to exit 130.
+
 The later `f90bffd9` [macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42008244039)
 has passed the earlier inventory/preparation boundary. SVN and the separate Pages
 deployment pass. Core, Replay/Transport, History/References and Commit/Repository

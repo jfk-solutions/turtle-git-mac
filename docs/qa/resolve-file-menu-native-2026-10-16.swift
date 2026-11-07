@@ -74,7 +74,7 @@ import TurtleGitCore
         let childRoot=root.appendingPathComponent("module.ext");try FileManager.default.createDirectory(at:childRoot,withIntermediateDirectories:true)
         let childRepo=GitRepository(root:childRoot,executable:repo.executable);_=try await childRepo.run(["init"])
         var children:[URL]=[];model.submoduleFileLog.readCheckout={_,_ in childRepo};model.onFileSubmoduleLog={children.append($0.root)}
-        model.fileCommand(.submoduleLog,menu:model.fileMenu(["module.ext"]));try await wait {!model.busy};try require(children==[childRoot],"Submodule log did not use child repository")
+        model.fileCommand(.submoduleLog,menu:model.fileMenu(["module.ext"]));try await wait {!model.busy};try require(children.count==1 && children[0].path.utf8.elementsEqual(childRoot.path.utf8),"Submodule log did not use child repository")
         let beforeClose=model.fileMenu([paths[1]])
         model.fileCommand(.openWith,menu:beforeClose);try await wait {choose != nil};owner.close()
         try require(ResolveWindowModel.activeOperations>0,"Retirement dropped live chooser worker")

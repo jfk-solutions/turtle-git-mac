@@ -2,6 +2,10 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+@MainActor private final class CommitFocusHiddenWindow:NSWindow {
+    override func constrainFrameRect(_ frameRect:NSRect,to screen:NSScreen?)->NSRect {frameRect}
+}
+
 @main struct CommitBranchFocusVerification {
     @MainActor static func settle(_ host: NSView) async throws {
         for _ in 0..<20 { host.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
@@ -27,12 +31,15 @@ import TurtleGitCore
         for _ in 0..<3000 { if !model.busy { break }; try await Task.sleep(nanoseconds:10_000_000) }
         precondition(model.commitIdentityPrepared && !model.busy && model.error == nil, "Branch fixture must complete real identity preparation")
         let host = NSHostingView(rootView: CommitDialog(model: model).defaultAppStorage(prefs))
-        let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 760), styleMask: [.titled], backing: .buffered, defer: false)
+        let window = CommitFocusHiddenWindow(contentRect: .init(x: 0, y: 0, width: 1000, height: 760), styleMask: [.titled], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false; window.contentView = host
+        window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000))
         defer { window.close() }
         try await settle(host)
         precondition(branchField(in: host) == nil)
         model.createBranch = true; try await settle(host)
+        precondition(branchField(in:host)?.currentEditor()==nil,"Unpresented branch field acquired focus")
+        window.orderFront(nil);try await settle(host)
         let field = branchField(in: host)!
         let editor = field.currentEditor() as! NSTextView
         precondition(window.firstResponder === editor)
@@ -59,7 +66,13 @@ import TurtleGitCore
         precondition(!disabled.isEnabled && disabled.currentEditor() == nil)
         model.busy = false; try await settle(host)
         precondition(disabled.currentEditor() == nil)
-        precondition(!window.isVisible && NSApplication.shared.activationPolicy() == .prohibited)
+        // Revoked insertion intent cannot revive when its owner is shown later.
+        model.createBranch=false;try await settle(host);window.orderOut(nil)
+        model.createBranch=true;try await settle(host)
+        let pending=branchField(in:host)!
+        model.supersedeFocusIntent();window.orderFront(nil);try await settle(host)
+        precondition(pending.currentEditor()==nil,"Superseded pending focus stole responder")
+        precondition(window.alphaValue==0 && window.frame.maxX<0 && NSApplication.shared.activationPolicy() == .prohibited)
         print("PASS: actual hidden Commit dialog focuses/selects the UTF-16 branch draft on enable, native typing updates the model, ordinary updates preserve caret, off/on preserves and reselects the draft, disabled insertion does not steal focus; no main app")
     }
 }

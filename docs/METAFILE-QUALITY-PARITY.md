@@ -71,7 +71,14 @@ The Windows SDK recorder emits compositing-quality values 0 through 4, including
 omission of the default setter; these actual wire observations differ from the
 normative specification's enum numbering. SourceOver groups 0/1/4 and 2/3 are
 distinct: the latter use the captured gamma-corrected blend, with measured
-13-bit intermediate quantization. SourceCopy ignores compositing quality and
+13-bit intermediate quantization. Ordinary fill/stroke records use the native
+ordered integer SourceOver operation for omitted/default and explicit 0/1/4
+as well. This uses the same integer arithmetic on Intel and Apple silicon rather
+than delegating blend rounding to SVG/Quartz. The ordinary
+quality receipt is captured before composition selection, and coverage remains
+a separate operand applied once. Text, bitmap images, classic records and
+path-gradient paint retain their separately measured routes. SourceCopy ignores
+compositing quality and
 replaces a touched destination pixel with the covered source, including partial
 antialias coverage and transparent source pixels. It does not fade the old
 destination back into a partially covered SourceCopy pixel.
@@ -107,3 +114,12 @@ texture brush. Its corrected texture expectations derive from the authored
 scale24/translation8 matrix and bilinear source-alpha weights; the original
 DrawImage samples and document/index/lifecycle assertions remain intact. All
 owned receiver processes are reaped; automated windows remain hidden/offscreen.
+
+The [November 7 ordinary SourceOver continuation](qa/metafile-ordinary-sourceover-2026-11-07.json)
+repairs the hosted Intel default/alias rounding discrepancy. Its clean focused
+Core checkpoint passes all eleven quality methods without changing the independent
+Windows controls. Four native case/engine combinations then pass with the current
+helper identity, covering comparison, Reload, file-drop, binary conflict stages,
+original-byte resolution and owned cancellation/retirement. The initial concurrent
+Core database-lock failure remains recorded. Native execution here is arm64; a
+corrected-source Intel hosted pass and complete application acceptance remain open.

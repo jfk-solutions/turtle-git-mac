@@ -9,9 +9,9 @@ import TurtleGitCore
         if let result = view as? T, label == nil || result.accessibilityLabel() == label { return result }
         for child in view.subviews { if let result = find(type, child, label: label) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows: [NSWindow], _ ready: () -> Bool) async throws {
+    @MainActor static func wait(_ windows: [NSWindow], line:Int = #line, _ ready: () -> Bool) async throws {
         for _ in 0..<3000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Timed out")
+        throw Failure(description: "Timed out at reference-browser-native-2026-10-09.swift:\(line)")
     }
     static func phase(_ message: String) { print("PHASE: " + message); fflush(stdout) }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
@@ -91,11 +91,12 @@ import TurtleGitCore
         try await wait([reflog.window!]) { !reflog.model.busy }
         try require(picker.model.hasChild && !picker.model.canAccept && !picker.windowShouldClose(window) && reflog.model.reference == "refs/heads/main", "Reflog ownership/gates differ")
         picker.model.accept(); picker.model.load(); try require(result == nil && !picker.model.busy, "Browser escaped owned child")
-        reflog.close(); try require(!picker.model.hasChild && picker.reflog == nil, "Reflog did not release")
+        reflog.close(); try await wait([window]) {!picker.model.hasChild && picker.reflog == nil && !picker.model.busy && !picker.model.hasPendingWork}
+        try require(!picker.model.hasChild && picker.reflog == nil, "Reflog did not release")
         try await select("refs/tags/release"); let tagMenu = try menu()
         try require(tagMenu.indexOfItem(withTitle: "Show log") == -1 && tagMenu.indexOfItem(withTitle: "Show Reflog") == -1 && tagMenu.indexOfItem(withTitle: "Compare with working tree") == -1 && table.tableColumn(withIdentifier: .init("description"))?.isHidden == true, "Annotated-tag type gates differ")
         try await select("refs/custom/blob"); try require(try menu().indexOfItem(withTitle: "Show log") == -1, "Blob got commit command")
-        try await select(nfd); picker.model.accept(); try require(GitReferenceName.equal(result ?? "", nfd) && picker.model.closed, "Accepted ref normalization/close differs")
+        try await select(nfd); picker.model.accept(); try await wait([window]) {result != nil}; try require(GitReferenceName.equal(result ?? "", nfd) && picker.model.closed, "Accepted ref normalization/close differs")
         phase("Reset all-ref handoff/fresh catalog/focus/cancel/locks")
         let owner = ResetWindowController(repository: repo, access: nil, preferences: prefs); defer { owner.close() }
         owner.model.load(); try await wait([owner.window!]) { !owner.model.busy && !owner.model.chooser.busy && !owner.model.initialModeFocusPending }
@@ -159,7 +160,7 @@ import TurtleGitCore
             let oldSnapshot = child.model.snapshot
             child.model.currentBranch(); child.model.currentBranch(); child.model.load(); child.model.accept(); child.model.cancel()
             try require(child.model.busy && calls == 0 && !child.windowShouldClose(child.window!), "Current Branch query/duplicate/refresh/close gates escaped")
-            try await wait([child.window!]) { child.model.closed }
+            try await wait([child.window!]) { child.model.closed && calls == 1 }
             try require(calls == 1 && GitReferenceName.equal(chosen ?? "", expected) && child.model.snapshot?.references.count == oldSnapshot?.references.count && !child.window!.isVisible, "Current Branch result/close differs")
             child.model.currentBranch(); child.model.accept(); child.model.cancel()
             try require(calls == 1 && !child.model.busy, "Closed Current Branch completed twice")
@@ -178,7 +179,7 @@ import TurtleGitCore
         let forced = ReferenceBrowserWindowController(repository: currentRepo, access: nil, initial: "HEAD", preferences: prefs) { value in forcedResult = value; forcedCalls += 1 }; defer { forced.close() }
         forced.model.load(); try await wait([forced.window!]) { !forced.model.busy && forced.model.snapshot != nil }
         forced.model.currentBranch(); forced.close()
-        for _ in 0..<30 { try await Task.sleep(nanoseconds: 10_000_000) }
+        try await wait([forced.window!]) { !forced.hasPendingWork && forcedCalls == 1 }
         try require(forced.model.closed && !forced.model.busy && forcedCalls == 1 && forcedResult == nil && forced.model.error == nil, "Closed current-branch query published late")
         let trackingOwner = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "main", preferences: prefs) { _ in }; defer { trackingOwner.close() }
         trackingOwner.presentTrackingPicker = { parent, child in parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }

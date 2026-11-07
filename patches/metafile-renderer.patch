@@ -363,11 +363,11 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(s.compositing===1&&s.textHint===5&&(type===0x401C||type===0x4036))fail('unsupported SourceCopy ClearType text');
 +    const first=ctx._nodes.length, savedClip=ctx._state.clip;let recordClip=combineMasks(this,s.clip,ctx._turtleInheritedClip||null,1);ctx._state.clip=null;
 +    const direct=(type===0x401a||type===0x401b)&&this.emfPlusObjects[flags&255]&&this.emfPlusObjects[flags&255].type==='imageMetafile';
-+    // Windows raw qualities0/1/4 are identical to omitted SourceOver. Keep
-+    // their established plain paint route; only2/3 require ordered gamma.
-+    const composition=s.compositing===1?{mode:'source-copy',compositingQuality:s.compositingQuality}:[2,3].includes(s.compositingQuality)?{mode:'source-over',compositingQuality:s.compositingQuality}:null;
-+    const copy=composition&&!direct?sourceCopy.begin(this,composition):null;
++    // Ordinary shapes use ordered integer SourceOver for default/0/1/4 too;
++    // SVG/Quartz blending otherwise changes measured bytes across architectures.
 +    const previousQuality=ctx._turtleOrdinaryQuality;ctx._turtleOrdinaryQuality=quality.record(this,type,flags,data);
++    const composition=s.compositing===1?{mode:'source-copy',compositingQuality:s.compositingQuality}:ctx._turtleOrdinaryQuality||[2,3].includes(s.compositingQuality)?{mode:'source-over',compositingQuality:s.compositingQuality??0}:null;
++    const copy=composition&&!direct?sourceCopy.begin(this,composition):null;
 +    try {
 +      if(type===0x4013)recordClip=combineMasks(this,recordClip,fillRegion(this,flags,data),1);
 +      else originalDispatch.call(this,type,flags,data);

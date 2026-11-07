@@ -172,3 +172,35 @@ addresses canonical-Unicode aliases in edited values, captured save guards and
 Git config arguments. Its dated record separates grouped checks from remaining
 physical, signed and full-source acceptance. Existing source write order,
 permissions and partial-failure behavior remain in effect.
+
+
+## Captured SSH Apply and connected Settings return — November 7, 2026
+
+An SSH-only Apply now records acceptance of its unchanged captured draft before
+waiting for bounded executable validation. Forced page retirement can no longer
+silently discard that accepted save. Successful validation persists the captured
+client; a failed validation still persists nothing. Completion cannot reactivate
+the retired page or publish its version/error there. Proxy-first ordering,
+permission approval before authorization, App Store bundled-client policy and
+ordinary Check cancellation remain unchanged.
+
+The connected native consumer batch also uses the actual captured Fetch/Pull
+remote-manager return, including the pinned `PullFetchDlg::Refresh` tracked-branch
+reseed and preservation of unrelated options. Source configuration radios are
+identified by their native form identity rather than matching captions from the
+Save-to popup. Real General/SSH cancellation witnesses publish complete shell and
+child PID receipts atomically before observation. Private HOME, CF preferences,
+Git configuration and temporary directories isolate every affected runner.
+
+The shared Debug build passes. The grouped native checkpoint passes ten
+case/engine combinations across Network source/settings, General source, Git
+configuration source and remote management. The manager's first run reached its
+later held-command phase, where the default master-libgit2 catalog bypassed the
+CLI wrapper by design; that consumer now explicitly selects CLI for its owned
+process test. Only the affected manager case was repeated. Source selection and
+production backend policy were not changed to satisfy the wrapper. All recorded
+compiler/receiver processes are independently absent. See
+[the checkpoint](qa/remote-settings-return-2026-11-07.json) for exact scope and
+failure history. Complete hosted, signed sandbox, real Keychain and physical
+interaction acceptance remain open. No installed app or binary distribution
+changed.

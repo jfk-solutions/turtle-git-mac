@@ -48,6 +48,10 @@ extension GitRepository {
         try cancellation?.check()
         func failure(_ message: String) -> GitFailure { GitFailure(arguments: ["commit"], code: 1, message: message) }
         guard !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw failure("Enter a commit message.") }
+        // Encoding refusal must precede status refresh, clean filters, index
+        // preparation and branch creation. All engines consume these same bytes.
+        let messageFile=try makeCommitMessageFile(message,cancellation:cancellation)
+        defer {messageFile.remove()}
         let operation = try commitOperation(cancellation:cancellation)
         if operation != nil, options.amend || options.newBranch != nil {
             throw failure("Finish the pending operation before amending or creating a new branch.")
@@ -72,34 +76,34 @@ extension GitRepository {
                 let head = try run(["rev-parse", "--verify", "--quiet", "HEAD^{commit}"], successfulExitCodes: 0...1, cancellation: cancellation)
                 base = head.exitCode == 0 ? head.text.trimmingCharacters(in: .newlines) : try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
             }
-            return try commitLibrarySelection(message: message, checked: checked, changes: changes, options: options, base: base, fileModes: selectedStagedFileModes(checked), executor: executor, cancellation: cancellation, onOutput: onOutput)
+            return try commitLibrarySelection(message: message, preparedMessage:messageFile, checked: checked, changes: changes, options: options, base: base, fileModes: selectedStagedFileModes(checked), executor: executor, cancellation: cancellation, onOutput: onOutput)
         }
         if let policy=options.checkboxIndexPolicy {
             let modes=try selectedStagedFileModes(checked)
             return try withCommitCheckboxIndex(policy,changes:changes,checked:paths,parentMode:parentMode,cancellation:cancellation,onOutput:onOutput,expectedIndex:options.expectedIndex,fileModes:modes) {
-                base, preparedIndexBytes, willCommit in try commitSeparateSelection(message:message,checked:checked,options:options,base:base,fileModes:modes,cancellation:cancellation,onOutput:onOutput,sourcePrepared:true,preparedIndexBytes:preparedIndexBytes,willCommit:willCommit)
+                base, preparedIndexBytes, willCommit in try commitSeparateSelection(message:message,preparedMessage:messageFile,checked:checked,options:options,base:base,fileModes:modes,cancellation:cancellation,onOutput:onOutput,sourcePrepared:true,preparedIndexBytes:preparedIndexBytes,willCommit:willCommit)
             }
         }
-        return try commitPreparedSelection(message:message,paths:paths,checked:checked,options:options,parentMode:parentMode,operation:operation,hasConflicts:hasConflicts,cancellation:cancellation,onOutput:onOutput)
+        return try commitPreparedSelection(message:message,preparedMessage:messageFile,paths:paths,checked:checked,options:options,parentMode:parentMode,operation:operation,hasConflicts:hasConflicts,cancellation:cancellation,onOutput:onOutput)
     }
-    private func commitPreparedSelection(message:String,paths:GitPathSet,checked:[StatusEntry],options:CommitOptions,parentMode:Bool,operation:CommitOperation?,hasConflicts:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable (GitOutputChunk)->Void)?) throws -> String {
+    private func commitPreparedSelection(message:String,preparedMessage:EncodedCommitMessageFile,paths:GitPathSet,checked:[StatusEntry],options:CommitOptions,parentMode:Bool,operation:CommitOperation?,hasConflicts:Bool,cancellation:OperationCancellation?,onOutput:(@Sendable (GitOutputChunk)->Void)?) throws -> String {
         if operation != nil {
             // A normal commit against a selected temporary index preserves the
             // operation's parents/author/state. --only is forbidden by Git for
             // merges and cherry-picks. The real index retains unchecked entries.
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
+            return try commitSeparateSelection(message: message, preparedMessage:preparedMessage, checked: checked, options: options, base: "HEAD", fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
         }
-        if parentMode { return try commitParentSelection(message: message, checked: checked, options: options, cancellation: cancellation, onOutput: onOutput) }
+        if parentMode { return try commitParentSelection(message: message, preparedMessage:preparedMessage, checked: checked, options: options, cancellation: cancellation, onOutput: onOutput) }
         let modes = try selectedStagedFileModes(checked)
         if hasConflicts || !modes.isEmpty {
             let base = try (try? run(["rev-parse", "--verify", "HEAD^{commit}"]).text.trimmingCharacters(in: .newlines))
                 ?? (try run(["mktree"]).text.trimmingCharacters(in: .newlines))
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: modes, cancellation: cancellation, onOutput: onOutput)
+            return try commitSeparateSelection(message: message, preparedMessage:preparedMessage, checked: checked, options: options, base: base, fileModes: modes, cancellation: cancellation, onOutput: onOutput)
         }
         if checked.contains(where: { $0.index == "D" && $0.hasUnversionedCopy }) {
             // --only would read the retained working copy and silently re-add it.
             // Build the selected tree separately while leaving that copy on disk.
-            return try commitSeparateSelection(message: message, checked: checked, options: options, base: "HEAD", cancellation: cancellation, onOutput: onOutput)
+            return try commitSeparateSelection(message: message, preparedMessage:preparedMessage, checked: checked, options: options, base: "HEAD", cancellation: cancellation, onOutput: onOutput)
         }
         let tracked = GitPathSet(try trackedPaths())
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
@@ -110,7 +114,7 @@ extension GitRepository {
                 if tracked.contains(source) { stagePaths.append(source) }
             }
         }
-        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
+        let messageFile=preparedMessage
         try prepareCommitBranch(options.newBranch, cancellation: cancellation)
         try stage(stagePaths, cancellation: cancellation)
         var args = ["commit", "--only", "-F", messageFile.url.path]

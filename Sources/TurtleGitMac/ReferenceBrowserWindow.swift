@@ -376,6 +376,10 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
     func windowShouldClose(_ sender: NSWindow) -> Bool { guard !model.confirmingQuit else { return false }; if model.mutationActive { model.cancelRenameOperation(); return false }; guard !model.hasChild, model.renameReference == nil, !model.busy, sender.attachedSheet == nil else { return false }; finish(nil); return false }
     func windowWillClose(_ notification:Notification) {
         guard !retired else{return};retired=true;model.invalidate()
+        let closingWindow=window, presentingWindow=window?.sheetParent
+        // A result belongs to the presenting workflow until AppKit has actually
+        // detached this sheet, including forced controller closure.
+        if let closingWindow,let presentingWindow {presentingWindow.endSheet(closingWindow,returnCode:.abort)}
         let sheet=window?.attachedSheet,tracking=trackingPicker,description=descriptionEditor,log=reflog,fetch=fetchDialog,branch=branchDialog,merge=mergeDialog,switcher=switchDialog,comparison=comparisonDialog,unified=unifiedViewer,remote=remoteSettingsDialog,tags=remoteTagDialog,add=addRemoteDialog
         let candidates:[NSWindowController?]=[add,remote,tags,comparison,unified,fetch,branch,merge,switcher,tracking,description,log]
         let children=candidates.compactMap{$0}
@@ -391,7 +395,7 @@ private final class ReferenceBrowserNativeWindow: NSWindow {
         if let completion {self.completion=nil;selectionDelivery={completion(nil)}}
         releasing=true
         let release=FinderFilesystemWorkflowRelease(ready:{ [self,children] in
-            !model.hasPendingWork && releasingChildren.isEmpty && !retiredChecks.contains{$0()} && children.allSatisfy{$0.window?.sheetParent==nil && $0.window?.attachedSheet==nil}
+            closingWindow?.sheetParent==nil && closingWindow?.attachedSheet==nil && (closingWindow == nil || presentingWindow?.attachedSheet !== closingWindow) && !model.hasPendingWork && releasingChildren.isEmpty && !retiredChecks.contains{$0()} && children.allSatisfy{$0.window?.sheetParent==nil && $0.window?.attachedSheet==nil}
         },completion:{ [self,children] in
             retiredChecks=[];releasing=false;let delivery=selectionDelivery;selectionDelivery=nil;delivery?();let finish=onClosed;onClosed={};finish();withExtendedLifetime(children){}
         });release.start()

@@ -1,0 +1,56 @@
+{
+  "date": "2026-11-07",
+  "observation_date": "2026-11-05",
+  "source": "f90bffd9dabcb4619fad37eb73dd8392460e8eff",
+  "run": 42008244039,
+  "evidence": "Authenticated GitHub job pages and their observed View raw logs links, read-only browser DOM. Complete raw logs were parsed in browser; no credentials or signed redirect URLs retained.",
+  "jobs": {
+    "core": {
+      "id": 127180998575,
+      "conclusion": "failure",
+      "tests": 3439,
+      "skipped": 3,
+      "assertion_failures": 128,
+      "failed_methods": 12,
+      "remaining_at_observation": [
+        "MetafileQualityTests.testSourceOverGammaAndQualityAliasesFollowIndependentWindowsControls: strict Windows137/47 versus hosted Intel136/46",
+        "WorkingFileRevertPathReadTests.testCancellationDrainsAnInFlightScopedStatusWithoutPublishingASelection: actual143 versus stale130"
+      ],
+      "other_ten_methods": "Covered by the separately recorded texture/interpolation consumer and hairline source batches; no corrected full hosted pass yet."
+    },
+    "commit_repository": {
+      "id": 127180998911,
+      "conclusion": "failure",
+      "failed_steps": 16,
+      "reported_stops": {
+        "test-revert-result-actions.py": "retained-operation timeout42",
+        "test-metafile-workflows.py": "historical texture tile-budget input classified as unsupported though renderer accepts it",
+        "test-git-config-source-family.py": "Source hierarchy radio row missing",
+        "test-general-source-family.py": "Version process identities missing",
+        "test-historical-materialization-native.py": "public.data provider rejected file from displayed revision",
+        "test-libgit2-native.py": "Owned libgit2 native work survived",
+        "test-remote-dialog-source-family.py": "FetchWindowModel has no member reloadRemotes compile failure",
+        "test-repository-handoffs.py": "Clone replaced active workspace operation",
+        "test-commit-report-rows.py": "geometry timeout169 after checkbox action",
+        "test-status-colors.py": "precondition182",
+        "test-merge-whitespace-states.py": "insertion did not pad opposite rows; active=false editable=false",
+        "test-save-as-targets.py": "ownership chosen file absent",
+        "test-commit-preparation.py": "author: branch field editor missing",
+        "test-operation-workflows.py": "bundled rebase: edit lost applied attribution/author/date",
+        "test-commit-message-encoding.py": "precondition65 index/HEAD preservation after unsupported encoding",
+        "test-commit-selection-settings.py": "precondition46 captured automatic preference expectation"
+      }
+    },
+    "replay_transport": {
+      "id": 127180998667,
+      "conclusion": "failure",
+      "failed_steps": 26,
+      "scope": "Actual later phases now identified for child-reference delivery, captured SSH Apply, working child Submodule Log, asynchronous Finder Compare presentation, source metadata/transport ownership and Sync readiness. See separate family records; a focused earlier-phase local pass is not the failed phase."
+    }
+  },
+  "limits": [
+    "These are independent source/consumer/platform diagnostics, not one established common cause.",
+    "No hosted rerun or new installed build is established by this record.",
+    "Other validation lanes require their own actual stop classification."
+  ]
+}

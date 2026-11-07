@@ -1,0 +1,239 @@
+{
+  "date": "2026-11-07",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Captured reference child delivery, real sheet detachment and connected navigation/retirement consumers; partial dialog-family review.",
+  "source_resources": [
+    "IDD_BROWSE_REFS",
+    "IDD_REFLOG",
+    "IDD_REBASE",
+    "IDD_GITSWITCH",
+    "IDD_CHANGEDFILES",
+    "IDD_RESOLVE"
+  ],
+  "production_changes": [
+    "Browser and RefLog forced closure explicitly detach their own native sheet. Choice/close delivery waits for own and child sheet detachment and existing owned worker retirement. Deferred exactly-once callback order remains choice then close."
+  ],
+  "consumer_repairs": [
+    "Wait for actual choice/picker retirement and parent catalog refresh rather than model.closed/dispatch alone.",
+    "Author exact NFD packed reference control without relaxing UTF-8 identity.",
+    "Observe asynchronous Finder comparison presentation before reading captured tool choice.",
+    "Resolve compares exact child path bytes independently of URL directory-hint equality.",
+    "Working Changed Files Submodule Log preserves accepted child root/backend/unpinned revision without unrelated ancestry query; separate ancestry controls retained.",
+    "Keep default native reference reads, explicitly capture CLI only for real held process ownership phases. Rebase asserts complete NUL argv and both shell/child drains.",
+    "Switch retains both initial metadata phases and all eight checkout/progress closure phases. Post-checkout inspection holds actual ls-files -u, preserving accepted mutation receipt/output/success/previous branch, exactly one result-refresh notification, no late action and no rollback."
+  ],
+  "validation": {
+    "shared_debug_build": {
+      "log": "build/qa/commit-network-readiness-build-2026-11-07.log",
+      "sha256": "1fbfdc90ab90cda988625781a2804d0851279a96d64b3b4ec21577147f764db4",
+      "exit_code": 0
+    },
+    "native_distinct_case_engine_passes": 14,
+    "passes": [
+      {
+        "case": "sheets",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-packed-repair-2026-11-07.log"
+      },
+      {
+        "case": "sheets",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-packed-repair-2026-11-07.log"
+      },
+      {
+        "case": "browser",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-consumers-repair-2026-11-07.log"
+      },
+      {
+        "case": "browser",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-consumers-repair-2026-11-07.log"
+      },
+      {
+        "case": "compare",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-remaining-2026-11-07.log"
+      },
+      {
+        "case": "compare",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-remaining-2026-11-07.log"
+      },
+      {
+        "case": "resolve",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-remaining-2026-11-07.log"
+      },
+      {
+        "case": "resolve",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-remaining-2026-11-07.log"
+      },
+      {
+        "case": "submodule",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-remaining-2026-11-07.log"
+      },
+      {
+        "case": "submodule",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-remaining-2026-11-07.log"
+      },
+      {
+        "case": "rebase",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-cli-repair-2026-11-07.log"
+      },
+      {
+        "case": "rebase",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-cli-repair-2026-11-07.log"
+      },
+      {
+        "case": "switch",
+        "git": "/usr/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-switch-inspection-repair-2026-11-07.log"
+      },
+      {
+        "case": "switch",
+        "git": "build/git-runtime/Git/bin/git",
+        "passed": true,
+        "log": "build/qa/reference-child-delivery-native-switch-inspection-repair-2026-11-07.log"
+      }
+    ],
+    "static_hosted_entrypoint_check": "PASS exact ordered --git forwarding, including spaces, and fixed sheets/browser cases; no duplicate native run.",
+    "core": "No Core production source changed in this family; no Core suite repeated.",
+    "cumulative": "Passing sheets/Browser/Compare/Resolve/Submodule/Rebase cases were not repeated during later unrelated Switch repairs."
+  },
+  "failures_retained": [
+    "Initial fixture compilation required explicit synchronous beginSheet completion-handler overload and actual Switch read/progress/release counters.",
+    "Initial new sheet control used a canonicalized loose NFD ref; strict exact packed reference authoring repaired the control.",
+    "One retry correctly stopped before execution because concurrent NetworkSettings changes made Debug objects stale; shared rebuilt app used subsequently.",
+    "Full Browser originally selected a new row during intentional post-Reflog catalog refresh; consumer now waits for actual refresh retirement.",
+    "Rebase/Switch held CLI controls were bypassed by valid default source7 reads; held phases now explicitly capture CLI.",
+    "Switch old status hold was obsolete; current bounded conflict reader uses ls-files -u after accepted checkout."
+  ],
+  "logs": {
+    "build/qa/reference-child-delivery-native-2026-11-07.log": {
+      "sha256": "945d320f24e83fd5fe023152129be40e2dd677572dc58e2478b1a138dfdf093e",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-repair-2026-11-07.log": {
+      "sha256": "4a1c3e80350c07d63d7e0982ff2d53e961ef3d4374de9456eabb89011981236e",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-attachment-repair-2026-11-07.log": {
+      "sha256": "5fd79e451b6624a6b28c87ab8d719b537ea1a3ed28d09c9b6b424a6a60084311",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-final-2026-11-07.log": {
+      "sha256": "54b9f64f5a5f247668f2a567d926a7f9a637cf691bff685dcd4c11c964a31b31",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-packed-repair-2026-11-07.log": {
+      "sha256": "bf955e10f31bdcd439abc8b58b08778db77680c532edaf7525072ba2f6c388e0",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-consumers-repair-2026-11-07.log": {
+      "sha256": "774be5c06aa1a9835cdb74f55816063c5f309e591530c803f661dffb29be17a2",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-remaining-2026-11-07.log": {
+      "sha256": "cb07f9c58c73c6294fc15eb43901c8cfe50b81f97ad6d84307ae804055824dbc",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-cli-repair-2026-11-07.log": {
+      "sha256": "2e70d4cb934ed5cd730b3799c1a796fa0f0d5cd3c5f1d32974816f6f0181a5ce",
+      "exit_code": 1
+    },
+    "build/qa/reference-child-delivery-native-switch-inspection-repair-2026-11-07.log": {
+      "sha256": "9c55116e623a307d0423931ceecb8f9abb7a63d4ec2fe5e44ffbb03743ca25d4",
+      "exit_code": 0
+    }
+  },
+  "ownership": {
+    "private_repositories_preferences_home_configuration_and_temporary_storage": true,
+    "windows_and_sheets_transparent_offscreen": true,
+    "each_case_native_cleanup_receipt_required_before_continuing_after_independent_failure": true,
+    "reported_reaped_pids": [
+      34710,
+      34715,
+      35984,
+      36522,
+      39411,
+      39413,
+      39432,
+      42248,
+      42279,
+      42374,
+      42478,
+      43440,
+      43466,
+      43755,
+      44045,
+      44885,
+      44914,
+      45725,
+      46500,
+      46922,
+      47317,
+      47961,
+      48574,
+      48685,
+      48793,
+      49073,
+      49515,
+      49536,
+      50200,
+      50748,
+      51506,
+      53676,
+      53812,
+      54519
+    ],
+    "independent_ps_check": "All listed compiler/receiver PIDs absent after final checkpoint.",
+    "observed_private_test_roots_verified_absent": [
+      "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-reference-child-delivery-ze_8b_q0",
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-reference-child-delivery-46incgkp",
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-reference-child-delivery-6r48uqf4",
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-reference-child-delivery-6w9pj94w",
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-reference-child-delivery-h6vbo4qs",
+      "/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/tg-reference-child-delivery-ze_8b_q0"
+    ],
+    "process_cleanup": "Native receivers close all owned windows and drain owned models. Python process-group owner reaps leader and remaining owned group on success/failure/timeout. No unrelated user process terminated."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "164b38967767ed2158c55a64208fa09131a3d2f8f903e6f4bfa9b062ab00ec8d",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "fda7be43170d235433f87c53caab6ca5bf6d13810daecae3797af5fd296343d9",
+    "docs/qa/reference-child-delivery-native-2026-11-05.swift": "4d36e91400be06e7a64f67205f611c892eb51faa029f2cd7c5df665ed494ee3c",
+    "docs/qa/reference-browser-native-2026-10-09.swift": "137c8472b9751eba345bc7142087b85dfc778bdcf73100074d0f815d7efbf966",
+    "docs/qa/rebase-references-native-2026-10-14.swift": "2b293f158be5fba2e92d9608ec31df82981659494b179abd51716fe4e24365ea",
+    "docs/qa/reference-switch-native-2026-10-09.swift": "e4593f490e25ca288e113496a5badef12fe4c8451a6e1ddcc473d6cf75728e16",
+    "docs/qa/comparison-launch-native-2026-10-14.swift": "b3590de4481c9b0a036d4a03109fdf1d3969049b9dd8c31e34af4bddd9f90ed4",
+    "docs/qa/resolve-file-menu-native-2026-10-16.swift": "287915149a40a0aeda912471c36ea1e5824e853e2837d95ab1d5b88285905da8",
+    "docs/qa/history-submodule-inspection-native-2026-10-20.swift": "27087675c0bb0ebb405ad253bf9c0a1629be10b7496d4075d57b8cafeb87aa43",
+    "scripts/test-reference-child-delivery.py": "dd32e292d30f846772d89c7f53c33bb4945bcbe6cd2e290d752a92c7189a89d7",
+    "scripts/test-reference-browser.py": "b157f80bd355f9e9cfbd0b7540a0adb0a5211989baf4d9c90cf85378b8165c86"
+  },
+  "limits": [
+    "No complete corrected-source hosted CI pass.",
+    "No physical Finder, signed deployment, minimum macOS, VoiceOver or full visual parity acceptance from these hidden native checks.",
+    "Hidden zero-size NSSplitView initialization warnings remain in retained logs; no claim of frame-by-frame visual stability.",
+    "Installed build52 unchanged; no installation or publication.",
+    "Other unreviewed dialog controls and overall port completion remain open."
+  ]
+}

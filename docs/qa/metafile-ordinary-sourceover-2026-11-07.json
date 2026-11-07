@@ -1,0 +1,154 @@
+{
+  "date": "2026-11-07",
+  "family": "EMF+ ordinary SourceOver composition for omitted/default and explicit quality aliases",
+  "status": "focused-source-and-native-checkpoint-passed",
+  "installed_app_changed": false,
+  "public_distribution": false,
+  "source_base": "7e20f3d7",
+  "hosted_failure": {
+    "run": 42008244039,
+    "job": 127180998575,
+    "source": "f90bffd9dabcb4619fad37eb73dd8392460e8eff",
+    "method": "MetafileQualityTests.testSourceOverGammaAndQualityAliasesFollowIndependentWindowsControls",
+    "observed": "Intel SVG/Quartz isolated-red channels136/46 versus independent Windows137/47 for default/0/1/4; no expected Windows pixels modified",
+    "current_corrected_source_hosted_pass": false
+  },
+  "implementation": [
+    "Capture ordinary quality receipt before choosing composition.",
+    "Route ordinary fill/stroke implicit default and explicit0/1/4 through the existing bounded ordered integer SourceOver operation.",
+    "Preserve separate text/image/path-gradient/classic routes, existing gamma2/3 and SourceCopy semantics, independent coverage and resource budgets."
+  ],
+  "checks": [
+    {
+      "name": "universal-helper-build",
+      "date": "2026-11-05",
+      "exit_code": 0,
+      "log": "build/qa/ordinary-sourceover-runtime-2026-11-05.log"
+    },
+    {
+      "name": "first-focused-Core",
+      "date": "2026-11-05",
+      "exit_code": 1,
+      "log": "build/qa/ordinary-sourceover-core-2026-11-05.log",
+      "methods_executed": 11,
+      "method_failures": 0,
+      "failure": "Concurrent XCBuild database lock prevented a clean invocation result; not counted as a clean checkpoint."
+    },
+    {
+      "name": "focused-Core-recheck",
+      "date": "2026-11-05",
+      "exit_code": 0,
+      "log": "build/qa/ordinary-sourceover-core-recheck-2026-11-05.log",
+      "methods": 11,
+      "failures": 0,
+      "duration_seconds": 6.753,
+      "scope": "Complete MetafileQualityTests class; independent Windows fixture identities, omitted setter and explicit aliases, strict pixel grids, gamma/SourceCopy, geometry/clip/state/malformed controls."
+    },
+    {
+      "name": "shared-Debug-app-build",
+      "date": "2026-11-07",
+      "exit_code": 0,
+      "log": "build/qa/commit-child-readiness-build-2026-11-07.log",
+      "scope": "Shared app build with connected Commit and reference-child source changes; no new installed build."
+    },
+    {
+      "name": "focused-native-quality",
+      "date": "2026-11-07",
+      "exit_code": 0,
+      "log": "build/qa/ordinary-sourceover-native-2026-11-07.log",
+      "case_engine_combinations": 4,
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "case": "quality",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "quality",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/usr/bin/git",
+          "case": "quality-conflict",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "case": "quality-conflict",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "scope": "Actual default and explicit image selection, quality pixels, original EMF documents, Reload/file-drop, real binary conflict stage pixels and original-byte resolution, cancellation/late decoder retirement; both Git engines. Actual helper binary/renderer/curve bytes checked before each case."
+    }
+  ],
+  "native_host": {
+    "macos": "27.2",
+    "build": "26B123",
+    "architecture": "arm64",
+    "swift": "Apple Swift6.4.2 swiftlang-6.4.2.1.9; driver1.168.6"
+  },
+  "runtime_identity": {
+    "source_sha256": {
+      "LICENSE": "b1cc5c387cc767ab91477a84aab424ef2bcd9f3196e7430796404e1839468b0f",
+      "Licenses/Wine-LGPL-2.1.txt": "e237fa56668030e928551ddd60f05df5fe957f75eab874bbd017e085ed722e7c",
+      "Licenses/BaseHmiTypes-MIT.txt": "7f5f070c81949a0a2a38394c98219b1f060575c528911ebde1f973959750828b",
+      "NOTICE": "aa047a6debcb6af9073e8dd9361105746be8da0cb94821544face9338763dbee",
+      "Configuration/MetafileRuntime.json": "aede7bfd5c52bec93bcb49fcf0dd9bad54e642a6697a458c23d11dfad85f9db8",
+      "Sources/TurtleGitMetafile/main.swift": "5f4855356ec307799f2dc4f6b4fb81d81aec9b57b0f690720eeef5cfa578589d",
+      "Sources/TurtleGitMetafile/SpatialImageEffects.swift": "e9a0937c7d7a058d68149e5b00e780881eba49b74ecad8d4e14d02aa263d4eab",
+      "Sources/TurtleGitMetafile/RedEyeImageEffect.swift": "8501d0fb85ad2b3f035a98bb105d54531acedb8f9b5233aa4aab66e238074c15",
+      "Sources/TurtleGitMetafile/SpatialImageSampling.swift": "15bddd95570b71c1bdfc86597b21aaa1af79d8356e7ae2103b9235d367e892a8",
+      "patches/metafile-renderer.patch": "d64612b5879762c237887052eddecbe641d134e09623575d93baad999ee9ce76",
+      "scripts/build-metafile-runtime.py": "021b9612232f960ba32f7d47fc9f3cc01ba95d681bca1bd007fa3e22fb6bfc7d",
+      "scripts/validate-metafile-runtime.py": "695aff48c2cfefc316633ce132cbf9419520731dce6d565cbe6ec8e007ba7d04",
+      "scripts/embed-metafile-runtime.py": "79d1afb77de6027dba108f0977c90c2394522d2a9262ccf42819125356117a4b",
+      "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+      "scripts/runtime_bundle_layout.py": "624a54cfda00a71d287e56719b83ebe26900e21e10c798f4b14e90a4dc28ac4c",
+      "scripts/git_lfs_runtime.py": "07ee6decd30776eeaf35aa7de12c766638b957a6029315ad454dc1315266790c",
+      "Sources/TurtleGitMetafile/Resources/color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628",
+      "Sources/TurtleGitMetafile/Resources/color-curves.json": "29519fde62a0a566ed92afb6dd432e9fe351abd41386a89a44995f44b6e9e609",
+      "scripts/build-metafile-curve-data.py": "d9f35ab69a5d1a9c5bcae6604a72e92e5d6d1cbe5cc3cc5eeb17cafb4626decd",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/CurveLookupReference.cpp": "439e9ec6859b9fc7f165d241457f117d7d1d929691673dfa89ab29ceb1816810",
+      "docs/qa/metafile-pointwise-effects-reference-2026-10-27/PointwiseEffectsReference.cpp": "e585102dc65fb888ef6ece01886706e1ed84ebee48262f6db83e870a7e8c7984"
+    },
+    "binary_sha256": "75653c227a386b50ea2fbbf2abb3abe584a123d75ee37be1f5694424e7950857",
+    "renderer_sha256": "0e3cae1e062f46d3a6ce0a54315e132ebdf8485c08b1fcc70e3cad5448a37e40",
+    "provenance_sha256": "ac4e89065095187fa32d42c3e93178dd11ed4452589e9201368294d4bfe77256"
+  },
+  "log_sha256": {
+    "build/qa/ordinary-sourceover-runtime-2026-11-05.log": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186",
+    "build/qa/ordinary-sourceover-core-2026-11-05.log": "dc9b99c0282b1d194d0b5ee45c654699240acc9a37abecc68352fba189d27a06",
+    "build/qa/ordinary-sourceover-core-recheck-2026-11-05.log": "ad5714ba997a10919a5a13c4c97b677b60731bcc70104ed8b6696ffb8fcb464b",
+    "build/qa/commit-child-readiness-build-2026-11-07.log": "094865dda7ad49c17101558790c203e8866f9359b7c99b0cd7637abceb8ca0c9",
+    "build/qa/ordinary-sourceover-native-2026-11-07.log": "1e4aa82d27ca6c546f406cfd6e1c8700eafc4da86e25e3d28bcda283075e3250"
+  },
+  "owned_native_processes": {
+    "pids": [
+      34722,
+      34726,
+      34854,
+      35149,
+      35466
+    ],
+    "runner_reaped": true,
+    "independent_ps_all_absent": true,
+    "helper_cleanup_needed": false,
+    "hidden_windows_and_drain_assertions_passed": true,
+    "private_temporary_fixtures_removed_by_driver": true
+  },
+  "protected_unrelated_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "limits": [
+    "No complete Core/native suite or corrected-source hosted pass.",
+    "Native receiver execution is local arm64, not an independent Intel execution.",
+    "Separate rendering compatibility profiles and explicit refusals remain; this is not full metafile or app parity.",
+    "No signed physical, accessibility, minimum-OS or App Store submission acceptance."
+  ]
+}

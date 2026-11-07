@@ -121,7 +121,12 @@ final class MetafileQualityTests: XCTestCase {
     func testSourceOverGammaAndQualityAliasesFollowIndependentWindowsControls()throws {
         var rendered=[[UInt8]]()
         for quality in 0...4 {
-            let name="compositing-quality-\(quality)",image=try actual(name),windows=try expected(name)
+            let name="compositing-quality-\(quality)"
+            let setters=try records(bytes(name+".emf")).filter {$0.type==0x4024}
+            // The independent Windows default capture omits its setter. It must
+            // enter the same integer composition path as explicit aliases1/4.
+            XCTAssertEqual(setters.count,quality==0 ? 0:1,name+" captured setter identity")
+            let image=try actual(name),windows=try expected(name)
             compare(image,windows,x:14..<30,y:14..<25,channels:[0,1,2,3],name:name+" isolated red")
             compare(image,windows,x:4..<6,y:4..<12,channels:[0,1,2,3],name:name+" transparent-destination background edge")
             rendered.append(image)

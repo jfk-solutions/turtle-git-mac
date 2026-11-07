@@ -9,8 +9,10 @@ extension GitRepository {
     /// COMMIT_UPDATE_INDEX is distinct from Add and from staging-area commits.
     /// Build checked blobs once, then copy their index metadata without invoking
     /// a second clean driver through `git add` or `commit --only`.
-    func commitLibrarySelection(message: String, checked: [StatusEntry], changes: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String>, executor: URL, cancellation: OperationCancellation?, onOutput: (@Sendable (GitOutputChunk) -> Void)?) throws -> String {
+    func commitLibrarySelection(message: String, preparedMessage:EncodedCommitMessageFile?=nil, checked: [StatusEntry], changes: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String>, executor: URL, cancellation: OperationCancellation?, onOutput: (@Sendable (GitOutputChunk) -> Void)?) throws -> String {
         try cancellation?.check()
+        let messageFile=try preparedMessage ?? makeCommitMessageFile(message,cancellation:cancellation)
+        defer {if preparedMessage==nil {messageFile.remove()}}
         var indexBytes = try run(["rev-parse", "--git-path", "index"], cancellation: cancellation).stdout
         if indexBytes.last == 10 { indexBytes.removeLast() }
         let indexPath = String(decoding: indexBytes, as: UTF8.self)
@@ -99,7 +101,6 @@ extension GitRepository {
         // The real index lock remains ours while checkout creates the branch;
         // use the already reconciled private index for its ordinary bookkeeping.
         if let branch = options.newBranch { _ = try run(["checkout", "-b", branch], environmentOverrides: indexEnvironment, cancellation: cancellation) }
-        let messageFile = try makeCommitMessageFile(message); defer { messageFile.remove() }
         var arguments = ["commit", "-F", messageFile.url.path]
         if options.amend { arguments.append("--amend") }
         if options.messageOnly { arguments.append("--allow-empty") }
@@ -325,10 +326,10 @@ extension GitRepository {
         _ = try run(["restore","--source=" + base,"--staged","--pathspec-from-file=-","--pathspec-file-nul"],cancellation:cancellation,input:literalPathPacket(paths))
     }
 
-    func commitParentSelection(message: String, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
+    func commitParentSelection(message: String, preparedMessage:EncodedCommitMessageFile?=nil, checked: [StatusEntry], options: CommitOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try cancellation?.check()
         let base = try commitComparisonBase(amendToParent: true)
-        return try commitSeparateSelection(message: message, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
+        return try commitSeparateSelection(message: message, preparedMessage:preparedMessage, checked: checked, options: options, base: base, fileModes: selectedStagedFileModes(checked), cancellation: cancellation, onOutput: onOutput)
     }
     private func populateCommitSelectionIndex(checked: [StatusEntry], base: String, fileModes: GitPathMap<String>, environment: [String: String], cancellation: OperationCancellation? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil) throws -> [String] {
         try cancellation?.check()
@@ -396,11 +397,12 @@ extension GitRepository {
         let tree = try run(["write-tree"], environmentOverrides: environment).text
         return tree == (try run(["rev-parse", base + "^{tree}"]).text)
     }
-    func commitSeparateSelection(message: String, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil, reusingMessageFrom:String?=nil,usePreparedRealIndex:Bool=false, willCommit:() -> Void = {}) throws -> String {
+    func commitSeparateSelection(message: String, preparedMessage:EncodedCommitMessageFile?=nil, checked: [StatusEntry], options: CommitOptions, base: String, fileModes: GitPathMap<String> = [:], preservedAuthorDate: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, sourcePrepared:Bool=false, preparedIndexBytes:Data?=nil, reusingMessageFrom:String?=nil,usePreparedRealIndex:Bool=false, willCommit:() -> Void = {}) throws -> String {
         try cancellation?.check()
+        let messageFile = reusingMessageFrom == nil ? try preparedMessage ?? makeCommitMessageFile(message,cancellation:cancellation):nil
+        defer {if preparedMessage==nil {messageFile?.remove()}}
         var selectedIndexBytes=preparedIndexBytes
         if !sourcePrepared {selectedIndexBytes=try prepareCLICommitIndex(changes:checked,checked:GitPathSet(checked.map(\.path)),policy:nil,base:base,cancellation:cancellation,onOutput:onOutput,expectedIndex:options.expectedIndex,fileModes:fileModes).index}
-        let messageFile = reusingMessageFrom == nil ? try makeCommitMessageFile(message):nil; defer { messageFile?.remove() }
         let directory = try TurtleGitTemporaryStorage.root.appendingPathComponent("TurtleGit-amend-" + UUID().uuidString)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
         defer { try? FileManager.default.removeItem(at: directory) }

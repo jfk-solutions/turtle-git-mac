@@ -102,7 +102,11 @@ import TurtleGitCore
         try require(quote.state == .mixed && prune.state == .on && quote.allowsMixedState && prune.allowsMixedState && quote.frame.height<=30 && prune.frame.height<=30,"Source mixed-state controls missing or stretched")
         // SwiftUI editor buttons are not NSButton descendants in this passive
         // host. Verify column/background geometry in the raw captures instead.
-        let radios=views(host).compactMap {$0 as? NSButton}.filter {GitConfigurationSource.allCases.map(\.rawValue).contains($0.title)}
+        // Save-to popup captions can equal source captions on older AppKit.
+        // Identify the four native radio controls by their source-form identity.
+        let radios=views(host).compactMap {$0 as? NSButton}.filter {button in
+            GitConfigurationSource.allCases.contains {button.identifier?.rawValue == "ReferenceForm."+$0.rawValue}
+        }
         try require(radios.count==4 && radios.first {$0.title=="Local"}?.state == .on,"Source hierarchy radio row missing")
         model.deactivate();try await wait {!quote.isEnabled};model.activate(repository:repo,access:nil,localAvailable:true);try await wait {quote.isEnabled}
         if let output=ProcessInfo.processInfo.environment["TURTLEGIT_GIT_CONFIG_CAPTURE"] {try await capture(owner,to:URL(fileURLWithPath:output))}

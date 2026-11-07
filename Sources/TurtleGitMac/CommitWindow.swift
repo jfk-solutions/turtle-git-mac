@@ -3027,7 +3027,7 @@ import TurtleGitCore
             var selectedPostAction: CommitPostAction?
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let current=try await repository.commitDialogStatus(amendToParent:options.amend && !options.amendDiffToLastCommit,cancellation:preflightToken)
+                let current=try await repository.commitDialogStatus(amendToParent:options.amend && !options.amendDiffToLastCommit,cancellation:preflightToken,refreshIndex:false)
                 try validatePreflight(preflight,preflightToken)
                 let conflicts=current.filter { $0.state == .conflicted }
                 if !conflicts.isEmpty {
@@ -3527,16 +3527,39 @@ struct CommitNewBranchField: NSViewRepresentable {
     final class Field: CommitOwnedTextField {
         var focusPending = true
         var focusAllowed:()->Bool={true}
+        private var focusTask:Task<Void,Never>?
+        override func retire() {
+            focusPending=false;focusTask?.cancel();focusTask=nil
+            super.retire()
+        }
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
-            guard let owner = window, focusPending else { return }
-            DispatchQueue.main.async { [weak self, weak owner] in
-                guard let self, let owner, self.window === owner,
-                      self.focusPending,self.focusAllowed(),self.hasOriginalOwner,self.acceptsChanges(),self.isEditable,self.isEnabled,owner.isVisible,!owner.isMiniaturized,NSApp.modalWindow==nil,owner.attachedSheet == nil else { return }
-                self.focusPending = false
-                if owner.makeFirstResponder(self), let editor = self.currentEditor() {
-                    editor.selectedRange = NSRange(location: 0, length: self.stringValue.utf16.count)
+            guard let owner=window,focusPending,focusTask==nil else{return}
+            // Attachment can precede the owner's first presentation. Retain
+            // this insertion's focus intent until it is visible, but never
+            // transfer it across an edit, disabled state, sheet or owner.
+            let originalResponder=owner.firstResponder
+            focusTask=Task { @MainActor [weak self,weak owner,weak originalResponder] in
+                defer {self?.focusTask=nil}
+                await Task.yield()
+                for _ in 0..<300 {
+                    guard let self,let owner,!Task.isCancelled,self.window===owner,
+                          self.focusPending,self.focusAllowed(),self.hasOriginalOwner,
+                          self.acceptsChanges(),self.isEditable,self.isEnabled,
+                          owner.firstResponder === originalResponder,
+                          !owner.isMiniaturized,NSApp.modalWindow==nil,owner.attachedSheet==nil else {
+                        self?.focusPending=false;return
+                    }
+                    if owner.isVisible {
+                        self.focusPending=false
+                        if owner.makeFirstResponder(self),let editor=self.currentEditor() {
+                            editor.selectedRange=NSRange(location:0,length:self.stringValue.utf16.count)
+                        }
+                        return
+                    }
+                    try? await Task.sleep(nanoseconds:10_000_000)
                 }
+                self?.focusPending=false
             }
         }
     }

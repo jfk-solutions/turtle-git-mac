@@ -10,7 +10,7 @@ private actor NativeProxyPasswords: ProxyPasswordStoring {
     func snapshot() -> (String,Int,Int) { (value,loads,saves) }
 }
 @main struct NetworkSettingsVerification {
-    @MainActor static func main() async { do { try await verify() } catch { fputs("FAIL: \(error)\n",stderr);exit(1) } }
+    @MainActor static func main() async { NSApp.setActivationPolicy(.prohibited);do { try await verify() } catch { fputs("FAIL: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
         func require(_ value:Bool,_ message:String)throws {if !value {throw NSError(domain:"NetworkNative",code:1,userInfo:[NSLocalizedDescriptionKey:message])}}
         func wait(_ ready:()->Bool)async throws {for _ in 0..<1000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw NSError(domain:"Network settings did not settle",code:1)}
@@ -54,6 +54,20 @@ private actor NativeProxyPasswords: ProxyPasswordStoring {
         model.deactivate();reply?.resume(returning:"OpenSSH_fixture");let saved=await save.value
         try require(saved && prefs.string(forKey:"TurtleGit.SSHClient")=="/usr/bin/ssh" && NetworkSettingsModel.activeSaves==0,"Captured SSH Apply did not finish")
         model.checkSSH();try require(!model.busy && checks==1,"Forced-close Apply resurrected the page")
+        try require(!model.isActive && model.version.isEmpty,"Retired SSH Apply republished its version or active state")
+        // Authorization does not bypass validation: a failed captured SSH
+        // check after closure must leave the previous persisted client intact.
+        let rejected=NetworkSettingsModel(repository:repo,access:nil,localAvailable:true,preferences:prefs,passwords:passwords)
+        defer {rejected.deactivate()}
+        rejected.activate();try await wait {rejected.loaded && !rejected.busy}
+        rejected.ssh.path="/bin/echo"
+        var failedReply:CheckedContinuation<String,Error>?
+        rejected.sshVersion={_,_ in try await withCheckedThrowingContinuation {failedReply=$0}}
+        let rejectedSave=Task {await rejected.apply(owner:nil)}
+        try await wait {failedReply != nil && NetworkSettingsModel.activeSaves==1}
+        rejected.deactivate();failedReply?.resume(throwing:NSError(domain:"Private SSH validation failure",code:1));failedReply=nil
+        let rejectedResult=await rejectedSave.value
+        try require(!rejectedResult && !rejected.isActive && rejected.error==nil && NetworkSettingsModel.activeSaves==0 && prefs.string(forKey:"TurtleGit.SSHClient")=="/usr/bin/ssh","Failed retired SSH validation changed preferences or reopened the page")
         let late=NetworkSettingsModel(repository:repo,access:nil,localAvailable:true,preferences:prefs,passwords:passwords)
         defer {late.deactivate()}
         var read:CheckedContinuation<GitProxySettings,Error>?

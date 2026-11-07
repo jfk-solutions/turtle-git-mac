@@ -14,10 +14,10 @@ with tempfile.TemporaryDirectory(prefix='tg-remote-dialog-source-') as temporary
         path=folder/filename;path.write_text((root/'docs/qa'/filename).read_text().replace('@main ', '',1));sources.append(path)
     main=folder/'RemoteDialogMain.swift';main.write_text("import AppKit\n@main struct RemoteDialogMain { @MainActor static func main() async throws { _ = NSApplication.shared;NSApp.setActivationPolicy(.prohibited);switch CommandLine.arguments[3] {\n"+''.join('case "'+case+'": try await '+call+'\n' for case,(_,call) in cases.items())+'default:fatalError("Unknown remote dialog case") }; print("PASS: remote dialog source family completed") } }\n')
     receiver=build_receiver(root,sources+[main],folder)
-    env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
+    env={key:value for key,value in os.environ.items() if not key.startswith('GIT_')};env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     for case in args.only or cases:
         for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
-            fixture=folder/(case+str(index));fixture.mkdir();active=env.copy();active.pop('TURTLEGIT_REMOTE_DIALOG_CAPTURE',None)
+            fixture=folder/(case+str(index));fixture.mkdir();home=fixture/'home';home.mkdir(mode=0o700);private_tmp=fixture/'temporary';private_tmp.mkdir(mode=0o700);active=env.copy();active.update(HOME=str(home),CFFIXED_USER_HOME=str(home),TMPDIR=str(private_tmp)+'/',XDG_CONFIG_HOME=str(home/'xdg'));active.pop('TURTLEGIT_REMOTE_DIALOG_CAPTURE',None)
             if args.captures and case=='source' and index==0:
                 args.captures.mkdir(parents=True,exist_ok=True);active['TURTLEGIT_REMOTE_DIALOG_CAPTURE']=str(args.captures.absolute())
             print('Checking remote dialog '+case+' with '+str(git),flush=True)

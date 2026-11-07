@@ -158,7 +158,7 @@ import TurtleGitCore
             parent.model.load();try await wait([parent.window!]) {!parent.model.busy && parent.model.snapshot?.currentBranch == "refs/heads/main"}
             _ = try await transaction.run(["checkout","older"])
             try require(parent.model.snapshot?.currentBranch == "refs/heads/main", "Fixture did not retain stale branch metadata for live Current Branch")
-            parent.model.currentBranch(); try await wait([parent.window!]) { parent.model.closed }
+            parent.model.currentBranch(); try await wait([parent.window!]) { parent.model.closed && choices == 1 }
             try require(chosen == "refs/heads/older" && choices == 1, "Current Branch did not read completed checkout")
         }
         print("PHASE: Rejected owned progress presentation")
@@ -170,12 +170,17 @@ import TurtleGitCore
         let retained = try await transaction.branch()
         try require(retained == "main" && rejected.model.progress == nil && rejected.progressController == nil && rejected.model.error == nil, "Rejected progress leaked ownership or performed checkout")
         rejected.close()
+        // These phases own real CLI wrappers; the default source7 catalog
+        // tested above correctly bypasses a for-each-ref child entirely.
+        prefs.set(false,forKey:"UseLibgit2")
         print("PHASE: Forced parent close during each initial metadata read")
         for command in ["for-each-ref", "branch"] {
             let helper = root.appendingPathComponent("slow-metadata-" + command), marker = URL(fileURLWithPath: helper.path + ".started"), arm = URL(fileURLWithPath: helper.path + ".armed"), release = URL(fileURLWithPath: helper.path + ".release")
             let quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
             let script = """
             #!/bin/sh
+            printf '%s\\0' "$@" >> "$0.argv"
+            printf '\\0' >> "$0.argv"
             task_matches_command() {
               while [ "$#" -gt 0 ]; do
                 case "$1" in
@@ -187,6 +192,7 @@ import TurtleGitCore
               return 1
             }
             if task_matches_command "$@" && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
+              printf '%s\\0' "$@" > "$0.held.argv"
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -204,7 +210,7 @@ import TurtleGitCore
             try Data().write(to: arm); parent.showSwitch()
             guard let child = parent.switchDialog else { throw Failure(description: "Slow owned Switch missing") }
             var pids: [Int32] = []
-            defer { try? Data().write(to: release); for pid in pids where kill(pid, 0) == 0 { _ = kill(pid, SIGTERM) } }
+            defer { try? Data().write(to: release) }
             try await wait([parent.window!, child.window!]) { FileManager.default.fileExists(atPath: marker.path) }
             pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
             try require(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && child.model.busy && child.model.references.isEmpty, "Metadata read was not live or published partial catalog")
@@ -215,13 +221,16 @@ import TurtleGitCore
             try require(parent.model.closed && parent.switchDialog == nil && !parent.model.hasChild && !child.model.busy && child.model.references.isEmpty && child.model.error == nil && child.model.commitRevision == draft && child.model.options.target == options.target && child.model.branchRevision.isEmpty, "Closed metadata read published late")
         }
         print("PHASE: Forced close during checkout validation, switch and post-checkout reads")
-        for (command, ownsProgress, createBranch, closeProgress) in [("for-each-ref", false, false, false), ("rev-parse", false, false, false), ("check-ref-format", false, true, false), ("show-ref", false, true, false), ("branch", true, false, false), ("switch", true, false, false), ("status", true, false, false), ("switch", true, false, true)] {
+        for (command, ownsProgress, createBranch, closeProgress) in [("for-each-ref", false, false, false), ("rev-parse", false, false, false), ("check-ref-format", false, true, false), ("show-ref", false, true, false), ("branch", true, false, false), ("switch", true, false, false), ("ls-files", true, false, false), ("switch", true, false, true)] {
             _ = try await transaction.run(["checkout", "main"])
             let suffix = command + (closeProgress ? "-progress" : "-owner")
+            print("PHASE: Held checkout "+suffix+" createBranch=\(createBranch)");fflush(stdout)
             let helper = root.appendingPathComponent("slow-checkout-" + suffix), marker = URL(fileURLWithPath: helper.path + ".started"), arm = URL(fileURLWithPath: helper.path + ".armed"), release = URL(fileURLWithPath: helper.path + ".release")
             let quoted = "'" + repo.executable.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
             let script = """
             #!/bin/sh
+            printf '%s\\0' "$@" >> "$0.argv"
+            printf '\\0' >> "$0.argv"
             task_matches_command() {
               while [ "$#" -gt 0 ]; do
                 case "$1" in
@@ -233,6 +242,7 @@ import TurtleGitCore
               return 1
             }
             if task_matches_command "$@" && [ -f "$0.armed" ] && [ ! -f "$0.release" ]; then
+              printf '%s\\0' "$@" > "$0.held.argv"
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -261,8 +271,12 @@ import TurtleGitCore
             if createBranch { child.model.options.createBranch = true; child.model.options.branchName = "cancelled-" + suffix }
             try Data().write(to: arm); child.model.checkout()
             var pids: [Int32] = []
-            defer { try? Data().write(to: release); for pid in pids where kill(pid, 0) == 0 { _ = kill(pid, SIGTERM) } }
-            try await wait([parent.window!, child.window!]) { FileManager.default.fileExists(atPath: marker.path) }
+            defer { try? Data().write(to: release) }
+            do {try await wait([parent.window!, child.window!]) { FileManager.default.fileExists(atPath: marker.path) }}
+            catch {
+                let receipt=(try? Data(contentsOf:URL(fileURLWithPath:helper.path+".argv"))) ?? Data()
+                throw Failure(description:"Held checkout stage never started: "+suffix+" createBranch=\(createBranch); original argv NUL records="+String(reflecting:String(decoding:receipt,as:UTF8.self))+"; "+String(describing:error))
+            }
             pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
             let progress = child.progressController, oldCompletion = completed
             try require(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && child.model.busy && (progress != nil) == ownsProgress, "Expected checkout stage not live: \(suffix); pids=\(pids); live=\(pids.map { kill($0, 0) == 0 }); busy=\(child.model.busy); progress=\(progress != nil); expectedProgress=\(ownsProgress)")
@@ -271,19 +285,29 @@ import TurtleGitCore
                 progress.model.cancel(); try require(progress.model.confirmingCancellation, "Cancellation question not pending")
                 prefs.set(false, forKey: "ConfirmKillProcess")
             }
-            let beforeOutput = progress?.model.output, beforePrevious = progress?.model.previousBranch
+            let acceptedCheckout=command=="ls-files"
+            let heldArguments=try Data(contentsOf:URL(fileURLWithPath:helper.path+".held.argv"))
+            let expectedRootPrefix=Data((["--literal-pathspecs","-C",transaction.root.path].joined(separator:"\0")+"\0").utf8)
+            try require(heldArguments.starts(with:expectedRootPrefix) && heldArguments.split(separator:0).contains{Data($0)==Data(command.utf8)},"Held checkout argv lost original captured root/command: "+suffix)
+            if acceptedCheckout {
+                let expectedInspection=expectedRootPrefix+Data("ls-files\0-u\0".utf8)
+                try require(heldArguments==expectedInspection,"Post-checkout inspection argv changed from exact ls-files -u")
+            }
+            let expectedChanges=acceptedCheckout ? 1:0
+            let beforeOutput = progress?.model.output, beforePrevious = progress?.model.previousBranch,beforeSuccess=progress?.model.success
+            if acceptedCheckout {try require(progress?.model.acceptedCommand != nil && beforeSuccess==true && beforePrevious=="main","Post-checkout conflict inspection started before accepted mutation") }
             if closeProgress { progress?.close() } else { parent.close() }
             lateAnswer?(true); lateAnswer?(true); oldCompletion?()
             try await wait([child.window!]) { pids.allSatisfy { kill($0, 0) != 0 } }
             for _ in 0..<30 { try await Task.sleep(nanoseconds: 10_000_000) }
-            try require(!child.model.busy && child.model.progress == nil && child.progressController == nil && child.model.error == nil && !child.model.hasPendingTagConflict && changes == 0 && switched == 0 && actions == 0, "Late owner callback/state: " + suffix)
+            try require(!child.model.busy && child.model.progress == nil && child.progressController == nil && child.model.error == nil && !child.model.hasPendingTagConflict && changes == expectedChanges && switched == 0 && actions == 0, "Late owner callback/state: " + suffix)
             if let progress {
-                try require(!progress.model.busy && !progress.model.confirmingCancellation && progress.model.output == beforeOutput && progress.model.previousBranch == beforePrevious && !progress.model.success && progress.model.postActions.isEmpty, "Closed progress published late: " + suffix)
+                try require(!progress.model.busy && !progress.model.confirmingCancellation && progress.model.output == beforeOutput && progress.model.previousBranch == beforePrevious && progress.model.success == beforeSuccess && progress.model.postActions.isEmpty, "Closed progress published late: " + suffix)
                 progress.model.perform(.retry); progress.model.perform(.pull)
-                try require(changes == 0 && actions == 0 && !progress.window!.isVisible, "Closed progress dispatched a new action")
+                try require(changes == expectedChanges && actions == 0 && !progress.window!.isVisible, "Closed progress dispatched a new action")
             }
             let actualBranch = try await transaction.branch()
-            try require(actualBranch == (command == "status" ? "older" : "main"), "Cancellation rolled back or unexpectedly applied checkout: " + suffix)
+            try require(actualBranch == (acceptedCheckout ? "older" : "main"), "Cancellation rolled back or unexpectedly applied checkout: " + suffix)
             if closeProgress {
                 try require(parent.switchDialog === child && parent.model.hasChild, "Direct progress close lost editable Switch owner")
                 try Data().write(to: release); child.model.checkout()

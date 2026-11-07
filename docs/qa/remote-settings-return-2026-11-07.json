@@ -1,0 +1,129 @@
+{
+  "date": "2026-11-07",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "SSH-only Apply records captured unchanged draft authorization before bounded executable validation; authorized success persists after forced retirement without publishing version or reactivating page; failed retired validation preserves previous saved client",
+    "Actual Fetch/Pull remote-manager captured return, tracked branch reseeding per PullFetchDlg::Refresh, unrelated draft retention and duplicate callback refusal",
+    "General/SSH cancellation shell and child PID publication is atomic; owned process drain and Quit assertions retained",
+    "Native Git configuration source radio identity distinguishes source hierarchy from identical Save-to popup captions",
+    "Both supplied CLI Git engines use private HOME/CF defaults/global config/tmp, with explicit CLI catalog backend for held wrapper cancellation/Retry"
+  ],
+  "build": {
+    "log": "build/qa/commit-network-readiness-build-2026-11-07.log",
+    "exit": 0,
+    "shared_with": "Root Commit encoding ordering and focus batch",
+    "architecture": "arm64 Debug; not universal or signed distribution acceptance"
+  },
+  "core": {
+    "repeated": false,
+    "reason": "This batch changes only native Network Apply lifetime and native consumers/drivers. No Core implementation changes belonging to this batch."
+  },
+  "native": {
+    "distinct_case_engine_passes": 10,
+    "runs": [
+      {
+        "name": "network",
+        "log": "build/qa/remote-settings-network-native-2026-11-07.log",
+        "sha256": "cddcb09b8393c45355eafc19201afb37b0d94447ac4563fd501006cccc6fcf79",
+        "exit": 0,
+        "case_engine_passes": 4,
+        "owned_reaped_pids": [
+          39524,
+          39533,
+          39564,
+          39690,
+          39743,
+          39778
+        ]
+      },
+      {
+        "name": "general",
+        "log": "build/qa/remote-settings-general-native-2026-11-07.log",
+        "sha256": "1b844310303fbdcc1be1f75ecd7eef681e3dff74b6e85d50b3d9b38cb58d452b",
+        "exit": 0,
+        "case_engine_passes": 2,
+        "owned_reaped_pids": [
+          40024,
+          40049,
+          40085
+        ]
+      },
+      {
+        "name": "config",
+        "log": "build/qa/remote-settings-config-native-2026-11-07.log",
+        "sha256": "de46ddbc7f029ab2546e0d49ab25bfd55208efe37b84e644c40d6abda77f6894",
+        "exit": 0,
+        "case_engine_passes": 2,
+        "owned_reaped_pids": [
+          42547,
+          42589,
+          42727
+        ]
+      },
+      {
+        "name": "manager-initial",
+        "log": "build/qa/remote-settings-manager-native-2026-11-07.log",
+        "sha256": "42b93c2c0cf0b1ce7638056b966ccf067adc0918c999eb6cfcd4a68d37e5933f",
+        "exit": 1,
+        "case_engine_passes": 0,
+        "owned_reaped_pids": [
+          39534,
+          39563
+        ]
+      },
+      {
+        "name": "manager-repair",
+        "log": "build/qa/remote-settings-manager-native-repair-2026-11-07.log",
+        "sha256": "2c1218038fe5f9d2d6227c378b6d7fab3029ff39efc47288995902cad0d17720",
+        "exit": 0,
+        "case_engine_passes": 2,
+        "owned_reaped_pids": [
+          42901,
+          42905,
+          43082
+        ]
+      }
+    ],
+    "initial_failure": "After compiling obsolete Fetch reloadRemotes consumer repair, original manager cancellation case timed out at its real CLI wrapper gate because default master-libgit2 remote catalog correctly bypasses Git wrapper. Consumer now explicitly captures CLI backend; no production backend selection changed. Only manager case was rechecked.",
+    "independently_absent_owned_pids": [
+      39524,
+      39533,
+      39534,
+      39563,
+      39564,
+      39690,
+      39743,
+      39778,
+      40024,
+      40049,
+      40085,
+      42547,
+      42589,
+      42727,
+      42901,
+      42905,
+      43082
+    ],
+    "cleanup": "All recorded compiler/receiver PIDs absent. Each driver used private temporary repositories/preferences/config and removed its context on return; real General/SSH process shell+child absence asserted. Native windows are hidden/transparent; no main app launched."
+  },
+  "source_sha256": {
+    "Sources/TurtleGitMac/NetworkSettings.swift": "f858335ddb0418e285693de9f02e98f74083f4353f8e78f01c747c58acc34a0a",
+    "docs/qa/remote-management-family-native-2026-10-14.swift": "f7317dd2d6ad9aaec06ef8db658585d743cb81fe1221a5de7f38c42cf17cc2c8",
+    "docs/qa/general-source-family-native-2026-10-17.swift": "0918ad24bb83f541c0ff28eb627f55287a36d4dcf640c608848d55d1924e0469",
+    "docs/qa/git-config-source-native-2026-10-17.swift": "4a5e16f628ab5b78ee38ee5623cddba5b6e45563809154f4a76c6c8e7785df8b",
+    "docs/qa/network-settings-native-2026-10-12.swift": "aa644d82f9d6507cd2d8d938e527944d46897c130d6e89bc69c0686eb7a10116",
+    "docs/qa/network-source-family-native-2026-10-17.swift": "a4dddda8aad2ef41e44ac632bbb66ee41b975c26dbef7544b5099b1d217a0078",
+    "scripts/test-general-source-family.py": "1c6201d6a05677bf608d4865e906a2ac47b333dc55e0f9f11eb52dadf840ee38",
+    "scripts/test-git-config-source-family.py": "1a545d52bb983f34014297164821127838f63bd0311545d0a69d95ea89f5783a",
+    "scripts/test-network-source-family.py": "a10a994910dea49c20d1a2725441b0a834df2f9e5fa058b6d87bcd360b882c82",
+    "scripts/test-remote-dialog-source-family.py": "fbc3e6adb8ee38dcc0e39f8a10d739e6ff67db4cd6263df4854ddc241ad15dd9"
+  },
+  "remaining": [
+    "Complete corrected-source hosted CI",
+    "Signed App Store sandbox, real Keychain/security grants and live authenticated SSH acceptance",
+    "Physical keyboard/focus/VoiceOver, complete light/dark source parity",
+    "Other unreviewed source controls and broader port gaps"
+  ],
+  "installed_app_changed": false,
+  "binary_published": false
+}
