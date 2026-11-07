@@ -11,19 +11,20 @@ import TurtleGitCore
 @main struct SignedFinderRuntimeProbe {
     struct Failure: Error, CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String)throws { if !value { throw Failure(description:message) } }
-    struct PixelSample:Decodable {let point:[Int],min:[Double],max:[Double];let rgba:[Int]?,tolerance:Int?}
+    struct PixelSample:Decodable {let point:[Int],min:[Double],max:[Double];let rgba:[Int]?,tolerance:Int?;let expectationSource:String?}
     struct MetafileCase:Decodable {
         let name:String,bytes:String,sha256:String,width:Int,height:Int,samples:[PixelSample]
         let refuse:Bool?,svgContains:[String]?,hatchCell:[Int]?,deadline:Bool?
         let minInk:Int?,clipMaxX:Int?,columnRuns:Int?,advance:Int?,nativeFallback:String?
         let windowsRGBAHash:String?
+        let windowsPictureBytes:String?,windowsPictureSHA256:String?,windowsNaturalBytes:String?,windowsNaturalSHA256:String?,pixelSpace:String?
     }
     static func digest(_ bytes:Data)->String {SHA256.hash(data:bytes).map{String(format:"%02x",$0)}.joined()}
     @MainActor static func metafiles(_ encoded:String)throws->[[String:Any]] {
         NSApplication.shared.setActivationPolicy(.prohibited)
         guard let payload=Data(base64Encoded:encoded),payload.count<=192*1024 else {throw Failure(description:"Invalid bounded metafile payload")}
         let inputs=try JSONDecoder().decode([MetafileCase].self,from:payload)
-        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-halftone-integer-box.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf","state-seed.emf"]
+        let required:Set<String>=["clip-vector.wmf","classic-vector.emf","plus-bitmap-text.emf","plus-gradient-blend.emf","plus-region-path.emf","plus-hatch-atlas.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf","unsupported-raw-palette-index.emf","classic-text-compact-low-unicode.emf","classic-text-poly-ansi-dx.emf","wmf-text-dbcs-single-johab.wmf","wmf-text-ext-clip.wmf","wmf-bitmap16-bgrx32-stretch.wmf","wmf-bitmap16-self-bitblt-overlap.wmf","wmf-bitmap16-halftone-integer-box.wmf","unsupported-wmf-text-dbcs-johab-lead.wmf","unsupported-wmf-bitmap16-bits-short.wmf","state-seed.emf","opaque-i0-p0-integer.emf"]
         try require(inputs.count==required.count && Set(inputs.map(\.name))==required,"Incomplete signed metafile family")
         let helper=try MetafileImageDecoder.executable(),resolved=helper.resolvingSymlinksInPath()
         try require(resolved.deletingLastPathComponent()==Bundle.main.bundleURL.appendingPathComponent("Contents/MacOS"),"Metafile helper escaped the signed MacOS directory")
@@ -51,6 +52,30 @@ import TurtleGitCore
                     guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else {throw Failure(description:"Cannot sample native metafile image")}
                     context.interpolationQuality = .none;context.draw(image.pixels,in:CGRect(x:0,y:0,width:width,height:height))
                 }
+                if input.name=="opaque-i0-p0-integer.emf" {
+                    guard input.sha256=="a1014f98d4cd5379c5a2f5b95457110ad9cc0a3129424f226f15134b063a9855",width==32,height==24,
+                          input.pixelSpace=="top-down-straight-sRGB8; Picture expected; native premultiplied comparison",
+                          let pictureText=input.windowsPictureBytes,let naturalText=input.windowsNaturalBytes,
+                          let picture=Data(base64Encoded:pictureText),let natural=Data(base64Encoded:naturalText) else{throw Failure(description:"Invalid retained Windows Default frame contract")}
+                    try require(input.windowsPictureSHA256=="2c8b7186bb616dcb0d8310a8b01fb594dbc22ec7dc1bd3cdd9a97aab6d5d8a52" && digest(picture)==input.windowsPictureSHA256 && picture.count==width*height*4,"Changed Windows Picture reference")
+                    try require(input.windowsNaturalSHA256=="a51c48d5d574a88cdbfc090efd27776febbb8614e54bc06939e7d9c038d245c5" && digest(natural)==input.windowsNaturalSHA256 && natural.count==picture.count && natural != picture,"Changed/conflated natural and Picture references")
+                    var maximum=0
+                    for offset in stride(from:0,to:picture.count,by:4) {
+                        let alpha=Int(picture[offset+3])
+                        for channel in 0..<4 {
+                            let expected=channel==3 ? alpha:(Int(picture[offset+channel])*alpha+127)/255
+                            let difference=abs(Int(pixels[offset+channel])-expected);maximum=max(maximum,difference)
+                            try require(difference<=2,"Windows Default Picture differs at pixel \(offset/4%width),\(offset/4/width) channel\(channel): \(pixels[offset+channel]) expected\(expected)")
+                        }
+                    }
+                    entry["windows_default_picture_full_frame"]=true;entry["windows_picture_sha256"]=digest(picture);entry["windows_natural_sha256"]=digest(natural);entry["maximum_premultiplied_difference"]=maximum
+                }
+                let authoredNames:Set<String>=["plus-bitmap-text.emf","plus-raw-indexed4-negative.emf","plus-raw-texture-rgb565-positive.emf"]
+                if authoredNames.contains(input.name) {
+                    let points=input.samples.filter{$0.expectationSource != nil}.map{$0.point.map(String.init).joined(separator:",")}
+                    try require(points == (input.name=="plus-bitmap-text.emf" ? ["12,12","28,12"]:["12,12","28,12","44,12"]),"Original authored bitmap probe geometry changed")
+                    try require(input.samples.filter{$0.expectationSource != nil}.allSatisfy{$0.expectationSource=="authored-texels/windows-calibrated-bilinear" && $0.rgba?.count==4 && $0.tolerance==2},"Missing strict authored bitmap RGBA expectation")
+                }
                 func pixel(_ x:Int,_ y:Int)throws->[Double] {
                     try require((0..<width).contains(x) && (0..<height).contains(y),"Metafile sample out of bounds")
                     let offset=(y*width+x)*4,alpha=Double(pixels[offset+3])/255
@@ -69,7 +94,8 @@ import TurtleGitCore
                         let associated=(0..<3).map{(expected[$0]*expected[3]+127)/255}+[expected[3]]
                         let actualBytes=Array(pixels[offset..<(offset+4)]).map(Int.init)
                         try require((0..<4).allSatisfy{abs(actualBytes[$0]-associated[$0])<=tolerance},"Native source alpha changed for \(input.name) at \(sample.point): \(actualBytes), expected \(associated)")
-                        observation["premultiplied_rgba"]=actualBytes;observation["original_windows_rgba"]=expected;observation["rgba_tolerance"]=tolerance
+                        observation["premultiplied_rgba"]=actualBytes;observation["expected_straight_rgba"]=expected;observation["expectation_source"]=sample.expectationSource ?? "retained-Windows-or-authored-explicit-alpha";observation["rgba_tolerance"]=tolerance
+                        if sample.expectationSource == nil {observation["original_windows_rgba"]=expected}
                     }
                     samples.append(observation)
                 }

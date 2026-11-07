@@ -19,15 +19,41 @@ def metafile_request():
     # remains opaque. Do not conflate display-on-white with decoded source RGBA.
     clear=lambda x,y:{'point':[x,y],'min':[0,0,0],'max':[0,0,0],'rgba':[0,0,0,0],'tolerance':0}
     painted_white=lambda x,y:{**white(x,y),'rgba':[255,255,255,255],'tolerance':0}
+    # Source tuples and maps come from unchanged generate.py, not helper output.
+    # Default bilinear/phase is independently calibrated by the retained Windows
+    # natural/Picture atlas below; preserve the original device sample geometry.
+    from fractions import Fraction as Q
+    def rounded(value):return (value.numerator*2+value.denominator)//(2*value.denominator)
+    def ordinary(points,width,texels,tx=4,ty=4,white_background=False):
+        result=[]
+        for x,y in points:
+            u,v=(Q(x)-Q(tx))/16,(Q(y)-Q(ty))/16
+            sx,sy=u.numerator//u.denominator,v.numerator//v.denominator
+            fx,fy=u-sx,v-sy
+            associated=[]
+            for channel in range(4):
+                total=Q(0)
+                for by in range(2):
+                    for bx in range(2):
+                        pixel=texels[(sy+by)*width+sx+bx] if 0<=sx+bx<width and 0<=sy+by<2 else [0,0,0,0]
+                        value=pixel[3] if channel==3 else (pixel[channel]*pixel[3]+127)//255
+                        total+=value*(fx if bx else 1-fx)*(fy if by else 1-fy)
+                associated.append(rounded(total))
+            alpha=associated[3]
+            if white_background:expected=[min(255,v+255-alpha) for v in associated[:3]]+[255]
+            else:expected=[rounded(Q(v*255,alpha)) if alpha else 0 for v in associated[:3]]+[alpha]
+            result.append({'point':[x,y],'min':[max(0,v-2)/255 for v in expected[:3]],'max':[min(255,v+2)/255 for v in expected[:3]],'rgba':expected,'tolerance':2,'expectationSource':'authored-texels/windows-calibrated-bilinear'})
+        return result
+    r,g,b,w,k,y=[255,0,0,255],[0,255,0,255],[0,0,255,255],[255,255,255,255],[0,0,0,255],[255,255,0,255]
     cases=[
         {'name':'clip-vector.wmf','samples':[red(12,12),clear(35,35)]},
         {'name':'classic-vector.emf','samples':[red(12,12),blue(58,12)]},
-        {'name':'plus-bitmap-text.emf','samples':[red(12,12),green(28,12)],'svgContains':['Helvetica','TurtleGit','data:image/png;base64,']},
+        {'name':'plus-bitmap-text.emf','samples':ordinary([(12,12),(28,12)],2,[r,g,b,w]),'svgContains':['Helvetica','TurtleGit','data:image/png;base64,']},
         {'name':'plus-gradient-blend.emf','samples':[red(16,24),blue(80,24),{'point':[48,24],'min':[0.35,0,0.35],'max':[1,0.25,1]}]},
         {'name':'plus-region-path.emf','samples':[red(12,12),clear(28,28),blue(64,16)]},
         {'name':'plus-hatch-atlas.emf','samples':[],'hatchCell':[2,2,8,8],'deadline':True},
-        {'name':'plus-raw-indexed4-negative.emf','samples':[red(12,12),green(28,12),blue(44,12)]},
-        {'name':'plus-raw-texture-rgb565-positive.emf','samples':[red(12,12),green(28,12),blue(44,12),painted_white(80,48)]},
+        {'name':'plus-raw-indexed4-negative.emf','samples':ordinary([(12,12),(28,12),(44,12)],3,[r,g,b,b,g,r],white_background=True)},
+        {'name':'plus-raw-texture-rgb565-positive.emf','samples':ordinary([(12,12),(28,12),(44,12)],3,[r,g,b,w,k,y],tx=Q(23,2),ty=Q(23,2),white_background=True)+[painted_white(80,48)]},
         {'name':'unsupported-raw-palette-index.emf','samples':[],'refuse':True},
         # Recent outlined classic/WMF text exercises the actual packaged font
         # and in-process system libiconv path in the inherited sandbox.
@@ -76,10 +102,29 @@ def metafile_request():
         if list(raw[offset:offset+4])!=expected:raise ValueError('Original Windows alpha point changed')
         alpha_samples.append({'point':[x,y],'min':[max(0,v-3)/255 for v in expected[:3]],'max':[min(255,v+3)/255 for v in expected[:3]],'rgba':expected,'tolerance':1})
     cases.append({'name':'state-seed.emf','samples':alpha_samples,'width':256,'height':64,'windowsRGBAHash':raw_sha})
+    # Retained independent GDI+ Default replay. Natural and Picture references
+    # remain separately hashed; ComparisonImage is explicitly the Picture path.
+    windows=folder/'Interpolation/Windows'
+    window_manifest=json.loads((windows/'manifest.json').read_text())
+    anchor=next(item for item in window_manifest['cases'] if item['name']=='opaque-i0-p0-integer')
+    pins={'emf_sha256':'a1014f98d4cd5379c5a2f5b95457110ad9cc0a3129424f226f15134b063a9855','natural_sha256':'a51c48d5d574a88cdbfc090efd27776febbb8614e54bc06939e7d9c038d245c5','picture_sha256':'2c8b7186bb616dcb0d8310a8b01fb594dbc22ec7dc1bd3cdd9a97aab6d5d8a52'}
+    reference_bytes={}
+    for field,key in [('file','emf_sha256'),('expectedNatural','natural_sha256'),('expectedPicture','picture_sha256')]:
+        raw=(windows/anchor[field]).read_bytes()
+        if anchor[key]!=pins[key] or hashlib.sha256(raw).hexdigest()!=pins[key]:raise ValueError('Retained Windows Default interpolation oracle changed: '+field)
+        reference_bytes[field]=raw
+    if window_manifest['width']!=32 or window_manifest['height']!=24 or anchor['recordedState']!={'interpolation':3,'pixelOffset':0}:raise ValueError('Windows Default frame/state changed')
+    cases.append({'name':anchor['file'],'width':32,'height':24,'samples':[],
+                  'windowsPictureBytes':base64.b64encode(reference_bytes['expectedPicture']).decode(),'windowsPictureSHA256':pins['picture_sha256'],
+                  'windowsNaturalBytes':base64.b64encode(reference_bytes['expectedNatural']).decode(),'windowsNaturalSHA256':pins['natural_sha256'],
+                  'pixelSpace':'top-down-straight-sRGB8; Picture expected; native premultiplied comparison'})
+    authored_pins={'plus-bitmap-text.emf': 'cb862ac511b5f4c45a0cb5a8306e26a96172be17e744c9c87cbfaf29f6e231a9', 'plus-raw-indexed4-negative.emf': '01cf965afd0be3a76dbf93d6d8ff787eccc25b637742c71dc1a554737ff83b7e', 'plus-raw-texture-rgb565-positive.emf': '64e367d8b27da1e0e012f6e5e94c6d66ae3cc49d64f4b81d13d063e576508c14'}
     originals={}
     for case in cases:
-        path=(effects if case['name']=='state-seed.emf' else folder)/case['name'];data=path.read_bytes();digest=hashlib.sha256(data).hexdigest();originals[path]=digest
+        path=(windows if case['name']==anchor['file'] else effects if case['name']=='state-seed.emf' else folder)/case['name'];data=path.read_bytes();digest=hashlib.sha256(data).hexdigest();originals[path]=digest
+        if case['name'] in authored_pins and digest!=authored_pins[case['name']]:raise ValueError('Authored bitmap source changed')
         if case['name']=='state-seed.emf' and digest!=source_sha:raise ValueError('Original captured alpha EMF changed')
+        if case['name']==anchor['file'] and digest!=pins['emf_sha256']:raise ValueError('Retained Windows Default wire changed')
         case.update(bytes=base64.b64encode(data).decode(),sha256=digest)
         case.setdefault('width',97 if path.suffix.lower()=='.emf' else 96)
         case.setdefault('height',65 if path.suffix.lower()=='.emf' else 64)
