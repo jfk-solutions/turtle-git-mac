@@ -608,16 +608,45 @@ import TurtleGitCore
         try require(!reset.cancelledAfterCommand && resetHead==setupFirst && (try Data(contentsOf:setupFile))==setupBytes,"Packaged Reset lost accepted transition or working bytes")
         var cloneOptions=CloneOptions();cloneOptions.source=setupRoot.path
         let cloneRoot=auxiliary.appendingPathComponent("clone",isDirectory:true),cloneCancellation=OperationCancellation()
-        let cloned=try await initializer.cloneOutcome(cloneOptions,to:cloneRoot,cancellation:cloneCancellation,onCommandFinished:{receipt in if receipt.success && receipt.exitCode==0 {cloneCancellation.cancel()}},backend:.init(mask:0))
+        final class CloneReceipts:@unchecked Sendable {
+            private let lock=NSLock()
+            private var commands:[GitCommandInvocation]=[],finished:[CloneCommandCompletion]=[]
+            func command(_ value:GitCommandInvocation){lock.lock();commands.append(value);lock.unlock()}
+            func completion(_ value:CloneCommandCompletion){lock.lock();finished.append(value);lock.unlock()}
+            func read()->([GitCommandInvocation],[CloneCommandCompletion]){lock.lock();defer{lock.unlock()};return(commands,finished)}
+        }
+        let cloneReceipts=CloneReceipts()
+        let cloned=try await initializer.cloneOutcome(cloneOptions,to:cloneRoot,cancellation:cloneCancellation,
+            onCommand:{cloneReceipts.command($0)},onCommandFinished:{receipt in
+                cloneReceipts.completion(receipt)
+                if receipt.success && receipt.exitCode==0 {cloneCancellation.cancel()}
+            },backend:.init(mask:0))
         let clone=GitRepository(root:cloneRoot,executable:git,askpass:nil,libgit2Configuration:.init(mask:0))
         let clonedHead=String(decoding:try await clone.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
-        try require(cloned.verified && cloned.cancelledAfterCreation && cloned.identity != nil && clonedHead==setupFirst,"Packaged Clone lost accepted completion after cancellation")
-        let inspected=try await initializer.inspectCloneOutcome(cloned,at:cloneRoot)
-        try require(inspected.identity==cloned.identity && inspected.verified,"Packaged Clone read-only recovery changed repository identity")
+        let receipts=cloneReceipts.read()
+        try require(receipts.0.count==1 && receipts.1.count==1,"Packaged Clone repeated command/completion receipts")
+        try require(receipts.0[0].arguments.contains("clone") && receipts.0[0].arguments.last==cloneRoot.standardizedFileURL.path && receipts.1[0].success && !receipts.1[0].cancelled && receipts.1[0].exitCode==0,"Packaged Clone lost immutable actual command success after owner cancellation")
+        // Cancellation after the real command stops its owned verification.
+        // Saved creation status is retained without inventing verified identity.
+        try require(cloned.cancelledAfterCreation && !cloned.verified && cloned.identity==nil && cloned.repositoryRoot==nil && cloned.verificationError != nil && clonedHead==setupFirst,"Packaged Clone cancellation lost actual HEAD or fabricated verified metadata")
+        let cloneIndex=try Data(contentsOf:cloneRoot.appendingPathComponent(".git/index")),cloneConfig=try Data(contentsOf:cloneRoot.appendingPathComponent(".git/config")),cloneBytes=try Data(contentsOf:cloneRoot.appendingPathComponent("file.txt"))
+        let inspected=try await initializer.inspectCloneOutcome(cloned,at:cloneRoot,cancellation:OperationCancellation())
+        let reinspected=try await initializer.inspectCloneOutcome(inspected,at:cloneRoot,cancellation:OperationCancellation())
+        let recoveredIdentity:Bool=inspected.verified && inspected.identity != nil && inspected.identity==reinspected.identity
+        let recoveredLocation:Bool=inspected.identity?.root.path.utf8.elementsEqual(clone.root.path.utf8)==true && inspected.identity?.isBare==false
+        let recoveredOutput:Bool=inspected.output.utf8.elementsEqual(cloned.output.utf8) && reinspected.output.utf8.elementsEqual(cloned.output.utf8)
+        let retainedCancellation:Bool=cloneCancellation.isCancelled && inspected.cancelledAfterCreation && reinspected.cancelledAfterCreation
+        try require(recoveredIdentity && recoveredLocation && recoveredOutput && retainedCancellation,"Packaged Clone fresh read-only recovery lost exact identity/output/cancellation receipt")
+        let recoveredHead=String(decoding:try await clone.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.newlines)
+        let finalCloneReceipts=cloneReceipts.read()
+        let recoveredIndex=try Data(contentsOf:cloneRoot.appendingPathComponent(".git/index"))
+        let recoveredConfig=try Data(contentsOf:cloneRoot.appendingPathComponent(".git/config"))
+        let recoveredBytes=try Data(contentsOf:cloneRoot.appendingPathComponent("file.txt"))
+        try require(finalCloneReceipts.0.count==1 && finalCloneReceipts.1.count==1 && recoveredHead==clonedHead && recoveredIndex==cloneIndex && recoveredConfig==cloneConfig && recoveredBytes==cloneBytes,"Packaged Clone recovery repeated transport or changed HEAD/index/config/worktree")
         let afterHead=try await repository.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),afterConfig=try Data(contentsOf:root.appendingPathComponent(".git/config")),afterWorking=try Data(contentsOf:sentinelURL)
         try require(afterHead==head && afterIndex==index && afterConfig==config && afterWorking==sentinel,"Local-tools smoke changed HEAD/index/config/worktree")
         try require(try FileManager.default.contentsOfDirectory(atPath:root.path).sorted()==[".git","sentinel.txt"],"Historical raw files leaked into checkout")
-        return ["executable_metadata_isolation":true,"executable_metadata_probe":executableMetadata,"finder_cache_retained_claims":true,"finder_cache_exact_unicode":true,"finder_cache_stale_ticket_fence":true,"finder_cache_v4_wire":true,"repository_initialization_acceptance":true,"clone_acceptance_receipt":true,"checkout_reset_acceptance":true,"auxiliary_setup_separate":true,"submodule_add_exercised":false,"public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
+        return ["executable_metadata_isolation":true,"executable_metadata_probe":executableMetadata,"finder_cache_retained_claims":true,"finder_cache_exact_unicode":true,"finder_cache_stale_ticket_fence":true,"finder_cache_v4_wire":true,"repository_initialization_acceptance":true,"clone_acceptance_receipt":true,"clone_command_success_once":true,"clone_cancelled_verification_unverified":true,"clone_fresh_inspection_identity_output":true,"clone_inspection_did_not_reclone":true,"checkout_reset_acceptance":true,"auxiliary_setup_separate":true,"submodule_add_exercised":false,"public_core_package_smoke":true,"marked_screen_row_status":true,"settings_publication_intents":true,"creation_acceptance_receipts":true,"image_original_bytes_selection":true,"raw_folder_archive":true,"raw_individual_materialization":true,"captured_revision_backend":true,"head_index_working_unchanged":true,"native_ui_executed":false,"git":git.path,"observed_git":["pid":Int(observedPID),"executable":observedExecutable.path,"hash":observedHash,"reaped":true],"image_sha256":originals.mapValues(digest),"archive_sha256":digest(archived),"raw_blob_sha256":digest(blob)]
     }
 
     static func main() async throws {
