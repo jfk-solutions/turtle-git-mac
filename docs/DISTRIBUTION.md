@@ -55,25 +55,42 @@ fixes and their local checks do not silently update installed52. Current hosted,
 installed and whole-port gates are tracked in [release blockers](RELEASE-BLOCKERS.md).
 No public binary upload, notarization, App Store export or submission occurred.
 
-## Preparing local testing build53
+## Signed local testing build53
 
-The next local candidate consolidates the source changes after build52: Commit
-message readiness, Browser/RefLog child delivery, Synchronization producer
-ownership, native image rendering, Stash/Submodule recovery and Push/Clone
-completion, registration and cancellation. Their focused records are linked from
-[the port tracker](PORTING.md); those records describe source checks, not an
-installed build53.
+[Build53's record](qa/signed-candidate53-2026-11-07.json) identifies a separately
+packaged `0.1.0 (53)` candidate. Installed build52 remains unchanged.
 
-This candidate uses a new clean, pinned worktree and the same **AppStore
-configuration with Apple Development signing** as build52. The configuration
-provides sandboxed helpers and same-team Finder/cache sharing for local testing;
-it is separate from App Store distribution. The build number is passed explicitly
-to Xcode for the application and its peers. A fresh source/input receipt, current
-runtime manifests, signed bundle inventory and matching source archive belong to
-the new candidate. Frozen52, the installed application and its rollback remain
-separate. No successful build, package, installation or physical acceptance is
-inferred from this preparation section; the candidate receipt records each actual
-completed step.
+| Item | Recorded identity |
+| --- | --- |
+| Exact clean source | `55fd1ca95ddfe8eca07654b0c96c0a6b84bed8cd` |
+| Build-input SHA-256 | `bc4111547d96cdd25130a65ebda566e09a60e4bd48f1107815db41d2cb07e90c` |
+| Local ZIP | `build/local-testing/TurtleGit-for-Mac-0.1.0-build53-signed/TurtleGit-for-Mac-0.1.0-build53-signed.zip` |
+| ZIP SHA-256 | `505e6ee9559b54c3dc92ec82cdf83e7c487a390ec97bdb3ffba623a5cc5bb667` |
+| Matching source archive SHA-256 | `e9c2f72638d0d2c9b84a0e7a9058748617d9f7bfcbde1e2b85b3c682bcfe4a47` |
+| Signing channel | Apple Development, sandboxed AppStore configuration for local testing |
+
+The candidate consolidates Commit message readiness, Browser/RefLog child
+delivery, synchronization ownership, image rendering, Stash/Submodule recovery
+and Push/Clone completion. Its one app build, repaired static audit and signed
+Git/local-tool and twenty-image checks passed their recorded scopes. The initial
+probe and packaging-consumer failures remain recorded separately; these are
+cumulative results, not a fabricated single all-pass run. Test-consumer revisions
+are pinned separately from the unchanged build source. Package copy/extraction
+inventories and strict code-signing seals agree.
+
+A private walkthrough of the actual signed app exercised Classic message edits,
+selection and Amend, Git Gui-style double-click staging/unstaging, historical Log
+selection and file comparison, local Push, local Clone and its Show Log handoff.
+The app quit without a signal, but shutdown visibly waited on a large unrelated
+Finder warm-cache merge. That performance issue remains open. Test preferences,
+private repository/catalog/cache entries and launch routing were restored, and
+the owned app and fixture were removed from the test session.
+
+This package is not installed, notarized, uploaded or submitted to the Store.
+Build53 Finder badges, a complete corrected-source hosted pass, older-platform
+acceptance and full upstream dialog parity remain unproven. The package's
+`Evidence` directory and manifest retain its narrower pre-walkthrough scope;
+the linked checkpoint also records the later walkthrough and cleanup.
 
 ## Testing the local candidate
 

@@ -9,11 +9,15 @@ check F5/Close/Quit gates deterministically. Both Git engines pass the connected
 family; original byte, reference and ownership assertions remain. Production
 behavior and the previously checked Core/Debug app were unchanged.
 
-[Build53 preparation](DISTRIBUTION.md#preparing-local-testing-build53) consolidates
-the later source into a fresh signed sandboxed local candidate. Installed52 and
-its frozen source/rollback remain separate until an actual measured update.
-Complete corrected-source hosted and candidate-specific signed/physical
-acceptance remain open.
+[Signed build53](DISTRIBUTION.md#signed-local-testing-build53) now has its own
+clean source identity, signed package and matching source archive. Its
+[checkpoint](qa/signed-candidate53-2026-11-07.json) records cumulative signed
+Git/image checks and a private shipping-app Commit/Log/Push/Clone walkthrough.
+Installed52 remains unchanged. The walkthrough exposed slow normal Quit while
+merging the large Finder warm cache; the next implementation batch addresses
+publication, replacement and retirement work without losing unrelated roots.
+Complete corrected-source hosted, candidate53 Finder and full-port acceptance
+remain open.
 
 ## Push and Clone accepted results — November 7, 2026
 

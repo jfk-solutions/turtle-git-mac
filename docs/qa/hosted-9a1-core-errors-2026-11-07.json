@@ -1,0 +1,111 @@
+{
+  "run": 42408561589,
+  "job": 128511795332,
+  "source": "9a1ee02866580ddacc2848ed43355b27f42bb934",
+  "observed_date": "2026-11-07",
+  "evidence": "Authenticated Chrome read-only GitHub View raw logs; document.body.innerText grouped exact XCTest error lines. This compact transcription retains grouped counts and representative diagnostics, not a full raw-log archive. Browser download attempt timed out; owned tab closed afterward. No credentials retained.",
+  "url": "https://github.com/jfk-solutions/turtle-git-mac/commit/9a1ee02866580ddacc2848ed43355b27f42bb934/checks/128511795332/logs",
+  "log_lines": 97307,
+  "tests_executed": 3445,
+  "tests_skipped": 3,
+  "failed_methods": 13,
+  "failed_assertions": 1140,
+  "unexpected_failures": 0,
+  "duration_seconds": 5523.159,
+  "exit_code": 1,
+  "failures": [
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileEmbeddedImageTests.swift",
+      "method": "testMalformedNestedImagesFailWholePictureWithBoundedRecursionAndCancellation",
+      "assertion_count": 1,
+      "representative_line": 144,
+      "representative_diagnostic": "Budget must fail explicitly, not time out: timedOut"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileHighDepthBitmapTests.swift",
+      "method": "testFourRawWordFormatsHaveIndependentColorAndAlphaSamples",
+      "assertion_count": 59,
+      "representative_line": 66,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"2\") is not equal to (\"1\") - High-depth direct record must retain one actual device paint plane"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileHighDepthBitmapTests.swift",
+      "method": "testLowWordBytesDoNotBecomeRoundedOrThirteenBitDisplayValues",
+      "assertion_count": 22,
+      "representative_line": 66,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"2\") is not equal to (\"1\") - High-depth direct record must retain one actual device paint plane"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileHighDepthBitmapTests.swift",
+      "method": "testNegativeStrideAndNonzeroRowPaddingPreserveSourceOrientation",
+      "assertion_count": 60,
+      "representative_line": 66,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"2\") is not equal to (\"1\") - High-depth direct record must retain one actual device paint plane"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileHighDepthBitmapTests.swift",
+      "method": "testPremultipliedWordsQuantizeBeforeAlphaConversionAndAcceptBothDocumentedEnums",
+      "assertion_count": 30,
+      "representative_line": 66,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"2\") is not equal to (\"1\") - High-depth direct record must retain one actual device paint plane"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testEMFPlusTransformsClipsAndIndexedRestoreRenderDifferentTargets",
+      "assertion_count": 2,
+      "representative_line": 306,
+      "representative_diagnostic": "XCTAssertTrue failed"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testHatchAlphaDeviceScaleRenderingOriginAndRestoreRemainIndependent",
+      "assertion_count": 1,
+      "representative_line": 580,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"1\") is not equal to (\"3\")"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testHatchStylesRetainForegroundBackgroundAndNativeCellOrientation",
+      "assertion_count": 1,
+      "representative_line": 512,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"1\") is not equal to (\"53\")"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testIndexedAnd16BitTextureBrushesMatchIndependentlyCheckedImageColors",
+      "assertion_count": 278,
+      "representative_line": 187,
+      "representative_diagnostic": "plus-raw-indexed1-positive.emf source sample 8,12: [255, 255, 255, 255] expected [128, 0, 128, 255]"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testLinearGradientTileAndFlipRetainDifferentStopOrders",
+      "assertion_count": 1,
+      "representative_line": 396,
+      "representative_diagnostic": "XCTAssertEqual failed: (\"1\") is not equal to (\"2\")"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testOpaquePenAndHalfAlphaBrushPreserveSeparateSVGOpacity",
+      "assertion_count": 2,
+      "representative_line": 466,
+      "representative_diagnostic": "XCTAssertTrue failed; line472 Inline ARGB brush alpha was not preserved as separate SVG opacity"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testRaw16BitMasksAlphaAndRetained24And32BitFormats",
+      "assertion_count": 448,
+      "representative_line": 187,
+      "representative_diagnostic": "plus-raw-rgb555-positive.emf source sample 12,12: [255, 255, 255, 255] expected [128, 128, 64, 255]"
+    },
+    {
+      "file": "Tests/TurtleGitCoreTests/MetafileImageTests.swift",
+      "method": "testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows",
+      "assertion_count": 235,
+      "representative_line": 187,
+      "representative_diagnostic": "plus-raw-indexed1-positive.emf source sample 8,12: [255, 255, 255, 255] expected [128, 0, 128, 255]"
+    }
+  ],
+  "classification": "All failed methods are Metafile tests; source versus consumer/timing cause still needs inspection. A passing 20-image signed smoke does not cover these full high-depth/texture/embedded cases.",
+  "history_terminal_assertions": "not yet obtained"
+}

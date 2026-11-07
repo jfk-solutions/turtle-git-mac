@@ -1,0 +1,283 @@
+{
+  "run": 42408561589,
+  "source": "9a1ee02866580ddacc2848ed43355b27f42bb934",
+  "observed_at": "2026-11-07",
+  "evidence": "GitHub connector structured run jobs; exact terminal Core and History log fetch each returned Transport closed.",
+  "jobs": [
+    {
+      "id": 128511495158,
+      "name": "svn-runtime",
+      "status": "completed",
+      "conclusion": "success",
+      "failed_steps": []
+    },
+    {
+      "id": 128511795311,
+      "name": "validation (history-references)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Native tracked branch commands and remote-only picker",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 290
+        },
+        {
+          "name": "Native Export progress and ZIP cancellation",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 293
+        },
+        {
+          "name": "Exact Unicode repository paths and browser actions",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 314
+        },
+        {
+          "name": "Repository Browser raw Git names, stored objects and owned delivery",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 315
+        },
+        {
+          "name": "Captured reference menus and related native workflows",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 318
+        },
+        {
+          "name": "Three-pane ordinary block choices, navigation, history and ignored conflicts",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 320
+        },
+        {
+          "name": "Native revision table optional font",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 332
+        },
+        {
+          "name": "Native commit-containing reference dialog and owned Log/picker routes",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 400
+        },
+        {
+          "name": "Native Log compressed graph rollup receiver",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 402
+        },
+        {
+          "name": "Native Revision Graph window and Filter with both Git engines",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 426
+        }
+      ]
+    },
+    {
+      "id": 128511795332,
+      "name": "validation (core)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "name": "Git integration tests",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 79
+        }
+      ]
+    },
+    {
+      "id": 128511795362,
+      "name": "validation (settings-finder)",
+      "status": "in_progress",
+      "conclusion": null,
+      "failed_steps": []
+    },
+    {
+      "id": 128511795363,
+      "name": "validation (replay-transport)",
+      "status": "in_progress",
+      "conclusion": null,
+      "failed_steps": [
+        {
+          "name": "Rebase source forms and connected workflows",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 196
+        },
+        {
+          "name": "Native history navigation warnings Combine and child submodule inspections",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 235
+        },
+        {
+          "name": "Grouped native Submodule exact paths, source forms, selection and progress",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 248
+        },
+        {
+          "name": "Native Clone progress and repository setup/transition recovery",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 252
+        },
+        {
+          "name": "Native primary command launch family",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 268
+        },
+        {
+          "name": "Native transport presentation",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 328
+        },
+        {
+          "name": "Native Log and Rebase font",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 333
+        },
+        {
+          "name": "Native Push partial result refresh",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 343
+        },
+        {
+          "name": "Native Push retained progress and post-actions",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 345
+        },
+        {
+          "name": "Grouped native Request Pull waiting, editor, mail and cancellation",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 346
+        },
+        {
+          "name": "Native ordinary Fetch progress and post-actions",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 359
+        },
+        {
+          "name": "Native Push cancellation",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 367
+        },
+        {
+          "name": "Check connected Stash and Submodule recovery workflows",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 369
+        },
+        {
+          "name": "Check connected Switch, Reset and Bisect workflows",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 370
+        }
+      ]
+    },
+    {
+      "id": 128511795370,
+      "name": "validation (commit-repository)",
+      "status": "in_progress",
+      "conclusion": null,
+      "failed_steps": [
+        {
+          "name": "Native filtered historical file output and owned filter cancellation",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 231
+        },
+        {
+          "name": "Native Add Remote and Select Remote Ref source workflows",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 255
+        },
+        {
+          "name": "Native workspace completion handoffs",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 271
+        },
+        {
+          "name": "Source color conversion and native status text appearance",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 302
+        },
+        {
+          "name": "Comparison savepoints, options, row edits and editor workflows",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 319
+        },
+        {
+          "name": "Native Save As source targets",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 322
+        }
+      ]
+    },
+    {
+      "id": 128511795379,
+      "name": "validation (images-documents)",
+      "status": "queued",
+      "conclusion": null
+    },
+    {
+      "id": 128511795401,
+      "name": "validation (editors)",
+      "status": "in_progress",
+      "conclusion": null,
+      "failed_steps": []
+    },
+    {
+      "id": 128511795449,
+      "name": "validation (distribution)",
+      "status": "queued",
+      "conclusion": null
+    }
+  ],
+  "logs": {
+    "core": {
+      "job": 128511795332,
+      "result": "Transport closed",
+      "actual_assertions_available": false
+    },
+    "history": {
+      "job": 128511795311,
+      "result": "Transport closed",
+      "actual_late_assertions_available": false
+    }
+  },
+  "artifacts": "Only universal-git-svn-runtime artifact 13588940481; no failure-evidence artifacts at this read.",
+  "known_fixed": {
+    "history290": "55fd1ca9 repaired exact actual prior tracked-picker Cancel/detach consumer; preserve current fixture.",
+    "transport": "f7e7514b changed Push/Clone model/result phases, recovery and affected consumers; current 9a1 run cannot establish regression of those subsequent changes.",
+    "submodule": "a5044638 changed Stash/Submodule recovery ownership; older failures cannot establish current source status."
+  },
+  "unclassified": "Other failed labels are workflow mappings, not evidence of production defects or stale consumers. No cause inferred from shared labels.",
+  "scope_limits": [
+    "No browser while parent native GUI acceptance active",
+    "No tests, builds, app/UI changes, reruns, cancellation, commits or push",
+    "Protected unrelated scripts/test-native-reference-batch.py and reflog capture unchanged"
+  ]
+}

@@ -5,21 +5,38 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Local candidate53
+
+[Signed build53](qa/signed-candidate53-2026-11-07.json) is packaged separately
+from installed52. Its recorded static/signed checks and private shipping-app
+Commit, staging, Log, local Push and local Clone walkthrough passed their stated
+scopes. Normal Quit visibly waited on a large Finder warm-cache merge; this
+performance issue remains open. All owned windows/processes and private saved
+state were cleaned. Candidate53 Finder badges, older-platform coverage, complete
+hosted CI and full source/dialog parity remain open; there was no installation
+or publication.
+
 ## Current acceptance queue
 
 The latest observed [9a1ee028 macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589)
-is still running. SVN and its separate Pages deployment passed. The
-History/References lane reported a failed **Native tracked branch commands
-and remote-only picker** step. Its [exact step evidence](qa/hosted-9a1-tracked-branch-2026-11-07.json)
-identifies the first child Cancel assertion; that older consumer expected immediate
-release while the production owner deliberately waits for physical detachment.
-The [corrected connected family](qa/reference-tracking-consolidation-2026-11-07.json)
-passes both Git engines locally, retaining configuration bytes, actual tracking
-write, parent gates and ordered child delivery assertions. This is a consumer
-repair, not a hosted pass. Core, Replay/Transport and Commit/Repository remain
-active, and four lanes were queued at the latest observation. This run predates
-the Stash/Submodule and Push/Clone source batches below. The newer `f7e7514b`
-macOS run is pending, while its Pages deployment passed.
+has terminal Core and History/References failures; other lanes continue or wait.
+Its [job-level snapshot](qa/hosted-9a1-terminal-diagnosis-2026-11-07.json) records
+the failed steps. The connector could not retrieve terminal logs and the CLI is
+unauthenticated. A later browser reading obtained the
+[actual Core errors](qa/hosted-9a1-core-errors-2026-11-07.json): 13 failed Metafile
+methods, 1,140 assertions across 3,445 executed tests, with three skipped tests.
+These include high-depth/texture paint selection, SVG structure expectations and
+one nested-image budget timeout; product versus consumer causes remain under
+inspection. The signed twenty-image smoke does not cover this complete family.
+Late History assertions remain unavailable. The
+[previous exact picker evidence](qa/hosted-9a1-tracked-branch-2026-11-07.json)
+identifies an immediate-Cancel assertion repaired by the
+[connected tracked-branch family](qa/reference-tracking-consolidation-2026-11-07.json).
+The run predates the Stash/Submodule and Push/Clone source batches below, so its
+failures do not prove those later changes failed. Corrected source55fd's
+[macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42415320695)
+is pending; its [Pages deployment](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42415320719)
+passed. No complete corrected-source hosted pass is claimed.
 
 The [Stash/Submodule checkpoint](qa/stash-submodule-recovery-2026-11-07.json)
 passes 40 focused Core cases and 34 native case/engine pairs cumulatively. The
