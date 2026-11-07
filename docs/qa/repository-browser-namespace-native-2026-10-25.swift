@@ -17,7 +17,7 @@ private extension NSWindow {
         let suite="TurtleGit.BrowserNamespace."+UUID().uuidString
         let prefs:UserDefaults
         var logs:[LogWindowController]=[],blames:[BlameWindowController]=[],comparisons:[FileComparisonWindowController]=[]
-        var owners:[RepositoryBrowserWindowController]=[],releases:[()->Void]=[],previewFiles:[URL]=[]
+        var owners:[RepositoryBrowserWindowController]=[],parents:[NSWindow]=[],releases:[()->Void]=[],previewFiles:[URL]=[]
         let text=Data("stored body\n".utf8),binary=Data([0,0xff,0x10,0x41])
         var revision="",head=Data(),index:Data?,config=Data()
         init(){prefs=UserDefaults(suiteName:suite)!;prefs.set(false,forKey:"UseLibgit2");prefs.set(false,forKey:"EnableGravatar")}
@@ -56,6 +56,7 @@ private extension NSWindow {
         func cleanup()async{
             releases.forEach{$0()};releases=[];owners.forEach{$0.close()};logs.forEach{$0.close()};blames.forEach{$0.close()};comparisons.forEach{$0.close()}
             for _ in 0..<3000{if RepositoryBrowserExportFiles.activeLoads==0 && FileListDrag.activeLoads==0 && owners.allSatisfy({!$0.hasPendingWork}) && RepositoryBrowserWindowModel.activeOperations==0 && LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeFileOpenReads==0 && LogWindowModel.activeActionReads==0 && BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && comparisons.allSatisfy({!$0.model.mergeToolHasPendingWork}) && DiffToolApplication.activeRequests==0{break};try? await Task.sleep(nanoseconds:10_000_000)}
+            parents.forEach{$0.close()};parents=[]
             previewFiles.forEach{HistoricalPreviewFiles.discard($0)};previewFiles=[];DiffToolApplication.discardAll();RepositoryBrowserExportFiles.discardAll()
             UserDefaults.standard.removePersistentDomain(forName:suite)
         }
@@ -142,6 +143,11 @@ private extension NSWindow {
     static func delivery(_ c:Context)async throws{
         let owner=try await c.owner(),m=owner.model
         let entry=m.entries.first{$0.rawName==Data([0xfe,0x2e,0x74,0x78,0x74])}!
+        let snapshot=m.snapshot!,accepted=GitLibGit2Configuration(enabled:false,mask:0x1234)
+        let pinned=RepositoryBrowserSnapshot(root:snapshot.root,revision:snapshot.revision,objectID:snapshot.objectID,treeID:snapshot.treeID,directory:snapshot.directory,bare:snapshot.bare,entries:snapshot.entries,acceptedBackend:accepted)
+        let unconfigured=GitRepository(root:c.folder,executable:c.git,askpass:nil)
+        let promise=RepositoryBrowserFilePromise(repository:unconfigured,access:nil,snapshot:pinned,entry:entry)
+        try require(!promise.backend.enabled && promise.backend.mask==0x1234,"Historical promise discarded snapshot backend for later global settings")
         let expectedName="Git-blob-"+entry.objectID+".txt"
         let previewName="Git-blob-"+entry.objectID+"-"+String(m.snapshot!.objectID!.prefix(7))+".txt"
         guard let table=owner.contentsTable,let menu=table.menu else{throw Failure(description:"Delivery native table/menu absent")}
@@ -214,9 +220,9 @@ private extension NSWindow {
         m.confirmingQuit=true;m.openStoredBlob(entry);m.confirmingQuit=false
         try require(reads==0 && !m.hasPendingWork,"Quit gate started a stored-object read")
         // A read completing during Quit may not publish to the controller either.
-        var reply:CheckedContinuation<Data,Error>?
+        var reply:CheckedContinuation<Data,Error>?,heldToken:OperationCancellation?
         m.readStoredFile={snapshot,entry,token in
-            reads+=1
+            reads+=1;heldToken=token
             let _:Data=try await withCheckedThrowingContinuation{reply=$0}
             return try await c.repository().storedRepositoryBrowserFile(snapshot,entry:entry,cancellation:token)
         }
@@ -228,14 +234,37 @@ private extension NSWindow {
         try require(launched.count==2,"Quit-pending read published a stored document")
         // A cancelled generation keeps the held worker owned but cannot launch.
         m.openStoredBlob(entry);try await wait{reply != nil}
-        m.refresh();reply?.resume(returning:c.binary);reply=nil
+        let oldGeneration=m.generation
+        m.refresh()
+        try require(m.generation != oldGeneration && heldToken?.isCancelled==true && m.hasPendingWork,"Refresh did not retire delivery authority while retaining actual read")
+        try await wait{!m.busy}
+        try require(m.hasPendingWork && launched.count==2,"Fresh listing dropped held read accounting or launched stale bytes")
+        reply?.resume(returning:c.binary);reply=nil
         try await wait{!m.busy && !m.hasPendingWork}
         try require(launched.count==2,"Stale stored read survived a refreshed tree receipt")
+        // Native folder navigation also retires delivery without pretending the
+        // old reader has drained. A cached directory is intentionally immediate.
+        m.loadDirectory("valid-folder",select:false);try await wait{!m.hasPendingWork}
+        m.openStoredBlob(entry);try await wait{reply != nil}
+        m.openFolder("valid-folder")
+        try require(m.snapshot?.directory=="valid-folder" && heldToken?.isCancelled==true && m.hasPendingWork,"Cached navigation blocked or lost read ownership")
+        reply?.resume(returning:c.binary);reply=nil;try await wait{!m.hasPendingWork}
+        try require(launched.count==2,"Navigated read launched a stale document")
+        m.openFolder("");try await wait{m.snapshot?.directory==""}
+        // A revision edit is an exact new receipt even before F5 reload.
+        m.openStoredBlob(entry);try await wait{reply != nil}
+        m.revision="refs/heads/main"
+        try require(heldToken?.isCancelled==true && m.hasPendingWork,"Revision edit retained an active delivery token or released its worker")
+        reply?.resume(returning:c.binary);reply=nil;try await wait{!m.hasPendingWork}
+        try require(launched.count==2,"Revision-edited read launched a stale document")
+        m.refresh();try await wait{!m.busy && !m.hasPendingWork}
         // Forced close keeps actual object I/O owned until its late reply settles.
+        let parent=NSWindow(contentRect:.init(x:-24000,y:-24000,width:1000,height:700),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        parent.isReleasedWhenClosed=false;parent.alphaValue=0;c.parents.append(parent);parent.beginSheet(owner.window!,completionHandler:nil)
         m.openStoredBlob(entry);try await wait{reply != nil};owner.close()
         try require(!m.active && m.hasPendingWork && RepositoryBrowserWindowModel.activeOperations>0,"Closed delivery dropped unfinished read ownership")
         reply?.resume(returning:c.binary);reply=nil;try await wait{!owner.hasPendingWork && RepositoryBrowserWindowModel.activeOperations==0}
-        try require(launched.count==2,"Retired delivery read launched late")
+        try require(launched.count==2 && owner.window?.sheetParent==nil && parent.attachedSheet==nil,"Retired delivery read launched late or released before actual parent detach")
         // A held Open With panel callback after retirement cannot launch either.
         let second=try await c.owner(),other=second.model
         let otherEntry=other.entries.first{$0.rawName==entry.rawName}!

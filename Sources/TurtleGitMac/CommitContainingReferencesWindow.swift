@@ -35,13 +35,24 @@ private final class CommitReferencesWindow: NSWindow {
     private(set) var picker: NSWindowController?
     var onClosed: () -> Void = {}
     var onLog: ((String?, Bool, HistoryRevisionRange?) -> Void)?
+    var onCapturedLog: ((GitRepository,String?,Bool,HistoryRevisionRange?)->Void)?
+    private(set) var snapshotRepository:GitRepository?
     var onBrowse: ((String) -> Void)?
+    var onCapturedBrowse:((GitRepository,String)->Void)?
     var onCompare: ((ComparisonRevision, ComparisonRevision) -> Void)?
+    var onCapturedCompare:((GitRepository,ComparisonRevision,ComparisonRevision)->Void)?
     var onUnified: ((Data, Bool) async throws -> Void)?
     var onNavigate: (String, Bool) -> Void = { _, _ in }
     var copyText: (String) -> Void = { NSPasteboard.general.clearContents(); NSPasteboard.general.setString($0, forType: .string) }
     var readCompletion: ((OperationCancellation) async throws -> [GitReferenceName])?
     var read: ((String, OperationCancellation) async throws -> CommitContainingReferences)?
+    private var pendingOperations=0
+    private var retiring=false
+    private var pickerRequest=UUID()
+    private var pickerDidClose=false
+    private var pickerExternalEpoch:UUID?
+    private var pickerReleasePending=false
+    var hasPendingWork:Bool {pendingOperations>0 || retiring || picker != nil || pickerReleasePending || unifiedViewer?.model.busy==true || window?.attachedSheet != nil}
     private var worker: Task<Void, Never>?
     private var token: OperationCancellation?
     private var request = UUID()
@@ -52,6 +63,9 @@ private final class CommitReferencesWindow: NSWindow {
     private(set) var snapshotBackendIdentity: String?
     private(set) var completionBackendIdentity: String?
     private var completionCache: [GitReferenceName]?
+    private var listFontObservation:AnyCancellable?
+    private var listFont:NSFont?
+    private var listFontConfigured=false
     private var unifiedViewerObservation: AnyCancellable?
     private var unifiedViewer: PatchWindowController? {
         didSet {
@@ -62,8 +76,14 @@ private final class CommitReferencesWindow: NSWindow {
         }
     }
     var blockingStateChanged: () -> Void = {}
+    var parentStateObservation:AnyCancellable?
     private var reportedBlockingState = false
     var externalAvailability: () -> Bool = { true }
+    var externalInteractionEpoch:(()->UUID)?
+    private struct MenuCommand {
+        let request:UUID,external:UUID?
+        let command:String,names:[GitReferenceName]
+    }
     private var canAct: Bool { externalAvailability() && !closed && !busy && !hasBlockingChild && window?.parent?.attachedSheet == nil }
 
     init(repository: GitRepository, access: RepositoryAccessLease?, revision: String, preferences: UserDefaults = .standard) {
@@ -80,7 +100,7 @@ private final class CommitReferencesWindow: NSWindow {
         showLog.target = self; showLog.action = #selector(showCommitLog)
         chooser.addItem(withTitle: "…")
         for (index, title, icon) in [(0, "Browse References", MenuIcon.repositoryBrowser), (1, "Log", .log), (2, "Reflog", .log)] {
-            let item = NSMenuItem(title: title, action: #selector(chooseRevision(_:)), keyEquivalent: ""); item.target = self; item.tag = index; item.image = icon.contextImage(defaults: preferences); chooser.menu?.addItem(item)
+            let item = NSMenuItem(title: HistoryLabels.caption(title), action: #selector(chooseRevision(_:)), keyEquivalent: ""); item.target = self; item.tag = index;item.identifier = .init("CommitReferences.Choose.\(index)"); item.image = icon.contextImage(defaults: preferences); chooser.menu?.addItem(item)
         }
         let column = NSTableColumn(identifier: .init("reference")); column.title = "Ref"; table.addTableColumn(column)
         table.headerView = nil; table.allowsMultipleSelection = true; table.dataSource = self; table.delegate = self; table.rowHeight = 22
@@ -92,35 +112,61 @@ private final class CommitReferencesWindow: NSWindow {
         let scroll = NSScrollView(); scroll.hasVerticalScroller = true; scroll.documentView = table; scroll.borderType = .bezelBorder
         let top = NSStackView(views: [self.revision, chooser]); top.orientation = .horizontal
         let summary = NSStackView(views: [subject, showLog]); summary.orientation = .horizontal
-        summary.distribution = .fill; top.distribution = .fill
+        summary.distribution = .fill;summary.spacing=8;top.distribution = .fill
+        subject.maximumNumberOfLines=1
+        showLog.setContentHuggingPriority(.defaultHigh,for:.horizontal)
+        showLog.setContentCompressionResistancePriority(.required,for:.horizontal)
         let bottom = NSStackView(views: [NSTextField(labelWithString: "Filter:"), filter]); bottom.orientation = .horizontal; bottom.distribution = .fill
         let content = NSStackView(views: [top, summary, scroll, status, bottom]); content.orientation = .vertical; content.alignment = .leading; content.spacing = 8; content.translatesAutoresizingMaskIntoConstraints = false
         window.contentView!.addSubview(content)
-        NSLayoutConstraint.activate([content.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 14), content.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -14), content.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 14), content.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor, constant: -14), top.widthAnchor.constraint(equalTo: content.widthAnchor), summary.widthAnchor.constraint(equalTo: content.widthAnchor), scroll.widthAnchor.constraint(equalTo: content.widthAnchor), bottom.widthAnchor.constraint(equalTo: content.widthAnchor), chooser.widthAnchor.constraint(equalToConstant: 36), showLog.widthAnchor.constraint(equalToConstant: 86)])
+        NSLayoutConstraint.activate([content.leadingAnchor.constraint(equalTo: window.contentView!.leadingAnchor, constant: 14), content.trailingAnchor.constraint(equalTo: window.contentView!.trailingAnchor, constant: -14), content.topAnchor.constraint(equalTo: window.contentView!.topAnchor, constant: 14), content.bottomAnchor.constraint(equalTo: window.contentView!.bottomAnchor, constant: -14), top.widthAnchor.constraint(equalTo: content.widthAnchor), summary.widthAnchor.constraint(equalTo: content.widthAnchor), scroll.widthAnchor.constraint(equalTo: content.widthAnchor), bottom.widthAnchor.constraint(equalTo: content.widthAnchor), chooser.widthAnchor.constraint(equalToConstant: 36), showLog.widthAnchor.constraint(greaterThanOrEqualToConstant: 86)])
         self.revision.setContentHuggingPriority(.defaultLow, for: .horizontal); subject.setContentHuggingPriority(.defaultLow, for: .horizontal); filter.setContentHuggingPriority(.defaultLow, for: .horizontal)
         scroll.setContentHuggingPriority(.defaultLow, for: .vertical)
         window.key = { [weak self] event in self?.handleKey(event) ?? false }
         DialogGeometry.attach(window, identifier: "CommitIsOnRefsDlg", legacyName: "CommitIsOnRefsDlg")
+        updateListFont()
+        listFontObservation=NotificationCenter.default.publisher(for:UserDefaults.didChangeNotification).sink{[weak self] _ in
+            DispatchQueue.main.async{self?.updateListFont()}
+        }
         updateAvailability()
+    }
+    private func updateListFont() {
+        guard !closed else{return}
+        let enabled=preferences.bool(forKey:"LogFontForFileListCtrl")
+        let font=enabled ? MessageEditorFont.resolve(name:preferences.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName,size:(preferences.object(forKey:"LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize):nil
+        guard !listFontConfigured || listFont != font else{return}
+        listFontConfigured=true;listFont=font
+        let selected=table.selectedRowIndexes
+        table.rowSizeStyle = .custom;table.usesAutomaticRowHeights=false
+        table.rowHeight=font.map{NativeReportRowGeometry.rowHeight(font:$0,minimumContentHeight:18,verticalPadding:4)} ?? 22
+        NativeListSelection.install(on:table,preferences:preferences,primaryColumn:table.tableColumns.first,labelText:{[weak self] row in
+            guard let self,self.rows.indices.contains(row) else{return nil};return self.rows[row].rawValue
+        },font:font,leadingInset:24)
+        table.reloadData();table.selectRowIndexes(selected,byExtendingSelection:false)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     private func cancelRead() { request = UUID(); token?.cancel(); token = nil; worker?.cancel(); worker = nil; busy = false }
     func refresh(reloadCompletion: Bool = false) {
         guard externalAvailability(), !closed, !hasBlockingChild, window?.parent?.attachedSheet == nil else { return }
         revisionTimer?.invalidate(); revisionTimer = nil; filterTimer?.invalidate(); filterTimer = nil
-        cancelRead(); snapshot = nil; snapshotBackendIdentity = nil; rows = []; subject.stringValue = ""; subject.toolTip = nil; table.reloadData(); previousSelection = []; lastSelected = nil
+        cancelRead(); snapshot = nil;snapshotRepository=nil; snapshotBackendIdentity = nil; rows = []; subject.stringValue = ""; subject.toolTip = nil; table.reloadData(); previousSelection = []; lastSelected = nil
         let name = revision.stringValue
         if reloadCompletion { completionCache = nil; completionBackendIdentity = nil; revision.removeAllItems(); revision.stringValue = name }
         let cancellation = OperationCancellation(), generation = UUID(); request = generation; token = cancellation; busy = true; status.stringValue = "Loading…"; updateAvailability()
+        let external=externalInteractionEpoch?()
         let useMailmap = GitIdentityDisplay(defaults: preferences).useMailmap
         let repository = self.repository.capturingDiffBackend(preferences: preferences)
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         worker = Task { [self] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+            defer {
+                Self.activeOperations -= 1;pendingOperations -= 1
+                if !closed,request==generation,token === cancellation {busy=false;token=nil;worker=nil;updateAvailability()}
+                withExtendedLifetime(access) {}
+            }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let identity = try await repository.localReferenceBackendIdentity(cancellation: cancellation)
-                guard !closed, request == generation, !cancellation.isCancelled else { return }
+                guard !closed, externalAvailability(),externalInteractionEpoch?()==external,request == generation, !cancellation.isCancelled else { return }
                 if completionBackendIdentity != identity { completionCache = nil }
                 if completionCache == nil {
                     let names: [GitReferenceName]
@@ -130,10 +176,10 @@ private final class CommitReferencesWindow: NSWindow {
                     } catch {
                         // GetRefList's status is ignored upstream: a completion failure
                         // must not prevent resolving a typed revision. F5 retries it.
-                        guard !closed, request == generation, !cancellation.isCancelled else { return }
+                        guard !closed, externalAvailability(),externalInteractionEpoch?()==external,request == generation, !cancellation.isCancelled else { return }
                         names = []
                     }
-                    guard !closed, request == generation, !cancellation.isCancelled else { return }
+                    guard !closed, externalAvailability(),externalInteractionEpoch?()==external,request == generation, !cancellation.isCancelled else { return }
                     completionCache = names; completionBackendIdentity = identity
                     revision.removeAllItems(); revision.addItems(withObjectValues: names.map(\.rawValue)); revision.stringValue = name
                 }
@@ -141,12 +187,12 @@ private final class CommitReferencesWindow: NSWindow {
                 let data: CommitContainingReferences
                 if let read { data = try await read(name, cancellation) }
                 else { data = try await repository.commitContainingReferences(name, includeCompletion: false, useMailmap: useMailmap, cancellation: cancellation) }
-                guard !closed, request == generation, !cancellation.isCancelled else { return }
-                snapshot = data; snapshotBackendIdentity = identity; busy = false; token = nil; worker = nil
+                guard !closed, externalAvailability(),externalInteractionEpoch?()==external,request == generation, !cancellation.isCancelled else { return }
+                snapshot = data;snapshotRepository=repository; snapshotBackendIdentity = identity; busy = false; token = nil; worker = nil
                 subject.stringValue = data.abbreviatedHash + ": " + data.subject; subject.toolTip = HistoryDateSettings.load(defaults: preferences).format(data.authorDate, absolute: true) + "  " + data.author
                 applyFilter(); updateAvailability()
             } catch {
-                guard !closed, request == generation, !cancellation.isCancelled else { return }
+                guard !closed, externalAvailability(),externalInteractionEpoch?()==external,request == generation, !cancellation.isCancelled else { return }
                 busy = false; token = nil; worker = nil; status.stringValue = "Invalid revision \"" + name + "\".\n" + error.localizedDescription; updateAvailability()
             }
         }
@@ -158,7 +204,7 @@ private final class CommitReferencesWindow: NSWindow {
     }
     func updateAvailability() {
         revision.isEnabled = externalAvailability() && !closed && !hasBlockingChild && window?.parent?.attachedSheet == nil
-        showLog.isEnabled = canAct && snapshot != nil && onLog != nil; chooser.isEnabled = canAct; filter.isEnabled = canAct && snapshot != nil; table.isEnabled = canAct
+        showLog.isEnabled = canAct && snapshot != nil && (onLog != nil || onCapturedLog != nil); chooser.isEnabled = canAct; filter.isEnabled = canAct && snapshot != nil; table.isEnabled = canAct
         let blocking = hasBlockingChild
         if reportedBlockingState != blocking { reportedBlockingState = blocking; blockingStateChanged() }
     }
@@ -168,7 +214,7 @@ private final class CommitReferencesWindow: NSWindow {
     }
     func controlTextDidChange(_ notification: Notification) {
         if notification.object as? NSComboBox === revision {
-            cancelRead(); snapshot = nil; snapshotBackendIdentity = nil; rows = []; subject.stringValue = ""; table.reloadData(); updateAvailability(); revisionTimer?.invalidate()
+            cancelRead(); snapshot = nil;snapshotRepository=nil; snapshotBackendIdentity = nil; rows = []; subject.stringValue = ""; table.reloadData(); updateAvailability(); revisionTimer?.invalidate()
             revisionTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: false) { [weak self] _ in MainActor.assumeIsolated { self?.refresh() } }
         } else if notification.object as? NSSearchField === filter {
             filterTimer?.invalidate()
@@ -191,7 +237,7 @@ private final class CommitReferencesWindow: NSWindow {
     func numberOfRows(in tableView: NSTableView) -> Int { rows.count }
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
         guard rows.indices.contains(row) else { return nil }
-        let cell = NSTableCellView(); let image = NSImageView(); let text = NSTextField(labelWithString: rows[row].rawValue); text.lineBreakMode = .byTruncatingTail
+        let cell = NSTableCellView(); let image = NSImageView(); let text = NSTextField(labelWithString: rows[row].rawValue); text.lineBreakMode = .byTruncatingTail;text.font=listFont ?? .systemFont(ofSize:NSFont.systemFontSize)
         image.image = ReferenceTypeIcon(referenceName: rows[row].rawValue)?.image(); image.translatesAutoresizingMaskIntoConstraints = false; text.translatesAutoresizingMaskIntoConstraints = false
         cell.addSubview(image); cell.addSubview(text); cell.imageView = image; cell.textField = text
         NSLayoutConstraint.activate([image.leadingAnchor.constraint(equalTo: cell.leadingAnchor, constant: 3), image.centerYAnchor.constraint(equalTo: cell.centerYAnchor), image.widthAnchor.constraint(equalToConstant: 16), image.heightAnchor.constraint(equalToConstant: 16), text.leadingAnchor.constraint(equalTo: image.trailingAnchor, constant: 5), text.trailingAnchor.constraint(equalTo: cell.trailingAnchor, constant: -3), text.centerYAnchor.constraint(equalTo: cell.centerYAnchor)])
@@ -203,21 +249,34 @@ private final class CommitReferencesWindow: NSWindow {
         previousSelection = table.selectedRowIndexes
     }
     var selectedReferences: [GitReferenceName] { table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0] : nil } }
-    @objc private func showCommitLog() { guard canAct, let data = snapshot else { return }; onLog?(data.hash, true, nil) }
+    private func dispatchLog(_ name:String?,_ select:Bool,_ range:HistoryRevisionRange?) {
+        guard canAct,let repository=snapshotRepository else{return}
+        if let onCapturedLog {onCapturedLog(repository,name,select,range)}else{onLog?(name,select,range)}
+    }
+    private func dispatchCompare(_ from:ComparisonRevision,_ to:ComparisonRevision) {
+        guard canAct,let snapshotRepository else{return}
+        if let onCapturedCompare {onCapturedCompare(snapshotRepository,from,to)}else{onCompare?(from,to)}
+    }
+    @objc private func showCommitLog() { guard canAct, let data = snapshot else { return };dispatchLog(data.hash,true,nil) }
     @objc private func navigateReference() {
         guard canAct, table.clickedRow >= 0, rows.indices.contains(table.clickedRow) else { return }
         let name = rows[table.clickedRow].rawValue, select = NSApp.currentEvent?.modifierFlags.contains(.shift) != true
+        let external=externalInteractionEpoch?()
         performRead { [weak self] token in
             guard let self else { return }
             let hash = try await repository.run(["rev-parse", "--verify", "--end-of-options", name + "^{commit}"], cancellation: token).text.trimmingCharacters(in: .newlines)
-            if externalAvailability(), !closed, !token.isCancelled { onNavigate(hash, select) }
+            if externalAvailability(),externalInteractionEpoch?()==external, !closed, !token.isCancelled { onNavigate(hash, select) }
         }
     }
     private func performRead(_ action: @escaping (OperationCancellation) async throws -> Void) {
         guard canAct else { return }; let cancellation = OperationCancellation(), generation = UUID(); token = cancellation; request = generation; busy = true; updateAvailability()
-        Self.activeOperations += 1
+        Self.activeOperations += 1;pendingOperations += 1
         worker = Task { [self] in
-            defer { Self.activeOperations -= 1; withExtendedLifetime(access) {} }
+            defer {
+                Self.activeOperations -= 1;pendingOperations -= 1
+                if !closed,request==generation,token === cancellation {busy=false;token=nil;worker=nil;updateAvailability()}
+                withExtendedLifetime(access) {}
+            }
             do { try await action(cancellation) }
             catch { if !closed, request == generation, !cancellation.isCancelled { status.stringValue = error.localizedDescription } }
             if !closed, request == generation { busy = false; token = nil; worker = nil; updateAvailability() }
@@ -225,26 +284,42 @@ private final class CommitReferencesWindow: NSWindow {
     }
     @objc private func chooseRevision(_ sender: NSMenuItem) {
         guard canAct, let owner = window else { return }
+        let request=UUID();pickerRequest=request;pickerDidClose=false;pickerExternalEpoch=externalInteractionEpoch?()
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
         switch sender.tag {
         case 0:
-            let child = ReferenceBrowserWindowController(repository: repository, access: access, initial: revision.stringValue, preferences: preferences, onChoose: { [weak self] value in self?.finishPicker(value) })
+            let child = ReferenceBrowserWindowController(repository: repository, access: access, initial: revision.stringValue, preferences: preferences, onChoose: { [weak self] value in self?.finishPicker(value,request:request) })
             picker = child; child.model.load()
         case 1:
-            let child = LogWindowController(repository: repository, access: access, onChoose: { [weak self] value in self?.finishPicker(value?.hash) }, labelDefaults: preferences, initialRevision: revision.stringValue)
-            child.model.onContainingLog = onLog; child.model.onBrowseRepository = onBrowse; child.model.onCompare = onCompare; child.model.onUnifiedDiff = onUnified
+            let child = LogWindowController(repository: repository, access: access, onChoose: { [weak self] value in self?.finishPicker(value?.hash,request:request) }, labelDefaults: preferences, initialRevision: revision.stringValue)
+            child.model.onContainingLog = onLog;child.model.onContainingRepositoryLog=onCapturedLog;child.model.onContainingRepositoryBrowse=onCapturedBrowse;child.model.onContainingRepositoryCompare=onCapturedCompare; child.model.onBrowseRepository = onBrowse; child.model.onCompare = onCompare; child.model.onUnifiedDiff = onUnified
             picker = child
         default:
-            picker = ReferenceLogWindowController(repository: repository, access: access, reference: "HEAD", onChoose: { [weak self] value in self?.finishPicker(value?.hash) }, preferences: preferences)
+            picker = ReferenceLogWindowController(repository: repository, access: access, reference: "HEAD", onChoose: { [weak self] value in self?.finishPicker(value?.hash,request:request) }, preferences: preferences)
         }
+        let closed:()->Void = { [weak self] in
+            guard let self,self.pickerRequest==request else{return};self.pickerDidClose=true
+        }
+        if let child=picker as? ReferenceBrowserWindowController {child.onClosed=closed}
+        if let child=picker as? LogWindowController {child.onClosed=closed}
+        if let child=picker as? ReferenceLogWindowController {child.onClosed=closed}
         if let child = picker?.window { child.alphaValue = owner.alphaValue; child.appearance = owner.appearance; owner.beginSheet(child) }
         updateAvailability()
     }
-    private func finishPicker(_ value: String?) {
-        guard !closed, let owner = window else { return }
-        picker = nil
-        if let sheet = owner.attachedSheet { owner.endSheet(sheet) }
-        if let value { revision.stringValue = value; refresh() } else { updateAvailability() }
-        owner.makeFirstResponder(revision)
+    private func finishPicker(_ value:String?,request:UUID) {
+        guard pickerRequest==request,!pickerReleasePending,let child=picker,let owner=window else{return}
+        pickerReleasePending=true
+        if let sheet=child.window,owner.attachedSheet === sheet {owner.endSheet(sheet)}
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child] in
+            pickerDidClose && child.window?.sheetParent==nil && child.window?.attachedSheet==nil && (child.window==nil || owner.attachedSheet !== child.window)
+        },completion:{ [self,child] in
+            pickerReleasePending=false
+            guard pickerRequest==request else{return}
+            picker=nil
+            guard !closed,externalAvailability(),externalInteractionEpoch?()==pickerExternalEpoch else{updateAvailability();return}
+            if let value {revision.stringValue=value;refresh()}else{updateAvailability()}
+            owner.makeFirstResponder(revision);withExtendedLifetime(child){}
+        });release.start()
     }
     var hasBlockingChild: Bool { !closed && (picker != nil || window?.attachedSheet != nil || unifiedViewer?.model.busy == true || unifiedViewer?.window?.attachedSheet != nil) }
     func handleKey(_ event: NSEvent) -> Bool {
@@ -259,10 +334,19 @@ private final class CommitReferencesWindow: NSWindow {
     func copySelection() { guard canAct else { return }; let names = selectedReferences; if !names.isEmpty { copyText(names.map(\.rawValue).joined(separator: "\n") + "\n") } }
     func windowShouldClose(_ sender: NSWindow) -> Bool { canAct && unifiedViewer?.model.busy != true && unifiedViewer?.window?.attachedSheet == nil }
     func windowWillClose(_ notification: Notification) {
-        closed = true;NativeListSelection.remove(from:table); cancelRead(); revisionTimer?.invalidate(); filterTimer?.invalidate()
-        if let sheet = window?.attachedSheet { window?.endSheet(sheet, returnCode: .abort); sheet.close() }
-        picker?.close(); picker = nil; unifiedViewer?.close(); unifiedViewer = nil; onClosed()
-        updateAvailability(); NotificationCenter.default.removeObserver(self)
+        guard !closed else{return}
+        closed=true;retiring=true;listFontObservation=nil;parentStateObservation=nil;NativeListSelection.remove(from:table);cancelRead();revisionTimer?.invalidate();filterTimer?.invalidate()
+        let closingWindow=window,presentingWindow=window?.sheetParent,child=picker,viewer=unifiedViewer,sheet=window?.attachedSheet
+        if let closingWindow,let presentingWindow {presentingWindow.endSheet(closingWindow,returnCode:.abort)}
+        child?.close();viewer?.close()
+        if let sheet {sheet.sheetParent?.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)}
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,viewer] in
+            pendingOperations==0 && !pickerReleasePending && (child==nil || pickerDidClose) && child?.window?.sheetParent==nil && child?.window?.attachedSheet==nil && viewer?.model.busy != true && viewer?.window?.sheetParent==nil && closingWindow?.sheetParent==nil && closingWindow?.attachedSheet==nil && (closingWindow==nil || presentingWindow?.attachedSheet !== closingWindow)
+        },completion:{ [self,child,viewer] in
+            picker=nil;unifiedViewer=nil;retiring=false
+            let finish=onClosed;onClosed={};finish();withExtendedLifetime((child,viewer,access)){}
+        });release.start()
+        updateAvailability();NotificationCenter.default.removeObserver(self)
     }
 }
 
@@ -270,40 +354,43 @@ extension CommitContainingReferencesWindowController: NSMenuDelegate {
     func menuNeedsUpdate(_ menu: NSMenu) {
         menu.removeAllItems(); menu.autoenablesItems = false
         guard canAct else { return }; let names = selectedReferences
-        func item(_ title: String, _ command: String, _ icon: MenuIcon, enabled: Bool = true) {
-            let item = NSMenuItem(title: title, action: #selector(menuAction(_:)), keyEquivalent: ""); item.target = self; item.representedObject = command; item.image = icon.contextImage(defaults: preferences); item.isEnabled = enabled; menu.addItem(item)
+        func item(_ title: String, _ command: String, _ icon: MenuIcon, enabled: Bool = true,localized:Bool=true) {
+            let item = NSMenuItem(title:localized ? HistoryLabels.caption(title):title, action: #selector(menuAction(_:)), keyEquivalent: ""); item.target = self; item.representedObject = MenuCommand(request:request,external:externalInteractionEpoch?(),command:command,names:names);item.identifier = .init("CommitReferences."+command); item.image = icon.contextImage(defaults: preferences); item.isEnabled = enabled; menu.addItem(item)
         }
         if names.count == 2 {
-            item("Compare revisions", "compare", .compare, enabled: onCompare != nil); item("Unified diff", "unified", .unifiedDiff); menu.addItem(.separator())
+            item("Compare revisions", "compare", .compare, enabled: onCompare != nil || onCapturedCompare != nil); item("Unified diff", "unified", .unifiedDiff); menu.addItem(.separator())
             let range = ReferenceBrowserRange(references: names, lastSelected: lastSelected)!
-            item("Show log of " + range.label(), "range", .log, enabled: onLog != nil)
-            item("Show log of " + range.label(symmetric: true), "symmetric", .log, enabled: onLog != nil); menu.addItem(.separator())
+            item(HistoryLabels.text("Show log of {range}",values:["range":range.label()]), "range", .log, enabled: onLog != nil || onCapturedLog != nil,localized:false)
+            item(HistoryLabels.text("Show log of {range}",values:["range":range.label(symmetric:true)]), "symmetric", .log, enabled: onLog != nil || onCapturedLog != nil,localized:false); menu.addItem(.separator())
         } else if names.count == 1 {
-            item("Show log", "log", .log, enabled: onLog != nil); menu.addItem(.separator()); item("Browse repository", "browse", .repositoryBrowser, enabled: onBrowse != nil)
-            if snapshot?.bare == false { menu.addItem(.separator()); item("Compare with working tree", "working", .compare, enabled: onCompare != nil) }
+            item("Show log", "log", .log, enabled: onLog != nil || onCapturedLog != nil); menu.addItem(.separator()); item("Browse repository", "browse", .repositoryBrowser, enabled: onBrowse != nil || onCapturedBrowse != nil)
+            if snapshot?.bare == false { menu.addItem(.separator()); item("Compare with working tree", "working", .compare, enabled: onCompare != nil || onCapturedCompare != nil) }
             menu.addItem(.separator())
         }
         if !names.isEmpty { item("Copy", "copy", .copy) }
     }
     @objc func menuAction(_ item: NSMenuItem) {
-        guard canAct, let command = item.representedObject as? String else { return }; let names = selectedReferences
+        guard canAct,let receipt=item.representedObject as? MenuCommand,receipt.request==request,receipt.external==externalInteractionEpoch?(),receipt.names==selectedReferences else{return}
+        let command=receipt.command,names=receipt.names
         switch command {
         case "copy": copySelection()
-        case "log" where names.count == 1: onLog?(names[0].rawValue, false, nil)
-        case "browse" where names.count == 1: onBrowse?(names[0].rawValue)
-        case "working" where names.count == 1 && snapshot?.bare == false: onCompare?(.revision(names[0].rawValue), .workingTree)
-        case "compare" where names.count == 2: onCompare?(.revision(names[0].rawValue), .revision(names[1].rawValue))
-        case "range", "symmetric": if let range = ReferenceBrowserRange(references: names, lastSelected: lastSelected) { onLog?(nil, false, range.history(symmetric: command == "symmetric")) }
+        case "log" where names.count == 1: dispatchLog(names[0].rawValue,false,nil)
+        case "browse" where names.count == 1:
+            if let onCapturedBrowse,let snapshotRepository {onCapturedBrowse(snapshotRepository,names[0].rawValue)}else{onBrowse?(names[0].rawValue)}
+        case "working" where names.count == 1 && snapshot?.bare == false: dispatchCompare(.revision(names[0].rawValue),.workingTree)
+        case "compare" where names.count == 2: dispatchCompare(.revision(names[0].rawValue),.revision(names[1].rawValue))
+        case "range", "symmetric": if let range = ReferenceBrowserRange(references: names, lastSelected: lastSelected) { dispatchLog(nil,false,range.history(symmetric:command == "symmetric")) }
         case "unified" where names.count == 2:
-            let repository=self.repository.capturingDiffBackend(preferences:preferences)
+            guard let repository=snapshotRepository else{return}
             let alternate = NSApp.currentEvent?.modifierFlags.contains(.shift) == true
+            let external=externalInteractionEpoch?()
             performRead { [weak self] token in
                 guard let self else { return }
                 let data = try await repository.revisionComparison(from: .revision(names[0].rawValue), to: .revision(names[1].rawValue), cancellation: token)
                 let bytes = try await repository.revisionComparisonPatchData(data, cancellation: token)
-                guard externalAvailability(), !closed, !token.isCancelled else { return }
+                guard externalAvailability(),externalInteractionEpoch?()==external, !closed, !token.isCancelled else { return }
                 if let onUnified { try await onUnified(bytes, alternate) }
-                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: names.map(\.rawValue).joined(separator: ":"), permissions: access.map { [$0] } ?? [], cancellation: token), externalAvailability(), !closed, !token.isCancelled {
+                else if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: names.map(\.rawValue).joined(separator: ":"), permissions: access.map { [$0] } ?? [], cancellation: token), externalAvailability(),externalInteractionEpoch?()==external, !closed, !token.isCancelled {
                     unifiedViewer = UnifiedDiffApplication.presentBuiltin(bytes, repository: repository, access: access, existing: unifiedViewer, title: names.map(\.rawValue).joined(separator: ":"), preferences: preferences, onClosed: { [weak self] in self?.unifiedViewer = nil })
                 }
             }

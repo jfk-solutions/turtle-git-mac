@@ -348,18 +348,25 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { sender.attachedSheet == nil && !model.mutating && !model.confirmingQuit }
+    override func close(){guard !retired else{return};super.close();if !retired,window?.isVisible != true {retireWindow()}}
     func windowWillClose(_ notification:Notification) {
-        guard !retired else{return};retired=true;model.invalidate()
+        guard notification.object as? NSWindow === window else{return};retireWindow()
+    }
+    private func retireWindow() {
+        guard !retired else{return};retired=true
+        let closingWindow=window,presentingWindow=window?.sheetParent,attached=window?.attachedSheet
+        let operation=fileOperation,child=picker,sheet=ownedSheet
+        model.invalidate()
         storedBlobWindows.forEach{$0.close()};storedBlobWindows=[]
         submoduleUpdateReply?(.cancel)
-        let operation=fileOperation,child=picker,sheet=ownedSheet
         fileOperation=nil;model.handlingFile=false;operation?.retire()
         pickerIdentity=nil;pickerChoice=nil;model.choosingRevision=false
         if let sheet {sheet.sheetParent?.endSheet(sheet,returnCode:.cancel);sheet.orderOut(nil)}
+        if let closingWindow {if let attached{closingWindow.endSheet(attached,returnCode:.abort);attached.close()};closingWindow.sheetParent?.endSheet(closingWindow,returnCode:.abort)}
         ownedSheet=nil;child?.close();picker=nil
         retiredChecks=[{operation?.hasPendingWork == true || (child?.model.pendingHistoryLoads ?? 0)>0 || child?.model.noteWorkPending == true || child?.window?.sheetParent != nil || sheet?.sheetParent != nil}]
         releasing=true
-        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,operation] in !model.hasPendingWork && !retiredChecks.contains{$0()} },completion:{ [self,child,operation] in
+        let release=FinderFilesystemWorkflowRelease(ready:{ [self,child,operation] in !model.hasPendingWork && !pickerRelease && !retiredChecks.contains{$0()} && closingWindow?.sheetParent==nil && closingWindow?.attachedSheet==nil && (closingWindow==nil || presentingWindow?.attachedSheet !== closingWindow) && attached?.sheetParent==nil },completion:{ [self,child,operation] in
             retiredChecks=[];releasing=false;let finish=onClosed;onClosed={};finish();withExtendedLifetime((child,operation)){}
         });release.start()
     }
@@ -378,7 +385,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
 @MainActor final class RepositoryBrowserWindowModel: ObservableObject {
     let repository: GitRepository
     let access: RepositoryAccessLease?
-    @Published var revision: String {didSet{if revision != oldValue{archiveCancellation?.cancel()}}}
+    @Published var revision: String {didSet{if !GitReferenceName.equal(revision,oldValue){menuGeneration=UUID();cancelFileRead()}}}
     @Published private(set) var revisionLabel:String
     @Published var choosingRevision=false {didSet{transferEpoch=UUID()}}
     @Published var handlingFile=false {didSet{transferEpoch=UUID()}}
@@ -569,8 +576,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     /// One-shot file context supplied by Blame or another historical file view.
     var initialFile: String?
     func refresh() {
-        guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision,!handlingFile,openRequest==nil else { return }
+        guard active,!mutating,!confirmingQuit,!confirmingColumns,!choosingRevision,!handlingFile else { return }
         cancelRequests()
+        // Navigation retires logical delivery immediately, not the actual I/O.
+        // Old requests remain in accounting until their workers really drain.
+        openRequest=nil
         let identity = UUID(); generation = identity; busy = true; error = nil; loads = []
         transferInventory=nil;transferInventoryError=nil;transferInventoryBusy=false
         transferDirectories=[:];transferDirectoryErrors=[:];transferDirectoryLoads=[]
@@ -630,6 +640,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard snapshot.treeID != nil else{return}
         transferInventoryBusy=true
         let (request,cancellation)=startRequest()
+        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         Task { [self,repository,access] in
             defer{finishRequest(request);if active,generation==identity{transferInventoryBusy=false};withExtendedLifetime(access){}}
             do {
@@ -689,6 +700,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         guard !transferDirectoryLoads.contains(directory) else{return}
         transferDirectoryLoads.insert(directory)
         let identity=generation,(request,cancellation)=startRequest()
+        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         Task { [self,repository,access] in
             defer{finishRequest(request);if active,generation==identity{transferDirectoryLoads.remove(directory)};withExtendedLifetime(access){}}
             do {
@@ -704,15 +716,19 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     }
 
     func loadDirectory(_ path: String, select: Bool) {
-        guard active, !busy, !mutating, !confirmingQuit, !confirmingColumns,!choosingRevision,!handlingFile, let snapshot, snapshot.treeID != nil else { return }
+        guard canNavigate,let snapshot,snapshot.treeID != nil else{return}
         let identity = generation
-        if select { menuGeneration = UUID(); requestedDirectory = path }
+        if select {
+            if let openRequest {requests[openRequest]?.cancel();self.openRequest=nil;busy=false}
+            menuGeneration=UUID();requestedDirectory=path
+        }
         if let cached = listings[path] {
             if select { self.snapshot = cached; selection = [] }
             return
         }
         guard !loads.contains(path) else { return }; loads.insert(path)
         let (request, cancellation) = startRequest()
+        let repository=self.repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         Task { [self, repository, access] in
             defer { finishRequest(request); if active && generation == identity { loads.remove(path) }; withExtendedLifetime(access) {} }
             do {
@@ -928,8 +944,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         target.entries.allSatisfy { snapshot?.entries.contains($0) == true }
     }
     var canUseMenu: Bool { active && !busy && !mutating && !confirmingQuit && !confirmingColumns && !choosingRevision && !handlingFile }
+    var canNavigate:Bool {active && (!busy || openRequest != nil) && !mutating && !confirmingQuit && !confirmingColumns && !choosingRevision && !handlingFile}
     func folderObjectID(_ path: String) -> String? {
-        guard canUseMenu, let snapshot, snapshot.objectID != nil else { return nil }
+        guard canNavigate, let snapshot, snapshot.objectID != nil else { return nil }
         if path.isEmpty { return snapshot.treeID }
         let parent = parentPath(path)
         return directories[parent == "." ? "" : parent]?.first { RepositoryBrowserPathIdentity.equal($0.path,path) && $0.kind == .directory }?.objectID
@@ -939,7 +956,7 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         expanded.insert(path); loadDirectory(path,select:true)
     }
     func folderPromise(_ path: String) -> NSFilePromiseProvider? {
-        guard folderObjectID(path) != nil, let snapshot,requireRepresentable(path) else { return nil }
+        guard canUseMenu,folderObjectID(path) != nil, let snapshot,requireRepresentable(path) else { return nil }
         do { try validateAccess() } catch { self.error = error.localizedDescription; return nil }
         return RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,directory:path,backend:materializationBackend()).provider()
     }
@@ -1156,6 +1173,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
             guard available,NSApp.modalWindow==nil else{return nil};return model.captureTreeTransfer(path)
         }
         var available:Bool { !retired && model.canUseMenu && outline?.window?.attachedSheet==nil }
+        var navigationAvailable:Bool {!retired && model.canNavigate && outline?.window?.attachedSheet==nil}
         init(_ model:RepositoryBrowserWindowModel) { self.model=model }
         func node(_ path:String) -> Node { if let value=nodes[path] { return value };let value=Node(path);nodes[path]=value;return value }
         func folders(_ path:String) -> [RepositoryBrowserEntry] { RepositoryBrowserListing.sorted(children[path] ?? []).filter { $0.kind == .directory } }
@@ -1193,7 +1211,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
             }
             // Sheets suppress actions through available, but must not leave the
             // outline disabled after dismissal without a model publication.
-            outline.isEnabled = !retired && model.canUseMenu
+            outline.isEnabled = !retired && model.canNavigate
         }
         func outlineView(_ outlineView:NSOutlineView, numberOfChildrenOfItem item:Any?) -> Int { item == nil ? 1 : (item as? Node).map { folders($0.path).count } ?? 0 }
         func outlineView(_ outlineView:NSOutlineView, child index:Int, ofItem item:Any?) -> Any {
@@ -1216,23 +1234,23 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
         func outlineView(_ outlineView:NSOutlineView, typeSelectStringFor tableColumn:NSTableColumn?, item:Any) -> String? {
             (item as? Node).map { $0.path.isEmpty ? model.repository.root.lastPathComponent : (try? RepositoryBrowserGitPath(key:$0.path).lastComponentDisplay) ?? "" }
         }
-        func outlineView(_ outlineView:NSOutlineView, shouldExpandItem item:Any) -> Bool { updating || available }
-        func outlineView(_ outlineView:NSOutlineView, shouldCollapseItem item:Any) -> Bool { updating || available }
-        func outlineView(_ outlineView:NSOutlineView, shouldSelectItem item:Any) -> Bool { updating || available }
+        func outlineView(_ outlineView:NSOutlineView, shouldExpandItem item:Any) -> Bool { updating || navigationAvailable }
+        func outlineView(_ outlineView:NSOutlineView, shouldCollapseItem item:Any) -> Bool { updating || navigationAvailable }
+        func outlineView(_ outlineView:NSOutlineView, shouldSelectItem item:Any) -> Bool { updating || navigationAvailable }
         func outlineViewItemDidExpand(_ notification:Notification) {
-            guard !updating,available,let item=notification.userInfo?["NSObject"] as? Node else { return }
+            guard !updating,navigationAvailable,let item=notification.userInfo?["NSObject"] as? Node else { return }
             model.expanded.insert(item.path);model.loadDirectory(item.path,select:false)
         }
         func outlineViewItemDidCollapse(_ notification:Notification) {
-            guard !updating,available,let item=notification.userInfo?["NSObject"] as? Node else { return }
+            guard !updating,navigationAvailable,let item=notification.userInfo?["NSObject"] as? Node else { return }
             model.expanded.remove(item.path)
         }
         func outlineViewSelectionDidChange(_ notification:Notification) {
-            guard !updating,available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return }
+            guard !updating,navigationAvailable,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return }
             model.loadDirectory(item.path,select:true)
         }
         @objc func openSelected() {
-            guard available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return }
+            guard navigationAvailable,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node else { return }
             model.openFolder(item.path)
         }
         func copySelected() {
@@ -1266,7 +1284,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
             switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);case 4:model.saveArchive(directory:action.path);default:break }
         }
         func outlineView(_ outlineView:NSOutlineView,writeItems items:[Any],to pasteboard:NSPasteboard)->Bool {
-            guard let outline=outlineView as? RepositoryBrowserFolderOutline,outline.acceptsDragGesture,items.count==1,let node=items.first as? Node,let transfer=captureDrag(node.path),transfer.write(to:pasteboard) else{return false}
+            guard let outline=outlineView as? RepositoryBrowserFolderOutline,items.count==1,let node=items.first as? Node,outline.acceptsDragItem(node),let transfer=captureDrag(node.path),transfer.write(to:pasteboard) else{return false}
             activeTransfer=transfer;return true
         }
         func outlineView(_ outlineView:NSOutlineView,draggingSession session:NSDraggingSession,willBeginAt screenPoint:NSPoint,forItems draggedItems:[Any]) {
@@ -1282,13 +1300,16 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
 @MainActor final class RepositoryBrowserFolderOutline:NSOutlineView {
     var dragContext:()->String?={nil}
     private var dragStart:String?
+    private var dragItem:NSObject?
     var acceptsDragGesture:Bool{dragStart != nil && dragStart==dragContext()}
+    func acceptsDragItem(_ item:NSObject)->Bool {acceptsDragGesture && dragItem === item}
     @discardableResult func captureDragGesture(_ event:NSEvent)->Bool {
-        dragStart=nil
+        dragStart=nil;dragItem=nil
         guard event.type == .leftMouseDown,event.window === window,isEnabled,row(at:convert(event.locationInWindow,from:nil))>=0 else{return false}
-        dragStart=dragContext();return dragStart != nil
+        dragItem=item(atRow:row(at:convert(event.locationInWindow,from:nil))) as? NSObject
+        dragStart=dragContext();return dragStart != nil && dragItem != nil
     }
-    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil};super.mouseDown(with:event)}
+    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil;dragItem=nil};super.mouseDown(with:event)}
     var openSelection:()->Void = {},copySelection:()->Void = {}
     var contextSelection:(Int)->Void = { _ in }
     override func keyDown(with event:NSEvent) {

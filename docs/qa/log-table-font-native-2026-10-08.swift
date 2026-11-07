@@ -104,8 +104,8 @@ import TurtleGitCore
         precondition(!commit.busy && commit.commitIdentityPrepared && commit.error == nil)
         commit.entries = try await repo.status(); commit.selection = GitPathSet(commit.entries.map(\.id)); commit.checked = commit.selection
         let commitSelection = commit.selection, commitChecked = commit.checked
-        let commitHost = NSHostingView(rootView: CommitDialog(model: commit).fileTable(commit.entries, staged: nil).defaultAppStorage(prefs))
-        let commitWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
+        let commitHost = NSHostingView(rootView: CommitDialog(model: commit).defaultAppStorage(prefs))
+        let commitWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         commitWindow.isReleasedWhenClosed = false; commitWindow.contentView = commitHost; defer { commitWindow.close() }
         try await settle(commitHost); let commitTable = table(in: commitHost)!, interaction = probe(in: commitHost)!
         let commitRows = StatusListGroups.rows(entries: commit.sortedFiles(commit.entries, statistics: commit.statistics), changelists: commit.changelists, locallyIgnored: [])
@@ -113,7 +113,8 @@ import TurtleGitCore
         precondition(commitTable.numberOfRows == commitRows.count && interaction.fileListFont == nil, "Commit group/file row count or default font mismatch")
         let normalCommitHeight = commitTable.rect(ofRow: fileRow).height
         prefs.set(true, forKey: "LogFontForFileListCtrl"); prefs.set(22, forKey: "LogFontSize"); try await settle(commitHost)
-        precondition(interaction.fileListFont?.pointSize == 22 && commitTable.rect(ofRow: fileRow).height > normalCommitHeight)
+        precondition(interaction.fileListFont?.pointSize == 22, "Commit probe font expected22, got \(String(describing:interaction.fileListFont)); actual full dialog")
+        precondition(commitTable.rect(ofRow: fileRow).height > normalCommitHeight, "Commit row height expected growth from \(normalCommitHeight), got \(commitTable.rect(ofRow:fileRow).height), native rowHeight=\(commitTable.rowHeight)")
         let pathColumn = commitTable.tableColumns.first { $0.title == "Path" }!
         let fit = interaction.fittedWidth(pathColumn, definition: .path, includeHeader: false)
         let font = MessageEditorFont.resolve(name: "Menlo", size: 22)

@@ -26,7 +26,17 @@ excessive unconditional Metafile playback refuse before expensive painting.
 The signed build53 package above retains its original source and observed Quit
 delay; these later changes are not silently installed. Complete corrected-source
 hosted, signed/physical and whole-dialog acceptance remain open. The History
-failures below remain a separate next workflow family.
+continuation below records its own later source and validation scope.
+
+## History, Browser and Export continuation
+
+The [connected recovery](HISTORY-BROWSER-RECOVERY.md) repairs Browser delivery and
+physical ownership, containing-reference routes and Log graph visibility, and
+ordinary Export destination publication. Its
+[checkpoint](qa/history-browser-recovery-2026-11-08.json) retains the original
+hosted diagnostics and distinguishes source repairs from stale receiver behavior.
+The separate Merge Save/history failure still needs its own connected editor
+batch. These newer source changes have not replaced installed52 or signed53.
 
 ## Current acceptance queue
 

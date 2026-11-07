@@ -17,15 +17,16 @@ import Darwin
     }
     @MainActor static func main() async {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        do { try await verify(); fflush(stdout) }
+        do { try await ComparisonToolInvocation.$alternate.withValue(false) { try await verify() }; fflush(stdout) }
         catch { print("FAIL: \(error)"); fflush(stdout); exit(1) }
     }
     @MainActor static func verify() async throws {
         let root = URL(fileURLWithPath: CommandLine.arguments[1])
-        let repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        let repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]),libgit2Configuration:.init(enabled:false))
         let helper = URL(fileURLWithPath: CommandLine.arguments[3] == "revision-graph" ? "build/graph-layout-runtime/GraphLayout/graph-layout" : CommandLine.arguments[3])
         let suite = "TurtleGit.RevisionGraph.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
+        prefs.set(false,forKey:"UseLibgit2")
         _ = try await repo.run(["init", "-b", "main"])
         _ = try await repo.run(["config", "user.name", "Graph Test"])
         _ = try await repo.run(["config", "user.email", "graph@example.invalid"])
@@ -49,9 +50,21 @@ import Darwin
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), config = try Data(contentsOf: root.appendingPathComponent(".git/config")), bytes = try Data(contentsOf: file)
         let controller = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
         let window = controller.window!, model = controller.model
+        // A detached sheet is only one stage of child retirement. Reopen
+        // after the captured child delivered once, all work drained and the
+        // actual parent command admission guards are available again.
+        let filterAdmission = NSMenuItem(title: "Filter", action: nil, keyEquivalent: "")
+        filterAdmission.representedObject = "filter"
+        func settledGraph(after child: RevisionGraphFilterController? = nil, line: UInt = #line) async throws {
+            try await wait({
+                controller.filter == nil && child?.hasPendingWork != true &&
+                !controller.hasPendingWork && !model.hasPendingWork && !model.busy &&
+                window.attachedSheet == nil && controller.validateMenuItem(filterAdmission)
+            }, line: line)
+        }
         window.alphaValue = 0; window.orderFront(nil)
         defer { window.close() }
-        model.load(); try await wait { !model.busy }
+        model.load(); try await wait { !model.busy && !model.hasPendingWork }
         try require(model.error == nil && model.nodes.count == 3 && model.geometry?.nodes.count == 3)
         let originalFont = model.font
         try require(originalFont.pointSize == 12 && model.options.ordering == .topological)
@@ -63,7 +76,7 @@ import Darwin
         prefs.set("Courier", forKey:"LogFontName"); prefs.set(88, forKey:"LogFontSize")
         HistoryOrdering.authorDate.save(defaults:prefs)
         try require(model.font.fontName==originalFont.fontName)
-        model.load();try await wait { !model.busy }
+        model.load();try await wait { !model.busy && !model.hasPendingWork }
         try require(model.error==nil && model.font.familyName=="Courier" && model.font.pointSize==12 && model.options.ordering == .authorDate)
         let customSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
         let customDOT=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.graphviz,appearance:NSAppearance(named:.aqua)!)
@@ -73,10 +86,10 @@ import Darwin
         try require(XMLParser(data:customSVG).parse() && String(decoding:customSVG,as:UTF8.self).contains("<path") && customSVG != originalSVG)
         try require(String(decoding:customDOT,as:UTF8.self).contains("fontname=\"Courier\", fontsize=12.000"))
         let publishedFont=model.font,publishedGeometry=model.geometry!.nodes.map(\.rect)
-        prefs.set("Helvetica",forKey:"LogFontName");model.options.to="missing-graph-font-revision";model.load();try await wait { !model.busy }
+        prefs.set("Helvetica",forKey:"LogFontName");model.options.to="missing-graph-font-revision";model.load();try await wait { !model.busy && !model.hasPendingWork }
         try require(model.error != nil && model.font.fontName==publishedFont.fontName && model.geometry!.nodes.map(\.rect)==publishedGeometry)
         prefs.set("TurtleGit-no-such-font",forKey:"LogFontName");prefs.removeObject(forKey:"LogFontSize");HistoryOrdering.topological.save(defaults:prefs);model.options.to=""
-        model.load();try await wait { !model.busy }
+        model.load();try await wait { !model.busy && !model.hasPendingWork }
         try require(model.error==nil && model.font.familyName==originalFont.familyName && model.font.pointSize==12)
         prefs.removeObject(forKey:"LogFontName");prefs.removeObject(forKey:HistoryOrdering.preferenceKey)
         window.contentView!.layoutSubtreeIfNeeded(); controller.update()
@@ -98,7 +111,7 @@ import Darwin
         func toggle(_ command: String) async throws {
             let item = displayItem(controller, command)
             try require(NSApp.sendAction(item.action!, to: item.target, from: item))
-            try await wait { !model.busy }
+            try await wait { !model.busy && !model.hasPendingWork }
         }
         try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
         try require(prefs.bool(forKey: keys[0]) && prefs.bool(forKey: keys[1]) && prefs.bool(forKey: keys[2]) && !prefs.bool(forKey: keys[3]))
@@ -110,13 +123,13 @@ import Darwin
         for (command, state) in [("overview", NSControl.StateValue.on), ("arrows", .on), ("branchings", .on), ("tags", .off)] {
             let item = displayItem(reopened, command); try require(reopened.validateMenuItem(item) && item.state == state)
         }
-        reopened.window!.close(); try require(reopened.model.closed)
+        reopened.window!.close(); try await wait { !reopened.hasPendingWork }; try require(reopened.model.closed)
         reopened.perform("arrows"); try require(prefs.bool(forKey: keys[1]))
         model.options.from = ""; model.options.onlyCurrentBranch = false; model.zoom = 1
         // Loading/sheet guards must reject actions before touching saved state.
         model.load(); try require(model.busy)
         controller.perform("overview"); try require(model.showOverview && prefs.bool(forKey: keys[0]))
-        try await wait { !model.busy }
+        try await wait { !model.busy && !model.hasPendingWork }
         try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
         try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
         try require(!prefs.bool(forKey: keys[0]) && !prefs.bool(forKey: keys[1]) && !prefs.bool(forKey: keys[2]) && prefs.bool(forKey: keys[3]))
@@ -154,19 +167,45 @@ import Darwin
         try require(model.selection.isEmpty)
         controller.canvas.mouseUp(with: mouse(.leftMouseUp, blank))
         let scroll = controller.canvas.enclosingScrollView!, clip = scroll.contentView
-        let originalSize = controller.canvas.frame.size
-        let down = mouse(.leftMouseDown, blank)
-        controller.canvas.mouseDown(with: down)
-        // Selection redraw restores the real graph size. Enlarge only after
-        // mouse-down to provide scrollable space for this small graph fixture.
-        controller.canvas.setFrameSize(NSSize(width: originalSize.width + 1000, height: originalSize.height + 1000))
-        clip.scroll(to: NSPoint(x: 100, y: 100)); scroll.reflectScrolledClipView(clip)
-        let drag = NSEvent.mouseEvent(with: .leftMouseDragged, location: NSPoint(x: down.locationInWindow.x - 30, y: down.locationInWindow.y + 40), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 0)!
-        controller.canvas.mouseDragged(with: drag)
-        try require(abs(clip.bounds.minX - 130) < 1 && abs(clip.bounds.minY - 140) < 1)
-        controller.canvas.mouseUp(with: drag)
-        controller.canvas.mouseDragged(with: down); try require(abs(clip.bounds.minX - 130) < 1)
-        controller.canvas.setFrameSize(originalSize); clip.scroll(to: .zero); scroll.reflectScrolledClipView(clip)
+        let originalZoom=model.zoom,originalScrollerStyle=scroll.scrollerStyle
+        // Use the actual loaded graph and its supported custom zoom route.
+        // Enlarging the document after a press can introduce legacy scrollers
+        // and change contentSize, correctly retiring the accepted pan receipt.
+        // Both native styles must instead receive a settled, scrollable graph.
+        for style in [NSScroller.Style.legacy,.overlay] {
+            scroll.scrollerStyle=style;scroll.tile();window.contentView!.layoutSubtreeIfNeeded();controller.update()
+            guard let size=model.geometry?.size,size.width>0,size.height>0 else{throw Failure(line:#line)}
+            let zoom=max(1,(scroll.contentSize.width+300)/size.width,(scroll.contentSize.height+300)/size.height)
+            try require(controller.canvas.setZoom(zoom))
+            scroll.tile();window.contentView!.layoutSubtreeIfNeeded();controller.update();scroll.tile()
+            try require(controller.canvas.bounds.width>clip.bounds.width+200 && controller.canvas.bounds.height>clip.bounds.height+200)
+            clip.scroll(to:NSPoint(x:100,y:100));scroll.reflectScrolledClipView(clip)
+            try require(abs(clip.bounds.minX-100)<1 && abs(clip.bounds.minY-100)<1)
+            let visible=scroll.documentVisibleRect
+            var points:[NSPoint]=[]
+            for row in 1..<12 {
+                let y:CGFloat=visible.minY+CGFloat(row)*visible.height/12
+                for column in 1..<12 {
+                    let x:CGFloat=visible.minX+CGFloat(column)*visible.width/12
+                    points.append(NSPoint(x:x,y:y))
+                }
+            }
+            guard let surface=points.first(where:{controller.canvas.hit($0)==nil}) else{throw Failure(line:#line)}
+            let down=mouse(.leftMouseDown,surface)
+            controller.canvas.mouseDown(with:down)
+            try require(controller.canvas.hasPointerGesture && controller.canvas.pointerCursor == NSCursor.closedHand)
+            let acceptedViewport=scroll.contentSize,acceptedFrame=controller.canvas.frame.size
+            let drag=NSEvent.mouseEvent(with:.leftMouseDragged,location:NSPoint(x:down.locationInWindow.x-30,y:down.locationInWindow.y+40),modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:0)!
+            controller.canvas.mouseDragged(with:drag)
+            try require(scroll.contentSize==acceptedViewport && controller.canvas.frame.size==acceptedFrame)
+            try require(abs(clip.bounds.minX-130)<1 && abs(clip.bounds.minY-140)<1)
+            controller.canvas.mouseUp(with:drag)
+            controller.canvas.mouseDragged(with:down)
+            try require(!controller.canvas.hasPointerGesture && abs(clip.bounds.minX-130)<1 && abs(clip.bounds.minY-140)<1)
+            try require(controller.canvas.setZoom(originalZoom))
+            clip.scroll(to:.zero);scroll.reflectScrolledClipView(clip)
+        }
+        scroll.scrollerStyle=originalScrollerStyle;scroll.tile();window.contentView!.layoutSubtreeIfNeeded();controller.update()
         func wheel(_ delta: Int32, flags: CGEventFlags) -> NSEvent {
             let cg = CGEvent(scrollWheelEvent2Source: nil, units: .line, wheelCount: 1, wheel1: delta, wheel2: 0, wheel3: 0)!
             cg.flags = flags; return NSEvent(cgEvent: cg)!
@@ -269,7 +308,7 @@ import Darwin
         window.makeFirstResponder(nil); controller.perform("zoom100")
         model.load(); try require(!zoomBox.isEnabled && toolbarControls.allSatisfy { !$0.isEnabled })
         try zoomText("75%"); try require(model.zoom == 1 && zoomBox.stringValue == "100%")
-        try await wait { !model.busy }; try require(zoomBox.isEnabled)
+        try await wait { !model.busy && !model.hasPendingWork }; try require(zoomBox.isEnabled)
         print("PASS: Revision Graph editable zoom presets, custom percentages, native Return, synchronized display and invalid/busy guards")
         let overview = views(window.contentView!).compactMap { $0 as? RevisionGraphOverview }.first!
         let tall = RevisionGraphOverview.layout(graph: CGSize(width: 4000, height: 8000), viewport: CGSize(width: 960, height: 560))
@@ -288,24 +327,38 @@ import Darwin
         try require(abs(overview.frame.maxX - resizedViewport.maxX) < 1 && abs(overview.frame.minY - resizedViewport.minY) < 1)
         try require(overview.frame.width > 0 && overview.scale <= 1)
         window.setFrame(originalWindowFrame, display: false); window.contentView!.layoutSubtreeIfNeeded(); controller.update()
-        model.zoom = 2; controller.update()
-        controller.canvas.setFrameSize(CGSize(width: 3000, height: 3000))
-        clip.scroll(to: NSPoint(x: 100, y: 100)); scroll.reflectScrolledClipView(clip)
-        let selectedPair = model.selection
-        func overviewEvent(_ type: NSEvent.EventType, _ point: NSPoint) -> NSEvent {
-            NSEvent.mouseEvent(with: type, location: overview.convert(point, to: nil), modifierFlags: [], timestamp: 0, windowNumber: window.windowNumber, context: nil, eventNumber: 1, clickCount: 1, pressure: 0)!
+        guard let overviewGraphSize=model.geometry?.size,overviewGraphSize.width>0,overviewGraphSize.height>0 else{throw Failure(line:#line)}
+        scroll.tile();window.contentView!.layoutSubtreeIfNeeded();controller.update()
+        let overviewZoom=max(2,(scroll.contentSize.width+300)/overviewGraphSize.width,(scroll.contentSize.height+300)/overviewGraphSize.height)
+        try require(controller.canvas.setZoom(overviewZoom))
+        scroll.tile();window.contentView!.layoutSubtreeIfNeeded();controller.update();scroll.tile();overview.updateFrame()
+        try require(controller.canvas.bounds.width>clip.bounds.width+200 && controller.canvas.bounds.height>clip.bounds.height+200)
+        clip.scroll(to:NSPoint(x:100,y:100));scroll.reflectScrolledClipView(clip)
+        let selectedPair=model.selection,acceptedOverviewViewport=scroll.contentSize,acceptedOverviewFrame=controller.canvas.frame.size
+        func overviewEvent(_ type:NSEvent.EventType,_ point:NSPoint)->NSEvent {
+            NSEvent.mouseEvent(with:type,location:overview.convert(point,to:nil),modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:0)!
         }
-        let edge = NSPoint(x: overview.bounds.maxX - 1, y: overview.bounds.maxY - 1)
-        let expectedOrigin = NSPoint(x: max(0, (edge.x - 4) / overview.scale * model.zoom - scroll.contentSize.width / 2), y: max(0, (edge.y - 4) / overview.scale * model.zoom - scroll.contentSize.height / 2))
-        overview.mouseDown(with: overviewEvent(.leftMouseDown, edge))
-        try require(abs(clip.bounds.minX - expectedOrigin.x) < 1 && abs(clip.bounds.minY - expectedOrigin.y) < 1)
-        try require(model.selection == selectedPair && overview.bounds.contains(overview.viewportRect))
-        let lastOrigin = clip.bounds.origin
-        overview.mouseDragged(with: overviewEvent(.leftMouseDragged, NSPoint(x: -20, y: -20)))
-        try require(clip.bounds.origin == lastOrigin) // Outside the overview does not navigate.
-        overview.mouseDragged(with: overviewEvent(.leftMouseDragged, NSPoint(x: 1, y: 1)))
-        try require(clip.bounds.origin == .zero && model.selection == selectedPair)
-        model.zoom = 1; controller.update(); clip.scroll(to: .zero); scroll.reflectScrolledClipView(clip)
+        let edge=NSPoint(x:overview.bounds.maxX-1,y:overview.bounds.maxY-1)
+        // Preview insets4 and graph margin10 are separate spaces. Recenter the
+        // viewport at the inverse-mapped graph point, then clamp against the
+        // ACTUAL supported canvas extent rather than a manufactured3000 frame.
+        let proposedOrigin=NSPoint(x:(edge.x-4)/overview.scale*model.zoom+10-clip.bounds.width/2,y:(edge.y-4)/overview.scale*model.zoom+10-clip.bounds.height/2)
+        let limitX=max(0,controller.canvas.bounds.width-clip.bounds.width),limitY=max(0,controller.canvas.bounds.height-clip.bounds.height)
+        let expectedOrigin=NSPoint(x:min(limitX,max(0,proposedOrigin.x)),y:min(limitY,max(0,proposedOrigin.y)))
+        try require(proposedOrigin.x>limitX || proposedOrigin.y>limitY)
+        overview.mouseDown(with:overviewEvent(.leftMouseDown,edge))
+        try require(overview.hasPointerGesture && scroll.contentSize==acceptedOverviewViewport && controller.canvas.frame.size==acceptedOverviewFrame)
+        try require(abs(clip.bounds.minX-expectedOrigin.x)<1 && abs(clip.bounds.minY-expectedOrigin.y)<1)
+        try require(model.selection==selectedPair && overview.bounds.contains(overview.viewportRect))
+        let lastOrigin=clip.bounds.origin
+        overview.mouseDragged(with:overviewEvent(.leftMouseDragged,NSPoint(x:-20,y:-20)))
+        try require(clip.bounds.origin==lastOrigin) // Outside the overview does not navigate.
+        overview.mouseDragged(with:overviewEvent(.leftMouseDragged,NSPoint(x:1,y:1)))
+        try require(clip.bounds.origin == .zero && model.selection==selectedPair)
+        overview.mouseUp(with:overviewEvent(.leftMouseUp,NSPoint(x:1,y:1)))
+        overview.mouseDragged(with:overviewEvent(.leftMouseDragged,edge))
+        try require(!overview.hasPointerGesture && clip.bounds.origin == .zero && model.selection==selectedPair)
+        try require(controller.canvas.setZoom(1));controller.update();clip.scroll(to:.zero);scroll.reflectScrolledClipView(clip)
         print("PASS: Revision Graph adaptive overview dimensions, bottom-right placement, resize, viewport and drag routing")
         func capture(_ target: NSWindow, prefix: String) async throws {
             guard CommandLine.arguments.count > 4 else { return }
@@ -392,7 +445,7 @@ import Darwin
         find.cancelButton.performClick(nil); try require(!find.closed)
         let errorReturn = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: errorSheet.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
         errorSheet.sendEvent(errorReturn)
-        try await wait { findWindow.attachedSheet == nil && !find.acknowledgingFailure }
+        try await wait { findWindow.attachedSheet == nil && errorSheet.sheetParent==nil && !find.acknowledgingFailure && !find.hasPendingWork }
         try require(find.findButton.isEnabled && zoomBox.isEnabled && model.selection == beforeError)
         // Plain Return through the native field editor submits the current query.
         find.searchReference("refs/tags/release-v1"); try await wait { !find.busy }
@@ -430,10 +483,10 @@ import Darwin
         try await capture(findWindow, prefix: "revision-graph-find")
         let retainedFindIndex = model.findSearchIndex
         model.load(); try require(!find.findButton.isEnabled); find.findNext(); try require(!find.busy)
-        try await wait { !model.busy }; try require(find.findButton.isEnabled)
+        try await wait { !model.busy && !model.hasPendingWork }; try require(find.findButton.isEnabled)
         try require(model.findSearchIndex == retainedFindIndex && find.searchIndex() == retainedFindIndex)
         find.findNext(); try require(find.busy); find.close()
-        try await wait { controller.find == nil }; try require(find.closed && window.childWindows?.contains(findWindow) != true)
+        try await wait { controller.find == nil && !find.hasPendingWork }; try require(find.closed && window.childWindows?.contains(findWindow) != true)
         find.findNext(); try require(find.closed)
         controller.showFind(regexExecutable: regexHelper)
         let reopenedFind = controller.find!; try require(reopenedFind.searchBox.stringValue == "Body" && reopenedFind.regex.state == .on && reopenedFind.matchCase.state == .on)
@@ -444,14 +497,14 @@ import Darwin
         reopenedFind.findNext(); try await wait { !reopenedFind.busy }
         try require(reopenedFind.status.stringValue.contains("No further match"))
         print("PASS: Source-owned numeric Find position starts after row zero and persists across Graph reload and reopen")
-        let missingRepository = GitRepository(root: root.appendingPathComponent("missing-find-repository"), executable: repo.executable)
+        let missingRepository = GitRepository(root: root.appendingPathComponent("missing-find-repository"), executable: repo.executable, libgit2Configuration: .init(enabled: false))
         let missingFind = RevisionGraphFindController(repository: missingRepository, access: nil, preferences: prefs)
         missingFind.canSearch = { true }; missingFind.window!.alphaValue = 0; missingFind.window!.orderFront(nil); missingFind.loadReferences()
         try await wait { missingFind.window?.attachedSheet != nil }
         let missingSheet = missingFind.window!.attachedSheet!
         try require(views(missingSheet.contentView!).compactMap { $0 as? NSTextField }.contains { $0.stringValue == "Could not get all refs." })
         try require(!missingFind.windowShouldClose(missingFind.window!))
-        missingFind.close(); try require(missingFind.closed && !missingSheet.isVisible)
+        missingFind.close(); try await wait{!missingFind.hasPendingWork && missingFind.window?.attachedSheet==nil && missingSheet.sheetParent==nil};try require(missingFind.closed && !missingSheet.isVisible)
         print("PASS: Find startup load/search exclusion, plain Return and critical-sheet Return acknowledgment")
         print("PASS: Find original reference-type pixels, Command-F/Cancel and Shift-Return routes, error sheets, root/input locks and forced-owned cleanup")
         model.selection = selectedPair; controller.update()
@@ -459,7 +512,7 @@ import Darwin
         controller.showFilter(); try await wait { window.attachedSheet != nil }
         let child = window.attachedSheet!; try require(child.alphaValue == 0 && !zoomBox.isEnabled)
         try require(!reopenedFind.findButton.isEnabled); reopenedFind.findNext(); try require(!reopenedFind.busy)
-        reopenedFind.close(); try await wait { controller.find == nil }
+        reopenedFind.close(); try await wait { controller.find == nil && !reopenedFind.hasPendingWork }
         try zoomText("75%"); try require(model.zoom == 1 && zoomBox.stringValue == "100%")
         try await capture(child, prefix: "revision-graph-filter")
         controller.requestRepositoryRefresh(); try require(!model.busy)
@@ -494,13 +547,13 @@ import Darwin
         try await wait { referencePicker.model.selection == names }
         let chosenRefs = referencePicker.model.selectedRows.map { $0.reference.name.browserShortName }.joined(separator: " ")
         referencePicker.model.accept()
-        try await wait { child.attachedSheet == nil && filter.picker == nil && from.currentEditor() != nil }
+        try await wait { child.attachedSheet == nil && browserWindow.sheetParent==nil && !referencePicker.hasPendingWork && filter.picker == nil && from.currentEditor() != nil }
         try require(from.stringValue == chosenRefs && referencePicker.model.closed)
         child.makeFirstResponder(to); filter.toBrowse.performClick(nil)
         try await wait { filter.picker != nil && filter.picker?.model.busy == false }
         let cancelledPicker = filter.picker!
         cancelledPicker.model.finish(nil)
-        try await wait { child.attachedSheet == nil && filter.picker == nil && to.currentEditor() != nil }
+        try await wait { child.attachedSheet == nil && cancelledPicker.window?.sheetParent==nil && !cancelledPicker.hasPendingWork && filter.picker == nil && to.currentEditor() != nil }
         try require(to.stringValue == "original-to" && cancelledPicker.model.closed)
         current.performClick(nil); try require(current.state == .on && local.state == .off && !local.isEnabled && !to.isEnabled && to.stringValue.isEmpty)
         current.performClick(nil); try require(local.isEnabled && to.isEnabled)
@@ -509,19 +562,20 @@ import Darwin
         local.performClick(nil); try require(current.isEnabled && to.isEnabled)
         print("PASS: Revision Graph Filter multi-reference picker, nested ownership, selection/cancel focus and source scope gates")
         try require(!controller.windowShouldClose(window))
-        buttons.first { $0.title == "Cancel" }!.performClick(nil); try await wait { window.attachedSheet == nil && !model.busy }
+        buttons.first { $0.title == "Cancel" }!.performClick(nil);try await settledGraph(after:filter)
         try require(!model.options.onlyCurrentBranch && !model.options.onlyLocalBranches)
         controller.showFilter(); try await wait { window.attachedSheet != nil }
-        controller.filter!.window!.makeFirstResponder(nil)
-        controller.filter!.fromField.stringValue = ""; controller.filter!.toField.stringValue = chosenRefs
-        controller.filter!.ok.performClick(nil); try await wait { window.attachedSheet == nil && !model.busy }
+        let appliedFilter=controller.filter!
+        appliedFilter.window!.makeFirstResponder(nil)
+        appliedFilter.fromField.stringValue = ""; appliedFilter.toField.stringValue = chosenRefs
+        appliedFilter.ok.performClick(nil);try await settledGraph(after:appliedFilter)
         if model.error != nil || model.options.to != chosenRefs || model.nodes.isEmpty { print("Filter apply diagnostic:", model.options.from, model.options.to, chosenRefs, model.error ?? "no error", model.nodes.count) }
         try require(model.error == nil && model.options.to == chosenRefs && !model.nodes.isEmpty)
         model.options.from = "v1.0"; model.options.onlyCurrentBranch = true
         controller.showFilter(); try await wait { window.attachedSheet != nil }
-        let resetSheet = window.attachedSheet!; resetSheet.alphaValue = 0
+        let resetFilter=controller.filter!,resetSheet=window.attachedSheet!;resetSheet.alphaValue=0
         views(resetSheet.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Reset filter" }!.performClick(nil)
-        try await wait { window.attachedSheet == nil && !model.busy }
+        try await settledGraph(after:resetFilter)
         try require(model.options.from.isEmpty && !model.options.onlyCurrentBranch && model.nodes.count == 3)
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await repo.run(["show-ref"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config")), afterBytes = try Data(contentsOf: file)
@@ -529,7 +583,7 @@ import Darwin
         // Export actual data in every encoding, with scroll-independent extent.
         let picker = RevisionGraphSavePanel()
         try require(picker.format == .svg && picker.panel.nameFieldStringValue.hasSuffix(".svg"))
-        model.zoom = 0.5; controller.update()
+        try require(controller.canvas.setZoom(0.5)); controller.update()
         let selection = model.selection, frame = controller.canvas.frame
         try require(picker.formats.numberOfItems==3)
         for (index,filter) in RevisionGraphExportFilter.allCases.enumerated() {
@@ -581,14 +635,14 @@ import Darwin
         try require(!controller.windowShouldClose(window) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         do { try controller.exportGraph(to: root.appendingPathComponent("blocked.svg"), format: .svg); throw Failure(line: #line) }
         catch let error as TurtleGitMac.RevisionGraphExportFailure {guard case .unavailable=error else{throw error}}
-        saveReply?(.cancel); try await wait {!controller.hasPendingWork};try require(controller.graphSavePanel == nil && !controller.hasExportSheet)
+        saveReply?(.cancel); try await wait {!controller.hasPendingWork && controller.graphSavePanel==nil && !controller.hasExportSheet && window.attachedSheet==nil};try require(controller.graphSavePanel == nil && !controller.hasExportSheet)
         let retiredExport = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper)
-        try await wait { !retiredExport.model.busy }; try require(retiredExport.model.geometry != nil)
+        try await wait { !retiredExport.model.busy && !retiredExport.hasPendingWork }; try require(retiredExport.model.geometry != nil)
         var retiredReply: ((NSApplication.ModalResponse) -> Void)?
         retiredExport.presentSavePanel = { _, _, completion in retiredReply = completion }
         retiredExport.saveGraph(); try require(retiredExport.graphSavePanel != nil)
         retiredExport.close(); retiredReply?(.OK)
-        try await wait {!retiredExport.hasPendingWork}
+        try await wait {!retiredExport.hasPendingWork && retiredExport.graphSavePanel==nil && !retiredExport.hasExportSheet}
         try require(retiredExport.model.closed && retiredExport.graphSavePanel == nil && !retiredExport.hasExportSheet)
         print("PASS: Revision Graph owned export, sheet lock/cancel/reopen and forced-owner stale reply refusal")
         // Destructive checks touch only this disposable repository, after the read-only invariants above.
@@ -615,7 +669,7 @@ import Darwin
             let sheet = window.attachedSheet!; try require(sheet.alphaValue == 0 && !controller.windowShouldClose(window))
             guard let button = views(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == title }) else { throw Failure(line: #line) }
             button.performClick(nil)
-            try await wait { window.attachedSheet !== sheet }
+            try await wait { window.attachedSheet !== sheet && sheet.sheetParent==nil }
         }
         model.select(rootNode.hash, extending: false)
         let annotated = try itemDeleting("refs/tags/release-v1")
@@ -627,11 +681,11 @@ import Darwin
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: abortSheet.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
         if !abortSheet.performKeyEquivalent(with: enter) { abortSheet.sendEvent(enter) }
-        try await wait { window.attachedSheet == nil && !model.busy }
+        try await settledGraph()
         let keptAnnotated = try await repo.run(["rev-parse", "refs/tags/release-v1"]).text
         try require(!keptAnnotated.isEmpty)
         try require(!controller.validateMenuItem(annotated))
-        try invoke(try itemDeleting("refs/tags/release-v1")); try await sheetButton("Delete"); try await wait { !model.busy }
+        try invoke(try itemDeleting("refs/tags/release-v1")); try await sheetButton("Delete"); try await settledGraph()
         let removedAnnotated = try? await repo.run(["show-ref", "--verify", "refs/tags/release-v1"])
         try require(removedAnnotated == nil)
         model.select(main.hash, extending: false)
@@ -639,7 +693,7 @@ import Darwin
         try invoke(all)
         try await sheetButton("Delete local remote-tracking branch")
         // All confirms each reference in sequence; Abort stops at the next tag.
-        try await sheetButton("Abort"); try await wait { !model.busy }
+        try await sheetButton("Abort"); try await settledGraph()
         let removedRemote = try? await repo.run(["show-ref", "--verify", "refs/remotes/origin/main"])
         let keptTag = try await repo.run(["show-ref", "--verify", "refs/tags/export<&\"'>"])
         let currentHead = try await repo.run(["rev-parse", "HEAD"]).stdout
@@ -648,25 +702,25 @@ import Darwin
         model.select(rootNode.hash, extending: false)
         let stale = try itemDeleting("refs/tags/v1.0")
         _ = try await repo.run(["tag", "-f", "v1.0", "HEAD"])
-        try invoke(stale); try await sheetButton("OK"); try await wait { !model.busy }
+        try invoke(stale); try await sheetButton("OK"); try await settledGraph()
         let moved = try await repo.run(["rev-parse", "v1.0"]).stdout
         try require(moved == head)
-        _ = try await repo.run(["tag", "-f", "v1.0", rootNode.hash]); model.load(); try await wait { !model.busy }
+        _ = try await repo.run(["tag", "-f", "v1.0", rootNode.hash]); model.load(); try await wait { !model.busy && !model.hasPendingWork }
         model.select(rootNode.hash, extending: false)
         let raced = try itemDeleting("refs/tags/v1.0")
         try invoke(raced); try await wait { window.attachedSheet != nil }
         _ = try await repo.run(["tag", "-f", "v1.0", "HEAD"])
-        try await sheetButton("Delete"); try await sheetButton("OK"); try await wait { !model.busy }
+        try await sheetButton("Delete"); try await sheetButton("OK"); try await settledGraph()
         let afterRace = try await repo.run(["rev-parse", "v1.0"]).stdout
         try require(afterRace == head)
-        model.load(); try await wait { !model.busy }
+        model.load(); try await wait { !model.busy && !model.hasPendingWork }
         let unlabelled = model.nodes.first { $0.references.isEmpty }!
         model.select(unlabelled.hash, extending: false); controller.perform("copyRefs")
         try require(copied == unlabelled.hash)
         print("PASS: Revision Graph source node menus, branch/tag routing, range Log, copy refs, annotated deletion, Abort/All, moved-ref and confirmation-race guards")
         let parentRoot = root.deletingLastPathComponent().appendingPathComponent(root.lastPathComponent + "-superproject")
         try FileManager.default.createDirectory(at: parentRoot, withIntermediateDirectories: true)
-        let parentRepo = GitRepository(root: parentRoot, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        let parentRepo = GitRepository(root: parentRoot, executable: URL(fileURLWithPath: CommandLine.arguments[2]), libgit2Configuration: .init(enabled: false))
         _ = try await parentRepo.run(["init", "-b", "main"])
         _ = try await parentRepo.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", root.path, "child"])
         var pointerTrees: [String] = []
@@ -677,10 +731,10 @@ import Darwin
         _ = try await parentRepo.run(["read-tree", pointerTrees[1]])
         _ = try await parentRepo.run(["read-tree", "-m"] + pointerTrees)
         let parentIndex = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
-        let childRepo = GitRepository(root: parentRoot.appendingPathComponent("child"), executable: URL(fileURLWithPath: CommandLine.arguments[2]))
+        let childRepo = GitRepository(root: parentRoot.appendingPathComponent("child"), executable: URL(fileURLWithPath: CommandLine.arguments[2]), libgit2Configuration: .init(enabled: false))
         let childGraph = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
         childGraph.window!.alphaValue = 0; childGraph.window!.orderFront(nil)
-        childGraph.model.load(); try await wait { !childGraph.model.busy }
+        childGraph.model.load(); try await wait { !childGraph.model.busy && !childGraph.hasPendingWork }
         try require(childGraph.model.error == nil)
         try require(childGraph.model.pointers[main.hash] == ["super-project-head"] && childGraph.model.pointers[feature.hash] == ["super-project-merge-head"])
         for (hash, label) in [(main.hash, "super-project-head"), (feature.hash, "super-project-merge-head")] {
@@ -695,13 +749,13 @@ import Darwin
         try require(svgText.contains("super-project-head") && svgText.contains("super-project-merge-head") && svgText.contains("#f699fd"))
         let parentAfter = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
         try require(parentAfter == parentIndex)
-        childGraph.window!.close(); try require(childGraph.model.closed)
+        childGraph.window!.close();try await wait{!childGraph.hasPendingWork};try require(childGraph.model.closed)
         prefs.set(false, forKey: "LogShowSuperProjectSubmodulePointer")
         let hiddenChild = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
         hiddenChild.window!.alphaValue = 0
-        hiddenChild.model.load(); try await wait { !hiddenChild.model.busy }
+        hiddenChild.model.load(); try await wait { !hiddenChild.model.busy && !hiddenChild.hasPendingWork }
         try require(hiddenChild.model.error == nil && hiddenChild.model.pointers.isEmpty && !hiddenChild.model.options.showSuperprojectPointers)
-        hiddenChild.window!.close(); prefs.removeObject(forKey: "LogShowSuperProjectSubmodulePointer")
+        hiddenChild.window!.close();try await wait{!hiddenChild.hasPendingWork}; prefs.removeObject(forKey: "LogShowSuperProjectSubmodulePointer")
         let afterHidden = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
         try require(afterHidden == parentIndex)
         print("PASS: Native conflicted submodule graph pointer labels, measured rows, SVG pointer color Advanced setting and unchanged parent index")
@@ -709,7 +763,7 @@ import Darwin
         let finalFind = controller.find!
         model.load(); try require(model.busy)
         var closed = false; controller.onClosed = { closed = true }
-        window.performClose(nil); try await wait { closed }
+        window.performClose(nil); try await wait { closed && !controller.hasPendingWork && !finalFind.hasPendingWork }
         try require(model.closed && !model.busy && finalFind.closed && controller.find == nil)
         model.load(); try require(!model.busy)
         try await wait { RevisionGraphWindowModel.activeOperations == 0 && RevisionGraphFilterController.activeOperations == 0 }
@@ -721,7 +775,7 @@ import Darwin
         try require(failedFilter.completionError == "Fixture reference read failure")
         failedFilter.fromField.stringValue="typed-revision"
         failedFilter.accept(); try require(failedFilter.window?.attachedSheet != nil)
-        failedFilter.close(); try await wait { failedFilter.window?.attachedSheet == nil }
+        failedFilter.close(); try await wait { failedFilter.window?.attachedSheet == nil && !failedFilter.hasPendingWork }
         var read:CheckedContinuation<[String],Error>?, readToken:OperationCancellation?
         let retiredFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ token in
             readToken=token; return try await withCheckedThrowingContinuation { read=$0 }
@@ -731,12 +785,20 @@ import Darwin
         retiredFilter.close(); retiredModel.invalidate()
         try require(readToken?.isCancelled == true && RevisionGraphFilterController.activeOperations == 1)
         let finishRead=read;read=nil;finishRead?.resume(returning:["refs/heads/late"])
-        try await wait { RevisionGraphFilterController.activeOperations == 0 }
+        try await wait { RevisionGraphFilterController.activeOperations == 0 && !retiredFilter.hasPendingWork }
         try require(retiredFilter.completionNames == ["HEAD"] && retiredFilter.completions(for:"HEAD").isEmpty)
         print("PASS: Native Revision Graph captured menus, revision token completion, retired completion/Quit ownership, selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
     }
     @MainActor static func graphCommandFamily(controller:RevisionGraphWindowController,repository:GitRepository,preferences:UserDefaults,helper:URL) async throws {
         let model=controller.model,canvas=controller.canvas,window=controller.window!,originalSelection=model.selection
+        let admission = NSMenuItem(title: "Find", action: nil, keyEquivalent: "")
+        admission.representedObject = "find"
+        func settledCommands(line: UInt = #line) async throws {
+            try await wait({
+                !model.busy && !model.hasPendingWork && !controller.hasPendingWork &&
+                window.attachedSheet == nil && controller.validateMenuItem(admission)
+            }, line: line)
+        }
         let oldCompare=model.onCompare,oldLog=model.onLog,oldRange=model.onLogRange,oldExternal=controller.openUnifiedExternal,allowed=canvas.interactionAllowed
         defer{model.onCompare=oldCompare;model.onLog=oldLog;model.onLogRange=oldRange;controller.openUnifiedExternal=oldExternal;canvas.interactionAllowed=allowed;canvas.presentContextMenu=nil;model.selection=originalSelection;controller.update()}
         var compared:[Bool]=[],logs=0
@@ -771,7 +833,7 @@ import Darwin
         canvas.interactionAllowed={false}
         try require(!canvas.showSelectedContextMenu() && !elements[0].accessibilityPerformPress() && !elements[1].accessibilityCustomActions()!.first!.handler!())
         canvas.interactionAllowed=allowed
-        model.load();try await wait{!model.busy}
+        model.load();try await settledCommands()
         try require(!elements[0].isAccessibilityEnabled() && !elements[0].accessibilityPerformPress() && !elements[0].accessibilityPerformShowMenu())
         let fresh=(canvas.accessibilityChildren() ?? []).compactMap{$0 as? RevisionGraphAccessibleNode}
         try require(fresh.count==elements.count && fresh[0] !== elements[0])
@@ -779,26 +841,26 @@ import Darwin
         let expected=try await repository.run(["diff","--no-ext-diff","--no-color",pair[0],pair[1],"--"]).stdout
         var unified:[(Data,Bool)]=[]
         controller.openUnifiedExternal={bytes,alternate in unified.append((bytes,alternate));return false}
-        model.unified(head:false,alternate:true);try await wait{!model.busy}
+        model.unified(head:false,alternate:true);try await settledCommands()
         try require(unified.count==1 && unified[0].0==expected && unified[0].1 && controller.unifiedViewer?.model.readOnly==true && controller.unifiedViewer?.model.exportDocument.bytes==expected && controller.unifiedViewer?.window?.alphaValue==0)
-        controller.unifiedViewer?.close();try require(controller.unifiedViewer==nil)
+        let closedUnified=controller.unifiedViewer;closedUnified?.close();try await wait{controller.unifiedViewer==nil && closedUnified?.model.busy != true && closedUnified?.window?.isVisible != true};try require(controller.unifiedViewer==nil)
         controller.openUnifiedExternal={bytes,alternate in unified.append((bytes,alternate));return true}
-        model.unified(head:false,alternate:false);try await wait{!model.busy}
+        model.unified(head:false,alternate:false);try await settledCommands()
         try require(unified.count==2 && !unified[1].1 && controller.unifiedViewer==nil)
         controller.openUnifiedExternal={_,_ in throw NSError(domain:"GraphFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Private viewer launch failure"])}
         model.unified(head:false);try await wait{window.attachedSheet != nil}
         try require(model.busy && !controller.windowShouldClose(window) && !canvas.showSelectedContextMenu() && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
         let error=window.attachedSheet!,ok=views(error.contentView!).compactMap{$0 as? NSButton}.first{$0.title=="OK"}!
-        ok.performClick(nil);try await wait{window.attachedSheet==nil && !model.busy}
+        ok.performClick(nil);try await wait{error.sheetParent==nil};try await settledCommands()
         try require(model.error?.contains("Private viewer launch failure")==true && controller.unifiedViewer==nil)
         var reply:CheckedContinuation<Bool,Error>?
         controller.openUnifiedExternal={_,_ in try await withCheckedThrowingContinuation{reply=$0}}
-        model.unified(head:false);try await wait{reply != nil};model.selection=Array(pair.reversed());reply?.resume(returning:false);reply=nil;try await wait{!model.busy}
+        model.unified(head:false);try await wait{reply != nil};model.selection=Array(pair.reversed());reply?.resume(returning:false);reply=nil;try await settledCommands()
         try require(controller.unifiedViewer==nil)
         model.selection=pair;controller.update()
         for forced in [false,true] {
             let child=RevisionGraphWindowController(repository:repository,access:RepositoryAccessLease(url:repository.root),preferences:preferences,layoutExecutable:helper,automaticallyLoad:false)
-            defer{child.close()};child.window!.alphaValue=0;child.showWindow(nil);child.model.load();try await wait{!child.model.busy};child.model.selection=pair
+            defer{child.close()};child.window!.alphaValue=0;child.showWindow(nil);child.model.load();try await wait{!child.model.busy && !child.hasPendingWork};child.model.selection=pair
             if forced {child.openUnifiedExternal={_,_ in throw NSError(domain:"GraphFixture",code:2)};child.model.unified(head:false);try await wait{child.window?.attachedSheet != nil};child.close()}
             else {
                 var held:CheckedContinuation<Bool,Error>?
@@ -807,7 +869,7 @@ import Darwin
                 try require(!child.model.closed && RevisionGraphWindowModel.activeOperations>0)
                 held?.resume(returning:false);held=nil
             }
-            try await wait{child.model.closed && RevisionGraphWindowModel.activeOperations==0}
+            try await wait{child.model.closed && !child.hasPendingWork && RevisionGraphWindowModel.activeOperations==0}
             try require(child.unifiedViewer==nil && child.window?.isVisible==false && child.window?.attachedSheet==nil && child.canvas.accessibilityChildren()?.isEmpty==true)
         }
         print("PASS: Graph source menu groups, one-use/superseded popup actions, Shift capture; keyboard/AX node menu anchors, accessible selection/frames/stale generations; external unified choice, raw-byte built-in fallback, owned error/late selection and requested/forced close settlement. Private fixtures; no external app launched.")

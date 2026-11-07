@@ -4556,6 +4556,15 @@ private enum TransportBatchPresentationContext {
         controller.model.onContainingLog = CommandProgressContext.capture { [weak self] name, select, range in
             self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range)
         }
+        controller.model.onContainingRepositoryBrowse = CommandProgressContext.capture { [weak self] captured,revision in
+            self?.showRepositoryBrowser(repository:captured,access:access,revision:revision,preferences:operationPreferences)
+        }
+        controller.model.onContainingRepositoryCompare = CommandProgressContext.capture { [weak self] captured,from,to in
+            self?.showRevisionComparison(repository:captured,access:access,from:from,to:to,preferences:operationPreferences)
+        }
+        controller.model.onContainingRepositoryLog = CommandProgressContext.capture { [weak self] captured,name,select,range in
+            self?.showLog(repository:captured,access:access,paths:[],endRevision:name,selectedRevision:select ? name:nil,revisionRange:range,preferences:operationPreferences)
+        }
         controller.model.importWorkingComparisonMark(try? comparisonMarkStore.acquire(requireSecurityScope: GitRuntime.isAppStoreBuild))
         controller.model.onWorkingFiles = CommandProgressContext.capture { [weak self] action,paths in
             if action == .add {self?.showAdd(repository:repository,access:access,paths:paths)}
@@ -5083,6 +5092,16 @@ private enum TransportBatchPresentationContext {
         revisionLog.onExportRevision = CommandProgressContext.capture { [weak self] hash in self?.showExport(repository: repository, access: access, revision: hash, preferences: inherited) }
         revisionLog.onShowHistoryRange = CommandProgressContext.capture { [weak self] range in self?.showLog(repository: repository, access: access, paths: [], revisionRange: range, preferences: inherited) }
         revisionLog.onContainingLog = CommandProgressContext.capture { [weak self] name, select, range in self?.showLog(repository: repository, access: access, paths: [], endRevision: name, selectedRevision: select ? name : nil, revisionRange: range, preferences: inherited) }
+
+        revisionLog.onContainingRepositoryBrowse = CommandProgressContext.capture { [weak self] captured,revision in
+            self?.showRepositoryBrowser(repository:captured,access:access,revision:revision,preferences:inherited)
+        }
+        revisionLog.onContainingRepositoryCompare = CommandProgressContext.capture { [weak self] captured,from,to in
+            self?.showRevisionComparison(repository:captured,access:access,from:from,to:to,preferences:inherited)
+        }
+        revisionLog.onContainingRepositoryLog = CommandProgressContext.capture { [weak self] captured,name,select,range in
+            self?.showLog(repository:captured,access:access,paths:[],endRevision:name,selectedRevision:select ? name:nil,revisionRange:range,preferences:inherited)
+        }
 
         revisionLog.onRevisionChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)

@@ -91,7 +91,7 @@ private enum RepositoryBrowserDelivery {
     let backend:GitLibGit2Configuration
     private let retention = RepositoryBrowserExportFiles.owner()
     init(repository: GitRepository, access: RepositoryAccessLease?, snapshot: RepositoryBrowserSnapshot, entry: RepositoryBrowserEntry?, directory: String?,backend:GitLibGit2Configuration? = nil) {
-        self.repository = repository; self.access = access; self.snapshot = snapshot; self.entry = entry; self.directory = directory;self.backend=backend ?? repository.libgit2Configuration ?? .load()
+        self.repository = repository; self.access = access; self.snapshot = snapshot; self.entry = entry; self.directory = directory;self.backend=backend ?? snapshot.acceptedBackend ?? repository.libgit2Configuration ?? .load()
     }
     func load(completion: @escaping (URL?, Bool, Error?) -> Void, progress: Progress, cancellation: OperationCancellation) async {
         defer { withExtendedLifetime(access) {} }
@@ -121,7 +121,7 @@ private enum RepositoryBrowserDelivery {
     let backend:GitLibGit2Configuration
     let name:String
     init(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry? = nil,directory:String? = nil,backend:GitLibGit2Configuration? = nil) {
-        self.repository=repository;self.access=access;self.snapshot=snapshot;self.entry=entry;self.directory=directory;self.backend=backend ?? repository.libgit2Configuration ?? .load()
+        self.repository=repository;self.access=access;self.snapshot=snapshot;self.entry=entry;self.directory=directory;self.backend=backend ?? snapshot.acceptedBackend ?? repository.libgit2Configuration ?? .load()
         self.name=(try? RepositoryBrowserDelivery.name(repository:repository,snapshot:snapshot,entry:entry,directory:directory)) ?? "historical-item"
     }
     func provider() -> NSFilePromiseProvider {

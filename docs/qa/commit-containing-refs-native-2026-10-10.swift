@@ -3,8 +3,14 @@ import TurtleGitCore
 import Darwin
 
 @main struct CommitReferencesVerification {
-    struct Failure: Error { let line: UInt }
+    struct Failure:Error,CustomStringConvertible {
+        let line:UInt
+        let message:String?
+        init(line:UInt,message:String?=nil){self.line=line;self.message=message}
+        var description:String {"Failure(line:\(line))"+(message.map{": "+$0} ?? "")}
+    }
     static func require(_ value: @autoclosure () -> Bool, line: UInt = #line) throws { if !value() { throw Failure(line: line) } }
+    static func require(_ value:@autoclosure()->Bool,_ message:String,line:UInt = #line)throws {if !value(){throw Failure(line:line,message:message)}}
     @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
         for _ in 0..<1500 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw Failure(line: line)
     }
@@ -52,7 +58,10 @@ import Darwin
         let cell = controller.tableView(controller.table, viewFor: controller.table.tableColumns[0], row: 0) as! NSTableCellView
         try require(cell.imageView?.image?.size == NSSize(width: 16, height: 16))
         window.contentView!.layoutSubtreeIfNeeded(); try require(controller.revision.frame.width > 300 && controller.table.enclosingScrollView!.frame.height > 200)
-        let buttonRect = controller.showLog.convert(controller.showLog.bounds, to: window.contentView!)
+        // AppKit buttons draw beyond their optical alignment rectangle. Keep
+        // exact trailing alignment without treating the bezel shadow as layout.
+        let optical=controller.showLog.alignmentRect(forFrame:controller.showLog.frame)
+        let buttonRect=controller.showLog.superview!.convert(optical,to:window.contentView!)
         try require(abs(buttonRect.maxX - (window.contentView!.bounds.width - 14)) < 1)
         if CommandLine.arguments.count > 3 {
             let directory = URL(fileURLWithPath: CommandLine.arguments[3])
@@ -67,6 +76,24 @@ import Darwin
             }
             window.appearance = NSAppearance(named: .aqua)
         }
+        let selectedFontRows=controller.table.selectedRowIndexes,ordinaryRowHeight=controller.table.rowHeight
+        prefs.set(true,forKey:"LogFontForFileListCtrl");prefs.set("Menlo",forKey:"LogFontName");prefs.set(23,forKey:"LogFontSize")
+        try await wait{controller.table.rowHeight>ordinaryRowHeight}
+        let largeCell=controller.tableView(controller.table,viewFor:controller.table.tableColumns[0],row:0) as! NSTableCellView
+        try require(largeCell.textField?.font?.pointSize==23)
+        try require(controller.table.selectedRowIndexes==selectedFontRows && controller.rows.count==4)
+        prefs.set(false,forKey:"LogFontForFileListCtrl")
+        try await wait{controller.table.rowHeight==ordinaryRowHeight}
+        try require(controller.snapshotRepository != nil)
+        let acceptedRepository=controller.snapshotRepository!
+        var capturedRepositories:[GitRepository]=[]
+        controller.onCapturedLog={repository,_,_,_ in capturedRepositories.append(repository)}
+        try require(acceptedRepository.libgit2Configuration != nil,"Containment result must retain an explicit accepted backend")
+        let acceptedBackend=acceptedRepository.libgit2Configuration!
+        prefs.set(!acceptedBackend.enabled,forKey:"UseLibgit2")
+        try require(NSApp.sendAction(controller.showLog.action!,to:controller.showLog.target,from:controller.showLog))
+        try require(capturedRepositories.count==1 && capturedRepositories[0] === acceptedRepository)
+        controller.onCapturedLog=nil;prefs.removeObject(forKey:"UseLibgit2")
         let cachedNames = controller.revision.objectValues.compactMap { $0 as? String }
         _ = try await repo.run(["branch", "z-completion-later", base])
         controller.revision.stringValue = base; controller.refresh(); try await wait { !controller.busy }
@@ -97,35 +124,48 @@ import Darwin
         let closingCompletion = CommitContainingReferencesWindowController(repository: repo, access: nil, revision: base, preferences: prefs)
         closingCompletion.window!.alphaValue = 0; closingCompletion.window!.orderFront(nil)
         closingCompletion.readCompletion = { _ in try await withCheckedThrowingContinuation { completionReply = $0 } }
+        var closedCompletionCount=0
+        closingCompletion.onClosed={closedCompletionCount += 1}
         closingCompletion.refresh(); try await wait { completionReply != nil }; closingCompletion.close()
+        try require(closingCompletion.closed && closingCompletion.hasPendingWork && closedCompletionCount==0)
         completionReply!.resume(returning: [GitReferenceName("refs/heads/closed-completion")]); completionReply = nil
         try await Task.sleep(nanoseconds: 50_000_000)
         try require(closingCompletion.closed && closingCompletion.snapshot == nil && closingCompletion.revision.numberOfItems == 0)
+        try await wait{closedCompletionCount==1 && !closingCompletion.hasPendingWork}
         func menu() -> NSMenu { let menu = controller.table.menu!; controller.menuNeedsUpdate(menu); return menu }
-        func action(_ title: String) throws {
-            let item = menu().items.first { $0.title == title }!; try require(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item))
+        func action(_ command:String)throws {
+            guard let item=menu().items.first(where:{$0.identifier?.rawValue=="CommitReferences."+command}) else{throw Failure(line:#line,message:"Missing command "+command)}
+            try require(item.isEnabled && NSApp.sendAction(item.action!,to:item.target,from:item),"Command dispatch "+command)
         }
         let mainIndex = controller.rows.firstIndex(of: "refs/heads/main")!, oldIndex = controller.rows.firstIndex(of: "refs/heads/old")!
         controller.table.selectRowIndexes(IndexSet(integer: mainIndex), byExtendingSelection: false)
-        try require(menu().items.filter { !$0.isSeparatorItem }.map(\.title) == ["Show log", "Browse repository", "Compare with working tree", "Copy"])
+        try require(menu().items.filter{!$0.isSeparatorItem}.compactMap{$0.identifier?.rawValue}==["log","browse","working","copy"].map{"CommitReferences."+$0})
+        try require(menu().items.filter { !$0.isSeparatorItem }.map(\.title) == ["Show log", "Browse repository", "Compare with working tree", "Copy"].map{HistoryLabels.caption($0)})
         try require(menu().items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil })
-        try action("Copy"); try require(copied == "refs/heads/main\n")
-        try action("Show log"); try require(logs.last?.0 == "refs/heads/main" && logs.last?.1 == false)
-        try action("Browse repository"); try require(browsed == ["refs/heads/main"])
-        try action("Compare with working tree"); try require(comparisons.count == 1 && comparisons[0].0 == .revision("refs/heads/main") && comparisons[0].1 == .workingTree)
+        try action("copy"); try require(copied == "refs/heads/main\n")
+        let retainedCopy=menu().items.first{$0.identifier?.rawValue=="CommitReferences.copy"}!
+        controller.table.selectRowIndexes(IndexSet(integer:oldIndex),byExtendingSelection:false)
+        copied=""
+        try require(NSApp.sendAction(retainedCopy.action!,to:retainedCopy.target,from:retainedCopy))
+        try require(copied.isEmpty,"Retained reference menu must reject changed exact selection")
+        controller.table.selectRowIndexes(IndexSet(integer:mainIndex),byExtendingSelection:false)
+        try action("log"); try require(logs.last?.0 == "refs/heads/main" && logs.last?.1 == false)
+        try action("browse"); try require(browsed == ["refs/heads/main"])
+        try action("working"); try require(comparisons.count == 1 && comparisons[0].0 == .revision("refs/heads/main") && comparisons[0].1 == .workingTree)
         controller.showLog.performClick(nil); try require(logs.last?.0 == base && logs.last?.1 == true)
         controller.table.selectRowIndexes(IndexSet(integer: oldIndex), byExtendingSelection: false)
         controller.table.selectRowIndexes(IndexSet(integer: mainIndex), byExtendingSelection: true)
-        let rangeItems = menu().items.filter { ($0.representedObject as? String) == "range" || ($0.representedObject as? String) == "symmetric" }
-        try require(rangeItems.count == 2 && rangeItems[0].title == "Show log of old..main")
-        try action(rangeItems[0].title); try require(logs.last?.2?.from == "refs/heads/old" && logs.last?.2?.to == "refs/heads/main")
-        try action(rangeItems[1].title); try require(logs.last?.2?.kind == .symmetricDifference)
-        try action("Compare revisions"); try require(comparisons.count == 2 && comparisons[1].0 == .revision("refs/heads/main") && comparisons[1].1 == .revision("refs/heads/old"))
+        let rangeItems=menu().items.filter{["CommitReferences.range","CommitReferences.symmetric"].contains($0.identifier?.rawValue ?? "")}
+        try require(rangeItems.count==2 && rangeItems.compactMap{$0.identifier?.rawValue}==["CommitReferences.range","CommitReferences.symmetric"])
+        try require(rangeItems[0].title==HistoryLabels.text("Show log of {range}",values:["range":"old..main"]))
+        try action("range"); try require(logs.last?.2?.from == "refs/heads/old" && logs.last?.2?.to == "refs/heads/main")
+        try action("symmetric"); try require(logs.last?.2?.kind == .symmetricDifference)
+        try action("compare"); try require(comparisons.count == 2 && comparisons[1].0 == .revision("refs/heads/main") && comparisons[1].1 == .revision("refs/heads/old"))
         var unified: Data?, alternate = true
         controller.onUnified = { unified = $0; alternate = $1 }
-        try action("Unified diff"); try await wait { !controller.busy && unified != nil }
+        try action("unified"); try await wait { !controller.busy && unified != nil }
         try require(!alternate && String(decoding: unified!, as: UTF8.self).contains("-next\n+root"))
-        controller.table.selectAll(nil); try require(menu().items.map(\.title) == ["Copy"])
+        controller.table.selectAll(nil); try require(menu().items.compactMap{$0.identifier?.rawValue}==["CommitReferences.copy"] && menu().items.map(\.title)==[HistoryLabels.caption("Copy")])
         controller.filter.stringValue = "tags"; controller.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: controller.filter))
         try require(controller.rows.count == 4); try await wait { controller.rows.count == 1 }
         try require(controller.rows[0] == "refs/tags/root-tag")
@@ -138,7 +178,8 @@ import Darwin
         controller.revision.stringValue = ""; controller.refresh(); try await wait { !controller.busy }; try require(controller.rows.isEmpty && controller.status.stringValue.isEmpty)
         controller.revision.stringValue = base; controller.refresh(); try await wait { !controller.busy }
         func choose(_ index: Int) throws {
-            let item = controller.chooser.itemArray.first { $0.title == ["Browse References", "Log", "Reflog"][index] }!
+            let item=controller.chooser.itemArray.first{$0.identifier?.rawValue=="CommitReferences.Choose.\(index)"}!
+            try require(item.title==HistoryLabels.caption(["Browse References","Log","Reflog"][index]))
             try require(NSApp.sendAction(item.action!, to: item.target, from: item))
             print("Chooser dispatch:", item.title, item.tag, String(describing: controller.picker))
         }
@@ -162,7 +203,7 @@ import Darwin
         bare.window!.alphaValue = 0; bare.window!.orderFront(nil); bare.onCompare = controller.onCompare; bare.onLog = controller.onLog
         bare.refresh(); try await wait { !bare.busy }; try require(bare.snapshot?.bare == true)
         bare.table.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
-        bare.menuNeedsUpdate(bare.table.menu!); try require(!bare.table.menu!.items.contains { $0.title == "Compare with working tree" })
+        bare.menuNeedsUpdate(bare.table.menu!); try require(!bare.table.menu!.items.contains { $0.identifier?.rawValue == "CommitReferences.working" })
         bare.close()
         // Supersede an obsolete reply that ignores cancellation.
         let oldSnapshot = try await repo.commitContainingReferences(base)
@@ -183,10 +224,19 @@ import Darwin
         let table = views(parent.window!.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumns.contains { $0.identifier.rawValue == "graph" } }!
         table.selectRowIndexes(IndexSet(integer: parent.model.entries.firstIndex { $0.hash == base }!), byExtendingSelection: false)
         table.menu!.delegate!.menuNeedsUpdate?(table.menu!)
-        let entry = table.menu!.items.first { $0.title == "Show branches this commit is on" }!
+        let entry = table.menu!.items.first { $0.title == HistoryLabels.caption("Show branches this commit is on") }!
         try require(entry.isEnabled && entry.image != nil && NSApp.sendAction(entry.action!, to: entry.target, from: entry))
         try await wait { parent.containingReferences.count == 1 && parent.containingReferences.values.first?.busy == false }
         let owned = parent.containingReferences.values.first!; try require(owned.window!.parent === parent.window && owned.window!.alphaValue == 0 && owned.snapshot?.hash == base)
+        var retainedParentReply:CheckedContinuation<CommitContainingReferences,Never>?
+        owned.read={_,_ in await withCheckedContinuation{retainedParentReply=$0}}
+        owned.refresh();try await wait{retainedParentReply != nil}
+        parent.model.confirmingQuit=true;parent.model.confirmingQuit=false
+        retainedParentReply!.resume(returning:oldSnapshot);retainedParentReply=nil
+        try await wait{!owned.busy}
+        try require(owned.snapshot==nil,"Cancelled parent Quit must not revive accepted-before-Quit read")
+        owned.read=nil;owned.refresh();try await wait{!owned.busy}
+        try require(owned.snapshot?.hash==base,"Fresh post-Quit containment request remains usable")
         let headHash = String(decoding:head,as:UTF8.self).trimmingCharacters(in:.newlines)
         let revisionPainter = table.delegate as! RevisionTable.Coordinator
         func text(_ column: String, hash: String) -> NSTextField {
@@ -222,6 +272,7 @@ import Darwin
         try require(range.location != NSNotFound && searched.attributedStringValue.attribute(.foregroundColor,at:range.location,effectiveRange:nil) != nil && !searched.drawsBackground)
         try require(NSFontManager.shared.traits(of:searched.font!).contains(.italicFontMask))
         parent.close(); try require(owned.closed && parent.containingReferences.isEmpty)
+        try await wait{!owned.hasPendingWork && CommitContainingReferencesWindowController.activeOperations==0 && FinderFilesystemWorkflowRelease.activeRetirements==0}
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await repo.run(["show-ref"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config")), afterBytes = try Data(contentsOf: file)
         try require(head == afterHead && refs == afterRefs && index == afterIndex && config == afterConfig && bytes == afterBytes)

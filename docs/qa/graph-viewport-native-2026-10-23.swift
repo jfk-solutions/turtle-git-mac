@@ -167,6 +167,27 @@ private extension NSWindow {
         try require(!overview.hasPointerGesture && overview.pointerCursor == NSCursor.arrow && same(clip.bounds.origin,accepted),"Quit modal fence retained overview drag")
         owner.model.confirmingQuit=false;owner.update();overview.mouseDragged(with:orphan)
         try require(same(clip.bounds.origin,accepted),"Cancelled Quit revived stale overview drag")
+        // Exercise the actual graph/document geometry with both scrollbar
+        // layouts. No post-press frame mutation may invalidate the viewport
+        // receipt just to manufacture a scroll range for synthetic events.
+        let originalStyle=owner.scroll.scrollerStyle
+        for style in [NSScroller.Style.legacy,.overlay] {
+            owner.scroll.scrollerStyle=style;owner.scroll.tile();window.contentView?.layoutSubtreeIfNeeded();owner.update();owner.scroll.tile()
+            position(owner,NSPoint(x:100,y:300))
+            let start=clip.bounds.origin,acceptedPress=try press(owner),capturedViewport=owner.scroll.contentSize
+            let first=drag(owner,from:acceptedPress,dx:-40,dy:30);owner.canvas.mouseDragged(with:first)
+            try require(owner.canvas.hasPointerGesture && owner.scroll.contentSize==capturedViewport && same(clip.bounds.origin,NSPoint(x:start.x+40,y:start.y+30)),"Scroller-style settled geometry lost exact first pan displacement")
+            let second=drag(owner,from:first,dx:-20,dy:-15);owner.canvas.mouseDragged(with:second)
+            try require(same(clip.bounds.origin,NSPoint(x:start.x+60,y:start.y+15)),"Successive pan deltas were accumulated from the original press")
+            let edge=drag(owner,from:second,dx:10000,dy:-10000);owner.canvas.mouseDragged(with:edge)
+            try require(same(clip.bounds.origin,.zero),"Pan did not clamp to the actual document boundary")
+            let returnFromEdge=drag(owner,from:edge,dx:-10,dy:10);owner.canvas.mouseDragged(with:returnFromEdge)
+            try require(same(clip.bounds.origin,NSPoint(x:10,y:10)),"Clamped pan retained off-document pointer debt")
+            owner.canvas.mouseUp(with:returnFromEdge);let finished=clip.bounds.origin
+            owner.canvas.mouseDragged(with:first)
+            try require(!owner.canvas.hasPointerGesture && same(clip.bounds.origin,finished),"Mouse-up allowed a late style-specific drag to move the graph")
+        }
+        owner.scroll.scrollerStyle=originalStyle;owner.scroll.tile();window.contentView?.layoutSubtreeIfNeeded();owner.update()
         window.makeFirstResponder(owner.canvas);_=try press(owner);owner.perform("zoomOut");let zoomed=clip.bounds.origin
         owner.canvas.mouseDragged(with:moved);try require(!owner.canvas.hasPointerGesture && same(clip.bounds.origin,zoomed),"Zoom replacement revived a stale canvas receipt")
     }

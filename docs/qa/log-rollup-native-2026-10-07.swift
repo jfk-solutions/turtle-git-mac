@@ -146,9 +146,16 @@ import TurtleGitCore
         searched.search = ""; searched.searchRegex = false; searched.toggleHistoryWalk(.compressed); try await wait(searched)
         let graphHost = NSHostingView(rootView: RevisionTable(model: searched, savesColumnLayout: false).defaultAppStorage(defaults))
         let graphWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1100, height: 300), styleMask: [.titled], backing: .buffered, defer: false)
-        graphWindow.isReleasedWhenClosed = false; graphWindow.contentView = graphHost; defer { graphWindow.close() }
+        graphWindow.isReleasedWhenClosed=false;graphWindow.alphaValue=0;graphWindow.ignoresMouseEvents=true
+        graphWindow.setFrameOrigin(.init(x:-12000,y:-12000))
+        // Standalone RevisionTable hosts must supply the same actual owner
+        // binding installed by LogWindowController. Column receipts reject a
+        // table whose native window differs from model.window.
+        searched.window=graphWindow;graphWindow.contentView=graphHost
+        defer {graphWindow.close();searched.window=nil}
         for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
         let graphTable = Self.table(in: graphHost)!, graphColumn = graphTable.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))!
+        precondition(graphTable.window === graphWindow && searched.window === graphWindow,"Owned graph table/window binding")
         let graphIndex = graphTable.tableColumns.firstIndex(of: graphColumn)!
         let oldCell = graphTable.view(atColumn: graphIndex, row: 0, makeIfNecessary: true) as! GraphCell
         var boundaryEntries = searched.entries; boundaryEntries[0].isBoundary = true
@@ -163,10 +170,30 @@ import TurtleGitCore
         for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(graphColumn.isHidden)
         let header = graphTable.headerView!.menu!; header.delegate?.menuNeedsUpdate?(header)
-        precondition(!header.item(withTitle: "Graph")!.isEnabled)
+        let graphItem=header.items.first{$0.identifier?.rawValue=="Log.Columns.graph"}!
+        precondition(!graphItem.isEnabled && graphItem.title==HistoryLabels.caption("Graph"))
         searched.toggleHistoryWalk(.followRenames); try await wait(searched)
         for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(graphColumn.isHidden == originalHidden)
+        header.delegate?.menuNeedsUpdate?(header)
+        let toggleGraph=header.items.first{$0.identifier?.rawValue=="Log.Columns.graph"}!
+        precondition(toggleGraph.isEnabled,"Graph command unavailable: ownedWindow=\(graphTable.window === searched.window), busy=\(searched.busy), follow=\(searched.historyWalk.followRenames)")
+        precondition(toggleGraph.image != nil,"Graph command must retain source menu icon")
+        precondition(NSApp.sendAction(toggleGraph.action!,to:toggleGraph.target,from:toggleGraph))
+        precondition(graphColumn.isHidden != originalHidden)
+        precondition(defaults.bool(forKey:"Log.Column.Visible.graph") == !graphColumn.isHidden,"Graph toggle must persist actual visibility")
+        searched.toggleHistoryWalk(.followRenames);try await wait(searched)
+        for _ in 0..<20 {graphHost.layoutSubtreeIfNeeded();try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(graphColumn.isHidden)
+        searched.toggleHistoryWalk(.followRenames);try await wait(searched)
+        for _ in 0..<20 {graphHost.layoutSubtreeIfNeeded();try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(graphColumn.isHidden != originalHidden,"Follow must restore user graph visibility")
+        header.delegate?.menuNeedsUpdate?(header)
+        let restoreGraph=header.items.first{$0.identifier?.rawValue=="Log.Columns.graph"}!
+        precondition(NSApp.sendAction(restoreGraph.action!,to:restoreGraph.target,from:restoreGraph))
+        precondition(graphColumn.isHidden == originalHidden)
+        precondition(NSApp.sendAction(toggleGraph.action!,to:toggleGraph.target,from:toggleGraph))
+        precondition(graphColumn.isHidden == originalHidden,"Consumed graph popup receipt must not toggle again")
         print("Native search retains hidden lanes and rollup inheritance, literal/regex/invalid activity guards, same-identity graph refresh and Follow graph hide/restore; parent and repository preservation passed")
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
         print("Native graph accessibility: real table cells expose image role, ordinary/root parent/lane metadata and collapsed/expanded transitions; actual boundary and representative merge/fork/working/cleared cells describe state. Existing rollup menus, masks, searches, graph refresh and parent preservation passed; repository unchanged. No physical VoiceOver or external AX-client acceptance claimed.")

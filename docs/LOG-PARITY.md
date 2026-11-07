@@ -3058,3 +3058,22 @@ existing operation/HEAD/worktree guards remain required. This is a consumer
 correction; production does not silently change the requested target.
 See [the connected acceptance record](qa/document-command-acceptance-2026-11-05.json)
 for actual local scope and outstanding hosted acceptance.
+
+## Graph column visibility and native font consumer
+
+Pinned `GitLogListBase.cpp` initializes the Graph column as visible and available
+for the ordinary Log (`ColumnManager.h` names these separate fields). The native
+header now exposes its localized Graph command with stable identifier
+`Log.Columns.graph`, retaining the user's visibility preference. Follow hides the
+graph and disables that command; leaving Follow restores the saved preference.
+Reset columns restores the default, subject to the active Follow constraint.
+Existing column command receipts still reject stale popup actions.
+
+The optional Commit file-list font receiver now hosts the complete Commit dialog.
+Calling its table-building method on an uninstalled SwiftUI parent bypassed that
+parent's AppStorage environment, while the embedded native probe did receive it;
+that fixture could combine a 22-point probe font with baseline row geometry.
+The full-dialog receiver retains the font, row-height, autosizing and unchanged
+selection/check assertions, with separate diagnostics. The [grouped checkpoint](qa/history-browser-recovery-2026-11-08.json) passes the
+affected reference, font and rollup receivers with both Git executables after
+recorded fixture repairs. No broader font or complete dialog parity claim is made.

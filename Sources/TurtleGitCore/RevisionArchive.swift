@@ -56,7 +56,7 @@ extension GitRepository {
             arguments = ["-C", folder.path]
         }
         return try writeRevisionArchive(object:object,revisionCaption:revision,arguments:arguments,pathspec:nil,to:destination,
-            protectDestination:false,cancellation:cancellation,onOutput:onOutput,onCommand:onCommand,
+            protectDestination:true,cancellation:cancellation,onOutput:onOutput,onCommand:onCommand,
             onCommandFinished:onCommandFinished,beforeFinalization:beforeFinalization)
     }
 

@@ -5,6 +5,13 @@ import TurtleGitCore
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ condition:Bool,_ message:String) throws { if !condition { throw Failure(description:message) } }
     static func requireEntry(_ entry:RepositoryBrowserEntry?) throws -> RepositoryBrowserEntry { guard let entry else { throw Failure(description:"Missing folder") }; return entry }
+    @MainActor static func gesture(_ table:NSTableView,row:Int)throws->NSEvent {
+        guard let window=table.window else{throw Failure(description:"Drag table detached")}
+        table.scrollRowToVisible(row);table.layoutSubtreeIfNeeded()
+        let rect=table.rect(ofRow:row),point=table.convert(NSPoint(x:16,y:rect.midY),to:nil)
+        guard let event=NSEvent.mouseEvent(with:.leftMouseDown,location:point,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1) else{throw Failure(description:"Native drag event unavailable")}
+        return event
+    }
     @MainActor static func find(_ view:NSView) -> NSTableView? {
         if let table=view as? NSTableView,table.accessibilityLabel()=="Repository contents" { return table }
         return view.subviews.compactMap(find).first
@@ -31,6 +38,7 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName:suite) }
         let owner=RepositoryBrowserWindowController(repository:repo,access:nil,revision:hash,preferences:prefs)
         defer { owner.close() }
+        owner.window?.alphaValue=0;owner.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));owner.window?.orderFront(nil)
         owner.window?.contentView?.layoutSubtreeIfNeeded()
         try await wait { !owner.model.busy && find(owner.window!.contentView!)?.numberOfRows==3 }
         let model=owner.model,table=find(owner.window!.contentView!)!,coordinator=NativeListSelection.originalDelegate(of:table) as! RepositoryBrowserContentsTable.Coordinator
@@ -55,13 +63,23 @@ import TurtleGitCore
         try require((deepNode as? RepositoryBrowserFolderTree.Node)?.path=="folder/deep","Lazy child identity")
         treeCoordinator.selectContext(1)
         let treeMenu=tree.menu!;treeCoordinator.menuNeedsUpdate(treeMenu)
-        try require(treeMenu.items.filter { !$0.isSeparatorItem }.map(\.title)==["Open","Show log","Copy to clipboard","Copy hash"],"Native folder menu source order")
+        let folderTitles=treeMenu.items.filter{!$0.isSeparatorItem}.map(\.title)
+        try require(folderTitles==["Open","Show log","Save as archive…","Copy to clipboard","Copy hash"],"Native folder menu source order: \(folderTitles)")
+        try require(treeMenu.items.first{$0.title=="Save as archive…"}?.isEnabled==true,"Eligible historical folder lost archive action")
         try require(treeMenu.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil },"Folder context artwork")
         var treeLog:(String,String)?;model.onLog={ treeLog=($0,$1) }
         let treeLogItem=treeMenu.items.first { $0.title=="Show log" }!
         _ = NSApplication.shared.sendAction(treeLogItem.action!,to:treeLogItem.target,from:treeLogItem)
         try require(treeLog?.0=="folder" && treeLog?.1==hash,"Folder menu lost pinned context")
-        try require(treeCoordinator.outlineView(tree,pasteboardWriterForItem:rootNode) is NSFilePromiseProvider && treeCoordinator.outlineView(tree,pasteboardWriterForItem:folderNode) is NSFilePromiseProvider,"Root/folder native drag source")
+        try await wait{!model.hasPendingWork}
+        let treeBoard=NSPasteboard.withUniqueName();defer{treeBoard.clearContents()}
+        try require(!treeCoordinator.outlineView(tree,writeItems:[rootNode],to:treeBoard),"Programmatic tree delivery without gesture")
+        try require(tree.captureDragGesture(try gesture(tree,row:tree.row(forItem:rootNode))),"Root drag gesture")
+        try require(!treeCoordinator.outlineView(tree,writeItems:[folderNode],to:treeBoard),"Tree drag substituted a different hit node")
+        try require(treeCoordinator.outlineView(tree,writeItems:[rootNode],to:treeBoard),"Root native drag source")
+        try require(treeCoordinator.activeTransfer?.revision==hash && treeCoordinator.activeTransfer?.promises.count==3,"Root drag lost pinned top-level items")
+        try require(tree.captureDragGesture(try gesture(tree,row:tree.row(forItem:folderNode))),"Folder drag gesture")
+        try require(treeCoordinator.outlineView(tree,writeItems:[folderNode],to:treeBoard) && treeCoordinator.activeTransfer?.promises.count==1 && treeCoordinator.activeTransfer?.names==["folder"],"Folder native drag source")
         tree.collapseItem(folderNode)
         try require(!model.expanded.contains("folder"),"Collapse did not update expansion state")
         model.openFolder("");try await wait { model.snapshot?.directory=="" && table.numberOfRows==3 }
@@ -74,9 +92,15 @@ import TurtleGitCore
         let menu=table.menu!;coordinator.menuNeedsUpdate(menu)
         try require(menu.items.filter { !$0.isSeparatorItem }.map(\.title)==["Revert to this revision","Copy to clipboard","Copy hash"],"Multi-file source menu")
         try require(menu.items.filter { !$0.isSeparatorItem }.allSatisfy { $0.image != nil && $0.isEnabled },"Original context artwork/enabled state")
-        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);coordinator.menuNeedsUpdate(menu)
-        try require(menu.items.filter { !$0.isSeparatorItem }.map(\.title)==["Open","Show log","Copy to clipboard","Copy hash"],"Folder menu conditions")
-        table.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false);coordinator.menuNeedsUpdate(menu)
+        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        try await wait{model.selected.count==1 && model.selected.first?.kind == .directory}
+        coordinator.menuNeedsUpdate(menu)
+        let listFolderItems=menu.items.filter{!$0.isSeparatorItem}
+        try require(listFolderItems.map(\.title)==["Save as archive…","Open","Show log","Copy to clipboard","Copy hash"],"Folder menu conditions: \(listFolderItems.map(\.title))")
+        try require(listFolderItems.allSatisfy{$0.image != nil && $0.isEnabled},"Eligible folder archive/menu lost source artwork or enabled state")
+        table.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
+        try await wait{model.selected.count==1 && model.selected.first?.kind != .directory}
+        coordinator.menuNeedsUpdate(menu)
         try require(menu.items.first?.title=="Open" && menu.items.contains { $0.title=="Blame" } && menu.items.contains { $0.title=="Save revision to…" },"File menu conditions")
         var logReply:(String,String)?
         model.onLog={ logReply=($0,$1) }
@@ -136,10 +160,17 @@ import TurtleGitCore
         try await wait { table.tableColumns.map { $0.identifier.rawValue }==RepositoryBrowserColumns.names && table.tableColumns.allSatisfy { !$0.isHidden } }
         let snapshot=model.snapshot!,originalEntries=model.entries
         // Separate promised items are pinned before the branch moves and owner closes.
-        let providers=try originalEntries.enumerated().map { index,entry -> NSFilePromiseProvider in
-            guard let provider=coordinator.tableView(table,pasteboardWriterForRow:index) as? NSFilePromiseProvider else { throw Failure(description:"No promise for \(entry.name)") }
-            return provider
-        }
+        let dragBoard=NSPasteboard.withUniqueName();defer{dragBoard.clearContents()}
+        let indexes=IndexSet(integersIn:0..<originalEntries.count)
+        table.selectRowIndexes(indexes,byExtendingSelection:false)
+        try await wait{model.selection==Set(originalEntries.map(\.id))}
+        try require(!coordinator.tableView(table,writeRowsWith:indexes,to:dragBoard),"Programmatic list delivery without gesture")
+        let native=table as! RepositoryBrowserNativeTable
+        try require(native.captureDragGesture(try gesture(table,row:0)),"List drag gesture")
+        try require(!coordinator.tableView(table,writeRowsWith:IndexSet(integer:1),to:dragBoard),"List drag substituted a different hit row/selection")
+        try require(coordinator.tableView(table,writeRowsWith:indexes,to:dragBoard),"Selected native drag unavailable")
+        let providers=coordinator.activeTransfer!.writers.compactMap{$0 as? NSFilePromiseProvider}
+        try require(providers.count==originalEntries.count && coordinator.activeTransfer?.revision==snapshot.objectID,"Native drag lost original ordered items/revision")
         try Data("new current bytes\n".utf8).write(to:root.appendingPathComponent("file2.txt"));try await repo.stage(["file2.txt"]);_ = try await repo.commit(message:"Move branch")
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let destination=root.appendingPathComponent("deliveries");try FileManager.default.createDirectory(at:destination,withIntermediateDirectories:true)

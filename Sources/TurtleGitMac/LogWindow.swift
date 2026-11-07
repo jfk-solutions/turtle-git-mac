@@ -588,8 +588,25 @@ final class LogHistoryWindow: NSWindow {
     func showContainingReferences(_ hash: String) {
         guard canFind, !hash.isEmpty, let parent = window else { return }
         let id = UUID(), child = CommitContainingReferencesWindowController(repository: model.repository, access: findAccess, revision: hash, preferences: findPreferences)
+        child.externalAvailability = { [weak model] in model?.isInvalidated==false && model?.confirmingQuit==false }
+        child.externalInteractionEpoch = { [weak model] in model?.logControlsEpoch ?? UUID() }
+        child.parentStateObservation=model.$confirmingQuit.sink { [weak child] _ in
+            DispatchQueue.main.async {child?.updateAvailability()}
+        }
         child.onLog = { [weak model] name, select, range in model?.onContainingLog?(name, select, range) }
+        child.onCapturedLog = { [weak model] repository,name,select,range in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            if let action=model.onContainingRepositoryLog {action(repository,name,select,range)}else{model.onContainingLog?(name,select,range)}
+        }
         child.onBrowse = model.onBrowseRepository; child.onCompare = model.onCompare; child.onUnified = model.onUnifiedDiff
+        child.onCapturedBrowse = { [weak model] repository,revision in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            if let action=model.onContainingRepositoryBrowse {action(repository,revision)}else{model.onBrowseRepository?(revision)}
+        }
+        child.onCapturedCompare = { [weak model] repository,from,to in
+            guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
+            if let action=model.onContainingRepositoryCompare {action(repository,from,to)}else{model.onCompare?(from,to)}
+        }
         child.onNavigate = { [weak model] hash, select in
             guard let model, !model.isInvalidated, !model.busy, !model.orderingBlocked else { return }
             if model.entries.contains(where: { $0.hash == hash }) {
@@ -2359,6 +2376,9 @@ struct LogCommandRequest: Identifiable {
     var onShowOrdering: (() -> Void)?
     var onShowContainingReferences: ((String) -> Void)?
     var onContainingLog: ((String?, Bool, HistoryRevisionRange?) -> Void)?
+    var onContainingRepositoryLog: ((GitRepository,String?,Bool,HistoryRevisionRange?)->Void)?
+    var onContainingRepositoryBrowse:((GitRepository,String)->Void)?
+    var onContainingRepositoryCompare:((GitRepository,ComparisonRevision,ComparisonRevision)->Void)?
     var onFormatPatch: ((FormatPatchPreset) -> Void)?
     var formatPatchPreset: FormatPatchPreset? {
         guard !includesWorkingTree else { return nil }
@@ -4782,7 +4802,7 @@ struct RevisionTable: NSViewRepresentable {
         for definition in LogRevisionColumns.definitions {
             let id = definition.id
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(id)); column.title = NSLocalizedString(definition.title,comment:""); column.width = definition.width
-            column.isHidden = (id != "graph" && !LogRevisionColumns.visible(id, defaults: model.colorPreferences)) || id == "graph" && model.historyWalk.followRenames || id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "svn" && !model.hasGitSVN
+            column.isHidden = !LogRevisionColumns.visible(id, defaults: model.colorPreferences) || id == "graph" && model.historyWalk.followRenames || id == "bugs" && !model.issueProperties.showsBugIDColumn || id == "svn" && !model.hasGitSVN
             column.minWidth = id == "graph" ? 38 : 70; column.maxWidth = 10000; table.addTableColumn(column)
         }
         table.allowsColumnReordering = true; table.allowsColumnResizing = true
@@ -4832,7 +4852,7 @@ struct RevisionTable: NSViewRepresentable {
         table.rowHeight = font.map { max(24, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 24
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("svn"))?.isHidden = !model.hasGitSVN || !LogRevisionColumns.visible("svn", defaults: model.colorPreferences)
         table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("bugs"))?.isHidden = !model.issueProperties.showsBugIDColumn || !LogRevisionColumns.visible("bugs", defaults: model.colorPreferences)
-        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = model.historyWalk.followRenames
+        table.tableColumn(withIdentifier: NSUserInterfaceItemIdentifier("graph"))?.isHidden = model.historyWalk.followRenames || !LogRevisionColumns.visible("graph", defaults:model.colorPreferences)
         let projectionChanged = coordinator.sizingProjection != model.historyProjectionEpoch
         let contentChanged = coordinator.contentEpoch != model.revisionTableContentEpoch
         let graphChanged = coordinator.graphEpoch != model.revisionGraphEpoch
@@ -5200,11 +5220,11 @@ struct RevisionTable: NSViewRepresentable {
                 reset.image=MenuIcon.reset.contextImage(defaults:model.colorPreferences);reset.target=self;reset.identifier = .init("Log.Columns.Reset");reset.isEnabled=columnReceipt != nil
                 if let columnReceipt{reset.representedObject=ColumnCommand(columnReceipt,nil)}
                 menu.addItem(reset);menu.addItem(.separator())
-                for definition in LogRevisionColumns.definitions where definition.id != "graph" {
+                for definition in LogRevisionColumns.definitions {
                     if definition.id=="bugs" && !model.issueProperties.showsBugIDColumn || definition.id=="svn" && !model.hasGitSVN {continue}
                     let item=NSMenuItem(title:HistoryLabels.caption(definition.title),action:#selector(columnCommand(_:)),keyEquivalent:"")
                     item.image=MenuIcon.settingsDialogs.contextImage(defaults:model.colorPreferences)
-                    item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil
+                    item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil && !(definition.id=="graph" && model.historyWalk.followRenames)
                     if let columnReceipt{item.representedObject=ColumnCommand(columnReceipt,definition.id)}
                     item.state=table?.tableColumn(withIdentifier:.init(definition.id))?.isHidden==false ? .on:.off;menu.addItem(item)
                 }
@@ -5584,7 +5604,7 @@ struct RevisionTable: NSViewRepresentable {
         }
         @objc func toggleColumn(_ sender:NSMenuItem){guard columnCommandsAvailable,let id=sender.representedObject as? String else{return};toggleColumnID(id)}
         private func toggleColumnID(_ id:String) {
-            guard columnCommandsAvailable,id != "graph",let column=table?.tableColumn(withIdentifier:.init(id)) else{return}
+            guard columnCommandsAvailable,!(id=="graph" && model.historyWalk.followRenames),let column=table?.tableColumn(withIdentifier:.init(id)) else{return}
             if id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN{return}
             column.isHidden.toggle();columnLayoutEpoch=UUID()
             model.colorPreferences.set(!column.isHidden,forKey:"Log.Column.Visible."+id)

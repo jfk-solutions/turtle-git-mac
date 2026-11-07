@@ -265,7 +265,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         @objc func copyNames() { guard available else { return };model.copy() }
         @objc func copyHashes() { guard available else { return };model.copy(hashes:true) }
         func tableView(_ tableView:NSTableView,writeRowsWith rowIndexes:IndexSet,to pasteboard:NSPasteboard)->Bool {
-            guard let source=tableView as? RepositoryBrowserNativeTable,source.acceptsDragGesture,let transfer=captureDrag(rows:rowIndexes),transfer.write(to:pasteboard) else{return false}
+            guard let source=tableView as? RepositoryBrowserNativeTable,source.acceptsDragRows(rowIndexes),let transfer=captureDrag(rows:rowIndexes),transfer.write(to:pasteboard) else{return false}
             activeTransfer=transfer;return true
         }
         func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,willBeginAt screenPoint:NSPoint,forRowIndexes rowIndexes:IndexSet) {
@@ -282,13 +282,15 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
 final class RepositoryBrowserNativeTable:NSTableView {
     var dragContext:()->String?={nil}
     private var dragStart:String?
+    private var dragRow:Int?
     var acceptsDragGesture:Bool{dragStart != nil && dragStart==dragContext()}
+    func acceptsDragRows(_ rows:IndexSet)->Bool {acceptsDragGesture && dragRow.map{rows.contains($0)}==true}
     @discardableResult func captureDragGesture(_ event:NSEvent)->Bool {
-        dragStart=nil
+        dragStart=nil;dragRow=nil
         guard event.type == .leftMouseDown,event.window === window,isEnabled,row(at:convert(event.locationInWindow,from:nil))>=0,column(at:convert(event.locationInWindow,from:nil))>=0 else{return false}
-        dragStart=dragContext();return dragStart != nil
+        dragRow=row(at:convert(event.locationInWindow,from:nil));dragStart=dragContext();return dragStart != nil
     }
-    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil};super.mouseDown(with:event)}
+    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil;dragRow=nil};super.mouseDown(with:event)}
     var contentsAttached:(NSTableView)->Void={_ in}
     override func viewDidMoveToWindow(){super.viewDidMoveToWindow();if window != nil{contentsAttached(self)}}
     override func menu(for event:NSEvent) -> NSMenu? {

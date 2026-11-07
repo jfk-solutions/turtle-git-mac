@@ -154,3 +154,26 @@ acceptance remain partial; these checks do not certify either dialog complete.
 The [Rebase history tools family](REBASE-HISTORY-TOOLS-PARITY.md) reuses this
 native consumer with captured replay occurrences, inherited preferences and
 parent/read ownership. Its focused evidence does not certify every Log route.
+
+## Native ownership and font batch, November 2026
+
+The containing-reference list follows the optional file-list font setting and
+updates its native row metrics while preserving selection. The subject remains
+one line and the Show log button keeps its intrinsic width; layout checks use
+AppKit's optical alignment rectangle rather than its extended bezel/shadow frame.
+The trailing alignment tolerance remains one point.
+
+Each accepted result retains its repository actor. Log, Browse and Compare routes
+can carry that actor through the existing factories; unified comparison reads use
+the same accepted actor. Legacy callbacks remain available. Reference popup items
+have stable command identifiers and reject a changed revision request, exact
+selection or parent interaction epoch. Parent Quit transitions invalidate old
+requests even when Quit is cancelled; newly accepted requests remain available.
+
+Browse References, Log and Reflog picker ownership continues until the actual
+child callback, workers and native sheet have released. Forced closure cancels
+reads, suppresses late results and delays `onClosed` until owned work and sheets
+have drained. This is an asynchronous macOS ownership adaptation, not an extra
+Git operation. The [related native checkpoint](qa/history-browser-recovery-2026-11-08.json) passes
+with both Git executables after recorded receiver corrections. Complete
+source-dialog, physical Finder and signed-distribution parity are not implied.

@@ -98,4 +98,43 @@ final class RevisionArchiveTests: XCTestCase {
         XCTAssertEqual(staging.files.count,1)
         for file in staging.files {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
     }
+    func testOrdinaryArchiveRefusesChangedOrAppearedDestinationAndRemovesStaging()async throws {
+        let (root,repo,_)=try await GitPatchTests().fixture()
+        defer{try? FileManager.default.removeItem(at:root)}
+        let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        for kind in ["appeared","modified","byte-identical"] {
+            let destination=root.appendingPathComponent(kind+".zip"),reviewed=Data("reviewed existing archive".utf8),capture=ArchiveOutputCapture()
+            let external=kind=="byte-identical" ? reviewed:Data("external writer must survive".utf8)
+            if kind != "appeared" {try reviewed.write(to:destination)}
+            do {
+                _=try await repo.archiveRevision(to:destination,onCommand:{capture.command($0)},beforeFinalization:{try external.write(to:destination,options:.atomic)})
+                XCTFail("Ordinary Export overwrote a changed output target")
+            }catch FileComparisonEditFailure.changed {}
+            XCTAssertEqual(try Data(contentsOf:destination),external)
+            XCTAssertEqual(capture.files.count,1)
+            for file in capture.files {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
+        }
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(afterHead,head)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+    }
+
+    func testOrdinaryArchiveRefusesReplacementOfAnAbsentTargetsParent()async throws {
+        let (root,repo,_)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let parent=root.appendingPathComponent("output"),retiredParent=root.appendingPathComponent("old output")
+        try FileManager.default.createDirectory(at:parent,withIntermediateDirectories:false)
+        let destination=parent.appendingPathComponent("new.zip"),capture=ArchiveOutputCapture()
+        do {
+            _=try await repo.archiveRevision(to:destination,onCommand:{capture.command($0)},beforeFinalization:{
+                try FileManager.default.moveItem(at:parent,to:retiredParent)
+                try FileManager.default.createDirectory(at:parent,withIntermediateDirectories:false)
+            })
+            XCTFail("Ordinary Export followed a replaced parent directory")
+        }catch RevisionArchiveFailure.destination {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath:destination.path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath:retiredParent.appendingPathComponent("new.zip").path))
+        XCTAssertEqual(capture.files.count,1)
+        for file in capture.files {XCTAssertFalse(FileManager.default.fileExists(atPath:file.path));XCTAssertFalse(FileManager.default.fileExists(atPath:file.deletingLastPathComponent().path))}
+    }
+
 }

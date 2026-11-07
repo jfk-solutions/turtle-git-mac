@@ -31,8 +31,9 @@ Completion during a pending question delays automatic close until its answer;
 a late Yes does not cancel an already completed result.
 
 Core archiveRevision resolves a commit/tree and delegates ZIP/attributes/modes to
-Git. It writes an owned temporary sibling, checks cancellation, then replaces the
-destination with rename. Failure/cancellation preserves a previous ZIP and removes
+Git. It writes an owned replacement workspace on the destination volume,
+checks cancellation and validates the captured destination's bytes, identity and
+parent directory before replacing it with rename. Failure/cancellation preserves a previous ZIP and removes
 the temporary. This differs from upstream's direct write, protecting an existing
 archive. HEAD/index/working contents are not intentionally mutated. Scope and
 metadata-directory guards remain active. Native Store models retain repository
@@ -200,3 +201,30 @@ reopened as new submissions.
 The [dated grouped checkpoint](qa/export-archive-formats-2026-10-21.json) records ten distinct Core methods passing across the initial run and one repaired Unicode extraction oracle, plus six native case/engine pairs. Peer review found two reentrant late-presentation gaps; after the narrow production repair, only the affected ownership case was repeated with both Git engines and passed. All eight receivers are absent. Four complete light/dark options/result captures were reviewed. The Debug build passes with recorded toolchain diagnostics; this is not a clean hosted SDK claim.
 
 Signed save grants/replacement-directory behavior on deployment volumes, physical picker/keyboard/VoiceOver, complete source state/layout and hosted integration acceptance remain open.
+
+## Reviewed archive publication and retained progress — November 8, 2026
+
+Ordinary Export now uses the same captured destination validation as historical
+Browser archives. A new file appearing at an absent destination, an external
+write or byte-identical atomic replacement, and replacement of the destination's
+parent directory all refuse final publication. The owned temporary archive is
+removed, while the externally written file remains intact. This extends the
+macOS atomic replacement adaptation; upstream writes its archive directly.
+
+A successful Git process receipt remains separate from final archive publication.
+A destination conflict retains its successful command footer and its subsequent
+filesystem diagnostic, reports an unsuccessful Export, offers no Show in Finder,
+and returns to reviewed options after acknowledgement. A fresh reviewed attempt
+can then export normally.
+
+The retained progress receivers now reserve private preferences, Git configuration,
+temporary directories and pasteboards, use cached links to the current app, hide
+all owned windows and retain exact wrapper argv/PID receipts. Timeout diagnostics
+name the Export phase and waiting source line. The original hosted293 timeout
+identified only its shared wait helper; no particular wrapper phase is inferred
+from that output. Grouped validation and complete physical/signed parity remain
+separate acceptance scopes.
+
+The [grouped recovery checkpoint](qa/history-browser-recovery-2026-11-08.json)
+records passing affected Core/native scope, original failures and focused repairs.
+It does not certify complete physical, signed or whole-port acceptance.

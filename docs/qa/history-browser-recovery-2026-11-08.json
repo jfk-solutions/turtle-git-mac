@@ -1,0 +1,498 @@
+{
+  "date_local": "2026-11-08",
+  "created_utc": "2026-11-07T23:28:34.031945+00:00",
+  "base_commit": "9ef40c6106d7297e0324d5ba222406ae51174b24",
+  "pinned_tortoisegit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Browser refresh/navigation, stored reads, captured backends, drag admission and physical retirement",
+    "Log graph visibility and containing-reference layout/font/menu/chooser/dispatch ownership",
+    "Ordinary Export atomic destination protection and progress/reviewed recovery",
+    "Graph real geometry, gestures and retained owned Filter consumer"
+  ],
+  "production_sha256": {
+    "Sources/TurtleGitCore/RevisionArchive.swift": "6a04cf388d7846dc9a9afbda82239784973a05491b58d25b35b2d677091b88e4",
+    "Sources/TurtleGitMac/CommitContainingReferencesWindow.swift": "2f4882706a027c80a7cae07af67eac0cf30e4ef49d959954d35467ded771ceb3",
+    "Sources/TurtleGitMac/LogWindow.swift": "17d46d52815fc26a0203dcd262592980a3e95f39bac66e9476b8fbaeef4085c9",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "506b1627922a8eb29611f1f904b89f1bbd5312e6cd97904c4e680b8bb4cd7256",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "0a2f76b605403757acd9ad20a36cb6c768c1ed3ff20bd7e5f2ad7eef6b7557a5",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "0c980bcf8dc980ad017dbbc410f181a46476274faf0c23a635907ef43f79205d",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "a3cc843fcf49463e45624b4df51329f908f40a63ded1379ce285b95cd719bc6b"
+  },
+  "validation": {
+    "core": {
+      "command": "swift test -j 4 --filter 'RevisionArchiveTests|RevisionArchiveFormatTests|RepositoryBrowserArchiveTests|StashArchiveCommandCompletionTests'",
+      "exit_code": 0,
+      "methods": 17,
+      "failures": 0,
+      "reported_execution_seconds": 9.347,
+      "log": "build/qa/history-browser-core-2026-11-08.log"
+    },
+    "app_build": {
+      "command": "xcodebuild -quiet -jobs 4 -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+      "exit_code": 0,
+      "log": "build/qa/history-browser-app-build-2026-11-08.log",
+      "repeated": false
+    },
+    "native": {
+      "cumulative_complete_case_engine_pairs": 28,
+      "full_graph_window_complete": true,
+      "engines": [
+        "/usr/bin/git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "completed_families": [
+        "containing references",
+        "Log/Add/Commit optional file-list fonts",
+        "Log graph/rollup column visibility",
+        "Browser namespace navigation/delivery/ownership",
+        "Browser native table",
+        "Browser list/tree/ownership drags",
+        "Graph viewport gestures",
+        "Export whole/scoped/progress/cancellation",
+        "Export streaming/retirement/publication refusal/recovery"
+      ],
+      "attempts": [
+        {
+          "name": "log-references-font-rollup",
+          "returncode": 1,
+          "elapsed_seconds": 3.899,
+          "log": "build/qa/history-browser-log-references-font-rollup-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:12:23.626723+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "browser-namespace",
+          "returncode": 0,
+          "elapsed_seconds": 21.162,
+          "log": "build/qa/history-browser-browser-namespace-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:12:44.833503+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "browser-table",
+          "returncode": 1,
+          "elapsed_seconds": 5.454,
+          "log": "build/qa/history-browser-browser-table-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:12:50.326405+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "browser-drag",
+          "returncode": 0,
+          "elapsed_seconds": 12.834,
+          "log": "build/qa/history-browser-browser-drag-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:13:03.186041+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "graph-window",
+          "returncode": 1,
+          "elapsed_seconds": 3.773,
+          "log": "build/qa/history-browser-graph-window-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:13:06.986195+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "graph-gestures",
+          "returncode": 0,
+          "elapsed_seconds": 4.929,
+          "log": "build/qa/history-browser-graph-gestures-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:13:11.943423+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "export-progress",
+          "returncode": 1,
+          "elapsed_seconds": 5.086,
+          "log": "build/qa/history-browser-export-progress-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:13:17.055918+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "export-retirement",
+          "returncode": 1,
+          "elapsed_seconds": 3.394,
+          "log": "build/qa/history-browser-export-retirement-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:13:20.475070+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-2026-11-08.json"
+        },
+        {
+          "name": "log-references-font-rollup",
+          "returncode": 1,
+          "elapsed_seconds": 8.741,
+          "log": "build/qa/history-browser-log-references-font-rollup-recheck-1-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:14:10.938678+00:00",
+          "receipt": "build/qa/history-browser-log-browser-recheck-1-2026-11-08.json"
+        },
+        {
+          "name": "browser-table",
+          "returncode": 1,
+          "elapsed_seconds": 5.745,
+          "log": "build/qa/history-browser-browser-table-recheck-1-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:14:16.717111+00:00",
+          "receipt": "build/qa/history-browser-log-browser-recheck-1-2026-11-08.json"
+        },
+        {
+          "name": "graph-window",
+          "returncode": 1,
+          "elapsed_seconds": 31.953,
+          "log": "build/qa/history-browser-graph-window-recheck-1-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:15:39.983112+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-1-2026-11-08.json"
+        },
+        {
+          "name": "export-progress",
+          "returncode": 0,
+          "elapsed_seconds": 8.156,
+          "log": "build/qa/history-browser-export-progress-recheck-1-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:15:48.160266+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-1-2026-11-08.json"
+        },
+        {
+          "name": "export-retirement",
+          "returncode": 0,
+          "elapsed_seconds": 6.332,
+          "log": "build/qa/history-browser-export-retirement-recheck-1-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:15:54.518380+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-1-2026-11-08.json"
+        },
+        {
+          "name": "log-references-font-rollup",
+          "returncode": 1,
+          "elapsed_seconds": 63.885,
+          "log": "build/qa/history-browser-log-references-font-rollup-recheck-2-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:17:38.632776+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-2-2026-11-08.json"
+        },
+        {
+          "name": "browser-table",
+          "returncode": 0,
+          "elapsed_seconds": 24.813,
+          "log": "build/qa/history-browser-browser-table-recheck-2-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:18:03.468875+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-2-2026-11-08.json"
+        },
+        {
+          "name": "log-rollup",
+          "returncode": 0,
+          "elapsed_seconds": 57.005,
+          "log": "build/qa/history-browser-log-rollup-recheck-3-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:19:42.866310+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-3-2026-11-08.json"
+        },
+        {
+          "name": "graph-window",
+          "returncode": 1,
+          "elapsed_seconds": 58.639,
+          "log": "build/qa/history-browser-graph-window-recheck-3-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:20:41.529594+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-3-2026-11-08.json"
+        },
+        {
+          "name": "graph-window",
+          "returncode": 0,
+          "elapsed_seconds": 80.531,
+          "log": "build/qa/history-browser-graph-window-recheck-4-2026-11-08.log",
+          "finished_utc": "2026-11-07T23:27:34.305722+00:00",
+          "receipt": "build/qa/history-browser-native-checkpoint-recheck-4-2026-11-08.json"
+        }
+      ],
+      "claim": "Cumulative passing scope retains previously passing groups; only affected failing native consumers were repeated. App source, Core and app build were not changed/repeated after first checkpoint."
+    }
+  },
+  "retained_initial_failures": [
+    {
+      "consumer": "containing refs",
+      "diagnostic": "Optional backend unwrapping and named assertion helper compile errors; range menu still cast owned receipt to String; rollup lacked model.window ownership bridge",
+      "repair": "Preserve exact actor assertion and named diagnostics; stable command identifiers; actual private model/window binding"
+    },
+    {
+      "consumer": "Browser table",
+      "diagnostic": "Tree and list folder menu expectations omitted existing Save as archive command in their different positions",
+      "repair": "Exact five-item orders, eligibility, icons and all existing transfer/lifetime assertions retained"
+    },
+    {
+      "consumer": "Graph window",
+      "diagnostic": "Dense point expression failed type checking; old synthetic canvas and overview expectation omitted native margin/boundary clamp; subsequent Filter reopening observed physical sheet dismissal before owned release",
+      "repair": "Typed actual-geometry gesture probes and independent exact coordinate/clamp assertions; Filter ownership continuation recorded in latest attempt"
+    },
+    {
+      "consumer": "Export retained fixtures",
+      "diagnostic": "New exact argv receipt compared authored /private temporary URL with the repository-normalized /var spelling",
+      "repair": "Require exact repository.root framing, bounded NUL UTF-8 argv and pinned tree; original hosted293 generic timeout remains phase-unattributed"
+    }
+  ],
+  "logs": {
+    "build/qa/history-browser-app-build-2026-11-08.log": "0539ab7e0070d9e456b4e898a40e29957090caf9d3af5b9d3d97088307c98c76",
+    "build/qa/history-browser-browser-drag-2026-11-08.log": "528b55adedcc28c2e4171a39a278c65cbf79c5e183c27050db34e749f8b32998",
+    "build/qa/history-browser-browser-namespace-2026-11-08.log": "c8d69368b8ed0d428de51d258160fc9db809b1aec8020dba10f58ba67d45ff8a",
+    "build/qa/history-browser-browser-table-2026-11-08.log": "5d085c923f32eb519ef18edb79366859afe2b03ef3cbedfe708b10a8c2bd9c99",
+    "build/qa/history-browser-browser-table-recheck-1-2026-11-08.log": "cf1551316e445b51f8f905d2a55a9b87634ddf7a2a4e06820123622a585b73c0",
+    "build/qa/history-browser-browser-table-recheck-2-2026-11-08.log": "cfa6a560d35cbabd5c63c1162c02184d0221f7cd541cd48451553f5b3913eaaa",
+    "build/qa/history-browser-core-2026-11-08.log": "11d0cfde505b25ec11a49f98a9398abe4602fbb410e056580cc4163977e0a768",
+    "build/qa/history-browser-export-progress-2026-11-08.log": "dfa93fc0cc3ce863c48287aa591cfa16ca7e392ea8c34fbd0b8fc24a9b66034f",
+    "build/qa/history-browser-export-progress-recheck-1-2026-11-08.log": "24f12782cd456ebf6fafa0ea310ca1d94655d439028f79eb638784c84cc08f39",
+    "build/qa/history-browser-export-retirement-2026-11-08.log": "3e531e943c09c5b8cd2433107e4fa558afd52520c961209c7f2c6e940b07ed77",
+    "build/qa/history-browser-export-retirement-recheck-1-2026-11-08.log": "4f5d426ad3c20ec75cafa7e58d214ab156be219c9c3837328fad0758829bb73c",
+    "build/qa/history-browser-graph-export-recheck-1-driver-2026-11-08.log": "30057cd6e4d7b34145e8e60a96c79f5c1f248b4e4462ecfbe08b97f9b03299cc",
+    "build/qa/history-browser-graph-gestures-2026-11-08.log": "74faea0f4d09e6be97ccdf2989ff59fc693e12a60d06caf5ff70146218e2667d",
+    "build/qa/history-browser-graph-window-2026-11-08.log": "bf07d7d1b8a98700babb26a8037dd1212d2b7f4f2c208f5d4e9ebb3a8e44f113",
+    "build/qa/history-browser-graph-window-recheck-1-2026-11-08.log": "fce796bdbfbbb80a25444925d559633a9d339891c088a54fbd54d46d3dbde6a9",
+    "build/qa/history-browser-graph-window-recheck-3-2026-11-08.log": "6f035fe5e5981027fcf554cad7ff30b5c9b29b2be92eaf31ccd392fcb42966b0",
+    "build/qa/history-browser-graph-window-recheck-4-2026-11-08.log": "1c52c21a377a94a545b4b01096beac8460f9a772bb933ac3a8617505bf157fde",
+    "build/qa/history-browser-log-references-font-rollup-2026-11-08.log": "8d3d53acb4497af72c7ea514c8d22f37c764de414aa336851cc905af9dba53cf",
+    "build/qa/history-browser-log-references-font-rollup-recheck-1-2026-11-08.log": "7697cb029f80638db1ea4f84c8d48d6b43445b81f344e352df07cb9ffa975861",
+    "build/qa/history-browser-log-references-font-rollup-recheck-2-2026-11-08.log": "047047944d6e43d56d9c17368aea2c34380fa2d40a7a1d055f472e9c10c0b00f",
+    "build/qa/history-browser-log-rollup-recheck-3-2026-11-08.log": "e38d497ed49aed9d89786b2e62123545ee04d13ad4a2c6290d049721213c5e20",
+    "build/qa/history-browser-native-driver-2026-11-08.log": "3c649ecb56164cffaebd612ac77c5cbc06f31b795c1844828bc70de4061e0b3d",
+    "build/qa/history-browser-recheck-1-driver-2026-11-08.log": "d47cdb2afbd8b84d0522a5101047bc4c141c490389aa6aaec6c86b31036b1a08",
+    "build/qa/history-browser-recheck-2-driver-2026-11-08.log": "3347ed8ba5f003074c15f4981144ba5e20fc44995e528ed9732cd9e1b7336c54",
+    "build/qa/history-browser-recheck-3-driver-2026-11-08.log": "d645934a49a68a47f4304a7a888bd1b679231340fea27cdc3925c9250ce995c0",
+    "build/qa/history-browser-recheck-4-driver-2026-11-08.log": "c2f63053314b25fecf8a8276b3ef179e7ba83fafaa3b24fb2596b5ecd85d2ab7"
+  },
+  "remaining": [
+    "Separate ordinary Merge Save/history readiness failure (hosted320): read-only diagnosis retained, not repaired or certified by this batch",
+    "Matching corrected-source complete hosted CI; older9a1 Core/History plus additional lane step failures do not prove current-source causes",
+    "Complete physical/signed/Finder, Intel/minimum-macOS, localization/accessibility and full upstream-dialog acceptance",
+    "Installed52 and immutable candidate53 remain unchanged; no new installation, notarization, Store submission or binary publication"
+  ],
+  "claim": "A connected workflow checkpoint, not a port completion percentage or complete release acceptance.",
+  "cleanup": {
+    "remaining_workspace_images": [],
+    "created_utc": "2026-11-07T23:27:50.811109+00:00",
+    "owned_compiler_receiver_pids": [
+      78259,
+      78264,
+      78271,
+      78280,
+      78345,
+      78458,
+      78526,
+      78594,
+      78708,
+      78771,
+      78809,
+      78848,
+      78854,
+      78935,
+      79002,
+      79060,
+      79159,
+      79224,
+      79290,
+      79313,
+      79317,
+      79401,
+      79484,
+      79497,
+      79615,
+      79619,
+      80529,
+      80583,
+      80688,
+      80705,
+      80986,
+      81058,
+      81229,
+      81239,
+      81347,
+      81456,
+      81465,
+      81539,
+      81730,
+      81751,
+      82055,
+      82366,
+      82602,
+      82856,
+      83791,
+      83848,
+      83949,
+      84184,
+      84215,
+      85203,
+      86201,
+      86571,
+      89228,
+      90050,
+      90627
+    ],
+    "remaining_logged_pids": [],
+    "registrations_before": [
+      {
+        "path": "/Applications/TurtleGit for Mac.app",
+        "name": "TurtleGit",
+        "identifier": "org.turtlegit.macos",
+        "version": "52.0 ({length = 32, bytes = 0x34000000 00000000 00000000 00000000 ... 00000000 00000000 })",
+        "executable": "Contents/MacOS/TurtleGitMac",
+        "mod date": "2026-11-03 14:10 (POSIX 1793711426, \ud835\udee5 4Tg. 10Std. 17Min. 25Sek.)",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, \ud835\udee5 2Tg. 6Std. 42Min. 1Sek.)"
+      },
+      {
+        "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+        "name": "TurtleGitFinder",
+        "identifier": "org.turtlegit.macos.finder",
+        "version": "0.1 ({length = 32, bytes = 0x00000000 00000000 01000000 00000000 ... 00000000 00000000 })",
+        "executable": "TurtleGitFinder",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, \ud835\udee5 2Tg. 6Std. 42Min. 3Sek.)",
+        "mod date": "2026-11-03 14:09 (POSIX 1793711354, \ud835\udee5 4Tg. 10Std. 18Min. 39Sek.)"
+      }
+    ],
+    "default_handler_before": {
+      "api": "NSWorkspace.urlForApplication(toOpen:) read-only; URL not opened",
+      "exit_code": 0,
+      "path": "/Applications/TurtleGit for Mac.app",
+      "stderr": ""
+    },
+    "processes_before": [
+      {
+        "pid": 1506,
+        "name": "TurtleGitFinder",
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      }
+    ],
+    "installed_main_sha256_before": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "operations": [],
+    "signals_sent": false,
+    "registrations_after": [
+      {
+        "path": "/Applications/TurtleGit for Mac.app",
+        "name": "TurtleGit",
+        "identifier": "org.turtlegit.macos",
+        "version": "52.0 ({length = 32, bytes = 0x34000000 00000000 00000000 00000000 ... 00000000 00000000 })",
+        "executable": "Contents/MacOS/TurtleGitMac",
+        "mod date": "2026-11-03 14:10 (POSIX 1793711426, \ud835\udee5 4Tg. 10Std. 17Min. 39Sek.)",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, \ud835\udee5 2Tg. 6Std. 42Min. 15Sek.)"
+      },
+      {
+        "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+        "name": "TurtleGitFinder",
+        "identifier": "org.turtlegit.macos.finder",
+        "version": "0.1 ({length = 32, bytes = 0x00000000 00000000 01000000 00000000 ... 00000000 00000000 })",
+        "executable": "TurtleGitFinder",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, \ud835\udee5 2Tg. 6Std. 42Min. 16Sek.)",
+        "mod date": "2026-11-03 14:09 (POSIX 1793711354, \ud835\udee5 4Tg. 10Std. 18Min. 52Sek.)"
+      }
+    ],
+    "default_handler_after": {
+      "api": "NSWorkspace.urlForApplication(toOpen:) read-only; URL not opened",
+      "exit_code": 0,
+      "path": "/Applications/TurtleGit for Mac.app",
+      "stderr": ""
+    },
+    "processes_after": [
+      {
+        "pid": 1506,
+        "name": "TurtleGitFinder",
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      }
+    ],
+    "installed_main_sha256_after": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "status": "55 logged owned processes and workspace runtime images absent; Debug registrations absent; installed52/Finder retained"
+  },
+  "static_validation": {
+    "localizations_write": {
+      "languages": 38,
+      "keys": 1392,
+      "exit_code": 0
+    },
+    "localizations_check": {
+      "languages": 38,
+      "keys": 1392,
+      "exit_code": 0
+    },
+    "changed_python_compilation_exit_code": 0,
+    "coverage_reconciliation": {
+      "exit_code": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "pending_control_reviews": 85,
+      "mapped_controls": 1574,
+      "claim": "Source audit ledger only; these are not feature completion percentages."
+    },
+    "bundled_help": "No guide listed in docs/help-topics.json changed; no Help/app rebuild repeated for parity/tracker/QA edits."
+  },
+  "protected_unrelated_work": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3",
+    "status": "Both exact hashes unchanged; excluded from commit."
+  },
+  "hosted_observation": {
+    "source": "9a1ee02866580ddacc2848ed43355b27f42bb934",
+    "run": 42408561589,
+    "evidence": "Connected GitHub API job/step summaries only; no new raw log causes inferred. These old-source summaries do not establish defects at the repaired working tree. Core/History raw diagnostics retain their separate November7 records.",
+    "jobs": [
+      {
+        "id": 128511795362,
+        "name": "settings-finder",
+        "status": "completed/failure",
+        "failed_steps": {
+          "325": "Native filesystem path completion",
+          "393": "Native language settings and compiled app resources"
+        }
+      },
+      {
+        "id": 128511795363,
+        "name": "replay-transport",
+        "status": "completed/failure",
+        "failed_steps": {
+          "196": "Rebase source forms and connected workflows",
+          "235": "Native history navigation warnings Combine and child submodule inspections",
+          "248": "Grouped native Submodule exact paths, source forms, selection and progress",
+          "252": "Native Clone progress and repository setup/transition recovery",
+          "268": "Native primary command launch family",
+          "328": "Native transport presentation",
+          "333": "Native Log and Rebase font",
+          "343": "Native Push partial result refresh",
+          "345": "Native Push retained progress and post-actions",
+          "346": "Grouped native Request Pull waiting, editor, mail and cancellation",
+          "359": "Native ordinary Fetch progress and post-actions",
+          "367": "Native Push cancellation",
+          "369": "Check connected Stash and Submodule recovery workflows",
+          "370": "Check connected Switch, Reset and Bisect workflows",
+          "380": "Native Synchronization histories and revision lists",
+          "381": "Native Synchronization outgoing, Fetch transports and owner lifetime"
+        }
+      },
+      {
+        "id": 128511795370,
+        "name": "commit-repository",
+        "status": "completed/failure",
+        "failed_steps": {
+          "231": "Native filtered historical file output and owned filter cancellation",
+          "255": "Native Add Remote and Select Remote Ref source workflows",
+          "271": "Native workspace completion handoffs",
+          "302": "Source color conversion and native status text appearance",
+          "319": "Comparison savepoints, options, row edits and editor workflows",
+          "322": "Native Save As source targets",
+          "371": "Native Commit, Rebase message editing and Fetch/Pull completion",
+          "389": "Native Commit and Rebase encoding receiver"
+        }
+      }
+    ],
+    "latest_source_observed_before_commit": {
+      "source": "9ef40c6106d7297e0324d5ba222406ae51174b24",
+      "macos_run": 42423054465,
+      "macos_status": "pending",
+      "pages_run": 42423054477,
+      "pages_status": "completed/success"
+    },
+    "scope": "App/Finder build and SwiftPM preparation steps succeeded in these three older lanes. Current-source full hosted success remains required."
+  },
+  "next_editor_workflow": {
+    "status": "Read-only diagnosis; no editor source change or check in this batch.",
+    "observed_failure": "Older hosted320 source-block fixture calls undoInitial once immediately after Save; output remains head/tail and error is nil.",
+    "candidate_boundary": "Save clears model.busy before a later SwiftUI MergeEditor.updateNSView restores native isEditable. mergeSourceRowsReady checks revisions, while historyAllowed also requires isEditable. A single immediate Undo can therefore be refused despite retained history. Exact runtime cause still needs the connected editor checkpoint.",
+    "source_references": [
+      "Sources/TurtleGitMac/TextConflictWindow.swift:2303 Save defer",
+      "Sources/TurtleGitMac/TextConflictWindow.swift:2926 native editability update",
+      "Sources/TurtleGitMac/TextConflictWindow.swift:3111 row readiness",
+      "Sources/TurtleGitMac/TextConflictWindow.swift:3376 history gate",
+      "Pinned MainFrm.cpp:1535-1547 save state;2456 Undo"
+    ],
+    "next_batch_scope": "Save/Save As, source-block commands, Undo/Redo and pane/owner readiness across classic and P4 Merge, retaining exact bytes, history, readonly and retirement assertions."
+  }
+}

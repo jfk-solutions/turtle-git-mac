@@ -1,5 +1,32 @@
 # TurtleGit for Mac — full port tracking
 
+## History, Browser and Export recovery — November 8, 2026
+
+Browser refresh and folder navigation now cancel pending stored-file delivery
+without discarding ownership of its actual worker. Directory and transfer
+inventory reads retain the backend accepted with their snapshot. Closing the
+Browser waits for its owned children and physical parent detachment, while
+accepted external file promises retain their independent captured lifetime.
+Native drag admission also binds the originating hit row or tree item.
+
+Log's Graph column now participates in the source column visibility menu and
+persistent preference; Follow temporarily hides it and restores that preference.
+The containing-reference dialog follows the optional list font, keeps a compact
+subject/Show log row and carries captured actors through Log, Browse, Compare and
+owned pickers. Stale menu selections and parent epochs cannot dispatch later.
+
+Ordinary Export now refuses destination or parent replacement before publishing
+its archive. Git command completion remains distinct from filesystem publication;
+a refused target retains its diagnostic and reviewed recovery path.
+
+The [family contract](HISTORY-BROWSER-RECOVERY.md) and
+[grouped checkpoint](qa/history-browser-recovery-2026-11-08.json) distinguish
+production repairs from stale receiver assumptions, actual checks and remaining
+acceptance. Graph gesture receivers now use real zoomed geometry and owner
+receipts. The separate ordinary Merge Save/history failure and complete matching
+hosted, physical/signed and whole-port acceptance remain open. Installed52 and
+the immutable signed53 candidate are unchanged.
+
 ## Finder cache and image recovery — November 7, 2026
 
 Finder publication now plans a complete root cohort once and patches affected
