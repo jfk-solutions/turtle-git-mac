@@ -63,8 +63,14 @@ final class MetafileHighDepthBitmapTests:XCTestCase {
             return (element.localName=="image" ? [element]:[])+(element.children ?? []).compactMap{$0 as? XMLElement}.flatMap{paints($0)}
         }
         let images=paints(scene)
-        XCTAssertEqual(images.count,1,"High-depth direct record must retain one actual device paint plane")
-        let paint=try XCTUnwrap(images.first)
+        // The authored scene records opaque white before DrawImage. Quality
+        // compositing retains that background checkpoint before the direct
+        // bitmap; the final image is the intrinsic device paint operand.
+        XCTAssertEqual(images.count,2,"High-depth scene must retain its recorded background and direct bitmap")
+        let background=try XCTUnwrap(images.first)
+        XCTAssertEqual(Double(try XCTUnwrap(background.attribute(forName:"x")?.stringValue)),0)
+        XCTAssertEqual(Double(try XCTUnwrap(background.attribute(forName:"y")?.stringValue)),0)
+        let paint=try XCTUnwrap(images.last)
         func coordinate(_ name:String)throws->Int {
             let number=try XCTUnwrap(Double(try XCTUnwrap(paint.attribute(forName:name)?.stringValue)))
             XCTAssertEqual(number,number.rounded())
@@ -117,6 +123,15 @@ final class MetafileHighDepthBitmapTests:XCTestCase {
             XCTAssertEqual(actual.width,2);XCTAssertEqual(actual.height,2)
             for y in 0..<2{for x in 0..<2{assertPixel(actual.sample(x,y),expected[name]![y*2+x],name+" \(x),\(y)")}}
         }
+    }
+    func testWordBitmapIntermediateSamplesRetainBilinearInterpolation()throws {
+        // Authored source0/1 centers map to device8/32. Device20 lies
+        // exactly halfway between them, independently of helper output.
+        // These assertions distinguish interpolation from the endpoint channel
+        // and stride checks, rather than reusing nearest-neighbor colors.
+        let gray=try display("high-depth-gray"),rgb=try display("high-depth-rgb48")
+        assertPixel(gray.sample(20,8),[64.0/255,64.0/255,64.0/255,1],"Half-way WORD grayscale")
+        assertPixel(rgb.sample(20,8),[128.0/255,128.0/255,0,1],"Half-way WORD red/green")
     }
     func testNegativeStrideAndNonzeroRowPaddingPreserveSourceOrientation()throws {
         for name in formats {

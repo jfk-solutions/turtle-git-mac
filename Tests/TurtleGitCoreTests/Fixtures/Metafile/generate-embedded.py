@@ -160,6 +160,9 @@ write('embedded-refused-playback-count',plus([obj(5,image(4,children[4]))]+[draw
 # Header/EOF-only EMF+ is structurally valid and still enters each child playback,
 # but does not spend the paint budget before the 4097th child invocation.
 write('embedded-refused-playback-count-no-paint',plus([obj(5,image(4,plus([],16,16,False)))]+[draw(dest=(0,0,16,16))]*4100))
+# One actual child AA fill exceeds67M coverage samples before raster allocation.
+# Keep this independent of early admission of unconditional excessive breadth.
+write('embedded-refused-paint-coverage',plus([obj(5,image(4,plus([ep(0x401e,flags=9),fill(0xffff0000,(0,0,16,16))],16,16,False))),draw(dest=(0,0,2048,2048))],2048,2048))
 # All existing original fixtures are immutable across generator extension.
 assert old=={name:hashlib.sha256((P/name).read_bytes()).hexdigest() for name in old}
 print(json.dumps({'accepted':len(list(P.glob('embedded-*.emf')))-len(list(P.glob('embedded-refused-*.emf'))),'refused':len(list(P.glob('embedded-refused-*.emf'))),'controls':len(list(P.glob('embedded-*.png'))),'earlier_unchanged':len(old)},sort_keys=True))

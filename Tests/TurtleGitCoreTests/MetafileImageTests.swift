@@ -153,10 +153,13 @@ final class MetafileImageTests: XCTestCase {
     /// Independent bilinear source oracle for original authored bitmap fixtures.
     /// The source tuples are literal generator texels, never renderer output.
     /// Matrix maps integer-centered source samples to device coordinates.
-    @discardableResult private func ordinaryBitmapSamples(_ name:String,width:Int,height:Int,texels:[[Int]],matrix:[Double],points:[(Int,Int)],wrap:Int=4,clamp:[Int]=[0,0,0,0],white:Bool=false)throws->ComparisonImage {
+    @discardableResult private func ordinaryBitmapSamples(_ name:String,width:Int,height:Int,texels:[[Int]],matrix:[Double],points:[(Int,Int)],wrap:Int=4,clamp:[Int]=[0,0,0,0],white:Bool=false,compositedPaint:Bool=false)throws->ComparisonImage {
         XCTAssertEqual(texels.count,width*height)
         let value=try image(name),finalPixels=try rawDecodedPixels(value)
-        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).first,"Missing sampled bitmap plane for \(name)")
+        // A recorded background can be an earlier full-canvas checkpoint.
+        // The direct bitmap follows it; a texture is itself composited into the
+        // final checkpoint. Never interpret the first PNG as intrinsic texels.
+        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).last,"Missing sampled bitmap plane for \(name)")
         let determinant=matrix[0]*matrix[3]-matrix[1]*matrix[2]
         XCTAssertNotEqual(determinant,0)
         func index(_ n:Int,_ length:Int,_ flip:Bool)->Int {
@@ -184,12 +187,11 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertTrue((0..<paint.width).contains(px) && (0..<paint.height).contains(py),"Original probe outside device ROI for \(name): \(x),\(y)")
             guard (0..<paint.width).contains(px),(0..<paint.height).contains(py) else{continue}
             let offset=(py*paint.width+px)*4,actual=Array(paint.rgba[offset..<(offset+4)]).map(Int.init)
-            for channel in 0..<4 {XCTAssertEqual(actual[channel],expected[channel],accuracy:2,"\(name) source sample \(x),\(y): \(actual) expected \(expected)")}
+            let paintExpected=compositedPaint ? expected.prefix(3).map{min(255,$0+255-expected[3])}+[255]:expected
+            for channel in 0..<4 {XCTAssertEqual(actual[channel],paintExpected[channel],accuracy:2,"\(name) \(compositedPaint ? "composited texture" : "intrinsic bitmap") sample \(x),\(y): \(actual) expected \(paintExpected)")}
             let composited=finalPixels.pixel(x,y).map(Int.init)
-            if !white || expected[3]==255 || expected[3]==0 {
-                let displayed=white && expected[3]==0 ? [255,255,255,255]:expected
-                for channel in 0..<4 {XCTAssertEqual(composited[channel],displayed[channel],accuracy:2,"\(name) final sample \(x),\(y)")}
-            } else {XCTAssertEqual(composited[3],255,"Recorded white background lost beneath alpha bitmap")}
+            let displayed=white ? expected.prefix(3).map{min(255,$0+255-expected[3])}+[255]:expected
+            for channel in 0..<4 {XCTAssertEqual(composited[channel],displayed[channel],accuracy:2,"\(name) final sample \(x),\(y)")}
         }
         return value
     }
@@ -208,13 +210,13 @@ final class MetafileImageTests: XCTestCase {
         "finalCGImage=\(image.pixels.width)x\(image.pixels.height),profile=\(String(describing:image.pixels.colorSpace?.name)),bits=\(image.pixels.bitsPerComponent)/\(image.pixels.bitsPerPixel),alpha=\(image.pixels.alphaInfo.rawValue)"
     }
     private func embeddedRGBA(_ name:String,_ x:Int=0,_ y:Int=0)throws->[CGFloat] {
-        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).first,"No source paint plane")
+        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).last,"No final intrinsic paint plane")
         XCTAssertTrue((0..<paint.width).contains(x) && (0..<paint.height).contains(y))
         let offset=(y*paint.width+x)*4,alpha=CGFloat(paint.rgba[offset+3])/255
         return (0..<3).map{alpha>0 ? CGFloat(paint.rgba[offset+$0])/(255*alpha):0}+[alpha]
     }
     private func halfAlphaRed(_ name:String)throws {
-        let source=try XCTUnwrap(embeddedPaints(name,plane:.paint).first)
+        let source=try XCTUnwrap(embeddedPaints(name,plane:.paint).last,"Missing intrinsic bitmap following its recorded background")
         let pixel=try source.sample(4,4)
         XCTAssertEqual(pixel[0],1,accuracy:1.0/255);XCTAssertEqual(pixel[1],0,accuracy:1.0/255);XCTAssertEqual(pixel[2],0,accuracy:1.0/255)
         XCTAssertEqual(pixel[3],CGFloat(128)/255,accuracy:1.0/255,"Raw decoder changed actual source alpha")
@@ -302,8 +304,12 @@ final class MetafileImageTests: XCTestCase {
         try primary(value,2,58,12)
         let outside = try displayRGBOnWhite(value,34,12)
         XCTAssertTrue(outside.allSatisfy { $0>0.9 },"EMF+ transformed clip did not constrain red rectangle")
-        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-transform.emf"))),as:UTF8.self)
-        XCTAssertTrue(svg.contains("matrix(1 0 0 1 12 4)")); XCTAssertTrue(svg.contains("mask="))
+        // Native quality compositing can replace vector transforms and masks
+        // with a checkpoint. Test their independent device-space effects.
+        let pixels=try rawDecodedPixels(value)
+        XCTAssertEqual(pixels.pixel(20,12),[255,0,0,255])
+        XCTAssertEqual(pixels.pixel(58,12),[0,0,255,255])
+        XCTAssertEqual(pixels.pixel(34,12),[0,0,0,0],"Transformed clip admitted an outside pixel")
     }
     func testGDIPlusAppendAndPrependUseDifferentNoncommutingOrder() throws {
         let value = try image("plus-matrix-order.emf")
@@ -335,7 +341,9 @@ final class MetafileImageTests: XCTestCase {
         // green/white/transparent mix, not an integer-centered green texel.
         let name="plus-compressed-crop.emf"
         let value=try ordinaryBitmapSamples(name,width:2,height:2,texels:bitmapQuad,matrix:[32,0,0,16,-24,8],points:[(24,16),(8,8),(8,24)])
-        let paint=try XCTUnwrap(embeddedPaints(name,plane:.paint).first)
+        let paints=try embeddedPaints(name,plane:.paint)
+        XCTAssertEqual(paints.count,1,"Compressed crop contains exactly one direct bitmap and no recorded backdrop")
+        let paint=try XCTUnwrap(paints.first)
         XCTAssertEqual(paint.x,8);XCTAssertEqual(paint.y,8);XCTAssertEqual(paint.width,32);XCTAssertEqual(paint.height,32)
         // The cropped red source column cannot leak beyond the selected source
         // rectangle, nor can resized intrinsic PNG geometry select another crop.
@@ -393,14 +401,14 @@ final class MetafileImageTests: XCTestCase {
     }
     func testLinearGradientTileAndFlipRetainDifferentStopOrders() throws {
         let paints=try embeddedPaints("plus-gradient-wrap.emf",plane:.paint)
-        XCTAssertEqual(paints.count,2)
-        if paints.count==2{
+        XCTAssertEqual(paints.count,1,"Ordinary gradient paints settle in one native checkpoint")
+        if let paint=paints.last{
             // Independent Windows linear-gradient controls establish integer device
             // sampling. x24 is exactly period1 after world translation8:
             // Tile restarts at red; FlipX starts at the reflected blue endpoint.
             for (index,y) in [(0,20),(1,52)]{
-                let raw=try paints[index].sample(24,y),expected:[CGFloat]=index==0 ? [1,0,0,1]:[0,0,1,1]
-                for channel in 0..<4{XCTAssertEqual(raw[channel],expected[channel],accuracy:1.0/255,"Wrapped source pixel differs before native SVG: \(paints[index].diagnostic)")}
+                let raw=try paint.sample(24,y),expected:[CGFloat]=index==0 ? [1,0,0,1]:[0,0,1,1]
+                for channel in 0..<4{XCTAssertEqual(raw[channel],expected[channel],accuracy:1.0/255,"Wrapped source pixel differs before native SVG: \(paint.diagnostic)")}
             }
         }
         let value = try image("plus-gradient-wrap.emf")
@@ -457,19 +465,16 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertGreaterThan(translucent[channel], 0.3)
             XCTAssertLessThan(translucent[channel], 0.85)
         }
-        let svg = String(decoding: try XCTUnwrap(MetafileImageDecoder.convert(data("plus-alpha-pen.emf"))), as: UTF8.self)
-        // Quality coverage can rasterize the opaque outline. Its actual source
-        // alpha/ink, rather than one SVG path serialization, must remain fully
-        // opaque independently of the following half-alpha brush.
+        // Outline and brush are distinct paints even when their SVG spelling
+        // is replaced by a native quality checkpoint. Inspect actual alpha,
+        // not fill/fill-opacity attributes which are no longer public output.
         let pixels=try rawDecodedPixels(value)
         XCTAssertEqual(pixels.pixel(20,8),[255,0,0,255],"Opaque pen inherited the following brush alpha")
-        XCTAssertTrue(svg.contains("fill=\"#ff0000\""))
-        let expression = try NSRegularExpression(pattern: #"fill-opacity="([0-9.]+)""#)
-        let opacities = expression.matches(in: svg, range: NSRange(svg.startIndex..., in: svg)).compactMap { match -> Double? in
-            guard let range = Range(match.range(at: 1), in: svg) else { return nil }
-            return Double(svg[range])
-        }
-        XCTAssertTrue(opacities.contains { abs($0 - 128.0 / 255.0) < 0.0001 }, "Inline ARGB brush alpha was not preserved as separate SVG opacity")
+        let brush=pixels.pixel(20,32)
+        XCTAssertLessThanOrEqual(abs(Int(brush[3])-128),1,"Inline ARGB brush lost half alpha")
+        XCTAssertLessThanOrEqual(abs(Int(brush[0])-Int(brush[3])),1)
+        XCTAssertEqual(brush[1],0);XCTAssertEqual(brush[2],0)
+
     }
     func testRegionBooleanTreesAndClipCombinesPaintIndependentTruthTables() throws {
         let samples = [16, 44, 68, 88]
@@ -509,14 +514,14 @@ final class MetafileImageTests: XCTestCase {
     }
     func testHatchStylesRetainForegroundBackgroundAndNativeCellOrientation() throws {
         let paints=try embeddedPaints("plus-hatch-atlas.emf")
-        XCTAssertEqual(paints.count,53)
-        if paints.count==53{
+        XCTAssertEqual(paints.count,1,"Hatch paints settle in one ordered native checkpoint")
+        if let paint=paints.last{
             for style in 0..<53{
                 let left=2+10*(style%9),top=2+10*(style/9)
                 var foreground=0,background=0
                 for y in top..<(top+8){for x in left..<(left+8){
-                    let raw=try paints[style].sample(x,y)
-                    XCTAssertEqual(raw[1],0,accuracy:1.0/255,paints[style].diagnostic);XCTAssertEqual(raw[3],1,accuracy:1.0/255,paints[style].diagnostic)
+                    let raw=try paint.sample(x,y)
+                    XCTAssertEqual(raw[1],0,accuracy:1.0/255,paint.diagnostic);XCTAssertEqual(raw[3],1,accuracy:1.0/255,paint.diagnostic)
                     XCTAssertEqual(raw[0]+raw[2],1,accuracy:1.0/255,"Hatch source mixed colors beyond foreground/background")
                     if raw[0]>0.8 && raw[2]<0.2{foreground+=1};if raw[2]>0.8 && raw[0]<0.2{background+=1}
                     if style==0{XCTAssertEqual(raw[0],y%8==0 ? 1:0,accuracy:1.0/255,"Horizontal source cell is not a device-pixel line")}
@@ -569,7 +574,9 @@ final class MetafileImageTests: XCTestCase {
         }
     }
     func testHatchAlphaDeviceScaleRenderingOriginAndRestoreRemainIndependent() throws {
-        let scaledPaint=try XCTUnwrap(embeddedPaints("plus-hatch-alpha-world.emf",plane:.paint).first)
+        let scaledPaints=try embeddedPaints("plus-hatch-alpha-world.emf",plane:.paint)
+        XCTAssertEqual(scaledPaints.count,1,"Single hatch paint has one settled quality checkpoint")
+        let scaledPaint=try XCTUnwrap(scaledPaints.first)
         for y in 10..<34{
             let raw=try scaledPaint.sample(20,y),repeatRaw=try scaledPaint.sample(20,y+8)
             for channel in 0..<4{XCTAssertEqual(raw[channel],repeatRaw[channel],accuracy:1.0/255,"Source device hatch period inherited world scale: \(scaledPaint.diagnostic)")}
@@ -577,9 +584,9 @@ final class MetafileImageTests: XCTestCase {
             XCTAssertEqual(raw[0],y%8==0 ? 1:0,accuracy:1.0/255);XCTAssertEqual(raw[1],0,accuracy:1.0/255);XCTAssertEqual(raw[2],y%8==0 ? 0:1,accuracy:1.0/255)
         }
         let origins=try embeddedPaints("plus-hatch-origin.emf",plane:.paint)
-        XCTAssertEqual(origins.count,3)
-        if origins.count==3{for y in 8..<21{
-            let baseline=try origins[0].sample(20,y),shifted=try origins[1].sample(60,y+3),restored=try origins[2].sample(20,y+32)
+        XCTAssertEqual(origins.count,1,"Rendering-origin paints settle in one native checkpoint")
+        if let paint=origins.last{for y in 8..<21{
+            let baseline=try paint.sample(20,y),shifted=try paint.sample(60,y+3),restored=try paint.sample(20,y+32)
             for channel in 0..<4{XCTAssertEqual(baseline[channel],shifted[channel],accuracy:1.0/255,"Source rendering-origin phase changed before SVG");XCTAssertEqual(baseline[channel],restored[channel],accuracy:1.0/255,"Source restored rendering-origin phase changed before SVG")}
         }}
         let scaled = try image("plus-hatch-alpha-world.emf"),rawScaled=try rawDecodedPixels(scaled)
@@ -726,7 +733,7 @@ final class MetafileImageTests: XCTestCase {
             // Require the same literal source colors through each actual map,
             // rather than forcing unequal device samples to look identical.
             try ordinaryBitmapSamples("plus-raw-\(name).emf",width:profile.width,height:profile.height,texels:profile.texels,matrix:[sx,0,0,16,4,4],points:points,white:true)
-            let texture=try ordinaryBitmapSamples("plus-raw-texture-\(name).emf",width:profile.width,height:profile.height,texels:profile.texels,matrix:[sx,0,0,16,4+sx/2-0.5,11.5],points:points,white:true)
+            let texture=try ordinaryBitmapSamples("plus-raw-texture-\(name).emf",width:profile.width,height:profile.height,texels:profile.texels,matrix:[sx,0,0,16,4+sx/2-0.5,11.5],points:points,white:true,compositedPaint:true)
             XCTAssertTrue(try displayRGBOnWhite(texture,80,48).allSatisfy{$0>0.95},"Clamp repeated raw image beyond its tile")
         }
     }

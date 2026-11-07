@@ -1,5 +1,34 @@
 # TurtleGit for Mac — full port tracking
 
+## Finder cache and image recovery — November 7, 2026
+
+Finder publication now plans a complete root cohort once and patches affected
+entries while retaining unrelated cold path maps. An unchanged retirement avoids
+copying those maps or rewriting the warm archive. Independent nested repositories,
+ancestor contributions, exact UTF-8 names, overlay/index flags and publisher
+leases remain protected. Cancellation checks also cover long merge scans. A
+changed large archive still requires copying and serialization; the source
+optimization is not a new signed-build timing guarantee.
+
+The Metafile family now keeps bounded, conversion-local immutable raster/coverage
+reuse while charging the original work budgets. A conservative admission pass
+rejects excessive unconditional embedded playback before painting; unusual state
+uses the existing runtime guards. Explicit-zero and floating-point-rounded
+zero-area draws remain accepted. The original excessive-playback fixtures retain
+their bytes, and a separate single-child fixture preserves coverage-budget refusal.
+Native and Core image consumers distinguish the recorded background checkpoint,
+intrinsic bitmap, composited texture and actual final pixels, retaining independent
+colour, alpha, palette, stride, transform and Windows pixel controls.
+
+The [batch checkpoint](qa/cache-metafile-recovery-2026-11-07.json) records
+98 distinct focused Core methods and fourteen native case/engine pairs passing
+cumulatively. It retains the initial nested-merge/fixture/budget failures and
+rechecks only affected source families. The complete Windows interpolation and
+quality passes were retained rather than repeated. All twenty logged owned
+compiler/receiver processes are absent. Installed52 and the immutable build53
+package remain unchanged; these newer source changes require a later signed
+candidate and do not establish complete hosted or upstream-dialog acceptance.
+
 ## Local candidate consolidation — November 7, 2026
 
 The [tracked-branch consumer correction](qa/reference-tracking-consolidation-2026-11-07.json)

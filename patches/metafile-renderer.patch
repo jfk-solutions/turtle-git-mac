@@ -115,7 +115,7 @@ diff --git a/src/modules/svgContext.js b/src/modules/svgContext.js
 diff --git a/src/turtleGit.js b/src/turtleGit.js
 --- /dev/null
 +++ b/src/turtleGit.js
-@@ -0,0 +1,577 @@
+@@ -0,0 +1,627 @@
 +// TurtleGit adaptations to pinned WmfEmfViewer. MIT, see repository LICENSE.
 +// No filesystem, network, DOM or ambient executable access is exposed here.
 +module.exports = function installTurtleGit(api) {
@@ -568,6 +568,55 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    o+=18;let eof=false,count=0;while(o<bytes.length){if(o+6>bytes.length)fail('truncated WMF record');const size=u32(bytes,o)*2,type=bytes[o+4]|bytes[o+5]<<8;if(size<6||size>bytes.length-o)fail('invalid WMF record length');o+=size;if(++count>1000000)fail('record count limit');if(type===0){eof=true;if(o!==bytes.length)fail('bytes after WMF EOF');break;}}
 +    if(!eof)fail('missing WMF EOF');return {count,plusMode:null};
 +  }
++  // Admit the entire proven, unconditional child-replay workload before any
++  // native paint. General streams retain runtime admission: clips, transforms,
++  // state, attributes, continued objects and point draws cannot be estimated by
++  // counting encoded records. Here every nondegenerate rectangle necessarily
++  // invokes exactly one child; >4096 was already rejected by conversion.images.
++  function preflightUnconditionalChildren(bytes) {
++    if(bytes.length<88||u32(bytes,0)!==1||u32(bytes,40)!==0x464d4520)return;
++    const objects=new Map();let count=0,started=false,ended=false;
++    function admit(type,flags,data) {
++      if(ended)return false;
++      if(type===0x4001) {
++        // Prove the initial pixel-unit,96DPI baseline used by currentMatrix.
++        // Unusual headers retain normal runtime admission and validation.
++        if(started||data.length!==16||flags>1||![0xdbc01001,0xdbc01002].includes(u32(data,0))||u32(data,4)!==1||u32(data,8)!==96||u32(data,12)!==96)return false;
++        started=true;return true;
++      }
++      if(!started)return false;
++      if(type===0x4002){ended=true;return true;}
++      if(type===0x4008) {
++        if(flags&0x8000||(flags>>>8&127)!==5||(flags&255)>63||data.length<16)return false;
++        const version=u32(data,0),kind=u32(data,4),metafileType=u32(data,8),size=u32(data,12);
++        if(![0xdbc01001,0xdbc01002].includes(version)||kind!==2||metafileType<1||metafileType>5||!size||size>data.length-16||data.length-16-size>3)return false;
++        objects.set(flags&255,true);return true;
++      }
++      if(type!==0x401a||(flags&~63)!==0||data.length!==40||u32(data,0)!==0xffffffff||u32(data,4)!==2||!objects.has(flags&63))return false;
++      const values=Array.from({length:8},(_,i)=>f32(data,8+i*4));
++      if(values[2]<=0||values[3]<=0)return false;
++      // Match the runtime construction of x2=x+w/y3=y+h before inversion.
++      // A nonzero Float32 width can disappear when added to its origin in
++      // JavaScript Double precision; that destination never invokes replay.
++      const dx=(values[4]+values[6])-values[4],dy=(values[5]+values[7])-values[5];
++      if(dx!==0&&dy!==0)count++;
++      return true;
++    }
++    // Full record framing was already validated. Scan in original wire order:
++    // EMF+ lives inside EMR_COMMENT even though the parser reports fileType emf.
++    // No record inventory or child raster is allocated by this admission pass.
++    for(let at=u32(bytes,4);at<bytes.length;at+=u32(bytes,at+4)) {
++      const type=u32(bytes,at);
++      if(type===14)break;
++      if(type!==70||u32(bytes,at+8)<4||u32(bytes,at+12)!==0x2b464d45)return;
++      const end=at+12+u32(bytes,at+8);
++      for(let child=at+16;child<end;child+=u32(bytes,child+4)) {
++        const type=bytes[child]|bytes[child+1]<<8,flags=bytes[child+2]|bytes[child+3]<<8;
++        if(!admit(type,flags,bytes.subarray(child+12,child+12+u32(bytes,child+8))))return;
++      }
++    }
++    if(ended&&count>4096)fail('embedded metafile image count budget exceeded');
++  }
 +  function renderDocument(bytes,format,declared=null,playback=null) {
 +    if(!conversion)fail('missing conversion scope');
 +    const child=declared!==null;
@@ -623,6 +672,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +    if(!Number.isFinite(width)||!Number.isFinite(height)||width<=0||height<=0||width>32768||height>32768||width*height>67108864)fail('invalid or oversized image bounds');
 +    if(parsed.records.length>1000000)fail('record count limit');
 +    if(playback&&playback.inspectOnly)return {width,height};
++    if(!child)preflightUnconditionalChildren(bytes);
 +    if(!child){if(typeof globalThis.__turtlePicturePlan!=='function')fail('native Picture document plan unavailable');globalThis.__turtlePicturePlan(width,height);}
 +    const context=new SvgContext();shareBudgets(context);
 +    // File-backed WMF and EMF+ start with unpainted alpha, like native

@@ -846,6 +846,71 @@ extension GitRepository {
     }
 }
 
+/// Transaction-local byte prefixes. Matching never materializes Data, a new
+/// root+slash String, or a normalized filesystem spelling for each cached path.
+fileprivate struct FinderSnapshotPathScope {
+    private struct Prefix {
+        let bytes:[UInt8],absolute:Bool
+        init(_ path:String) {bytes=Array(path.utf8);absolute=bytes.count==1 && bytes.first==47}
+        func contains(_ path:String)->Bool {
+            var candidate=path.utf8.makeIterator()
+            if absolute {return candidate.next()==47}
+            for byte in bytes {if candidate.next() != byte {return false}}
+            let boundary=candidate.next();return boundary==nil || boundary==47
+        }
+    }
+    private struct ExactPaths {
+        private struct Node {var next:[UInt8:Int]=[:];var terminal=false}
+        private var nodes=[Node()]
+        init(_ paths:GitPathSet) {
+            for path in paths {
+                var current=0
+                for byte in path.utf8 {
+                    if let next=nodes[current].next[byte] {current=next}
+                    else {
+                        let next=nodes.count
+                        nodes.append(Node());nodes[current].next[byte]=next;current=next
+                    }
+                }
+                nodes[current].terminal=true
+            }
+        }
+        var isEmpty:Bool {nodes.count==1 && !nodes[0].terminal}
+        func contains(_ path:String)->Bool {
+            var current=0
+            for byte in path.utf8 {
+                guard let next=nodes[current].next[byte] else{return false}
+                current=next
+            }
+            return nodes[current].terminal
+        }
+    }
+    private let roots:[(Prefix,[Prefix])]
+    private let exact:ExactPaths
+    init(_ paths:[String],protecting protected:[String]=[],including exact:GitPathSet=[]) {
+        self.exact=ExactPaths(exact)
+        roots=paths.map{root in
+            let prefix=Prefix(root)
+            return(prefix,protected.filter{prefix.contains($0)}.map(Prefix.init))
+        }
+    }
+    func contains(_ path:String)->Bool {
+        var protectedCandidate=false
+        for(root,excluded) in roots where root.contains(path) {
+            if !excluded.contains(where:{$0.contains(path)}) {return true}
+            protectedCandidate=true
+        }
+        // Never hash a bridged archive String while scanning. Exact lookup is
+        // byte-trie O(path bytes), and only needed inside protected prefixes.
+        return protectedCandidate && !exact.isEmpty && exact.contains(path)
+    }
+}
+
+struct FinderSubtreeReplacementWork:Equatable,Sendable {
+    var scannedEntries=0,affectedEntries=0,patchedEntries=0
+    var changed=false
+}
+
 extension FinderSnapshot {
     public static func readLive(from url: URL? = FinderIntegration.snapshotURL) -> FinderSnapshot? {
         guard let url else {return nil};return try? FinderSnapshotStore(url:url).readLive()
@@ -861,16 +926,124 @@ extension FinderSnapshot {
         return overlayPolicies[root]?.caseSensitive ?? fallback
     }
     public func subtree(root: URL) -> FinderSnapshot {
-        let path=FileTransferPaths.lexicalPath(root.path)
-        func belongs(_ candidate:String)->Bool {Self.contains(candidate,root:path)}
-        return FinderSnapshot(roots:roots.filter(belongs),states:states.filter {belongs($0.key)},updated:updated,
-            repositories:repositories.filter {belongs($0.key)},overlayEntries:overlayEntries?.filter {belongs($0.key)},indexFlags:indexFlags?.filter {belongs($0.key)},overlayPolicies:overlayPolicies.filter {belongs($0.key)})
+        var work=FinderSubtreeReplacementWork()
+        return try! subtree(scope:FinderSnapshotPathScope([FileTransferPaths.lexicalPath(root.path)]),work:&work,checkpoint:nil)
+    }
+    fileprivate func subtree(scope:FinderSnapshotPathScope,dataScope:FinderSnapshotPathScope?=nil,work:inout FinderSubtreeReplacementWork,checkpoint:(()throws->Void)?)throws->FinderSnapshot {
+        func selected<Value>(_ values:GitPathMap<Value>,within filter:FinderSnapshotPathScope)throws->GitPathMap<Value> {
+            var result=GitPathMap<Value>()
+            for entry in values {
+                work.scannedEntries += 1
+                if work.scannedEntries & 1023 == 0 {try checkpoint?()}
+                if filter.contains(entry.key) {result[entry.key]=entry.value;work.affectedEntries += 1}
+            }
+            return result
+        }
+        let data=dataScope ?? scope
+        return try FinderSnapshot(roots:roots.filter(scope.contains),states:selected(states,within:data),updated:updated,
+            repositories:selected(repositories,within:scope),overlayEntries:overlayEntries.map{try selected($0,within:data)},indexFlags:indexFlags.map{try selected($0,within:data)},overlayPolicies:selected(overlayPolicies,within:scope))
+    }
+    fileprivate static func sameMetadata(_ lhs:GitPathMap<FinderRepositoryMetadata>,_ rhs:GitPathMap<FinderRepositoryMetadata>)->Bool {
+        guard lhs==rhs else{return false}
+        return lhs.allSatisfy{path,value in
+            guard let other=rhs[path] else{return false}
+            switch(value.submoduleParentRoot,other.submoduleParentRoot) {
+            case(nil,nil):return true
+            case let(a?,b?):return GitReferenceName.equal(a,b)
+            default:return false
+            }
+        }
+    }
+    fileprivate static func sameContents(_ lhs:FinderSnapshot,_ rhs:FinderSnapshot)->Bool {
+        let left=lhs.roots.sorted{$0.utf8.lexicographicallyPrecedes($1.utf8)},right=rhs.roots.sorted{$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        return left.elementsEqual(right,by:{GitReferenceName.equal($0,$1)}) && lhs.states==rhs.states && sameMetadata(lhs.repositories,rhs.repositories) && lhs.overlayEntries==rhs.overlayEntries && lhs.indexFlags==rhs.indexFlags && lhs.overlayPolicies==rhs.overlayPolicies
+    }
+    /// Plan the complete affected cohort before changing shared value storage.
+    /// Cold, unrelated paths are visited once but never reinserted/rehash-copied.
+    /// Unchanged retirement keeps all large dictionaries and archive bytes intact.
+    @discardableResult fileprivate mutating func replaceSubtrees(_ updates:[(String,[FinderSnapshot])],checkpoint:(()throws->Void)?=nil,preserveUnchanged:Bool=false)throws->FinderSubtreeReplacementWork {
+        guard !updates.isEmpty else{return .init()}
+        let paths=updates.map{$0.0},scope=FinderSnapshotPathScope(paths)
+        // Independent nested checkouts omitted by every ancestor publication
+        // are preserved by the original replacement rules. Keep their potentially
+        // huge cold path maps shared; explicit updates below them remain eligible.
+        let incoming=updates.map{GitPathSet($0.1.flatMap(\.roots))}
+        let protected=roots.filter{candidate in
+            guard repositories[candidate]?.submoduleParentRoot==nil else{return false}
+            var nested=false
+            for(index,update) in updates.enumerated() {
+                if GitReferenceName.equal(candidate,update.0) {return false}
+                if FinderSnapshotPathScope([update.0]).contains(candidate) {
+                    nested=true;if incoming[index].contains(candidate) {return false}
+                }
+            }
+            return nested
+        }
+        let unprotectedScope=FinderSnapshotPathScope(paths,protecting:protected)
+        // An ancestor can contribute new paths inside an independently opened
+        // nested checkout. Its existing rows win, but absent rows must still be
+        // merged. Include only those incoming exact keys in the local plan so
+        // original ordering/preservation runs without copying the cold subtree.
+        var incomingProtected=GitPathSet()
+        for (_,snapshots) in updates {
+            for snapshot in snapshots {
+                func include<Value>(_ entries:GitPathMap<Value>) {
+                    for entry in entries where scope.contains(entry.key) && !unprotectedScope.contains(entry.key) {incomingProtected.insert(entry.key)}
+                }
+                include(snapshot.states)
+                if let entries=snapshot.overlayEntries {include(entries)}
+                if let entries=snapshot.indexFlags {include(entries)}
+            }
+        }
+        let dataScope=FinderSnapshotPathScope(paths,protecting:protected,including:incomingProtected)
+        var work=FinderSubtreeReplacementWork()
+        let before=try subtree(scope:scope,dataScope:dataScope,work:&work,checkpoint:checkpoint)
+        var after=before
+        for(root,snapshots) in updates {try checkpoint?();after.replaceContainedSubtree(path:root,snapshots:snapshots)}
+        if !protected.isEmpty {
+            after.states=after.states.filter{dataScope.contains($0.key)}
+            after.overlayEntries=after.overlayEntries?.filter{dataScope.contains($0.key)}
+            after.indexFlags=after.indexFlags?.filter{dataScope.contains($0.key)}
+        }
+        work.changed = !Self.sameContents(before,after)
+        if preserveUnchanged,!work.changed {return work}
+        try checkpoint?()
+        func patch<Value>(_ old:GitPathMap<Value>,_ new:GitPathMap<Value>,into target:inout GitPathMap<Value>,same:Bool) {
+            guard !same else{return}
+            for entry in old {target.removeValue(forKey:entry.key);work.patchedEntries += 1}
+            for entry in new {target[entry.key]=entry.value;work.patchedEntries += 1}
+        }
+        // Legacy nil means fallback to all original states. Materialize that
+        // fallback before changing states, never from newly inserted status rows.
+        if overlayEntries==nil,after.overlayEntries != nil {overlayEntries=states}
+        patch(before.states,after.states,into:&states,same:before.states==after.states)
+        patch(before.repositories,after.repositories,into:&repositories,same:Self.sameMetadata(before.repositories,after.repositories))
+        if let values=after.overlayEntries {
+            if overlayEntries==nil {overlayEntries=[:]}
+            patch(before.overlayEntries ?? before.states,values,into:&overlayEntries!,same:before.overlayEntries==after.overlayEntries)
+        }
+        if let values=after.indexFlags {
+            if indexFlags==nil {indexFlags=[:]}
+            patch(before.indexFlags ?? [:],values,into:&indexFlags!,same:before.indexFlags==after.indexFlags)
+        }
+        patch(before.overlayPolicies,after.overlayPolicies,into:&overlayPolicies,same:before.overlayPolicies==after.overlayPolicies)
+        roots.removeAll(where:scope.contains)
+        roots.append(contentsOf:after.roots)
+        updated=Date()
+        return work
     }
     /// Replace one refreshed tree, dropping stale removed/deinitialized child roots.
     /// Other opened repositories survive. Parent gitlink dirtiness contributes to a child-root badge.
     public mutating func replaceSubtree(root: URL, snapshots: [FinderSnapshot]) {
-        let path = FileTransferPaths.lexicalPath(root.path)
-        func contains(_ candidate: String) -> Bool { Self.contains(candidate,root:path) }
+        try! replaceSubtrees([(FileTransferPaths.lexicalPath(root.path),snapshots)])
+    }
+    private mutating func replaceContainedSubtree(path:String,snapshots:[FinderSnapshot]) {
+        let scope=FinderSnapshotPathScope([path])
+        func contains(_ candidate:String)->Bool {scope.contains(candidate)}
+        func remove<Value>(from values:inout GitPathMap<Value>) {
+            let removed=values.compactMap{contains($0.key) ? $0.key:nil}
+            for key in removed {values.removeValue(forKey:key)}
+        }
         let incoming = GitPathSet(snapshots.flatMap(\.roots))
         let independent = roots.filter { !GitReferenceName.equal($0,path) && contains($0) && repositories[$0]?.submoduleParentRoot == nil && !incoming.contains($0) }
         let preserved = independent.map { candidate -> FinderSnapshot in
@@ -879,11 +1052,12 @@ extension FinderSnapshot {
                 repositories: repositories.filter { belongs($0.key) }, overlayEntries: overlayEntries?.filter { belongs($0.key) }, indexFlags: indexFlags?.filter { belongs($0.key) },overlayPolicies:overlayPolicies.filter { belongs($0.key) })
         }
         roots.removeAll(where: contains)
-        states = states.filter { !contains($0.key) }
-        repositories = repositories.filter { !contains($0.key) }
-        overlayEntries = (overlayEntries ?? states).filter { !contains($0.key) }
-        indexFlags = indexFlags?.filter { !contains($0.key) }
-        overlayPolicies = overlayPolicies.filter { !contains($0.key) }
+        remove(from:&states)
+        remove(from:&repositories)
+        if overlayEntries==nil {overlayEntries=states}
+        remove(from:&overlayEntries!)
+        if indexFlags != nil {remove(from:&indexFlags!)}
+        remove(from:&overlayPolicies)
         let priority: [FileState: Int] = [.normal: 0, .ignored: 1, .untracked: 2, .added: 3, .deleted: 4, .modified: 5, .conflicted: 6]
         for snapshot in (snapshots + preserved).sorted(by: { ($0.roots.first?.utf8.count ?? 0) < ($1.roots.first?.utf8.count ?? 0) }) {
             let accepted = snapshot.roots.filter(contains)
@@ -1031,6 +1205,7 @@ public struct FinderPublicationResult: Sendable {
 struct FinderPublicationWorkCounters:Equatable,Sendable {
     var controlDecodes=0,rawDecodes=0,contributionEncodes=0,controlWrites=0,projections=0,localWaits=0
     var warmDecodes=0,warmWrites=0
+    var warmMergeCohorts=0,warmMergeScannedEntries=0,warmMergeAffectedEntries=0,warmMergePatchedEntries=0
 }
 public final class FinderSnapshotStore: @unchecked Sendable {
     public let url: URL
@@ -1453,36 +1628,24 @@ public final class FinderSnapshotStore: @unchecked Sendable {
         try save(result,url);state.legacy=false;try save(state,controlURL);return result
     }
     private func warmWarning(_ operation: () throws -> Void) -> String? {do {try operation();return nil} catch {return error.localizedDescription}}
-    private func mergeWarm(root: String, snapshots: [FinderSnapshot], enabled: Bool, rebuildFrom:FinderSnapshot?=nil) throws {
-        try mergeWarm([(root,snapshots)],enabled:enabled,rebuildFrom:rebuildFrom)
-    }
-    private func sameWarmContents(_ lhs:FinderSnapshot,_ rhs:FinderSnapshot)->Bool {
-        let left=lhs.roots.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)},right=rhs.roots.sorted {$0.utf8.lexicographicallyPrecedes($1.utf8)}
-        // Synthesized metadata equality normalizes String values. Parent roots
-        // are filesystem identities and must also retain their exact UTF-8.
-        let parentsMatch=lhs.repositories.allSatisfy { path,value in
-            guard let other=rhs.repositories[path] else {return false}
-            switch (value.submoduleParentRoot,other.submoduleParentRoot) {
-            case (nil,nil):return true
-            case let (a?,b?):return GitReferenceName.equal(a,b)
-            default:return false
-            }
-        }
-        return left.elementsEqual(right,by:{GitReferenceName.equal($0,$1)}) && lhs.states==rhs.states && lhs.repositories==rhs.repositories && parentsMatch &&
-            lhs.overlayEntries==rhs.overlayEntries && lhs.indexFlags==rhs.indexFlags && lhs.overlayPolicies==rhs.overlayPolicies
+    private func mergeWarm(root: String, snapshots: [FinderSnapshot], enabled: Bool, rebuildFrom:FinderSnapshot?=nil,validation:ValidationContext?=nil) throws {
+        try mergeWarm([(root,snapshots)],enabled:enabled,rebuildFrom:rebuildFrom,validation:validation)
     }
     /// Retirement has no new scan timestamp to publish. Merge its complete root
     /// cohort once, and preserve the existing archive inode when exact contents
     /// already match. Ordinary fresh publications retain their timestamp policy.
-    private func mergeWarm(_ updates:[(String,[FinderSnapshot])],enabled:Bool,rebuildFrom:FinderSnapshot?=nil,retiring:Bool=false)throws {
+    private func mergeWarm(_ updates:[(String,[FinderSnapshot])],enabled:Bool,rebuildFrom:FinderSnapshot?=nil,retiring:Bool=false,validation:ValidationContext?=nil)throws {
         guard enabled,!updates.isEmpty else {return}
+        try validation?.check()
         let recovered=try readWarm(rebuildCorrupt:true)
         // A successful live publication is already namespace/lease validated.
         // Retain those live siblings when unreadable restart JSON has no usable
         // archive to merge, instead of reducing it to only this refreshed root.
         var warm=recovered.snapshot ?? rebuildFrom ?? FinderSnapshot(roots:[],states:[:]);warm.liveRevision=nil;warm.persistenceFailure=nil
-        for (root,snapshots) in updates {warm.replaceSubtree(root:FileTransferPaths.fileURL(root),snapshots:snapshots)}
-        if retiring,let previous=recovered.snapshot,sameWarmContents(previous,warm){return}
+        let work=try warm.replaceSubtrees(updates,checkpoint:{if let validation {try validation.check()}},preserveUnchanged:retiring && recovered.snapshot != nil)
+        coordination.cacheLock.lock();coordination.work.warmMergeCohorts += 1;coordination.work.warmMergeScannedEntries += work.scannedEntries;coordination.work.warmMergeAffectedEntries += work.affectedEntries;coordination.work.warmMergePatchedEntries += work.patchedEntries;coordination.cacheLock.unlock()
+        if retiring,recovered.snapshot != nil,!work.changed {return}
+        try validation?.check()
         try save(warm,warmURL)
         if recovered.discarded {throw FinderPublicationFailure.corruptWarmCacheReset}
     }
@@ -1574,10 +1737,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 if warm != nil || !contributions.isEmpty || recovered.discarded {
                     var merged=warm ?? FinderSnapshot(roots:[],states:[:])
                     merged.liveRevision=nil;merged.persistenceFailure=nil
-                    for item in contributions {
-                        try validation.check()
-                        merged.replaceSubtree(root:FileTransferPaths.fileURL(item.root),snapshots:item.snapshots)
-                    }
+                    try merged.replaceSubtrees(contributions.map{($0.root,$0.snapshots)},checkpoint:{try validation.check()})
                     try validation.check();try save(merged,warmURL)
                 }
                 state.policy=preferences;state.legacy=false
@@ -1739,7 +1899,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             var rebuilt=false
             let warning=warmWarning {
                 do {
-                    try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave,rebuildFrom:published)
+                    try mergeWarm(root:ticket.root,snapshots:snapshots,enabled:state.policy.cacheSave,rebuildFrom:published,validation:validation)
                     if completeWarm,!overlapping,warmAuthority(state.contributions)==warmAuthority(expectedLive) {
                         state.warmMaintenance=try warmReceipt(state.contributions)
                         try save(state,controlURL)
@@ -1786,7 +1946,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             result.persistenceFailure=warmWarning {
                 guard state.policy.cacheSave else {return}
                 let selected=result.subtree(root:FileTransferPaths.fileURL(root))
-                try mergeWarm(root:root,snapshots:selected.roots.isEmpty ? []:[selected],enabled:true)
+                try mergeWarm(root:root,snapshots:selected.roots.isEmpty ? []:[selected],enabled:true,validation:validation)
             }
             return result
         }
@@ -1834,7 +1994,7 @@ public final class FinderSnapshotStore: @unchecked Sendable {
             result.persistenceFailure = warmWarning {
                 guard state.policy.cacheSave else { return }
                 let selected = result.subtree(root: FileTransferPaths.fileURL(root))
-                try mergeWarm(root: root, snapshots: selected.roots.isEmpty ? [] : [selected], enabled: true)
+                try mergeWarm(root: root, snapshots: selected.roots.isEmpty ? [] : [selected], enabled: true,validation:validation)
             }
             return result
         }
@@ -1857,14 +2017,26 @@ public final class FinderSnapshotStore: @unchecked Sendable {
                 guard state.policy.cacheSave,!departing.isEmpty else{return}
                 if try warmIsCurrent(state,contributions:liveBefore) {archived=true;return}
                 let current=projection(liveBefore,id:state.id,statusPolicyIdentity:state.statusPolicyIdentity)
-                let updates=departing.compactMap {item -> (String,[FinderSnapshot])? in
-                    let saved=current.subtree(root:FileTransferPaths.fileURL(item.root))
-                    return saved.roots.isEmpty ? nil:(item.root,[saved])
+                // Ancestor departures already contain their selected descendants.
+                // Extract all departing data once; per-root views share those maps
+                // and the replacement matcher accepts only their own byte prefix.
+                let paths=departing.map(\.root)
+                var selected=GitPathSet()
+                let outermost=paths.filter {path in
+                    guard selected.insert(path).inserted else{return false}
+                    return !paths.contains{other in !GitReferenceName.equal(other,path) && FinderSnapshot.contains(path,root:other)}
+                }
+                var extraction=FinderSubtreeReplacementWork()
+                let cohort=try current.subtree(scope:FinderSnapshotPathScope(outermost),work:&extraction,checkpoint:{try validation.check()})
+                let updates=outermost.compactMap {path -> (String,[FinderSnapshot])? in
+                    var saved=cohort
+                    saved.roots=cohort.roots.filter{FinderSnapshot.contains($0,root:path)}
+                    return saved.roots.isEmpty ? nil:(path,[saved])
                 }
                 // A successful subtree merge does not certify disjoint peers
                 // that may have missed an earlier warm write. Only the exact
                 // pre-existing full-cohort receipt authorizes that shortcut.
-                try mergeWarm(updates,enabled:true,rebuildFrom:current,retiring:true)
+                try mergeWarm(updates,enabled:true,rebuildFrom:current,retiring:true,validation:validation)
             }
             // Removing an overlapping publisher can expose an older peer's
             // different payload. Do not certify that newly visible cohort from

@@ -1,0 +1,81 @@
+{
+  "run": 42408561589,
+  "job": 128511795311,
+  "source": "9a1ee02866580ddacc2848ed43355b27f42bb934",
+  "observed_date": "2026-11-07",
+  "evidence": "Agent read-only authenticated Chrome View raw logs; 67554 rendered lines; compact transcription, not a complete downloaded archive. Owned tab closed and CUA completion summarized. No credentials retained.",
+  "raw_log_url": "https://github.com/jfk-solutions/turtle-git-mac/commit/9a1ee02866580ddacc2848ed43355b27f42bb934/checks/128511795311/logs",
+  "failed_steps": [
+    {
+      "step": 290,
+      "name": "Native tracked branch commands and remote-only picker",
+      "timestamp_utc": "21:03:15",
+      "diagnostic": "Cancel retains config/releases child",
+      "source_mapping_or_limit": "Existing exact Cancel/detach consumer repair55fd; not rerun here"
+    },
+    {
+      "step": 293,
+      "name": "Native Export progress and ZIP cancellation",
+      "timestamp_utc": "21:19:30",
+      "diagnostic": "export-progress-native-2026-10-08.swift:6 Precondition failed: Export timed out",
+      "source_mapping_or_limit": "Shared wait helper; failing phase unknown; do not infer a shell-filter cause"
+    },
+    {
+      "step": 314,
+      "name": "Exact Unicode repository paths and browser actions",
+      "timestamp_utc": "21:38:12",
+      "diagnostic": "repository-browser-table-native-2026-10-13.swift:64:37 and64:132 no exact outlineView(_:pasteboardWriterForItem:);140:53 incorrect tableView argument _:pasteboardWriterForRow: expected _:sizeToFitWidthOfColumn:",
+      "source_mapping_or_limit": "Outdated private delegate entry compile consumer; not an application compile failure"
+    },
+    {
+      "step": 315,
+      "name": "Repository Browser raw Git names, stored objects and owned delivery",
+      "timestamp_utc": "21:38:54",
+      "diagnostic": "Browser namespace233: Stale stored read survived a refreshed tree receipt",
+      "source_mapping_or_limit": "Fixture launches openStoredBlob, waits reply, calls refresh, resumes reply; launched.count should stay2. Inspect refresh admission and delivery generation; earlier listing/navigation/actions/ownership passed"
+    },
+    {
+      "step": 318,
+      "name": "Captured reference menus and related native workflows",
+      "timestamp_utc": "21:41:21",
+      "diagnostic": "Cancel retains config/releases child",
+      "source_mapping_or_limit": "Same tracked-picker regression already corrected55fd"
+    },
+    {
+      "step": 320,
+      "name": "Three-pane ordinary block choices, navigation, history and ignored conflicts",
+      "timestamp_utc": "21:44:34",
+      "diagnostic": "Native QA failed Source block wait line42 phase=generic multiline boundary and exact Save bytes busy=false preparing=false result=\"head 🐢\\ntail\\n\" error=nil",
+      "source_mapping_or_limit": "Whole-file/workflow both engines/retained cases passed before blocks; preserve expected saved-byte assertion"
+    },
+    {
+      "step": 332,
+      "name": "Native revision table optional font",
+      "timestamp_utc": "21:44:50",
+      "diagnostic": "log-table-font-native-2026-10-08.swift:116 Precondition failed",
+      "source_mapping_or_limit": "Compound predicate: interaction.fileListFont?.pointSize==22 and rect(ofRow:fileRow).height>normalCommitHeight; no distinction proven by output"
+    },
+    {
+      "step": 400,
+      "name": "Native commit-containing reference dialog and owned Log/picker routes",
+      "timestamp_utc": "21:49:49",
+      "diagnostic": "Failure(line57)",
+      "source_mapping_or_limit": "Driver prepends import; maps fixture56: Show log button maxX within1px of contentView.width-14; geometry assertion rather than proven delivery failure"
+    },
+    {
+      "step": 402,
+      "name": "Native Log compressed graph rollup receiver",
+      "timestamp_utc": "21:51:22",
+      "diagnostic": "log-rollup-native-2026-10-07.swift:166 Unexpectedly found nil while unwrapping Optional",
+      "source_mapping_or_limit": "header.item(withTitle:\"Graph\")! missing English menu title; model Follow already hid graph at164"
+    },
+    {
+      "step": 426,
+      "name": "Native Revision Graph window and Filter with both Git engines",
+      "timestamp_utc": "21:56:48",
+      "diagnostic": "RevisionGraph Failure(line166)",
+      "source_mapping_or_limit": "Exact pan clip bounds130/140 after synthetic drag; preferences/pointer-label phases passed first"
+    }
+  ],
+  "claim": "No shared cause inferred from step names; source or consumer repair and affected validation remain open except previously recorded picker correction"
+}

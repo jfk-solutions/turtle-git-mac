@@ -748,6 +748,21 @@ private final class SVGGuard: NSObject, XMLParserDelegate {
 /// Only renderer-generated, independently guarded SVG operands enter AppKit.
 private final class NativeRasterComposite {
     private var renderedPixels=0,compositePixels=0,markupBytes=0,calls=0,sampledPixels=0
+    // Conversion-local immutable operands only. Repeated embedded children must
+    // reach the same cumulative refusal promptly without thousands of identical
+    // AppKit decodes and ImageIO encodes. Call/pixel/markup charges remain at
+    // their original admission sites, before these caches are consulted.
+    private struct RenderedOperand {
+        let svg:Data,width:Int,height:Int,x:Int,y:Int,regionWidth:Int,regionHeight:Int,pixels:Data
+        var cost:Int {svg.count+pixels.count}
+    }
+    private struct EncodedOperand {
+        let pixels:Data,width:Int,height:Int,href:String
+        var cost:Int {pixels.count+href.utf8.count}
+    }
+    private var renderedOperands:[RenderedOperand]=[]
+    private var encodedOperands:[EncodedOperand]=[]
+    private let operandCacheLimit=4*1024*1024
     // The native-recorded Windows controls use zero-based quality flags and
     // 13-bit linear RGB quantization. Preserve their integer unpremultiplication
     // before conversion; retaining unquantized brush RGB changes those pixels.
@@ -873,6 +888,10 @@ private final class NativeRasterComposite {
         return try autoreleasepool {
         let area=region ?? Region(x:0,y:0,width:width,height:height)
         if area.pixels==0{return Data()}
+        if let index=renderedOperands.firstIndex(where:{$0.width==width && $0.height==height && $0.x==area.x && $0.y==area.y && $0.regionWidth==area.width && $0.regionHeight==area.height && $0.svg==svg}) {
+            let operand=renderedOperands.remove(at:index);renderedOperands.append(operand)
+            return operand.pixels
+        }
         guard let image=NSImage(data:svg) else{throw invalid("native SVG decoding failed")}
         var bytes=Data(count:area.pixels*4)
         try bytes.withUnsafeMutableBytes { (buffer:UnsafeMutableRawBufferPointer) in
@@ -886,6 +905,11 @@ private final class NativeRasterComposite {
             // or reset of SVG coordinates, brush phase or pixel centers occurs.
             image.draw(in:NSRect(x:-area.x,y:area.y+area.height-height,width:width,height:height),from:.zero,operation:.copy,fraction:1,respectFlipped:false,hints:[.interpolation:NSImageInterpolation.none])
             context.flush()
+        }
+        let operand=RenderedOperand(svg:svg,width:width,height:height,x:area.x,y:area.y,regionWidth:area.width,regionHeight:area.height,pixels:bytes)
+        if operand.cost<=operandCacheLimit {
+            while !renderedOperands.isEmpty && (renderedOperands.count>=8 || renderedOperands.reduce(operand.cost,{$0+$1.cost})>operandCacheLimit) {renderedOperands.removeFirst()}
+            renderedOperands.append(operand)
         }
         return bytes
         }
@@ -1229,12 +1253,22 @@ private final class NativeRasterComposite {
         return try finish(output,request:request,width:width,height:height)
     }
     private func encode(_ output:Data,width:Int,height:Int)throws->String {
+        if let index=encodedOperands.firstIndex(where:{$0.width==width && $0.height==height && $0.pixels==output}) {
+            let operand=encodedOperands.remove(at:index);encodedOperands.append(operand)
+            return operand.href
+        }
         guard let space=CGColorSpace(name:CGColorSpace.sRGB),let provider=CGDataProvider(data:output as CFData),let image=CGImage(width:width,height:height,bitsPerComponent:8,bitsPerPixel:32,bytesPerRow:width*4,space:space,bitmapInfo:CGBitmapInfo(rawValue:CGImageAlphaInfo.premultipliedLast.rawValue | CGBitmapInfo.byteOrder32Big.rawValue),provider:provider,decode:nil,shouldInterpolate:false,intent:.defaultIntent) else{throw invalid("cannot prepare composite image")}
         let encoded=NSMutableData()
         guard let encoder=CGImageDestinationCreateWithData(encoded,UTType.png.identifier as CFString,1,nil) else{throw invalid("cannot encode composite image")}
         CGImageDestinationAddImage(encoder,image,nil)
         guard CGImageDestinationFinalize(encoder),encoded.length<=outputLimit/2 else{throw invalid("composite PNG output exceeds limit")}
-        return "data:image/png;base64,"+(encoded as Data).base64EncodedString()
+        let href="data:image/png;base64,"+(encoded as Data).base64EncodedString()
+        let operand=EncodedOperand(pixels:output,width:width,height:height,href:href)
+        if operand.cost<=operandCacheLimit {
+            while !encodedOperands.isEmpty && (encodedOperands.count>=8 || encodedOperands.reduce(operand.cost,{$0+$1.cost})>operandCacheLimit) {encodedOperands.removeFirst()}
+            encodedOperands.append(operand)
+        }
+        return href
     }
     /// Mask selection, RGB color-key copies, premultiplied source-over and
     /// EMF+ SourceCopy share one guarded raster boundary and cumulative budgets.
@@ -1577,6 +1611,15 @@ private final class NativeStrokeGeometry {
     private var coveragePathPoints:[String:Int]=[:]
     private var coverageLines:[String:(CGPoint,CGPoint,deviceHairline:Bool)]=[:]
     private var coveragePoints=0, coveragePixels=0, qualityPaints=0, coverageEdgeWork=0, qualityCurvePoints=0
+    private struct CoverageOperandKey:Equatable {
+        let text:String,identity:String,rule:String
+        let geometry:[Double]
+    }
+    private struct CoverageOperand {
+        let key:CoverageOperandKey,href:String,width:Int,height:Int,encodedBytes:Int
+        var cost:Int {key.text.utf8.count+key.identity.utf8.count+href.utf8.count+128}
+    }
+    private var coverageOperands:[CoverageOperand]=[]
     private let maximumPoints=1_048_576
     private static func invalid(_ text:String)->ConversionError {.invalid("Metafile pen: "+text)}
     private func number(_ options:JSValue,_ name:String,_ fallback:Double)->Double {
@@ -2334,6 +2377,17 @@ private final class NativeStrokeGeometry {
             }
         }
         coverageEdgeWork+=edgeWork
+        // Charge parsed points, scanline work and every logical coverage sample
+        // even when an identical immutable mask has already been encoded. The
+        // receipt identity keeps retained pen geometry separate from raw paths.
+        let key=CoverageOperandKey(text:text,identity:options.forProperty("coverageID")?.toString() ?? "",rule:rule,
+            geometry:[left,top,w,h,Double(smoothing),Double(offset),antialias ? 1:0]+m)
+        if let index=coverageOperands.firstIndex(where:{$0.key==key}) {
+            let operand=coverageOperands.remove(at:index)
+            guard operand.encodedBytes<=32*1024*1024-markupBytes else {throw Self.invalid("paint coverage PNG markup limit")}
+            markupBytes+=operand.encodedBytes;coverageOperands.append(operand)
+            return ["href":operand.href,"width":operand.width,"height":operand.height]
+        }
         edges.sort {$0.first<$1.first}
         var active=[Int](),next=0,counts=[Int](repeating:0,count:width)
         var events=[(column:Int,direction:Int)]()
@@ -2391,7 +2445,14 @@ private final class NativeStrokeGeometry {
         CGImageDestinationAddImage(encoder,image,nil)
         guard CGImageDestinationFinalize(encoder),encoded.length<=32*1024*1024-markupBytes else {throw Self.invalid("paint coverage PNG markup limit")}
         markupBytes += encoded.length
-        return ["href":"data:image/png;base64,"+(encoded as Data).base64EncodedString(),"width":width,"height":height]
+        let href="data:image/png;base64,"+(encoded as Data).base64EncodedString()
+        let operand=CoverageOperand(key:key,href:href,width:width,height:height,encodedBytes:encoded.length)
+        let limit=4*1024*1024
+        if operand.cost<=limit {
+            while !coverageOperands.isEmpty && (coverageOperands.count>=8 || coverageOperands.reduce(operand.cost,{$0+$1.cost})>limit) {coverageOperands.removeFirst()}
+            coverageOperands.append(operand)
+        }
+        return ["href":href,"width":width,"height":height]
     }
 }
 

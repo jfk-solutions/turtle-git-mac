@@ -1,0 +1,309 @@
+{
+  "date": "2026-11-07",
+  "base_commit": "d9ae990af7030e5b511fbb98f486bb9a897bf64a",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "Affected Core and grouped hidden native checks passed cumulatively after focused repairs; owned receivers and Debug registrations cleaned",
+  "scope": [
+    "Finder warm retirement and subtree replacement use transaction-local exact-byte path scopes and one cohort scan instead of repeated cold-path rebuilding; unchanged cohorts avoid redundant warm writes.",
+    "Independent nested roots retain their existing rows and overlay/index policy while ancestor updates may contribute previously absent rows; explicit nested refresh replaces its own rows without swallowing independent descendants.",
+    "Conversion-local bounded NativeRasterComposite render/encode memoization avoids repeated identical native operand decoding/encoding; original cumulative call/pixel/markup admission charges remain in force.",
+    "Early embedded-child breadth admission applies only to fully proven unconditional replay streams, including valid EMF+ header baseline; general clips/transforms/state/attributes/point draws retain runtime admission. Destination width/height use actual origin-addition rounding before testing degenerate geometry.",
+    "Existing4100-replay refusal inputs remain byte-identical; a separate single-child coverage fixture tests coverage refusal independently. Explicit-zero and nonzero-but-rounded-zero destinations prove no child replay or partial ink.",
+    "Raw indexed/16-bit texture consumer controls use current source texels, premultiplied alpha and correct native tile coordinates; unchanged independent Windows interpolation/quality controls remain retained."
+  ],
+  "input_receipts": {
+    "initial": {
+      "path": "build/qa/cache-metafile-inputs-2026-11-07.json",
+      "sha256": "0f055add0b343a3abd44cfff0863fc49239e43ff38f0fa7a17119d8b18572e8c"
+    },
+    "repair": {
+      "path": "build/qa/cache-metafile-repair-inputs-2026-11-07.json",
+      "sha256": "c442b0e4bdb094ffc00937359598be9e088f582d8781d7a83083f9bf64ec23b3"
+    },
+    "final_native": {
+      "path": "build/qa/cache-metafile-final-native-inputs-2026-11-07.json",
+      "sha256": "aab649a6786aabbb4fd897adc909f75931d0e2e2740a33f5ce3b5428731236df"
+    }
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/FinderCache.swift": "8074a1a1b20637c9a205d18feba1471023aca86de0e86917a12d3d290caa8fc2",
+    "Tests/TurtleGitCoreTests/FinderWarmCohortTests.swift": "8dd530acf8e66d474acc2e4b40b19b2c603968b381b1a36b7bac609662c51a1f",
+    "Sources/TurtleGitMetafile/main.swift": "1fa19a7beda7987856579ef34beaa74b2c3e122a1a40b5d2ed5fc774a1d3a68a",
+    "Tests/TurtleGitCoreTests/MetafileImageTests.swift": "236b2c0a1d0e36b34df3a5f6f50ec4353c764198f1b01ad8895c0ccf35d8a83b",
+    "Tests/TurtleGitCoreTests/MetafileHighDepthBitmapTests.swift": "333314eacad2fa743dc8061b7622af9e3520dbccf9533a8762320d9d02cc5bd7",
+    "Tests/TurtleGitCoreTests/MetafileEmbeddedImageTests.swift": "6403342ec6cb35d5502d59809d43de8f9de06f077bdfa6c4f33e9f0a966a6f22",
+    "docs/qa/metafile-high-depth-native-2026-10-23.swift": "ff8c42c93f64969d47c59626a8d4e8fb541b9f9a4a075454312fa33789864630",
+    "patches/metafile-renderer.patch": "1a28cfe92344fa9af8d10673ca28e5e41ccb5181770427403b91a70b3c5fedbe",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/generate-embedded.py": "b051071ef021ae5d332d6cd9143ba8417c9b25591e5c820dfaec359230823775",
+    "Tests/TurtleGitCoreTests/Fixtures/Metafile/embedded-refused-paint-coverage.emf": "210e78b3026324c8dab58e1660f5817dfd742196fa5553866fec7fb1a6b67a41"
+  },
+  "compiled_native_inputs": {
+    "docs/qa/metafile-high-depth-native-2026-10-23.swift": "5a8034f846a06d8201a8a05e775b01724aad0197786acab625f2d85892189efb",
+    "build/Build/Products/Debug/TurtleGitCore.framework/TurtleGitCore": "00c0221cccc01c81ae18d16f26e7a6ad7f437a13722650a75a6f16633672894c",
+    "build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac": "d91ee3a370da0ad0cd86e4aea859b88574a6da690bb2a7c1dbcb458fec5b9867",
+    "build/metafile-runtime/Metafile/metafile-convert": "9371233c0bbff722ae019a362326183cd7fbb37cab6b5bbb8a6949fd98bd8b0f"
+  },
+  "core": {
+    "initial": {
+      "command": {
+        "path": "build/qa/cache-metafile-core-command-2026-11-07.json",
+        "sha256": "70dd5acac4303ea5c304e7f019067e3d8287036a668ccab136864c23cec5b054"
+      },
+      "log": {
+        "path": "build/qa/cache-metafile-core-2026-11-07.log",
+        "sha256": "871b573546f983e4804d9412a8fb3fe77316002aab9553b0cd22ace1a8d66303"
+      },
+      "exit_code": 1,
+      "distinct_methods": 96,
+      "assertion_failures": 26,
+      "failed_methods": [
+        "-[TurtleGitCoreTests.FinderPublicationRetirementTests testNestedOlderPeerResurfacesWithoutFalseWarmReceipt]",
+        "-[TurtleGitCoreTests.FinderWarmCohortTests testIndependentNestedRootsSurviveAncestorButExplicitRefreshReplacesTheirPaths]",
+        "-[TurtleGitCoreTests.MetafileEmbeddedImageTests testMalformedNestedImagesFailWholePictureWithBoundedRecursionAndCancellation]",
+        "-[TurtleGitCoreTests.MetafileImageTests testRaw16BitMasksAlphaAndRetained24And32BitFormats]",
+        "-[TurtleGitCoreTests.MetafileImageTests testRawIndexedBitOrderPaletteAlphaAndSignedPaddedRows]"
+      ],
+      "passed_methods": 91,
+      "test_seconds": 105.922,
+      "command_wall_seconds": 110.220175084
+    },
+    "repairs": [
+      "Actual Finder protected-row scope defect: retained nested rows must remain available to the candidate subtree projection; include exact protected incoming rows while preserving independent-root precedence.",
+      "New Unicode root fixture used URL(fileURLWithPath:) canonicalization; construct literal FileTransferPaths.fileURL roots so NFC/NFD expectations test the reviewed byte identities.",
+      "Embedded refusal expectation now distinguishes early proven image-count refusal from independently exercised coverage refusal; add a new coverage fixture without changing old4100 inputs.",
+      "Indexed/16-bit raw image expectations retain independently specified source colors but compare the native alpha/premultiplied representation correctly."
+    ],
+    "focused_recheck": {
+      "command": {
+        "path": "build/qa/cache-metafile-core-repair-command-2026-11-07.json",
+        "sha256": "8982c5f8ae61bb88f3adeae0cfe3c1dfbb05dddbaf048be5a2ce4bac2ffd41c5"
+      },
+      "log": {
+        "path": "build/qa/cache-metafile-core-repair-2026-11-07.log",
+        "sha256": "90531ec7225cd71a835d183c68efa0bcbba3bee124772481a235890496dd9994"
+      },
+      "exit_code": 0,
+      "distinct_methods": 73,
+      "failures": 0,
+      "test_seconds": 35.369,
+      "command_wall_seconds": 38.660221625
+    },
+    "cumulative_distinct_methods_passed": 98,
+    "distinct_method_names_sha256": "017cf0da86f11c8450107b3a216b247b65bfcd7da87b4586ee657664c073fc18",
+    "new_methods": [
+      "-[TurtleGitCoreTests.FinderWarmCohortTests testAncestorContributesOnlyAbsentRowsInsideIndependentNestedRoot]",
+      "-[TurtleGitCoreTests.MetafileEmbeddedImageTests testDegenerateRectanglesDoNotReserveUnplayedEmbeddedChildren]"
+    ],
+    "passing_unaffected_scopes_not_repeated": [
+      "MetafileQualityTests (11 methods)",
+      "MetafileHighDepthBitmapTests (7 methods)",
+      "MetafileImageTests/testRecordedImageInterpolationMatchesIndependentWindowsPictureRGBA (304 independently recorded Windows frames)"
+    ],
+    "full_core_suite_repeated": false
+  },
+  "compile_and_runtime": {
+    "runtime_initial": {
+      "owned_session": 57741,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/cache-metafile-runtime-2026-11-07.log",
+        "sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+      }
+    },
+    "runtime_repair": {
+      "owned_session": 69779,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/cache-metafile-runtime-repair-2026-11-07.log",
+        "sha256": "8ec22914a52db23cff5b30b139f8b77ab00a1ac93f883db0d209e5ea1de6f186"
+      }
+    },
+    "core_compile_initial": {
+      "owned_session": 44213,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/cache-metafile-core-build-2026-11-07.log",
+        "sha256": "9e7abd843f763d0d7a7bfbdead7a9d699a47eadacb42f54ea7041f9a4930a836"
+      },
+      "scope": "Compile precompiled tests; execution recorded separately"
+    },
+    "core_compile_repair": {
+      "owned_session": 12180,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/cache-metafile-core-build-repair-2026-11-07.log",
+        "sha256": "c5a7d987d59f187e0f28581a7e91bbd064b4ab3d3079a6889ea0fd17e04b5698"
+      }
+    },
+    "debug_initial": {
+      "owned_session": 15537,
+      "reported_exit_code": 0,
+      "log": {
+        "path": "build/qa/cache-metafile-debug-build-2026-11-07.log",
+        "sha256": "9cc0db4db7ec30ee20b205d29fae05de06cd8e7bfa2dcafe65b548ae2508be6c"
+      },
+      "status": "superseded before native execution",
+      "limits": "Initial log retains internal exit-code0/no-output diagnostics; no native proof inferred from this build"
+    },
+    "debug_repair": {
+      "owned_session": 93325,
+      "exit_code": 0,
+      "log": {
+        "path": "build/qa/cache-metafile-debug-build-repair-2026-11-07.log",
+        "sha256": "0e9218fb88155625d490de396d6735de2d559fe766dcb738b720070141618536"
+      },
+      "scope": "Frozen repaired source used by grouped native checks; no signed candidate rebuild"
+    }
+  },
+  "fixture_provenance": {
+    "old4100_inputs": [
+      {
+        "path": "Tests/TurtleGitCoreTests/Fixtures/Metafile/embedded-refused-playback-count.emf",
+        "sha256": "d3c58b1a91587dbf69d2a464316872be28aa696d3e69f158d61cdaf11aa0c178",
+        "byte_equal_base": true,
+        "encoded_draws": 4100
+      },
+      {
+        "path": "Tests/TurtleGitCoreTests/Fixtures/Metafile/embedded-refused-playback-count-no-paint.emf",
+        "sha256": "d996c4eabfe8890eb27453b3cc664224260a03553b4d3097232a02ea6284ed8a",
+        "byte_equal_base": true,
+        "encoded_draws": 4100
+      }
+    ],
+    "new_single_child_coverage": {
+      "path": "Tests/TurtleGitCoreTests/Fixtures/Metafile/embedded-refused-paint-coverage.emf",
+      "sha256": "210e78b3026324c8dab58e1660f5817dfd742196fa5553866fec7fb1a6b67a41"
+    },
+    "new_zero_controls": [
+      "Explicit Float32 width zero",
+      "Positive Float32 width that rounds away when added to65536 at JavaScript Double precision"
+    ],
+    "control_method": "MetafileEmbeddedImageTests.testDegenerateRectanglesDoNotReserveUnplayedEmbeddedChildren",
+    "assertions_preserved": [
+      "4100 encoded draws retained",
+      "65x65 transparent no-ink output for both zero controls",
+      "Original fixture bytes unchanged after derived-control tests",
+      "Whole-picture refusal remains required rather than timeouts or accepted partial images"
+    ]
+  },
+  "native": {
+    "aggregate": {
+      "path": "build/qa/cache-metafile-native-group-2026-11-07.json",
+      "sha256": "09180866a22134ca06af6bec11d5206d806eab462a512d96a8b93e67ccbcff25"
+    },
+    "final_owned_state": {
+      "path": "build/qa/cache-metafile-native-final-2026-11-07.json",
+      "sha256": "7b9b24659336909b2e53cf704e6cec015dbc6175f6ef11824fd375e96e9fad0c"
+    },
+    "finder": {
+      "case_engine_pairs": 4,
+      "exit_code": 0,
+      "elapsed_seconds": 18.124951708999998,
+      "log": {
+        "path": "build/qa/cache-metafile-native-finder-2026-11-07.log",
+        "sha256": "18e44094330cd4a9a7356429114a3a06018114606c9fdc23871bcb3bad10dd46"
+      },
+      "scope": "lifecycle+roots against system and bundled Git"
+    },
+    "high_depth_initial": {
+      "receipt": {
+        "path": "build/qa/cache-metafile-high-depth-initial-results-2026-11-07.json",
+        "sha256": "d977fe055fcac89fe0be0423a126b5c15cbcb2c092f524f3080303d22dc45ae2"
+      },
+      "exit_code": 1,
+      "failed_case": "system Git consumers",
+      "log": {
+        "path": "build/qa/cache-metafile-native-high-depth-2026-11-07.log",
+        "sha256": "db7ea5305ae60811d99d7302e5f9f66fd3236a41943208e5639b9089ad35f4e9"
+      },
+      "actual_failure": "high-depth-gray-texture.emf at(8,8): fixture expected[0,0,0], actual[186,186,186,255]",
+      "diagnosis": "Stale fixture sampled wrong transformed texture coordinates; source texel assertions retained at correct coordinates"
+    },
+    "high_depth_focused_repair": {
+      "owned_session": 32891,
+      "exit_code": 0,
+      "case_engine_pairs": 4,
+      "log": {
+        "path": "build/qa/cache-metafile-native-high-depth-repair-2026-11-07.log",
+        "sha256": "cec94112b7cd133cb0344e2f7b51c2f50f576dec2aed1bc42016732e2ce17e56"
+      },
+      "scope": "consumers+conflict, both Git engines; native fixture only, no additional production rebuild"
+    },
+    "positive": {
+      "case_engine_pairs": 2,
+      "exit_code": 0,
+      "elapsed_seconds": 112.181548166,
+      "log": {
+        "path": "build/qa/cache-metafile-native-positive-2026-11-07.log",
+        "sha256": "6587c878a51981cbe0ca4cc86093c74f1f774f4b3d7acb0a53581949d7ff79da"
+      }
+    },
+    "embedded_state": {
+      "owned_session": 96875,
+      "exit_code": 0,
+      "root_terminal_confirmed": true,
+      "case_engine_pairs": 4,
+      "elapsed_seconds": 55.279571708999995,
+      "log": {
+        "path": "build/qa/cache-metafile-native-embedded-state-2026-11-07.log",
+        "sha256": "bb5676fa9f0fa711a458909a46c6156c80739d55af0e6e579030841f2612225b"
+      }
+    },
+    "cumulative_case_engine_pairs_passed": 14,
+    "owned_compiler_receiver_pid_count": 20,
+    "all_reported_pids_independently_absent": true,
+    "remaining_owned_receiver_or_metafile_images": [],
+    "scope": "Hidden/private receivers and fixture stores; no shipping GUI, Finder activation or signed sandbox acceptance inferred"
+  },
+  "final_state_cleanup": {
+    "status": "completed",
+    "owned_session": 43901,
+    "exit_code": 0,
+    "receipt": {
+      "path": "build/qa/cache-metafile-debug-launchservices-cleanup-2026-11-07.json",
+      "sha256": "1567baa195be8f7c1aba51de66740551e23608618cf67fea77edf3c6ae3e3f3f"
+    },
+    "scope": "Exact current workspace Debug build registrations only; no app launch or Finder activation",
+    "owned_Debug_unregister_operations": [
+      {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app",
+        "operation": "unregister owned Debug artifact",
+        "exit_code": 0
+      },
+      {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug/TurtleGitCache.app",
+        "operation": "unregister owned Debug artifact",
+        "exit_code": 0
+      },
+      {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Library/LaunchServices/TurtleGitCache.app",
+        "operation": "unregister owned Debug artifact",
+        "exit_code": 0
+      }
+    ],
+    "all_operations_exit_zero": true,
+    "installed52_main_sha256_unchanged": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "default_handler_before": "/Applications/TurtleGit for Mac.app",
+    "default_handler_after": "/Applications/TurtleGit for Mac.app",
+    "preserved_user_Finder_pid": 1506,
+    "preserved_user_Finder_image": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder",
+    "signals_sent": false,
+    "native_receiver_cleanup_recorded_separately": true
+  },
+  "delivery": {
+    "installed_build": "52",
+    "installed52_unchanged": true,
+    "immutable_signed53_package_unchanged": true,
+    "signed53_rebuilt": false,
+    "new_binary_publication": false,
+    "installation": false,
+    "notarization": false,
+    "app_store_submission": false
+  },
+  "limits": [
+    "Cumulative98 distinct affected Core methods are not a whole-suite or feature completion percentage",
+    "A hidden native pass does not establish physical Finder menus/badges, current signed deployment, full hosted CI or every upstream dialog/record",
+    "Private10001-path work-counter observations are not a universal shutdown timing guarantee; new source is not installed52 or immutable signed53",
+    "Signed real-world cache retirement/shutdown latency is not established by this source/hidden-native checkpoint; installed52 and immutable signed53 package were not rebuilt or updated"
+  ]
+}

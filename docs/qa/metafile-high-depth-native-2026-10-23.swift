@@ -19,9 +19,11 @@ private extension NSWindow {
     static func views(_ root:NSView?)->[NSView] {guard let root else{return []};return [root]+root.subviews.flatMap{views($0)}}
     static func drained()->Bool {FileListComparisonSession.activeOperations==0 && ImageConflictWindowModel.activeOperations==0 && ImageComparisonViewModel.activeFileReads==0 && ImageLoadWindowController.activeReleases==0}
     // Literal displayed colors for independently authored 2x2 WORD fixtures,
-    // scaled into (8,8)-(56,56) over an opaque white source-over background.
-    static let gray=[Sample(x:20,y:20,red:0,green:0,blue:0),Sample(x:44,y:20,red:128,green:128,blue:128),Sample(x:20,y:44,red:255,green:255,blue:255),Sample(x:44,y:44,red:64,green:64,blue:64),Sample(x:4,y:4,red:255,green:255,blue:255)]
-    static let rgb=[Sample(x:20,y:20,red:255,green:0,blue:0),Sample(x:44,y:20,red:0,green:255,blue:0),Sample(x:20,y:44,red:0,green:0,blue:255),Sample(x:44,y:44,red:255,green:255,blue:255)]
+    // mapped into (8,8)-(56,56) over the recorded opaque white background.
+    // Integer source centers are at8+24*x, not nearest-neighbor cell centers.
+    // x20/y8 separately checks the literal half-way bilinear color.
+    static let gray=[Sample(x:8,y:8,red:0,green:0,blue:0),Sample(x:32,y:8,red:128,green:128,blue:128),Sample(x:8,y:32,red:255,green:255,blue:255),Sample(x:32,y:32,red:64,green:64,blue:64),Sample(x:4,y:4,red:255,green:255,blue:255),Sample(x:20,y:8,red:64,green:64,blue:64)]
+    static let rgb=[Sample(x:8,y:8,red:255,green:0,blue:0),Sample(x:32,y:8,red:0,green:255,blue:0),Sample(x:8,y:32,red:0,green:0,blue:255),Sample(x:32,y:32,red:255,green:255,blue:255),Sample(x:20,y:8,red:128,green:128,blue:0)]
     static let grayName="high-depth-gray.emf"
     static let rgbName="high-depth-rgb48.emf"
     static let argbName="high-depth-argb64.emf"
@@ -45,17 +47,17 @@ private extension NSWindow {
     // Native SVG compositing/color management is checked against separately
     // authored 32-bit pixels, rather than assuming encoded-sRGB arithmetic.
     // Exact WORD-to-RGBA/alpha values are checked by the focused Core methods.
-    static func alphaReference(_ c:Context)throws->[Sample] {
-        let source=try c.input("high-depth-argb64-control.emf")
-        guard let image=ComparisonImage(bytes:try Data(contentsOf:source)) else{throw Failure(message:"Independent32-bit native alpha control refused")}
+    static func displayControl(_ c:Context,control:String="high-depth-argb64-control.emf",points:[(Int,Int)]=[(8,8),(32,8),(8,32),(32,32)])throws->[Sample] {
+        let source=try c.input(control)
+        guard let image=ComparisonImage(bytes:try Data(contentsOf:source)) else{throw Failure(message:"Independent32-bit native display control refused: \(control)")}
         let width=image.pixels.width,height=image.pixels.height
-        try require(width==65 && height==65,"Native alpha control extent changed")
+        try require(width==65 && height==65,"Native independent display control extent changed")
         var bytes=[UInt8](repeating:0,count:width*height*4)
         try bytes.withUnsafeMutableBytes {storage in
-            guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{throw Failure(message:"Native alpha reference raster failed")}
+            guard let space=CGColorSpace(name:CGColorSpace.sRGB),let context=CGContext(data:storage.baseAddress,width:width,height:height,bitsPerComponent:8,bytesPerRow:width*4,space:space,bitmapInfo:CGImageAlphaInfo.premultipliedLast.rawValue|CGBitmapInfo.byteOrder32Big.rawValue) else{throw Failure(message:"Native independent display control raster failed")}
             context.interpolationQuality = .none;context.draw(image.pixels,in:CGRect(x:0,y:0,width:width,height:height))
         }
-        return [(20,20),(44,20),(20,44),(44,44)].map{x,y in
+        return points.map{x,y in
             let offset=(y*width+x)*4
             return Sample(x:x,y:y,red:Int(bytes[offset]),green:Int(bytes[offset+1]),blue:Int(bytes[offset+2]),tolerance:1)
         }
@@ -76,8 +78,22 @@ private extension NSWindow {
         }
     }
     static func consumers(_ c:Context)async throws {
-        let alpha=try alphaReference(c)
-        let pairs:[(String,String,[Sample],[Sample])]=[(grayName,rgbName,gray,rgb),(argbName,pargbName,alpha,alpha),("high-depth-gray-texture.emf","high-depth-pargb64-texture.emf",gray,alpha)]
+        let alpha=try displayControl(c)
+        // The texture's authored brush maps source centers to19.5+24*x/y,
+        // including its half-texel/half-device texture phase. Direct8/32 probes
+        // cannot be reused as flat texel colors there. Separately authored8-bit
+        // controls retain those exact brush/destination fields; no WORD bytes
+        // or rendered expectations are derived from the high-depth output.
+        let texturePoints=[(8,8),(20,20),(44,20),(20,44),(44,44),(4,4)]
+        let grayTexture=try displayControl(c,control:"high-depth-gray-texture-control.emf",points:texturePoints)
+        let alphaTexture=try displayControl(c,control:"high-depth-pargb64-texture-control.emf",points:texturePoints)
+        // Mapped three-point geometry starts at(4,8), then world translation4
+        // restores the direct(8,8) origin and24px basis. Keep literal centers
+        // and the independent half-way interpolation assertions on that route.
+        let pairs:[(String,String,[Sample],[Sample])]=[
+            (grayName,rgbName,gray,rgb),(argbName,pargbName,alpha,alpha),
+            ("high-depth-gray-texture.emf","high-depth-pargb64-texture.emf",grayTexture,alphaTexture),
+            ("high-depth-gray-mapped.emf","high-depth-rgb48-mapped.emf",gray,rgb)]
         for explicit in [false,true] {
             for(leftName,rightName,leftPixels,rightPixels)in pairs {
                 let left=try c.input(leftName),right=try c.input(rightName),owner:FileComparisonWindowController
@@ -111,7 +127,7 @@ private extension NSWindow {
         try require(late.model.document==nil && late.model.imageComparison==nil,"Retired comparison published late actual-helper pixels")
     }
     static func conflict(_ c:Context)async throws {
-        let alpha=try alphaReference(c)
+        let alpha=try displayControl(c)
         let baseURL=try c.input(grayName),theirsURL=try c.input(rgbName),mineURL=try c.input(argbName)
         let base=try Data(contentsOf:baseURL),theirs=try Data(contentsOf:theirsURL),mine=try Data(contentsOf:mineURL)
         let root=c.base.appendingPathComponent("repository",isDirectory:true);try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)

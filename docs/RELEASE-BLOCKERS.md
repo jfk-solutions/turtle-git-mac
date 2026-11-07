@@ -16,6 +16,18 @@ state were cleaned. Candidate53 Finder badges, older-platform coverage, complete
 hosted CI and full source/dialog parity remain open; there was no installation
 or publication.
 
+## Later source recovery checkpoint
+
+[The cache/image batch](qa/cache-metafile-recovery-2026-11-07.json) passes
+98 distinct focused Core methods and fourteen native case/engine pairs
+cumulatively after recorded repairs. It removes repeated cold-map rebuilding from
+unchanged Finder retirement, preserves independent nested entries and makes
+excessive unconditional Metafile playback refuse before expensive painting.
+The signed build53 package above retains its original source and observed Quit
+delay; these later changes are not silently installed. Complete corrected-source
+hosted, signed/physical and whole-dialog acceptance remain open. The History
+failures below remain a separate next workflow family.
+
 ## Current acceptance queue
 
 The latest observed [9a1ee028 macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589)
@@ -28,7 +40,11 @@ methods, 1,140 assertions across 3,445 executed tests, with three skipped tests.
 These include high-depth/texture paint selection, SVG structure expectations and
 one nested-image budget timeout; product versus consumer causes remain under
 inspection. The signed twenty-image smoke does not cover this complete family.
-Late History assertions remain unavailable. The
+The [later History log reading](qa/hosted-9a1-history-errors-2026-11-07.json)
+identifies ten failed steps: two already-corrected picker checks, outdated Browser
+delegate calls, a stale Browser delivery, Export timeout, block-save bytes,
+font/layout geometry, an English menu lookup and graph panning. They require
+separate source/consumer diagnosis; no common failure cause is assumed. The
 [previous exact picker evidence](qa/hosted-9a1-tracked-branch-2026-11-07.json)
 identifies an immediate-Cancel assertion repaired by the
 [connected tracked-branch family](qa/reference-tracking-consolidation-2026-11-07.json).
