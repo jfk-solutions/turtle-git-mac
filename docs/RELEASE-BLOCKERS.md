@@ -17,14 +17,21 @@ processes are independently absent; the existing hosted Browser entry point now
 includes the sheet regression. These focused passes establish no complete hosted,
 physical visual or signed/platform acceptance.
 
-The next connected Synchronization batch remains open. Its Fast-forward progress
-currently replaces the repository actor that produced the accepted merge state,
-while Core correctly requires that exact producer; this can refuse the action
-before Git. Same-combo history deletion also needs receipt continuity across the
-native selection-to-SwiftUI update. Held Fetch controls must distinguish metadata
-helper invocations from actual transfer work; F5/key-window and later conflict
-child readiness require native consumer corrections without weakening production
-ownership guards. These findings are implementation work, not completed fixes.
+The [November 7 Synchronization source checkpoint](qa/sync-source-receipts-2026-11-07.json)
+passes two affected Core methods, one Debug app build and 22 native case/engine
+combinations cumulatively. Fetch now hands its exact accepted producer and backend
+to Fast-forward progress. Recovery belongs to an announced failed merge command,
+not rejected metadata/receipt validation, and progress completion waits for native
+sheet/question and worker detachment. Same-field history callbacks retain their
+own read continuity while cross-field, stale-catalog, modal and retired requests
+remain refused. [Native form coverage](qa/sync-owned-form-family-2026-11-07.json)
+retains the initial fixture cleanup, helper-role, private-root key and readiness
+failures, with only affected cases rechecked. [Fetch ownership coverage](qa/sync-fetch-producer-ownership-2026-11-07.json)
+passes six combinations on its first checkpoint; metadata bypasses artificial
+transfer holds and actual accepted ref/refspec results survive retirement. All
+reported owned processes are independently absent. Installed build 52 is unchanged;
+complete hosted, Intel/older-SDK, signed/physical and full-port acceptance remain
+open. No binary publication or App Store submission occurred.
 
 The [November 7 Settings return checkpoint](qa/remote-settings-return-2026-11-07.json)
 passes ten native case/engine combinations for captured remote-manager return,

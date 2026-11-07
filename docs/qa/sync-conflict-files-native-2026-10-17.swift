@@ -1,5 +1,6 @@
 import AppKit
 import ScreenCaptureKit
+import ObjectiveC
 import TurtleGitCore
 
 @main struct SyncConflictFilesVerification {
@@ -10,6 +11,24 @@ import TurtleGitCore
         throw Failure(description:"Conflict file table wait at \(line)")
     }
     @MainActor static func views(_ v:NSView)->[NSView] {[v]+v.subviews.flatMap(views)}
+    // A prohibited receiver cannot take physical desktop key focus. Supply
+    // only this owned window's public key-state getter during native dispatch;
+    // keep event/window/sheet/modal guards and all other windows unchanged.
+    @MainActor static func refreshKey(_ window:NSWindow,_ event:NSEvent)throws->Bool {
+        let selector=#selector(getter:NSWindow.isKeyWindow)
+        guard let method=class_getInstanceMethod(NSWindow.self,selector) else {throw Failure(description:"Missing native key-state getter")}
+        let original=method_getImplementation(method)
+        let block:@convention(block)(NSWindow)->Bool={candidate in
+            if candidate === window{return true}
+            typealias Getter=@convention(c)(NSWindow,Selector)->Bool
+            return unsafeBitCast(original,to:Getter.self)(candidate,selector)
+        }
+        let implementation=imp_implementationWithBlock(block)
+        class_replaceMethod(NSWindow.self,selector,implementation,method_getTypeEncoding(method))
+        defer{class_replaceMethod(NSWindow.self,selector,original,method_getTypeEncoding(method));imp_removeBlock(implementation)}
+        try require(window.isKeyWindow,"Owned key-state witness failed")
+        return window.performKeyEquivalent(with:event)
+    }
     @MainActor static func capture(_ window:NSWindow)async throws {
         guard let path=ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_CONFLICT_CAPTURE"] else {return}
         if #available(macOS 14.4,*) {
@@ -79,7 +98,7 @@ import TurtleGitCore
         try await capture(window)
         let stale=model.conflictMenu([names[0]],mark:names[0])
         let f5=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:String(UnicodeScalar(NSF5FunctionKey)!),charactersIgnoringModifiers:String(UnicodeScalar(NSF5FunctionKey)!),isARepeat:false,keyCode:96)!
-        try require(window.performKeyEquivalent(with:f5),"F5 did not route")
+        try require(try refreshKey(window,f5),"F5 did not route")
         try await wait{!actions.busy && StatusWindowModel.activeOperations==0}
         model.performConflict(.resolveCurrent,menu:stale);try require(routed.count==count,"Refresh revived old file menu")
         let selected=try await repo.conflicts(paths:[names[0]])
@@ -90,7 +109,7 @@ import TurtleGitCore
         _=try await repo.resolveConflicts(try await repo.conflicts(paths:[names[1]]),using:.theirs)
         ConflictListRefreshPolicy.perform(preferences:prefs){model.refreshConflictFiles()}
         try require(actions.files.count==1,"Disabled refresh callback rebuilt list")
-        _=window.performKeyEquivalent(with:f5);try await wait{!actions.busy && actions.files.isEmpty}
+        try require(try refreshKey(window,f5),"Second F5 did not route");try await wait{!actions.busy && actions.files.isEmpty}
         try require(try await repo.run(["rev-parse","HEAD"]).stdout==head,"File-list actions moved HEAD")
         // Restore conflict data for an actual owned application chooser, then force-close.
         _=try await repo.run(["update-index","--index-info"],input:Data(input.utf8))

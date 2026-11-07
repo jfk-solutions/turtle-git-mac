@@ -424,10 +424,12 @@ final class SynchronizationTransportTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/config")), config)
         let afterRead = try await f.client.run(["show-ref"]).stdout; XCTAssertEqual(afterRead, refs)
         _ = try await f.client.run(["update-ref", "refs/remotes/origin/main", f.base])
-        let output = Output()
-        let result = try await f.client.synchronizationFastForward(state, onOutput: { output.append($0) })
+        let output = Output(),announced=Output()
+        let result = try await f.client.synchronizationFastForward(state, onOutput: { output.append($0) },onCommand:{announced.append(.init(stream:.stdout,data:$0.preamble))})
         let head = try await hash(f.client); XCTAssertEqual(head, tip); XCTAssertEqual(result.exitCode, 0)
         XCTAssertFalse(output.bytes(.stdout).isEmpty)
+        let expected=GitCommandInvocation(executable:f.client.executable,directory:f.client.root,arguments:["--literal-pathspecs","-C",f.client.root.path,"-c","core.precomposeunicode=false","merge","--ff-only","--",state.target])
+        XCTAssertEqual(announced.bytes(.stdout),expected.preamble,"One accepted merge invocation after the pinned-state guards")
         let equal = try await f.client.synchronizationRebaseState(target: tip); XCTAssertTrue(equal.canFastForward)
         _ = try await f.client.synchronizationFastForward(equal)
         let still = try await hash(f.client); XCTAssertEqual(still, tip)
@@ -438,14 +440,16 @@ final class SynchronizationTransportTests: XCTestCase {
         let tip = try await advance(f)
         let fetch = try await f.client.synchronizationTransportPlan(options(.fetchAndRebase)); _ = try await f.client.synchronize(fetch)
         let state = try await f.client.synchronizationRebaseState(target: tip)
+        let announced=Output()
+        let onCommand:@Sendable(GitCommandInvocation)->Void={announced.append(.init(stream:.stdout,data:$0.preamble))}
         let foreign = GitRepository(root: f.client.root, executable: f.client.executable)
-        do { _ = try await foreign.synchronizationFastForward(state); XCTFail("foreign actor accepted state") }
+        do { _ = try await foreign.synchronizationFastForward(state,onCommand:onCommand); XCTFail("foreign actor accepted state") }
         catch SynchronizationTransportFailure.repositoryChanged {}
         let cancelled = OperationCancellation(); cancelled.cancel()
-        do { _ = try await f.client.synchronizationFastForward(state, cancellation: cancelled); XCTFail("cancelled merge accepted") }
+        do { _ = try await f.client.synchronizationFastForward(state, cancellation: cancelled,onCommand:onCommand); XCTFail("cancelled merge accepted") }
         catch OperationCancellationFailure.cancelled {}
         _ = try await f.client.run(["switch", "--detach", f.base])
-        do { _ = try await f.client.synchronizationFastForward(state); XCTFail("changed attachment accepted") }
+        do { _ = try await f.client.synchronizationFastForward(state,onCommand:onCommand); XCTFail("changed attachment accepted") }
         catch SynchronizationTransportFailure.repositoryChanged {}
         _ = try await f.client.run(["switch", "main"])
         _ = try await f.client.run(["commit", "--allow-empty", "-m", "local divergence"])
@@ -453,13 +457,14 @@ final class SynchronizationTransportTests: XCTestCase {
         catch SynchronizationTransportFailure.repositoryChanged {}
         let diverged = try await f.client.synchronizationRebaseState(target: tip); XCTAssertFalse(diverged.canFastForward)
         let head = try await hash(f.client), refs = try await f.client.run(["show-ref"]).stdout, index = try Data(contentsOf: f.client.root.appendingPathComponent(".git/index"))
-        do { _ = try await f.client.synchronizationFastForward(diverged); XCTFail("divergence accepted") }
+        do { _ = try await f.client.synchronizationFastForward(diverged,onCommand:onCommand); XCTFail("divergence accepted") }
         catch SynchronizationTransportFailure.fastForwardRequired {}
         do { _ = try await f.client.synchronizationRebaseState(target: "bad\0revision"); XCTFail("NUL target accepted") }
         catch SynchronizationFailure.invalidInput {}
         let after = try await hash(f.client), afterRefs = try await f.client.run(["show-ref"]).stdout
         XCTAssertEqual(head, after); XCTAssertEqual(refs, afterRefs)
         XCTAssertEqual(try Data(contentsOf: f.client.root.appendingPathComponent(".git/index")), index)
+        XCTAssertTrue(announced.bytes(.stdout).isEmpty,"Rejected producer, attachment, divergence and pre-cancellation must never announce a merge")
     }
 
     func testEmptyRebaseBranchValidationOccursAfterApprovedCheckoutHook() async throws {

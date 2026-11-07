@@ -273,6 +273,9 @@ import TurtleGitCore
         model.performPullAction(.pull); try await settle { !model.busy }
         precondition(hints == 1 && preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference))
         precondition(!model.commandSucceeded && model.tab == 6 && model.conflicts.contains { $0.path == "file" })
+        // Failed Pull owns a separate conflict-list read. Its busy flag alone
+        // does not grant a following form action while that child still drains.
+        try await settle { !model.busy && !model.hasPendingInlineWork && !model.hasBlockingChild && owner.window?.attachedSheet == nil }
         _ = try await repo.run(["merge", "--abort"])
         try Data("dirty checkout work\n".utf8).write(to: clientRoot.appendingPathComponent("file"))
         let fetchHead = try Data(contentsOf: clientRoot.appendingPathComponent(".git/FETCH_HEAD"))
@@ -426,7 +429,7 @@ import TurtleGitCore
 
         let output = model.commandOutput, refs = model.referenceChanges.count, selectedTab = model.tab
         model.fetch(.fetchAndRebase, shift: true)
-        precondition(owner.optionsController == nil && !model.busy && model.commandOutput == output && model.referenceChanges.count == refs && model.tab == selectedTab && preferences.integer(forKey: "TurtleGit.Sync." + clientRoot.path + ".pullAction") == 2)
+        precondition(owner.optionsController == nil && !model.busy && model.commandOutput == output && model.referenceChanges.count == refs && model.tab == selectedTab && preferences.integer(forKey: "TurtleGit.Sync." + repo.root.path + ".pullAction") == 2)
         // Forced parent closure ends the owned options sheet and resumes exactly
         // once, without publishing a late refresh into the invalidated parent.
         model.fetch(.fetch, shift: true)
@@ -621,9 +624,21 @@ import TurtleGitCore
         var prompts: [FetchRebasePrompt] = [], mergeCount = 0, rebaseCount = 0
         model.presentRebasePrompt = { prompt in prompts.append(prompt); precondition(prompt == .fastForward); return FetchRebaseAnswer(value: 1, suppress: false) }
         let presentMerge = model.performFastForward!
-        model.performFastForward = { state, token in
+        model.performFastForward = { capturedRepository, state, token in
             mergeCount += 1; precondition(state.target == first && state.head == base && state.branch == "main")
-            let result = await presentMerge(state, token); precondition(owner.window?.attachedSheet == nil); return result
+            precondition(capturedRepository !== repo,"Fetch did not retain its producing backend actor")
+            do {try await capturedRepository.validateSynchronizationRebaseState(state)} catch {preconditionFailure("Fetch handed Merge a foreign state: \(error)")}
+            preferences.set(true,forKey:"UseLibgit2");preferences.set(UInt32.max,forKey:"UseLibgit2_mask")
+            let inspection=Task { @MainActor in
+                try await settle{owner.commandProgress != nil}
+                let progress=owner.commandProgress!.model
+                precondition(progress.repository === capturedRepository,"Controller redirected accepted Fetch producer")
+                precondition(progress.backend.enabled==state.acceptedBackend.enabled && progress.backend.mask==state.acceptedBackend.mask && progress.backend.helperURL==state.acceptedBackend.helperURL,"Controller Merge reloaded backend settings")
+            }
+            let result = await presentMerge(capturedRepository,state,token)
+            do {try await inspection.value} catch {preconditionFailure("Actual Merge child was not observable: \(error)")}
+            preferences.set(false,forKey:"UseLibgit2");preferences.removeObject(forKey:"UseLibgit2_mask")
+            precondition(owner.window?.attachedSheet == nil); return result
         }
         model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
         let merged = try await hash(repo)
@@ -755,7 +770,7 @@ import TurtleGitCore
         }
         try await settle { !model.busy && model.outgoing != nil }
         model.compareTags(shift: true)
-        precondition(model.compareTagsSelected && !model.busy && !model.comparingTags && preferences.integer(forKey: "TurtleGit.Sync." + clientRoot.path + ".pullAction") == 6)
+        precondition(model.compareTagsSelected && !model.busy && !model.comparingTags && preferences.integer(forKey: "TurtleGit.Sync." + repo.root.path + ".pullAction") == 6)
         model.performPullAction(shift: false); try await settle { !model.busy }
         precondition(model.error == nil && model.comparingTags && model.tab == 7 && model.tagSnapshot!.remote == "origin")
         let refsAfterRead = try await repo.run(["show-ref"]).stdout; precondition(refsAfterRead == refs)
@@ -928,7 +943,7 @@ import TurtleGitCore
         defer { preferences.removeObject(forKey: "AutoCloseGitProgress"); preferences.removeObject(forKey: "AskSetTrackedBranch") }
         try await settle { !model.busy && model.outgoing != nil }
         model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "push-new"
-        let key = "TurtleGit.Sync." + clientRoot.path + ".pushAction"
+        let key = "TurtleGit.Sync." + repo.root.path + ".pushAction"
         var questions = [(String, String, String)](), finished = 0
         model.onTransportFinished = { _ in finished += 1 }
         model.askTracking = { local, remote, destination in questions.append((local, remote, destination)); return SynchronizationTrackingAnswer(choice: .cancel) }
@@ -1056,7 +1071,7 @@ import TurtleGitCore
         defer { owner.close() }
         let model = owner.model
         try await settle { !model.busy && model.outgoing != nil }
-        let outgoing = model.outgoing!.remoteReference, key = "TurtleGit.Sync." + directory.path + ".submoduleAction"
+        let outgoing = model.outgoing!.remoteReference, key = "TurtleGit.Sync." + repo.root.path + ".submoduleAction"
         var completed = 0, children: [SynchronizationSubmoduleAction] = []
         model.onTransportFinished = { _ in completed += 1 }
         model.onSubmoduleOptions = { children.append($0) }
@@ -1483,7 +1498,7 @@ import TurtleGitCore
         precondition(model.remote == "review" && !model.remoteWasSelected)
         // A selected history URL also falls back when it is not a named remote,
         // exactly as source Refresh; a typed URL is preserved by the earlier case.
-        let key = "TurtleGit.Sync." + directory.path + ".urls"
+        let key = "TurtleGit.Sync." + repo.root.path + ".urls"
         preferences.set([directory.path], forKey: key)
         model.remote = directory.path; model.remoteWasSelected = true; model.refresh()
         try await settle { !model.busy }
@@ -1536,7 +1551,7 @@ import TurtleGitCore
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index")), refs = try await repo.run(["show-ref"]).stdout
         let suite = "TurtleGit.Sync.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
-        preferences.set(["café", "cafe\u{301}", "café"], forKey: "TurtleGit.Sync." + root.path + ".urls")
+        preferences.set(["café", "cafe\u{301}", "café"], forKey: "TurtleGit.Sync." + repo.root.path + ".urls")
         DialogGeometry.install(preferences: preferences)
         let controller = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
         let window = controller.window!; window.alphaValue = 0

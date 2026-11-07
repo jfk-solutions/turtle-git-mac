@@ -1,0 +1,548 @@
+{
+  "date": "2026-11-07",
+  "family": "Captured Synchronization forms, progress sheets, conflict/history consumers and exact references",
+  "status": "focused-native-family-passed-cumulatively-after-recorded-fixture-repairs",
+  "source_base": "dd912ae7",
+  "installed_app_changed": false,
+  "public_distribution": false,
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_source_sha256": {
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "108040f6376f601472091b2dcde46feaa1730f459a2759906c3c86b4bca79f4d",
+    "Sources/TurtleGitCore/Synchronization.swift": "5ab2fe4224d0d3eb28d73942eb1402e7dd0e6a46de33718895b762cbaee5b5fd"
+  },
+  "native_fixture_driver_sha256": {
+    "docs/qa/sync-child-progress-native-2026-10-17.swift": "8817093b5eb92d337a68fdb0f300c52e00ec40545a334e9e811b62a5d0f4924a",
+    "docs/qa/sync-conflict-files-native-2026-10-17.swift": "153bd16f112d1a162515ae305d99689025395b79eef91cf726fcaf97c7bec47c",
+    "docs/qa/sync-literal-reference-native-2026-10-24.swift": "29e3e76da12d2376d087ce7d2fdd75e7e16b387b108470fb9f69fdfdac4dd560",
+    "docs/qa/synchronization-history-native-2026-10-11.swift": "2802297706f727bea212a8ea5570f19901f0121c9b3bc08df914075840aaa752",
+    "docs/qa/synchronization-native-2026-10-11.swift": "091b0f7ab7834c80518bbe2748085936021f27dd34ba25687f5c1cfc702cdb1e",
+    "scripts/test-sync-owned-form-family.py": "da5c4c3f2c7cc43c0f4ec0f95b3bd1eee8c4b8bf21c2892d48708842a45c8936",
+    "scripts/test-sync-child-progress.py": "17e1247768816c619fcbe63426b5d228f590782fa4f7f83c6c1d4e86837ce1e2",
+    "scripts/test-sync-conflict-files.py": "3772b347acd6e415ee6a674fb88766220f9153a8a0ffcef4e65e456736d7d84d",
+    "scripts/test-synchronization-dialog.py": "3bf313849dd9546c03db6c21e19697b9cff164291efade7fb73fbdb902443c2f",
+    "scripts/test-synchronization-history.py": "ae6d58b05830fc4e8b4a1a4730536f69af3e9d0ced5aa7698badbf868cd27b05"
+  },
+  "initial_input_receipt": {
+    "source": "dd912ae789b8921bc3f75918b3f0ef3b485a7373",
+    "sha256": {
+      "Sources/TurtleGitMac/SynchronizationWindow.swift": "108040f6376f601472091b2dcde46feaa1730f459a2759906c3c86b4bca79f4d",
+      "Sources/TurtleGitCore/Synchronization.swift": "5ab2fe4224d0d3eb28d73942eb1402e7dd0e6a46de33718895b762cbaee5b5fd",
+      "scripts/test-sync-owned-form-family.py": "0e70d2f4c0fadc531476a995576d164ebb697d31db4ed4670b12bb604ebfbb33",
+      "scripts/native_receiver.py": "a3aa506c5a954252e011c3914cfa8fdfb8bfd1cfb33fe03f2d9162248a603e34",
+      "docs/qa/sync-conflict-files-native-2026-10-17.swift": "153bd16f112d1a162515ae305d99689025395b79eef91cf726fcaf97c7bec47c",
+      "docs/qa/sync-child-progress-native-2026-10-17.swift": "189982399dfb54726b6d064022dfd54db21bdff346d64abd4c10c302afc5ca18",
+      "docs/qa/synchronization-history-native-2026-10-11.swift": "664ac35b42b684aa74eacbb03909f82f2880d788c04d7dd894ea658440a8cbd6",
+      "docs/qa/sync-literal-reference-native-2026-10-24.swift": "29e3e76da12d2376d087ce7d2fdd75e7e16b387b108470fb9f69fdfdac4dd560",
+      "docs/qa/synchronization-native-2026-10-11.swift": "52ab1a462e91fc1c750d2fb3ca90655d4ffdc71ba806407cccb62a36d6033294",
+      "docs/qa/synchronization-apply-native-2026-10-11.swift": "d856c53a1a6e9983276122d6950b4fc5ef6f2c38ac0d8fdc1cc85490362c230e",
+      "docs/qa/synchronization-email-native-2026-10-11.swift": "4019c82926b9720e6b151c5ec5bcae1cc1e1319a492d08e788d27ba5ed1663b9"
+    }
+  },
+  "shared_build": {
+    "log": "build/qa/sync-owner-build-2026-11-07.log",
+    "log_sha256": "dcdaa04574f477e70357a27da1f96ee8bd38a67b33365c0d763752bf89385ae1",
+    "exit_code": 0,
+    "ownership": "root agent shared build; not repeated in this native family"
+  },
+  "checks": [
+    {
+      "name": "initial",
+      "exit_code": 1,
+      "log": "build/qa/sync-owned-form-family-native-2026-11-07.log",
+      "log_sha256": "ddd6a0c05ac16252faf78aad4d86002f55afb8810d776931f6c5f922e41aa1bd",
+      "results": [
+        {
+          "case": "conflict",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "conflict",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "child",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "passed": false
+        },
+        {
+          "case": "child",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 1,
+          "passed": false
+        },
+        {
+          "case": "history",
+          "git": "/usr/bin/git",
+          "returncode": -5,
+          "passed": false
+        },
+        {
+          "case": "history",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": -5,
+          "passed": false
+        },
+        {
+          "case": "pull",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "pull",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "fetch-merge",
+          "git": "/usr/bin/git",
+          "returncode": -5,
+          "passed": false
+        },
+        {
+          "case": "fetch-merge",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": -5,
+          "passed": false
+        },
+        {
+          "case": "literal-push",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "literal-push",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "literal-pull",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "literal-pull",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "literal-lifetime",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "literal-lifetime",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "affected-repair1",
+      "exit_code": 1,
+      "log": "build/qa/sync-owned-form-family-native-repair1-2026-11-07.log",
+      "log_sha256": "25cffe7d36bf1d45a84e84c90099037202f381a6b756cebf34bdf770a8adb3c2",
+      "results": [
+        {
+          "case": "child",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "child",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "history",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "passed": false
+        },
+        {
+          "case": "history",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 1,
+          "passed": false
+        },
+        {
+          "case": "fetch-merge",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "fetch-merge",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ]
+    },
+    {
+      "name": "history-repair2",
+      "exit_code": 1,
+      "log": "build/qa/sync-owned-form-family-native-history-repair2-2026-11-07.log",
+      "log_sha256": "e1b095ddd1bfd9b9024d0b44313f23c27a6e94b89172c60b9f0f04651eb836b5",
+      "results": [
+        {
+          "case": "history",
+          "git": "/usr/bin/git",
+          "returncode": -5,
+          "passed": false
+        },
+        {
+          "case": "history",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": -5,
+          "passed": false
+        }
+      ]
+    },
+    {
+      "name": "history-diagnostic",
+      "exit_code": 1,
+      "log": "build/qa/sync-owned-form-family-native-history-diagnostic-2026-11-07.log",
+      "log_sha256": "dbeb52ba94c23faa1e34a152bb75ddf6c763261f47c3170ebac780982925e51e",
+      "results": [
+        {
+          "case": "history",
+          "git": "/usr/bin/git",
+          "returncode": 1,
+          "passed": false
+        }
+      ]
+    },
+    {
+      "name": "history-repair3",
+      "exit_code": 0,
+      "log": "build/qa/sync-owned-form-family-native-history-repair3-2026-11-07.log",
+      "log_sha256": "cbb3a95afe6c97263a55960d35decaf1161b06a8fdc2e7f68aa227b325782fbc",
+      "results": [
+        {
+          "case": "history",
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "case": "history",
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ]
+    }
+  ],
+  "distinct_final_case_engine_passes": 16,
+  "cumulative_passes": [
+    {
+      "case": "conflict",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "conflict",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "pull",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "pull",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "literal-push",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "literal-push",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "literal-pull",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "literal-pull",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "literal-lifetime",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "literal-lifetime",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "child",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "child",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "fetch-merge",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "fetch-merge",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "history",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "passed": true
+    },
+    {
+      "case": "history",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "passed": true
+    }
+  ],
+  "first_failures_and_repairs": [
+    {
+      "cases": [
+        "child/system",
+        "child/packaged"
+      ],
+      "finding": "New plain private parent used to attach actual tag sheets was still visible at the existing final no-owned-window assertion. All real pinned merge/refusal/recovery assertions completed first.",
+      "repair": "Close that exact parent before the existing final visibility assertion; retain deferred fallback cleanup."
+    },
+    {
+      "cases": [
+        "history/system",
+        "history/packaged"
+      ],
+      "finding": "Private /private/var fixture key differed from GitRepository.root.standardizedFileURL /var key. Diagnostic showed only origin loaded while the complete exact byte seed remained stored at the other key.",
+      "repair": "Use captured repository.root.path for the persistence namespace. Preserve original complete URL history plus configured origin expectation and compare exact UTF-8 bytes."
+    },
+    {
+      "cases": [
+        "fetch-merge/system",
+        "fetch-merge/packaged"
+      ],
+      "finding": "New grouped entry omitted RebaseEditor.handle, so actual sequence-editor invocations recursively entered the native fixture and returned a permission error during unrelated fixture setup.",
+      "repair": "Handle the existing sequence/message editor CLI before starting the grouped native UI, matching the original full Sync fixture."
+    },
+    {
+      "cases": [
+        "history/system",
+        "history/packaged"
+      ],
+      "finding": "New held-read regression could arm before its controller initial Task published a catalog; !busy/no-work alone was not actual initial readiness. A bounded diagnostic identified the held-read phase after all original history assertions passed.",
+      "repair": "Require the actual outgoing snapshot and complete initial read before holding the next real catalog command. Publish its PID atomically before observing readiness."
+    }
+  ],
+  "preserved_scope": [
+    "Actual ff-only command reaches the captured producer actor and accepted backend despite later Settings/backend arguments.",
+    "Same-root foreign actor, foreign-root, precancelled and stale attachment/HEAD refuse without mutation or Resolve.",
+    "Actual failed metadata query preserves typed code128/diagnostic but announces no merge and invokes no conflict inspection.",
+    "Actual announced cancelled merge preserves typed nonzero command result and independently inspects conflicts.",
+    "Actual failed ff-only merge preserves original Git code/diagnostic and Resolve-to-Commit runs after worker/sheet drain exactly once.",
+    "Old/new cancellation question authority, held read ownership, late output and forced close/Quit checks retained.",
+    "Actual tag and controller Checkout/Merge sheets deliver callbacks after detachment and parent ownership clearance.",
+    "Five-column conflict table, exact selections, original stage entries, F5 routing, native application chooser and refresh policy retained.",
+    "Immediate native combo selection/ShiftDelete, own text/current-read continuity, stale cross-field/catalog/retired callbacks, exact NFC/NFD/case/persistence/history limits retained.",
+    "Actual controller Fetch-to-Merge and connected ff/divergent Rebase, Pull checkout/recovery, literal Push/Pull/lifetime paths run with both Git engines."
+  ],
+  "validation_limits": [
+    "Focused family passes are cumulative; unaffected earlier passing cases were not rerun after fixture-only repairs.",
+    "No complete default Synchronization fixture, complete native/Core suite, corrected-source hosted CI, Intel/older SDK/minimum OS, signed physical Finder or accessibility acceptance is established.",
+    "F5 routing uses a scoped owned-window public key-state injection in a prohibited hidden receiver; this is not physical desktop focus acceptance.",
+    "The older compiler diagnostic was split into typed subexpressions without removing fields; local Swift6.4.2 compilation does not prove the older hosted compiler pass.",
+    "Native checks reference actual Debug app objects and frameworks; no application was installed or published."
+  ],
+  "owned_process_cleanup": {
+    "receipts": [
+      {
+        "role": "compiler",
+        "pid": 61944
+      },
+      {
+        "role": "compiler",
+        "pid": 61954
+      },
+      {
+        "role": "receiver",
+        "pid": 62336
+      },
+      {
+        "role": "receiver",
+        "pid": 62946
+      },
+      {
+        "role": "receiver",
+        "pid": 63350
+      },
+      {
+        "role": "receiver",
+        "pid": 64151
+      },
+      {
+        "role": "receiver",
+        "pid": 64765
+      },
+      {
+        "role": "receiver",
+        "pid": 64861
+      },
+      {
+        "role": "receiver",
+        "pid": 64925
+      },
+      {
+        "role": "receiver",
+        "pid": 65853
+      },
+      {
+        "role": "receiver",
+        "pid": 66788
+      },
+      {
+        "role": "receiver",
+        "pid": 67293
+      },
+      {
+        "role": "receiver",
+        "pid": 67792
+      },
+      {
+        "role": "receiver",
+        "pid": 68109
+      },
+      {
+        "role": "receiver",
+        "pid": 68423
+      },
+      {
+        "role": "receiver",
+        "pid": 68709
+      },
+      {
+        "role": "receiver",
+        "pid": 68981
+      },
+      {
+        "role": "receiver",
+        "pid": 69400
+      },
+      {
+        "role": "compiler",
+        "pid": 70167
+      },
+      {
+        "role": "receiver",
+        "pid": 70309
+      },
+      {
+        "role": "receiver",
+        "pid": 70617
+      },
+      {
+        "role": "receiver",
+        "pid": 70878
+      },
+      {
+        "role": "receiver",
+        "pid": 70917
+      },
+      {
+        "role": "receiver",
+        "pid": 70952
+      },
+      {
+        "role": "receiver",
+        "pid": 71965
+      },
+      {
+        "role": "compiler",
+        "pid": 73186
+      },
+      {
+        "role": "receiver",
+        "pid": 73678
+      },
+      {
+        "role": "receiver",
+        "pid": 74047
+      },
+      {
+        "role": "compiler",
+        "pid": 74715
+      },
+      {
+        "role": "receiver",
+        "pid": 74756
+      },
+      {
+        "role": "compiler",
+        "pid": 75293
+      },
+      {
+        "role": "receiver",
+        "pid": 75343
+      },
+      {
+        "role": "receiver",
+        "pid": 75536
+      }
+    ],
+    "independent_ps_all_absent": true,
+    "hidden_windows_worker_sheet_retirement_assertions_passed_for_final_cases": true,
+    "private_temp_trees_removed": true,
+    "final_passing_cases_needed_forced_helper_cleanup": false,
+    "initial_failed_case_helper_cleanup_quantity": "not separately emitted; exact private helper ownership inspected by driver finally before each fixture removal"
+  },
+  "protected_unrelated_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

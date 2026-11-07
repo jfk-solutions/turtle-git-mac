@@ -114,15 +114,30 @@ extension SynchronizationTagKind {
     func windowWillClose(_ notification: Notification) {
         guard !presentationClosed else { return }; presentationClosed = true
         let result = model.result ?? .failure(OperationCancellationFailure.cancelled)
+        let closingWindow=window,presentingWindow=window?.sheetParent,questionWindow=alert?.window
         model.saveActionLog(); model.invalidate(); window?.sheetParent?.endSheet(window!)
         if let alert, window?.attachedSheet === alert.window { window?.endSheet(alert.window, returnCode: .abort); alert.window.close() }
         alert = nil
         let callback = completion, didClose = onClosed
         let recovery = pendingRecovery ? onRecovery : nil; pendingRecovery = false; completion = nil
-        // A forcibly closed child must not let its parent mutate Git while the
-        // previous worker is still draining (including ignored cancellation).
-        model.whenDrained { didClose(); callback?(result); recovery?() }
+        // A closed child retains both producer and native sheet ownership.
+        // Only after the worker AND the exact presentation detach can its
+        // parent resume Git work or deliver the source Resolve handoff.
+        model.whenDrained {
+            FinderFilesystemWorkflowRelease(ready:{
+                closingWindow?.sheetParent==nil && closingWindow?.attachedSheet==nil &&
+                    (closingWindow==nil || presentingWindow?.attachedSheet !== closingWindow) &&
+                    questionWindow?.sheetParent==nil
+            },completion:{didClose();callback?(result);recovery?()}).start()
+        }
     }
+}
+
+private final class SynchronizationMergeCommandReceipt:@unchecked Sendable {
+    private let lock=NSLock()
+    private var invocation:GitCommandInvocation?
+    func record(_ value:GitCommandInvocation){lock.lock();defer{lock.unlock()};if invocation==nil{invocation=value}}
+    func read()->GitCommandInvocation? {lock.lock();defer{lock.unlock()};return invocation}
 }
 
 @MainActor final class SynchronizationProgressModel: ObservableObject, ActionLogProgress {
@@ -141,6 +156,8 @@ extension SynchronizationTagKind {
     private var outputState: GitProgressOutputState
     private var startedAt: TimeInterval = 0
     private var inspection: OperationCancellation?
+    private let mergeCommandReceipt=SynchronizationMergeCommandReceipt()
+    var mergeCommand:GitCommandInvocation? {mergeCommandReceipt.read()}
     private let recoveryOwner = UUID()
     private var recoveryRevision = UUID()
     @Published private(set) var recoveryAvailable = false
@@ -182,19 +199,26 @@ extension SynchronizationTagKind {
         ProgressActionLog.record(owner: self, repository: repository.root, output: output, cancelled: cancelled, failed: !success)
     }
     init(repository: GitRepository, operation: SynchronizationProgressOperation, cancellation: OperationCancellation, preferences: UserDefaults, access: RepositoryAccessLease? = nil, transportFactory: SSHTransportFactory? = nil,backend:GitLibGit2Configuration? = nil) {
-        let isCheckout:Bool;if case .checkout=operation {isCheckout=true}else{isCheckout=false}
-        let capturedBackend=(isCheckout ? repository.libgit2Configuration:nil) ?? backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        let capturedBackend:GitLibGit2Configuration
+        switch operation {
+        case .checkout(let plan):capturedBackend=plan.acceptedBackend
+        case .merge(let state):capturedBackend=state.acceptedBackend
+        default:capturedBackend=backend ?? .load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)
+        }
         self.backend = capturedBackend
         self.access = access; self.transportFactory = transportFactory; autoClosePolicy = GitProgressAutoClose(preferences: preferences)
-        // Checkout and tag receipts belong to their producing actors. Tag
-        // commands pass this attempt's backend explicitly; cloning an actor to
-        // capture that policy would invalidate the accepted tag receipt.
-        if case .tag(_, _, let snapshot, _) = operation, snapshot.root == repository.root {
-            self.repository = snapshot.originatingRepository
-        } else {
-            // A foreign-root receipt is deliberately left for the unchanged
-            // Core identity/root guard to refuse, never redirected to its root.
-            self.repository = isCheckout ? repository:repository.capturingBackend(capturedBackend)
+        // Accepted checkout, fast-forward and tag receipts belong to their
+        // producing actors. Capturing policy must not manufacture a replacement
+        // actor before Core checks that authority, HEAD and branch are current.
+        switch operation {
+        case .checkout,.merge:
+            self.repository=repository
+        case .tag(_,_,let snapshot,_) where snapshot.root==repository.root:
+            self.repository=snapshot.originatingRepository
+        default:
+            // A foreign-root tag receipt remains with the supplied actor for
+            // Core to refuse. Never redirect a foreign receipt to its producer.
+            self.repository=repository.capturingBackend(capturedBackend)
         }
         self.operation = operation; self.cancellation = cancellation; self.preferences = preferences
         outputState = GitProgressOutputState(preferences: preferences); progressPresentation = outputState.presentation
@@ -252,7 +276,8 @@ extension SynchronizationTagKind {
                         onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }))
                 case .merge(let state):
                     return SynchronizationProgressResult.merge(try await repository.synchronizationFastForward(state, cancellation: cancellation,
-                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) }))
+                        onOutput: { chunk in parser.appendChunk(chunk.data); continuation.yield(()) },
+                        onCommand:{ [mergeCommandReceipt] invocation in mergeCommandReceipt.record(invocation) }))
                 case .tags(let remote):
                     return SynchronizationProgressResult.tags(try await repository.synchronizationTags(remote: remote, cancellation: cancellation, prepareTransport: coordinator?.preparation,backend:backend))
                 case .tag(let action, let row, let snapshot, let authorized):
@@ -275,22 +300,25 @@ extension SynchronizationTagKind {
             var exitCode: Int32?
             do { result = .success(try await operation.value); success = true; exitCode = 0 }
             catch {
-                result = .failure(error); exitCode = (error as? GitFailure)?.code
+                result = .failure(error)
+                exitCode=(error as? GitFailure)?.code ?? (error as? GitCommandCancellationFailure)?.result.exitCode
                 if let failure = error as? GitFailure, outputState.hasOutput { output += "\nGit command failed (\(failure.code))." }
                 else { output += "\n" + error.localizedDescription }
             }
             guard !closed else { return }
             cancelled = cancellation.isCancelled && !success
             let finished = Date(), elapsed = ProcessInfo.processInfo.systemUptime - startedAt
-            if case .merge = self.operation, !success {
-                // Source's failed ff-only progress offers Resolve when unmerged
-                // index entries remain; its callback opens Commit. Inspect with
-                // a fresh token so an ordinary Git cancellation can still settle.
+            if case .merge = self.operation, !success, mergeCommand != nil, let exitCode, exitCode != 0 {
+                // Source's failed ff-only command offers Resolve when unmerged
+                // index entries remain. A rejected stale/foreign receipt or a
+                // pre-launch cancellation is not a failed Git command and must
+                // not expose recovery against unrelated current index entries.
+                // A fresh token lets an actual cancelled command still settle.
                 let read = OperationCancellation(); inspection = read; cancelling = false; currentWork = "Checking for conflicts…"
                 do {
                     let conflicts: Bool
                     if let inspectConflicts { conflicts = try await inspectConflicts(read) }
-                    else { conflicts = try await repository.hasWorkingTreeConflicts(cancellation:read) }
+                    else { conflicts = try await repository.hasWorkingTreeConflicts(cancellation:read,backend:backend) }
                     guard !closed, inspection === read else { return }
                     try read.check(); recoveryAvailable = conflicts; recoveryRevision = UUID()
                 } catch {
@@ -635,7 +663,8 @@ final class SynchronizationNativeWindow: NSWindow {
             return SynchronizationTrackingAnswer(choice: choice, suppress: remember.state == .on)
         }
         model.performCheckout = { [weak self] capturedRepository, plan, token in
-            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { throw OperationCancellationFailure.cancelled }
+            guard let self,!self.retiredPresentation,!self.model.closed,!self.model.confirmingQuit,!self.model.confirmingCancellation,
+                  !token.isCancelled,self.commandProgress==nil,let window=self.window,window.attachedSheet==nil,NSApp.modalWindow==nil else { throw OperationCancellationFailure.cancelled }
             return try await withCheckedThrowingContinuation { continuation in
                 let child = SynchronizationProgressController(repository: capturedRepository, operation: .checkout(plan), cancellation: token, preferences: preferences, access: self.model.access) { result in
                     switch result {
@@ -650,10 +679,11 @@ final class SynchronizationNativeWindow: NSWindow {
                 window.beginSheet(child.window!); child.model.start()
             }
         }
-        model.performFastForward = { [weak self] state, token in
-            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
+        model.performFastForward = { [weak self] capturedRepository, state, token in
+            guard let self,!self.retiredPresentation,!self.model.closed,!self.model.confirmingQuit,!self.model.confirmingCancellation,
+                  !token.isCancelled,self.commandProgress==nil,let window=self.window,window.attachedSheet==nil,NSApp.modalWindow==nil else { return .failure(OperationCancellationFailure.cancelled) }
             return await withCheckedContinuation { continuation in
-                let child = SynchronizationProgressController(repository: repository, operation: .merge(state), cancellation: token, preferences: preferences, access: self.model.access) { result in
+                let child = SynchronizationProgressController(repository: capturedRepository, operation: .merge(state), cancellation: token, preferences: preferences, access: self.model.access) { result in
                     switch result {
                     case .success(.merge(let command)): continuation.resume(returning: .success(command))
                     case .success: continuation.resume(returning: .failure(SynchronizationFailure.invalidInput))
@@ -669,7 +699,8 @@ final class SynchronizationNativeWindow: NSWindow {
             }
         }
         model.performTagOperation = { [weak self] operation, token in
-            guard let self, !self.model.closed, let window = self.window, window.attachedSheet == nil else { return .failure(OperationCancellationFailure.cancelled) }
+            guard let self,!self.retiredPresentation,!self.model.closed,!self.model.confirmingQuit,!self.model.confirmingCancellation,
+                  !token.isCancelled,self.commandProgress==nil,let window=self.window,window.attachedSheet==nil,NSApp.modalWindow==nil else { return .failure(OperationCancellationFailure.cancelled) }
             return await withCheckedContinuation { continuation in
                 let child = SynchronizationProgressController(repository: repository, operation: operation, cancellation: token, preferences: preferences, access: self.model.access, transportFactory: self.model.sshSettings.capture(),backend:self.model.tagBackend) { result in
                     continuation.resume(returning: result)
@@ -1228,12 +1259,20 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                 guard self.acceptsForm(context) else{return};self[keyPath:key]=value;self.reload(selectTracking:tracking);return
             }
             guard self.acceptsText(context,key:key) else{return}
-            if let read=self.formReadToken,self.token === read {read.cancel();self.token=nil;self.formReadToken=nil;self.busy=false}
+            self.supersedeEditableFormRead()
             if key == \.remote {self.branchTextRevision=UUID()} else {self.remoteTextRevision=UUID()}
             self[keyPath:key]=value
             self.outgoing=nil;self.graph=[];self.fileSelection=[];self.comparison.snapshot=nil
             self.scheduleTextReload()
         })
+    }
+    /// Retain the old attempt's drain accounting while a live enabled text
+    /// control supersedes only its own metadata read. Other busy work is not
+    /// editable and never reaches this boundary.
+    private func supersedeEditableFormRead() {
+        if let read=formReadToken,token === read {
+            read.cancel();token=nil;formReadToken=nil;busy=false
+        }
     }
     private func cancelDeferredTextReload() {
         deferredTextID=nil;deferredTextTask?.cancel();deferredTextTask=nil
@@ -1261,7 +1300,12 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         guard acceptsText(context,key:\.remote) else{return};remoteWasSelected=selected
     }
     func deleteFormHistory(_ index:Int,remoteURL:Bool,context:FormContext,entries:[String]) {
-        guard acceptsForm(context),entries.map({GitReferenceName($0)})==(remoteURL ? remoteChoices:branchHistory).map({GitReferenceName($0)}) else{return}
+        // Selecting an item can synchronously update its own field before
+        // SwiftUI replaces this popup's callback. Retain that field editor's
+        // authority, while another field/read/option or catalog still retires it.
+        let field: ReferenceWritableKeyPath<SynchronizationWindowModel, String> = remoteURL ? \.remote : \.remoteBranch
+        guard entries.indices.contains(index),acceptsText(context,key:field),
+              entries.map({GitReferenceName($0)})==(remoteURL ? remoteChoices:branchHistory).map({GitReferenceName($0)}) else{return}
         if remoteURL {deleteURLHistory(at:index)} else {deleteBranchHistory(at:index)}
     }
     @Published var localBranch = ""
@@ -1302,7 +1346,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     var confirmCheckout: (String) async -> Bool = { _ in false }
     var askTracking: (String, String, String) async -> SynchronizationTrackingAnswer = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel) }
     var performCheckout: ((GitRepository, SynchronizationTransportPlan, OperationCancellation) async throws -> SynchronizationPullCheckout)?
-    var performFastForward: ((SynchronizationRebaseState, OperationCancellation) async -> Result<GitResult, Error>)?
+    var performFastForward: ((GitRepository, SynchronizationRebaseState, OperationCancellation) async -> Result<GitResult, Error>)?
     var presentRebasePrompt: (FetchRebasePrompt) async -> FetchRebaseAnswer = { prompt in FetchRebaseAnswer(value: prompt.answers[prompt.defaultIndex], suppress: false) }
     var runRebase: (String, Bool, Bool) async throws -> Void = { _, _, _ in throw SynchronizationFailure.invalidInput }
     var detachRebase: () -> Void = {}
@@ -2090,13 +2134,15 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         sshSettings.save(preferences, key: historyKey + ".autoload")
     }
     func deleteBranchHistory(at index: Int) {
-        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild,
+        guard canEditText,
               let result = FetchDialogHistory.removing(index, entries: branchHistory, preferences: preferences, key: historyKey + ".branches") else { return }
+        supersedeEditableFormRead()
         branchHistory = result.entries; remoteBranch = result.selection; reload()
     }
     func deleteURLHistory(at index: Int) {
-        guard !closed, !confirmingQuit, !transportRunning, !hasBlockingChild,
+        guard canEditText,
               let result = FetchDialogHistory.removing(index, entries: remoteChoices, preferences: preferences, key: historyKey + ".urls", maxItems: Int(Int32.max)) else { return }
+        supersedeEditableFormRead()
         urlHistory = result.entries; remote = result.selection; remoteWasSelected = !remote.isEmpty; reload()
     }
     func manageRemotes() {
@@ -2507,7 +2553,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
                             let choice = state.canFastForward ? try await rebaseAnswer(.fastForward, request: request) : 2
                             if choice == 1 {
                                 guard let performFastForward else { throw SynchronizationFailure.invalidInput }
-                                let merge = await performFastForward(state, request)
+                                let merge = await performFastForward(repository,state,request)
                                 guard !closed, token === request else { return }
                                 if case .failure(let error) = merge { followUpSucceeded = false; self.error = error.localizedDescription; appendInlineDiagnostic("Fast-forward failed.\n" + error.localizedDescription) }
                                 incomingRevision = "HEAD"

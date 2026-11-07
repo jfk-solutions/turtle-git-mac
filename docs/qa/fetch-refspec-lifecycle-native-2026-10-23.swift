@@ -77,6 +77,9 @@ private extension NSWindow {
             c.expectedFetchSpecs.append("topic");await model.run()
             try await Base.wait(owner.window){!model.busy && model.pendingOperations==0}
             try Base.require(model.success && model.showsNotifications,"Standalone selected source Fetch failed: \(model.output)")
+            let transferArguments=try Data(contentsOf:c.root.appendingPathComponent("held-helper.transfer.argv")).split(separator:0).map{Data($0)}
+            let transferResult=try String(contentsOf:c.root.appendingPathComponent("held-helper.transfer.result"))
+            try Base.require(transferArguments.contains(Data("--turtlegit-source-fetch".utf8)) && transferArguments.contains(Data("topic".utf8)) && transferResult=="0\n","Standalone source Fetch wrapper lost original flags/raw branch/exit status")
             let main=try await reference(c,"refs/remotes/origin/main"),topic=try await reference(c,"refs/remotes/origin/topic")
             try Base.require(main==c.new && topic==nil,"Standalone raw branch was incorrectly rewritten into a tracking destination")
             if invocation==1 {
@@ -107,15 +110,23 @@ private extension NSWindow {
         try? FileManager.default.removeItem(at:c.started);try Data().write(to:c.hold)
         c.expectedFetchSpecs.append(selectedSpec);model.fetch()
         try await Base.wait(owner.window){FileManager.default.fileExists(atPath:c.started.path) && model.busy}
+        let firstProducer=try c.heldProducer()
         model.cancelTransport();try await Base.wait(owner.window){!model.busy && !model.hasPendingInlineWork}
+        try await c.requireProducerDrained(firstProducer)
+        try await c.requireTrackingReference("refs/remotes/origin/main",c.new)
+        try await c.requireTrackingReference("refs/remotes/origin/topic",c.old)
         try Base.require(model.commandCancelled,"Cancel failed to preserve actual cancellation outcome")
         try await exactSpecs(c)
         try? FileManager.default.removeItem(at:c.started);try Data().write(to:c.hold)
         c.expectedFetchSpecs.append(selectedSpec);model.fetch()
         try await Base.wait(owner.window){FileManager.default.fileExists(atPath:c.started.path) && model.busy}
+        let secondProducer=try c.heldProducer()
         var closed=0;owner.onClosed={closed+=1};model.confirmingQuit=true;owner.close()
         let rows=model.notifications.rows.map(\.id),generation=model.notifications.generation
         try await Base.wait{closed==1 && !model.hasPendingInlineWork && Base.drained()}
+        try await c.requireProducerDrained(secondProducer)
+        try await c.requireTrackingReference("refs/remotes/origin/main",c.new)
+        try await c.requireTrackingReference("refs/remotes/origin/topic",c.old)
         try Base.require(model.closed && model.notifications.rows.map(\.id)==rows && model.notifications.generation==generation && !model.notificationActionsAvailable && !model.notificationKeyboardAvailable,"Retired source Fetch published late actions or rows")
         try await exactSpecs(c)
     }
@@ -123,13 +134,21 @@ private extension NSWindow {
         NSApplication.shared.setActivationPolicy(.prohibited)
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.sourceFetchHiddenOrder(_:relativeTo:))){method_exchangeImplementations(original,hidden)}
         let c=Context(),kind=CommandLine.arguments[4];var progress:[FetchProgressWindowController]=[]
-        func cleanup()async {try? FileManager.default.removeItem(at:c.hold);for owner in progress {owner.close()};await c.cleanup();for _ in 0..<3000 {if FetchProgressWindowModel.activeOperations==0 && FetchWindowController.activeProgressReleases==0 {break};try? await Task.sleep(nanoseconds:10_000_000)}}
+        func cleanup()async->Bool {
+            try? FileManager.default.removeItem(at:c.hold);for owner in progress {owner.close()}
+            let baseClean=await c.cleanup()
+            for _ in 0..<3000 {if FetchProgressWindowModel.activeOperations==0 && FetchWindowController.activeProgressReleases==0 {break};try? await Task.sleep(nanoseconds:10_000_000)}
+            return baseClean && Base.drained() && FetchProgressWindowModel.activeOperations==0 && FetchWindowController.activeProgressReleases==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}
+        }
         do {
             try await seed(c)
             switch kind {case "sync":try await sync(c);case "standalone":try await standalone(c,&progress);case "ownership":try await ownership(c);default:throw Base.Failure(description:"Unknown source Fetch case")}
-            await cleanup()
-            try Base.require(Base.drained() && FetchProgressWindowModel.activeOperations==0 && FetchWindowController.activeProgressReleases==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Source Fetch owners/windows did not drain")
+            try Base.require(await cleanup(),"Source Fetch owners/windows did not drain")
+            print("CLEANUP: Fetch refspec owners drained")
             print("PASS: Fetch refspec lifecycle "+kind);fflush(stdout)
-        }catch {await cleanup();fputs("Fetch refspec lifecycle failed: \(error)\n",stderr);fflush(stderr);exit(1)}
+        }catch {
+            if await cleanup() {print("CLEANUP: Fetch refspec owners drained");fflush(stdout)}
+            fputs("Fetch refspec lifecycle failed: \(error)\n",stderr);fflush(stderr);exit(1)
+        }
     }
 }

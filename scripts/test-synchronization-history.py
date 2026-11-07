@@ -9,6 +9,7 @@ import signal
 import subprocess
 import tempfile
 import time
+import sys
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
@@ -16,6 +17,11 @@ parser.add_argument('--revision-list', action='store_true', help='Check Sync rev
 parser.add_argument('--captures', type=Path, help='Optional native revision-list screenshot directory')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
+if not args.revision_list:
+    command=[sys.executable,str(root/'scripts/test-sync-owned-form-family.py'),'--only','history']
+    for git in args.git or [Path('/usr/bin/git')]:command += ['--git',str(git)]
+    subprocess.run(command,cwd=root,check=True)
+    raise SystemExit(0)
 products = root / 'build/Build/Products/Debug'
 objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
 if not objects or not (products / 'TurtleGitMac.swiftmodule').exists():

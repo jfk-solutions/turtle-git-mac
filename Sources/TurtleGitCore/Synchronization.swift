@@ -309,10 +309,16 @@ extension GitRepository {
     }
     /// Source SyncDlg runs this separate progress command after Merge is chosen.
     public func synchronizationFastForward(_ state: SynchronizationRebaseState, cancellation: OperationCancellation? = nil,
-                                            onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
+                                            onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                                            onCommand: (@Sendable (GitCommandInvocation) -> Void)? = nil) throws -> GitResult {
         try validateSynchronizationRebaseState(state, cancellation: cancellation)
         guard state.canFastForward else { throw SynchronizationTransportFailure.fastForwardRequired }
-        return try synchronizationLiteralCommand(["merge", "--ff-only", "--", state.target], cancellation: cancellation, onOutput: onOutput)
+        try cancellation?.check()
+        let arguments=["merge", "--ff-only", "--", state.target]
+        // Progress recovery belongs to this merge, never to a failed metadata
+        // read or rejected producer receipt encountered during validation.
+        onCommand?(commandInvocation(["-c", "core.precomposeunicode=false"] + arguments))
+        return try synchronizationLiteralCommand(arguments, cancellation: cancellation, onOutput: onOutput)
     }
     public func synchronizationReferenceSnapshot(cancellation: OperationCancellation? = nil) throws -> SynchronizationReferenceSnapshot {
         try cancellation?.check()

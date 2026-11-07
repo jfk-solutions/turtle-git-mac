@@ -1,0 +1,67 @@
+{
+  "date": "2026-11-07",
+  "base_commit": "dd912ae7",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Actual Fetch-to-Merge continuation passes its captured GitRepository producer explicitly; child retains that actor and accepted backend instead of cloning an actor or using the window original actor",
+    "Core announces the literal merge invocation only after producer/HEAD/attachment/fast-forward/cancellation validation; locked native receipt plus actual nonzero command exit owns Resolve recovery",
+    "Original command result/exit retained through fresh-token conflict inspection with accepted backend; foreign/stale/metadata/prelaunch failures and zero-exit cancellation cannot offer unrelated recovery",
+    "Checkout/Merge/Tag child presentation refuses cancellation/Quit/modal/duplicate ownership; result and Resolve handoff wait for producer drain and exact native sheet/question detachment with global retirement ownership",
+    "Same combo history selection/edit and enabled owned-read Shift+Delete retain their field receipt with exact catalog/index guards; only their form metadata token is superseded while old worker stays counted",
+    "Cross-field, option/read generation, catalog replacement, child/modal/Quit and retired history actions remain refused; source field edits and deletes share the same supersession boundary",
+    "Current parity introduction now links already-implemented pre/post-push hook behavior to its original October14 evidence instead of calling it pending"
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/Synchronization.swift": "5ab2fe4224d0d3eb28d73942eb1402e7dd0e6a46de33718895b762cbaee5b5fd",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "108040f6376f601472091b2dcde46feaa1730f459a2759906c3c86b4bca79f4d",
+    "Tests/TurtleGitCoreTests/SynchronizationTransportTests.swift": "9084bbfa1eecb696c2f2422e736ba306da9bda4f25ff5d958e11e7cefef3c805"
+  },
+  "core": {
+    "log": "build/qa/sync-owner-core-2026-11-07.log",
+    "sha256": "6e396dc2341454412feee32aaab2eb4e9c2d35e32024f3d109073fa653f3fcff",
+    "exit": 0,
+    "methods": [
+      "testPostFetchFastForwardRejectsStaleForeignDivergedAndCancelledStates",
+      "testPostFetchFastForwardStateIsReadOnlyPinnedAndStreamsSeparateMerge"
+    ],
+    "tests": 2,
+    "failures": 0,
+    "scope_limit": "Existing affected command authority methods with added invocation receipts; not full Core suite"
+  },
+  "debug_build": {
+    "log": "build/qa/sync-owner-build-2026-11-07.log",
+    "sha256": "dcdaa04574f477e70357a27da1f96ee8bd38a67b33365c0d763752bf89385ae1",
+    "exit": 0,
+    "architecture": "arm64",
+    "configuration": "Debug",
+    "count": 1,
+    "scope_limit": "Local unsigned build; not older hosted SDK, universal signed distribution or installed app"
+  },
+  "native": {
+    "form_and_progress_case_engine_passes": 16,
+    "producer_ownership_case_engine_passes": 6,
+    "cumulative_case_engine_passes": 22,
+    "records": [
+      "docs/qa/sync-owned-form-family-2026-11-07.json",
+      "docs/qa/sync-fetch-producer-ownership-2026-11-07.json"
+    ],
+    "form_failure_history_log_sha256": {
+      "build/qa/sync-owned-form-family-native-2026-11-07.log": "ddd6a0c05ac16252faf78aad4d86002f55afb8810d776931f6c5f922e41aa1bd",
+      "build/qa/sync-owned-form-family-native-repair1-2026-11-07.log": "25cffe7d36bf1d45a84e84c90099037202f381a6b756cebf34bdf770a8adb3c2",
+      "build/qa/sync-owned-form-family-native-history-repair2-2026-11-07.log": "e1b095ddd1bfd9b9024d0b44313f23c27a6e94b89172c60b9f0f04651eb836b5",
+      "build/qa/sync-owned-form-family-native-history-diagnostic-2026-11-07.log": "dbeb52ba94c23faa1e34a152bb75ddf6c763261f47c3170ebac780982925e51e",
+      "build/qa/sync-owned-form-family-native-history-repair3-2026-11-07.log": "cbb3a95afe6c97263a55960d35decaf1161b06a8fdc2e7f68aa227b325782fbc"
+    },
+    "scope_limit": "Grouped related native receivers across system and bundled Git, with focused repairs for demonstrated fixture failures; not full legacy dialog, complete hosted run, physical key events or signed sandbox acceptance"
+  },
+  "core_and_native_repeated_on_timer": false,
+  "additional_app_build_for_fixture_repairs": false,
+  "installed_app_changed": false,
+  "binary_published": false,
+  "remaining": [
+    "Complete corrected-source hosted CI including older SDK",
+    "Full source dialog/menu/visual parity ledger gaps",
+    "Signed/physical Finder and transport, production grants/authentication and VoiceOver",
+    "App Store distribution approval and submission remain separate later work"
+  ]
+}

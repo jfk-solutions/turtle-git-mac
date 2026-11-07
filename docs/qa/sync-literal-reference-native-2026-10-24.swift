@@ -57,10 +57,26 @@ import TurtleGitCore
                 guard let owner else{return "native owner released"}
                 let model=owner.model
                 func bytes(_ text:String)->String {text+" ["+text.utf8.map{String(format:"%02x",$0)}.joined(separator:" ")+"]"}
-                let popups=views(owner.window?.contentView).compactMap{$0 as? NSPopUpButton}.map{popup in
-                    "popup "+String(describing:type(of:popup))+" enabled="+String(popup.isEnabled)+" title="+(popup.titleOfSelectedItem ?? "nil")+" items="+popup.itemTitles.map(bytes).joined(separator:" | ")
-                }.joined(separator:"\n")
-                let controls=views(owner.window?.contentView).compactMap{$0 as? NSControl}.map{String(describing:type(of:$0))+":"+($0.accessibilityLabel() ?? "")}.joined(separator:", ")
+                let nativeViews:[NSView]=views(owner.window?.contentView)
+                let popupControls:[NSPopUpButton]=nativeViews.compactMap{$0 as? NSPopUpButton}
+                var popupRows=[String]()
+                for popup in popupControls {
+                    let kind:String=String(describing:type(of:popup))
+                    let enabled:String=String(popup.isEnabled)
+                    let title:String=popup.titleOfSelectedItem ?? "nil"
+                    let items:String=popup.itemTitles.map(bytes).joined(separator:" | ")
+                    let row:String="popup "+kind+" enabled="+enabled+" title="+title+" items="+items
+                    popupRows.append(row)
+                }
+                let popups:String=popupRows.joined(separator:"\n")
+                let nativeControls:[NSControl]=nativeViews.compactMap{$0 as? NSControl}
+                var controlRows=[String]()
+                for control in nativeControls {
+                    let kind:String=String(describing:type(of:control))
+                    let label:String=control.accessibilityLabel() ?? ""
+                    controlRows.append(kind+":"+label)
+                }
+                let controls:String=controlRows.joined(separator:", ")
                 let state="busy=\(model.busy) pending=\(model.hasPendingInlineWork) waiting=\(model.waitingForInput) transport=\(model.transportRunning) closed=\(model.closed) blocked=\(model.hasBlockingChild) sheet=\(owner.window?.attachedSheet?.title ?? "nil")"
                 let selection="local="+bytes(model.localBranch)+" remote="+bytes(model.remote)+" branch="+bytes(model.remoteBranch)
                 let catalog="catalog="+model.localBranches.map(bytes).joined(separator:" | ")

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Darwin
 import ObjectiveC
 import ScreenCaptureKit
 import TurtleGitCore
@@ -31,7 +32,7 @@ private extension NSWindow {
         var expectedFetchSpecs:[String]=[]
         var repository:GitRepository {GitRepository(root:root.appendingPathComponent("client"),executable:git,askpass:nil,libgit2Configuration:.init(enabled:false,helperURL:root.appendingPathComponent("held-helper")))}
         var hold:URL {root.appendingPathComponent("hold")};var started:URL {root.appendingPathComponent("helper-finished")}
-        init(){preferences=UserDefaults(suiteName:suite)!;replacement=UserDefaults(suiteName:replacementSuite)!;preferences.set(true,forKey:"UseLibgit2");preferences.set(4,forKey:"UseLibgit2_mask");preferences.set(false,forKey:"ConfirmKillProcess")}
+        init(){preferences=UserDefaults(suiteName:suite)!;replacement=UserDefaults(suiteName:replacementSuite)!;preferences.set(true,forKey:"UseLibgit2");preferences.set(4,forKey:"UseLibgit2_mask");preferences.set(false,forKey:"ConfirmKillProcess");preferences.set(false,forKey:"EnableGravatar")}
         func seed()async throws {
             let author=root.appendingPathComponent("author"),bare=root.appendingPathComponent("origin.git")
             try FileManager.default.createDirectory(at:author,withIntermediateDirectories:true)
@@ -44,8 +45,92 @@ private extension NSWindow {
             try Data("incoming 雪\n".utf8).write(to:author.appendingPathComponent("file.txt"));try await source.stage(["file.txt"]);_=try await source.commit(message:"private incoming 雪")
             new=String(decoding:try await source.run(["rev-parse","HEAD"]).stdout,as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines)
             _=try await source.run(["push",bare.path,"HEAD:refs/heads/main"])
-            let script="#!/bin/sh\n"+quote(helper.path)+" \"$@\"\nresult=$?\n: > "+quote(started.path)+"\nwhile test -f "+quote(hold.path)+"; do /bin/sleep 0.05; done\nexit \"$result\"\n"
+            // Metadata helper verbs must execute normally while a transfer is
+            // held. Do not consume or rewrite inherited stdin: local-reference
+            // helpers use their original JSON request stream.
+            let script = #"""
+            #!/bin/sh
+            tg_transfer=0
+            for tg_argument in "$@"; do
+              case "$tg_argument" in
+                --turtlegit-transfer-notifications|--turtlegit-source-fetch) tg_transfer=1 ;;
+              esac
+            done
+            if [ "$tg_transfer" -eq 0 ]; then
+              printf '%s\0' "$@" > "$0.metadata.argv"
+              exec __TG_HELPER__ "$@"
+            fi
+            printf '%s\0' "$@" > "$0.transfer.argv"
+            __TG_HELPER__ "$@"
+            tg_result=$?
+            printf '%s\n' "$tg_result" > "$0.transfer.result.pending"
+            /bin/mv "$0.transfer.result.pending" "$0.transfer.result"
+            if test -f __TG_HOLD__; then
+              tg_child=
+              tg_stop() {
+                trap - INT TERM
+                if [ -n "$tg_child" ]; then
+                  kill "$tg_child" 2>/dev/null
+                  wait "$tg_child" 2>/dev/null
+                fi
+                exit 143
+              }
+              trap tg_stop INT TERM
+              /bin/sh -c '
+                tg_sleep=
+                tg_stop_child() {
+                  trap - INT TERM
+                  if [ -n "$tg_sleep" ]; then
+                    kill "$tg_sleep" 2>/dev/null
+                    wait "$tg_sleep" 2>/dev/null
+                  fi
+                  exit 143
+                }
+                trap tg_stop_child INT TERM
+                while test -f "$1"; do
+                  /bin/sleep 0.05 &
+                  tg_sleep=$!
+                  wait "$tg_sleep"
+                  tg_sleep=
+                done
+              ' held-transfer __TG_HOLD__ &
+              tg_child=$!
+              printf '%s %s\n' "$$" "$tg_child" > __TG_STARTED_PENDING__
+              /bin/mv __TG_STARTED_PENDING__ __TG_STARTED__
+              wait "$tg_child"
+              tg_child=
+              trap - INT TERM
+            fi
+            exit "$tg_result"
+            """#.replacingOccurrences(of:"__TG_HELPER__",with:quote(helper.path))
+                .replacingOccurrences(of:"__TG_HOLD__",with:quote(hold.path))
+                .replacingOccurrences(of:"__TG_STARTED_PENDING__",with:quote(started.path+".pending"))
+                .replacingOccurrences(of:"__TG_STARTED__",with:quote(started.path))
             try Data(script.utf8).write(to:root.appendingPathComponent("held-helper"));try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:root.appendingPathComponent("held-helper").path)
+        }
+        func heldProducer()throws->[Int32] {
+            let pids=try String(contentsOf:started).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}
+            let arguments=try Data(contentsOf:root.appendingPathComponent("held-helper.transfer.argv"))
+            let prefix=Data((["--literal-pathspecs","-C",repository.root.path].joined(separator:"\0")+"\0").utf8)
+            let fields=arguments.split(separator:0).map{Data($0)}
+            let flags=["--turtlegit-transfer-notifications","--turtlegit-source-fetch"].map{Data($0.utf8)}
+            let result=try String(contentsOf:root.appendingPathComponent("held-helper.transfer.result"))
+            let selectedTransfer=flags.contains{fields.contains($0)}
+            try require(arguments.starts(with:prefix) && selectedTransfer && fields.contains(Data("fetch".utf8)),"Held producer lost original transfer argv/root")
+            let metadata=try Data(contentsOf:root.appendingPathComponent("held-helper.metadata.argv")).split(separator:0).map{Data($0)}
+            try require(!metadata.isEmpty && !flags.contains{metadata.contains($0)},"Held producer omitted ordinary unheld metadata delegation")
+            try require(!fields.contains(Data("--turtlegit-local-reference".utf8)) && result=="0\n","Metadata was held or real transfer exit status was lost: \(String(reflecting:result))")
+            try require(pids.count==2 && pids.allSatisfy{kill($0,0)==0},"Actual held producer shell/child were not live")
+            print("OWNED held transfer shell=\(pids[0]) child=\(pids[1]) real_exit=0 argv_bytes=\(arguments.count)");fflush(stdout)
+            return pids
+        }
+        func requireTrackingReference(_ name:String,_ hash:String)async throws {
+            let observed=try await repository.run(["show-ref","--verify","--hash",name]).stdout
+            try require(observed==Data((hash+"\n").utf8),"Retirement rolled back or retargeted already accepted reference "+name)
+        }
+        func requireProducerDrained(_ pids:[Int32])async throws {
+            try await wait{pids.allSatisfy{kill($0,0) != 0 && errno==ESRCH}}
+            print("DRAINED held transfer shell=\(pids[0]) child=\(pids[1])");fflush(stdout)
         }
         func open()async throws->SynchronizationWindowController {
             let access=try RepositoryAccessStore(storageURL:root.appendingPathComponent("access.json"))
@@ -75,14 +160,16 @@ private extension NSWindow {
             _=currentConfig // Raw config formatting is owned by libgit2's writer.
             try require(try Data(contentsOf:repository.root.appendingPathComponent("file.txt"))==Data("base\n".utf8),"Fetch changed worktree bytes")
         }
-        func cleanup()async {
+        func cleanup()async->Bool {
             try? FileManager.default.removeItem(at:hold)
             for sheet in sheets {sheet.sheetParent?.endSheet(sheet,returnCode:.abort);sheet.close()}
             for owner in syncs {owner.close()};for owner in logs {owner.close()}
             workspace?.stopMonitoringForTermination();host?.close()
             for _ in 0..<3000 {if drained() && syncs.allSatisfy({!$0.model.hasPendingInlineWork}){break};try? await Task.sleep(nanoseconds:10_000_000)}
             for window in NSApp.windows {window.orderOut(nil);window.close()}
+            let clean=drained() && syncs.allSatisfy{!$0.model.hasPendingInlineWork} && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}
             preferences.removePersistentDomain(forName:suite);replacement.removePersistentDomain(forName:replacementSuite);pasteboard.releaseGlobally()
+            return clean
         }
     }
     static func table(_ owner:SynchronizationWindowController)async throws->(FileOperationProgressNativeTable,FileOperationProgressTable.Coordinator) {
@@ -148,19 +235,25 @@ private extension NSWindow {
         c.expectedFetchSpecs.append("refs/heads/main:refs/remotes/origin/main")
         try Data().write(to:c.hold);model.fetch()
         try await wait(owner.window){FileManager.default.fileExists(atPath:c.started.path) && model.notifications.rows.contains{$0.kind == .reference}}
+        let firstProducer=try c.heldProducer()
         try require(model.busy && model.hasPendingInlineWork && SynchronizationWindowModel.activeInlineOperations>0,"Held actual producer was released before exit")
         c.preferences.set(false,forKey:"UseLibgit2");try require(model.notificationBackend?.enabled==true && model.showsNotifications,"Running Fetch lost its captured backend after preference change")
         let (native,coordinator)=try await table(owner);native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false);coordinator.copySelected()
         try require(c.pasteboard.string(forType:.string) != nil && coordinator.menu()==nil,"Running transfer copy/action availability incorrect")
         model.cancelTransport();try await wait(owner.window){!model.busy && !model.hasPendingInlineWork}
+        try await c.requireProducerDrained(firstProducer)
+        try await c.requireTrackingReference("refs/remotes/origin/main",c.new)
         try require(model.commandCancelled && model.notifications.rows.contains{$0.kind == .reference},"Cancel lost accepted reference receipt or failed to wait for producer")
         c.preferences.set(true,forKey:"UseLibgit2");try? FileManager.default.removeItem(at:c.started);try Data().write(to:c.hold)
         c.expectedFetchSpecs.append("refs/heads/main:refs/remotes/origin/main")
         model.fetch();try await wait(owner.window){FileManager.default.fileExists(atPath:c.started.path) && model.busy}
+        let secondProducer=try c.heldProducer()
         var closed=0;owner.onClosed={closed+=1};model.confirmingQuit=true
         try require(!model.notificationActionsAvailable && !model.notificationKeyboardAvailable,"Quit did not fence notification actions/copy")
         owner.close();let rows=model.notifications.rows.map(\.id),generation=model.notifications.generation
         try await wait{closed==1 && !model.hasPendingInlineWork && SynchronizationWindowModel.activeInlineOperations==0 && SynchronizationWindowController.activeInlineReleases==0}
+        try await c.requireProducerDrained(secondProducer)
+        try await c.requireTrackingReference("refs/remotes/origin/main",c.new)
         try? FileManager.default.removeItem(at:c.hold)
         try require(model.closed && model.notifications.rows.map(\.id)==rows && model.notifications.generation==generation,"Retired producer mutated notification rows/generation")
     }
@@ -182,7 +275,16 @@ private extension NSWindow {
         NSApplication.shared.setActivationPolicy(.accessory)
         if let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:))),let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.syncTransferHiddenOrder(_:relativeTo:))){method_exchangeImplementations(original,hidden)}
         let c=Context(),kind=CommandLine.arguments[4]
-        do {try await c.seed();switch kind {case "actual":try await actual(c);case "separation":try await separation(c);case "lifetime":try await lifetime(c);default:throw Failure(description:"Unknown case")};try await c.preserved();await c.cleanup();try require(drained() && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil},"Owned Sync/Log windows/work did not drain");print("PASS: Sync transfer notifications "+kind);fflush(stdout)}
-        catch {await c.cleanup();fputs("Sync transfer notifications failed: \(error)\n",stderr);fflush(stderr);exit(1)}
+        do {
+            try await c.seed()
+            switch kind {case "actual":try await actual(c);case "separation":try await separation(c);case "lifetime":try await lifetime(c);default:throw Failure(description:"Unknown case")}
+            try await c.preserved()
+            try require(await c.cleanup(),"Owned Sync/Log windows/work did not drain")
+            print("CLEANUP: Sync transfer owners drained")
+            print("PASS: Sync transfer notifications "+kind);fflush(stdout)
+        } catch {
+            if await c.cleanup() {print("CLEANUP: Sync transfer owners drained");fflush(stdout)}
+            fputs("Sync transfer notifications failed: \(error)\n",stderr);fflush(stderr);exit(1)
+        }
     }
 }

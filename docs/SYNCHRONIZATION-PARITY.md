@@ -77,8 +77,11 @@ The snapshots do not authorize transport operations.
 Fetch & Rebase, Fetch All, Remote Update, Prune, Push, Push Tags and Push Notes.
 Pull, Fetch, Fetch All, Remote Update and Prune are wired to the native window.
 Fetch & Rebase owns its source choices and separate progress. Push, Push tags
-and Push notes now have native split actions and owned Shift Push options;
-project pre/post-push hooks remain pending.
+and Push notes now have native split actions and owned Shift Push options.
+Direct pre/post-push hooks use the shared owned hook session, including
+Abort/Continue and post-failure settlement; the
+[October 14 checkpoint](qa/sync-replay-hooks-2026-10-14.json) records the tested
+scope. Complete authenticated/signed hook acceptance remains open.
 
 The source CLI rules are preserved: matching pull tracking omits an explicit
 branch; configured Pull rebase performs Fetch and defers the native rebase
@@ -1858,3 +1861,60 @@ The [dated oracle](qa/sync-fetch-source-oracle-2026-10-23.txt) is retained as th
 source call-order baseline. Current grouped validation, installed/signed grants,
 public authentication, physical/VoiceOver and complete source layout remain
 separate gates.
+
+
+### Receipt-bound progress and history continuity — November 7, 2026
+
+Fast-forward progress now retains the repository actor that accepted its
+`SynchronizationRebaseState`, together with that state's captured backend.
+The Fetch-to-Merge callback explicitly carries that captured repository, as the
+Checkout handoff does; the enclosing window's original repository is not a
+substitute for the operation's producer. A direct caller must still supply the
+correct actor and cannot revive a foreign receipt through this callback.
+Checkout likewise retains its supplied producer and the accepted plan backend.
+A new actor made only to capture preferences invalidates those Core receipts,
+so it cannot replace their producer. The existing Core checks continue to refuse
+foreign actors, changed HEAD/branch attachment, diverged targets and precancelled
+operations. Tag snapshots retain their existing originating-actor route.
+
+Pinned `SyncDlg.cpp` lines 630–659 run the accepted `git merge --ff-only` and
+offer Resolve only for nonzero command status with conflicts. Resolve recovery
+therefore belongs to a failed or cancelled Git command with nonzero status, not
+a rejected preparation receipt or a command that actually exited zero. A locked
+per-attempt command invocation is recorded only after Core validates the accepted
+state and cancellation, immediately before its literal merge command. Failed
+metadata reads cannot be mistaken for that producer. Progress retains the exact original result and exit code
+(including the actual result of a running command's cancellation). A stale or
+foreign receipt and pre-launch cancellation cannot offer recovery against
+unrelated current conflicts. Conflict inspection uses a fresh owned token and
+the accepted backend; its failure or cancellation cannot replace the original
+Git failure. The owner retains both worker and exact native sheet/question
+retirement before returning a command result or handing off to Commit. The
+shared retirement count protects Quit through this final boundary. Checkout,
+Merge and Tag child creation reject a cancelled request, Quit/cancellation
+question, existing progress controller or modal sheet. Nested-sheet, repeated
+and retired recovery remain refused, with captured repository access retained
+through cancellation and child drainage.
+
+Pinned `Utils/MiscUI/HistoryCombo.cpp::PreTranslateMessage` deletes the selected
+history row while the popup is open on Shift+Delete. Native History Shift+Delete
+now keeps the same field-editor receipt across an immediate
+selection or edit in that combo. It still requires the exact displayed history
+catalog, the same owner/read/option generation and no conflicting field change,
+modal child, Quit or retirement. Enabled controls can supersede their own pending
+form metadata read: its token is cancelled but its worker remains counted until
+it drains. Other busy commands cannot be superseded. The deletion starts a new
+read generation, so a repeated retained deletion cannot consume another row. This preserves the native
+popup event sequence without allowing an old callback to edit a replacement form.
+
+The shared arm64 Debug build and two affected Core authority methods pass.
+The related native receivers pass sixteen form/progress and six producer-ownership
+case/engine combinations cumulatively across system and bundled Git. Initial
+consumer failures and their affected rechecks remain in the linked records;
+passing checks were not repeated as a substitute for those failures. See
+[the source checkpoint](qa/sync-source-receipts-2026-11-07.json),
+[owned native form/progress coverage](qa/sync-owned-form-family-2026-11-07.json)
+and [Fetch producer ownership](qa/sync-fetch-producer-ownership-2026-11-07.json).
+Core command authority remains enforced. Full corrected-source hosted,
+signed/physical, accessibility and complete source parity remain open. No
+installed application update or binary publication belongs to this checkpoint.

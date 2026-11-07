@@ -54,11 +54,15 @@ import TurtleGitCore
         _ = try await repo.run(["tag","qa-local"])
         let initial = try await repo.synchronizationTags(remote: "origin")
         let row = initial.rows.first { $0.name.rawValue == "qa-local" }!
-        var pushed = 0
+        let progressParent=NSWindow(contentRect:.init(x:-24000,y:-24000,width:300,height:180),styleMask:[.titled],backing:.buffered,defer:false)
+        progressParent.isReleasedWhenClosed=false;progressParent.alphaValue=0;progressParent.orderFront(nil)
+        defer{progressParent.close()}
+        var pushed = 0,pushWindow:NSWindow?
         let push = SynchronizationProgressController(repository: repo, operation: .tag(.push,row,initial,false), cancellation: OperationCancellation(), preferences: preferences) { result in
+            precondition(pushWindow != nil && pushWindow?.sheetParent==nil && progressParent.attachedSheet==nil,"Tag completion preceded actual sheet detachment")
             if case .success(.tag) = result { pushed += 1 }
         }
-        push.window!.alphaValue = 0; push.window!.orderFront(nil); push.model.start()
+        pushWindow=push.window;push.window!.alphaValue=0;progressParent.beginSheet(push.window!,completionHandler:nil);push.model.start()
         try await wait { !push.model.busy && SynchronizationProgressModel.activeOperations == 0 }
         try require(push.model.success && push.model.percentage == 100 && push.model.currentWork == "Success" && push.model.completionRange != nil && pushed == 0, "Manual Push result did not retain completion")
         let saved = try store.read(); push.model.saveActionLog(); try require(try store.read() == saved, "Duplicate Action log entry")
@@ -75,9 +79,12 @@ import TurtleGitCore
         // Source tag progress captures the preference; later Settings edits cannot change this attempt.
         _ = try await server.run(["tag","qa-remote"])
         let incoming = try await repo.synchronizationTags(remote:"origin"), incomingRow = incoming.rows.first { $0.name.rawValue == "qa-remote" }!
-        preferences.set(2,forKey:"AutoCloseGitProgress"); var fetched = 0
-        let fetch = SynchronizationProgressController(repository:repo,operation:.tag(.fetch,incomingRow,incoming,false),cancellation:OperationCancellation(),preferences:preferences) { result in if case .success(.tag) = result { fetched += 1 } }
-        fetch.window!.alphaValue = 0; fetch.window!.orderFront(nil); preferences.set(0,forKey:"AutoCloseGitProgress"); fetch.model.start()
+        preferences.set(2,forKey:"AutoCloseGitProgress"); var fetched = 0,fetchWindow:NSWindow?
+        let fetch = SynchronizationProgressController(repository:repo,operation:.tag(.fetch,incomingRow,incoming,false),cancellation:OperationCancellation(),preferences:preferences) { result in
+            precondition(fetchWindow != nil && fetchWindow?.sheetParent==nil && progressParent.attachedSheet==nil,"Automatic tag completion preceded actual sheet detachment")
+            if case .success(.tag) = result { fetched += 1 }
+        }
+        fetchWindow=fetch.window;fetch.window!.alphaValue=0;progressParent.beginSheet(fetch.window!,completionHandler:nil);preferences.set(0,forKey:"AutoCloseGitProgress");fetch.model.start()
         try await wait { fetched == 1 && SynchronizationProgressModel.activeOperations == 0 }
         _ = try await repo.run(["rev-parse","--verify","refs/tags/qa-remote"])
 
@@ -139,9 +146,104 @@ import TurtleGitCore
         let tags = SynchronizationProgressController(repository:repo,operation:.tags("origin"),cancellation:compactToken,preferences:preferences) { result in if case .success(.tags) = result { compact += 1 } }
         tags.window!.alphaValue = 0; tags.window!.orderFront(nil); tags.model.start(); try await wait { compact == 1 && SynchronizationProgressModel.activeOperations == 0 }
         try require(!compactToken.isCancelled, "Successful compact close cancelled parent request")
+        try await verifyPinnedMerge(root:root,git:executable,preferences:preferences)
         try await verifyRecovery(repo:repo,root:root,preferences:preferences)
+        progressParent.close()
         try require(NSApp.windows.filter { $0.isVisible }.isEmpty,"Owned progress window remained visible")
         print("PASS Sync child progress: real tag Push/Fetch/rejection, captured auto-close, native Copy icons/private clipboard, one Action log, live parser, completion/timing/footer, question/natural-success race, direct Abort, compact results, forced close/late output/drain/Quit and once-only parent callbacks")
+    }
+
+    @MainActor static func verifyPinnedMerge(root:URL,git:URL,preferences:UserDefaults)async throws {
+        let folder=root.appendingPathComponent("pinned-ff",isDirectory:true)
+        try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
+        let accepted=GitLibGit2Configuration(enabled:false,mask:GitLibGit2Operation.mergeBase.mask|GitLibGit2Operation.checkConflicts.mask)
+        let repo=GitRepository(root:folder,executable:git,askpass:nil,libgit2Configuration:accepted)
+        _=try await repo.run(["init","--template=","-b","main"])
+        for (key,value) in [("user.name","Pinned merge QA"),("user.email","merge@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_=try await repo.run(["config",key,value])}
+        try Data("base\n".utf8).write(to:folder.appendingPathComponent("file"));try await repo.stage(["file"]);_=try await repo.commit(message:"base")
+        let base=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _=try await repo.run(["switch","-c","advance"])
+        try Data("tip\n".utf8).write(to:folder.appendingPathComponent("file"));try await repo.stage(["file"]);_=try await repo.commit(message:"tip")
+        let tip=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _=try await repo.run(["switch","main"])
+        let state=try await repo.synchronizationRebaseState(target:tip)
+        let priorEnabled=preferences.object(forKey:"UseLibgit2"),priorMask=preferences.object(forKey:"UseLibgit2_mask")
+        defer {
+            if let priorEnabled {preferences.set(priorEnabled,forKey:"UseLibgit2")}else{preferences.removeObject(forKey:"UseLibgit2")}
+            if let priorMask {preferences.set(priorMask,forKey:"UseLibgit2_mask")}else{preferences.removeObject(forKey:"UseLibgit2_mask")}
+        }
+        preferences.set(true,forKey:"UseLibgit2");preferences.set(UInt32.max,forKey:"UseLibgit2_mask")
+        func backend(_ actual:GitLibGit2Configuration)->Bool {
+            actual.enabled==state.acceptedBackend.enabled && actual.mask==state.acceptedBackend.mask && actual.helperURL==state.acceptedBackend.helperURL
+        }
+        func progress(_ actor:GitRepository,_ receipt:SynchronizationRebaseState,_ token:OperationCancellation=OperationCancellation()) -> SynchronizationProgressController {
+            let owner=SynchronizationProgressController(repository:actor,operation:.merge(receipt),cancellation:token,preferences:preferences,backend:.init(enabled:true,mask:UInt32.max)) {_ in}
+            owner.window!.alphaValue=0;owner.window!.orderFront(nil);return owner
+        }
+        let successful=progress(repo,state)
+        try require(successful.model.repository === repo && backend(successful.model.backend),"Native merge did not retain producer actor and accepted backend")
+        successful.model.start();try await wait{!successful.model.busy && SynchronizationProgressModel.activeOperations==0}
+        try require(successful.model.success && successful.model.currentWork=="Success","Actual native ff-only merge failed")
+        try require(try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)==tip,"Native merge did not advance to exact pinned target")
+        successful.close()
+        _=try await repo.run(["reset","--hard",base])
+        func unchanged(_ operation:()async throws->Void)async throws {
+            let head=try await repo.run(["rev-parse","HEAD"]).stdout
+            let refs=try await repo.run(["show-ref"]).stdout
+            let index=try Data(contentsOf:folder.appendingPathComponent(".git/index")),file=try Data(contentsOf:folder.appendingPathComponent("file"))
+            try await operation()
+            let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout,finalRefs=try await repo.run(["show-ref"]).stdout
+            try require(finalHead==head && finalRefs==refs,"Refused native merge changed references")
+            try require(try Data(contentsOf:folder.appendingPathComponent(".git/index"))==index && Data(contentsOf:folder.appendingPathComponent("file"))==file,"Refused native merge changed index/worktree")
+        }
+        func refused(_ actor:GitRepository,_ receipt:SynchronizationRebaseState,_ token:OperationCancellation=OperationCancellation(),cancelled:Bool=false)async throws {
+            let owner=progress(actor,receipt,token)
+            try require(owner.model.repository === actor && backend(owner.model.backend),"Foreign receipt silently redirected its repository/backend")
+            defer{owner.close()}
+            owner.model.start();try await wait{!owner.model.busy && SynchronizationProgressModel.activeOperations==0}
+            try require(!owner.model.success && owner.model.captureRecovery()==nil && owner.model.completionRange != nil,"Refused receipt offered Resolve or lost terminal result")
+            guard case .failure(let error)=owner.model.result else{throw Failure(description:"Refused receipt reported success")}
+            if cancelled {try require(error is OperationCancellationFailure,"Precancelled receipt became an executed Git failure")}
+            else {
+                guard let failure=error as? SynchronizationTransportFailure else{throw Failure(description:"Foreign/stale receipt lost typed refusal: \(error)")}
+                guard case .repositoryChanged=failure else{throw Failure(description:"Foreign/stale receipt lost exact repositoryChanged refusal: \(failure)")}
+            }
+        }
+        let metadataWrapper=folder.appendingPathComponent("metadata-git"),metadataFailure=folder.appendingPathComponent("metadata-fail"),metadataCalls=folder.appendingPathComponent("metadata-argv")
+        func quote(_ text:String)->String {"'"+text.replacingOccurrences(of:"'",with:"'\"'\"'")+"'"}
+        let wrapper="#!/bin/sh\nprintf '%s\\0' \"$@\" >> "+quote(metadataCalls.path)+"\nif [ -f "+quote(metadataFailure.path)+" ]; then printf 'QA prelaunch metadata refused\\n' >&2; exit 128; fi\nexec "+quote(git.path)+" \"$@\"\n"
+        try Data(wrapper.utf8).write(to:metadataWrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:metadataWrapper.path)
+        let metadataRepo=GitRepository(root:folder,executable:metadataWrapper,askpass:nil,libgit2Configuration:accepted)
+        let metadataState=try await metadataRepo.synchronizationRebaseState(target:tip)
+        try Data().write(to:metadataCalls);try Data().write(to:metadataFailure)
+        defer{try? FileManager.default.removeItem(at:metadataFailure)}
+        var inspections=0
+        let metadata=progress(metadataRepo,metadataState)
+        metadata.model.inspectConflicts={_ in inspections += 1;return true}
+        try await unchanged{
+            metadata.model.start();try await wait{!metadata.model.busy && SynchronizationProgressModel.activeOperations==0}
+            try require(metadata.model.repository === metadataRepo && metadata.model.mergeCommand==nil && inspections==0 && metadata.model.captureRecovery()==nil,"Prelaunch metadata failure invented a merge or Resolve")
+            guard case .failure(let error)=metadata.model.result,let failure=error as? GitFailure else{throw Failure(description:"Prelaunch metadata lost typed Git failure")}
+            try require(failure.code==128 && metadata.model.output.contains("QA prelaunch metadata refused"),"Prelaunch metadata lost original code/diagnostic")
+        }
+        let calls=try Data(contentsOf:metadataCalls).split(separator:0)
+        try require(!calls.contains{ $0.elementsEqual("merge".utf8) },"Refused metadata launched merge")
+        metadata.close();try FileManager.default.removeItem(at:metadataFailure)
+        let sameRoot=GitRepository(root:folder,executable:git,askpass:nil,libgit2Configuration:.init(enabled:true))
+        try await unchanged{try await refused(sameRoot,state)}
+        let foreignRoot=root.appendingPathComponent("foreign-ff",isDirectory:true);try FileManager.default.createDirectory(at:foreignRoot,withIntermediateDirectories:true)
+        let foreign=GitRepository(root:foreignRoot,executable:git,askpass:nil,libgit2Configuration:.init(enabled:false))
+        _=try await foreign.run(["init","--template=","-b","main"])
+        let foreignConfig=try Data(contentsOf:foreignRoot.appendingPathComponent(".git/config"))
+        try await unchanged{try await refused(foreign,state)}
+        try require(try Data(contentsOf:foreignRoot.appendingPathComponent(".git/config"))==foreignConfig && !FileManager.default.fileExists(atPath:foreignRoot.appendingPathComponent(".git/index").path),"Foreign-root refusal created an index or changed config")
+        let token=OperationCancellation();token.cancel()
+        try await unchanged{try await refused(repo,state,token,cancelled:true)}
+        _=try await repo.run(["switch","--detach",base])
+        try await unchanged{try await refused(repo,state)}
+        _=try await repo.run(["switch","main"]);_=try await repo.run(["commit","--allow-empty","-m","stale HEAD"])
+        try await unchanged{try await refused(repo,state)}
+        print("PASS Sync pinned merge: actual ff-only, captured producer/backend across settings changes; same-root foreign actor, foreign-root, precancelled and stale attachment/HEAD refuse without mutation or Resolve")
     }
 
     @MainActor static func verifyRecovery(repo:GitRepository,root:URL,preferences:UserDefaults) async throws {
@@ -167,7 +269,7 @@ import TurtleGitCore
             let child=CommitWindowController(repository:repo,access:nil,defaults:preferences)
             child.window!.alphaValue=0;child.window!.orderFront(nil);child.model.reload();commit=child
         }
-        let handoff=Task { await parent.model.performFastForward!(state,OperationCancellation()) }
+        let handoff=Task { await parent.model.performFastForward!(repo,state,OperationCancellation()) }
         try await wait {parent.commandProgress != nil}
         let failure=parent.commandProgress!, clear=parent.commandProgress!.onClosed
         failure.onClosed={clear();events.append("closed")}
@@ -175,6 +277,12 @@ import TurtleGitCore
         try await wait{!failure.model.busy && SynchronizationProgressModel.activeOperations == 0}
         guard let recovery=failure.model.captureRecovery() else {throw Failure(description:"Failed ff-only with real unmerged index did not offer Resolve")}
         try require(!failure.model.success && failure.model.currentWork.contains("exit code") && failure.model.completionRange != nil,"Recovery inspection replaced original Git failure")
+        try require(failure.model.repository === repo,"Recovery progress replaced its producing repository actor")
+        if case .failure(let error)=failure.model.result,let original=error as? GitFailure {
+            try require(original.code != 0 && failure.model.currentWork.contains(String(original.code)),"Recovery footer lost actual Git exit code")
+            try require(failure.model.output.contains("unmerged") || failure.model.output.contains("unresolved"),"Recovery lost original Git conflict diagnostic")
+        } else {throw Failure(description:"Recovery substituted a non-command error for real ff-only failure")}
+
         try await capture(failure.window!,name:"sync-recovery-conflict")
         let nested=NSWindow(contentRect:.init(x:0,y:0,width:200,height:100),styleMask:[.titled],backing:.buffered,defer:false)
         nested.isReleasedWhenClosed=false;nested.alphaValue=0;failure.window!.beginSheet(nested,completionHandler:nil)
@@ -205,15 +313,22 @@ import TurtleGitCore
 
         // An old Git Abort question cannot cancel the later read. A new read question can.
         preferences.set(true,forKey:"ConfirmKillProcess")
-        let gitGate=Gate(), readGate=Gate(), originalToken=OperationCancellation()
+        let readGate=Gate(), originalToken=OperationCancellation()
+        let heldMerge=root.appendingPathComponent("recovery-held-merge"),mergeHold=root.appendingPathComponent("recovery-merge-hold"),mergeEntered=root.appendingPathComponent("recovery-merge-entered")
+        func quote(_ text:String)->String {"'"+text.replacingOccurrences(of:"'",with:"'\"'\"'")+"'"}
+        let holdScript="#!/bin/sh\n"+SynchronizationVerification.inspectGitArguments+"if [ \"$git_command\" = merge ] && [ -f "+quote(mergeHold.path)+" ]; then trap 'exit 130' INT; trap 'exit 143' TERM; printf '%s' \"$$\" > "+quote(mergeEntered.path)+"; while [ -f "+quote(mergeHold.path)+" ]; do sleep 0.05; done; fi\nexec "+quote(repo.executable.path)+" \"$@\"\n"
+        try Data(holdScript.utf8).write(to:heldMerge);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:heldMerge.path)
+        let stagedRepo=GitRepository(root:root,executable:heldMerge,askpass:nil,libgit2Configuration:.init(enabled:false))
+        let stagedState=try await stagedRepo.synchronizationRebaseState(target:"HEAD")
+        try Data().write(to:mergeHold);defer{try? FileManager.default.removeItem(at:mergeHold)}
         var readToken:OperationCancellation?, answers=[(Bool)->Void]()
-        let staged=SynchronizationProgressController(repository:repo,operation:.merge(state),cancellation:originalToken,preferences:preferences) {_ in}
-        staged.model.executeOperation={output in await gitGate.wait();return .merge(try await repo.run(["merge","--ff-only","--","HEAD"],onOutput:output))}
+        let staged=SynchronizationProgressController(repository:stagedRepo,operation:.merge(stagedState),cancellation:originalToken,preferences:preferences) {_ in}
         staged.model.inspectConflicts={token in readToken=token;await readGate.wait();return true}
         staged.model.confirmCancel={answers.append($0)}
-        staged.window!.alphaValue=0;staged.window!.orderFront(nil);staged.model.start();try await wait{gitGate.entered}
+        staged.window!.alphaValue=0;staged.window!.orderFront(nil);staged.model.start();try await wait{FileManager.default.fileExists(atPath:mergeEntered.path)}
+        try require(staged.model.mergeCommand != nil,"Actual merge did not announce its command before held execution")
         staged.model.cancel();try require(answers.count == 1,"Git cancellation question missing")
-        gitGate.open();try await wait{readGate.entered}
+        try FileManager.default.removeItem(at:mergeHold);try await wait{readGate.entered}
         answers[0](true);answers[0](true)
         try require(!originalToken.isCancelled && readToken?.isCancelled == false && !staged.model.confirmingCancellation,"Late Git answer cancelled a replacement inspection")
         staged.model.cancel();try require(answers.count == 2,"Inspection cancellation question missing")
@@ -221,6 +336,22 @@ import TurtleGitCore
         readGate.open();try await wait{!staged.model.busy && SynchronizationProgressModel.activeOperations == 0}
         try require(staged.model.captureRecovery() == nil && !staged.model.cancelled && staged.model.currentWork.contains("exit code"),"Cancelled secondary read invented recovery or rewrote Git outcome")
         staged.close()
+
+        // Cancelling a real announced merge differs from a precancelled/read
+        // refusal: retain its exact typed command result and inspect conflicts
+        // with a fresh token before offering Resolve.
+        preferences.set(false,forKey:"ConfirmKillProcess")
+        try FileManager.default.removeItem(at:mergeEntered)
+        try Data().write(to:mergeHold)
+        let cancelledToken=OperationCancellation()
+        let cancelledMerge=SynchronizationProgressController(repository:stagedRepo,operation:.merge(stagedState),cancellation:cancelledToken,preferences:preferences) {_ in}
+        cancelledMerge.window!.alphaValue=0;cancelledMerge.window!.orderFront(nil);cancelledMerge.model.start()
+        try await wait{FileManager.default.fileExists(atPath:mergeEntered.path) && cancelledMerge.model.mergeCommand != nil}
+        cancelledMerge.model.cancel()
+        try await wait{!cancelledMerge.model.busy && SynchronizationProgressModel.activeOperations==0}
+        guard case .failure(let error)=cancelledMerge.model.result,let cancelledCommand=error as? GitCommandCancellationFailure else{throw Failure(description:"Actual merge cancellation lost typed command result")}
+        try require(cancelledCommand.result.exitCode != 0 && cancelledMerge.model.cancelled && cancelledMerge.model.captureRecovery() != nil,"Cancelled announced merge lost original exit or independent conflict recovery")
+        try FileManager.default.removeItem(at:mergeHold);cancelledMerge.close()
 
         let forcedGate=Gate();var forcedRead:OperationCancellation?, completed=0
         let forced=SynchronizationProgressController(repository:repo,operation:.merge(state),cancellation:OperationCancellation(),preferences:preferences) {_ in completed += 1}

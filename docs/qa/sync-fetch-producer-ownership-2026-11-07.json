@@ -1,0 +1,207 @@
+{
+  "date": "2026-11-07",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Actual selected-library Fetch producer lifetime, refspec ownership and standalone raw source-Fetch consumers; no production source changes in this consumer subtask.",
+  "baseline_commit": "dd912ae7",
+  "audited_hosted_failure": {
+    "run": 42008244039,
+    "replay_job": 127180998667,
+    "cases": [
+      "Sync transfer notifications lifetime readiness timeout at150",
+      "Fetch refspec lifecycle ownership readiness timeout at110"
+    ],
+    "diagnosis": "The shared authored helper held all helper invocations, including master-reference metadata, before the actual transfer could produce its receipt. The actual transfer-specific lifetime was never reached."
+  },
+  "implementation": [
+    "Metadata/helper verbs exec the actual helper with unchanged original argv and inherited stdin; the wrapper does not consume or rewrite JSON requests.",
+    "Only original --turtlegit-transfer-notifications/--turtlegit-source-fetch arguments select transfer holding. The actual helper runs first with original stdout/stderr and its real exit code preserved in an independent receipt.",
+    "Post-helper hold publishes atomic live producer-shell/child PID receipts, original NUL argv and real transfer exit0. INT/TERM cancellation drains and reaps the hold child and its current sleep before the producer exits with actual cancellation status; no success-code normalization.",
+    "Lifecycle controls retain captured backend, typed reference/error/finish rows, exact source refspec append order and duplicates, notification availability, cancelled/retired generation ownership and no late actions.",
+    "Already accepted tracking refs remain advanced after cancellation/retirement; local HEAD/index/worktree remain unchanged, with only exact accepted source refspec appends allowed in config.",
+    "Standalone selected-library sourceFetch preserves original raw topic branch/flags/exit, first-versus-later loaded refspec behavior, tracking-destination omission and CLI presentation separation.",
+    "Both scoped drivers collect independent failures only after an explicit native drained cleanup receipt. Missing cleanup/timeout or any necessary external helper cleanup stops continuation; original diagnostics and per-case statuses remain recorded. Exact private wrapper and atomic PID/argv receipt constrain fallback child cleanup."
+  ],
+  "validation": {
+    "shared_debug_build": {
+      "log": "build/qa/sync-owner-build-2026-11-07.log",
+      "sha256": "dcdaa04574f477e70357a27da1f96ee8bd38a67b33365c0d763752bf89385ae1",
+      "exit_code": 0
+    },
+    "native_distinct_case_engine_passes": 6,
+    "native_results": [
+      {
+        "git": "/usr/bin/git",
+        "case": "lifetime",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "lifetime",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/usr/bin/git",
+        "case": "standalone",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "ownership",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "case": "standalone",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "commands": [
+      "python3 scripts/test-sync-transfer-notifications.py --only lifetime --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+      "python3 scripts/test-fetch-refspec-lifecycle.py --only ownership --only standalone --git /usr/bin/git --git build/git-runtime/Git/bin/git"
+    ],
+    "sdk": "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+    "logs": {
+      "build/qa/sync-fetch-ownership-lifetime-2026-11-07.log": {
+        "sha256": "fab67d820422f6353f28a0a5bfdc6cf75b81c2afac3547f8041737bf87880902",
+        "exit_code": 0
+      },
+      "build/qa/sync-fetch-ownership-refspec-2026-11-07.log": {
+        "sha256": "b6a362163a7b81205449ddaf2cad06e01596925d1512e71cc417849d2afb1686",
+        "exit_code": 0
+      }
+    },
+    "local_initial_failures": [],
+    "earlier_unaffected_checks_not_repeated": {
+      "record": "docs/qa/sync-fetch-hosted-diagnosis-2026-11-05.json",
+      "cases": [
+        "system-Git actual typed Fetch-to-Log",
+        "system-Git Sync refspec lifecycle/Settings return"
+      ],
+      "qualification": "Those earlier bounded passes do not claim current-source complete hosted acceptance."
+    },
+    "core": "No additional Core tests or app build performed in this consumer subtask; the parent owns its affected production Core/shared Debug checkpoint."
+  },
+  "ownership": {
+    "held_producer_pairs": [
+      {
+        "shell": 62190,
+        "child": 62194,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 62350,
+        "child": 62357,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 62722,
+        "child": 62727,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 62881,
+        "child": 62885,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 62445,
+        "child": 62450,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 62623,
+        "child": 62628,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 63382,
+        "child": 63387,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      },
+      {
+        "shell": 63483,
+        "child": 63486,
+        "real_transfer_exit_code": 0,
+        "both_drained": true
+      }
+    ],
+    "reported_reaped_compiler_receiver_pids": [
+      61978,
+      61979,
+      61989,
+      61990,
+      62472,
+      62732,
+      63026,
+      63525
+    ],
+    "all24_pids_independently_absent": true,
+    "all_pids_checked": [
+      61978,
+      61979,
+      61989,
+      61990,
+      62190,
+      62194,
+      62350,
+      62357,
+      62445,
+      62450,
+      62472,
+      62623,
+      62628,
+      62722,
+      62727,
+      62732,
+      62881,
+      62885,
+      63026,
+      63382,
+      63387,
+      63483,
+      63486,
+      63525
+    ],
+    "native_cleanup_receipts": {
+      "sync": 2,
+      "fetch": 4
+    },
+    "private_contexts": "Each driver uses TemporaryDirectory with private repositories, HOME/CF defaults/config/temp, isolated pasteboards and transparent offscreen windows. All six contexts exited with verified native cleanup and no required fallback helper termination.",
+    "unrelated_user_apps_or_repositories": "Not operated or terminated."
+  },
+  "source_sha256": {
+    "docs/qa/sync-transfer-notifications-native-2026-10-23.swift": "89b49744fe2aa8ee544df2936033a42cc6239bec624cbb3e71bf0310c7ee7f2c",
+    "docs/qa/fetch-refspec-lifecycle-native-2026-10-23.swift": "70b500e4fa68c2908fc8de28062a9d079bb1b346c83ed67c8081e01c3b2bcb9b",
+    "scripts/test-sync-transfer-notifications.py": "de3f7ed6a4d8e3a2758caf764ebaaa0a7fd0aebdc5f0a607830d35a3817f9967",
+    "scripts/test-fetch-refspec-lifecycle.py": "368ac7c9265738b0f2b5f2e22ec8844a265b4f5f585fee85314241c27881aa4c"
+  },
+  "actual_helper": {
+    "path": "build/libgit2-runtime/LibGit2/bin/turtlegit-libgit2",
+    "sha256": "e989fa5a1cd5a830f08f4e7997a361eac6944065bbe4f7f889c3be1a57ef34d1",
+    "rebuilt_in_this_subtask": false
+  },
+  "limits": [
+    "No complete corrected-source hosted CI pass.",
+    "No physical Finder, public network/authentication, signed deployment, minimum-macOS/Intel or full visual/VoiceOver acceptance.",
+    "These are bounded producer/consumer ownership checks, not complete Synchronization/Fetch dialog parity.",
+    "No installation, binary publication or App Store submission."
+  ]
+}

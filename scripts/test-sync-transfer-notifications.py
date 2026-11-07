@@ -20,6 +20,12 @@ def retire_owned_helpers(context, approved_images):
     unrelated application or process merely mentioning a fixture path is killed.
     """
     wrapper = context / 'fixture/held-helper'
+    hold = context / 'fixture/hold'
+    receipt = context / 'fixture/helper-finished'
+    try:
+        receipt_pids = [int(value) for value in receipt.read_text().split()]
+    except (OSError, ValueError):
+        receipt_pids = []
 
     def owned():
         listing = subprocess.run(['/usr/sbin/lsof', '-t', '+D', str(context)],
@@ -38,6 +44,8 @@ def retire_owned_helpers(context, approved_images):
                 args = subprocess.run(['/bin/ps', '-p', str(pid), '-o', 'command='],
                                       capture_output=True, text=True, timeout=5).stdout.strip()
                 if args.startswith('/bin/sh ' + str(wrapper) + ' ') or args == '/bin/sh ' + str(wrapper):
+                    result.append(pid)
+                elif len(receipt_pids) == 2 and pid == receipt_pids[1] and args.startswith('/bin/sh -c ') and args.endswith(' held-transfer ' + str(hold)):
                     result.append(pid)
         return result
 
@@ -102,14 +110,18 @@ for engine_index, git in enumerate(args.git or [Path('/usr/bin/git'), root / 'bu
                 passed = result.returncode == 0 and 'PASS: Sync transfer notifications ' + case in result.stdout
                 results.append(dict(git=str(git), case=case, returncode=result.returncode, passed=passed))
                 (root / 'build/qa/sync-transfer-notifications-native-results.json').write_text(json.dumps(results, indent=2) + '\n')
-                result.check_returncode()
-                if not passed:
-                    raise RuntimeError('Sync transfer notification receiver exited before completion')
+                if 'CLEANUP: Sync transfer owners drained' not in result.stdout:
+                    raise RuntimeError('Native owner cleanup did not complete; refusing independent later cases')
+
             finally:
                 sample = context / 'timeout.sample.txt'
                 if sample.is_file():
                     shutil.copy2(sample, root / ('build/qa/sync-transfer-notifications-' + case + '-' + str(engine_index) + '-timeout.sample.txt'))
                 (context / 'fixture/hold').unlink(missing_ok=True)
                 cleanup_needed = retire_owned_helpers(context, {str(git.resolve()), str(helper)})
-                if passed and cleanup_needed:
-                    raise RuntimeError('Successful Sync case left owned helper processes running')
+                if cleanup_needed:
+                    raise RuntimeError('Sync case required external cleanup of owned helper processes')
+
+failed = [result for result in results if not result['passed']]
+if failed:
+    raise SystemExit('Grouped native cases failed: ' + json.dumps(failed, sort_keys=True))
