@@ -11,9 +11,10 @@ import TurtleGitCore
     private var ownedReset:ResetWindowController?
     private var resetDrain:Task<Void,Never>?
     private var retiringSheets:[NSWindow]=[]
+    private var retiringParent:NSWindow?
     private var pendingReplies=0
     var canReuse:Bool {!closing && model.operation.active}
-    private var underlyingWork:Bool {pendingReplies>0 || model.hasPendingWork || ownedReset != nil || resetDrain != nil || window?.attachedSheet != nil || window?.sheetParent != nil || retiringSheets.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    private var underlyingWork:Bool {pendingReplies>0 || model.hasPendingWork || ownedReset != nil || resetDrain != nil || window?.attachedSheet != nil || window?.sheetParent != nil || (window != nil && retiringParent?.attachedSheet === window) || retiringSheets.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     var hasPendingWork:Bool {release != nil || underlyingWork}
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, preferences: UserDefaults = .standard) {
         model = SubmoduleConflictWindowModel(repository: repository, access: access, path: path, preferences: preferences)
@@ -61,7 +62,7 @@ import TurtleGitCore
     }
     func windowWillClose(_ notification:Notification) {
         guard notification.object as? NSWindow === window,!closing else{return}
-        closing=true;model.invalidate()
+        closing=true;retiringParent=window?.sheetParent;model.invalidate()
         if let window,let sheet=window.attachedSheet {retiringSheets.append(sheet)}
         sheets.retire()
         if let child=ownedReset {child.window?.close();resetChildClosed()}
@@ -70,7 +71,7 @@ import TurtleGitCore
             window.sheetParent?.endSheet(window,returnCode:.abort)
         }
         let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWork}){[self] in
-            self.release=nil;retiringSheets.removeAll();let done=onClosed;onClosed={};done()
+            self.release=nil;retiringSheets.removeAll();retiringParent=nil;let done=onClosed;onClosed={};done()
         }
         self.release=release;release.start()
     }
@@ -93,7 +94,7 @@ import TurtleGitCore
     var hasPendingWork:Bool {operation.busy || pendingActions>0}
     var canInteract:Bool {operation.canInteract && !confirmingQuit && pendingActions==0 && interactionAvailable()}
     private var reloadQueued=false,closeAfterRead=false,resetDismissed=false
-    private var resetContinuation:(ConflictEntry,ResolveChoice,UUID)?
+    private var resetContinuation:(ConflictEntry,ResolveChoice,UUID,GitRepository)?
     var interactionAvailable:()->Bool={true}
     var hasOwnedReset:()->Bool={false}
     var close:()->Void={}
@@ -112,7 +113,7 @@ import TurtleGitCore
         guard operation.active,!confirmingQuit,!hasPendingWork,!operation.hasQuestion else{return}
         if resetDismissed {resetDismissed=false;operation.hasChild=false;if resetContinuation == nil {back();return}}
         if let pending=resetContinuation,!hasOwnedReset(),operation.generation==pending.2 {
-            resetContinuation=nil;operation.hasChild=false;apply(pending.0,choice:pending.1);return
+            resetContinuation=nil;operation.hasChild=false;apply(pending.0,choice:pending.1,acceptedRepository:pending.3);return
         }
         guard operation.canClose else{return}
         if closeAfterRead || operation.success {closeAfterRead=false;close()}
@@ -151,7 +152,7 @@ import TurtleGitCore
                 try operation.checkAccess();let current=try await repository.submoduleConflictDetails(path:path,identityOptions:identities,cancellation:token)
                 guard current.entry==original.entry,current.checkout==checkout,matches(side,current) else{throw ResolveFailure.stale}
                 let child=try await repository.submoduleWorkingRepository(path:path,cancellation:token)
-                guard child.root.standardizedFileURL.path==checkout.standardizedFileURL.path else{throw ResolveFailure.stale}
+                guard child.root.standardizedFileURL.path.utf8.elementsEqual(checkout.standardizedFileURL.path.utf8) else{throw ResolveFailure.stale}
                 try token.check();guard operation.live(token),!confirmingQuit,displayGeneration==display else{return};onLog(child,revision)
             }catch{if !confirmingQuit,displayGeneration==display {operation.fail(error,token:token)}}
         }
@@ -160,19 +161,23 @@ import TurtleGitCore
         guard display == nil || display == displayGeneration else{return}
         guard canInteract,let choice=side.choice,let original=details,matches(side,original),[original.mine.stage,original.theirs.stage].contains(side.stage) else{return}
         let generation=operation.generation,display=displayGeneration
+        let acceptedRepository=repository.capturingDiffBackend(preferences:operation.preferences)
         pendingActions += 1;operation.hasQuestion=true
         Task { [self] in
             let accepted=await confirmChoice()
             while operation.active,!confirmingQuit,displayGeneration==display,!interactionAvailable() {try? await Task.sleep(nanoseconds:10_000_000)}
             operation.hasQuestion=false;pendingActions -= 1
             guard operation.active,!confirmingQuit,operation.generation==generation,displayGeneration==display else{resumeAfterIdle();return}
-            if accepted {apply(original.entry,choice:choice)}else{resumeAfterIdle()}
+            if accepted {apply(original.entry,choice:choice,acceptedRepository:acceptedRepository)}else{resumeAfterIdle()}
         }
     }
-    func apply(_ entry:ConflictEntry,choice:ResolveChoice){
+    func apply(_ entry:ConflictEntry,choice:ResolveChoice,acceptedRepository:GitRepository?=nil){
         guard operation.active,!confirmingQuit,!busy,!operation.hasQuestion,!operation.hasChild,!operation.confirmingCancellation,pendingActions==0 else{return}
+        // Acceptance freezes backend/helper, askpass and diff policy across the
+        // confirmation and any owned Reset retry. Later Settings are a new action.
+        let repository=acceptedRepository ?? self.repository.capturingDiffBackend(preferences:operation.preferences)
         let display=displayGeneration,token=operation.begin(progress:true)
-        Task { [self] in
+        Task { [self,repository] in
             defer{operation.finish(token);withExtendedLifetime(operation.access){}}
             do {
                 let text=try await operation.stream(token){[self] emit in
@@ -186,9 +191,10 @@ import TurtleGitCore
                     let (root,revision)=try await repository.submoduleResetTarget(entry,using:choice,cancellation:token)
                     try token.check();guard operation.live(token),!confirmingQuit,displayGeneration==display else{return}
                     let generation=operation.generation;operation.hasChild=true
-                    onReset(GitRepository(root:root,executable:repository.executable),revision){[weak self] in
+                    let child=GitRepository(root:root,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+                    onReset(child,revision){[weak self] in
                         guard let self,self.operation.active,!self.confirmingQuit,self.operation.generation==generation,self.displayGeneration==display,self.operation.hasChild else{return}
-                        self.resetContinuation=(entry,choice,generation);self.resumeAfterIdle()
+                        self.resetContinuation=(entry,choice,generation,repository);self.resumeAfterIdle()
                     }
                 }catch{if !confirmingQuit,displayGeneration==display {operation.fail(error,token:token)}}
             }catch{

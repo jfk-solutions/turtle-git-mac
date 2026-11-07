@@ -34,13 +34,33 @@ import TurtleGitCore
         do {
             let cancelled=make()
             cancelled.model.readIdentity = {_ in .init(authorName:"",authorEmail:"",committerName:"",committerEmail:"")}
-            cancelled.model.prepare();try await wait {cancelled.identitySettingsWindow != nil}
-            try require(cancelled.model.preparing && cancelled.model.hasIdentitySettings && cancelled.identitySettingsWindow?.alphaValue == 0 && !cancelled.model.canEditForm,"Missing identity did not own hidden disabled preparation")
+            cancelled.model.prepare();try await wait {cancelled.identityQuestion != nil}
+            try require(cancelled.identitySettingsWindow==nil,"Missing identity opened Settings before source Yes/No choice")
+            try require(cancelled.model.preparing && !cancelled.model.hasIdentitySettings && cancelled.identityQuestion?.window.alphaValue == 0 && !cancelled.model.canEditForm,"Missing identity did not own hidden disabled preparation")
             cancelled.model.cancel();try await wait {cancelled.model.closed && drained()}
+
+            let declined=make()
+            declined.model.readIdentity={_ in .init(authorName:"",authorEmail:"",committerName:"",committerEmail:"")}
+            declined.model.prepare();try await wait{declined.identityQuestion != nil}
+            try require(declined.identityQuestion?.buttons.map(\.title)==["Yes","No"],"Identity question lost source Yes/No choices")
+            try click("No",in:declined.identityQuestion!.window)
+            try await wait{declined.model.closed && declined.identityQuestion==nil && declined.window?.attachedSheet==nil && drained()}
+            try require(declined.identitySettingsWindow==nil && declined.model.progress==nil,"Declining identity launched Settings or Stash")
+            let lateQuestion=make();var lateIdentityAnswer:((NSApplication.ModalResponse)->Void)?
+            lateQuestion.model.readIdentity={_ in .init(authorName:"",authorEmail:"",committerName:"",committerEmail:"")}
+            lateQuestion.presentIdentityQuestion={alert,parent,reply in parent.beginSheet(alert.window,completionHandler:nil);lateIdentityAnswer=reply}
+            lateQuestion.model.prepare();try await wait{lateIdentityAnswer != nil && lateQuestion.window?.attachedSheet != nil}
+            lateQuestion.model.cancel();try await wait{lateQuestion.model.closed && lateQuestion.identityQuestion==nil && drained()}
+            lateIdentityAnswer?(.alertFirstButtonReturn);lateIdentityAnswer?(.alertFirstButtonReturn)
+            try require(lateQuestion.identitySettingsWindow==nil && lateQuestion.model.progress==nil,"Retired affirmative identity answer opened Settings or saved")
 
             let owner=make(),model=owner.model;var repaired=false,reads=0
             model.readIdentity = {token in reads += 1;if repaired {return try await repo.replayUserIdentity(cancellation:token)};return .init(authorName:"",authorEmail:"",committerName:"",committerEmail:"")}
-            model.prepare();try await wait {owner.identitySettingsWindow != nil}
+            model.prepare();try await wait {owner.identityQuestion != nil}
+            try require(owner.identitySettingsWindow==nil,"Identity Settings opened before Yes")
+            try click("Yes",in:owner.identityQuestion!.window)
+            try await wait {owner.identitySettingsWindow != nil && owner.identityQuestion==nil}
+            try require(model.hasIdentitySettings,"Accepted identity question did not retain Settings ownership")
             repaired=true;try click("OK",in:owner.identitySettingsWindow!)
             try await wait {model.prepared && !model.busy && owner.identitySettingsWindow == nil && owner.window?.attachedSheet == nil}
             try require(reads >= 2,"Settings acceptance skipped effective identity reread")
@@ -84,6 +104,27 @@ import TurtleGitCore
             try require(restoreDetached,"View Changes preceded actual result/restore closure")
             let retained=try await repo.run(["rev-parse","--verify","refs/stash"]).stdout
             try require(!retained.isEmpty,"Apply dropped the saved stash")
+
+            // Acceptance receipts must also reject a retained action accepted
+            // before either parent or progress entered a cancelled Quit cycle.
+            for transitionParent in [true,false] {
+                try Data("retained postaction \(transitionParent)\n".utf8).write(to:root.appendingPathComponent("file"))
+                let stale=make();stale.model.followUp.showPull=true
+                var staleDispatches=0,acceptedAction:(()->Void)?
+                stale.model.onPostAction={_,_ in staleDispatches += 1}
+                stale.model.prepare();try await wait{stale.model.prepared && !stale.model.busy}
+                stale.model.save();try await wait{stale.progressController != nil && stale.model.progress?.busy==false}
+                let child=stale.progressController!
+                try require(child.model.success && child.model.postActions.contains(.pull),"Retained postaction did not start from actual successful Save")
+                child.model.finishAndPerform={acceptedAction=$0}
+                child.model.perform(.pull);try require(acceptedAction != nil && child.model.hasDispatchedAction,"Native follow-up did not capture accepted action")
+                if transitionParent {stale.model.confirmingQuit=true;stale.model.confirmingQuit=false}
+                else {child.model.confirmingQuit=true;child.model.confirmingQuit=false}
+                let retainedAction=acceptedAction;acceptedAction=nil;retainedAction?();retainedAction?()
+                await Task.yield()
+                try require(staleDispatches==0,"Accepted-before-Quit parent/child postaction receipt revived after cancellation")
+                stale.close();try await wait{drained() && stale.window?.attachedSheet==nil}
+            }
 
             let retiring=make();retiring.model.readIdentity = {_ in try await withCheckedThrowingContinuation {held=$0}}
             retiring.model.prepare();try await wait {held != nil};retiring.close()

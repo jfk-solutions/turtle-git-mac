@@ -60,6 +60,10 @@ import TurtleGitCore
     let repository: GitRepository
     private let access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
     private let token = OperationCancellation()
+    private var postActionCancellation:OperationCancellation?
+    private var mutationPending=false
+    @Published private(set) var discoveringPostActions=false
+    private var cancellationTarget:OperationCancellation? {postActionCancellation ?? (mutationPending ? token:nil)}
     private var started = false, invalidated = false
     private var startedAt: TimeInterval = 0
     @Published private(set) var completionRange: NSRange?
@@ -92,18 +96,22 @@ import TurtleGitCore
     var actionLogCancelled: Bool { cancelled }
     var actionLogEligible: Bool { started && !busy }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], options: SubmoduleUpdateOptions, preferences: UserDefaults = .standard) {
+        // An inherited accepted repository keeps its executor/backend. A direct
+        // command captures the owning preferences before its first suspension.
+        let repository=repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository
         self.repository = repository; self.access = access; self.paths = paths; self.options = options; self.preferences = preferences
         autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputState = GitProgressOutputState(preferences: preferences)
     }
-    func invalidate() { invalidated = true; token.cancel() }
+    func invalidate() { invalidated = true; token.cancel();postActionCancellation?.cancel() }
     func start() {
         CommandProgressContext.perform(commandProgressScope) { startInCommandProgressScope() }
     }
     private func startInCommandProgressScope() {
-        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; Self.activeOperations += 1;pendingOperations += 1; startedAt = ProcessInfo.processInfo.systemUptime
+        guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true;mutationPending=true; Self.activeOperations += 1;pendingOperations += 1; startedAt = ProcessInfo.processInfo.systemUptime
+        let publish=onAttemptCompleted
         Task {
             defer { Self.activeOperations -= 1;pendingOperations -= 1; withExtendedLifetime(access) {} }
-            var receipt: SubmoduleUpdateResult?
+            var receipt: SubmoduleUpdateResult?,publishedAttempt=false
             do {
                 if GitRuntime.isAppStoreBuild { guard access?.hasSecurityScope == true, access?.contains(repository.root) == true else { throw RepositoryAccessFailure.securityScopeUnavailable } }
                 let parser = GitCliOutputParser(limit: outputState.limit)
@@ -114,34 +122,32 @@ import TurtleGitCore
                 }
                 for await _ in updates { if !invalidated { consume(parser.processPending(), parser: parser) } }
                 if !invalidated { consume(parser.processPending(), parser: parser); consume(parser.finish(), parser: parser) }
-                let result = try await operation.value; receipt=result
-                guard !invalidated else { if !result.entries.isEmpty {onAttemptCompleted(result)};busy=false;return }
-                exitCode=result.exitCode;success=result.success
-                if output.isEmpty { output = result.output.isEmpty ? result.success ? "Submodule update completed." : "Submodule update failed." : result.output }
-                if success {
-                    // Post-action discovery is read-only; its failure must not
-                    // hide a successfully completed update or its refresh receipt.
-                    if var directory = try? await repository.run(["rev-parse", "--absolute-git-dir"], cancellation:token).stdout {
-                        if directory.last == 10 {directory.removeLast()}
-                        let active=FileManager.default.fileExists(atPath:URL(fileURLWithPath:String(decoding:directory,as:UTF8.self)).appendingPathComponent("BISECT_START").path)
-                        if !invalidated {postActions=active ? [.good,.bad,.skip,.reset]:[]}
-                    }
-                }
+                let accepted = try await operation.value;receipt=accepted;mutationPending=false
+                // The immutable command result owns the refresh even when a
+                // later optional read is cancelled or its window is retired.
+                if !accepted.entries.isEmpty {publishedAttempt=true;publish(accepted)}
+                guard !invalidated else{busy=false;return}
+                result=accepted;exitCode=accepted.exitCode;success=accepted.success;cancelled=accepted.cancelled
+                if output.isEmpty {output=accepted.output.isEmpty ? accepted.success ? "Submodule update completed.":"Submodule update failed.":accepted.output}
+                if accepted.success {await discoverPostActions()}
             } catch {
+                mutationPending=false
                 if let failure=error as? SubmoduleUpdateExecutionFailure {receipt=failure.result;if !invalidated {exitCode=failure.result.exitCode}}
                 if !invalidated {
                     if let failure = error as? GitFailure { exitCode = failure.code }
-                    let message = token.isCancelled ? "Submodule update cancelled." : error.localizedDescription
+                    let message = (receipt?.cancelled ?? token.isCancelled) ? "Submodule update cancelled." : error.localizedDescription
                     if !message.isEmpty { output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message }
                 }
             }
             // Forced closure fences presentation, not the authoritative refresh
             // for an operation that may already have changed child worktrees.
-            if let receipt,!receipt.entries.isEmpty {onAttemptCompleted(receipt)}
+            if !publishedAttempt,let receipt,!receipt.entries.isEmpty {publish(receipt)}
             guard !invalidated else{busy=false;return}
             result=receipt
-            if token.isCancelled {success=false;postActions=[]}
-            cancelled = token.isCancelled
+            if let receipt {success=receipt.success;exitCode=receipt.exitCode;cancelled=receipt.cancelled}
+            else {success=false;cancelled=token.isCancelled}
+            if !success {postActions=[]}
+            cancelling=false
             let completion = SubmoduleProgressCompletion(success:success, cancelled:cancelled, exitCode:exitCode, elapsed:ProcessInfo.processInfo.systemUptime - startedAt, preferences:preferences)
             currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to:&output)
             busy = false; saveActionLog()
@@ -149,20 +155,33 @@ import TurtleGitCore
             if !invalidated {finishAutomaticClose()}
         }
     }
+    private func discoverPostActions()async {
+        let request=OperationCancellation();postActionCancellation=request;discoveringPostActions=true
+        let deadline=DispatchWorkItem{request.cancel()}
+        DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+5,execute:deadline)
+        defer{deadline.cancel();if postActionCancellation === request {postActionCancellation=nil};discoveringPostActions=false}
+        do {
+            var directory=try await repository.run(["rev-parse","--absolute-git-dir"],cancellation:request).stdout
+            try request.check();guard !invalidated else{return}
+            if directory.last==10 {directory.removeLast()}
+            let active=FileManager.default.fileExists(atPath:URL(fileURLWithPath:String(decoding:directory,as:UTF8.self)).appendingPathComponent("BISECT_START").path)
+            postActions=active ? [.good,.bad,.skip,.reset]:[]
+        }catch{if !invalidated {postActions=[]}}
+    }
     private func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         outputState.consume(emission, parser: parser); output = outputState.output
         currentWork = outputState.currentWork; percentage = outputState.percentage
     }
     func cancel() {
-        guard busy, !invalidated, !confirmingCancellation, !confirmingQuit, !cancelling else { return }
+        guard busy, !invalidated, !confirmingCancellation, !confirmingQuit, !cancelling,let target=cancellationTarget else { return }
         if preferences.bool(forKey: "ConfirmKillProcess") {
             confirmingCancellation = true; var answered = false
             confirmCancellation { [weak self] accepted in
                 guard !answered, let self, !self.invalidated else { return }; answered = true; self.confirmingCancellation = false
-                if self.busy && accepted { self.cancelling = true; self.token.cancel() }
+                if self.busy,accepted,self.cancellationTarget === target {self.cancelling=true;target.cancel()}
                 self.finishAutomaticClose()
             }
-        } else { cancelling = true; token.cancel() }
+        } else {cancelling=true;target.cancel()}
     }
     func perform(_ operation: BisectOperation) {
         CommandProgressContext.perform(commandProgressScope) { performInCommandProgressScope(operation) }
@@ -186,13 +205,13 @@ private struct SubmoduleUpdateProgressDialog: View {
             Text("Updating submodules").font(.headline)
             Text(model.repository.root.path).font(.caption).textSelection(.enabled)
             Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
-            ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)
-                .tint(model.busy ? .accentColor : model.success ? .blue : .red)
+            ProgressView(value: Double(model.busy && !model.discoveringPostActions ? model.percentage ?? 0 : 100), total: 100)
+                .tint(model.busy && !model.discoveringPostActions ? .accentColor : model.success ? .blue : .red)
                 .accessibilityLabel("Git command progress")
             SubmoduleProgressOutputView(text:model.output, completed:!model.busy, completionRange:model.completionRange, success:model.success).frame(maxWidth: .infinity, maxHeight: .infinity)
             HStack {
                 if model.busy { GitCommandActivity(animate: model.progressPresentation.animateActivity) }
-                Text(model.busy ? model.cancelling ? "Cancelling…" : "Updating…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Update failed").foregroundStyle(model.busy ? Color.primary : model.success ? Color.green : Color.red)
+                Text(model.discoveringPostActions ? "Finished" : model.busy ? model.cancelling ? "Cancelling…" : "Updating…" : model.cancelled ? "Cancelled" : model.success ? "Finished" : "Update failed").foregroundStyle(model.busy && !model.discoveringPostActions ? Color.primary : model.success ? Color.green : Color.red)
                 Spacer()
                 if let first = model.postActions.first {
                     Button { model.perform(first) } label: { CommandLabel(title: model.action(for: first).title, icon: model.action(for: first).icon) }.disabled(model.activeOperation)

@@ -57,7 +57,7 @@ import TurtleGitCore
         model.onSubmit={received=$0;accepted=$1}
         let old=model.formContext,staleForce=model.option(\.force,context:old),scope=model.wholeProjectBinding(context:old)
         scope.wrappedValue=true
-        try require(model.busy && model.wholeProject && prefs.bool(forKey:"SubmoduleUpdate."+root.path+".wholeProject"),"Scope did not synchronously own reload/persistence")
+        try require(model.busy && model.wholeProject && prefs.bool(forKey:"SubmoduleUpdate."+repo.root.path+".wholeProject"),"Scope did not synchronously own reload/persistence")
         staleForce.wrappedValue=true;model.setSelectedPaths([],context:old);model.apply(context:old)
         try await wait {!model.busy}
         try require(Set(model.paths)==[first,second] && model.selection==Set([first,second].map { GitReferenceName($0) }) && !model.options.force && received.isEmpty,"Stale scoped form changed reloaded selection/options or submitted")
@@ -90,7 +90,8 @@ import TurtleGitCore
             /bin/sleep 30 &
             task_child=$!
             trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-            printf '%s %s\\n' "$$" "$task_child" > '\(marker.path)'
+            printf '%s %s\\n' "$$" "$task_child" > '\(marker.path).pending'
+            mv '\(marker.path).pending' '\(marker.path)'
             wait "$task_child"
           fi
         done
@@ -103,8 +104,10 @@ import TurtleGitCore
         let pids=try String(contentsOf:marker,encoding:.utf8).split(whereSeparator:{$0.isWhitespace}).compactMap {Int32($0)}
         try require(pending.model.busy && pending.windowShouldClose(pending.window!),"Loading dialog cannot close")
         let pendingContext=pending.model.formContext,pendingForce=pending.model.options.force;var closed=0;pending.onClosed={closed+=1};pending.model.cancel();pending.model.cancel()
-        try require(closed==1 && !pending.model.canApply,"Cancel did not retire once")
-        try await wait {SubmoduleUpdateWindowModel.activeReads==0}
+        try require(pending.model.isRetired && !pending.model.canApply && closed==0,"Cancel released its held read before actual retirement")
+        try await wait {SubmoduleUpdateWindowModel.activeReads==0 && closed==1 && !pending.finderServiceWorkPending}
+        pending.model.cancel();pending.close()
+        try require(closed==1,"Cancel completion repeated after actual drain")
         pending.model.option(\.force,context:pendingContext).wrappedValue = !pendingForce
         try require(pending.model.paths.isEmpty && pending.model.options.force==pendingForce && pending.model.error==nil,"Cancelled read published late state")
         try await wait {pids.allSatisfy {kill($0,0) != 0 && errno==ESRCH}}

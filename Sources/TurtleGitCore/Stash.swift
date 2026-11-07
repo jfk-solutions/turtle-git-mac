@@ -26,6 +26,15 @@ public struct StashSaveCommandCompletion:Sendable {
         self.success=success;self.cancelled=cancelled;self.exitCode=exitCode;self.finished=finished;self.elapsed=max(0,elapsed)
     }
 }
+/// Stash push completed, but its resulting identity could not be inspected.
+/// The actual command receipt/output remains distinct from this later read.
+public struct StashSaveReferenceReadFailure:LocalizedError,Sendable {
+    public let command:GitResult
+    public let previous:String?
+    public let details:String
+    public init(command:GitResult,previous:String?,details:String) {self.command=command;self.previous=previous;self.details=details}
+    public var errorDescription:String? {"The stash command completed, but its resulting reference could not be read.\n"+details}
+}
 public struct StashRestoreResult: Sendable {
     public let output: String
     public let conflicted: Bool
@@ -61,7 +70,9 @@ extension GitRepository {
 
     /// Apply retains the stash; Pop lets Git drop it only after successful application.
     /// Neither operation requests --index, matching TortoiseGit's default workflow.
-    public func restoreStash(pop: Bool, reference: String? = nil, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> StashRestoreResult {
+    public func restoreStash(pop: Bool, reference: String? = nil, cancellation: OperationCancellation? = nil,
+                             backend:GitLibGit2Configuration?=nil,onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
+                             onCommandFinished:(@Sendable(StashSaveCommandCompletion)->Void)?=nil) throws -> StashRestoreResult {
         try cancellation?.check()
         var args = ["stash", pop ? "pop" : "apply"]
         if let reference, !reference.isEmpty {
@@ -75,19 +86,45 @@ extension GitRepository {
             try cancellation?.check()
             args.append(hash)
         }
+        let acceptedBackend=backend ?? libgit2Configuration ?? .load()
+        try cancellation?.check()
+        let started=ProcessInfo.processInfo.systemUptime
+        let command:GitResult
         do {
-            return StashRestoreResult(output: try run(args, cancellation: cancellation, onOutput: onOutput).text, conflicted: false)
-        } catch let failure as GitFailure {
+            command=try run(args,cancellation:cancellation,onOutput:onOutput)
+            onCommandFinished?(.init(success:command.exitCode==0,cancelled:false,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
+        } catch {
+            let killed=error as? GitCommandCancellationFailure
+            onCommandFinished?(.init(success:false,cancelled:cancellation?.isCancelled==true || error is OperationCancellationFailure || error is CancellationError || killed != nil,
+                exitCode:killed?.result.exitCode ?? (error as? GitFailure)?.code,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            guard let failure=error as? GitFailure else {throw error}
             // A merge conflict is a recoverable result, not a completed clean apply.
             // Confirm actual unmerged entries rather than trusting output text alone.
             if failure.code == 1 && failure.message.contains("CONFLICT") {
                 try cancellation?.check()
-                if try hasWorkingTreeConflicts(cancellation:cancellation) {
+                if try hasWorkingTreeConflicts(cancellation:cancellation,backend:acceptedBackend) {
                     return StashRestoreResult(output: failure.message, conflicted: true)
                 }
             }
             throw failure
         }
+        return StashRestoreResult(output:command.text,conflicted:false)
+    }
+    private func stashReference(cancellation:OperationCancellation?) throws -> String? {
+        let value=try run(["rev-parse","--verify","--quiet","refs/stash"],successfulExitCodes:0...1,cancellation:cancellation)
+        try cancellation?.check()
+        guard value.exitCode==0 else {
+            guard value.stdout.isEmpty,value.stderr.isEmpty else {
+                throw GitFailure(arguments:["rev-parse","--verify","--quiet","refs/stash"],code:value.exitCode,message:value.text,standardError:value.stderr)
+            }
+            return nil
+        }
+        var bytes=value.stdout
+        if bytes.last==10 {bytes.removeLast()}
+        guard [40,64].contains(bytes.count),bytes.allSatisfy({(48...57).contains($0)||(97...102).contains($0)}) else {
+            throw GitFailure(arguments:["rev-parse","--verify","--quiet","refs/stash"],code:1,message:"Git returned an invalid stash reference.")
+        }
+        return String(decoding:bytes,as:UTF8.self)
     }
     public func saveStash(_ options: StashSaveOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil,
                           onCommand:(@Sendable(GitCommandInvocation)->Void)? = nil,
@@ -95,10 +132,9 @@ extension GitRepository {
         try cancellation?.check()
         guard !(options.includeUntracked && options.all) else { throw StashFailure.combination }
         guard !options.message.contains("\0") else { throw StashFailure.message }
-        let previous = (try? run(["rev-parse", "--verify", "refs/stash"], cancellation: cancellation).text.trimmingCharacters(in: .newlines))
-        // An absent stash is expected; cancellation must not be swallowed by
-        // the optional reference read or continue into a write.
-        try cancellation?.check()
+        // Only the explicit quiet missing-reference status is absence. A read
+        // failure must never turn a no-op save into a supposedly new stash.
+        let previous=try stashReference(cancellation:cancellation)
         var args = ["stash", "push"]
         if options.includeUntracked { args.append("--include-untracked") }
         else if options.all { args.append("--all") }
@@ -124,8 +160,15 @@ extension GitRepository {
             throw error
         }
         let output=command.text
-        let current = (try? run(["rev-parse", "--verify", "refs/stash"], cancellation: cancellation).text.trimmingCharacters(in: .newlines))
-        try cancellation?.check()
+        let current:String?
+        do {current=try stashReference(cancellation:cancellation)}
+        catch {
+            // Preserve cancellation as cancellation, and never emit a second
+            // command receipt for this follow-up metadata phase.
+            try cancellation?.check()
+            if error is OperationCancellationFailure || error is CancellationError || error is GitCommandCancellationFailure {throw error}
+            throw StashSaveReferenceReadFailure(command:command,previous:previous,details:error.localizedDescription)
+        }
         return StashSaveResult(output: output, previous: previous, current: current)
     }
 }

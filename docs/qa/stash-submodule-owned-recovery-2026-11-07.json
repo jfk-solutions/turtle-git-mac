@@ -1,0 +1,360 @@
+{
+  "date": "2026-11-07",
+  "scope": "Stash and Submodule workflow family native acceptance; cumulative case-engine results across an initial shared Debug build and one affected Stash source rebuild",
+  "status": "passed",
+  "host": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+  "git_engines": [
+    "/usr/bin/git",
+    "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+  ],
+  "app_build_logs": [
+    "build/qa/stash-submodule-recovery-build-2026-11-07.log",
+    "build/qa/stash-submodule-recovery-build-repair-2026-11-07.log"
+  ],
+  "native_logs": [
+    "build/qa/stash-submodule-native-checkpoint-2026-11-07.log",
+    "build/qa/stash-submodule-native-repair-2026-11-07.log",
+    "build/qa/stash-submodule-inputs-repair2-2026-11-07.log"
+  ],
+  "initial_checkpoint": {
+    "pairs": 34,
+    "passed": 30,
+    "failed": 4,
+    "results": "build/qa/stash-submodule-native-initial-results-2026-11-07.json",
+    "failures": [
+      "Stash fresh post-cancelled-Quit followup compared parent generation captured at progress creation; real source acceptance bug, both engines",
+      "Add inputs adversarial native panel hold omitted orderOut detachment; production picking/editing/selection gates remained correct, both engines"
+    ]
+  },
+  "focused_repairs": [
+    {
+      "pairs": 4,
+      "passed": 2,
+      "failed": 2,
+      "results": "build/qa/stash-submodule-native-repair-results-2026-11-07.json",
+      "details": "Stash source now captures parent and child receipts synchronously at followup acceptance; fresh action passes and retained parent/child pre-Quit actions refuse. Inputs remained correctly gated, but native attachment had detached through orderOut."
+    },
+    {
+      "pairs": 2,
+      "passed": 2,
+      "failed": 0,
+      "results": "build/qa/stash-submodule-inputs-final-results-2026-11-07.json",
+      "details": "Exact private native panel orderOut/endSheet/close held; actual attached OK and Cancel retain form authority until physical detach. Only inputs rechecked."
+    }
+  ],
+  "final_cumulative": {
+    "pairs": 34,
+    "passed": 34,
+    "results": [
+      {
+        "case": "stash",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-save",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-save",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-restore",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-restore",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-mutation-save",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-mutation-save",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-mutation-restore",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-mutation-restore",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-replay-identity",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "stash-replay-identity",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "source",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "source",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "inputs",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "inputs",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "add-recovery",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "add-recovery",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "update-recovery",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "update-recovery",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "sync",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "sync",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "handoffs",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "handoffs",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "diff-entry",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "diff-entry",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-actions",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-actions",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-diff-ownership",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-diff-ownership",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-routing",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-routing",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-conflict-ownership",
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "case": "review-conflict-ownership",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true
+      }
+    ]
+  },
+  "ownership": {
+    "private_resources": [
+      "HOME",
+      "CFFIXED_USER_HOME",
+      "XDG_CONFIG_HOME",
+      "TMPDIR",
+      "Git config",
+      "repositories",
+      "preferences suites",
+      "pasteboards"
+    ],
+    "windows": "All automated receivers and owned sheets alpha zero/offscreen; exact private panel detachment holds; global owned worker/window/sheet release assertions before success",
+    "helpers": "Exact approved executable or authored shell wrapper plus open resource under each private tree; no post-case helper cleanup was required",
+    "reaped_compiler_receiver_pids": [
+      89408,
+      89413,
+      89577,
+      89790,
+      89934,
+      90007,
+      90079,
+      91358,
+      92607,
+      92650,
+      92689,
+      92720,
+      92748,
+      92860,
+      92982,
+      93017,
+      93051,
+      93092,
+      93389,
+      93598,
+      93868,
+      94744,
+      95524,
+      95870,
+      96209,
+      96424,
+      96669,
+      97008,
+      97331,
+      97425,
+      97517,
+      97612,
+      97726,
+      98153,
+      98596,
+      98883,
+      99542,
+      99549,
+      99582,
+      99734,
+      437,
+      630,
+      1056,
+      1074,
+      1182
+    ],
+    "present_owned_processes": "",
+    "all_reaped_pids_absent": true
+  },
+  "retained_behavior": [
+    "Source Yes/No identity question precedes Settings; No/cancel and late Yes cannot save or reopen Settings",
+    "Actual Save prelookup failure preserves HEAD/index/worktree and emits no mutation receipt",
+    "Actual push success plus failed resulting-reference lookup retains successful footer/raw command output, warning and refresh without invented Apply/Pop identity",
+    "Retired actual Save/Apply emits accepted captured mutation refresh exactly once after worker/process drain without late UI",
+    "Replay unknown stash identity blocks Start/retry; Cancel and Review preserve obligation; explicit Leave preserves saved changes without automatic Pop/Apply",
+    "Native Add repository/path panels preselect and retain form ownership until physical detach; stale/replaced/retired selection refuses",
+    "Actual Add partial key setup recovery does not repeat Add/SSH, retains immutable accepted outcomes on retirement",
+    "Actual Update/Sync partial status and selected paths retained; optional bounded Bisect discovery cancellation never rewrites completed Update success",
+    "Actual comparison/conflict actions retain captured backend/executable/askpass/diff settings across confirmation and Reset continuation; exact gitlink resolution and cancellation ownership preserved"
+  ],
+  "final_native_fixture_sha256": {
+    "docs/qa/stash-operation-native-2026-10-18.swift": "d88e6f38e5a6ea9599c4b1c2749e7e0204a5260773c9f2b408568ed1a7ea660f",
+    "docs/qa/stash-restore-native-2026-10-08.swift": "0c182c846ea9e5e9cedc87ef67e0b67b8ba47a081df9c0c3f43eccf7280f4ef9",
+    "docs/qa/stash-mutation-recovery-native-2026-11-07.swift": "dd66ba9b1fad784dba692b259349e76d0f5e87ba2d2a63da98b245e1463a9873",
+    "docs/qa/submodule-add-inputs-native-2026-10-17.swift": "2d706d9cf57f9024dfdab762a3937c4b079407802fa5dcdc05a718cc3d948273",
+    "docs/qa/submodule-add-recovery-native-2026-10-18.swift": "e19384b303aac34eff1537017988e40ca859261eac4aa2ac92bbfa0c54b5e287",
+    "docs/qa/submodule-source-native-2026-10-17.swift": "66286e19de8a2b7e66559f2fca87596f096dd8a8ac8a7db70bc4cb7e00cbd044",
+    "docs/qa/submodule-update-recovery-native-2026-10-18.swift": "ec7dc8cbf12ce76e4664561ad732691a9e08572dfd413df93507154bb0534b8d",
+    "docs/qa/submodule-review-family-native-2026-10-21.swift": "8cb9d7fbbdaf7e9fd7fc856f0ca310145f7c7d3db45ea94d2ffd65b83ed02637",
+    "scripts/test-stash-submodule-workflows.py": "7b360f2c5b4007b9b7d437ed21301c759990bd72e59cddf0bbea2f92b18cc669"
+  },
+  "final_production_source_sha256": {
+    "Sources/TurtleGitCore/Stash.swift": "885f60abd7699108d410e9e757d0be293109efa5fb256c944bddd5d31ec1ccf0",
+    "Sources/TurtleGitMac/StashWindow.swift": "323b034fe23a81eaeb4f7f8df6fe0b84424909c81d50c136dd143975e6a19801",
+    "Sources/TurtleGitMac/StashRestoreWindow.swift": "8d0cc297abb693694156986a7eb79d015817f65990af576bdd13bbf3629f6059",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "04963a7f89c4682f64f89f1e8dd86908efc6c68a8e282014aa2dc419797087e6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6dded647039394273682ab09379f72204047283a8531303f2fc4faa1fcd88ef7",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "6dc70ecaf19d47648bfc2adc7c90aac57c42c126552cb08964201d13f9d72005",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "4ee85082c6f4b1520c7af49c3f940651a17c0b43d4b691758c8d122f7e580e28",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "d7c8d0b54b563ac72470d082d2e50df5443700acd44046f3b8449a7b0927a7a5",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "a0e529e33d7e20ac8cd9056bc79200f7cc13e8e27e5a354caa472bcef50fcfa0",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "e70fbcebc8014a087f451eaf11cfb510b1baef4dd529acfc3c8bf4d6405d525e",
+    "Sources/TurtleGitMac/SubmoduleDiffWindow.swift": "ffd12e651cc390fd92144e38385a7ad36f0a418e29fb63385b3d35e096823851",
+    "Sources/TurtleGitMac/SubmoduleConflictWindow.swift": "bc1929d6915817752c3c87d68758025940e3c5e7e7818e96b8c150b5b41f6470"
+  },
+  "limitations": [
+    "Local current-SDK native checkpoint; hosted old-SDK CI not run here",
+    "No full Core suite repeat; parent owns focused Core evidence",
+    "No physical Finder, signed deployment, screenshots or visual parity acceptance",
+    "No claim that all upstream dialogs or the entire port are complete"
+  ]
+}

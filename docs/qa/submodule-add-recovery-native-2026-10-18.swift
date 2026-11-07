@@ -53,7 +53,8 @@ private actor AddRecoveryCredentials:SSHAuthenticationStore {
             /bin/sleep 30 &
             task_child=$!
             trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-            printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+            printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+            mv "$0.started.pending" "$0.started"
             wait "$task_child"
           fi
         fi
@@ -97,7 +98,11 @@ private actor AddRecoveryCredentials:SSHAuthenticationStore {
             let attemptDiagnostics=outcomes.enumerated().map { index,outcome in
                 "attempt[\(index)] phase=\(outcome.phase.rawValue) attempted=\(outcome.attempted) added=\(outcome.added) configured=\(outcome.configured) cancelled=\(outcome.cancelled) success=\(outcome.success) output=\(String(reflecting:outcome.output)) receipt=\(String(describing:outcome.receipt))"
             }.joined(separator:"\n")
-            let partialDiagnostics="\(attemptDiagnostics)\nlastOutcome phase=\(value.lastOutcome.phase.rawValue) attempted=\(value.lastOutcome.attempted) added=\(value.lastOutcome.added) configured=\(value.lastOutcome.configured) success=\(value.lastOutcome.success) receipt=\(String(describing:value.lastOutcome.receipt))\ncurrentWork=\(String(reflecting:value.currentWork)) percentage=\(String(describing:value.percentage)) completionRange=\(String(describing:value.completionRange)) canRetry=\(value.canRetry) error=\(String(describing:value.error)) nativeOutput=\(String(reflecting:value.output)) factories=\(factories) addedCallbacks=\(added)"
+            let last=value.lastOutcome
+            let lastFlags:String="lastOutcome phase=\(last.phase.rawValue) attempted=\(last.attempted) added=\(last.added) configured=\(last.configured) success=\(last.success) receipt=\(String(describing:last.receipt))"
+            let workFlags:String="currentWork=\(String(reflecting:value.currentWork)) percentage=\(String(describing:value.percentage)) completionRange=\(String(describing:value.completionRange))"
+            let stateFlags:String="canRetry=\(value.canRetry) error=\(String(describing:value.error)) nativeOutput=\(String(reflecting:value.output)) factories=\(factories) addedCallbacks=\(added)"
+            let partialDiagnostics:String=[attemptDiagnostics,lastFlags,workFlags,stateFlags].joined(separator:"\n")
             try require(outcomes.count == 1 && outcomes[0].attempted && outcomes[0].added && outcomes[0].output.contains("injected key setup failure") && !outcomes[0].configured && !outcomes[0].success && value.lastOutcome.receipt != nil && value.canRetry && value.currentWork.contains("73") && value.percentage == 100 && value.completionRange != nil && added == 0 && value.output.contains("submodule was added"),"Partial Add was not distinguished/notified from key configuration failure; \(partialDiagnostics)")
             let index=try Data(contentsOf:checkout.appendingPathComponent(".git/index")),head=try await plain.run(["rev-parse","HEAD"]).stdout
             let factoryCount=factories
@@ -121,10 +126,14 @@ private actor AddRecoveryCredentials:SSHAuthenticationStore {
             try await wait {FileManager.default.fileExists(atPath:marker.path)}
             pids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap {Int32($0)}
             try require(pids.count == 2 && pids.allSatisfy {kill($0,0) == 0},"Owned key-write worker/sleep missing")
+            let retiredPresentation=retiring.lastOutcome
+            var replacementNotifications=0
+            retiring.onAttemptCompleted={_ in replacementNotifications += 1}
             controllers.last?.close()
             try require(SubmoduleAddProgressWindowModel.activeOperations > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Forced close released actual Add work/Quit too early")
             try await wait {drained() && pids.allSatisfy {kill($0,0) != 0}}
-            try require(retiredOutcomes.count == 1 && retiredOutcomes[0].attempted && retiredOutcomes[0].added && retiredOutcomes[0].cancelled && !retiredOutcomes[0].success && lateSuccess == 0,"Retired partial Add lost notification or published success")
+            try require(retiredOutcomes.count == 1 && retiredOutcomes[0].attempted && retiredOutcomes[0].added && retiredOutcomes[0].cancelled && !retiredOutcomes[0].success && lateSuccess == 0 && replacementNotifications==0,"Retired partial Add lost captured notification or published success")
+            try require(retiring.lastOutcome.phase==retiredPresentation.phase && retiring.lastOutcome.output==retiredPresentation.output,"Retired Add republished late outcome into its closed presentation")
             try await cleanup()
             print("PASS: local Submodule Add/key failure phase, immutable child recovery without Add/SSH repeat, once-only typed partial/success callbacks, private agent cleanup, Quit and forced key-write cancellation with actual process drain; HEAD/index preserved during recovery")
         } catch {let original=error;do {try await cleanup()} catch {throw Failure(message:"\(original); cleanup: \(error)")};throw original}

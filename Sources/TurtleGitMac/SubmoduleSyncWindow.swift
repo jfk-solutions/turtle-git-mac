@@ -10,10 +10,11 @@ import TurtleGitCore
     private var closing=false
     private var release:FinderFilesystemWorkflowRelease?
     private var retiringChildren:[NSWindow]=[]
+    private var retiringParent:NSWindow?
     private let question=SubmoduleServiceQuestion()
     var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool {get{question.presentQuestion}set{question.presentQuestion=newValue}}
     var finderServiceCanPresent:Bool {!closing && !model.isRetired}
-    private var underlyingWorkPending:Bool {model.pendingOperations>0 || question.hasPendingWork || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    private var underlyingWorkPending:Bool {model.pendingOperations>0 || question.hasPendingWork || window?.sheetParent != nil || window?.attachedSheet != nil || (window != nil && retiringParent?.attachedSheet === window) || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], preferences: UserDefaults = .standard) {
         model = SubmoduleSyncWindowModel(repository: repository, access: access, scope: scope, preferences: preferences)
@@ -29,10 +30,11 @@ import TurtleGitCore
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.activeOperation && sender.attachedSheet == nil }
     func windowWillClose(_ notification:Notification){
         guard notification.object as? NSWindow === window,!closing else{return};closing=true
+        retiringParent=window?.sheetParent
         if let child=window?.attachedSheet{retiringChildren.append(child)}
         model.saveActionLog();question.retire();model.invalidate()
         if let window{if let child=window.attachedSheet{window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
-        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();retiringParent=nil;let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -71,6 +73,9 @@ import TurtleGitCore
     var actionLogCancelled: Bool { cancelled }
     var actionLogEligible: Bool { started && !busy }
     init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], preferences: UserDefaults = .standard) {
+        // An inherited accepted repository keeps its executor/backend. A direct
+        // command captures the owning preferences before its first suspension.
+        let repository=repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository
         self.repository = repository; self.access = access; self.scope = scope; self.preferences = preferences
         autoClosePolicy = GitProgressAutoClose(preferences: preferences); outputState = GitProgressOutputState(preferences: preferences)
     }
@@ -80,6 +85,7 @@ import TurtleGitCore
     }
     private func startInCommandProgressScope() {
         guard !started, !invalidated, !confirmingQuit else { return }; started = true; busy = true; startedAt = ProcessInfo.processInfo.systemUptime;Self.activeOperations += 1;pendingOperations += 1
+        let publish=onAttemptCompleted
         Task {
             defer { Self.activeOperations -= 1;pendingOperations -= 1;withExtendedLifetime(access) {} }
             var receipt:SubmoduleSyncResult?
@@ -101,15 +107,15 @@ import TurtleGitCore
             } catch {
                 if let failure=error as? SubmoduleSyncExecutionFailure {receipt=failure.result;if !invalidated {exitCode=failure.result.exitCode}}
                 if !invalidated {
-                    let message = token.isCancelled ? "Submodule synchronization cancelled." : error.localizedDescription
+                    let message = (receipt?.cancelled ?? token.isCancelled) ? "Submodule synchronization cancelled." : error.localizedDescription
                     output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
                 }
             }
-            if let receipt,!receipt.entries.isEmpty {onAttemptCompleted(receipt)}
+            if let receipt,!receipt.entries.isEmpty {publish(receipt)}
             guard !invalidated else{busy=false;return}
             result=receipt
-            if token.isCancelled {success=false}
-            cancelled = token.isCancelled
+            if let receipt {success=receipt.success;exitCode=receipt.exitCode;cancelled=receipt.cancelled}
+            else {success=false;cancelled=token.isCancelled}
             let completion = SubmoduleProgressCompletion(success:success, cancelled:cancelled, exitCode:exitCode, elapsed:ProcessInfo.processInfo.systemUptime - startedAt, preferences:preferences)
             currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to:&output)
             busy = false; saveActionLog()

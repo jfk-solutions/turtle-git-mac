@@ -1,0 +1,227 @@
+{
+  "date": "2026-11-07",
+  "base_commit": "9a1ee028",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "Affected Core, Debug build and grouped native checkpoint passed cumulatively after focused repairs",
+  "scope": [
+    "Stash Save source Yes/No identity question before existing repository-bound Git Settings repair; one-shot token-aware sheet release and three-state per-dialog options",
+    "Strict before/after stash reference inspection, actual Save/Restore command receipts, captured backend and mutation callbacks retained after retirement separately from visible success",
+    "Restore worker/alert detachment before release and accepted handoffs; retiring cached Save/Restore owners cannot reopen or bypass mutation guards",
+    "Replay internal stash cancellation and mutation refresh; successful Save with unknown resulting identity retains restore obligation, blocks Start and automatic Pop, and requires explicit review/leave/cancel",
+    "Bisect preserves actual successful Save output and stops advancement when later stash reference inspection fails",
+    "Submodule Add picker preselection, repository title, accepted backend and actual sheet detach; typed partial checkout/key-configuration results preserve cancellation independently of later token changes",
+    "Submodule Update/Sync capture attempted-result observers before bounded separately cancellable metadata work; Add/Update/Diff/Conflict retain parent presentation until actual child detach",
+    "Submodule conflict captures accepted backend before confirmation and preserves exact checkout bytes and executable/askpass/diff/backend through fallback Reset and retry"
+  ],
+  "core": {
+    "initial_group": {
+      "log": "build/qa/stash-submodule-recovery-core-2026-11-07.log",
+      "sha256": "f1d04cc84a643d49564b859876cb16d71bf6c50be152d5cbdb9b11c79c156ed5",
+      "tests": 40,
+      "passed": 39,
+      "failures": 1,
+      "result": "failed",
+      "failure": "SynchronizationStashTests.testCancellationReapsBeforeAndAfterStashReferenceReads: old consumer did not accept typed GitCommandCancellationFailure(exitCode:130) during held reference read"
+    },
+    "focused_repair": {
+      "log": "build/qa/stash-reference-cancellation-repair-2026-11-07.log",
+      "sha256": "730f275a7cf0daa8c3ef73f2f62eabdeac8694b3a67ca6c6c21cd30ed26df24e",
+      "tests": 1,
+      "passed": 1,
+      "failures": 0,
+      "result": "passed",
+      "method": "SynchronizationStashTests.testCancellationReapsBeforeAndAfterStashReferenceReads",
+      "scope": "Consumer repaired to preserve actual typed command cancellation; only affected method repeated"
+    },
+    "new_stash_phase_receipts": {
+      "log": "build/qa/stash-submodule-recovery-core-2026-11-07.log",
+      "tests": 6,
+      "passed": 6,
+      "failures": 0,
+      "methods": [
+        "testBisectStashPreservesSuccessfulSaveWhenReferenceInspectionFails",
+        "testConflictReceiptPrecedesCapturedBackendInspectionAndRetainsStash",
+        "testReferenceFailuresBeforeSaveCannotLaunchOrMutate",
+        "testRestoreReceiptsExcludeValidationAndDistinguishActualFailure",
+        "testRunningRestoreCancellationReceiptsOwnGroupAndDrain",
+        "testSavedCommandReceiptSurvivesFailedReferenceInspectionWithoutRetry"
+      ]
+    },
+    "scope_limit": "Affected family group followed by one demonstrated consumer repair; not a repeated full Core suite"
+  },
+  "debug_build": {
+    "status": "completed",
+    "result": "passed",
+    "exit_code": 0,
+    "log": "build/qa/stash-submodule-recovery-build-2026-11-07.log",
+    "sha256": "9d09da1e0417ac3817f3cdc747894a90034bf1b4ce2251ebf80b2073500c5fea",
+    "configuration": "Debug macOS arm64, CODE_SIGNING_ALLOWED=NO",
+    "installed": false,
+    "focused_repair": {
+      "result": "passed",
+      "exit_code": 0,
+      "log": "build/qa/stash-submodule-recovery-build-repair-2026-11-07.log",
+      "sha256": "b7fe204a16c48097895ec5ff9fd0130a6a7cf91edd9ef2e4c0caab022a87920d",
+      "scope": "Only StashWindow fresh action acceptance changed; Core unchanged"
+    }
+  },
+  "native": {
+    "status": "passed cumulatively after focused repairs",
+    "result": "passed",
+    "records": [
+      "docs/qa/stash-submodule-owned-recovery-2026-11-07.json"
+    ],
+    "scope_limit": "Initial34 pairs followed only by Stash+inputs four-pair repair and inputs two-pair fixture repair; unaffected30 pairs not repeated",
+    "initial_group": {
+      "pairs": 34,
+      "passed": 30,
+      "failed": 4,
+      "results": "build/qa/stash-submodule-native-initial-results-2026-11-07.json",
+      "sha256": "cebcdcc41734cda22b92beccbc61b5691cf9a2947f2b34526345966020380224",
+      "log": "build/qa/stash-submodule-native-checkpoint-2026-11-07.log",
+      "failures": [
+        "Stash fresh follow-up after cancelled Quit rejected by parent generation captured at progress creation (both engines)",
+        "Add inputs held-panel test intercepted NSWindow.close while NSOpenPanel overrides close (both engines)"
+      ],
+      "cleanup": "All 36 owned compiler/receiver PIDs absent; no helper cleanup required"
+    },
+    "pairs": 34,
+    "record_sha256": "b844b8a07cd48bbba76ced4bf633a15f2cd3c9fbcfb0072694dc8bb4fb1e27c3",
+    "cleanup": {
+      "private_resources": [
+        "HOME",
+        "CFFIXED_USER_HOME",
+        "XDG_CONFIG_HOME",
+        "TMPDIR",
+        "Git config",
+        "repositories",
+        "preferences suites",
+        "pasteboards"
+      ],
+      "windows": "All automated receivers and owned sheets alpha zero/offscreen; exact private panel detachment holds; global owned worker/window/sheet release assertions before success",
+      "helpers": "Exact approved executable or authored shell wrapper plus open resource under each private tree; no post-case helper cleanup was required",
+      "reaped_compiler_receiver_pids": [
+        89408,
+        89413,
+        89577,
+        89790,
+        89934,
+        90007,
+        90079,
+        91358,
+        92607,
+        92650,
+        92689,
+        92720,
+        92748,
+        92860,
+        92982,
+        93017,
+        93051,
+        93092,
+        93389,
+        93598,
+        93868,
+        94744,
+        95524,
+        95870,
+        96209,
+        96424,
+        96669,
+        97008,
+        97331,
+        97425,
+        97517,
+        97612,
+        97726,
+        98153,
+        98596,
+        98883,
+        99542,
+        99549,
+        99582,
+        99734,
+        437,
+        630,
+        1056,
+        1074,
+        1182
+      ],
+      "present_owned_processes": "",
+      "all_reaped_pids_absent": true
+    },
+    "logs_sha256": {
+      "build/qa/stash-submodule-native-checkpoint-2026-11-07.log": "52a136297567acdb27fbdb24f7617bf82f6b6faf2c4a7408b743080cb49195aa",
+      "build/qa/stash-submodule-native-repair-2026-11-07.log": "04b1bde43c7a197750732af2755558630350623d2b1fedd671b52595f17c2c4a",
+      "build/qa/stash-submodule-inputs-repair2-2026-11-07.log": "5da3c492a8c76c9a610f2eeced5679187dc56e1df71d26c5730174c918727290"
+    }
+  },
+  "installed_app": {
+    "build": 52,
+    "changed": false
+  },
+  "binary_published": false,
+  "tests_repeated_on_timer": false,
+  "remaining": [
+    "Complete corrected-source hosted CI, including older SDK consumers",
+    "Physical Finder/native interactions and production access/authentication",
+    "Signed/universal distribution and sandbox acceptance",
+    "Complete pinned dialog/control/menu and visual parity gaps",
+    "Crash recovery, external stash writers and VoiceOver acceptance"
+  ],
+  "initial_source_sha256": {
+    "Sources/TurtleGitCore/Stash.swift": "885f60abd7699108d410e9e757d0be293109efa5fb256c944bddd5d31ec1ccf0",
+    "Sources/TurtleGitCore/Bisect.swift": "0c083960e0b04423d498e0ad1f248bc0e3fdf82855dd6ac351b2f8f2b5eeebc2",
+    "Tests/TurtleGitCoreTests/StashPhaseReceiptTests.swift": "0f07099ba38ac470c6e70af238278b0679afbb16ccd8f2806933e5119a027f9a",
+    "Tests/TurtleGitCoreTests/SynchronizationStashTests.swift": "9acc235ec3d3054798eede5d3381132e6f0edf86fe6f808af47545fd5b9c4810",
+    "Sources/TurtleGitMac/StashWindow.swift": "62ef7304e37369a1dc5455a49133e47a66336f5ff0ae202185c9befaf9ecc0ec",
+    "Sources/TurtleGitMac/StashRestoreWindow.swift": "8d0cc297abb693694156986a7eb79d015817f65990af576bdd13bbf3629f6059",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "04963a7f89c4682f64f89f1e8dd86908efc6c68a8e282014aa2dc419797087e6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6dded647039394273682ab09379f72204047283a8531303f2fc4faa1fcd88ef7",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "6dc70ecaf19d47648bfc2adc7c90aac57c42c126552cb08964201d13f9d72005",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "4ee85082c6f4b1520c7af49c3f940651a17c0b43d4b691758c8d122f7e580e28",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "d7c8d0b54b563ac72470d082d2e50df5443700acd44046f3b8449a7b0927a7a5",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "a0e529e33d7e20ac8cd9056bc79200f7cc13e8e27e5a354caa472bcef50fcfa0",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "e70fbcebc8014a087f451eaf11cfb510b1baef4dd529acfc3c8bf4d6405d525e",
+    "Sources/TurtleGitMac/SubmoduleDiffWindow.swift": "ffd12e651cc390fd92144e38385a7ad36f0a418e29fb63385b3d35e096823851",
+    "Sources/TurtleGitMac/SubmoduleConflictWindow.swift": "bc1929d6915817752c3c87d68758025940e3c5e7e7818e96b8c150b5b41f6470"
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/Stash.swift": "885f60abd7699108d410e9e757d0be293109efa5fb256c944bddd5d31ec1ccf0",
+    "Sources/TurtleGitCore/Bisect.swift": "0c083960e0b04423d498e0ad1f248bc0e3fdf82855dd6ac351b2f8f2b5eeebc2",
+    "Tests/TurtleGitCoreTests/StashPhaseReceiptTests.swift": "0f07099ba38ac470c6e70af238278b0679afbb16ccd8f2806933e5119a027f9a",
+    "Tests/TurtleGitCoreTests/SynchronizationStashTests.swift": "9acc235ec3d3054798eede5d3381132e6f0edf86fe6f808af47545fd5b9c4810",
+    "Sources/TurtleGitMac/StashWindow.swift": "323b034fe23a81eaeb4f7f8df6fe0b84424909c81d50c136dd143975e6a19801",
+    "Sources/TurtleGitMac/StashRestoreWindow.swift": "8d0cc297abb693694156986a7eb79d015817f65990af576bdd13bbf3629f6059",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "04963a7f89c4682f64f89f1e8dd86908efc6c68a8e282014aa2dc419797087e6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "6dded647039394273682ab09379f72204047283a8531303f2fc4faa1fcd88ef7",
+    "Sources/TurtleGitMac/SubmoduleAddWindow.swift": "6dc70ecaf19d47648bfc2adc7c90aac57c42c126552cb08964201d13f9d72005",
+    "Sources/TurtleGitMac/SubmoduleAddProgressWindow.swift": "4ee85082c6f4b1520c7af49c3f940651a17c0b43d4b691758c8d122f7e580e28",
+    "Sources/TurtleGitMac/SubmoduleUpdateWindow.swift": "d7c8d0b54b563ac72470d082d2e50df5443700acd44046f3b8449a7b0927a7a5",
+    "Sources/TurtleGitMac/SubmoduleUpdateProgressWindow.swift": "a0e529e33d7e20ac8cd9056bc79200f7cc13e8e27e5a354caa472bcef50fcfa0",
+    "Sources/TurtleGitMac/SubmoduleSyncWindow.swift": "e70fbcebc8014a087f451eaf11cfb510b1baef4dd529acfc3c8bf4d6405d525e",
+    "Sources/TurtleGitMac/SubmoduleDiffWindow.swift": "ffd12e651cc390fd92144e38385a7ad36f0a418e29fb63385b3d35e096823851",
+    "Sources/TurtleGitMac/SubmoduleConflictWindow.swift": "bc1929d6915817752c3c87d68758025940e3c5e7e7818e96b8c150b5b41f6470"
+  },
+  "localization": {
+    "write": "passed",
+    "check": "passed",
+    "languages": 38,
+    "keys": 1392,
+    "fallback": "New untranslated custom labels retain English"
+  },
+  "coverage_reconciliation": {
+    "result": "passed",
+    "log": "build/qa/stash-submodule-coverage-final-2026-11-07.log",
+    "complete_port_claim": false
+  },
+  "hosted": {
+    "commit": "9a1ee02866580ddacc2848ed43355b27f42bb934",
+    "run": 42408561589,
+    "status": "in progress at final observed snapshot",
+    "failed_steps_observed": [],
+    "pages_run": 42408561584,
+    "pages": "passed",
+    "covers_current_uncommitted_batch": false
+  }
+}

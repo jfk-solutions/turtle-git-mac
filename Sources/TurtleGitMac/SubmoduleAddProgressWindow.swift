@@ -35,10 +35,11 @@ import TurtleGitCore
     private var closing=false
     private var release:FinderFilesystemWorkflowRelease?
     private var retiringChildren:[NSWindow]=[]
+    private var retiringParent:NSWindow?
     private let question=SubmoduleServiceQuestion()
     var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool {get{question.presentQuestion}set{question.presentQuestion=newValue}}
     var finderServiceCanPresent:Bool {!closing && !model.isRetired}
-    private var underlyingWorkPending:Bool {model.pendingOperations>0 || question.hasPendingWork || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    private var underlyingWorkPending:Bool {model.pendingOperations>0 || question.hasPendingWork || window?.sheetParent != nil || window?.attachedSheet != nil || (window != nil && retiringParent?.attachedSheet === window) || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     init(model: SubmoduleAddProgressWindowModel) {
         self.model = model
@@ -58,10 +59,11 @@ import TurtleGitCore
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.busy { model.cancel(); return false }; return !model.activeOperation && sender.attachedSheet == nil }
     func windowWillClose(_ notification:Notification){
         guard notification.object as? NSWindow === window,!closing else{return};closing=true
+        retiringParent=window?.sheetParent
         if let child=window?.attachedSheet{retiringChildren.append(child)}
         model.saveActionLog();question.retire();model.invalidate()
         if let window{if let child=window.attachedSheet{window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
-        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();retiringParent=nil;let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -97,6 +99,12 @@ import TurtleGitCore
     @Published private(set) var lastOutcome=SubmoduleAddOutcome()
     var canRetry:Bool {started && !activeOperation && pendingOperations == 0 && !invalidated && (!lastOutcome.added || !lastOutcome.verified || !lastOutcome.configured && lastOutcome.receipt != nil)}
     var retryTitle:String {lastOutcome.added ? lastOutcome.verified ? "Retry key configuration":"Retry opening submodule":"Retry"}
+    var progressTitle:String {
+        guard lastOutcome.added else{return "Adding submodule"}
+        if !lastOutcome.verified {return "Submodule added; checkout verification incomplete"}
+        if !lastOutcome.configured {return "Submodule added; SSH key configuration incomplete"}
+        return "Submodule added"
+    }
     var performAdd:((GitRepository,SubmoduleAddOptions,OperationCancellation) async throws->SubmoduleAddOutcome)?
     private var notifiedAdded=false
     var presentSSH: (SSHKeyPassphraseWindowController) -> Bool = { _ in false }
@@ -107,6 +115,9 @@ import TurtleGitCore
     var actionLogEligible: Bool { started && !busy }
     init(repository: GitRepository, access: RepositoryAccessLease?, sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?,
          options: SubmoduleAddOptions, preferences: UserDefaults = .standard, identities: SSHIdentityAccessStore = SSHIdentityAccessStore(), makeSSHCoordinator: SSHCloneTransportFactory? = nil) {
+        // An inherited accepted repository keeps its executor/backend. A direct
+        // command captures the owning preferences before its first suspension.
+        let repository=repository.libgit2Configuration == nil ? repository.capturingDiffBackend(preferences:preferences):repository
         self.repository = repository; self.access = access; self.sourceAccess = sourceAccess; self.keyAccess = keyAccess
         self.options = options; self.preferences = preferences; self.identities = identities; self.makeSSHCoordinator = makeSSHCoordinator
         autoClosePolicy = GitProgressAutoClose(preferences: preferences); streamState = GitProgressOutputState(preferences: preferences)
@@ -161,38 +172,38 @@ import TurtleGitCore
                 for await _ in updates { if !invalidated { streamState.consume(parser.processPending(), parser: parser); refreshOutput() } }
                 if !invalidated { streamState.consume(parser.processPending(), parser: parser); streamState.consume(parser.finish(), parser: parser); refreshOutput() }
                 outcome=try await operation.value
-                lastOutcome=outcome
                 guard !invalidated else{return}
+                lastOutcome=outcome
                 if !streamState.hasOutput {output=outcome.output.isEmpty ? (receipt == nil ? "Submodule added.":"Submodule SSH key configured."):outcome.output}
-                success=outcome.added && outcome.verified && outcome.configured
-                cancelled=request.isCancelled || outcome.cancelled
+                success=outcome.success
+                cancelled=outcome.cancelled
                 if let warning=outcome.verificationError{output += "\n"+warning;self.error=warning}
-                finishOutput(success:outcome.added,request:request,startedAt:startedAt)
+                finishOutput(success:outcome.success,startedAt:startedAt)
                 if success,!cancelled,!inspection,!notifiedAdded{notifiedAdded=true;onAdded(output)}
             } catch {
                 if let failure=error as? SubmoduleAddExecutionFailure {outcome=failure.outcome}
                 else if inspection {outcome=SubmoduleAddOutcome(phase:.adding,added:true,cancelled:request.isCancelled,output:lastOutcome.output,verified:false,verificationError:error.localizedDescription)}
                 else {outcome=SubmoduleAddOutcome(phase:receipt == nil ? .preparing:.configuringKey,added:receipt != nil,cancelled:request.isCancelled,output:error.localizedDescription,receipt:receipt)}
-                lastOutcome=outcome
                 guard !invalidated else{return}
+                lastOutcome=outcome
                 let underlying=(error as? SubmoduleAddExecutionFailure)?.underlying ?? error
                 let message:String
                 if outcome.added {message=error.localizedDescription}
                 else if let failure=underlying as? GitFailure,streamState.hasOutput {message="Git command failed (\(failure.code))."}
                 else {message=error.localizedDescription}
                 output += (output.isEmpty || output.hasSuffix("\n") ? "" : "\n") + message
-                if !request.isCancelled { self.error = message }
-                finishOutput(success: false, request: request, startedAt: startedAt, exitCode: (underlying as? GitFailure)?.code)
+                if !outcome.cancelled { self.error = message }
+                finishOutput(success: false, startedAt: startedAt, exitCode: (underlying as? GitFailure)?.code)
             }
         }
     }
     private func refreshOutput() {
         output = streamState.output; currentWork = streamState.currentWork; percentage = streamState.percentage
     }
-    private func finishOutput(success: Bool, request: OperationCancellation, startedAt: TimeInterval, exitCode: Int32? = nil) {
-        let completion = SubmoduleProgressCompletion(success: success, cancelled: request.isCancelled || lastOutcome.cancelled, exitCode: exitCode,
+    private func finishOutput(success: Bool, startedAt: TimeInterval, exitCode: Int32? = nil) {
+        let completion = SubmoduleProgressCompletion(success: success, cancelled: lastOutcome.cancelled, exitCode: exitCode,
             elapsed: ProcessInfo.processInfo.systemUptime - startedAt, preferences: preferences)
-        cancelled = request.isCancelled || lastOutcome.cancelled
+        cancelled = lastOutcome.cancelled
         currentWork = completion.currentWork; percentage = 100; completionRange = completion.append(to: &output)
     }
 
@@ -217,7 +228,7 @@ private struct SubmoduleAddProgressDialog: View {
     @ObservedObject var model: SubmoduleAddProgressWindowModel
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(model.lastOutcome.added && !model.success ? "Submodule added; SSH key configuration incomplete":"Adding submodule").font(.headline)
+            Text(LocalizedStringKey(model.progressTitle)).font(.headline).lineLimit(1).truncationMode(.tail).help(NSLocalizedString(model.progressTitle,comment:""))
             Text(model.repository.root.path).font(.caption).textSelection(.enabled)
             Text(model.currentWork.isEmpty ? " " : model.currentWork).font(.caption).lineLimit(1).help(model.currentWork)
             ProgressView(value: Double(model.busy ? model.percentage ?? 0 : 100), total: 100)

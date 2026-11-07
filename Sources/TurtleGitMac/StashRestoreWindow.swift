@@ -25,7 +25,18 @@ struct StashRestorePrompt {
     private let showChanges: Int
     let preferences: UserDefaults
     private var started = false, completed = false, invalidated = false
-    @Published var confirmingQuit=false {didSet {if !confirmingQuit,let pending=pendingDecision {pendingDecision=nil;accept(pending.0,show:pending.1,remember:pending.2)}}}
+    private var interactionGeneration=0
+    @Published var confirmingQuit=false {didSet {if oldValue != confirmingQuit {interactionGeneration += 1};if !confirmingQuit,let pending=pendingDecision {pendingDecision=nil;accept(pending.0,show:pending.1,remember:pending.2)}}}
+    private final class CommandReceipt:@unchecked Sendable {
+        private let lock=NSLock()
+        private var value:StashSaveCommandCompletion?
+        func record(_ next:StashSaveCommandCompletion){lock.lock();defer{lock.unlock()};if value==nil{value=next}}
+        func read()->StashSaveCommandCompletion?{lock.lock();defer{lock.unlock()};return value}
+    }
+    private let commandReceipt=CommandReceipt()
+    private var acceptedMutationStopped:((String)->Void)?
+    private(set) var acceptedBackend:GitLibGit2Configuration?
+    var captureBackend:()->GitLibGit2Configuration
     private var pendingDecision:(StashRestorePrompt,Bool,Bool)?
     var handoffPresentation: MergeWindowPresentation?
     var finishAndPerform:((@escaping ()->Void)->Void)?
@@ -40,20 +51,23 @@ struct StashRestorePrompt {
     @Published private(set) var output = ""
     @Published private(set) var currentWork = ""
     @Published private(set) var percentage: Int?
+    var active:Bool {!invalidated}
     var success: Bool { result?.conflicted == false && !cancelled && error == nil }
     var restore: (Bool, String?, OperationCancellation) async throws -> StashRestoreResult {
-        didSet { let replacement = restore; restoreStreaming = { pop, reference, token, _ in try await replacement(pop, reference, token) } }
+        didSet { let replacement = restore; restoreStreaming = { pop, reference, token, _, _, _ in try await replacement(pop, reference, token) } }
     }
-    var restoreStreaming: (Bool, String?, OperationCancellation, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> StashRestoreResult
+    var restoreStreaming: (Bool, String?, OperationCancellation, GitLibGit2Configuration, @escaping @Sendable (GitOutputChunk) -> Void, @escaping @Sendable (StashSaveCommandCompletion) -> Void) async throws -> StashRestoreResult
     var confirmCancellation: (@escaping (Bool) -> Void) -> Void = { $0(false) }
     var onChanged: (String) -> Void = { _ in }
+    var onMutationStopped:(String)->Void = {_ in}
     var onViewChanges: () -> Void = {}
     var close: () -> Void = {}
     var onStateChanged: () -> Void = {}
     var onPresent: (StashRestorePrompt, @escaping (Bool, Bool) -> Void) -> Void = { _, choose in choose(false, false) }
     init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults = .standard) {
         restore = { try await repository.restoreStash(pop: $0, reference: $1, cancellation: $2) }
-        restoreStreaming = { try await repository.restoreStash(pop: $0, reference: $1, cancellation: $2, onOutput: $3) }
+        restoreStreaming = { try await repository.restoreStash(pop:$0,reference:$1,cancellation:$2,backend:$3,onOutput:$4,onCommandFinished:$5) }
+        captureBackend={.load(from:preferences,helperURL:repository.libgit2Configuration?.helperURL)}
         self.repository = repository; self.access = access; self.pop = pop; self.reference = reference; self.showChanges = showChanges; self.preferences = preferences
     }
     func invalidate() { invalidated = true; cancellation?.cancel(); confirmingCancellation = false; prompt = nil;pendingDecision=nil }
@@ -70,13 +84,19 @@ struct StashRestorePrompt {
     }
     func start() {
         guard !started, !invalidated, !confirmingQuit else { return }; started = true
-        let token = OperationCancellation(); cancellation = token; Self.activeOperations += 1; pendingTransportOperations += 1
+        let token = OperationCancellation(); cancellation = token;acceptedBackend=captureBackend();acceptedMutationStopped=onMutationStopped; Self.activeOperations += 1; pendingTransportOperations += 1
         busy = true; onStateChanged()
         Task { await execute(token) }
     }
     private func execute(_ token: OperationCancellation) async {
+        let mutationStopped=acceptedMutationStopped ?? onMutationStopped,backend=acceptedBackend ?? captureBackend(),receipt=commandReceipt
+        var mutationOutput=""
         LocalGitCommandProgress.begin()
-        defer { Self.activeOperations -= 1; pendingTransportOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; busy = false; cancelling = false; confirmingCancellation = false; cancellation = nil; currentWork = ""; percentage = nil }
+        defer {
+            Self.activeOperations -= 1; pendingTransportOperations -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}
+            busy=false;cancelling=false;confirmingCancellation=false;cancellation=nil;currentWork="";percentage=nil;acceptedMutationStopped=nil
+            if receipt.read() != nil {mutationStopped(mutationOutput)}
+        }
 
         do {
             guard !invalidated else { return }
@@ -85,7 +105,8 @@ struct StashRestorePrompt {
             let restored = try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] state in
                 guard let self, !self.invalidated, self.cancellation === token else { return }
                 self.output = state.output; self.currentWork = state.currentWork; self.percentage = state.percentage; self.onStateChanged()
-            }, resultText: { $0.output }, operation: { [self] emit in try await restoreStreaming(pop, reference, token, emit) })
+            }, resultText: { $0.output }, operation: { [self,receipt] emit in try await restoreStreaming(pop,reference,token,backend,emit,{receipt.record($0)}) })
+            mutationOutput=restored.output
             guard !invalidated else { return }
             if token.isCancelled { throw OperationCancellationFailure.cancelled }
             result = restored; busy = false; confirmingCancellation = false; onChanged(restored.output); onStateChanged()
@@ -99,6 +120,7 @@ struct StashRestorePrompt {
                 present(StashRestorePrompt(kind: .notice, message: title, detail: "", conflicted: restored.conflicted, rememberKey: nil))
             } else { finish(show: false) }
         } catch {
+            mutationOutput=(error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
             guard !invalidated else { return }
             cancelled = token.isCancelled || error is OperationCancellationFailure || error is GitCommandCancellationFailure
             let detail = (error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
@@ -126,17 +148,21 @@ struct StashRestorePrompt {
     }
     private func finish(show: Bool) {
         guard !completed,!invalidated,!busy,!confirmingQuit else{return};completed=true;prompt=nil
-        let view=onViewChanges,dispatch={if show {view()}}
+        let view=onViewChanges,generation=interactionGeneration
+        let dispatch={ [self] in if show,!confirmingQuit,interactionGeneration==generation {view()} }
         if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}
     }
 }
 
 @MainActor final class StashRestoreWindowController: NSWindowController, NSWindowDelegate {
     let model: StashRestoreWindowModel
+    var canPresent:Bool {!closed && !finishing && model.active}
+    override func showWindow(_ sender:Any?){guard canPresent else{return};super.showWindow(sender)}
     var repository: GitRepository { model.repository }
     var pop: Bool { model.pop }
     var onChanged: (String) -> Void { get { model.onChanged } set { model.onChanged = newValue } }
     var onViewChanges: () -> Void { get { model.onViewChanges } set { model.onViewChanges = newValue } }
+    var onMutationStopped:(String)->Void {get{model.onMutationStopped}set{model.onMutationStopped=newValue}}
     var onClosed: () -> Void = {}
     var transportBatchWorkPending:Bool {model.pendingTransportOperations>0 || window?.attachedSheet != nil || window?.sheetParent != nil}
     private let spinner = NSProgressIndicator()
@@ -146,7 +172,9 @@ struct StashRestorePrompt {
     private var ownedAlert: NSAlert?
     private var ownedReply: ((Bool, Bool) -> Void)?
     private var cancellationAlert = false
-    private var closed = false,finishing=false,releasingAlert=false
+    private var closed = false,finishing=false,releasingAlert=false,released=false
+    private var retirementRelease:StashChildRelease?
+    private var closedActions:[()->Void]=[]
     private var afterAlertRelease:[()->Void]=[]
     init(repository: GitRepository, access: RepositoryAccessLease?, pop: Bool, reference: String? = nil, showChanges: Int = 1, preferences: UserDefaults = .standard) {
         model = StashRestoreWindowModel(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
@@ -245,15 +273,22 @@ struct StashRestorePrompt {
             // explicitly so its completion is still delivered exactly once.
             self.close()
             if !self.closed,!window.isVisible,window.sheetParent == nil {self.retireClosedWindow()}
-            if self.closed {action()}
+            if self.released {action()} else if self.closed {self.closedActions.append(action)}
         };release.start()
     }
     func start() { model.start() }
     func windowShouldClose(_ sender: NSWindow) -> Bool {guard !model.confirmingQuit,!finishing else{return false}; if model.busy { model.cancel(); return false }; return model.prompt == nil && sender.attachedSheet == nil }
     private func retireClosedWindow() {
         guard !closed else{return};closed=true;model.invalidate();endOwnedAlert()
-        if let window,window.sheetParent != nil {let release=StashChildRelease(window:window,parent:window.sheetParent) {};release.start()}
-        onClosed()
+        let complete={ [self] in
+            released=true;retirementRelease=nil;onClosed()
+            let actions=closedActions;closedActions=[];actions.forEach{$0()}
+        }
+        guard let window else{complete();return}
+        let release=StashChildRelease(window:window,parent:window.sheetParent,ready:{ [self] in
+            model.pendingTransportOperations==0 && ownedAlert==nil && !releasingAlert
+        },completion:complete)
+        retirementRelease=release;release.start()
     }
     func windowWillClose(_ notification:Notification) {retireClosedWindow()}
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }

@@ -33,6 +33,16 @@ import TurtleGitCore
           [ "$task_argument" = update ] && task_operation=update
           [ "$task_argument" = sync ] && task_operation=sync
         done
+        task_directory=no
+        for task_argument in "$@"; do [ "$task_argument" = --absolute-git-dir ] && task_directory=yes; done
+        if [ "$task_directory" = yes ] && [ -f "$0.pause-discovery" ] && [ -s "$0.calls" ]; then
+          /bin/sleep 30 &
+          task_child=$!
+          trap 'kill "$task_child" 2>/dev/null;wait "$task_child" 2>/dev/null;exit 143' TERM INT
+          printf '%s %s\\n' "$$" "$task_child" > "$0.discovery-started.pending"
+          mv "$0.discovery-started.pending" "$0.discovery-started"
+          wait "$task_child"
+        fi
         if [ "$task_operation" != no ]; then
           printf '%s\\n' "$task_operation" >> "$0.calls"
           if [ "$task_operation" = update ]; then
@@ -50,7 +60,8 @@ import TurtleGitCore
             /bin/sleep 30 &
             task_child=$!
             trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-            printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+            printf '%s %s\\n' "$$" "$task_child" > "$0.started.pending"
+            mv "$0.started.pending" "$0.started"
             wait "$task_child"
           fi
           exit 0
@@ -65,9 +76,14 @@ import TurtleGitCore
         owner.isReleasedWhenClosed=false;owner.alphaValue=0;owner.appearance=NSAppearance(named:.darkAqua)
         defer {for update in updates {update.close()};for sync in syncs {sync.close()};owner.close();preferences.removePersistentDomain(forName:suite);DialogGeometry.install(preferences:.standard)}
         var options=SubmoduleUpdateOptions();options.noFetch=true
-        let pointer=MemoryLayout<UnsafeRawPointer?>.size,fixed=[wrapper.path,"--literal-pathspecs","-C",parent.root.path,"-c","core.precomposeunicode=false"]+options.arguments(paths:[])
-        let limit=fixed.reduce(pointer) {$0+$1.utf8.count+1+pointer}+[first,second,third].map {$0.utf8.count+1+pointer}.max()!
-        func resetFlags() throws {for suffix in [".calls",".started",".failed",".fail-first",".pause-second"] {let path=wrapper.path+suffix;if FileManager.default.fileExists(atPath:path){try FileManager.default.removeItem(atPath:path)}}}
+        let pointer:Int=MemoryLayout<UnsafeRawPointer?>.size
+        let invocation:[String]=[wrapper.path,"--literal-pathspecs","-C",parent.root.path,"-c","core.precomposeunicode=false"]
+        let fixed:[String]=invocation+options.arguments(paths:[])
+        let fixedBytes:Int=fixed.reduce(pointer) { (count:Int,argument:String)->Int in count+argument.utf8.count+1+pointer }
+        let pathBytes:[Int]=[first,second,third].map { (path:String)->Int in path.utf8.count+1+pointer }
+        let largestPath:Int=pathBytes.max()!
+        let limit:Int=fixedBytes+largestPath
+        func resetFlags() throws {for suffix in [".calls",".started",".failed",".fail-first",".pause-second",".pause-discovery",".discovery-started"] {let path=wrapper.path+suffix;if FileManager.default.fileExists(atPath:path){try FileManager.default.removeItem(atPath:path)}}}
         func newUpdate(_ paths:[String])->SubmoduleUpdateProgressWindowController {
             let update=SubmoduleUpdateProgressWindowController(repository:repository,access:nil,paths:paths,options:options,preferences:preferences)
             update.window?.alphaValue=0;update.window?.appearance=owner.appearance;update.model.argumentByteLimit=limit;updates.append(update);return update
@@ -116,6 +132,26 @@ import TurtleGitCore
                 try await wait {SubmoduleUpdateProgressWindowModel.activeOperations==0 && SubmoduleSyncWindowModel.activeOperations==0}
                 try require(attempts==1 && completed==0 && cancelledReceipt && pids.count==2 && pids.allSatisfy {kill($0,0) != 0},"Forced close lost partial receipt, advanced success or leaked process children")
                 try require(try String(contentsOf:URL(fileURLWithPath:wrapper.path+".calls")).split(separator:"\n").count==2,"Cancellation started a later selected command")
+            }
+            // Requested Update has completed. Optional Bisect discovery owns
+            // a different token and cannot rewrite its accepted mutation result.
+            for forcedClose in [false,true] {
+                try resetFlags();try Data().write(to:URL(fileURLWithPath:wrapper.path+".pause-discovery"))
+                let complete=newUpdate([first]);var attempts=0,successes=0,replacements=0
+                complete.model.onAttemptCompleted={value in attempts += 1;precondition(value.success && !value.cancelled && value.successfulPaths==[first])}
+                complete.model.onUpdated={_ in successes += 1};complete.model.start()
+                let marker=URL(fileURLWithPath:wrapper.path+".discovery-started")
+                try await wait{FileManager.default.fileExists(atPath:marker.path) && complete.model.discoveringPostActions}
+                let pids=try String(contentsOf:marker,encoding:.utf8).split(whereSeparator:\.isWhitespace).compactMap{Int32($0)}
+                try require(attempts==1 && successes==0 && complete.model.result?.success==true && complete.model.result?.cancelled==false && pids.count==2 && pids.allSatisfy{kill($0,0)==0},"Optional discovery hid a completed Update receipt or lost owned processes")
+                complete.model.onAttemptCompleted={_ in replacements += 1}
+                if forcedClose {complete.close()}else{complete.model.cancel()}
+                try await wait{SubmoduleUpdateProgressWindowModel.activeOperations==0 && !complete.model.discoveringPostActions && pids.allSatisfy{kill($0,0) != 0}}
+                try require(attempts==1 && replacements==0 && complete.model.result?.success==true && complete.model.result?.cancelled==false && complete.model.result?.exitCode==0 && complete.model.postActions.isEmpty,"Discovery cancellation rewrote accepted Update or published unverified actions")
+                try require(successes==(forcedClose ? 0:1),"Discovery retirement lost live success or published closed success")
+                if !forcedClose {try require(complete.model.success && !complete.model.cancelled,"Optional cancellation became requested operation cancellation")}
+                try require(try String(contentsOf:URL(fileURLWithPath:wrapper.path+".calls"),encoding:.utf8)=="update\n","Discovery repeated the requested Update")
+                complete.close()
             }
             try resetFlags()
             try Data("main\n".utf8).write(to:parent.root.appendingPathComponent(".git/BISECT_START"))

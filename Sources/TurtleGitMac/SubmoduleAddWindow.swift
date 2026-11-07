@@ -10,8 +10,10 @@ import TurtleGitCore
     private var closing=false
     private var release:FinderFilesystemWorkflowRelease?
     private var retiringChildren:[NSWindow]=[]
+    private var retiringParent:NSWindow?
+    private var pickerRelease:FinderFilesystemWorkflowRelease?
     var finderServiceCanPresent:Bool {!closing && !model.isRetired}
-    private var underlyingWorkPending:Bool {panel != nil || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    private var underlyingWorkPending:Bool {pickerRelease != nil || panel != nil || window?.sheetParent != nil || window?.attachedSheet != nil || (window != nil && retiringParent?.attachedSheet === window) || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     private(set) var panel: NSOpenPanel?
     private var pickerID=UUID()
@@ -20,7 +22,7 @@ import TurtleGitCore
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String = "", preferences: UserDefaults = .standard,clipboardText:String? = nil) {
         model = SubmoduleAddWindowModel(repository: repository, access: access, path: path, preferences: preferences,clipboardText:clipboardText)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 310), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Submodule Add – TurtleGit"; window.isReleasedWhenClosed = false
+        RepositoryWindowTitles.set(window,repository:repository.root,dialog:"Submodule Add",preferences:preferences);window.isReleasedWhenClosed = false
         window.contentMinSize = NSSize(width: 670, height: 310)
         let host = NSHostingController(rootView: SubmoduleAddDialog(model: model).defaultAppStorage(preferences))
         host.sizingOptions = []; window.contentViewController = host
@@ -38,22 +40,55 @@ import TurtleGitCore
         let panel = NSOpenPanel(); self.panel = panel; model.picking = true
         panel.canChooseFiles = kind == .key; panel.canChooseDirectories = kind != .key
         panel.allowsMultipleSelection = false; panel.canCreateDirectories = kind == .path
-        panel.directoryURL = kind == .path ? model.repository.root : nil
+        let initial=initialPickerSelection(kind)
+        panel.directoryURL=initial.directory
+        if let name=initial.name {panel.nameFieldStringValue=name}
         panel.alphaValue=window.alphaValue;panel.appearance=window.appearance
         panel.prompt = kind == .key ? "Select OpenSSH key" : "Select folder"
         presentOpenPanel(panel,window) { [weak self, weak panel] response in
-            guard let self,let panel,self.pickerID==identity,self.panel === panel else { return }
-            self.panel = nil; self.model.picking = false
-            if response == .OK,self.model.inputIdentity.elementsEqual(snapshot,by:{$0.utf16.elementsEqual($1.utf16)}),let url=self.selectedPanelURL(panel) {self.model.acceptSelection(url,kind:kind)}
+            guard let self,let panel,self.pickerID==identity,self.panel === panel,self.pickerRelease==nil else { return }
+            let selected=response == .OK ? self.selectedPanelURL(panel):nil
+            let parent=panel.sheetParent
+            parent?.endSheet(panel,returnCode:response);panel.orderOut(nil);panel.close()
+            let release=FinderFilesystemWorkflowRelease(ready:{panel.sheetParent==nil && parent?.attachedSheet !== panel}){[self,panel] in
+                self.pickerRelease=nil
+                guard self.pickerID==identity,self.panel === panel else{return}
+                self.panel=nil;self.model.picking=false
+                guard !self.closing,self.model.inputIdentity.elementsEqual(snapshot,by:{$0.utf16.elementsEqual($1.utf16)}),let selected else{return}
+                self.model.acceptSelection(selected,kind:kind)
+            }
+            self.pickerRelease=release;release.start()
         }
+    }
+    /// Seed the native chooser from the reviewed field, as the source Browse
+    /// controls do. Missing destinations start at their nearest existing parent.
+    private func initialPickerSelection(_ kind:SubmoduleAddWindowModel.Picker)->(directory:URL?,name:String?) {
+        let value=kind == .repository ? model.source:kind == .path ? model.path:model.key
+        let requested:URL?
+        if value.hasPrefix("/") {requested=URL(fileURLWithPath:value)}
+        else if let url=URL(string:value),url.isFileURL {requested=url}
+        else if !value.isEmpty,!value.contains(":"),kind != .key {requested=model.repository.root.appendingPathComponent(value)}
+        else {requested=nil}
+        guard var folder=requested?.standardizedFileURL else{return(model.repository.root,nil)}
+        var directory:ObjCBool=false
+        let exists=FileManager.default.fileExists(atPath:folder.path,isDirectory:&directory)
+        let name=kind == .key && exists && !directory.boolValue ? folder.lastPathComponent:nil
+        if kind == .key || exists && !directory.boolValue {folder.deleteLastPathComponent()}
+        while !FileManager.default.fileExists(atPath:folder.path,isDirectory:&directory) || !directory.boolValue {
+            let parent=folder.deletingLastPathComponent()
+            if parent.path.utf8.elementsEqual(folder.path.utf8) {return(model.repository.root,name)}
+            folder=parent
+        }
+        return(folder,name)
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.activeOperation && sender.attachedSheet == nil }
     func windowWillClose(_ notification:Notification){
         guard notification.object as? NSWindow === window,!closing else{return};closing=true
+        retiringParent=window?.sheetParent
         model.invalidate();pickerID=UUID();let owned=panel;panel=nil;model.picking=false
         if let owned{retiringChildren.append(owned);owned.sheetParent?.endSheet(owned,returnCode:.cancel);owned.orderOut(nil);owned.cancel(nil);owned.close()}
         if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
-        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();retiringParent=nil;let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -168,7 +203,7 @@ import TurtleGitCore
             for (field, value) in [("SubmoduleAdd.URLHistory", options.source.trimmingCharacters(in: .whitespacesAndNewlines)), ("SubmoduleAdd.PathHistory", options.path.trimmingCharacters(in: .whitespacesAndNewlines))] { saveHistory(field, value) }
             saveHistory("Clone.KeyHistory", key)
             submitted = true
-            let progress = SubmoduleAddProgressWindowModel(repository: repository, access: access, sourceAccess: sourceAccess, keyAccess: keyAccess,
+            let progress = SubmoduleAddProgressWindowModel(repository: repository.capturingDiffBackend(preferences:preferences), access: access, sourceAccess: sourceAccess, keyAccess: keyAccess,
                 options: options, preferences: preferences, identities: identities, makeSSHCoordinator: makeSSHCoordinator)
             sourceAccess = nil; keyAccess = nil
             onSubmit(progress); close()

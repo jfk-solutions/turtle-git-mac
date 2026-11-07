@@ -78,7 +78,12 @@ final class SynchronizationStashTests: XCTestCase {
             for _ in 0..<1000 { if FileManager.default.fileExists(atPath:marker.path) { break }; try await Task.sleep(nanoseconds:5_000_000) }
             XCTAssertTrue(FileManager.default.fileExists(atPath:marker.path),"Reference read did not reach the controlled stall")
             token.cancel()
-            do { _ = try await operation.value; XCTFail("Cancelled reference inspection must not return Save success") } catch is OperationCancellationFailure {}
+            do { _ = try await operation.value; XCTFail("Cancelled reference inspection must not return Save success") }
+            catch let failure as GitCommandCancellationFailure {
+                // Reference reads preserve the actual owned process receipt.
+                XCTAssertTrue([Int32(130),143,137].contains(failure.result.exitCode))
+            }
+            catch is OperationCancellationFailure {}
             let pid = pid_t(try String(contentsOf:marker).trimmingCharacters(in:.newlines))!
             let processState = kill(pid,0), processError = errno
             XCTAssertEqual(processState,-1); XCTAssertEqual(processError,ESRCH)

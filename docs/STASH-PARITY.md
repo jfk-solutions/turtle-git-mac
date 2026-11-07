@@ -88,7 +88,8 @@ were verified; no conflict prompt image is published.
   Broader deletion/recovery QA remains pending. The pinned source does not offer
   selected Pop or branch-from-stash in this menu; they are not parity requirements.
   See REFLOG-PARITY.md.
-- Explicit user-data guard matching the upstream pre-dialog flow.
+- The owned identity guard and Git Settings repair are implemented; broader
+  physical/signed acceptance remains open (see the November 7 continuation).
 - Native Continue suppression persistence/relaunch and window-close invariants,
   horizontal resizing and dark appearance QA.
 - Signed sandbox/Finder invocation and App Store runtime validation.
@@ -342,3 +343,63 @@ closure preserves the captured output and waits for actual worker and sheet
 drain before releasing the owner. These metadata reads are native continuation
 work beyond the source process boundary; their cancellation remains owned by the
 same operation.
+
+
+## Identity, mutation receipts and retained results — November 7, 2026
+
+Pinned `AppUtils.cpp::CheckUserData` asks Yes/No before opening Git Settings and
+re-reads effective author and committer identity before allowing Save. The
+existing native identity preparation now includes that missing owned question.
+Yes reaches the same repository-bound Git Settings page; No or cancelled
+preparation closes the unprepared host without invoking `stash push`. Identity
+is read during initial preparation and accepted submission, not while typing.
+The question, Settings child and preparation token remain owned through native
+sheet detachment. Repeated, late, retired or Quit-fenced answers cannot reopen
+Settings, submit Git or persist warning suppression.
+
+Pinned `StashSave.cpp` initializes Include Untracked and All to false for each
+new dialog. Their three reachable combinations remain a per-dialog draft, with
+mutual exclusion and preservation across warning/identity repair; no global
+option persistence is introduced. The existing source message, action order and
+conditional Pop/Apply menus are retained.
+
+Save's before/after `refs/stash` reads now distinguish a missing reference from
+an unexpected read failure. The Core command receipt remains the actual Git
+process outcome. A post-save identity-read failure retains the successful
+command output/footer and presents a separate metadata diagnostic; it does not
+invent a created stash or offer Pop/Apply against an unknown new identity.
+
+Save and Restore capture a separate `onMutationStopped` observer at accepted
+start. An actual stash-command receipt causes exactly one refresh notification
+after the command and its result work drain, including failure/cancellation and
+forced retirement. Pre-launch/ref-resolution failures emit no mutation receipt.
+These observations do not claim command success and cannot publish retired UI,
+open a follow-up, change a selected stash OID or replace a newer callback. Root
+repository refreshes use this observer; active-dialog result callbacks remain
+separate. Restore captures the owner's backend once for conflict inspection.
+
+Forced Restore closure now retains its actual worker, owned result/cancellation
+alert and sheet release before delivering `onClosed`. Accepted View Changes waits
+for that same boundary; a later Quit transition or forced closure drops the
+handoff. Cached retiring Save/Restore windows cannot be reopened or bypass the
+same-repository mutation gate. Replay's internal save now passes its existing
+preparation cancellation token and retains the captured repository refresh if a
+stash command completed before its owner retired. Replay restoration similarly
+separates retired mutation refresh from active output and handoff.
+Replay also retains an unresolved saved-stash obligation when push succeeds but
+its resulting reference read fails. Start remains disabled; the original output
+and metadata diagnostic survive without a second replay inspection or stash
+submission. Closing offers Show Stash Log, Leave Changes Stashed or Cancel.
+Review/Cancel preserve the obligation; only explicit Leave acknowledges manual
+restoration. An unknown stash is never automatically popped.
+
+Follow-up actions capture both parent and progress interaction receipts when
+accepted, before asynchronous closure. A fresh action after cancelled Quit remains
+usable; a Quit transition after acceptance still invalidates its retained action.
+
+The [coordinated checkpoint](qa/stash-submodule-recovery-2026-11-07.json) records
+40 Core cases and 34 native case/engine pairs passing cumulatively. Initial
+failures and their focused repairs remain recorded; unaffected checks were not
+repeated. Full corrected-source hosted, physical/VoiceOver, crash recovery,
+external-writer and signed App Store acceptance remain open. Installed build 52
+was not updated and no binary was published.

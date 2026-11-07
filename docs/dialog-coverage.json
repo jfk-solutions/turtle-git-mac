@@ -3382,10 +3382,12 @@
       "parity_documents": [
         "docs/HELP-PARITY.md",
         "docs/SUBMODULE-ADD-PARITY.md",
-        "docs/SUBMODULE-ADD-RECOVERY-PARITY.md"
+        "docs/SUBMODULE-ADD-RECOVERY-PARITY.md",
+        "docs/SUBMODULE-OWNERSHIP-RESULTS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/help-book-2026-10-15.json",
+        "docs/qa/stash-submodule-recovery-2026-11-07.json",
         "docs/qa/stash-submodule-workflows-2026-10-18.json",
         "docs/qa/submodule-add-2026-10-09.json",
         "docs/qa/submodule-add-progress-styling-2026-10-09.json",
@@ -3920,6 +3922,7 @@
         "docs/qa/stash-replay-batch-2026-10-12.json",
         "docs/qa/stash-restore-2026-10-08.json",
         "docs/qa/stash-save-progress-2026-10-08.json",
+        "docs/qa/stash-submodule-recovery-2026-11-07.json",
         "docs/qa/stash-submodule-workflows-2026-10-18.json",
         "docs/qa/sync-literal-reference-family-2026-10-24.json",
         "docs/qa/sync-replay-hooks-2026-10-14.json",
@@ -3970,13 +3973,15 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/SUBMODULE-DIALOG-ACTIONS-PARITY.md",
-        "docs/SUBMODULE-DIFF-PARITY.md"
+        "docs/SUBMODULE-DIFF-PARITY.md",
+        "docs/SUBMODULE-OWNERSHIP-RESULTS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/changed-files-actions-2026-10-15.json",
         "docs/qa/changed-files-recovery-2026-10-16.json",
         "docs/qa/parallel-port-families-2026-10-18.json",
         "docs/qa/prepared-submodule-2026-10-16.json",
+        "docs/qa/stash-submodule-recovery-2026-11-07.json",
         "docs/qa/submodule-handoffs-2026-10-14.json",
         "docs/qa/submodule-review-family-2026-10-21.json"
       ]
@@ -4029,6 +4034,7 @@
       "native_sources": [],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/SUBMODULE-OWNERSHIP-RESULTS-PARITY.md",
         "docs/SUBMODULE-UPDATE-PARITY.md",
         "docs/SUBMODULE-UPDATE-RECOVERY-PARITY.md",
         "docs/UI-PARITY.md"
@@ -4039,6 +4045,7 @@
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-stream-2026-10-08.json",
         "docs/qa/saved-data-2026-10-08.json",
+        "docs/qa/stash-submodule-recovery-2026-11-07.json",
         "docs/qa/stash-submodule-workflows-2026-10-18.json",
         "docs/qa/submodule-commands-2026-10-18.json",
         "docs/qa/submodule-path-identities-2026-10-17.json",
@@ -4492,11 +4499,13 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/SUBMODULE-CONFLICT-PARITY.md",
-        "docs/SUBMODULE-DIALOG-ACTIONS-PARITY.md"
+        "docs/SUBMODULE-DIALOG-ACTIONS-PARITY.md",
+        "docs/SUBMODULE-OWNERSHIP-RESULTS-PARITY.md"
       ],
       "qa_records": [
         "docs/qa/conflict-identities-2026-10-15.json",
         "docs/qa/conflict-review-2026-10-14.json",
+        "docs/qa/stash-submodule-recovery-2026-11-07.json",
         "docs/qa/submodule-review-family-2026-10-21.json"
       ]
     },

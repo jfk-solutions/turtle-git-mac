@@ -49,6 +49,7 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     private var releaseTask:Task<Void,Never>?
     private var conflictHandoff:(()->Void)?
     private var retiringSheets:[NSWindow]=[]
+    private var retiringParent:NSWindow?
     private(set) static var activeReleases=0
     var canReuse:Bool {!closed && !model.retired}
     var hasPendingWork:Bool {releaseTask != nil || model.hasPendingWork || updateOptions != nil || updateProgress != nil || window?.attachedSheet != nil || window?.sheetParent != nil || retiringSheets.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
@@ -135,17 +136,17 @@ private final class SubmoduleDiffNativeWindow: NSWindow {
     }
     func windowWillClose(_ notification: Notification) {
         guard notification.object as? NSWindow===window,!closed else{return}
-        closed=true;model.invalidate();pendingSheetAction=nil;NotificationCenter.default.removeObserver(self)
+        closed=true;retiringParent=window?.sheetParent;model.invalidate();pendingSheetAction=nil;NotificationCenter.default.removeObserver(self)
         updateOptions?.model.invalidate();updateProgress?.model.invalidate()
         if let child=window?.attachedSheet {retiringSheets.append(child);window?.endSheet(child,returnCode:.abort);child.close()}
         updateOptions?.window?.close();updateProgress?.window?.close()
         if let window,let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)}
         Self.activeReleases += 1
         releaseTask=Task{@MainActor [self] in
-            while model.pendingReads>0 || updateOptions != nil || updateProgress != nil || window?.attachedSheet != nil || window?.sheetParent != nil || retiringSheets.contains(where:{$0.sheetParent != nil || $0.attachedSheet != nil}) {
+            while (window != nil && retiringParent?.attachedSheet === window) || model.pendingReads>0 || updateOptions != nil || updateProgress != nil || window?.attachedSheet != nil || window?.sheetParent != nil || retiringSheets.contains(where:{$0.sheetParent != nil || $0.attachedSheet != nil}) {
                 try? await Task.sleep(nanoseconds:5_000_000)
             }
-            let handoff=conflictHandoff;conflictHandoff=nil;retiringSheets=[];releaseTask=nil;Self.activeReleases -= 1
+            let handoff=conflictHandoff;conflictHandoff=nil;retiringSheets=[];retiringParent=nil;releaseTask=nil;Self.activeReleases -= 1
             let done=onClosed;onClosed={};done()
             if !model.confirmingQuit {handoff?()}
         }

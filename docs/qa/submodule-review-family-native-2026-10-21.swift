@@ -168,16 +168,34 @@ import TurtleGitCore
         workspace.showConflictEditor(repository:f.parent,access:nil,path:f.path,preferences:c.otherPrefs);try await wait{conflicts.count==4}
         try require(conflicts[3] === conflicts[2],"Old owner close callback removed replacement cache entry")
         try await capture(first.window,"submodule-conflict")
+        c.prefs.set(false,forKey:"UseLibgit2");c.prefs.set(UInt32(0x1234),forKey:"UseLibgit2_mask")
+        let accepted=first.model.repository.capturingDiffBackend(preferences:c.prefs)
+        let originalReset=first.model.onReset
+        var resetRepositories:[GitRepository]=[]
+        first.model.onReset={repository,revision,completion in
+            resetRepositories.append(repository);originalReset(repository,revision,completion)
+        }
         var confirmations=0,sourceButtons=false
-        first.sheets.present={_,alert,reply in confirmations += 1;sourceButtons=alert.buttons.map(\.title)==["Yes","No"];DispatchQueue.main.async{reply(.alertFirstButtonReturn)};return true}
+        first.sheets.present={_,alert,reply in
+            confirmations += 1;sourceButtons=alert.buttons.map(\.title)==["Yes","No"]
+            // Acceptance preceded this native question. A later settings change
+            // must not rewrite the producer handed to the owned Reset child.
+            c.prefs.set(true,forKey:"UseLibgit2");c.prefs.set(UInt32(0x4567),forKey:"UseLibgit2_mask")
+            DispatchQueue.main.async{reply(.alertFirstButtonReturn)};return true
+        }
         let index=try Data(contentsOf:f.parent.root.appendingPathComponent(".git/index")),childHead=try await f.child.run(["rev-parse","HEAD"]).stdout
         first.model.choose(details.theirs);try await wait{resets.count==1 && resets[0].model.chooser.revision==f.other && resets[0].model.canEditForm && !resets[0].model.busy && !resets[0].model.chooser.busy}
         try require(confirmations==1 && sourceButtons && resets[0].model.presentationPreferences === c.prefs && first.model.operation.hasChild,"Actual Reset handoff lost captured preferences/child ownership")
+        let resetRepository=try unwrap(resetRepositories.first,"Reset did not receive captured child repository")
+        try require(resetRepository.executable==accepted.executable && resetRepository.askpass==accepted.askpass && resetRepository.diffDetection==accepted.diffDetection,"Reset fallback lost accepted executable/askpass/diff settings")
+        try require(resetRepository.libgit2Configuration?.enabled==false && resetRepository.libgit2Configuration?.mask==UInt32(0x1234) && resetRepository.root.path.utf8.elementsEqual(f.child.root.path.utf8),"Reset fallback recaptured settings after confirmation or changed child path")
+        c.prefs.set(false,forKey:"UseLibgit2");c.prefs.set(UInt32(0x1234),forKey:"UseLibgit2_mask")
         resets[0].close();try await wait{!first.model.hasPendingWork && !first.model.operation.hasChild && first.model.canInteract}
         try require(try Data(contentsOf:f.parent.root.appendingPathComponent(".git/index"))==index,"Cancelling Reset resolved parent conflict")
         let after=try await f.child.run(["rev-parse","HEAD"]).stdout;try require(after==childHead,"Cancelling Reset moved submodule HEAD")
         let retry=try unwrap(first.model.details,"Conflict did not reload after cancelled Reset")
         first.model.choose(retry.theirs);try await wait{resets.count==2 && resets[1].model.chooser.revision==f.other && resets[1].model.canEditForm && !resets[1].model.busy && !resets[1].model.chooser.busy}
+        c.prefs.set(false,forKey:"UseLibgit2")
         let reset=resets[1];try require(reset.model.presentationPreferences === c.prefs,"Retry Reset changed origin preferences")
         reset.model.mode = .soft;reset.model.reset()
         do {try await wait{reset.progressController != nil && reset.progressController?.model.busy==false}}

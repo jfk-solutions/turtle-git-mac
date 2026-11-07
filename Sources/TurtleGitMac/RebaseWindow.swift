@@ -6,6 +6,13 @@ import Combine
 import UniformTypeIdentifiers
 import TurtleGitCore
 
+private final class ReplayStashMutationReceipt:@unchecked Sendable {
+    private let lock=NSLock()
+    private var attempted=false
+    func record(){lock.lock();attempted=true;lock.unlock()}
+    func read()->Bool{lock.lock();defer{lock.unlock()};return attempted}
+}
+
 /// The Git worker can finish before a queued MainActor progress delivery runs.
 /// Retain its last typed receipt so terminal publication drains the same stream.
 private final class RebaseProgressDelivery: @unchecked Sendable {
@@ -344,12 +351,19 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         model.chooseRestoreReplayStash = { [weak self] in
             await self?.askStash(message: "Restore stashed changes?", detail: "Do you want to pop the changes saved before this replay?", save: false) ?? false
         }
+        model.chooseUnresolvedReplayStash = { [weak self] in
+            await self?.askReplay("Changes were saved, but the stash reference could not be read.",
+                detail:"Review the stash log before restoring changes manually. Replay will not create another stash or automatically pop an unknown stash.",
+                buttons:["Show Stash Log", "Leave Changes Stashed", "Cancel"],defaultIndex:2,waitForDetach:true) ?? 2
+        }
         model.restoreReplayStash = CommandProgressContext.capture(commandProgressScope) { [weak self] mode in
             guard let self, let window = self.window, window.attachedSheet == nil else { return }
             await withCheckedContinuation { continuation in
                 let child = StashRestoreWindowController(repository: repository, access: access, pop: true, showChanges: mode, preferences: preferences)
                 self.stashRestore = child
-                child.onChanged = { [weak model = self.model] text in model?.output += text + "\n"; model?.onChanged() }
+                let mutationChanged=self.model.onChanged
+                child.onChanged = { [weak model = self.model] text in model?.output += text + "\n" }
+                child.onMutationStopped={_ in mutationChanged()}
                 child.onViewChanges = { [weak model = self.model] in model?.onShowStatus() }
                 child.onClosed = { [weak self, weak child] in
                     if let sheet = child?.window { sheet.sheetParent?.endSheet(sheet); sheet.orderOut(nil) }
@@ -949,6 +963,7 @@ struct RebaseReferenceRequest {
     var chooseAnotherSplit: () async -> Bool = { false }
     private(set) var retired = false
     @Published private(set) var hasReplayStash = false
+    @Published private(set) var unresolvedReplayStash:StashSaveReferenceReadFailure?
     private var replayResultInspection:OperationCancellation?
     private var replayPreparationCancellation: OperationCancellation?
     static private(set) var activeReplayOperations = 0
@@ -984,6 +999,7 @@ struct RebaseReferenceRequest {
     }
     var chooseStashBeforeReplay: () async -> Bool = { false }
     var chooseRestoreReplayStash: () async -> Bool = { false }
+    var chooseUnresolvedReplayStash: () async -> Int = { 2 }
     var restoreReplayStash: (Int) async -> Void = { _ in }
     func retire() { retired = true;replayProgressEpoch=UUID();replayProgressCallback=nil;pendingLoad=nil;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) { CommandProgressContext.perform(commandProgressScope) { finishReplayWithCommandProgressContext(after:after.map {CommandProgressContext.capture(commandProgressScope,$0)}) } }
@@ -997,6 +1013,15 @@ struct RebaseReferenceRequest {
         Task {
             defer { busy=false;Self.activeStashRestorations -= 1;pendingBatchWorkers -= 1;if replayPreparationCancellation === request { replayPreparationCancellation=nil };withExtendedLifetime(access) {} }
             do {
+                if hasReplayStash,unresolvedReplayStash != nil {
+                    // A successful push with an unreadable resulting reference
+                    // cannot safely pop whatever happens to be refs/stash later.
+                    let choice=await chooseUnresolvedReplayStash()
+                    guard !retired,!request.isCancelled else{return}
+                    if choice==0 {revisionMenuLog.onContainingLog?("refs/stash",false,nil);return}
+                    guard choice==1 else{return}
+                    unresolvedReplayStash=nil;hasReplayStash=false
+                }
                 if hasReplayStash {
                     if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                     let automatic=try await repository.replayAutomaticStash(cherryPick:isCherryPick,cancellation:request)
@@ -1502,7 +1527,7 @@ struct RebaseReferenceRequest {
         }
     }
 
-    var canStart: Bool { editable && !loadingPlan && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first?.action != .squash }
+    var canStart: Bool { !hasReplayStash && editable && !loadingPlan && plan != nil && plan?.disposition != .upToDate && plan?.disposition != .equal && plan?.entries.first?.action != .squash }
     var primaryActionTitle: String {
         if finished { return "Done" }
         if !active { return startTitle }
@@ -2324,7 +2349,10 @@ struct RebaseReferenceRequest {
             }
         }
         Self.beginReplayWork();pendingBatchWorkers += 1; LocalGitCommandProgress.begin()
+        let stashMutation=ReplayStashMutationReceipt(),mutationChanged=onChanged
         Task {
+            var stashMutationReported=false
+            defer {if stashMutation.read(),!stashMutationReported {mutationChanged()}}
             var followRecovery = false, followEmpty = false, finishingReplay = false, finishAutomatically=false
             var skippedID = action == "skip" ? state?.stoppedEntryID : nil
             defer { replayProgressEpoch=UUID();replayProgressCallback=nil;Self.endReplayWork();pendingBatchWorkers -= 1; LocalGitCommandProgress.end(); withExtendedLifetime(access) {}; if replayPreparationCancellation === preparation { replayPreparationCancellation = nil; replaying = false; cancellingReplay = false }; if !finishingReplay { busy = false }; if !retired && !preparation.isCancelled {
@@ -2351,10 +2379,16 @@ struct RebaseReferenceRequest {
                         let accepted = condition.automatic ? true : await chooseStashBeforeReplay()
                         guard !retired, accepted else { throw OperationCancellationFailure.cancelled }
                         try preparation.check()
-                        let saved = try await repository.saveStash(StashSaveOptions(), onOutput: emit)
-                        if saved.created { hasReplayStash = true }
+                        do {
+                            let saved = try await repository.saveStash(StashSaveOptions(),cancellation:preparation,onOutput:emit,onCommandFinished:{[stashMutation] _ in stashMutation.record()})
+                            if saved.created { hasReplayStash = true }
+                        } catch let failure as StashSaveReferenceReadFailure {
+                            // Preserve the saved-changes obligation even though
+                            // no safe new stash identity is available for Pop.
+                            hasReplayStash=true;unresolvedReplayStash=failure
+                            throw failure
+                        }
                         try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
-                        onChanged()
                     }
                     try preparation.check(); guard !retired else { throw OperationCancellationFailure.cancelled }
                     // Source CheckRebaseCondition stashes first, then repairs
@@ -2495,13 +2529,21 @@ struct RebaseReferenceRequest {
                 if failedPickRecoveryCancelled {tab=2;error=nil}
                 if cleanCommitReturnedToEditor { tab=1; error=nil; replayStopped=true; completion="Replay stopped; review the current state." }
                 finishAutomatically=autoFinish && finished && completedSuccessfully && action != "abort"
-                onChanged()
+                onChanged();stashMutationReported=true
                 if action == "abort", finished { busy = false; finishingReplay = true; finishReplay(); return }
                 if action == "continue", !cleanCommitReturnedToEditor, state?.split?.conflictRecovery == true { followRecovery = true }
             } catch {
                 guard !retired else { return }; output = LocalGitCommandProgress.failure(error, existing: output, preferences: messageDefaults)
                 let declined = !preparation.isCancelled && error is OperationCancellationFailure
                 replayStopped = true; self.error = preparation.isCancelled || error is OperationCancellationFailure ? nil : error.localizedDescription
+                if error is StashSaveReferenceReadFailure {
+                    // No replay command was submitted. Preserve the successful
+                    // stash output and original metadata diagnostic; a second
+                    // repository inspection cannot resolve its unknown identity.
+                    finished=false;completedSuccessfully=false;tab=2
+                    completion="Changes remain stashed; review the stash log before restoring them."
+                    return
+                }
                 let inspection=OperationCancellation();replayResultInspection=inspection
                 defer {if replayResultInspection === inspection {replayResultInspection=nil}}
                 do { let actual = try await readSessionValue(conflictIdentity, inspection,repository:repository); guard !retired else { return }; applyConflictSnapshot(actual); recovered = actual.remaining; replayRows = actual.replay; finished = declined ? previouslyFinished : !actual.state.active && (action != "start" || actual.head != snapshot?.branchHash); completedSuccessfully = false; completion = preparation.isCancelled || error is OperationCancellationFailure ? "Replay stopped; review the current state." : "Replay failed; review the current state."; onChanged() }

@@ -82,6 +82,12 @@ public struct BisectMutationFailure: LocalizedError {
     public let underlying:Error
     public var errorDescription:String? {underlying.localizedDescription}
 }
+private final class BisectStashReceipt:@unchecked Sendable {
+    private let lock=NSLock()
+    private var stored:StashSaveCommandCompletion?
+    func record(_ value:StashSaveCommandCompletion) {lock.lock();stored=value;lock.unlock()}
+    var value:StashSaveCommandCompletion? {lock.lock();defer {lock.unlock()};return stored}
+}
 private func failedBisectMutation(_ error:Error,kind:BisectMutationResult.Kind,completed:[BisectMutationResult.Entry],attempted:[String]?,cancelled:Bool)->BisectMutationFailure {
     var commands=completed
     if let attempted {
@@ -153,10 +159,17 @@ extension GitRepository {
         guard try !bisectState(cancellation: cancellation).active, try !logMergeActive(cancellation: cancellation), try !bisectReplayActive(cancellation: cancellation),
               try !FileManager.default.fileExists(atPath: bisectPath("CHERRY_PICK_HEAD", cancellation: cancellation).path),
               try !FileManager.default.fileExists(atPath: bisectPath("REVERT_HEAD", cancellation: cancellation).path) else { throw BisectFailure.active }
+        let receipt=BisectStashReceipt()
         do {
-            let stash=try saveStash(StashSaveOptions(),cancellation:cancellation,onOutput:onOutput)
+            let stash=try saveStash(StashSaveOptions(),cancellation:cancellation,onOutput:onOutput,onCommandFinished:receipt.record)
             return .init(stash:stash,mutation:.init(kind:.stash,commands:[.init(arguments:["stash","push"],exitCode:0,output:stash.output)],cancelled:false))
-        } catch {throw failedBisectMutation(error,kind:.stash,completed:[],attempted:["stash","push"],cancelled:cancellation?.isCancelled == true)}
+        } catch let failure as StashSaveReferenceReadFailure {
+            // The save succeeded; only the later reference inspection failed.
+            // Preserve its real receipt while refusing to start Bisect.
+            throw BisectMutationFailure(mutation:.init(kind:.stash,commands:[.init(arguments:["stash","push"],exitCode:failure.command.exitCode,output:failure.command.text)],cancelled:false),underlying:failure)
+        } catch {
+            throw failedBisectMutation(error,kind:.stash,completed:[],attempted:receipt.value == nil ? nil:["stash","push"],cancelled:cancellation?.isCancelled == true)
+        }
     }
     /// Like upstream, run Start, Good, Bad in order. A checkout failure leaves
     /// Git's active session recoverable through Reset instead of hiding it.

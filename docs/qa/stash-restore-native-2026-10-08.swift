@@ -123,11 +123,12 @@ import TurtleGitCore
         retired.onChanged = { _ in lateChanges += 1 }
         retired.start(); try await wait { lateRestore != nil }
         retired.model.cancel(); try await wait { retired.window?.attachedSheet != nil }
-        retired.close();try await wait {retired.window?.attachedSheet == nil && StashWindowController.activeChildReleases == 0}
+        retired.close();try await wait {retired.window?.attachedSheet == nil}
+        precondition(StashWindowController.activeChildReleases > 0 && StashRestoreWindowModel.activeOperations==1,"Retired Restore released its held worker before drain")
         precondition(lateToken?.isCancelled == true)
         precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         lateRestore?.resume(returning:StashRestoreResult(output:"retired result",conflicted:false)); lateRestore = nil
-        try await wait { StashRestoreWindowModel.activeOperations == 0 }
+        try await wait { StashRestoreWindowModel.activeOperations == 0 && StashWindowController.activeChildReleases == 0 }
         precondition(retired.model.result == nil && retired.model.error == nil && retired.model.prompt == nil && lateChanges == 0)
         try await verifyReplay(root:root,git:git,prefs:prefs)
         print("Stash Apply/Pop: actual restore/drop/conflict retention, selected older Apply, separate remembered No/Yes through fresh preferences, once close-before-Status handoff, source silent/conflict/notice modes, errors, duplicate/delayed callback gates, native close/Quit guards. Owned hidden window closed; no displayed UI or standard preferences.")

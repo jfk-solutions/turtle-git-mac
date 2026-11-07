@@ -4142,12 +4142,12 @@ private enum TransportBatchPresentationContext {
         let independentServiceRequest=finderServiceDispatch.map{[RepositoryAction.stashApply,.stashPop].contains($0.action)} ?? false
         if !independentServiceRequest,let existing = stashRestoreWindows.first(where: { key, controller in
             (key == baseKey || key.hasPrefix(baseKey + "\0")) && controller.model.preferences === preferences
-        })?.value { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        })?.value { guard existing.canPresent else{error="Wait for the current stash operation to finish.";return};guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(repository.root) else { error = "Wait for the current stash operation to finish."; return }
         let key = stashRestoreWindows[baseKey] == nil ? baseKey : baseKey + "\0" + UUID().uuidString
         let controller = stashRestoreWindowFactory?(repository, access, pop, reference, showChanges) ?? StashRestoreWindowController(repository: repository, access: access, pop: pop, reference: reference, showChanges: showChanges, preferences: preferences)
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.stashRestoreWindows[key] === controller { self?.stashRestoreWindows.removeValue(forKey: key) } }
-        controller.onChanged = CommandProgressContext.capture { [weak self] output in
+        controller.onMutationStopped = CommandProgressContext.capture { [weak self] output in
             self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             self?.refreshStatusWindows(root); self?.refreshRepositoryLogs(root)
             self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
@@ -4865,14 +4865,14 @@ private enum TransportBatchPresentationContext {
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil)
     }
     private func stashMutationIsBusy(_ root: URL) -> Bool {
-        stashWindows.values.contains { $0.model.repository.root == root && ($0.model.busy || $0.model.preparing || $0.model.confirmingUntracked || $0.model.hasIdentitySettings || $0.model.progress != nil) }
-            || stashRestoreWindows.values.contains { $0.repository.root == root && ($0.model.busy || $0.model.prompt != nil) }
+        stashWindows.values.contains { $0.model.repository.root == root && ($0.model.closed || $0.model.busy || $0.model.preparing || $0.model.confirmingUntracked || $0.model.hasIdentitySettings || $0.model.progress != nil) }
+            || stashRestoreWindows.values.contains { $0.repository.root == root && (!$0.model.active || $0.model.busy || $0.model.prompt != nil) }
     }
     private func showStash(repository: GitRepository, access: RepositoryAccessLease?, followUp: StashSaveFollowUp = StashSaveFollowUp(), message: String? = nil, commandLaunch: Bool = false, preferences: UserDefaults? = nil, presentation: MergeWindowPresentation? = nil) {
         guard !retired, !confirmingQuit else { return }
         let preferences = preferences ?? fileComparisonPreferences
         let root = repository.root, key = repository.root.path + "\0" + (commandLaunch ? "command-stash" : UUID().uuidString)
-        if let existing = stashWindows[key] { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
+        if let existing = stashWindows[key] { guard existing.canPresent else{error="Wait for the current stash operation to finish.";return};guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.showWindow(nil); existing.window?.makeKeyAndOrderFront(nil); return }
         guard !stashMutationIsBusy(root) else { error = "Wait for the current stash operation to finish."; return }
         let controller = StashWindowController(repository: repository, access: access, preferences: preferences)
         if let message { controller.model.options.message = message }
@@ -4895,8 +4895,7 @@ private enum TransportBatchPresentationContext {
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
-        controller.model.onSaved = CommandProgressContext.capture { result in changed(result.output) }
-        controller.model.onFailed = changed
+        controller.model.onMutationStopped = changed
         controller.model.onPostAction = CommandProgressContext.capture { [weak self, weak model = controller.model] action, request in
             self?.performTransportHandoff(transportChain,modal:true) {
                 guard let self, !self.retired, !self.confirmingQuit, let model else { return }

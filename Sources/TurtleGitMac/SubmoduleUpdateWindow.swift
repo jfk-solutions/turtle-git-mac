@@ -17,8 +17,9 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     private var closing=false
     private var release:FinderFilesystemWorkflowRelease?
     private var retiringChildren:[NSWindow]=[]
+    private var retiringParent:NSWindow?
     var finderServiceCanPresent:Bool {!closing && !model.isRetired}
-    private var underlyingWorkPending:Bool {model.pendingReads>0 || window?.sheetParent != nil || window?.attachedSheet != nil || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    private var underlyingWorkPending:Bool {model.pendingReads>0 || window?.sheetParent != nil || window?.attachedSheet != nil || (window != nil && retiringParent?.attachedSheet === window) || retiringChildren.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     var finderServiceWorkPending:Bool {release != nil || underlyingWorkPending}
     init(repository: GitRepository, access: RepositoryAccessLease?, scope: [String], selected: [String] = [], preferences: UserDefaults = .standard) {
         model = SubmoduleUpdateWindowModel(repository: repository, access: access, scope: scope, selected: selected, preferences: preferences)
@@ -41,9 +42,9 @@ private final class SubmoduleUpdateNativeWindow: NSWindow {
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { !model.confirmingQuit && sender.attachedSheet == nil }
     func windowWillClose(_ notification:Notification){
-        guard notification.object as? NSWindow === window,!closing else{return};closing=true;model.invalidate()
+        guard notification.object as? NSWindow === window,!closing else{return};closing=true;retiringParent=window?.sheetParent;model.invalidate()
         if let window{if let child=window.attachedSheet{retiringChildren.append(child);window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
-        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();let done=onClosed;onClosed={};done()};self.release=release;release.start()
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in self.release=nil;retiringChildren.removeAll();retiringParent=nil;let done=onClosed;onClosed={};done()};self.release=release;release.start()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }

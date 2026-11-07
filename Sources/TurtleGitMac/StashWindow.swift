@@ -2,8 +2,17 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
+@MainActor private final class StashIdentityQuestionState {
+    let alert:NSAlert,token:OperationCancellation
+    var completion:((Bool)->Void)?,watcher:Task<Void,Never>?
+    var settling=false
+    init(alert:NSAlert,token:OperationCancellation,completion:@escaping(Bool)->Void){self.alert=alert;self.token=token;self.completion=completion}
+}
+
 @MainActor final class StashWindowController: NSWindowController, NSWindowDelegate {
     let model: StashWindowModel
+    var canPresent:Bool {!closed && !closingPreparation && !model.closed}
+    override func showWindow(_ sender:Any?){guard canPresent else{return};super.showWindow(sender)}
     var onClosed: () -> Void = {}
     private var transportRetiredProgress:StashSaveProgressWindowController?
     var transportBatchWorkPending:Bool {model.pendingTransportReads>0 || transportRetiredProgress?.model.hasPendingWork == true || window?.attachedSheet != nil || window?.sheetParent != nil}
@@ -11,6 +20,9 @@ import TurtleGitCore
     private(set) var progressController: StashSaveProgressWindowController?
     static var activeChildReleases: Int { StashChildRelease.activeCount }
     private var identitySettings: SettingsSheetController?
+    private var identityQuestionState:StashIdentityQuestionState?
+    var identityQuestion:NSAlert? {identityQuestionState?.alert}
+    var presentIdentityQuestion:(NSAlert,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void = {alert,owner,reply in alert.beginSheetModal(for:owner,completionHandler:reply)}
     var identitySettingsWindow: NSWindow? { identitySettings?.window }
     var identityNavigation: SettingsNavigationController? { identitySettings?.navigation }
     private var warning: NSAlert?
@@ -51,8 +63,8 @@ import TurtleGitCore
             if let child = controller.window { window.beginSheet(child) }
         }
         model.becameIdle = { [weak self] in if self?.closingPreparation == true {self?.model.close()} }
-        model.repairIdentity = { [weak self] in await self?.showIdentitySettings() ?? false }
-        model.retireIdentitySettings = { [weak self] in self?.identitySettings?.retire() }
+        model.repairIdentity = { [weak self] token in await self?.repairStashIdentity(token) ?? false }
+        model.retireIdentitySettings = { [weak self] in self?.retireIdentityRepair() }
         model.confirmUntracked = { [weak self] choose in
             guard let self, let window=self.window, window.attachedSheet == nil else {choose(false);return}
             let alert=NSAlert();alert.alertStyle = .warning
@@ -70,7 +82,7 @@ import TurtleGitCore
                 let release=StashChildRelease(window:alert.window,parent:window) { [weak self] in
                     guard let self,self.warning === alert else {reply(false);return}
                     self.warning=nil;self.warningReply=nil
-                    if accepted,alert.suppressionButton?.state == .on,!self.model.closed {preferences.set(true,forKey:"Stash.NoIncludeUntrackedWarning")}
+                    if accepted,alert.suppressionButton?.state == .on,!self.model.closed,!self.model.confirmingQuit {preferences.set(true,forKey:"Stash.NoIncludeUntrackedWarning")}
                     reply(accepted)
                 };release.start()
             }
@@ -78,14 +90,55 @@ import TurtleGitCore
 
         DialogGeometry.attach(window, identifier: "StashWindowController")
     }
-    func showIdentitySettings() async -> Bool {
-        guard !model.closed,identitySettings == nil,let window,window.attachedSheet == nil else{return false}
+    private func repairStashIdentity(_ token:OperationCancellation)async->Bool {
+        guard !closed,!model.confirmingQuit,!token.isCancelled,identityQuestionState==nil,identitySettings==nil,
+              let owner=window,owner.attachedSheet==nil else{return false}
+        let alert=NSAlert();alert.alertStyle = .critical
+        alert.messageText="You have not entered your user information yet."
+        alert.informativeText="Enter your name and email address in Git settings before continuing."
+        let yes=alert.addButton(withTitle:"Yes"),no=alert.addButton(withTitle:"No")
+        yes.keyEquivalent="\r";no.keyEquivalent="\u{1b}"
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.effectiveAppearance
+        let accepted=await withCheckedContinuation {continuation in
+            let pending=StashIdentityQuestionState(alert:alert,token:token){continuation.resume(returning:$0)}
+            identityQuestionState=pending
+            pending.watcher=Task { @MainActor [weak self,weak pending] in
+                while !Task.isCancelled {
+                    guard let self,let pending,self.identityQuestionState === pending,!pending.settling else{return}
+                    if token.isCancelled || self.closed || self.model.confirmingQuit {self.finishIdentityQuestion(pending,accepted:false);return}
+                    try? await Task.sleep(nanoseconds:10_000_000)
+                }
+            }
+            presentIdentityQuestion(alert,owner) { [weak self,weak pending] response in
+                guard let self,let pending else{return};self.finishIdentityQuestion(pending,accepted:response == .alertFirstButtonReturn)
+            }
+        }
+        guard accepted,!closed,!model.confirmingQuit,!token.isCancelled,owner.attachedSheet==nil else{return false}
+        return await showIdentitySettings(token)
+    }
+    private func finishIdentityQuestion(_ pending:StashIdentityQuestionState,accepted:Bool) {
+        guard identityQuestionState === pending,!pending.settling else{return}
+        pending.settling=true;pending.watcher?.cancel();pending.watcher=nil
+        let release=StashChildRelease(window:pending.alert.window,parent:window,closeWindow:true) { [self,pending] in
+            let allowed=accepted && !closed && !model.confirmingQuit && !pending.token.isCancelled
+            if identityQuestionState === pending {identityQuestionState=nil}
+            let completion=pending.completion;pending.completion=nil;completion?(allowed)
+        };release.start()
+    }
+    private func retireIdentityRepair() {
+        if let pending=identityQuestionState {finishIdentityQuestion(pending,accepted:false)}
+        identitySettings?.retire()
+    }
+    func showIdentitySettings(_ token:OperationCancellation) async -> Bool {
+        guard !model.closed,!model.confirmingQuit,!token.isCancelled,identitySettings == nil,let window,window.attachedSheet == nil else{return false}
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false)
         workspace.root=model.repository.root;workspace.settingsContextOverride=(model.repository,model.repositoryAccess,true)
         let child=SettingsSheetController(workspace:workspace,preferences:model.preferences,initialPage:.git,title:"Settings – TurtleGit for Mac")
         identitySettings=child;model.hasIdentitySettings=true;child.window?.appearance=window.appearance
         return await withCheckedContinuation { continuation in
+            var answered=false
             child.onClosed = { [weak self,weak child] accepted in
+                guard !answered else{return};answered=true
                 if let self,self.identitySettings === child {self.identitySettings=nil;self.model.hasIdentitySettings=false}
                 continuation.resume(returning:accepted)
             };child.presentSheet(for:window)
@@ -109,7 +162,7 @@ import TurtleGitCore
         if let window,let sheet=window.attachedSheet,sheet !== warning?.window,sheet !== progress?.window,sheet !== identitySettings?.window {window.endSheet(sheet,returnCode:.abort);sheet.close()}
         guard let window else{released=true;onClosed();let actions=closedActions;closedActions=[];actions.forEach {$0()};return}
         let release=StashChildRelease(window:window,parent:window.sheetParent,ready:{ [self] in
-            !model.preparing && identitySettings == nil && childReleases.isEmpty && progress?.presentationClosed != false
+            !model.preparing && identityQuestionState == nil && identitySettings == nil && childReleases.isEmpty && progress?.presentationClosed != false
         }) { [self] in self.release=nil;released=true;onClosed();let actions=closedActions;closedActions=[];actions.forEach {$0()} }
         self.release=release;release.start()
     }
@@ -143,7 +196,7 @@ import TurtleGitCore
         })
     }
     var readIdentity:((OperationCancellation) async throws -> ReplayUserIdentity)?
-    var repairIdentity:() async -> Bool = {false}
+    var repairIdentity:(OperationCancellation) async -> Bool = {_ in false}
     var retireIdentitySettings:()->Void = {}
     var becameIdle:()->Void = {}
     private var preparationToken:OperationCancellation?
@@ -164,6 +217,7 @@ import TurtleGitCore
     var close: () -> Void = {}
     var onSaved: (StashSaveResult) -> Void = { _ in }
     var onFailed: (String) -> Void = { _ in }
+    var onMutationStopped:(String)->Void = {_ in}
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard) { self.repository = repository; self.access = access; self.preferences = preferences }
     func save() { CommandProgressContext.perform(commandProgressScope) { saveWithCommandProgressContext() } }
     private func saveWithCommandProgressContext() {
@@ -190,7 +244,10 @@ import TurtleGitCore
             if let readIdentity {identity=try await readIdentity(token)} else {identity=try await repository.replayUserIdentity(cancellation:token)}
             try token.check();guard !invalidated,!confirmingQuit else {throw OperationCancellationFailure.cancelled}
             if identity.complete {return}
-            guard await repairIdentity(),!invalidated else {throw OperationCancellationFailure.cancelled}
+            guard await repairIdentity(token),!invalidated else {
+                if !invalidated,!confirmingQuit,!token.isCancelled {closeAfterPreparation=true}
+                throw OperationCancellationFailure.cancelled
+            }
         }
     }
     func prepare(saveAfter:Bool=false) {beginPreparation(snapshot:nil,saveAfter:saveAfter)}
@@ -228,16 +285,22 @@ import TurtleGitCore
         busy = true
         let progress = StashSaveProgressWindowModel(repository: repository, access: access, options: snapshot, followUp: followUp, preferences: preferences)
         self.progress = progress
+        progress.onMutationStopped=onMutationStopped
         progress.onFinished = { [weak self] result, details in
             guard let self, !self.invalidated else { return }
             if let result { self.onSaved(result) } else { self.onFailed(details) }
         }
         if let onPostAction {
-            let afterClose=afterClose,generation=interactionGeneration
-            progress.onPostAction = { [self,weak progress] action,request in
-                guard !invalidated || progress?.hasDispatchedAction == true else{return}
-                let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
-                if let afterClose {afterClose(dispatch)} else {dispatch()}
+            let afterClose=afterClose
+            progress.capturePostAction = { [self,weak progress] action,request in
+                // Capture the parent receipt when this action is accepted, not
+                // when the progress dialog was created before a cancelled Quit.
+                let generation=interactionGeneration
+                return { [self,weak progress] in
+                    guard !invalidated || progress?.hasDispatchedAction == true else{return}
+                    let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
+                    if let afterClose {afterClose(dispatch)} else {dispatch()}
+                }
             }
         }
         progress.close = { [weak self, weak progress] in if let progress { self?.finish(progress) } }
@@ -295,6 +358,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         func read()->StashSaveCommandCompletion? {lock.lock();defer{lock.unlock()};return receipt}
     }
     private let commandReceipt=CommandReceipt()
+    private var acceptedMutationStopped:((String)->Void)?
     private(set) static var activeOperations=0
     @Published private(set) var pendingOperations=0
     var hasPendingWork:Bool {pendingOperations > 0}
@@ -340,11 +404,16 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     @Published private(set) var postActions: [StashSavePostAction] = []
     var close: () -> Void = {}
     var onFinished: (StashSaveResult?, String) -> Void = { _, _ in }
+    /// An accepted stash command may have changed files even on failure/retirement.
+    /// This captured refresh receipt is independent from visible result success.
+    var onMutationStopped:(String)->Void = {_ in}
     var onPostAction: ((StashSavePostAction, StashSaveFollowUp) -> Void)?
+    var capturePostAction:((StashSavePostAction,StashSaveFollowUp)->(() -> Void))?
+    var hasPostActionHandler:Bool {onPostAction != nil || capturePostAction != nil}
     init(repository: GitRepository, access: RepositoryAccessLease?, options: StashSaveOptions, followUp: StashSaveFollowUp, preferences: UserDefaults = .standard) { self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); self.repository = repository; self.access = access; self.options = options; self.followUp = followUp; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences) }
     private func resetAttempt(){busy=true;success=false;cancelled=false;cancelling=false;output="";currentWork="";percentage=nil;completionRange=nil;commandFinished=false;commandSucceeded=false;result=nil;postActions=[]}
     func start() { CommandProgressContext.perform(commandProgressScope) { startWithCommandProgressContext() } }
-    private func startWithCommandProgressContext() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();Task {await execute()}}
+    private func startWithCommandProgressContext() {guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();acceptedMutationStopped=onMutationStopped;beginWork();Task {await execute()}}
     func cancel() {
         guard canCancel else { return }
         // A question belongs to the phase in which it opened. A late Yes
@@ -365,7 +434,7 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     func invalidate() { invalidated = true; cancellation.cancel(); confirmingCancellation = false;if !hasPendingWork {busy=false};postActions=[] }
     func run() async { await CommandProgressContext.perform(commandProgressScope) { await runWithCommandProgressContext() } }
     private func runWithCommandProgressContext() async {
-        guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();beginWork();await execute()
+        guard !started,!invalidated,!confirmingQuit else{return};started=true;resetAttempt();acceptedMutationStopped=onMutationStopped;beginWork();await execute()
     }
     private func bounded(_ text:String,bytes limit:Int)->String {
         let bytes=Data(text.utf8),limit=max(0,limit)
@@ -453,21 +522,29 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
         return true
     }
     private func execute()async {
-        defer {endWork();withExtendedLifetime(access) {};if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}}
+        let mutationStopped=acceptedMutationStopped ?? onMutationStopped
+        var originalOutput="",mutationOutput=""
+        defer {
+            endWork();withExtendedLifetime(access) {};acceptedMutationStopped=nil
+            if commandReceipt.read() != nil {mutationStopped(mutationOutput)}
+            if !invalidated,!hasPendingWork {cancelling=false;finishAutomaticClose()}
+        }
         guard !invalidated else{return}
         let startedAt=ProcessInfo.processInfo.systemUptime
-        var originalOutput = ""
         do {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
             let saved=try await streamSave(startedAt:startedAt)
+            originalOutput=saved.output;mutationOutput=saved.output
             guard !invalidated else { return }
-            result = saved; originalOutput = saved.output; success = true
+            result = saved; success = true
             completeOutput(succeeded:true,startedAt:startedAt)
             if followUp.showPull { postActions.append(.pull) }
             if followUp.mergeRevision != nil { postActions.append(.merge) }
             if saved.created { postActions += [.pop, .apply] }
         } catch {
-            guard !invalidated else { return }; originalOutput = (error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
+            originalOutput=(error as? GitCommandCancellationFailure)?.result.text ?? error.localizedDescription
+            mutationOutput=(error as? StashSaveReferenceReadFailure)?.command.text ?? originalOutput
+            guard !invalidated else { return }
             let delivered=(error as? GitFailure)?.outputWasDelivered == true || (error as? GitCommandCancellationFailure)?.outputWasDelivered == true
             if commandFinished {if commandSucceeded || !delivered {appendDiagnostic(error.localizedDescription)}} else {output=LocalGitCommandProgress.failure(error,existing:output,preferences:preferences)}
             cancelled=cancelled || cancellation.isCancelled || error is OperationCancellationFailure || error is CancellationError || error is GitCommandCancellationFailure
@@ -477,9 +554,11 @@ enum StashSavePostAction: String, CaseIterable, Hashable {
     }
     func perform(_ action: StashSavePostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
     private func performWithCommandProgressContext(_ action: StashSavePostAction) {
-        guard !invalidated,presentationAvailable(),!confirmingQuit,!dispatched,!busy,!hasPendingWork,!confirmingCancellation,success,postActions.contains(action),let onPostAction else{return}
-        dispatched=true;let request=followUp,generation=interactionGeneration
-        let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};onPostAction(action,request)}
+        guard !invalidated,presentationAvailable(),!confirmingQuit,!dispatched,!busy,!hasPendingWork,!confirmingCancellation,success,postActions.contains(action),hasPostActionHandler else{return}
+        let request=followUp,generation=interactionGeneration
+        let accepted=capturePostAction?(action,request) ?? { [onPostAction] in onPostAction?(action,request) }
+        dispatched=true
+        let dispatch=CommandProgressContext.capture(commandProgressScope) { [self] in guard !confirmingQuit,interactionGeneration == generation else{return};accepted()}
         if let finishAndPerform {finishAndPerform(dispatch)} else {close();dispatch()}
     }
 }
@@ -583,7 +662,7 @@ struct StashSaveProgressDialog: View {
                     HStack(spacing: 2) {
                         Button { model.perform(first) } label: { CommandLabel(title: first.title, icon: first.icon) }
                         Menu { ForEach(model.postActions, id: \.self) { action in Button { model.perform(action) } label: { CommandLabel(title: action.title, icon: action.icon) } } } label: { Image(systemName: "chevron.down").accessibilityLabel("Stash post-actions") }.menuStyle(.borderlessButton).fixedSize()
-                    }.disabled(model.onPostAction == nil || model.busy || model.hasPendingWork || model.confirmingCancellation || model.confirmingQuit || !model.presentationAvailable())
+                    }.disabled(!model.hasPostActionHandler || model.busy || model.hasPendingWork || model.confirmingCancellation || model.confirmingQuit || !model.presentationAvailable())
                 }
                 Spacer()
                 if model.busy { Button(model.cancelling ? "Cancelling…" : "Cancel") { model.cancel() }.keyboardShortcut(.cancelAction).disabled(!model.canCancel) }

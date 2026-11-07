@@ -1,7 +1,26 @@
 import AppKit
+import ObjectiveC
 import ScreenCaptureKit
 import Darwin
 import TurtleGitCore
+
+// Hold only the exact private native panel's detachment. This models a
+// delayed AppKit sheet release without weakening production readiness guards.
+@MainActor private enum AddInputsPanelDetachment { static weak var panel:NSWindow? }
+private extension NSWindow {
+    @objc func addInputsEndSheet(_ sheet:NSWindow,returnCode:NSApplication.ModalResponse) {
+        if sheet === AddInputsPanelDetachment.panel {return}
+        addInputsEndSheet(sheet,returnCode:returnCode)
+    }
+    @objc func addInputsOrderOut(_ sender:Any?) {
+        if self === AddInputsPanelDetachment.panel {return}
+        addInputsOrderOut(sender)
+    }
+    @objc func addInputsClose() {
+        if self === AddInputsPanelDetachment.panel {return}
+        addInputsClose()
+    }
+}
 
 @main struct SubmoduleAddInputsVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
@@ -70,16 +89,55 @@ import TurtleGitCore
         owner.presentOpenPanel={_,_,reply in callbacks.append(reply)};owner.selectedPanelURL={_ in selected}
         model.pick(.repository);try require(model.picking && !model.canApply && !owner.windowShouldClose(owner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Picker lost owner/Close/Quit gate")
         let oldSource=model.source;model.source="changed while picker pending";callbacks[0](.OK)
-        try require(!model.picking && model.source=="changed while picker pending","Changed draft accepted obsolete folder")
+        try await wait{!model.picking}
+        try require(model.source=="changed while picker pending","Changed draft accepted obsolete folder")
         model.source=oldSource;model.pick(.path);callbacks[0](.OK);try require(model.picking,"Old callback settled replacement picker");callbacks[1](.cancel)
+        try await wait{!model.picking}
         try require(!model.picking,"Cancel retained picker")
         model.source="https://host/folder/repo.git";model.pick(.path);selected=parent;callbacks[2](.OK)
+        try await wait{!model.picking}
         try require(model.path=="repo","Path Browse did not append shared source component at repository root")
         let prior=model.path;model.pick(.path);selected=root;callbacks[3](.OK)
+        try await wait{!model.picking}
         try require(model.path==prior && model.error != nil,"Outside-tree Browse escaped path validation");model.error=nil
         model.pick(.key);let late=callbacks[4],saved=prefs.dictionaryRepresentation();owner.close();late(.OK);model.pick(.repository)
-        try require(!model.picking && owner.panel==nil && callbacks.count==5 && prefs.dictionaryRepresentation() as NSDictionary == saved as NSDictionary,"Forced close/retired callback wrote history or reopened picker")
+        try await wait{!model.picking && owner.panel==nil && !owner.finderServiceWorkPending}
+        try require(callbacks.count==5 && prefs.dictionaryRepresentation() as NSDictionary == saved as NSDictionary,"Forced close/retired callback wrote history or reopened picker")
         try require(try Data(contentsOf:parent.appendingPathComponent(".git/index"))==index,"Input/picker operations changed index")
+        // A real attached panel must detach before its captured selection is
+        // delivered or the form regains editing authority.
+        let detached=SubmoduleAddWindowController(repository:repo,access:lease,preferences:prefs,clipboardText:"")
+        defer{detached.close()};detached.window!.alphaValue=0;detached.window!.orderFront(nil)
+        detached.model.source=source.root.path
+        var panelReply:((NSApplication.ModalResponse)->Void)?,chosen=child
+        detached.presentOpenPanel={panel,parent,reply in panelReply=reply;parent.beginSheet(panel,completionHandler:nil)}
+        detached.selectedPanelURL={_ in chosen}
+        detached.model.pick(.repository)
+        try await wait{detached.window?.attachedSheet is NSOpenPanel && panelReply != nil}
+        let native=detached.panel!
+        let endSheet=class_getInstanceMethod(object_getClass(detached.window!)!,#selector(NSWindow.endSheet(_:returnCode:)))!,heldEndSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.addInputsEndSheet(_:returnCode:)))!
+        let close=class_getInstanceMethod(object_getClass(native)!,#selector(NSWindow.close))!,heldClose=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.addInputsClose))!
+        let orderOut=class_getInstanceMethod(object_getClass(native)!,#selector(NSWindow.orderOut(_:)))!,heldOrderOut=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.addInputsOrderOut(_:)))!
+        method_exchangeImplementations(endSheet,heldEndSheet);method_exchangeImplementations(close,heldClose);method_exchangeImplementations(orderOut,heldOrderOut)
+        defer{AddInputsPanelDetachment.panel=nil;method_exchangeImplementations(orderOut,heldOrderOut);method_exchangeImplementations(close,heldClose);method_exchangeImplementations(endSheet,heldEndSheet)}
+        AddInputsPanelDetachment.panel=native
+        try require(native.directoryURL?.standardizedFileURL.path.utf8.elementsEqual(source.root.standardizedFileURL.path.utf8)==true && native.canChooseDirectories && !native.canChooseFiles && !native.allowsMultipleSelection,"Repository Browse lost current local source preselection or folder policy")
+        let priorSource=detached.model.source
+        panelReply?(.OK)
+        await Task.yield()
+        try require(detached.model.picking && !detached.model.canEdit && detached.model.source==priorSource && detached.window?.attachedSheet === native,"Attached Browse reply released form or selection before physical detachment: picking=\(detached.model.picking) editable=\(detached.model.canEdit) sourceUnchanged=\(detached.model.source==priorSource) sameSheet=\(detached.window?.attachedSheet === native) sheetParent=\(native.sheetParent != nil)")
+        AddInputsPanelDetachment.panel=nil;detached.window!.endSheet(native,returnCode:.OK);native.close()
+        try await wait{!detached.model.picking && detached.panel==nil && native.sheetParent==nil}
+        try require(detached.model.source.utf8.elementsEqual(child.path.utf8),"Detached Browse lost captured selected folder")
+        detached.model.path="modules";chosen=parent;detached.model.pick(.path)
+        try await wait{detached.panel != nil && panelReply != nil}
+        let pathPanel=detached.panel!;AddInputsPanelDetachment.panel=pathPanel
+        try require(pathPanel.canCreateDirectories && pathPanel.canChooseDirectories && !pathPanel.canChooseFiles,"Path Browse lost source directory policy")
+        panelReply?(.cancel);await Task.yield()
+        try require(detached.model.picking && !detached.model.canEdit,"Cancel reply released an attached panel")
+        AddInputsPanelDetachment.panel=nil;detached.window!.endSheet(pathPanel,returnCode:.cancel);pathPanel.close()
+        try await wait{!detached.model.picking && detached.panel==nil}
+        detached.close();try await wait{!detached.finderServiceWorkPending}
         // Real local mutation uses only this wrapper's local-file transport grant.
         let wrapper=root.appendingPathComponent("local-git")
         func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}

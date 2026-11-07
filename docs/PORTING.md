@@ -1,5 +1,21 @@
 # TurtleGit for Mac — full port tracking
 
+## Stash and Submodule recovery — November 7, 2026
+
+The connected Stash workflow now owns identity repair, preserves actual command
+results through later reference-read failures and refreshes repository views after
+retired operations drain. Replay retains saved changes with an unknown stash
+identity and requires explicit recovery rather than retrying or popping it.
+Submodule Add starts Browse at the reviewed folder/key; Add, Update, Sync, Diff
+and Conflict preserve accepted backend settings, partial results and native sheet
+ownership. Optional Update discovery cannot replace a completed Git result.
+
+The [batch record](qa/stash-submodule-recovery-2026-11-07.json) retains initial
+failures and focused repairs. Forty Core cases and 34 native case/engine pairs
+passed cumulatively, using one grouped checkpoint followed only by affected
+rechecks. This source batch does not update installed build 52. Full hosted,
+physical, signed and remaining upstream parity acceptance are still separate.
+
 ## Reference filter publication — November 5, 2026
 
 The [connected filter family](REFERENCE-BROWSER-FILTER-PARITY.md) now follows
