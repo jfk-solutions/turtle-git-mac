@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @main struct ReferenceTrackingVerification {
@@ -28,10 +29,29 @@ import TurtleGitCore
         try await repo.updateBranchDescription("main", message: "keep description")
         _ = try await repo.run(["config", "branch.main.pushRemote", "other"])
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index")), file = try Data(contentsOf: root.appendingPathComponent("file"))
-        let browser = ReferenceBrowserWindowController(repository: repo, access: nil, initial: "refs/heads/main", preferences: prefs, onChoose: { _ in })
+        let wrapper=repo.root.appendingPathComponent(".git/tracking-git"),hold=repo.root.appendingPathComponent(".git/tracking.hold"),marker=repo.root.appendingPathComponent(".git/tracking.started")
+        func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+        let script="""
+        #!/bin/sh
+        task_tracking=no
+        for task_argument in "$@";do case "$task_argument" in --set-upstream-to=*) task_tracking=yes;; esac;done
+        if [ "$task_tracking" = yes ] && [ -f \(quote(hold.path)) ];then
+          printf '%s\\000' "$@" > "$0.arguments"
+          /bin/sleep 30 &
+          task_child=$!
+          trap 'kill "$task_child" 2>/dev/null;wait "$task_child" 2>/dev/null;exit 143' TERM INT
+          printf '%s %s\\n' "$$" "$task_child" > \(quote(marker.path+".tmp"))
+          /bin/mv \(quote(marker.path+".tmp")) \(quote(marker.path))
+          wait "$task_child"
+        fi
+        exec \(quote(repo.executable.path)) "$@"
+        """
+        try script.write(to:wrapper,atomically:true,encoding:.utf8);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+        let browserRepository=GitRepository(root:repo.root,executable:wrapper,askpass:repo.askpass,diffDetection:repo.diffDetection,libgit2Configuration:.init(enabled:false))
+        let browser = ReferenceBrowserWindowController(repository: browserRepository, access: nil, initial: "refs/heads/main", preferences: prefs, onChoose: { _ in })
         defer { browser.close() }; let window = browser.window!
         var logs: [String] = []; browser.model.onLog = { logs.append($0) }
-        browser.presentTrackingPicker = { parent, _ in parent.makeFirstResponder(nil); return true }
+        browser.presentTrackingPicker = { parent, child in parent.makeFirstResponder(nil);child.alphaValue=0;parent.beginSheet(child,completionHandler:nil);return true }
         browser.configureTrackingPicker = { _ in print("CHILD CREATED"); fflush(stdout) }
         browser.model.load(); try await wait([window]) { !browser.model.busy && browser.model.snapshot != nil }
         guard let table = find(NSTableView.self, window.contentView!, label: "References"), let menu = table.menu else { throw Failure(description: "Native table/menu absent") }
@@ -61,14 +81,23 @@ import TurtleGitCore
         }
         let before = try Data(contentsOf: root.appendingPathComponent(".git/config"))
         let cancelled = try await picker(); cancelled.model.cancel()
-        try require(browser.trackingPicker == nil && !browser.model.hasChild && before == Data(contentsOf: root.appendingPathComponent(".git/config")), "Cancel retains config/releases child")
+        try await wait([window,cancelled.window!]){browser.trackingPicker==nil && !browser.model.hasChild && !cancelled.hasPendingWork && cancelled.window?.sheetParent==nil && window.attachedSheet==nil}
+        try require(!browser.hasPendingWork && before == Data(contentsOf: root.appendingPathComponent(".git/config")), "Cancel retains config/releases child after actual detach/drain")
         let selected = try await picker()
         let choice = selected.model.snapshot!.initialSelection("refs/remotes/origin/main"); selected.model.folder = choice.folder; selected.model.selected = choice.reference
         selected.model.onLog?("refs/remotes/origin/main"); try require(logs == ["refs/remotes/origin/main"], "Inherited canonical context callback")
+        try Data().write(to:hold)
         selected.model.accept()
+        try await wait([window,selected.window!]){FileManager.default.fileExists(atPath:marker.path) && browser.model.changingTracking && browser.model.busy}
+        let pids=try String(contentsOf:marker,encoding:.utf8).split(whereSeparator:\.isWhitespace).compactMap{Int32($0)}
+        try require(pids.count==2 && pids.allSatisfy{kill($0,0)==0},"Tracking write lost owned command/helper receipt")
+        try require(browser.trackingPicker==nil && !browser.model.hasChild && !selected.hasPendingWork && selected.window?.sheetParent==nil && window.attachedSheet==nil,"Tracking mutation started before actual picker delivery/detachment")
+        let invocation=try Data(contentsOf:URL(fileURLWithPath:wrapper.path+".arguments")).split(separator:0).map{String(decoding:$0,as:UTF8.self)}
+        try require(invocation.contains("--set-upstream-to=origin/main") && Array(invocation.suffix(2))==["--","main"] && before==Data(contentsOf:root.appendingPathComponent(".git/config")),"Held actual tracking command lost exact refs or mutated config before release")
         try require(browser.model.changingTracking && browser.model.busy, "Tracking write active")
-        browser.model.load(); try require(browser.model.changingTracking && browser.model.busy, "F5 cannot supersede mutation")
-        try await wait([window]) { browser.trackingPicker == nil && !browser.model.busy }
+        browser.model.load();browser.selectTracking();try require(browser.model.changingTracking && browser.model.busy && browser.trackingPicker==nil, "F5/duplicate picker cannot supersede mutation")
+        try FileManager.default.removeItem(at:hold);try require(kill(pids[1],SIGTERM)==0,"Owned tracking helper release failed")
+        try await wait([window]) { browser.trackingPicker == nil && !browser.model.busy && !browser.hasPendingWork && pids.allSatisfy{kill($0,0) != 0} }
         try require(browser.model.chosen?.upstream == "origin/main", "Set and refresh original selection")
         try invoke("Unset tracked branch"); try await wait([window]) { !browser.model.busy }
         try require(browser.model.chosen?.upstream == "" && browser.model.chosen?.description == "keep description", "Unset keeps branch description")
@@ -88,6 +117,7 @@ import TurtleGitCore
         alertOK.performClick(nil)
         try await wait([window]) { window.attachedSheet == nil && browser.model.error == nil }
         browser.presentTrackingPicker = { _, _ in false }; browser.selectTracking()
+        try await wait([window]){browser.trackingPicker==nil && !browser.model.hasChild && !browser.hasPendingWork}
         try require(browser.trackingPicker == nil && !browser.model.hasChild, "Rejected child cleanup")
         for reference in ["refs/tags/release", "refs/remotes/origin/main", "refs/notes/custom"] {
             browser.model.folder = "refs"; browser.model.selected = GitReferenceName(reference)
@@ -97,8 +127,9 @@ import TurtleGitCore
         let bare = ReferenceBrowserWindowController(repository: GitRepository(root: bareRoot, executable: repo.executable), access: nil, initial: "refs/heads/main", preferences: prefs, onChoose: { _ in }); defer { bare.close() }
         bare.model.load(); try await wait([bare.window!]) { !bare.model.busy && bare.model.snapshot != nil }
         try require(bare.model.bare && !bare.model.canChangeTracking, "Bare tracking gate"); bare.selectTracking(); try require(bare.trackingPicker == nil, "Bare child absent"); bare.close()
-        browser.model.folder = "refs/heads"; browser.model.selected = "refs/heads/main"; browser.presentTrackingPicker = { parent, _ in print("FORCED PRESENT"); fflush(stdout); parent.makeFirstResponder(nil); return true }
+        browser.model.folder = "refs/heads"; browser.model.selected = "refs/heads/main"; browser.presentTrackingPicker = { parent, child in print("FORCED PRESENT"); fflush(stdout);parent.makeFirstResponder(nil);child.alphaValue=0;parent.beginSheet(child,completionHandler:nil);return true }
         let forced = try await picker(); browser.close(); forced.model.selected = "refs/remotes/origin/main"; forced.model.accept()
+        try await wait([window,forced.window!]){browser.model.closed && forced.model.closed && browser.trackingPicker==nil && !browser.hasPendingWork && !forced.hasPendingWork && window.attachedSheet==nil && forced.window?.sheetParent==nil}
         try require(browser.model.closed && forced.model.closed && browser.trackingPicker == nil && config == Data(contentsOf: root.appendingPathComponent(".git/config")), "Forced cleanup/stale child no write")
         let after = try await repo.run(["rev-parse", "HEAD"]).stdout; try require(head == after && index == Data(contentsOf: root.appendingPathComponent(".git/index")) && file == Data(contentsOf: root.appendingPathComponent("file")), "HEAD/index/worktree unchanged")
         try require(NSApplication.shared.windows.allSatisfy { !$0.isVisible }, "No displayed windows")

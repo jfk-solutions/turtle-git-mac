@@ -46,12 +46,34 @@ publication continued; Commit showed the correct two rows at its first successfu
 sparse sampling. They are not cold-start measurements or a performance guarantee.
 The owned app/windows were closed and private state cleaned afterward.
 
-The additional Finder Add attempt did not establish access-panel completion,
-registration or badges. First-use and nested-folder grants, quiet Add, background
-refresh and Commit delivery from a cold Finder launch remain open. Later source
+A later [installed52 Finder observation](qa/installed-finder52-2026-11-05.json)
+verified folder-consent preselection, private-repository registration, repository
+menus and cold Finder Commit delivery. It did not prove badges, every nested or
+returned-volume grant, background refresh or full visual parity. Its owned windows,
+repository permission and private preferences were restored afterward. Later source
 fixes and their local checks do not silently update installed52. Current hosted,
 installed and whole-port gates are tracked in [release blockers](RELEASE-BLOCKERS.md).
 No public binary upload, notarization, App Store export or submission occurred.
+
+## Preparing local testing build53
+
+The next local candidate consolidates the source changes after build52: Commit
+message readiness, Browser/RefLog child delivery, Synchronization producer
+ownership, native image rendering, Stash/Submodule recovery and Push/Clone
+completion, registration and cancellation. Their focused records are linked from
+[the port tracker](PORTING.md); those records describe source checks, not an
+installed build53.
+
+This candidate uses a new clean, pinned worktree and the same **AppStore
+configuration with Apple Development signing** as build52. The configuration
+provides sandboxed helpers and same-team Finder/cache sharing for local testing;
+it is separate from App Store distribution. The build number is passed explicitly
+to Xcode for the application and its peers. A fresh source/input receipt, current
+runtime manifests, signed bundle inventory and matching source archive belong to
+the new candidate. Frozen52, the installed application and its rollback remain
+separate. No successful build, package, installation or physical acceptance is
+inferred from this preparation section; the candidate receipt records each actual
+completed step.
 
 ## Testing the local candidate
 

@@ -1,0 +1,74 @@
+{
+  "date": "2026-11-07",
+  "scope": "Consolidation of tracked-branch native consumer against actual Browser child release and Set/Unset workflow",
+  "status": "passed",
+  "source_commit": "f7e7514b33619c116dd78afe47931421f1e89aae",
+  "host": "ProductName:\t\tmacOS\nProductVersion:\t\t27.2\nBuildVersion:\t\t26B123",
+  "hosted_failure_evidence": "docs/qa/hosted-9a1-tracked-branch-2026-11-07.json",
+  "hosted_diagnosis": {
+    "original_assertion": "First picker Cancel immediately required trackingPicker nil, hasChild false and unchanged config bytes",
+    "evidence_limit": "Hosted compound assertion does not identify its failing predicate. Current source deliberately retains child ownership until actual native release; the consumer synchrony assumption is stale, but this does not prove a hosted product defect.",
+    "source_contract": [
+      "ReferenceBrowserWindowController.selectTracking captures parent local reference and remote-only child",
+      "Child selectionDelivery and onClosed wait its owned reads and physical native detachment",
+      "Parent releaseChild retains action/Close gate until child actually detaches, then clears trackingPicker/hasChild and delivers choice",
+      "Only after release does changeTracking validate captured local hash and run real branch/config mutation"
+    ]
+  },
+  "changes": [
+    "Actual transparent/offscreen native picker sheets replace an unattached presentation stub",
+    "Cancel/rejected presentation/forced close await actual child/window/parent detach plus owned work drain; all config-byte and parent/type/bare gates retained",
+    "Accept no longer assumes mutation begins synchronously before child delivery; a private authored Git wrapper holds real --set-upstream-to=origin/main with an atomic two-PID receipt",
+    "While actual command is held, assert physical child release, exact argv suffix -- main, unchanged pre-write config, active mutation and F5/duplicate picker refusal; release only owned helper, then await actual Git/catalog completion",
+    "Cache receiver compilation across invocations; private HOME/CF/XDG/TMP/Git config, no clipboard operations; exact executable/authored wrapper plus private resource required for helper cleanup"
+  ],
+  "checkpoint": {
+    "log": "build/qa/reference-tracking-consolidation-2026-11-07.log",
+    "results": {
+      "results": [
+        {
+          "git": "/usr/bin/git",
+          "returncode": 0,
+          "passed": true
+        },
+        {
+          "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+          "returncode": 0,
+          "passed": true
+        }
+      ],
+      "failures": []
+    },
+    "engine_pairs": 2,
+    "passed": 2,
+    "native_picker_attachments": 8,
+    "local_initial_failures": [],
+    "repeat_tests": false,
+    "core_tests": "Not run: production Core unchanged",
+    "app_build": "Not run: existing shared Debug reused"
+  },
+  "ownership": {
+    "reaped_compiler_receiver_pids": [
+      29632,
+      29640,
+      29794
+    ],
+    "all_pids_absent": true,
+    "present_owned_processes": "",
+    "helper_cleanup_required": false,
+    "windows": "Native Browser parent/children/error sheets are transparent/offscreen; final reads/mutations/filters/comparisons/child releases/retirements and native sheet attachment all drained"
+  },
+  "source_changes": false,
+  "sha256": {
+    "docs/qa/reference-tracking-native-2026-10-09.swift": "92072a9ac224b7508f223d71288e74b73e82c7e65b03d21b5092bce39624c177",
+    "scripts/test-reference-tracking.py": "ffdc3d2403ec6008d39ad8609cb3cb98075f3b81370d69ad8e86b304b2b4ce36",
+    "Sources/TurtleGitMac/ReferenceBrowserWindow.swift": "164b38967767ed2158c55a64208fa09131a3d2f8f903e6f4bfa9b062ab00ec8d",
+    "Sources/TurtleGitCore/ReferenceBrowser.swift": "26ad688f396e79e8490a2d8c2e117bd2f92f27e57aebab1dd6648d593811a43c"
+  },
+  "remaining": [
+    "Corrected-source hosted CI run remains unverified",
+    "No signed deployment, physical Finder or complete dialog visual acceptance",
+    "Hidden zero-size NSSplitView warnings remain recorded; no claim they are resolved",
+    "No complete-port or feature-percentage claim"
+  ]
+}

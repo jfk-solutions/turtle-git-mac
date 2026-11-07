@@ -76,6 +76,20 @@ ten passing combinations were retained when repairing Rebase/Switch, and twelve
 were retained for the final Switch-only repair. All 34 reported compiler/receiver
 PIDs were independently absent, and observed private test roots were removed.
 
+The [tracked-branch consolidation checkpoint](qa/reference-tracking-consolidation-2026-11-07.json)
+adds two first-checkpoint native engine passes against unchanged production code.
+The hosted `9a1ee028` consumer had required the first Cancel callback to clear
+parent ownership immediately; source intentionally releases it after native child
+retirement. Cancel, rejected presentation and forced close now await physical
+detachment and work drain. Accept uses a held **real** `branch
+--set-upstream-to=origin/main -- main` command to retain the active-write/F5 gate
+assertions after ordered child delivery. It also checks config bytes before that
+write, inherited callbacks, exact reference arguments, Set/Unset retention and
+invalid fetch mapping. Eight actual remote-picker sheets cover both engines;
+all three compiler/receiver PIDs were absent afterward. The driver uses cached
+compilation and private HOME, preferences, configuration and temporary resources.
+No Core check or app rebuild was needed for these consumer-only changes.
+
 No complete corrected-source hosted run, physical/signed/VoiceOver acceptance or
 full visual source parity is established by these hidden checks. Initial hidden
 zero-size split-view warnings remain in the logs. Those acceptance areas and the

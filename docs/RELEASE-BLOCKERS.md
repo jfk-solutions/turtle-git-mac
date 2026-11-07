@@ -9,11 +9,17 @@ This page identifies current gates; dated implementation detail is in
 
 The latest observed [9a1ee028 macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589)
 is still running. SVN and its separate Pages deployment passed. The
-History/References lane has reported a failed **Native tracked branch commands
-and remote-only picker** step; its exact cause is being retrieved. Core,
-Replay/Transport and Commit/Repository remain active, and four lanes were queued
-at this observation. This run predates the Stash/Submodule and Push/Clone source
-batches below, and is not a complete corrected-source hosted pass.
+History/References lane reported a failed **Native tracked branch commands
+and remote-only picker** step. Its [exact step evidence](qa/hosted-9a1-tracked-branch-2026-11-07.json)
+identifies the first child Cancel assertion; that older consumer expected immediate
+release while the production owner deliberately waits for physical detachment.
+The [corrected connected family](qa/reference-tracking-consolidation-2026-11-07.json)
+passes both Git engines locally, retaining configuration bytes, actual tracking
+write, parent gates and ordered child delivery assertions. This is a consumer
+repair, not a hosted pass. Core, Replay/Transport and Commit/Repository remain
+active, and four lanes were queued at the latest observation. This run predates
+the Stash/Submodule and Push/Clone source batches below. The newer `f7e7514b`
+macOS run is pending, while its Pages deployment passed.
 
 The [Stash/Submodule checkpoint](qa/stash-submodule-recovery-2026-11-07.json)
 passes 40 focused Core cases and 34 native case/engine pairs cumulatively. The

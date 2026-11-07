@@ -1,0 +1,112 @@
+{
+  "date": "2026-11-07",
+  "repo": "jfk-solutions/turtle-git-mac",
+  "source_commit": "9a1ee028",
+  "run_id": 42408561589,
+  "job": {
+    "id": 128511795311,
+    "name": "validation (history-references)",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589/job/128511795311",
+    "status_at_read": "in_progress",
+    "conclusion_at_read": null
+  },
+  "failed_step": {
+    "name": "Native tracked branch commands and remote-only picker",
+    "status": "completed",
+    "conclusion": "failure",
+    "number": 290,
+    "started_at": "2026-11-07T21:03:05Z",
+    "completed_at": "2026-11-07T21:03:15Z"
+  },
+  "current_step_at_read": {
+    "name": "Native Export progress and ZIP cancellation",
+    "status": "in_progress",
+    "conclusion": null,
+    "number": 293,
+    "started_at": "2026-11-07T21:04:22Z",
+    "completed_at": null
+  },
+  "evidence_source": "GitHub connector structuredContent from workflow run jobs subresource and job steps",
+  "job_log": {
+    "tool": "github.fetch_workflow_job_logs",
+    "returned_characters": 6338243,
+    "returned_lines": 47798,
+    "first_line": "\ufeff2026-11-07T19:57:12.7711040Z Current runner version: '2.338.2'",
+    "last_nonempty_line": "2026-11-07T20:22:44.8869300Z  22 |         static let definitions:[(String,String,CGFloat)]=[(\"name\",\"Name\",310),(\"extension\",\"Extension\",100),(\"size\",\"Size\",100)]",
+    "failed_step_present": false,
+    "actual_assertion_available": false,
+    "limitation": "Returned job log content ends at 20:22:44 UTC, before the failed step's 21:03:05\u201321:03:15 UTC interval. No assertion, receiver phase or source defect can be derived from this prefix."
+  },
+  "workflow_mapping": {
+    "file": ".github/workflows/macos.yml",
+    "step_name": "Native tracked branch commands and remote-only picker",
+    "command": "python3 scripts/test-reference-tracking.py",
+    "receiver": "docs/qa/reference-tracking-native-2026-10-09.swift",
+    "scope": "Read-only local workflow mapping; exact failed receiver phase remains unavailable"
+  },
+  "additional_connector_reads": [
+    {
+      "endpoint": "actions/jobs/128511795311",
+      "result": "Rejected by GitHub Fetch allowed-endpoint policy (400 INVALID_ARGUMENT)"
+    },
+    {
+      "endpoint": "check-runs/128511795311/annotations",
+      "result": "Rejected by GitHub Fetch allowed-endpoint policy (400 INVALID_ARGUMENT)"
+    }
+  ],
+  "actionable_next": "Inspect the first picker Cancel/actual child-detachment lifecycle and this immediate compound consumer assertion against current source. Preserve config-byte and ownership assertions; do not infer which predicate failed without diagnostic evidence.",
+  "rerun_or_cancel": false,
+  "source_edited": false,
+  "tests_run": false,
+  "authentication_fallback": false,
+  "ui_evidence": {
+    "method": "Read-only authenticated Chrome GitHub step view using CUA; own temporary tab closed",
+    "step_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589/job/128511795311#step:290:12",
+    "receiver": "reference-tracking-native-2026-10-09.swift",
+    "engine": "/usr/bin/git",
+    "rendered_lines": [
+      {
+        "line": 6,
+        "text": "Checking /usr/bin/git"
+      },
+      {
+        "line": 8,
+        "text": "PICKER: 1 parent closed=false busy=false selected=refs/heads/main"
+      },
+      {
+        "line": 9,
+        "text": "ACTION Select tracked branch, target ReferenceBrowserMenuCommand, window exists=true, sheet=false"
+      },
+      {
+        "line": 10,
+        "text": "CHILD CREATED"
+      },
+      {
+        "line": 11,
+        "text": "FAIL: Cancel retains config/releases child"
+      },
+      {
+        "line": 12,
+        "text": "Owned receiver reaped: 34002"
+      },
+      {
+        "line": 24,
+        "text": "Error: Process completed with exit code 1."
+      }
+    ],
+    "actual_assertion_available": true,
+    "phase": "First Select tracked branch child cancellation, before second picker/accept route",
+    "source_assertion": {
+      "commit": "9a1ee028",
+      "file": "docs/qa/reference-tracking-native-2026-10-09.swift",
+      "line": 64,
+      "preceding_action": "let cancelled = try await picker(); cancelled.model.cancel()",
+      "predicate": "browser.trackingPicker == nil && !browser.model.hasChild && before == Data(contentsOf: root.appendingPathComponent(\".git/config\"))",
+      "interpretation_limit": "Compound immediate assertion; rendered output does not distinguish retained child ownership from config-byte mismatch. No product defect diagnosed."
+    },
+    "browser_tab_closed": true,
+    "completion_summary_sent": true,
+    "rerun_or_cancel_clicked": false,
+    "authentication_material_accessed": false
+  }
+}

@@ -1,5 +1,20 @@
 # TurtleGit for Mac — full port tracking
 
+## Local candidate consolidation — November 7, 2026
+
+The [tracked-branch consumer correction](qa/reference-tracking-consolidation-2026-11-07.json)
+now waits for actual picker cancellation and accepted-child detachment before
+checking configuration and mutation state. It holds a real Git tracking write to
+check F5/Close/Quit gates deterministically. Both Git engines pass the connected
+family; original byte, reference and ownership assertions remain. Production
+behavior and the previously checked Core/Debug app were unchanged.
+
+[Build53 preparation](DISTRIBUTION.md#preparing-local-testing-build53) consolidates
+the later source into a fresh signed sandboxed local candidate. Installed52 and
+its frozen source/rollback remain separate until an actual measured update.
+Complete corrected-source hosted and candidate-specific signed/physical
+acceptance remain open.
+
 ## Push and Clone accepted results — November 7, 2026
 
 The connected Push/Clone family now preserves actual command receipts through
