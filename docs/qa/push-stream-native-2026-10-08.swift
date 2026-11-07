@@ -26,7 +26,19 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "${4-}" = -c ] && [ "${5-}" = core.precomposeunicode=false ] && [ "${6-}" = push ] && [ ! -f "$0.release" ]; then
+        task_is_push() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -C|-c|--git-dir|--work-tree|--config-env) shift 2;;
+              --literal-pathspecs|--no-literal-pathspecs) shift;;
+              --) shift; test "${1-}" = push;return;;
+              -*) shift;;
+              *) test "$1" = push;return;;
+            esac
+          done
+          return 1
+        }
+        if task_is_push "$@" && [ ! -f "$0.release" ]; then
           printf '\\351\\233' >&2
           /bin/sleep 0.02
           printf '\\252\\360\\237\\220\\242\\n' >&2
@@ -38,7 +50,8 @@ import TurtleGitCore
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-          printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+          printf '%s %s\\n' "$$" "$task_child" > "$0.started.tmp"
+          /bin/mv "$0.started.tmp" "$0.started"
           wait "$task_child"
         fi
         exec \(quoted) "$@"

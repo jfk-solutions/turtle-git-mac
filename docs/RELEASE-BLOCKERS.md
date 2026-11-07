@@ -7,6 +7,23 @@ This page identifies current gates; dated implementation detail is in
 
 ## Current acceptance queue
 
+The latest observed [9a1ee028 macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589)
+is still running. SVN and its separate Pages deployment passed. The
+History/References lane has reported a failed **Native tracked branch commands
+and remote-only picker** step; its exact cause is being retrieved. Core,
+Replay/Transport and Commit/Repository remain active, and four lanes were queued
+at this observation. This run predates the Stash/Submodule and Push/Clone source
+batches below, and is not a complete corrected-source hosted pass.
+
+The [Stash/Submodule checkpoint](qa/stash-submodule-recovery-2026-11-07.json)
+passes 40 focused Core cases and 34 native case/engine pairs cumulatively. The
+[Push/Clone checkpoint](qa/push-clone-recovery-2026-11-07.json) passes 56 focused
+Core methods and 28 native case/engine pairs cumulatively. Both preserve initial
+failures and focused repairs, verify owned helper/window drainage, and leave
+installed build 52 unchanged. These source batches improve real recovery,
+registration and dialog handoffs; they do not establish whole-port, hosted or
+signed/platform acceptance.
+
 The [November 7 child-delivery checkpoint](qa/reference-child-delivery-2026-11-07.json)
 passes fourteen native case/engine combinations cumulatively. Real Browser and
 RefLog acceptance, Cancel and forced closure detach before ordered exactly-once

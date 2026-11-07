@@ -68,7 +68,9 @@ import TurtleGitCore
         let child = GitRepository(root:parentRoot.appendingPathComponent("child"),executable:git)
         let subOwner = PushWindowModel(repository:child,access:nil,preferences:prefs); subOwner.load(); try await wait { !subOwner.busy }; subOwner.options.destination = "sub-published"; subOwner.options.setUpstream = false
         prefs.set(0,forKey:"AutoCloseGitProgress"); var subResult:PushProgressWindowModel?; subOwner.onProgress = { subResult = $0 }; subOwner.push(); try await wait { subResult?.busy == false }
-        precondition(subResult!.success && subResult!.superproject?.standardizedFileURL.path == parentRoot.path && subResult!.postActions.last == .commitSuperproject); subResult!.close()
+        let expectedSuperproject=parent.root.path
+        let superprojectMatches=subResult!.superproject?.standardizedFileURL.path.utf8.elementsEqual(expectedSuperproject.utf8)==true
+        precondition(subResult!.success && superprojectMatches && subResult!.postActions.last == .commitSuperproject,"Submodule Push receipt: success=\(subResult!.success) superproject=\(subResult!.superproject?.path ?? "nil") expected=\(expectedSuperproject) input=\(parentRoot.path) actions=\(subResult!.postActions) output=\(subResult!.output)");subResult!.close()
         // Missing presenter terminates the owned request and releases owner state.
         let absent = PushWindowModel(repository:repo,access:nil,preferences:prefs); absent.load(); try await wait { !absent.busy }; absent.options.destination = "not-presented"; absent.options.setUpstream = false
         var absentSuccess = 0; absent.onPushed = { _ in absentSuccess += 1 }; absent.onProgress = { $0.abandonPresentation() }; absent.push(); try await wait { !absent.busy }; precondition(absent.progress == nil && absentSuccess == 0)
@@ -77,11 +79,24 @@ import TurtleGitCore
         let gitQuote = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "${4-}" = push ] && [ ! -f "$0.release" ]; then
+        task_is_push() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -C|-c|--git-dir|--work-tree|--config-env) shift 2;;
+              --literal-pathspecs|--no-literal-pathspecs) shift;;
+              --) shift; test "${1-}" = push;return;;
+              -*) shift;;
+              *) test "$1" = push;return;;
+            esac
+          done
+          return 1
+        }
+        if task_is_push "$@" && [ ! -f "$0.release" ]; then
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
-          printf '%s %s\\n' "$$" "$task_child" > "$0.started"
+          printf '%s %s\\n' "$$" "$task_child" > "$0.started.tmp"
+          /bin/mv "$0.started.tmp" "$0.started"
           wait "$task_child"
         fi
         exec \(gitQuote) "$@"

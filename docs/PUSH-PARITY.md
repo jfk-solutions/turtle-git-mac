@@ -1,5 +1,55 @@
 # Push dialog parity
 
+## Accepted transport and owned completion, 7 November 2026
+
+Compared `PushDlg.cpp` (`IDD_PUSH`) and `CAppUtils::DoPush` in `AppUtils.cpp`
+against pinned TortoiseGit `7338078f8ddd924b8cddee35f512f2286072136d`.
+The shared `IDD_GITPROGRESS` family is reviewed here only for Push results,
+source-ordered hooks and post-actions, not every control used by other commands.
+
+The accepted Push command list now emits an immutable transport completion after
+its actual workers drain. Real completed remotes survive a later remote,
+revision-counter or SSH preparation failure. Read-only preflight and preparation
+before the first Push emit no mutation notification. Interrupted commands retain
+their actual status, raw output and delivery metadata; late cancellation cannot
+replace an accepted successful final command with a synthetic cancellation.
+
+The native form captures its original repository-refresh callback at submission.
+It receives exactly one transport completion after transport and post-push hook
+workers drain, including after forced retirement. The separate active-success
+callback and closed-window presentation remain fenced. Hooks use the same
+accepted repository/backend as the transfer. Cancelling a later post-push hook
+preserves the actual successful Push and reports a hook warning; the footer
+identifies that phase rather than continuing to claim it is pushing objects.
+
+Submission/cancellation questions, reference and history pickers, the retained
+progress window and its parent remain owned until real sheets detach and workers
+finish. Ordinary acknowledgement and post-actions wait for that release; forced
+closure cancels owned work without treating remote changes as rolled back.
+Each selected post-action is dispatched once after progress and parent release.
+Its acceptance captures the current Quit generation, repository, options,
+preferences and presentation. A subsequent Quit attempt invalidates that queued
+action even if Quit is cancelled; a fresh click after cancelled Quit is valid.
+Root handoffs and asynchronous superproject permission replies have their own
+matching generation guard. Superproject Commit retains the accepted helper,
+askpass, diff policy and backend.
+
+The source Ref/Destination/Options groups, original command icons, all-branches
+and deletion confirmations, saved defaults, URL/ref histories and rejection
+follow-up order remain in place. Progress reserves the bar/activity/current-work
+rows so streamed percentages and phases do not move the output and buttons.
+
+The [coordinated Push/Clone checkpoint](qa/push-clone-recovery-2026-11-07.json)
+records 56 focused Core methods and 28 native case/engine pairs passing
+cumulatively. Initial compiler, fixture and warning-rendering failures remain
+recorded with their focused repairs. Ordinary successful Push now supplies hook
+warnings through the bounded completion-warning renderer, keeping them visible
+and preventing automatic close from hiding them after streamed output.
+Full physical keyboard, IME, VoiceOver and visual comparison, real credential/
+network servers, signed Finder and sandbox distribution and a complete hosted CI
+pass remain separate work. This partial review does not certify every upstream
+control or the port. Installed build 52 was not updated.
+
 The [exact-name operation continuation](OPERATION-IDENTITY-RETRY-PARITY.md)
 connects rapid native remote choices to monotonic, exact-catalog action receipts
 and preserves manual selection through owned refresh/cancel/Retry. Its focused

@@ -152,7 +152,7 @@ extension GitRepository {
         let command:GitResult
         do {
             command=try acceptedCreationResult {try runTransfer(args,environment:environment,literalPathspecs:false,cancellation:token,onOutput:onOutput,executor:executor,onNotification:onNotification,acceptSuccessfulCancellation:true)}
-            onCommandFinished?(.init(success:true,cancelled:token.isCancelled,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
+            onCommandFinished?(.init(success:true,cancelled:false,exitCode:command.exitCode,elapsed:ProcessInfo.processInfo.systemUptime-started))
         } catch {
             let killed=error as? GitCommandCancellationFailure
             onCommandFinished?(.init(success:false,cancelled:token.isCancelled || error is OperationCancellationFailure || error is CancellationError || killed != nil,
@@ -162,7 +162,7 @@ extension GitRepository {
         let output=command.text
         var warnings:[String]=[]
         var identity:RepositoryCreationIdentity?,verificationError:String?
-        do {identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}}
+        do {identity=try boundedCreationVerification(cancellation:token) {try createdRepositoryIdentity(at:destination,cancellation:$0)}}
         catch {verificationError="Clone completed, but the repository could not be verified: "+error.localizedDescription;warnings.append(verificationError!)}
         let needsConfiguration=(options.svn && capturedSSHCommand != nil) || options.loadSSHKeyWithAgent && options.sshKey != nil
         var configurationPending=needsConfiguration
@@ -181,7 +181,7 @@ extension GitRepository {
     }
     public func inspectCloneOutcome(_ outcome:CloneOutcome,at destination:URL,cancellation:OperationCancellation?=nil)throws->CloneOutcome {
         try cancellation?.check()
-        let identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}
+        let identity=try boundedCreationVerification(cancellation:cancellation) {try createdRepositoryIdentity(at:destination,cancellation:$0)}
         if let prior=outcome.identity,prior != identity {throw InitializationFailure.destination}
         let warnings=outcome.warnings.filter {$0 != outcome.verificationError}
         return .init(output:outcome.output,warnings:warnings,repositoryRoot:identity.root,isBare:identity.isBare,cancelledAfterCreation:outcome.cancelledAfterCreation || cancellation?.isCancelled == true,configurationPending:outcome.configurationPending,identity:identity)
@@ -191,7 +191,7 @@ extension GitRepository {
     public func configureClonedRepository(_ options:CloneOptions,at destination:URL,expected:CloneOutcome,cancellation:OperationCancellation?=nil)throws->String {
         try cancellation?.check()
         guard let expectedIdentity=expected.identity else {throw InitializationFailure.destination}
-        let identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}
+        let identity=try boundedCreationVerification(cancellation:cancellation) {try createdRepositoryIdentity(at:destination,cancellation:$0)}
         guard identity==expectedIdentity else {throw InitializationFailure.destination}
         var output=""
         if options.svn,let command=try options.sshCommand() {output += try acceptedCreationResult {try run(["-C",destination.path,"config","--local","core.sshCommand",command],cancellation:cancellation)}.text}

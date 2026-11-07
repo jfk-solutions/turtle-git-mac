@@ -640,8 +640,10 @@ private enum TransportBatchPresentationContext {
 
     @Published var output = "Open a repository to get started."
     @Published var busy = false { didSet { if busy != oldValue { retireWorkspaceMenus() };repositoryAccessWindow?.model.objectWillChange.send();if !busy { eventRefresh?.kick(); scheduleCompletedRepositoryHandoff() } } }
+    private var transportHandoffGeneration=0
     @Published var confirmingQuit = false { didSet {
         if confirmingQuit != oldValue {
+            transportHandoffGeneration += 1
             retireWorkspaceMenus()
             for controller in dropTransfers.values {controller.model.confirmingQuit=confirmingQuit}
             for controller in moveWindows.values {controller.model.confirmingQuit=confirmingQuit}
@@ -869,6 +871,7 @@ private enum TransportBatchPresentationContext {
     private struct CompletedRepositoryHandoff {
         let id = UUID()
         let generation: Int
+        let interactionGeneration:Int
         let root: URL
         let access: RepositoryAccessLease
         let owner: RepositoryWindowOwner
@@ -2030,17 +2033,29 @@ private enum TransportBatchPresentationContext {
             self.showLog(repository: repository, access: access, paths: [], preferences: preferences, presentation: model.handoffPresentation)
         }
         let handoffOwner = RepositoryWindowOwner(window: workspaceWindow)
-        controller.model.onCloned = CommandProgressContext.capture { [weak self,weak model=controller.model] repo, access, keyAccess, _, result in
+        // Registration belongs to the accepted verified creation. Workspace
+        // adoption is a separate active result and waits for that registration.
+        var registrationFinished=false
+        var pendingAdoption:(()->Void)?
+        controller.model.onCloned = CommandProgressContext.capture { [weak self] repo,access,_,_,result in
+            guard let self,!self.retired,!self.confirmingQuit else{return}
+            let generation=self.adoptionGeneration,interaction=self.transportHandoffGeneration
+            let adopt={ [weak self] in
+                guard let self,!self.retired,!self.confirmingQuit,self.transportHandoffGeneration==interaction,!handoffOwner.cancellation.isCancelled,self.adoptionGeneration==generation else{return}
+                self.adoptRepository(repo,access:access,output:result,owner:handoffOwner)
+            }
+            if registrationFinished {adopt()} else {pendingAdoption=adopt}
+        }
+        controller.model.onVerifiedClone = CommandProgressContext.capture { [weak self,weak model=controller.model] repo, access, keyAccess, _, _ in
             guard let self, !self.retired else { return }
             if let keyAccess {
                 self.cloneKeyAccess[repo.root.path] = keyAccess
                 do { UserDefaults.standard.set(try SystemRepositoryBookmarkProvider().create(for: keyAccess.url), forKey: "Clone.KeyBookmark." + repo.root.path) }
                 catch { self.error = "The clone completed, but its SSH-key permission could not be saved.\n" + error.localizedDescription }
             }
-            let generation=self.adoptionGeneration
-            self.registerCompletedClone(repo,access:access,model:model) { [weak self] in
-                guard let self,!handoffOwner.cancellation.isCancelled,self.adoptionGeneration==generation else {return}
-                self.adoptRepository(repo,access:access,output:result,owner:handoffOwner)
+            self.registerCompletedClone(repo,access:access,model:model) {
+                registrationFinished=true
+                let adopt=pendingAdoption;pendingAdoption=nil;adopt?()
             }
         }
     }
@@ -2195,7 +2210,7 @@ private enum TransportBatchPresentationContext {
     }
     private func adoptRepository(_ repo: GitRepository, access: RepositoryAccessLease, output: String, owner: RepositoryWindowOwner) {
         guard !retired, !owner.cancellation.isCancelled else { return }
-        let handoff = CompletedRepositoryHandoff(generation: adoptionGeneration, root: repo.root, access: access, owner: owner, output: output)
+        let handoff = CompletedRepositoryHandoff(generation: adoptionGeneration, interactionGeneration:transportHandoffGeneration, root: repo.root, access: access, owner: owner, output: output)
         completedRepositoryHandoff = handoff
         let id = handoff.id
         owner.onCancelled = CommandProgressContext.capture { [weak self] in
@@ -2212,6 +2227,7 @@ private enum TransportBatchPresentationContext {
     }
     private func scheduleCompletedRepositoryHandoff() {
         guard let pending = completedRepositoryHandoff, !busy, !confirmingQuit, !retired else { return }
+        guard pending.interactionGeneration==transportHandoffGeneration else{completedRepositoryHandoff=nil;return}
         let id = pending.id
         // Defer until the releasing operation has completed its callbacks and
         // cleanup. An accepted Open/Close in the meantime supersedes this result.
@@ -2219,7 +2235,7 @@ private enum TransportBatchPresentationContext {
             guard let self, let handoff = self.completedRepositoryHandoff, handoff.id == id else { return }
             guard !self.busy, !self.confirmingQuit else { return }
             self.completedRepositoryHandoff = nil
-            guard !self.retired, handoff.generation == self.adoptionGeneration, !handoff.owner.cancellation.isCancelled else { return }
+            guard !self.retired, handoff.generation == self.adoptionGeneration, handoff.interactionGeneration==self.transportHandoffGeneration, !handoff.owner.cancellation.isCancelled else { return }
             self.openSession(handoff.access, selected: FinderRequest(action: .status, paths: [handoff.root]), handoffOwner: handoff.owner, onOpened: CommandProgressContext.capture { [weak self] in self?.output = handoff.output })
         }
     }
@@ -5203,27 +5219,31 @@ private enum TransportBatchPresentationContext {
             self?.refreshRepositoryLogs(root); self?.refreshStatusWindows(root); self?.commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }; self?.referenceLogWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             if self?.root == root { self?.output = output; Task { await self?.refresh() } }
         }
-        controller.model.onPostAction = CommandProgressContext.capture { [weak self] action, options, superproject in
-            self?.performTransportHandoff(transportChain,modal:action != .commitSuperproject) {
-                guard let self else { return }
+        let preferences=controller.model.presentationPreferences
+        controller.model.onRepositoryPostAction = CommandProgressContext.capture { [weak self,weak model=controller.model] action, options, superproject, repository in
+            guard let self,let model,!self.retired,!self.confirmingQuit else{return}
+            let generation=self.transportHandoffGeneration
+            let presentation=model.handoffPresentation
+            self.performTransportHandoff(transportChain,modal:action != .commitSuperproject) {
+                guard !self.retired,!self.confirmingQuit,self.transportHandoffGeneration==generation else{return}
                 switch action {
-                case .requestPull: self.showRequestPull(repository: repository, access: access, end: options.destination)
-                case .push: self.showPush(repository: repository, access: access, source: options.source)
-                case .switchBranch: self.showSwitch(repository: repository, access: access)
-                case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true))
-                case .fetch: self.showFetch(repository: repository, access: access, remote: options.allRemotes ? nil : options.remote, allRemotes: options.allRemotes)
+                case .requestPull: self.showRequestPull(repository: repository, access: access, end: options.destination,preferences:preferences)
+                case .push: self.showPush(repository: repository, access: access, source: options.source,preferences:preferences,presentation:presentation)
+                case .switchBranch: self.showSwitch(repository: repository, access: access,preferences:preferences)
+                case .pull: self.showFetch(repository: repository, access: access, isPull: true, followUp: PullFollowUp(showPush: true),preferences:preferences,presentation:presentation)
+                case .fetch: self.showFetch(repository: repository, access: access, remote: options.allRemotes ? nil : options.remote, allRemotes: options.allRemotes,preferences:preferences,presentation:presentation)
                 case .commitSuperproject:
                     guard let superproject else { return }
                     if !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(superproject) == true {
-                        self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: access, paths: [])
+                        self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration), access: access, paths: [],preferences:preferences,presentation:presentation)
                     } else {
                         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = superproject
                         panel.prompt = "Authorize super project"; panel.message = "Choose the super project folder to open its Commit dialog."
                         panel.begin { [weak self] response in
-                            guard response == .OK, let folder = panel.url else { return }
+                            guard let self,!self.retired,!self.confirmingQuit,self.transportHandoffGeneration==generation,response == .OK, let folder = panel.url else { return }
                             let lease = RepositoryAccessLease(url: folder)
-                            guard lease.hasSecurityScope, lease.contains(superproject) else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-                            self?.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable), access: lease, paths: [])
+                            guard lease.hasSecurityScope, lease.contains(superproject) else { self.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
+                            self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration), access: lease, paths: [],preferences:preferences,presentation:presentation)
                         }
                     }
                 }

@@ -121,7 +121,7 @@ import TurtleGitCore
         }
         let hook = root.appendingPathComponent("post-hook.sh"), events = root.appendingPathComponent("events")
         try Data(#"printf 'post\n' >> "$1/events""#.utf8).write(to: hook)
-        let post = ClientHook(type: .postPush, path: root.path, command: "/bin/sh '" + hook.path + "' '%root%'", show: false)
+        let post = ClientHook(type: .postPush, path: wrapped.root.path, command: "/bin/sh '" + hook.path + "' '%root%'", show: false)
         prefs.set(try ClientHookConfiguration.serialize([post]), forKey: "hooks")
         let transport = PushWindowModel(repository: wrapped, access: nil, preferences: prefs); defer { transport.invalidate() }
         transport.options.remote = "origin"; transport.options.source = "main"; transport.options.destination = "main"

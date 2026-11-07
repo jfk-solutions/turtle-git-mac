@@ -30,17 +30,34 @@ public struct PushDefaults: Sendable {
     public let setUpstream: Bool
     public let localBranch: String?
 }
-public struct PushExecutionFailure: LocalizedError {
+public struct PushExecutionFailure: LocalizedError, Sendable {
     public let completed: [String]
     public let failedRemote: String
     public let details: String
     public let output: String
     public let commandFailure: GitFailure?
-    public init(completed: [String], failedRemote: String, details: String, output: String = "", commandFailure: GitFailure? = nil) {
+    public let cancelled:Bool
+    public let commandCancellation:GitCommandCancellationFailure?
+    public init(completed: [String], failedRemote: String, details: String, output: String = "", commandFailure: GitFailure? = nil,
+                cancelled:Bool=false,commandCancellation:GitCommandCancellationFailure?=nil) {
         self.completed = completed; self.failedRemote = failedRemote; self.details = details; self.output = output; self.commandFailure = commandFailure
+        self.cancelled=cancelled;self.commandCancellation=commandCancellation
     }
     public var errorDescription: String? {
-        output + (completed.isEmpty ? "" : "Completed: " + completed.joined(separator: ", ") + ".\n") + "Push to \(failedRemote) failed.\n" + details
+        let interrupted=commandCancellation?.result.text ?? ""
+        return output + (completed.isEmpty ? "" : "Completed: " + completed.joined(separator: ", ") + ".\n") + "Push to \(failedRemote) failed.\n"
+            + (interrupted.isEmpty ? "":interrupted+(interrupted.hasSuffix("\n") ? "":"\n")) + details
+    }
+}
+/// The accepted Push command list has drained. Completed remotes remain real
+/// even if a later remote, revision counter or hook fails. Validation and SSH
+/// preparation before the first command do not emit a transport receipt.
+public struct PushTransportCompletion:Sendable {
+    public let success:Bool,cancelled:Bool
+    public let output:String,completed:[String]
+    public let failure:PushExecutionFailure?
+    public init(success:Bool,cancelled:Bool,output:String,completed:[String],failure:PushExecutionFailure?=nil) {
+        self.success=success;self.cancelled=cancelled;self.output=output;self.completed=completed;self.failure=failure
     }
 }
 public enum PushValidationFailure: LocalizedError {
@@ -58,7 +75,7 @@ public enum PushValidationFailure: LocalizedError {
 extension GitRepository {
     private func pushCommand(_ arguments: [String], environmentOverrides: [String:String] = [:], cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> GitResult {
         do { return try run(["-c", "core.precomposeunicode=false"] + arguments, environmentOverrides: environmentOverrides, cancellation: cancellation, onOutput: onOutput) }
-        catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message) }
+        catch let failure as GitFailure { throw GitFailure(arguments: arguments, code: failure.code, message: failure.message,outputWasDelivered:failure.outputWasDelivered,standardError:failure.standardError) }
     }
 
     public func remoteURLs(name: String) throws -> (fetch: String, push: String) {
@@ -187,7 +204,8 @@ extension GitRepository {
     public func branchRevisionNumber(_ revision: String, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> String {
         try pushCommand(["rev-list", "--count", "--first-parent", "--end-of-options", revision, "--"], cancellation: cancellation, onOutput: onOutput).text.trimmingCharacters(in: .newlines)
     }
-    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil) async throws -> String {
+    public func push(_ options: PushOptions, cancellation: OperationCancellation? = nil, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil, prepareTransport: SSHTransportPreparation? = nil,
+                     onTransportFinished:(@Sendable(PushTransportCompletion)->Void)?=nil) async throws -> String {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let plan = try validatedPush(options, cancellation: token)
         let source = plan.source, destination = plan.destination, remotes = plan.remotes
@@ -206,26 +224,42 @@ extension GitRepository {
         if options.forceWithLease { flags.append("--force-with-lease") }
         if options.setUpstream { flags.append("--set-upstream") }
         if !options.pushOption.isEmpty { flags.append("--push-option=" + options.pushOption) }
-        var output = "", completed: [String] = []
+        var output = "", completed: [String] = [],attempted=false
+        func submit(_ arguments:[String],environment:[String:String])throws->GitResult {
+            try token.check();attempted=true
+            do {return try pushCommand(arguments,environmentOverrides:environment,cancellation:token,onOutput:onOutput)}
+            catch let failure as GitCommandCancellationFailure where failure.result.exitCode == 0 {
+                // Cancellation cannot turn a completed successful publication
+                // into failure. Any remaining commands still check the token.
+                return failure.result
+            }
+        }
         for remote in remotes {
             do {
                 let session = try await prepareSSHTransport([remote], cancellation: token, preparation: prepareTransport)
                 defer { withExtendedLifetime(session) {} }
                 let environment = session?.transportEnvironment ?? [:]
                 if options.allBranches {
-                    output += try pushCommand(["push", "--all"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text
+                    output += try submit(["push", "--all"] + flags + ["--", remote],environment:environment).text
                     completed.append(remote + " (branches)")
-                    if options.includeTags { output += try pushCommand(["push", "--tags"] + flags + ["--", remote], environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote + " (tags)") }
+                    if options.includeTags { output += try submit(["push", "--tags"] + flags + ["--", remote],environment:environment).text; completed.append(remote + " (tags)") }
                 } else {
                     var args = ["push"] + flags
                     if options.includeTags { args.append("--tags") }
                     args += ["--", remote]
                     if !source.isEmpty || !destination.isEmpty { args.append(source + (destination.isEmpty ? "" : ":" + destination)) }
-                    output += try pushCommand(args, environmentOverrides: environment, cancellation: token, onOutput: onOutput).text; completed.append(remote)
+                    output += try submit(args,environment:environment).text; completed.append(remote)
                     if options.showBranchRevisionNumber { output += try branchRevisionNumber(source, cancellation: token, onOutput: onOutput) + "\n" }
                 }
-            } catch { throw PushExecutionFailure(completed: completed, failedRemote: remote, details: error.localizedDescription, output: output, commandFailure: error as? GitFailure) }
+            } catch {
+                let interrupted=error as? GitCommandCancellationFailure
+                let failure=PushExecutionFailure(completed:completed,failedRemote:remote,details:error.localizedDescription,output:output,commandFailure:error as? GitFailure,
+                    cancelled:interrupted != nil || error is OperationCancellationFailure || error is CancellationError,commandCancellation:interrupted)
+                if attempted {onTransportFinished?(.init(success:false,cancelled:failure.cancelled,output:failure.errorDescription ?? failure.details,completed:completed,failure:failure))}
+                throw failure
+            }
         }
+        if attempted {onTransportFinished?(.init(success:true,cancelled:false,output:output,completed:completed))}
         return output
     }
 }

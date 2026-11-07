@@ -14,7 +14,7 @@ import TurtleGitCore
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let suite = "TurtleGit.PushCancellation.QA." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
-        let decoy = Process(); decoy.executableURL = URL(fileURLWithPath: "/bin/sleep"); decoy.arguments = ["30"]; try decoy.run()
+        let decoy = Process(); decoy.executableURL = URL(fileURLWithPath: "/bin/sleep"); decoy.arguments = ["30"]; decoy.currentDirectoryURL=root; try decoy.run()
         defer { if decoy.isRunning { decoy.terminate() }; decoy.waitUntilExit() }
         for mode in 0..<3 {
             let client = root.appendingPathComponent("client-\(mode)"), destination = root.appendingPathComponent("remote-\(mode).git"), second = root.appendingPathComponent("second-\(mode).git")
@@ -30,7 +30,19 @@ import TurtleGitCore
             let script = """
             #!/bin/sh
             task_delay=no
-            if [ "${4-}" = push ] && [ ! -f "$0.release" ]; then
+            task_is_push() {
+              while [ "$#" -gt 0 ]; do
+                case "$1" in
+                  -C|-c|--git-dir|--work-tree|--config-env) shift 2;;
+                  --literal-pathspecs|--no-literal-pathspecs) shift;;
+                  --) shift; test "${1-}" = push;return;;
+                  -*) shift;;
+                  *) test "$1" = push;return;;
+                esac
+              done
+              return 1
+            }
+            if task_is_push "$@" && [ ! -f "$0.release" ]; then
               case \(mode) in
                 0) task_delay=yes ;;
                 1) for task_arg in "$@"; do [ "$task_arg" = z-slow ] && task_delay=yes; done ;;
@@ -41,7 +53,8 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_transport_child=$!
               trap 'kill "$task_transport_child" 2>/dev/null; wait "$task_transport_child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_transport_child" > "$0.started"
+              printf '%s %s\\n' "$$" "$task_transport_child" > "$0.started.tmp"
+              /bin/mv "$0.started.tmp" "$0.started"
               wait "$task_transport_child"
             fi
             exec \(quote(git.path)) "$@"

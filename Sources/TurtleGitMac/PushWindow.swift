@@ -12,6 +12,37 @@ struct CommitPushContinuation {
     let amend:Bool
 }
 
+/// A question owns its reply until AppKit has detached the actual sheet.
+@MainActor final class PushOwnedQuestion {
+    var present:(NSAlert,NSWindow,@escaping(NSApplication.ModalResponse)->Void)->Void = {alert,owner,reply in alert.beginSheetModal(for:owner,completionHandler:reply)}
+    private var pending:(UUID,NSAlert,(NSApplication.ModalResponse)->Void)?
+    private var releases=0
+    private var retired=false
+    var hasPendingWork:Bool {pending != nil || releases>0}
+    func ask(_ alert:NSAlert,owner:NSWindow?,reply:@escaping(NSApplication.ModalResponse)->Void) {
+        guard !retired,pending==nil,let owner,owner.attachedSheet==nil else{reply(.abort);return}
+        let id=UUID();pending=(id,alert,reply)
+        alert.window.alphaValue=owner.alphaValue;alert.window.appearance=owner.effectiveAppearance
+        owner.makeFirstResponder(nil)
+        present(alert,owner){[weak self] response in self?.finish(id,response:response)}
+    }
+    private func finish(_ id:UUID,response:NSApplication.ModalResponse) {
+        guard let value=pending,value.0==id else{return};pending=nil;releases += 1
+        let child=value.1.window,parent=child.sheetParent
+        parent?.endSheet(child,returnCode:response);child.orderOut(nil);child.close()
+        let release=FinderFilesystemWorkflowRelease(ready:{child.sheetParent==nil && parent?.attachedSheet !== child}){[self] in value.2(retired ? .abort:response);releases -= 1}
+        release.start()
+    }
+    func retire(){guard !retired else{return};retired=true;if let pending{finish(pending.0,response:.abort)}}
+}
+
+private final class PushCompletionReceipt:@unchecked Sendable {
+    private let lock=NSLock()
+    private var value:PushTransportCompletion?
+    func record(_ value:PushTransportCompletion){lock.lock();defer{lock.unlock()};if self.value==nil {self.value=value}}
+    func read()->PushTransportCompletion? {lock.lock();defer{lock.unlock()};return value}
+}
+
 /// PushDlg's F5 refresh belongs to this owner, never a sheet or another window.
 @MainActor final class PushNativeWindow:NSWindow {
     var refreshAction:()->Void = {}
@@ -28,9 +59,17 @@ struct CommitPushContinuation {
 @MainActor final class PushWindowController: NSWindowController, NSWindowDelegate {
     let model: PushWindowModel
     var onClosed: () -> Void = {}
-    private var serviceRetiredSheet:NSWindow?
+    private var retiring=false,released=false
+    private var release:FinderFilesystemWorkflowRelease?
+    private var retiringSheets:[NSWindow]=[]
+    private var retiringParent:NSWindow?
+    private var closedActions:[()->Void]=[]
+    private var pendingChildClosures=0
+    let submissionQuestion=PushOwnedQuestion()
+    private(set) var cancellationQuestion=PushOwnedQuestion()
     var transportBatchWorkPending:Bool {serviceWorkPending}
-    var serviceWorkPending:Bool {model.pendingOperations>0 || window?.attachedSheet != nil || serviceRetiredSheet?.sheetParent != nil}
+    private var underlyingWorkPending:Bool {model.pendingOperations>0 || pendingChildClosures>0 || progressController?.hasPendingWork==true || submissionQuestion.hasPendingWork || cancellationQuestion.hasPendingWork || window?.sheetParent != nil || window?.attachedSheet != nil || (window != nil && retiringParent?.attachedSheet === window) || retiringSheets.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
+    var serviceWorkPending:Bool {release != nil || underlyingWorkPending}
     private var closingPreparation = false
     private(set) var referencePicker: ReferenceBrowserWindowController?
     var configureReferencePicker: (ReferenceBrowserWindowModel) -> Void = { _ in }
@@ -58,11 +97,15 @@ struct CommitPushContinuation {
         super.init(window: window); model.window=window; model.clientHooks.windowProvider = { [weak window] in window?.attachedSheet ?? window }; window.delegate = self; window.setContentSize(NSSize(width: 750, height: 620)); window.center()
         window.refreshAction = { [weak self] in self?.model.refreshFromSourceCommand() }
         model.becameIdle = { [weak self] in if self?.closingPreparation == true { self?.window?.performClose(nil) } }
-        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in guard let self, !self.model.busy, self.model.progress == nil, self.window?.attachedSheet == nil else { return };self.close() }
+        model.afterClose = { [self] action in if released {action()} else {closedActions.append(action);close()} }
+        model.capturePresentation={ [weak self] in self?.window.map{MergeWindowPresentation($0)} }
         model.onProgress = { [weak self] result in
             guard let self, let window = self.window, window.attachedSheet == nil else { result.abandonPresentation(); return }
             let controller = PushProgressWindowController(owner: self.model, result: result)
-            controller.onClosed = { [weak self, weak result] in guard let self, let result else { return }; self.progressController = nil; self.model.finish(result) }
+            controller.questionPending={ [weak self] in self?.cancellationQuestion.hasPendingWork==true }
+            controller.onClosing={ [weak self] in self?.cancellationQuestion.retire() }
+            controller.onClosed = { [weak self, weak result] in guard let self, let result else { return }; self.progressController = nil;if !self.retiring {self.cancellationQuestion=PushOwnedQuestion()};self.model.finish(result) }
             self.progressController = controller
             if let child = controller.window {
                 child.alphaValue = window.alphaValue;child.appearance=window.effectiveAppearance
@@ -78,10 +121,10 @@ struct CommitPushContinuation {
         model.pickSourceLog = { [weak self] in self?.showSourceHistory(referenceLog: false) }
         model.pickSourceRefLog = { [weak self] in self?.showSourceHistory(referenceLog: true) }
         NotificationCenter.default.addObserver(self, selector: #selector(pickerSheetEnded), name: NSWindow.didEndSheetNotification, object: window)
-        model.confirmPush = { [weak window] message, allBranches, deletion, choose in
-            guard let window, window.attachedSheet == nil else { choose(false, false); return }
+        model.confirmPush = { [weak self] message, allBranches, deletion, choose in
+            guard let self else{choose(false,false);return}
             let alert = Self.submissionAlert(message: message, allBranches: allBranches, deletion: deletion)
-            alert.beginSheetModal(for: window) { choose($0 == .alertFirstButtonReturn, alert.suppressionButton?.state == .on) }
+            self.submissionQuestion.ask(alert,owner:self.window){choose($0 == .alertFirstButtonReturn,alert.suppressionButton?.state == .on)}
         }
         model.sshSettings.present = { [weak self] controller in
             guard let owner = self?.progressController?.window ?? self?.window, owner.attachedSheet == nil,
@@ -89,13 +132,13 @@ struct CommitPushContinuation {
             owner.makeFirstResponder(nil); owner.beginSheet(child); return true
         }
         model.confirmCancellation = { [weak self] choose in
-            guard let window = self?.progressController?.window ?? self?.window, window.attachedSheet == nil else { choose(false); return }
+            guard let self else{choose(false);return}
             let alert = NSAlert(); alert.alertStyle = .informational
             alert.messageText = "The process is still running."
             alert.informativeText = "Are you sure to abort?"
             let yes = alert.addButton(withTitle: "Yes"); alert.addButton(withTitle: "No")
             yes.keyEquivalent = "\r"; alert.window.defaultButtonCell = yes.cell as? NSButtonCell
-            alert.beginSheetModal(for: window) { [weak self] response in choose(response == .alertFirstButtonReturn); self?.model.progress?.tryAutomaticClose() }
+            self.cancellationQuestion.ask(alert,owner:self.progressController?.window ?? self.window){[weak self] response in choose(response == .alertFirstButtonReturn);self?.model.progress?.tryAutomaticClose()}
         }
 
         DialogGeometry.attach(window, identifier: "PushWindowController")
@@ -129,11 +172,10 @@ struct CommitPushContinuation {
     }
     private func finishPicker(_ request: UUID, context: PickerContext, kind: PickerKind, value: String?) {
         guard pickerRequest == request, !model.closed else { return }
-        referencePicker = nil; sourceLogPicker = nil; sourceRefLogPicker = nil
         pendingPicker = (request, context, kind, value); pickerSheetEnded()
     }
     @objc private func pickerSheetEnded() {
-        guard let window, window.attachedSheet == nil, let (request, context, kind, value) = pendingPicker,
+        guard pendingChildClosures==0,let window, window.attachedSheet == nil, let (request, context, kind, value) = pendingPicker,
               pickerRequest == request, !model.closed else { return }
         pendingPicker = nil; pickerRequest = nil; model.choosingReference = false
         if let focus = pickerFocus { window.makeFirstResponder(focus) }; pickerFocus = nil
@@ -152,6 +194,9 @@ struct CommitPushContinuation {
                 self?.finishPicker(request, context: context, kind: destination ? .destination : .source, value: value)
             }
         referencePicker = picker; configureReferencePicker(picker.model)
+        pendingChildClosures += 1
+        let previous=picker.onClosed
+        picker.onClosed={ [self,weak picker] in previous();if referencePicker === picker {referencePicker=nil};pendingChildClosures -= 1;pickerSheetEnded() }
         if let child = picker.window { child.alphaValue = window.alphaValue; window.beginSheet(child) }
         picker.model.load()
     }
@@ -162,6 +207,9 @@ struct CommitPushContinuation {
                 self?.finishPicker(request, context: context, kind: .reflog, value: entry?.hash)
             }, preferences: model.settingsPreferences)
             sourceRefLogPicker = child
+            pendingChildClosures += 1
+            let previous=child.onClosed
+            child.onClosed={ [self,weak child] in previous();if sourceRefLogPicker === child {sourceRefLogPicker=nil};pendingChildClosures -= 1;pickerSheetEnded() }
             if let sheet = child.window { sheet.alphaValue = window.alphaValue; window.beginSheet(sheet) }
         } else {
             let revision = FetchDialogHistory.trim(model.options.source)
@@ -171,6 +219,9 @@ struct CommitPushContinuation {
                initialRevision: revision.isEmpty ? nil : revision, historyRegexExecutable: historyRegexExecutable)
             child.model.allBranches = false; child.model.showWorkingTree = false; child.model.historyPaths = []; child.model.showWholeProject = true
             sourceLogPicker = child; configureLogPicker(child.model)
+            pendingChildClosures += 1
+            let previous=child.onClosed
+            child.onClosed={ [self,weak child] in previous();if sourceLogPicker === child {sourceLogPicker=nil};pendingChildClosures -= 1;pickerSheetEnded() }
             if let sheet = child.window { sheet.alphaValue = window.alphaValue; window.beginSheet(sheet) }
         }
     }
@@ -185,22 +236,26 @@ struct CommitPushContinuation {
         return alert
     }
     func windowWillClose(_ notification: Notification) {
-        serviceRetiredSheet=window?.attachedSheet
+        guard notification.object as? NSWindow === window else{return};retireWindow()
+    }
+    override func close(){super.close();if !retiring,window?.isVisible != true {retireWindow()}}
+    private func retireWindow() {
+        guard !retiring else{return};retiring=true;retiringParent=window?.sheetParent
+        if let child=window?.attachedSheet {retiringSheets.append(child)}
         (window as? PushNativeWindow)?.refreshAction = {}
         NotificationCenter.default.removeObserver(self); pickerRequest = nil; pendingPicker = nil; pickerFocus = nil
-        model.invalidate(); referencePicker?.abandonPresentation(); referencePicker = nil; progressController?.close(); progressController = nil
+        submissionQuestion.retire();cancellationQuestion.retire()
+        model.invalidate(); referencePicker?.abandonPresentation();progressController?.close()
         let logPicker = sourceLogPicker, refLogPicker = sourceRefLogPicker
-        sourceLogPicker = nil; sourceRefLogPicker = nil
         for child in [logPicker?.window, refLogPicker?.window].compactMap({ $0 }) {
             child.sheetParent?.endSheet(child)
             child.close()
         }
-        if serviceWorkPending {
-            Task { [self] in
-                while serviceWorkPending {try? await Task.sleep(nanoseconds:20_000_000)}
-                onClosed()
-            }
-        } else {onClosed()}
+        if let window {if let child=window.attachedSheet {window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in !underlyingWorkPending}){[self] in
+            self.release=nil;released=true;retiringParent=nil;retiringSheets=[];model.afterClose=nil
+            let done=onClosed;onClosed={};done();let actions=closedActions;closedActions=[];actions.forEach{$0()}
+        };self.release=release;release.start()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.confirmingQuit else { return false }
@@ -255,8 +310,14 @@ struct CommitPushContinuation {
     private let preferences: UserDefaults
     lazy var clientHooks = ClientHookSession(preferences: preferences)
     private var postHookFailure: String?
+    @Published private(set) var postHookRunning=false
+    @Published private(set) var transportCompletion:PushTransportCompletion?
     @Published private(set) var formRevision = UUID()
-    @Published var confirmingQuit=false { didSet { if confirmingQuit != oldValue { formRevision=UUID() } } }
+    private var interactionGeneration=0
+    @Published var confirmingQuit=false { didSet { if confirmingQuit != oldValue { formRevision=UUID();interactionGeneration += 1 } } }
+    var afterClose:((@escaping()->Void)->Void)?
+    var capturePresentation:()->MergeWindowPresentation?={nil}
+    private(set) var handoffPresentation:MergeWindowPresentation?
     var canRefresh:Bool { !closed && !confirmingQuit && !busy && !preparing && !choosingReference && !managingRemotes && confirmation==nil && progress==nil && window?.attachedSheet==nil && NSApp.modalWindow==nil }
     func refreshFromSourceCommand() {
         guard canRefresh else{return}
@@ -271,6 +332,8 @@ struct CommitPushContinuation {
     @Published private(set) var progress: PushProgressWindowModel?
     var onProgress: ((PushProgressWindowModel) -> Void)?
     var onPostAction: ((PushPostAction, PushOptions, URL?) -> Void)?
+    var onRepositoryPostAction:((PushPostAction,PushOptions,URL?,GitRepository)->Void)?
+    func retireProgress(_ result:PushProgressWindowModel){guard progress === result else{return};cancellation?.cancel();result.invalidate()}
     func finish(_ result: PushProgressWindowModel) {
         guard progress === result, !result.busy, !confirmingCancellation else { return }
         progress = nil; result.invalidate(); busy = false; formRevision = UUID(); if let postHookFailure,!directContinuation { error = postHookFailure;return };error=nil;close()
@@ -561,7 +624,7 @@ struct CommitPushContinuation {
             confirmCancellation { [weak self] proceed in
                 guard let self, self.cancellation === token else { return }
                 self.confirmingCancellation = false
-                if proceed { self.cancelling = true; token.cancel() }
+                if proceed,!self.invalidated,!self.confirmingQuit { self.cancelling = true; token.cancel() }
             }
         } else { stop() }
     }
@@ -598,15 +661,19 @@ struct CommitPushContinuation {
         if snapshot.arbitraryURL { snapshot.remote = FetchDialogHistory.trim(url) }
         confirmationRepository=nil
         let sshFactory = sshSettings.capture()
-        let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil
+        let token = OperationCancellation(); cancellation = token; cancelling = false; error = nil;transportCompletion=nil
+        let receipt=PushCompletionReceipt(),publish=onTransportResult
         busy = true; Self.activePushWorkflows += 1; pendingOperations += 1
         Task { [self, access] in
+            var published=false,ownedWorkFinished=false
+            @MainActor func publishTransport(){guard !published,let accepted=receipt.read() else{return};published=true;publish(accepted.output,accepted.success)}
+            @MainActor func finishOwnedWork(){guard !ownedWorkFinished else{return};ownedWorkFinished=true;Self.activePushWorkflows -= 1;pendingOperations -= 1;publishTransport()}
             let earlyResult:PushProgressWindowModel?
             if progressBeforePreflight,let onProgress {
-                let captured=makeProgress(snapshot,cancellation:token,superproject:nil)
+                let captured=makeProgress(snapshot,repository:repository,cancellation:token,superproject:nil)
                 earlyResult=captured;progress=captured;onProgress(captured)
             } else {earlyResult=nil}
-            defer { Self.activePushWorkflows -= 1; pendingOperations -= 1; withExtendedLifetime(access) {}; cancellation = nil; cancelling = false; confirmingCancellation = false; if !invalidated { busy = progress != nil } }
+            defer { cancellation=nil;finishOwnedWork();earlyResult?.workDidFinish();progress?.workDidFinish();withExtendedLifetime(access) {}; cancelling = false; confirmingCancellation = false; if !invalidated { busy = progress != nil } }
             do {
                 try validateRepositoryAccess()
                 try await repository.validatePushOptions(snapshot, cancellation: token)
@@ -630,64 +697,78 @@ struct CommitPushContinuation {
                     let parentText = ((try? await repository.run(["rev-parse", "--show-superproject-working-tree"], cancellation: token).text) ?? "").trimmingCharacters(in: .newlines)
                     try token.check(); guard !invalidated else { return }
                     let parent = parentText.isEmpty ? nil : URL(fileURLWithPath: parentText)
-                    let captured = makeProgress(snapshot,cancellation:token,superproject:parent)
+                    let captured = makeProgress(snapshot,repository:repository,cancellation:token,superproject:parent)
                     progress = captured; result = captured; onProgress(captured)
                 } else { result = nil }
                 do {
-                let output = try await runPush(snapshot, repository:repository,cancellation: token, result: result, sshFactory: sshFactory)
-                guard !token.isCancelled else { throw OperationCancellationFailure.cancelled }
+                let output = try await runPush(snapshot, repository:repository,cancellation: token, result: result, sshFactory: sshFactory,receipt:receipt)
                 cancellation = nil; cancelling = false; confirmingCancellation = false
                 guard !invalidated else { return }
-                do { try await runPostPushHook() }
-                catch { postHookFailure = "The push succeeded, but its post-push hook failed.\n\n" + error.localizedDescription; if !directContinuation {self.error = postHookFailure} }
+                transportCompletion=receipt.read()
+                do { try await runPostPushHook(repository:repository) }
+                catch {if !invalidated,result?.active != false {postHookFailure = "The push succeeded, but its post-push hook failed.\n\n" + error.localizedDescription;if !directContinuation {self.error=postHookFailure}}}
                 guard !invalidated else { return }
-                onTransportResult(output, true); onPushed(output)
-                if let result { result.complete(output: directContinuation ? output:output + (postHookFailure.map { "\n" + $0 } ?? ""), success: true, cancelled: false,completionWarning:directContinuation ? postHookFailure:nil) }
+                finishOwnedWork()
+                guard !invalidated,result?.active != false else{return}
+                onPushed(output)
+                if let result {result.complete(output:output,success:true,cancelled:false,completionWarning:postHookFailure)}
                 else if postHookFailure == nil { close() }
                 } catch {
                     cancellation = nil; cancelling = false; confirmingCancellation = false
                     guard !invalidated else { return }
-                    do { try await runPostPushHook() }
-                    catch { postHookFailure = "The post-push hook also failed.\n\n" + error.localizedDescription }
+                    transportCompletion=receipt.read()
+                    do { try await runPostPushHook(repository:repository) }
+                    catch {if !invalidated,result?.active != false {postHookFailure = "The post-push hook also failed.\n\n" + error.localizedDescription}}
                     guard !invalidated else { return }
-                    onTransportResult(error.localizedDescription, false)
-                    if let result { result.complete(output: error.localizedDescription + (postHookFailure.map { "\n" + $0 } ?? ""), success: false, cancelled: token.isCancelled, failure: error as? PushExecutionFailure) }
+                    finishOwnedWork()
+                    guard !invalidated,result?.active != false else{return}
+                    if let result { result.complete(output: error.localizedDescription + (postHookFailure.map { "\n" + $0 } ?? ""), success: false, cancelled: receipt.read()?.cancelled ?? (error as? PushExecutionFailure)?.cancelled ?? token.isCancelled, failure: error as? PushExecutionFailure) }
                     else { self.error = error.localizedDescription + (postHookFailure.map { "\n" + $0 } ?? "") }
                 }
             }
             catch {
                 guard !invalidated else{return}
-                onTransportResult(error.localizedDescription,false)
                 if let earlyResult {earlyResult.complete(output:error.localizedDescription,success:false,cancelled:token.isCancelled)}
                 else {self.error=error.localizedDescription}
             }
         }
     }
-    private func makeProgress(_ snapshot:PushOptions,cancellation token:OperationCancellation,superproject:URL?)->PushProgressWindowModel {
+    private func makeProgress(_ snapshot:PushOptions,repository:GitRepository,cancellation token:OperationCancellation,superproject:URL?)->PushProgressWindowModel {
         let captured=PushProgressWindowModel(options:snapshot,superproject:superproject,preferences:preferences)
         captured.close = { [weak self,weak captured] in guard let captured else{return};self?.finish(captured) }
         captured.cancelWithoutPresenter={token.cancel()}
-        captured.onPostAction = { [weak self,weak captured] action in
-            guard let self,let captured else{return};self.onPostAction?(action,captured.options,captured.superproject)
+        captured.presentationAvailable={ [weak self] in self?.invalidated==false && self?.confirmingQuit==false }
+        captured.capturePostAction = { [self,weak captured] action in
+            handoffPresentation=capturePresentation()
+            let generation=interactionGeneration,handler=onPostAction,repositoryHandler=onRepositoryPostAction,afterClose=afterClose
+            return { [self,weak captured] in
+                guard let captured else{return}
+                let dispatch=CommandProgressContext.capture(commandProgressScope) { [self,captured] in
+                    guard !confirmingQuit,interactionGeneration==generation else{return}
+                    if let repositoryHandler {repositoryHandler(action,captured.options,captured.superproject,repository)}
+                    else {handler?(action,captured.options,captured.superproject)}
+                }
+                if let afterClose {afterClose(dispatch)}else{dispatch()}
+            }
         }
         return captured
     }
-    private func runPostPushHook() async throws {
+    private func runPostPushHook(repository:GitRepository) async throws {
         guard !invalidated else { return }
-        let token = OperationCancellation(); cancellation = token
-        defer { if cancellation === token { cancellation = nil; cancelling = false; confirmingCancellation = false } }
+        let token = OperationCancellation(); cancellation = token;postHookRunning=true
+        defer {postHookRunning=false;if cancellation === token { cancellation = nil; cancelling = false; confirmingCancellation = false } }
         _ = try await clientHooks.run(.postPush, repository: repository, access: access, cancellation: token)
     }
-    private func runPush(_ snapshot: PushOptions,repository:GitRepository, cancellation: OperationCancellation, result: PushProgressWindowModel?, sshFactory: SSHTransportFactory?) async throws -> String {
+    private func runPush(_ snapshot: PushOptions,repository:GitRepository, cancellation: OperationCancellation, result: PushProgressWindowModel?, sshFactory: SSHTransportFactory?,receipt:PushCompletionReceipt) async throws -> String {
         let coordinator = sshFactory?(); defer { coordinator?.close() }; let preparation = coordinator?.preparation
-        guard let result else { return try await repository.push(snapshot, cancellation: cancellation, prepareTransport: preparation) }
+        guard let result else { return try await repository.push(snapshot, cancellation: cancellation, prepareTransport: preparation,onTransportFinished:{receipt.record($0)}) }
         let parser = GitCliOutputParser(limit: result.outputLimit)
         let (updates, continuation) = AsyncStream<Void>.makeStream(bufferingPolicy: .bufferingNewest(1))
         let operation = Task {
             defer { continuation.finish() }
             return try await repository.push(snapshot, cancellation: cancellation, onOutput: { chunk in
                 parser.appendChunk(chunk.data); continuation.yield(())
-            }, prepareTransport: preparation)
+            }, prepareTransport: preparation,onTransportFinished:{receipt.record($0)})
         }
         for await _ in updates { result.consume(parser.processPending(), parser: parser) }
         result.consume(parser.processPending(), parser: parser); result.consume(parser.finish(), parser: parser)
@@ -860,6 +941,7 @@ enum PushPostAction: String, Hashable {
     func installSuperproject(_ value:URL?){guard busy,!invalidated else{return};superproject=value}
     private let autoClosePolicy: GitProgressAutoClose
     private var invalidated = false, dispatched = false, abandoned = false, automaticCloseRequested = false
+    var active:Bool {!invalidated}
     @Published private(set) var busy = true
     @Published private(set) var output = ""
     @Published private(set) var success = false
@@ -873,8 +955,12 @@ enum PushPostAction: String, Hashable {
     var close: () -> Void = {}
     var cancelWithoutPresenter: () -> Void = {}
     var onPostAction: ((PushPostAction) -> Void)?
+    var capturePostAction:((PushPostAction)->(()->Void))?
+    var finishAndPerform:((@escaping()->Void)->Void)?
+    var presentationAvailable:()->Bool={true}
     init(options: PushOptions, superproject: URL?, preferences: UserDefaults = .standard) { self.options = options; self.superproject = superproject; self.autoClosePolicy = GitProgressAutoClose(preferences: preferences); progressPresentation = GitCommandPresentation(defaults: preferences); outputLimit = progressPresentation.outputLimit }
     func invalidate() { invalidated = true }
+    func workDidFinish(){if invalidated {busy=false}else{tryAutomaticClose()}}
     func abandonPresentation() { abandoned = true; cancelWithoutPresenter(); if !busy { close() } }
     func consume(_ emission: GitCliOutputParser.Emission, parser: GitCliOutputParser) {
         guard !invalidated, !displayTruncated else { return }
@@ -897,12 +983,13 @@ enum PushPostAction: String, Hashable {
         CommandProgressContext.perform(commandProgressScope) { completeWithCommandProgressContext(output:output,success:success,cancelled:cancelled,failure:failure,completionWarning:completionWarning) }
     }
     private func completeWithCommandProgressContext(output: String, success: Bool, cancelled: Bool, failure: PushExecutionFailure?,completionWarning:String?) {
-        guard busy else { return }
+        guard busy,!invalidated else { return }
         if success {
             if displayedBytes.isEmpty {self.output=GitProgressFailureOutput.renderDetails(output,existing:"",limit:outputLimit)}
         } else if let failure {
             let context=(failure.completed.isEmpty ? "":"Completed: "+failure.completed.joined(separator:", ")+".\n")+"Push to \(failure.failedRemote) failed."
-            if let command=failure.commandFailure {self.output=GitProgressFailureOutput.render(command,existing:self.output,limit:outputLimit,context:context)}
+            if let command=failure.commandCancellation {self.output=GitProgressFailureOutput.render(command,existing:self.output,limit:outputLimit,context:context)}
+            else if let command=failure.commandFailure {self.output=GitProgressFailureOutput.render(command,existing:self.output,limit:outputLimit,context:context)}
             else {self.output=GitProgressFailureOutput.renderDetails(failure.details,existing:self.output,limit:outputLimit,status:context,preferTail:true)}
         } else {
             self.output=GitProgressFailureOutput.renderDetails(output,existing:self.output,limit:outputLimit,status:cancelled ? "Operation cancelled.":"",preferTail:true)
@@ -927,26 +1014,55 @@ enum PushPostAction: String, Hashable {
     func tryAutomaticClose() { CommandProgressContext.perform(commandProgressScope) { if automaticCloseRequested, !busy, !invalidated { close() } } }
     func perform(_ action: PushPostAction) { CommandProgressContext.perform(commandProgressScope) { performWithCommandProgressContext(action) } }
     private func performWithCommandProgressContext(_ action: PushPostAction) {
-        guard !busy, !invalidated, !dispatched, postActions.contains(action), let onPostAction else { return }
-        dispatched = true; close(); onPostAction(action)
+        guard !busy,!invalidated,!dispatched,presentationAvailable(),postActions.contains(action),capturePostAction != nil || onPostAction != nil else{return}
+        let accepted=capturePostAction?(action) ?? { [onPostAction] in onPostAction?(action) }
+        dispatched=true
+        if let finishAndPerform {finishAndPerform(accepted)}else{close();accepted()}
     }
 }
 @MainActor final class PushProgressWindowController: NSWindowController, NSWindowDelegate {
     let pushModel: PushWindowModel
     let result: PushProgressWindowModel
     var onClosed: () -> Void = {}
+    var onClosing:()->Void={}
+    var questionPending:()->Bool={false}
+    private var retired=false,finishing=false
+    private var parent:NSWindow?
+    private var sheets:[NSWindow]=[]
+    private var release:FinderFilesystemWorkflowRelease?
+    private var pendingAction:(()->Void)?
+    var hasPendingWork:Bool {release != nil || pushModel.pendingOperations>0 || questionPending() || window?.sheetParent != nil || window?.attachedSheet != nil || (window != nil && parent?.attachedSheet === window) || sheets.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}
     init(owner: PushWindowModel, result: PushProgressWindowModel) {
         self.pushModel = owner; self.result = result
         let window = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:430), styleMask:[.titled,.closable,.resizable], backing:.buffered, defer:false)
         RepositoryWindowTitles.set(window, repository: owner.repository.root, dialog: "Push", preferences: owner.presentationPreferences); window.minSize = NSSize(width:650,height:320); window.isReleasedWhenClosed = false
         window.contentViewController = NSHostingController(rootView:PushProgressDialog(owner:owner,result:result))
         super.init(window:window); window.delegate = self
-        result.close = { [weak self] in guard let self, !self.result.busy, !self.pushModel.confirmingCancellation, self.window?.attachedSheet == nil else { return }; if let window = self.window { window.sheetParent?.endSheet(window); window.close() } }
+        result.close = { [weak self] in self?.finishResult({}) }
+        result.finishAndPerform={ [weak self] action in self?.finishResult(action) }
+        let available=result.presentationAvailable
+        result.presentationAvailable={ [weak self] in guard let self else{return false};return available() && !self.retired && !self.finishing && !self.pushModel.confirmingCancellation && self.window?.attachedSheet==nil && self.pushModel.pendingOperations==0 }
 
         DialogGeometry.attach(window, identifier: "ProgressDlg")
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if result.busy { pushModel.cancel(); return false }; guard !pushModel.confirmingCancellation, sender.attachedSheet == nil else { return false }; sender.sheetParent?.endSheet(sender); return true }
-    func windowWillClose(_ notification: Notification) { ProgressActionLog.record(owner: result, repository: pushModel.repository.root, output: result.output, cancelled: result.cancelled); result.invalidate(); onClosed() }
+    func windowShouldClose(_ sender: NSWindow) -> Bool {guard !pushModel.confirmingQuit else{return false};if result.busy {pushModel.cancel();return false};guard pushModel.pendingOperations==0,!pushModel.confirmingCancellation,sender.attachedSheet==nil else{return false};sender.sheetParent?.endSheet(sender);return true}
+    private func finishResult(_ action:@escaping()->Void){
+        guard !retired,!finishing,!result.busy,pushModel.pendingOperations==0,!pushModel.confirmingQuit,!pushModel.confirmingCancellation,window?.attachedSheet==nil else{return}
+        finishing=true;pendingAction=action;close()
+    }
+    override func close(){super.close();if !retired,window?.isVisible != true {retireWindow()}}
+    func windowWillClose(_ notification: Notification){guard notification.object as? NSWindow === window else{return};retireWindow()}
+    private func retireWindow(){
+        guard !retired else{return};retired=true;parent=window?.sheetParent
+        if let child=window?.attachedSheet{sheets.append(child)}
+        onClosing();pushModel.retireProgress(result)
+        ProgressActionLog.record(owner:result,repository:pushModel.repository.root,output:result.output,cancelled:result.cancelled)
+        if let window {if let child=window.attachedSheet{window.endSheet(child,returnCode:.abort);child.close()};window.sheetParent?.endSheet(window,returnCode:.abort)}
+        result.invalidate()
+        let release=FinderFilesystemWorkflowRelease(ready:{[self] in pushModel.pendingOperations==0 && !questionPending() && window?.sheetParent==nil && window?.attachedSheet==nil && (window==nil || parent?.attachedSheet !== window) && !sheets.contains{$0.sheetParent != nil || $0.attachedSheet != nil}}){[self] in
+            self.release=nil;parent=nil;sheets=[];result.workDidFinish();let done=onClosed;onClosed={};done();let action=pendingAction;pendingAction=nil;action?()
+        };self.release=release;release.start()
+    }
     required init?(coder:NSCoder) { fatalError("init(coder:) is not supported") }
 }
 struct PushProgressDialog: View {
@@ -958,9 +1074,9 @@ struct PushProgressDialog: View {
                 ScrollView { VStack(alignment:.leading,spacing:0) { Text(result.output).font(.system(.body,design:.monospaced)).textSelection(.enabled).frame(maxWidth:.infinity,alignment:.leading); Color.clear.frame(height:1).id("push-output-end") } }
                     .onChange(of: result.output) { _ in reader.scrollTo("push-output-end",anchor:.bottom) }
             }.frame(maxWidth:.infinity,maxHeight:.infinity).padding(8).background(Color(nsColor:.textBackgroundColor))
-            if result.busy, let percentage = result.percentage { ProgressView(value:Double(percentage),total:100).tint(.green) }
-            if !result.currentWork.isEmpty { Text(result.currentWork).font(.caption).lineLimit(2) }
-            HStack { if result.busy && result.percentage == nil { GitCommandActivity(animate: result.progressPresentation.animateActivity) }; Text(result.busy ? owner.cancelling ? "Cancelling…" : "Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
+            ProgressView(value:Double(result.busy ? result.percentage ?? 0:100),total:100).tint(result.busy ? .green:result.success ? .blue:.red)
+            Text(result.currentWork.isEmpty ? " ":result.currentWork).font(.caption).lineLimit(1).help(result.currentWork)
+            HStack { GitCommandActivity(animate: result.progressPresentation.animateActivity && result.busy).opacity(result.busy && result.percentage == nil ? 1:0); Text(result.busy ? owner.cancelling ? "Cancelling…" : owner.postHookRunning ? "Running post-push hook…":"Pushing…" : result.cancelled ? "Cancelled" : result.success ? "Finished" : "Push failed").foregroundStyle(result.busy ? Color.primary : result.success ? Color.green : Color.red); Spacer() }
             HStack {
                 if let first = result.postActions.first {
                     Button { result.perform(first) } label: { CommandLabel(title:first.title,icon:first.icon) }

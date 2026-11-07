@@ -58,13 +58,14 @@ func acceptedCreationResult(_ operation:()throws->GitResult)throws->GitResult {
     catch let failure as GitCommandCancellationFailure where failure.result.exitCode == 0 {return failure.result}
 }
 
-/// Verification owns a fresh cancellation scope, independent of a cancelled UI,
-/// and cannot wait indefinitely for a wrapper/config/metadata read to finish.
-func boundedCreationVerification<Value>(_ body:(OperationCancellation)throws->Value)throws->Value {
-    let token=OperationCancellation()
+/// Verification has a bounded child scope. Creation callers may deliberately
+/// verify independently; cancellable post-creation recovery passes its owner.
+func boundedCreationVerification<Value>(cancellation:OperationCancellation?=nil,_ body:(OperationCancellation)throws->Value)throws->Value {
+    let token=OperationCancellation(parent:cancellation)
     let deadline=DispatchWorkItem {token.cancel()}
     DispatchQueue.global(qos:.utility).asyncAfter(deadline:.now()+5,execute:deadline)
     defer {deadline.cancel()}
+    try token.check()
     return try body(token)
 }
 public enum ReferenceCreationFailure: LocalizedError {

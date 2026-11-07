@@ -41,11 +41,11 @@ private final class MetadataScopeProvider:RepositoryBookmarkProvider {
         let clone=CloneWindowModel(directory:root,access:lease,preferences:prefs,executable:helper);defer {clone.invalidate()};clone.source=source.path;clone.directory=root.appendingPathComponent("cloned").path
         var adoptions=0;clone.onCloned={_,_,_,_,_ in adoptions += 1};clone.clone();try await wait {FileManager.default.fileExists(atPath:ready.path)}
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Clone metadata lost Quit ownership")
-        clone.invalidate();try await wait {CloneWindowModel.activeOperations == 0};try require(adoptions == 0 && clone.completed == nil,"Retired Clone metadata adopted a repository")
+        clone.invalidate();try await wait {CloneWindowModel.activeOperations == 0 && CloneProgressWindowModel.activeOperations == 0};try require(adoptions == 0 && clone.completed == nil,"Retired Clone metadata adopted a repository")
         try? FileManager.default.removeItem(at:ready)
         let target=root.appendingPathComponent("init-target");try FileManager.default.createDirectory(at:target,withIntermediateDirectories:true)
         let initModel=CreateRepositoryWindowModel(folder:target,access:lease);initModel.executable=helper;initModel.prepare();initModel.onInitialized={_,_,_,_ in adoptions += 1};initModel.initialize();try await wait {FileManager.default.fileExists(atPath:ready.path)}
-        initModel.retire();try await wait {CreateRepositoryWindowModel.activeOperations == 0};try require(!initModel.completed && initModel.error == nil && adoptions == 0,"Retired Init metadata published")
+        initModel.retire();try await wait {CreateRepositoryWindowModel.activeOperations == 0};try require(initModel.completed && initModel.acceptedCreation != nil && initModel.error == nil && adoptions == 0 && FileManager.default.fileExists(atPath:target.appendingPathComponent(".git/HEAD").path),"Retired Init lost accepted creation or published late metadata")
         let doneFolder=root.appendingPathComponent("normal-init");try FileManager.default.createDirectory(at:doneFolder,withIntermediateDirectories:true)
         let done=CreateRepositoryWindowModel(folder:doneFolder,access:lease);done.executable=git;done.prepare();done.showSuccess={};done.initialize();try await wait {!done.busy}
         try require(done.completed && done.confirmingSuccess && !done.canClose,"Init confirmation did not own result")

@@ -76,7 +76,7 @@ struct CloneResultsFamilyVerification {
         owner.window?.alphaValue=0;owner.window?.appearance=NSAppearance(named:.darkAqua);defer{owner.close()}
         owner.model.source=repo.root.path;owner.model.directory=base.appendingPathComponent("held inspect clone").path
         let binding=owner.model.field(\.directory,context:owner.model.formContext),destination=owner.model.directory
-        var progress:CloneProgressWindowController?,pending:CheckedContinuation<GitRepository,Never>?,candidate:GitRepository?,token:OperationCancellation?,closed=0,adoptions=0
+        var progress:CloneProgressWindowController?,pending:CheckedContinuation<GitRepository,Never>?,candidate:GitRepository?,token:OperationCancellation?,closed=0,adoptions=0,verified=0,replacedVerified=0
         defer{if let candidate{pending?.resume(returning:candidate)};pending=nil}
         let present=owner.model.onProgress
         owner.model.onProgress={model in
@@ -85,6 +85,11 @@ struct CloneResultsFamilyVerification {
             present?(model);progress=owner.progressController
         }
         owner.onClosed={closed+=1};owner.model.onCloned={_,_,_,_,_ in adoptions+=1}
+        owner.model.onVerifiedClone={repo,access,_,bare,_ in
+            verified += 1
+            precondition(CloneProgressWindowModel.activeOperations==0 && progress?.model.hasPendingWork==false,"Verified Clone registration preceded worker drain")
+            precondition(repo.root.path.utf8.elementsEqual(URL(fileURLWithPath:destination).standardizedFileURL.path.utf8) && access === grant && !bare,"Verified Clone registration lost accepted destination/scope: actual=\(repo.root.path) input=\(destination) sameGrant=\(access === grant) bare=\(bare)")
+        }
         owner.model.clone();try F.require(owner.model.hasPendingWork,"Clone submission did not synchronously reserve preflight")
         binding.wrappedValue=base.appendingPathComponent("stale destination").path
         try F.require(owner.model.directory==destination,"Old options binding changed accepted Clone destination")
@@ -95,12 +100,15 @@ struct CloneResultsFamilyVerification {
         try F.require(model.output.contains(" clone ") && model.output.contains(repo.root.path) && !(model.output as NSString).substring(with:model.completionRange!).contains(" ms @ "),"Clone preamble/private timing preference missing")
         try F.require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit escaped held Clone inspection")
         model.perform(.log);try F.require(adoptions==0,"Clone handed off while inspection owned")
-        owner.close();try F.require(closed==0 && model.hasPendingWork && token?.isCancelled==true,"Options forced close released actual Clone inspection early")
+        owner.model.onVerifiedClone={_,_,_,_,_ in replacedVerified += 1}
+        owner.close();try F.require(closed==0 && verified==0 && model.hasPendingWork && token?.isCancelled==true,"Options forced close released actual Clone inspection early")
         pending?.resume(returning:candidate!);pending=nil
         try await F.wait("Retired Clone options/progress did not drain/detach"){closed==1 && !model.hasPendingWork && progress?.presentationClosed==true && owner.window?.attachedSheet==nil && CloneWindowController.activeChildReleases==0}
         try F.require(adoptions==0 && !model.success && !model.active,"Retired discovery adopted a clone")
+        try F.require(verified==1 && replacedVerified==0,"Retired verified Clone dropped or replaced accepted registration callback")
         try await verifyCancellation(repo:repo,base:base,grant:grant,preferences:prefs,clipboard:clipboard)
         try await verifyRootLog(repo:repo,base:base,grant:grant,preferences:prefs,clipboard:clipboard)
+        try await verifyRegistrationQuit(repo:repo,base:base,grant:grant,preferences:prefs)
         let after=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),afterWorking=try Data(contentsOf:repo.root.appendingPathComponent("file"))
         try F.require(after==head && afterIndex==index && afterWorking==working,"Clone workflows changed source HEAD/index/working bytes")
         print("Clone native panel/context snapshots, exact styled command receipt/private Copy before held discovery, synchronous/forced-close/Quit lifetime, actual No/Yes cancellation and Root Log after options detach passed.")
@@ -153,23 +161,60 @@ struct CloneResultsFamilyVerification {
         try F.require(!model.commandSucceeded && model.postActions==[.retry] && owner.window?.attachedSheet==nil && handoffs==0,"Cancelled Clone exposed success/handoff before question detach")
         model.close();model.close();try await F.wait("Cancelled Clone did not close once"){closed==1 && parent.attachedSheet==nil}
     }
+    @MainActor static func verifyRegistrationQuit(repo:GitRepository,base:URL,grant:RepositoryAccessLease,preferences:UserDefaults)async throws {
+        typealias F=CreationResultsFixture
+        let store=try RepositoryAccessStore(storageURL:base.appendingPathComponent("registration-access.json"))
+        let watches=FinderWatchManager(permissions:store,cache:FinderSnapshotStore(url:base.appendingPathComponent("registration-status.json")),requireScope:false,repositoryFactory:{GitRepository(root:$0,executable:repo.executable,libgit2Configuration:.init(enabled:false))},registeredRootsURL:base.appendingPathComponent("registration-roots.json"),notify:{})
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false},finderWatches:watches,savedAccessStore:store,cachePersistenceDefaults:preferences)
+        let owner=CloneWindowController(directory:base,access:grant,preferences:preferences,executable:repo.executable)
+        defer{owner.close();workspace.closeRepository();workspace.stopMonitoringForTermination();watches.retire()}
+        workspace.configureCloneInteractions(owner)
+        var registered=0,pendingRegistration:(()->Void)?,activeResults=0
+        workspace.onFinderRegistrationSaved={registered += 1}
+        let register=owner.model.onVerifiedClone,adopt=owner.model.onCloned
+        owner.model.onVerifiedClone={repository,access,key,bare,text in pendingRegistration={register(repository,access,key,bare,text)}}
+        owner.model.onCloned={repository,access,key,bare,text in activeResults += 1;adopt(repository,access,key,bare,text)}
+        owner.model.source=repo.root.path;owner.model.directory=base.appendingPathComponent("registration delayed clone").path
+        owner.model.clone()
+        try await F.wait("Root Clone did not reach delayed verified registration"){pendingRegistration != nil && activeResults==1 && owner.progressController?.model.hasPendingWork==false}
+        try F.require(workspace.root==nil && registered==0,"Clone adopted before verified registration")
+        workspace.confirmingQuit=true;workspace.confirmingQuit=false
+        let held=pendingRegistration;pendingRegistration=nil;held?()
+        try await F.wait("Accepted verified registration did not finish after Quit roundtrip"){registered==1 && !workspace.hasPendingFinderServiceWork && watches.pendingOperations==0}
+        try F.require(workspace.root==nil && !store.repositories.isEmpty,"Registration-delayed Clone adoption survived cancelled Quit or lost authoritative saved repository")
+        owner.close();watches.retire()
+        try await F.wait("Private registration watchers did not drain"){watches.pendingOperations==0 && !owner.model.hasPendingWork}
+    }
     @MainActor static func verifyRootLog(repo:GitRepository,base:URL,grant:RepositoryAccessLease,preferences:UserDefaults,clipboard:NSPasteboard)async throws {
         typealias F=CreationResultsFixture
-        let store=try RepositoryAccessStore(storageURL:base.appendingPathComponent("clone-private-access.json")),workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false},savedAccessStore:store)
+        preferences.set(false,forKey:"UseLibgit2");preferences.set(UInt32(0x1234),forKey:"UseLibgit2_mask")
+        let store=try RepositoryAccessStore(storageURL:base.appendingPathComponent("clone-private-access.json"))
+        let watches=FinderWatchManager(permissions:store,cache:FinderSnapshotStore(url:base.appendingPathComponent("clone-log-private-status.json")),requireScope:false,repositoryFactory:{GitRepository(root:$0,executable:repo.executable,libgit2Configuration:.init(enabled:false))},registeredRootsURL:base.appendingPathComponent("clone-log-private-roots.json"),notify:{})
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotWriter:{_ in false},finderWatches:watches,savedAccessStore:store,cachePersistenceDefaults:preferences)
+        defer{watches.retire()}
         let owner=CloneWindowController(directory:base,access:grant,preferences:preferences,executable:repo.executable)
         owner.window?.alphaValue=0;owner.window?.appearance=NSAppearance(named:.darkAqua)
         defer{owner.close();workspace.closeRepository();workspace.stopMonitoringForTermination()}
         workspace.configureCloneInteractions(owner)
+        owner.model.captureBackend={.load(from:preferences)}
         owner.model.source=repo.root.path;owner.model.directory=base.appendingPathComponent("root log clone").path
         let present=owner.model.onProgress
         owner.model.onProgress={model in model.outputClipboard=clipboard;present?(model)}
         owner.model.clone();try await F.wait("Root Clone result did not finish"){owner.progressController?.model.success==true && owner.progressController?.model.hasPendingWork==false}
         let progress=owner.progressController!,before=Set(NSApp.windows.map{ObjectIdentifier($0)})
+        try F.require(progress.model.backend.enabled==false && progress.model.backend.mask==UInt32(0x1234),"Clone progress lost accepted backend")
+        let notification=progress.model.notificationRepository
+        try F.require(notification.executable==repo.executable && notification.libgit2Configuration?.enabled==false && notification.libgit2Configuration?.mask==UInt32(0x1234),"Clone notification repository lost accepted executable/backend")
+        preferences.set(true,forKey:"UseLibgit2");preferences.set(UInt32(0),forKey:"UseLibgit2_mask")
+        owner.model.confirmingQuit=true;progress.model.perform(.log)
+        try F.require(NSApp.windows.filter{!before.contains(ObjectIdentifier($0)) && $0.delegate is LogWindowController}.isEmpty,"Deferred Quit accepted Clone Log")
+        owner.model.confirmingQuit=false
         progress.model.perform(.log);progress.model.perform(.log)
         var log:LogWindowController?
         try await F.wait("Clone Log did not wait for options/progress actual detach"){log=NSApp.windows.filter{!before.contains(ObjectIdentifier($0))}.compactMap{$0.delegate as? LogWindowController}.first;return log != nil && owner.progressController==nil && owner.window?.attachedSheet==nil && progress.window?.sheetParent==nil}
         defer{log?.close()}
         try F.require(log!.model.colorPreferences===preferences && log!.model.repositoryAccess===grant && log!.window?.alphaValue==0 && log!.window?.appearance?.name==NSAppearance.Name.darkAqua,"Clone Root Log lost captured scope/preferences/presentation")
+        try F.require(log!.model.repository.executable==repo.executable && log!.model.repository.libgit2Configuration?.enabled==false && log!.model.repository.libgit2Configuration?.mask==UInt32(0x1234),"Clone Root Log recaptured later settings instead of accepted backend")
         try await F.wait("Clone Root Log reads did not drain"){!log!.model.busy}
         try F.require(NSApp.windows.filter{!before.contains(ObjectIdentifier($0)) && $0.delegate is LogWindowController}.count==1,"Clone duplicate postaction opened multiple Logs")
     }

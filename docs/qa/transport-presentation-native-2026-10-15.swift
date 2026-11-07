@@ -31,7 +31,23 @@ import TurtleGitCore
         try Data("base\n".utf8).write(to:producerRoot.appendingPathComponent("file")); try await producer.stage(["file"]); _ = try await producer.commit(message:"base")
         _ = try await producer.run(["clone","--",producerRoot.path,consumerRoot.path])
         let helper = root.appendingPathComponent("record-git"), record = root.appendingPathComponent("arguments")
-        let script = "#!/bin/sh\nif [ \"$4\" = fetch ]; then printf '%s\\000' \"$@\" > " + quoted(record.path) + "; fi\nexec " + quoted(git.path) + " \"$@\"\n"
+        let script = """
+        #!/bin/sh
+        task_is_fetch() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -C|-c|--git-dir|--work-tree|--config-env) shift 2;;
+              --literal-pathspecs|--no-literal-pathspecs) shift;;
+              --) shift;test "${1-}" = fetch;return;;
+              -*) shift;;
+              *) test "$1" = fetch;return;;
+            esac
+          done
+          return 1
+        }
+        if task_is_fetch "$@"; then printf '%s\\000' "$@" > \(quoted(record.path));fi
+        exec \(quoted(git.path)) "$@"
+        """
         try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         let repo = GitRepository(root:consumerRoot,executable:helper), options = FetchOptions()
         prefs.set(false,forKey:"DownloadAnimation")

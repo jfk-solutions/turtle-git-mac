@@ -1,5 +1,20 @@
 # TurtleGit for Mac — full port tracking
 
+## Push and Clone accepted results — November 7, 2026
+
+The connected Push/Clone family now preserves actual command receipts through
+later cancellation, hooks, inspection and retirement. Post-push warnings remain
+visible without relabelling completed publication. Follow-ups retain the accepted
+repository settings and wait for owned native windows/workers to drain. Clone
+inspection and SSH configuration can be cancelled and retried without cloning
+again. Verified Finder registration is separate from workspace adoption; a Quit
+transition refuses a queued adoption while retaining registration.
+
+The [batch record](qa/push-clone-recovery-2026-11-07.json) retains 56 focused Core
+passes and 28 native case/engine pairs passing cumulatively, including initial
+failures and affected repairs. Installed build 52 remains unchanged. Complete
+hosted, physical/signed and full source-parity acceptance remain open.
+
 ## Stash and Submodule recovery — November 7, 2026
 
 The connected Stash workflow now owns identity repair, preserves actual command

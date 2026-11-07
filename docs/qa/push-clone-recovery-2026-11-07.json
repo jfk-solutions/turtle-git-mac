@@ -1,0 +1,256 @@
+{
+  "date": "2026-11-07",
+  "base_commit": "a5044638",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "Affected Core and grouped native checkpoint passed cumulatively after focused compiler, fixture and warning-rendering repairs",
+  "scope": [
+    "Push actual-command completion receipts preserve completed remotes, original failure/cancellation status and output delivery across later counters, SSH preparation and late cancellation; preflight does not emit mutation receipts",
+    "Push captures the original authoritative refresh observer and accepted repository/backend for post-push hooks; hook cancellation cannot reclassify successful transport, and retired owners suppress active-success/presentation only",
+    "Push owns questions, reference/history pickers, progress, parent sheets and workers through physical detachment and drainage; post-actions capture fresh acceptance receipts, wait closure and reject later Quit generations",
+    "Push follow-ups preserve accepted repository, preferences and appearance; superproject Commit retains helper/askpass/diff/backend with guarded asynchronous permission replies; progress rows retain stable geometry across streamed phases",
+    "Clone separates successful creation from cancellable inspection/configuration recovery, preserves accepted backend through repository result and notification actions, and retains verified registration separately from retired-window adoption",
+    "Clone creation verification/recovery cancellation preserves created repositories and actual command status rather than retrying completed creation; delayed registration/adoption uses matching Quit-generation guards"
+  ],
+  "core": {
+    "result": "passed",
+    "exit_code": 0,
+    "log": "build/qa/push-clone-core-2026-11-07.log",
+    "sha256": "d679af2a7bcd3b80757452a5efb769ec7cdda38073f51d305809aa443d1a38ec",
+    "tests": 56,
+    "passed": 56,
+    "failures": 0,
+    "attempts": 1,
+    "families": [
+      "CloneCommandCompletionTests",
+      "CloneTests",
+      "CommitPushContinuationTests",
+      "PushDestinationTests",
+      "PushTests",
+      "SSHTransportPreparationTests",
+      "TransportPhaseReceiptTests"
+    ],
+    "new_transport_phase_receipts": {
+      "tests": 8,
+      "passed": 8,
+      "failures": 0,
+      "methods": [
+        "testPushPreflightHasNoReceiptAndCompletedPublicationSurvivesLateCancellation",
+        "testPushFailureAndCounterFailureRetainRealReceiptsAndRemoteState",
+        "testPushPartialRemoteReceiptSurvivesLaterPreparationFailure",
+        "testPushRunningCancellationKeepsActualOutputAndDrainsOwnedGroup",
+        "testPushExitZeroAfterCancellationRetainsAlreadyPublishedRemote",
+        "testCloneSuccessfulReceiptDoesNotBecomeCancelledWhenOwnerCancelsBeforeVerification",
+        "testCloneInitialVerificationCancellationRetainsCreatedRepositoryWithoutRetryingClone",
+        "testCloneRecoveryInspectionAndConfigurationCancellationOwnTheirVerification"
+      ]
+    },
+    "scope_limit": "Affected family group only; not a repeated full Core suite or hosted CI pass"
+  },
+  "debug_build": {
+    "status": "passed after focused actor annotation repair",
+    "installed": false,
+    "initial_group": {
+      "result": "failed",
+      "exit_code": 65,
+      "log": "build/qa/push-clone-build-2026-11-07.log",
+      "sha256": "808e5aa9f960767ca756079c85e9a4e7bd12960ce637791b401fafd5f0ed4f89",
+      "failure": "PushWindow.swift:670 nested finishOwnedWork was inferred nonisolated and could not mutate MainActor activePushWorkflows/pendingOperations"
+    },
+    "focused_repair": {
+      "status": "completed",
+      "scope": "Explicit @MainActor on nested publishTransport and finishOwnedWork; immutable completion and exactly-once callback/counter ordering preserved; Core unchanged and not repeated",
+      "result": "passed",
+      "exit_code": 0,
+      "log": "build/qa/push-clone-build-repair-2026-11-07.log",
+      "sha256": "f7dc645246c1e2cf411df0d3ab2ea11a05c638da9808cabb25e12bfa6424ae95"
+    },
+    "hook_warning_repair": {
+      "result": "passed",
+      "exit_code": 0,
+      "log": "build/qa/push-clone-hook-warning-build-2026-11-07.log",
+      "sha256": "79136730412aaafedf55075ff152a343f3998a458d5c41802f41c1b0a8a65d51",
+      "scope": "Push warning continuation only; Core unchanged"
+    }
+  },
+  "native": {
+    "status": "passed cumulatively",
+    "driver": "scripts/test-push-clone-workflows.py",
+    "planned_cases": [
+      "push-progress",
+      "push-stream",
+      "push-cancellation",
+      "push-results",
+      "push-receipts",
+      "preparation",
+      "presentation",
+      "clone-completion",
+      "clone-results",
+      "clone-progress",
+      "clone-stream",
+      "clone-ownership",
+      "clone-source-ownership",
+      "clone-filter"
+    ],
+    "planned_case_engine_pairs": 28,
+    "evidence": "Actual attempts, failures, source/consumer repairs and owned cleanup retained in linked native record",
+    "log": "build/qa/push-clone-native-checkpoint-2026-11-07.log",
+    "production_repairs": [
+      {
+        "status": "affected app build and both-engine Push-receipt recheck passed",
+        "cause": "Ordinary successful Push with streamed output passed the post-hook warning inside output, but success renderer retains existing streamed text; the warning was omitted.",
+        "repair": "Pass original transport output plus explicit completionWarning for ordinary and direct Push, reusing bounded warning rendering and preventing warning-hidden automatic close.",
+        "scope": "Push receipt cases only; Core unchanged and not repeated. AppKit deallocation crash has no application stack frame; no speculative production cleanup change."
+      }
+    ],
+    "result": "passed",
+    "pairs": 28,
+    "record": "docs/qa/push-clone-owned-phase-2026-11-07.json",
+    "record_sha256": "e0a2bceab7910e258f2f0b9437279c3a8321f64491405d417326899ff417acc1",
+    "ownership": {
+      "private_resources": [
+        "HOME",
+        "CFFIXED_USER_HOME",
+        "XDG_CONFIG_HOME",
+        "TMPDIR",
+        "Git global config",
+        "repositories",
+        "preferences suites",
+        "pasteboards",
+        "Finder permission/cache/catalog stores"
+      ],
+      "windows": "All receiver windows/sheets transparent and offscreen; real nested parent/progress sheets; final active counters plus physical sheet/parent/window release asserted",
+      "helpers": "Exact approved executable or authored private shell wrapper plus open private resource required before cleanup; no helper cleanup needed on successful pair",
+      "reaped_compiler_receiver_pids": [
+        11535,
+        11552,
+        11568,
+        12087,
+        12614,
+        12842,
+        13069,
+        13393,
+        13724,
+        14059,
+        14392,
+        14540,
+        14752,
+        15068,
+        15401,
+        15505,
+        15608,
+        15702,
+        15798,
+        15844,
+        15895,
+        16280,
+        16571,
+        16988,
+        17304,
+        17386,
+        17428,
+        17476,
+        17519,
+        17629,
+        18101,
+        18131,
+        18797,
+        19442,
+        19592,
+        19692,
+        20169,
+        20528,
+        20733,
+        20964,
+        21302,
+        21812,
+        21849,
+        21950,
+        23972,
+        23974,
+        24005,
+        24338
+      ],
+      "reaped_process_count": 48,
+      "present_owned_processes": "",
+      "all_reaped_processes_absent": true
+    },
+    "logs_sha256": {
+      "build/qa/push-clone-native-checkpoint-2026-11-07.log": "05874399d5828e985b3f22e4847bfef071c01f5b972ee73456c528b31d7102ba",
+      "build/qa/push-clone-native-repair-2026-11-07.log": "3da48ff41af1be87ce2f21e3f70541afd3815dc45dd2906cb12b041611939363",
+      "build/qa/push-clone-native-repair2-system-2026-11-07.log": "46d02f90f3c0aab5f11b1e910f13859bd159d019ef2108326f985e1fca8585db",
+      "build/qa/push-clone-receipts-final-2026-11-07.log": "90b8ad64a42afa62d3a0859b0582d8d7fbfd0a701c993ecb8d125fff204dc0a1"
+    }
+  },
+  "ci_observation": {
+    "provenance": "Parent GitHub connector structuredContent observation after native checkpoint",
+    "source_commit": "9a1ee02866580ddacc2848ed43355b27f42bb934",
+    "run": 42408561589,
+    "status": "in progress with a failed History/References step",
+    "last_observed": "SVN success; history/core/replay/commit active, four other lanes queued",
+    "covers_current_batch": false,
+    "limits": "Historical source run, not proof of the current uncommitted Push/Clone batch or a completed hosted pass",
+    "failed_steps": [
+      {
+        "job_id": 128511795311,
+        "name": "Native tracked branch commands and remote-only picker"
+      }
+    ]
+  },
+  "delivery": {
+    "installed_build": 52,
+    "installed_build_changed": false,
+    "binaries_published": false,
+    "app_store_submission": false
+  },
+  "source_sha256": {
+    "Sources/TurtleGitCore/Clone.swift": "f97d23442ccfea168ce56ae31c4618440239d5a1c70d08029f2804998a0d9cb1",
+    "Sources/TurtleGitCore/Push.swift": "d33451de6908ed3f119475c4f72d4a215c0e9ccf1dd4162fc0e0808f935db07e",
+    "Sources/TurtleGitCore/ReferenceCreation.swift": "2672d72c033a96ac543c4b76e751b3d2e9dbde75ed9342ad4fecfa2c795af1d9",
+    "Sources/TurtleGitMac/CloneWindow.swift": "fd10464c4645c88a2034eee4ef4426095f69963ccdafa94f16a7e12034cbad3f",
+    "Sources/TurtleGitMac/PushWindow.swift": "b9c105728af20bb02e10ceadb7ce454bfbb1fc0b468873428a2e2e20d2870171",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "f78a680af5db470f724ad8cd3ed36377fb976266ff2ca4e8e0d7b5645c2b19ec"
+  },
+  "core_test_source_sha256": {
+    "Tests/TurtleGitCoreTests/CloneCommandCompletionTests.swift": "db01635eaa6b46e58c92684b497258a330665f5010b8e3baa914aecfbfe109c5",
+    "Tests/TurtleGitCoreTests/CloneTests.swift": "243d344ece9367649be2a22c37c67dc873ace782516076d860bf751235b874a2",
+    "Tests/TurtleGitCoreTests/CommitPushContinuationTests.swift": "0532247059145ed370a8f8804b5c0071abe5e835d03c6bb4fa4721e5f3d6310f",
+    "Tests/TurtleGitCoreTests/PushDestinationTests.swift": "b4822ae048b251fe1f8e118f75325d216490d2d87a133b19b7ea98b1294aca57",
+    "Tests/TurtleGitCoreTests/PushTests.swift": "ac26a959c3fb52df7fa563bc1c25ef7d76a237ec0d2c29ebf768bc296e5060b9",
+    "Tests/TurtleGitCoreTests/SSHTransportPreparationTests.swift": "b350ddec4a30d5a640f565564a9d9bc7fb8944bf28115967384e794822d17b4b",
+    "Tests/TurtleGitCoreTests/TransportPhaseReceiptTests.swift": "4f021c02c8c8ca11edc46f16832ce690baa764d325b7a9c1905cab1d5fe0ba16"
+  },
+  "native_test_source_sha256": {
+    "docs/qa/push-progress-native-2026-10-08.swift": "f4e726430880abadbaa6f1ae00ee8be01f6627b4d8e0e3dd4ec2a98e845c8ff8",
+    "docs/qa/push-stream-native-2026-10-08.swift": "9ec2dc9f3b36b32d3da19a47eb37f5e0f7f268afc38494a876fd8d7774036d58",
+    "docs/qa/push-cancellation-native-2026-10-08.swift": "6ed886a32fd7f0c8de2337801bac7e815d232e6d64aaa1c4e919113407a2978c",
+    "docs/qa/push-result-refresh-native-2026-10-08.swift": "1dcdcfef594fae120ba8bbf397a82b715cb571a812d56068e4c29eeb2f63bf53",
+    "docs/qa/push-phase-receipt-native-2026-11-07.swift": "68435a836c8f1d245cf3e1bd2c3ae799d4796487dec6916034d3f5d550ebf2ba",
+    "docs/qa/transport-preparation-native-2026-10-14.swift": "fcfe755aa7f41c8783fbd437e4c3a0c71f9f3f7d35aad915857e9dc5ce5f44fe",
+    "docs/qa/transport-presentation-native-2026-10-15.swift": "0de6c8115183b85fb33c25becc14d7d37ec82f9f92f92152c8c08ecea78ae212",
+    "docs/qa/clone-completion-native-2026-10-16.swift": "f4ba3ac48e0c04ad589d7987609007266a609300be90cd27010156ff36cee9e0",
+    "docs/qa/clone-results-family-native-2026-10-19.swift": "c7cd7cf825af167889b7f6b99b8bccfe9d23fdc544ab01580a6af38dba7b92cd",
+    "docs/qa/clone-progress-native-2026-10-08.swift": "53d627b6c31a8168bd66a0cc05b62503608e8d0984b5594cced6ce8be57c18c4",
+    "docs/qa/clone-stream-native-2026-10-08.swift": "037ee2f281325e4d3234c5c79be77e8d4b68ac274d13da71f86bd840660a6ea6",
+    "docs/qa/repository-creation-owned-native-2026-10-14.swift": "deda925d9f8010b376e6bf90b2f982aafe0118cc64da463a568b87e6a30fd94a",
+    "docs/qa/clone-create-source-native-2026-10-21.swift": "29ea80611c4ab4571be51d893ccee87c4b38572a09ad46d888bea9e579545b96",
+    "docs/qa/clone-checkout-filter-native-2026-10-19.swift": "9f6a6480ea34208dd741d66f1ff8ba8074e1c05e59cb813da1ed75fbd91e05af"
+  },
+  "driver_sha256": "a8faeb8e36732960ba5ed153ee301d0078471a5b02f83dccb6be62da0cdb0f1b",
+  "documentation_sha256": {
+    "docs/PUSH-PARITY.md": "ab68e306ea0e30876b722278de59bc95b74789308b24b15d5817ca31c9dced35",
+    "docs/CLONE-PARITY.md": "cad058fd0177753ebbaa263df5b61f2b41cce9a1ba4d04752c3df5829e010235"
+  },
+  "limits": [
+    "App/native checkpoint pending at preparation; parent will add terminal results and any actual failures",
+    "Private native receivers do not prove physical keyboard, VoiceOver, IME or every upstream control matches visually",
+    "Real credential/network servers, signed Finder/sandbox distribution and full hosted integration acceptance remain separate",
+    "Protected unrelated Reference batch and RefLog capture work excluded"
+  ],
+  "localization": {
+    "write": "passed",
+    "check": "passed",
+    "languages": 38,
+    "verified_keys": 1392,
+    "custom_untranslated_labels": "English fallback"
+  }
+}

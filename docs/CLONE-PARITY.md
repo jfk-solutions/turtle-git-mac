@@ -313,3 +313,59 @@ It distinguishes initial destination cleanup from later recursive partial work,
 retains bare/no-checkout suppression and owns actual filter cancellation/progress.
 Configured LFS one-shot smudge, source boundaries and grouped evidence are tracked
 in that family; it does not claim persistent filter-process or complete providers.
+
+## Owned post-clone recovery and accepted repository — November 7, 2026
+
+Pinned `Commands/CloneCommand.cpp:160–184` distinguishes a failed transport Retry
+from successful-command key configuration, bare setup, Show Log and Explore.
+The existing options, URL/key histories and source argument/layout mappings are
+retained. The native result now keeps Cancel available while the successful
+command's verification, SSH configuration or repository inspection is still
+running. A cancellation question retains its token and work phase; a question
+from an earlier command phase cannot cancel a later inspection. Core bounded
+verification follows the owning cancellation token while preserving its own
+timeout. The successful Clone receipt/footer and retained 100 percent describe
+the actual transport, independently of cancellation or failure in later work.
+
+Retry opening repeats destination verification/opening with a new token. Retry
+key configuration revalidates and configures that existing destination, then
+inspects it; neither action submits Clone again. An accepted configuration is
+recorded before its later inspection, so cancellation cannot silently cause the
+same successful configuration to run again. Inspection/configuration phase
+captions and diagnostics remain separate from the original command footer. The
+unbundled direct consumer has the same captured repository context and an owned
+Cancel for running continuation work.
+
+The accepted executable, askpass, diff detection and optional-backend settings
+are copied before the first permission suspension. The command, candidate,
+discovered root, configuration, notification actions and Show Log inherit them;
+changing preferences during a running Clone does not switch its result actor.
+A parent post-action receipt is captured when the user accepts that action,
+before asynchronous result/options closure. Fresh actions after cancelled Quit
+remain usable; previously accepted actions still reject a later Quit transition.
+Retired Clone controllers cannot reopen. Existing actual child/SSH/question and
+worker drain boundaries remain required before releasing either owner.
+
+`onVerifiedClone` separates authoritative registration from visible completion.
+Only an actual verified creation identity queues it, once, after the worker and
+result inspection drain, including retirement. It retains the accepted callback,
+repository and grants; validation failures and unknown identities do not register
+an arbitrary destination. Active `onCloned` publication is separately fenced and
+also waits for worker drain. Root Finder registration receives the verified
+creation independently; workspace adoption additionally requires an active
+result and the original workspace handoff owner, and waits for registration to
+finish. Root registration callbacks and queued workspace handoffs also retain the
+accepted Quit-transition epoch: declining Quit cannot revive an earlier deferred
+adoption, while verified Finder registration remains authoritative. A later
+explicit opening retry can publish its active result without
+registering the same accepted creation again.
+
+The [coordinated checkpoint](qa/push-clone-recovery-2026-11-07.json) records
+56 focused Core methods and 28 native case/engine pairs passing cumulatively,
+including real post-command cancellation/retry and delayed registration/adoption.
+Initial failures and focused source/consumer repairs remain recorded; unaffected
+passes were not repeated. Live SSH/git-svn/recursive network acceptance, physical keyboard/VoiceOver,
+complete source visual parity, signed grants/Finder and App Store acceptance
+remain open. Crash recovery and an external writer replacing a destination before
+its first successful identity read are not proven by this continuation. Installed
+build 52 is unchanged; no binary publication is claimed.
