@@ -207,13 +207,13 @@ private final class LogProjectionWorkerProbe:@unchecked Sendable {
             guard let action=table.doubleAction,let target=table.target else{throw Failure(description:"Native revision double action absent")}
             try require(NSApp.sendAction(action,to:target,from:table),"Native revision double action refused")
             try require(comparisons.count==1 && comparisons[0].0 == .revision(hashes[0]) && comparisons[0].1 == .revision(hashes[1]),"Native selected revision double action did not request its correct previous-version diff")
-            try await wait("actual changed-file native table ready"){views(content).compactMap{$0 as? CommitFileInteraction.Probe}.contains{$0.nativeTable != nil && $0.nativeTable?.numberOfRows==model.fileTableRows.count}}
-            guard let fileTable=views(content).compactMap({$0 as? CommitFileInteraction.Probe}).first(where:{$0.nativeTable != nil})?.nativeTable,
+            try await wait("actual changed-file native table ready"){views(content).compactMap{$0 as? LogChangedFileNativeTable}.contains{$0.numberOfRows==model.fileTableRows.count}}
+            guard let fileTable=views(content).compactMap({$0 as? LogChangedFileNativeTable}).first,
                   let fileRow=model.fileTableRows.firstIndex(where:{$0.file?.path==name}),let fileID=model.fileTableRows[fileRow].file?.id else{throw Failure(description:"Actual native changed-file row missing")}
             fileTable.selectRowIndexes(IndexSet(integer:fileRow),byExtendingSelection:false)
             try await wait("native changed-file selection adopted"){model.selectedFiles.contains(fileID)}
-            // Invoke the exact shared SwiftUI primary-action handler after real
-            // native file selection; this boundary is not a physical double click.
+            // Invoke the exact shared model primary-action boundary after real
+            // AppKit file selection; this is not physical double-click acceptance.
             model.primaryFileAction(model.selectedFiles)
             try require(fileComparisons.count==1 && fileComparisons[0].0 == .revision(hashes[0]) && fileComparisons[0].1 == .revision(hashes[1]) && fileComparisons[0].2==[name],"Selected file primary action refused or used stale revision/path during streaming")
             try require(model.loadingHistory && model.entries.count==128,"Inspection silently completed or replaced the held actual history read")

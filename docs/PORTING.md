@@ -1,5 +1,26 @@
 # TurtleGit for Mac — full port tracking
 
+## Historical file menus and child handoffs — November 22, 2026
+
+The [Browser/Log/Blame family](HISTORY-BROWSER-CONTEXT-PARITY.md) connects native
+context entry, stable Log changed-file columns, immutable historical navigation
+and owned toolbar management. The [checkpoint](qa/history-file-context-family-2026-11-22.json)
+records Debug build success and 22 distinct native case/Git passes cumulatively,
+with compiler/fixture failures, the isolated divider repair and focused rechecks
+retained. All 43 logged native PIDs are absent. Installed52 and signed54 are
+unchanged. A separate source review identifies mixed-conflict Return dispatch
+and captured conflict-child preferences/backend as actual remaining behavior;
+physical, signed/platform, full hosted and whole-port acceptance remain open.
+
+## Current hosted evidence — November 22, 2026
+
+Source9741751 has a successful Pages run and a failed macOS run. The
+[diagnostic record](qa/hosted-ci-9741751-diagnostic-2026-11-22.json) preserves
+actual job states and the small Statistics failure artifact. That artifact proves
+a timeout at native alert OK dispatch, with the underlying cause still unknown;
+other failed-step names do not prove their causes. No complete hosted pass is
+claimed for this source or newer uncommitted work.
+
 ## Conflict reports and local candidate54 — November 22, 2026
 
 The [Resolve/Sync report family](RESOLVE-CONFLICT-REPORT-PARITY.md) replaces fixed
@@ -57,8 +78,9 @@ files and Blame's embedded Log. Existing commands, icons, Git operations and
 selection ownership remain shared with pointer entry. Synchronization history
 and reference/tag menus use current selected rows and real native owners;
 Blame source/gutter selection and change navigation respect blocking owners.
-Synchronization's SwiftUI conflict-table accessibility bridge and physical,
-signed and complete application acceptance remain open.
+The later [Resolve/Sync report family](RESOLVE-CONFLICT-REPORT-PARITY.md)
+supersedes the old SwiftUI conflict-table accessibility gap. Physical, signed
+and complete application acceptance remain open.
 
 The [checkpoint](qa/history-context-entry-2026-11-22.json) retains six distinct
 native case/engine passes after the recorded Sync source repair and fixture

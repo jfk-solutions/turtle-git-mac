@@ -1433,6 +1433,23 @@ jobs:
       - name: Native Log selection and inspection while history streams
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
         run: python3 scripts/test-log-native-selection.py
+      - name: Native historical file menus and connected dialog handoffs
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
+        timeout-minutes: 20
+        run: |
+          mkdir -p build/qa
+          set -o pipefail
+          python3 scripts/test-history-file-context-family.py --keep-going --only browser-context --only blame-context --only log-context --git /usr/bin/git --git build/git-runtime/Git/bin/git --results build/qa/history-file-context-ci.json 2>&1 | tee build/qa/history-file-context-ci.log
+      - name: Upload historical file context diagnostics
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: history-file-context-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/qa/history-file-context-ci.json
+            build/qa/history-file-context-ci.log
+            build/qa/history-file-context-*-timeout.sample.txt
+          retention-days: 7
       - name: Native Log double-click preference receiver
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
         run: python3 scripts/test-log-double-click.py

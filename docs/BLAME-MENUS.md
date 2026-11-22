@@ -200,6 +200,10 @@ Commands that do not fit move into that bar's overflow menu. **Reset All
 Toolbars** restores the standard commands and removes custom bars. Layouts are
 saved for later viewers. Other open viewers adopt saved changes while their
 toolbar editor and native customization palette are closed.
+**Done**, **Escape** and the management window's close button dismiss toolbar
+management; changes already made remain saved. Finish management before closing
+the viewer. Dismissal finishes before the viewer resumes commands or releases
+its owned editor.
 See [the source comparison](BLAME-TOOLBAR-PARITY.md) for scope and remaining
 physical acceptance.
 
@@ -213,8 +217,10 @@ Double-click the handle to float a docked bar or return a floating bar to its
 previous dock position.
 
 The handle's context menu offers placement choices, **Customize Toolbar…**,
-**Manage Toolbars…**, **Reset All Toolbars** and **Hide Toolbar**. The handle's
-accessibility action opens the same menu. Toolbar management also offers
+**Manage Toolbars…**, **Reset All Toolbars** and **Hide Toolbar**. **Toolbars and
+Panes** shows or hides other command bars, Log and Properties. Toolbar handles,
+bars and command buttons also offer **Shift-F10** when focused and accessibility
+**Show Menu**. Menus follow the context-menu icon preference. Toolbar management also offers
 placement choices. Closing a floating bar hides it; show it again through the
 View menu. The standard toolbar and named bars retain their positions and
 floating frames for later viewers.

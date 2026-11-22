@@ -8,6 +8,7 @@ import TurtleGitCore
     @MainActor static func views(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(views)}
     @MainActor static func main() async {do {try await verify()}catch {fputs("Log files failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
+        NSApp.setActivationPolicy(.prohibited)
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Log Files QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
@@ -24,17 +25,32 @@ import TurtleGitCore
         defer {prefs.removePersistentDomain(forName:suite);clipboard.releaseGlobally()}
         prefs.set(false,forKey:"EnableLogCache");prefs.set(false,forKey:"EnableGravatar");prefs.set(false,forKey:"LogIncludeWorkingTreeChanges");prefs.set(true,forKey:"ShowAppContextMenuIcons")
         let controller=LogWindowController(repository:repo,access:nil,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false),model=controller.model
-        defer {controller.close()};model.clipboard=clipboard;model.reload();try await wait {!model.busy && !model.entries.isEmpty};model.select([model.entries[0].hash])
+        defer {controller.close()};controller.window?.alphaValue=0;controller.window?.setFrameOrigin(.init(x:-24000,y:-24000));controller.showWindow(nil)
+        (controller.window as? LogHistoryWindow)?.commandKeyWindow={[weak controller] in controller?.window}
+        model.clipboard=clipboard;model.reload();try await wait {!model.busy && !model.entries.isEmpty};model.select([model.entries[0].hash])
         try await wait {model.fileGroups.count == 2 && model.files.count >= 3}
         controller.window?.contentView?.layoutSubtreeIfNeeded()
-        try await wait {views(controller.window!.contentView!).contains {$0 is CommitFileInteraction.Probe}}
-        let probe=views(controller.window!.contentView!).compactMap {$0 as? CommitFileInteraction.Probe}.first!
-        try await wait {probe.groupHeaders?.headings.count == 2}
-        let table=probe.groupHeaders!.table!
-        try require(table.tableColumns.count == 5 && probe.leadingColumnCount == 0 && probe.itemIDs == model.fileTableRows.map(\.rawID),"Log file table semantic identity/columns missing")
-        try require(probe.groupHeaders!.headings.allSatisfy {$0.rect.width == table.visibleRect.width && $0.rect.width > table.tableColumns.first!.width},"Parent headings still constrained to Path column")
-        try require(probe.groupHeaders!.hitTest(.zero) == nil,"Heading overlay intercepts pointer events")
-        let menu=probe.columnMenu();try require(menu.items.map(\.title) == ["Reset columns","","Extension","Status","Lines added","Lines removed"],"Header menu does not match source five-column mask")
+        try await wait {views(controller.window!.contentView!).compactMap{$0 as? LogChangedFileNativeTable}.contains{$0.numberOfRows==model.fileTableRows.count}}
+        let table=views(controller.window!.contentView!).compactMap{$0 as? LogChangedFileNativeTable}.first!
+        try require(table.tableColumns.count==5 && table.tableColumns.allSatisfy{StatusListColumn.defaultColumns.map(\.rawValue).contains($0.identifier.rawValue)},"Log file table semantic identity/columns missing")
+        func headings()throws->[NSTextField] {
+            let rows=model.fileTableRows
+            return try rows.indices.filter{rows[$0].header != nil}.map{row in
+                guard let field=table.delegate?.tableView?(table,viewFor:nil,row:row) as? NSTextField else{throw Failure(description:"Native parent header view missing")}
+                try require(field.stringValue==rows[row].header && table.delegate?.tableView?(table,shouldSelectRow:row)==false,"Parent caption/selection identity differs")
+                return field
+            }
+        }
+        let actualHeaders=try headings();try require(actualHeaders.count==2 && actualHeaders.allSatisfy{abs($0.frame.width+6-table.bounds.width)<1 && $0.frame.width>table.tableColumns.first!.width},"Parent headings still constrained to Path column")
+        let headerRow=model.fileTableRows.firstIndex{$0.header != nil}!,headerPoint=table.convert(NSPoint(x:10,y:table.rect(ofRow:headerRow).midY),to:nil)
+        let headerEvent=NSEvent.mouseEvent(with:.rightMouseDown,location:headerPoint,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
+        try require(table.menu(for:headerEvent)==nil,"Parent heading intercepted a file context menu")
+        for (row,value) in model.fileTableRows.enumerated() where value.file != nil {
+            table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)
+            try await wait {model.selectedFiles==GitPathSet([value.rawID])}
+        }
+        let menu=table.headerView!.menu!;menu.delegate?.menuNeedsUpdate?(menu)
+        try require(menu.items.map(\.title)==["Reset columns","","Extension","Status","Lines added","Lines removed"],"Header menu does not match source five-column mask")
         model.setChangedFileColumn(.removed,visible:false);try await wait {table.tableColumns.first {$0.headerCell.stringValue == "Lines removed"}?.isHidden == true}
         var order=model.changedFileColumns.order;order.removeAll {$0 == .status};order.insert(.status,at:0)
         _ = model.saveChangedFileLayout(order:order,widths:[.path:355]);try await wait {table.tableColumns.first?.headerCell.stringValue == "Status" && abs(table.tableColumns.first {$0.headerCell.stringValue == "Path"}!.width-355)<1}
@@ -51,23 +67,25 @@ import TurtleGitCore
         let ids=duplicateFiles.map(\.id);model.copyChangedFileIDs(ids,column:.path);try require(clipboard.string(forType:.string) == "shared.txt\r\nshared.txt","Duplicate parent rows or copy order lost")
         clipboard.clearContents();clipboard.setString("sentinel",forType:.string);model.copyChangedFileIDs(headers);try require(clipboard.string(forType:.string) == "sentinel","Header-only copy changed clipboard")
         let pathIndex=table.tableColumns.firstIndex {$0.headerCell.stringValue == "Path"}!
-        try require(probe.fitColumn(atNativeIndex:pathIndex,useDefault:false),"Native divider content fit refused")
-        try require(probe.fitColumn(atNativeIndex:pathIndex,useDefault:true),"Native Shift fit refused");try require(model.changedFileColumns.widths[.path] == nil,"Shift fit did not clear adjusted width")
+        guard let nativeHeader=table.headerView as? LogChangedFileHeader else{throw Failure(description:"Owned native divider handler missing")}
+        try require(nativeHeader.fitDivider(atNativeIndex:pathIndex,useDefault:false),"Native divider content fit refused")
+        try require(nativeHeader.fitDivider(atNativeIndex:pathIndex,useDefault:true),"Native Shift fit refused");try require(model.changedFileColumns.widths[.path] == nil,"Shift fit did not clear adjusted width")
         // Inject native keys at the actual table; group slots must be skipped.
         controller.window!.makeFirstResponder(table)
         model.focusedChangedFile=nil
-        let home=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:115)!
-        _ = probe.observe(home);try require(table.selectedRow == 1 && model.focusedChangedFile == probe.itemIDs?[1],"Home landed on a parent heading")
-        let end=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:119)!
-        _ = probe.observe(end);try require(table.selectedRow == table.numberOfRows-1,"End did not find final file row")
+        let home=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:"\u{f729}",charactersIgnoringModifiers:"\u{f729}",isARepeat:false,keyCode:115)!
+        table.keyDown(with:home);try require(table.selectedRow==1 && model.focusedChangedFile==model.fileTableRows[1].rawID,"Home landed on a parent heading")
+        let end=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:"\u{f72b}",charactersIgnoringModifiers:"\u{f72b}",isARepeat:false,keyCode:119)!
+        table.keyDown(with:end);try require(table.selectedRow==table.numberOfRows-1,"End did not find final file row")
         // Both reset decisions and retired late approval are owned by the model.
         var accepted=0;let before=model.changedFileColumns
         model.resetChangedFileColumns(choose:{false},accepted:{accepted += 1});try await wait {!model.resettingChangedFileColumns};try require(model.changedFileColumns == before && accepted == 0,"No reset changed layout")
         model.resetChangedFileColumns(choose:{true},accepted:{accepted += 1});try await wait {!model.resettingChangedFileColumns};try require(model.changedFileColumns == StatusListColumnSettings() && accepted == 1,"Yes reset did not restore source defaults")
-        for appearance in [NSAppearance.Name.aqua,.darkAqua] {controller.window?.appearance=NSAppearance(named:appearance);probe.configureColumns();try require(probe.groupHeaders!.headings.count == 2,"Theme change lost headings")}
+        for appearance in [NSAppearance.Name.aqua,.darkAqua] {controller.window?.appearance=NSAppearance(named:appearance);controller.window?.contentView?.layoutSubtreeIfNeeded();try require(try headings().count==2,"Theme change lost headings")}
         var reply:((Bool)->Void)?;model.resetChangedFileColumns(choose:{await withCheckedContinuation {continuation in reply={continuation.resume(returning:$0)}}},accepted:{accepted += 1})
         try await wait {reply != nil};let saved=model.changedFileColumns;controller.close();reply?(true)
-        try await Task.sleep(nanoseconds:30_000_000);try require(model.changedFileColumns == saved && accepted == 1 && probe.groupHeaders == nil,"Retired reset or queued group repaint published")
+        try await wait {!model.changedFileColumnWorkPending}
+        try require(model.changedFileColumns==saved && accepted==1 && table.dataSource==nil && nativeHeader.fitColumn==nil && !table.accessibilityPerformShowMenu(),"Retired reset or queued native presentation published")
         reopened.invalidate()
         let after=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"));try require(after == head && afterIndex == index,"List-only workflow changed HEAD/index")
         print("Log changed files: full-width parent headers, exact parent IDs, numeric per-group sorting, native column mask/order/visibility/widths/reopen/fit/reset, injected Home/End, copy ordering/column/header refusal, light/dark and retired reset/overlay fencing passed. Private prefs/clipboard; owned Log closed; HEAD/index preserved.")

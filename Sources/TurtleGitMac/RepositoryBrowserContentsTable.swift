@@ -12,6 +12,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
     func updateNSView(_ view:NSScrollView,context:Context) { context.coordinator.model=model;context.coordinator.update() }
     static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator) {
         coordinator.retired = true
+        (coordinator.table as? RepositoryBrowserNativeTable)?.retireMenuEntry()
         if let table=coordinator.table {NativeListSelection.remove(from:table)}
         if coordinator.dragSession == nil {coordinator.activeTransfer=nil;coordinator.table?.delegate = nil;coordinator.table?.dataSource = nil};coordinator.table?.menu?.delegate = nil
         (coordinator.table as? RepositoryBrowserNativeTable)?.contentsAttached={_ in}
@@ -32,21 +33,35 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             return model.captureTransfer(indexes.map{rows[$0].id})
         }
         private var columnMenuSession = UUID()
+        private var fileMenuSession = UUID()
         private var updating=false
         private var rows:[RepositoryBrowserEntry]=[]
         private var layout:RepositoryBrowserColumns?
         init(model:RepositoryBrowserWindowModel) { self.model=model }
-        var available:Bool { !retired && model.canEditColumns && table?.window?.attachedSheet == nil }
+        var available:Bool { !retired && model.canEditColumns && table?.window?.attachedSheet == nil && NSApp.modalWindow==nil }
         func makeView() -> NSScrollView {
             let table=RepositoryBrowserNativeTable();table.style = .plain
             table.dragContext={ [weak model] in model?.transferContext(tree:false) }
             table.contentsAttached={ [weak model] table in model?.contentsTableAttached(table) }
+            table.selectionMenuAvailable={ [weak self] in self?.available==true }
+            table.selectionMenuRow={ [weak self] in
+                guard let self,let mark=model.focusedEntryID else{return nil}
+                return rows.firstIndex{$0.id==mark}
+            }
+            table.selectionFocusChanged={ [weak self] row in
+                guard let self,available,let table=self.table,rows.indices.contains(row),table.selectedRowIndexes.contains(row) else{return}
+                model.focusedEntryID=rows[row].id
+            }
+            table.commandKeyWindow={ [weak table] in
+                if let owner=table?.window?.windowController as? RepositoryBrowserWindowController {return owner.commandKeyWindow()}
+                return NSApp.keyWindow
+            }
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openClickedRow)
             table.rowHeight=24;table.intercellSpacing=NSSize(width:4,height:0);table.allowsMultipleSelection=true
             table.columnAutoresizingStyle = .noColumnAutoresizing;table.allowsColumnResizing=true;table.allowsColumnReordering=true
             table.setAccessibilityLabel("Repository contents")
             for (id,title,width) in Self.definitions {
-                let column=NSTableColumn(identifier:NSUserInterfaceItemIdentifier(id));column.title=title;column.width=width;column.minWidth=24;column.maxWidth=10000
+                let column=NSTableColumn(identifier:NSUserInterfaceItemIdentifier(id));column.title=NSLocalizedString(title,comment:"");column.width=width;column.minWidth=24;column.maxWidth=10000
                 column.sortDescriptorPrototype=NSSortDescriptor(key:id,ascending:true)
                 if id=="size" { column.headerCell.alignment = .right }
                 table.addTableColumn(column)
@@ -111,7 +126,10 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             return cell
         }
         func tableViewSelectionDidChange(_ notification:Notification) {
-            guard !updating,available,let table else { return };model.selection=Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
+            guard !updating,available,let table else { return }
+            model.selection=Set(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].id : nil })
+            if rows.indices.contains(table.clickedRow),table.selectedRowIndexes.contains(table.clickedRow) {model.focusedEntryID=rows[table.clickedRow].id}
+            else if let first=table.selectedRowIndexes.first,rows.indices.contains(first) {model.focusedEntryID=rows[first].id}
         }
         func tableView(_ tableView:NSTableView,sortDescriptorsDidChange oldDescriptors:[NSSortDescriptor]) {
             guard !updating,available,let descriptor=tableView.sortDescriptors.first else { return }
@@ -148,7 +166,7 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
                     guard let self,self.available,self.columnMenuSession == session,self.model.columnsRevision == revision,self.model.generation == generation else {return}
                     self.columnMenuSession = UUID();action(self)
                 }
-                let item = NSMenuItem(title:title,action:#selector(RepositoryBrowserColumnCommand.invoke(_:)),keyEquivalent:"")
+                let item = NSMenuItem(title:NSLocalizedString(title,comment:""),action:#selector(RepositoryBrowserColumnCommand.invoke(_:)),keyEquivalent:"")
                 item.image=icon.contextImage(defaults:model.preferences);item.target = command;item.representedObject = command;item.isEnabled = available;item.state = state;menu.addItem(item)
             }
             add("Reset column order",icon:.reset) {$0.model.requestResetColumns()};menu.addItem(.separator())
@@ -164,13 +182,16 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
         var selected:[RepositoryBrowserEntry] { rows.filter { model.selection.contains($0.id) } }
         func menuNeedsUpdate(_ menu:NSMenu) {
             model.prepareComparisonMenu()
+            fileMenuSession=UUID()
             menu.removeAllItems();let values=selected
-            func item(_ title:String,_ action:Selector,_ icon:MenuIcon,enabled:Bool=true,requiresPath:Bool=true) {
-                let entry=NSMenuItem(title:title,action:#selector(invokeBrowserMenu(_:)),keyEquivalent:"");entry.target=self;entry.image=icon.contextImage(defaults:model.preferences)
-                if let target=model.menuTarget(values) { entry.representedObject=MenuInvocation(target:target,command:action) }
+            func item(_ title:String,_ action:Selector,_ icon:MenuIcon,enabled:Bool=true,requiresPath:Bool=true,localized:Bool=true) {
+                let caption=localized ? NSLocalizedString(title,comment:""):title
+                let entry=NSMenuItem(title:caption,action:#selector(invokeBrowserMenu(_:)),keyEquivalent:"");entry.target=self;entry.image=icon.contextImage(defaults:model.preferences)
+                if let target=model.menuTarget(values) { entry.representedObject=MenuInvocation(target:target,command:action,session:fileMenuSession) }
                 let pathAvailable = !requiresPath || values.allSatisfy(\.isPathRepresentable)
                 entry.isEnabled=available && enabled && pathAvailable && entry.representedObject != nil
                 if !pathAvailable {entry.toolTip=RepositoryBrowserWindowModel.rawPathReason}
+                if action == #selector(open) {RepositoryBrowserMenuPresentation.markDefault(entry)}
                 menu.addItem(entry)
             }
             if values.isEmpty,model.canSaveArchive(){item("Save as archive…",#selector(saveArchive),.saveAs,requiresPath:false)}
@@ -197,18 +218,19 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             if !values.isEmpty && model.snapshot?.bare==false && values.allSatisfy({ ![.directory,.submodule].contains($0.kind) }) { item("Revert to this revision",#selector(revert),.revert);menu.addItem(.separator()) }
             if values.count==1,let entry=values.first,![.directory,.submodule].contains(entry.kind) {
                 item("Mark for comparison",#selector(mark),.compare,requiresPath:false)
-                if let mark=model.comparisonMark { item("Compare with "+mark.label(for:entry.path),#selector(compareMarked),.compare,enabled:model.onPreparedFileCompare != nil && (entry.isPathRepresentable || mark.workingAccess == nil && !mark.revision.isEmpty),requiresPath:false) };menu.addItem(.separator())
+                if let mark=model.comparisonMark { item(String(format:NSLocalizedString("Compare with %@",comment:""),mark.label(for:entry.path)),#selector(compareMarked),.compare,enabled:model.onPreparedFileCompare != nil && (entry.isPathRepresentable || mark.workingAccess == nil && !mark.revision.isEmpty),requiresPath:false,localized:false) };menu.addItem(.separator())
             }
             if !values.isEmpty { item(values.contains(where:{!$0.isPathRepresentable}) ? "Copy displayed names (escaped)":"Copy to clipboard",#selector(copyNames),.copy,requiresPath:false);item("Copy hash",#selector(copyHashes),.copy,requiresPath:false) }
         }
         private final class MenuInvocation: NSObject {
             let target: RepositoryBrowserWindowModel.MenuTarget
             let command: Selector
+            let session:UUID
             var used=false
-            init(target: RepositoryBrowserWindowModel.MenuTarget, command: Selector) { self.target=target; self.command=command }
+            init(target: RepositoryBrowserWindowModel.MenuTarget, command: Selector,session:UUID) { self.target=target; self.command=command;self.session=session }
         }
         @objc func invokeBrowserMenu(_ sender: NSMenuItem) {
-            guard available, let invocation=sender.representedObject as? MenuInvocation,!invocation.used, model.acceptsMenu(invocation.target) else { return }
+            guard available, let invocation=sender.representedObject as? MenuInvocation,!invocation.used,invocation.session==fileMenuSession, model.acceptsMenu(invocation.target) else { return }
             invocation.used=true
             let entries=invocation.target.entries
             if invocation.command == #selector(compareMarked),!model.acceptsComparisonMark(invocation.target){return}
@@ -235,6 +257,12 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
             case #selector(compareMarked): model.compareWithMarkedFile(entry,capturedMark:invocation.target.comparisonMark)
             default: break
             }
+        }
+        func menuDidClose(_ menu:NSMenu) {
+            let session=fileMenuSession
+            // AppKit sends the selected item's action while finishing menu
+            // tracking. Retire remaining callbacks after that native dispatch.
+            DispatchQueue.main.async{[weak self] in if self?.fileMenuSession==session {self?.fileMenuSession=UUID()}}
         }
         private func one(_ operation:(RepositoryBrowserEntry)->Void) { guard available,selected.count==1,let entry=selected.first else { return };operation(entry) }
         @objc func saveArchive() {model.saveArchive(directory:selected.first?.path)}
@@ -279,10 +307,34 @@ struct RepositoryBrowserContentsTable: NSViewRepresentable {
     }
 }
 
+/// Shared native presentation only. Model menu receipts remain the action
+/// authority; no revision or filename is recovered from displayed captions.
+@MainActor enum RepositoryBrowserMenuPresentation {
+    static func markDefault(_ item:NSMenuItem) {
+        item.attributedTitle=NSAttributedString(string:item.title,attributes:[.font:NSFontManager.shared.convert(NSFont.menuFont(ofSize:0),toHaveTrait:.boldFontMask)])
+    }
+    static func present(_ menu:NSMenu,in table:NSTableView,row:Int?,using presenter:((NSMenu,NSPoint,NSView)->Void)?)->Bool {
+        menu.delegate?.menuNeedsUpdate?(menu)
+        guard menu.items.contains(where:{!$0.isHidden && !$0.isSeparatorItem && $0.isEnabled}) else{return false}
+        if let row {guard row>=0,row<table.numberOfRows else{return false};table.scrollRowToVisible(row)}
+        table.layoutSubtreeIfNeeded()
+        let rectangle=row.map{table.rect(ofRow:$0).intersection(table.visibleRect)} ?? table.visibleRect
+        let point=rectangle.isEmpty ? NSPoint(x:table.visibleRect.midX,y:table.visibleRect.midY):NSPoint(x:rectangle.midX,y:rectangle.midY)
+        if let presenter {presenter(menu,point,table)} else {menu.popUp(positioning:nil,at:point,in:table)}
+        return true
+    }
+}
+
 final class RepositoryBrowserNativeTable:NSTableView {
     var dragContext:()->String?={nil}
     private var dragStart:String?
     private var dragRow:Int?
+    var selectionMenuAvailable:()->Bool={false}
+    var selectionMenuRow:()->Int?={nil}
+    var selectionFocusChanged:(Int)->Void={_ in}
+    var commandKeyWindow:()->NSWindow?={NSApp.keyWindow}
+    var presentSelectionMenu:((NSMenu,NSPoint,NSView)->Void)?
+    private var presentingSelectionMenu=false
     var acceptsDragGesture:Bool{dragStart != nil && dragStart==dragContext()}
     func acceptsDragRows(_ rows:IndexSet)->Bool {acceptsDragGesture && dragRow.map{rows.contains($0)}==true}
     @discardableResult func captureDragGesture(_ event:NSEvent)->Bool {
@@ -290,14 +342,48 @@ final class RepositoryBrowserNativeTable:NSTableView {
         guard event.type == .leftMouseDown,event.window === window,isEnabled,row(at:convert(event.locationInWindow,from:nil))>=0,column(at:convert(event.locationInWindow,from:nil))>=0 else{return false}
         dragRow=row(at:convert(event.locationInWindow,from:nil));dragStart=dragContext();return dragStart != nil
     }
-    override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil;dragRow=nil};super.mouseDown(with:event)}
+    override func mouseDown(with event:NSEvent){
+        let clicked=row(at:convert(event.locationInWindow,from:nil))
+        _ = captureDragGesture(event);defer{dragStart=nil;dragRow=nil}
+        super.mouseDown(with:event)
+        if clicked>=0,selectedRowIndexes.contains(clicked) {selectionFocusChanged(clicked)}
+    }
     var contentsAttached:(NSTableView)->Void={_ in}
     override func viewDidMoveToWindow(){super.viewDidMoveToWindow();if window != nil{contentsAttached(self)}}
+    @discardableResult func showSelectedContextMenu()->Bool {
+        guard !presentingSelectionMenu,selectionMenuAvailable(),isEnabled,!isHiddenOrHasHiddenAncestor,
+              let window,window.isVisible,window.attachedSheet==nil,NSApp.modalWindow==nil,let menu else{return false}
+        let row=selectionMenuRow().flatMap{selectedRowIndexes.contains($0) ? $0:nil} ?? selectedRowIndexes.first
+        presentingSelectionMenu=true;defer{presentingSelectionMenu=false}
+        return RepositoryBrowserMenuPresentation.present(menu,in:self,row:row,using:presentSelectionMenu)
+    }
+    override func accessibilityPerformShowMenu()->Bool {showSelectedContextMenu()}
+    private func handleSelectionMenuKey(_ event:NSEvent)->Bool {
+        guard event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift,
+              let window,event.window===window,window.firstResponder===self,commandKeyWindow()===window else{return false}
+        return showSelectedContextMenu()
+    }
+    override func keyDown(with event:NSEvent) {
+        if handleSelectionMenuKey(event) {return}
+        let navigation=[125,126,115,119].contains(event.keyCode) && event.modifierFlags.intersection([.command,.control,.option]).isEmpty
+        let anchor=selectionMenuRow() ?? selectedRowIndexes.first ?? 0
+        super.keyDown(with:event)
+        if navigation,numberOfRows>0 {
+            let target=event.keyCode==115 ? 0:event.keyCode==119 ? numberOfRows-1:min(numberOfRows-1,max(0,anchor+(event.keyCode==125 ? 1:-1)))
+            if selectedRowIndexes.contains(target) {selectionFocusChanged(target)}
+        }
+    }
+    override func performKeyEquivalent(with event:NSEvent)->Bool {if handleSelectionMenuKey(event){return true};return super.performKeyEquivalent(with:event)}
     override func menu(for event:NSEvent) -> NSMenu? {
-        guard isEnabled else { return nil };let clicked=row(at:convert(event.locationInWindow,from:nil))
-        if clicked>=0 && !selectedRowIndexes.contains(clicked) { selectRowIndexes(IndexSet(integer:clicked),byExtendingSelection:false) }
+        guard isEnabled,selectionMenuAvailable() else{return nil}
+        let clicked=row(at:convert(event.locationInWindow,from:nil))
+        if clicked>=0 {
+            if !selectedRowIndexes.contains(clicked) {selectRowIndexes(IndexSet(integer:clicked),byExtendingSelection:false)}
+            selectionFocusChanged(clicked)
+        }
         menu?.update();return menu
     }
+    func retireMenuEntry(){selectionMenuAvailable={false};selectionMenuRow={nil};selectionFocusChanged={_ in};presentSelectionMenu=nil;commandKeyWindow={nil};dragContext={nil};dragStart=nil;dragRow=nil}
 }
 final class RepositoryBrowserColumnHeader:NSTableHeaderView {
     var buildMenu:()->NSMenu? = { nil }

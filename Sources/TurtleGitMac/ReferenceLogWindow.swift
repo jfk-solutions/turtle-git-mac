@@ -473,6 +473,7 @@ import TurtleGitCore
         log.endRevision = revision; log.selected = [revision]
         log.search = ""; log.useDates = false
         log.allBranches = false; log.showWorkingTree = false
+        log.configureFixedReferenceScope()
         log.configureWholeProjectScope()
     }
     func logRange(_ command: ReferenceLogRangeCommand, ids: Set<String>) -> HistoryRevisionRange? {
@@ -489,6 +490,7 @@ import TurtleGitCore
     static func configureRangeLog(_ log: LogWindowModel, range: HistoryRevisionRange) {
         log.endRevision = nil; log.revisionRange = range; log.selected = []
         log.search = ""; log.useDates = false; log.allBranches = false; log.showWorkingTree = false
+        log.configureFixedReferenceScope()
         log.configureWholeProjectScope()
     }
     func clipboardText(_ ids: Set<String>, format: ReferenceLogCopyFormat, dates: HistoryDateSettings = .load()) -> String? {

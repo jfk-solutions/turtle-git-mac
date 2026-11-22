@@ -393,7 +393,11 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     @Published private(set) var snapshot: RepositoryBrowserSnapshot?
     @Published private(set) var directories: RepositoryBrowserPathMap<[RepositoryBrowserEntry]> = [:]
     @Published var expanded: RepositoryBrowserPathSet = [""]
-    @Published var selection = Set<String>() {didSet{if selection != oldValue{archiveCancellation?.cancel()}}}
+    @Published var selection = Set<String>() {didSet{
+        if selection != oldValue {archiveCancellation?.cancel()}
+        if let mark=focusedEntryID,!selection.contains(mark) {focusedEntryID=nil}
+    }}
+    @Published var focusedEntryID:String?
     @Published var sortOrder = [KeyPathComparator(\RepositoryBrowserEntry.name)] {didSet{transferEpoch=UUID()}}
     @Published var busy = false {didSet{transferEpoch=UUID()}}
     @Published var mutating = false {didSet{transferEpoch=UUID()}}
@@ -961,8 +965,9 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
         return RepositoryBrowserFilePromise(repository:repository,access:access,snapshot:snapshot,directory:path,backend:materializationBackend()).provider()
     }
     func showFolderLog(_ path: String) {
-        guard folderObjectID(path) != nil, let revision = snapshot?.objectID else { return }
-        guard snapshot?.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
+        guard canUseMenu,folderObjectID(path) != nil,let snapshot,let revision=snapshot.objectID else {return}
+        guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
+        acceptedNavigationRepository=repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         onLog(path,revision)
     }
     func copyFolder(_ path: String, hashes: Bool = false, pasteboard:NSPasteboard? = nil) {
@@ -974,12 +979,14 @@ private final class RepositoryBrowserNativeWindow: NSWindow {
     func showEntryLog(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, snapshot.entries.contains(entry), let revision = snapshot.objectID else { return }
         guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
+        acceptedNavigationRepository=repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         onLog(entry.path,revision)
     }
     func showEntryBlame(_ entry: RepositoryBrowserEntry) {
         guard canUseMenu, let snapshot, !snapshot.bare, snapshot.entries.contains(entry),
               ![.directory,.submodule].contains(entry.kind), let revision = snapshot.objectID else { return }
         guard snapshot.treeID != revision else { error = "Tree objects contain file snapshots, but have no commit history or blame information. Choose a commit or tag to view history."; return }
+        acceptedNavigationRepository=repository.capturingBackend(snapshot.acceptedBackend ?? materializationBackend())
         onBlame(entry.path,revision)
     }
     func compareEntryToWorkingTree(_ entry: RepositoryBrowserEntry) {
@@ -1152,7 +1159,10 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView { context.coordinator.makeView() }
     func updateNSView(_ view: NSScrollView, context: Context) { context.coordinator.update() }
-    static func dismantleNSView(_ view:NSScrollView, coordinator:Coordinator) { coordinator.retired=true;if coordinator.dragSession == nil{coordinator.activeTransfer=nil;coordinator.outline?.delegate=nil;coordinator.outline?.dataSource=nil} }
+    static func dismantleNSView(_ view:NSScrollView, coordinator:Coordinator) {
+        coordinator.retired=true;coordinator.outline?.retireMenuEntry();coordinator.outline?.menu?.delegate=nil
+        if coordinator.dragSession == nil {coordinator.activeTransfer=nil;coordinator.outline?.delegate=nil;coordinator.outline?.dataSource=nil}
+    }
 
     @MainActor final class Node: NSObject {
         let path:String
@@ -1165,6 +1175,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
         private var children:RepositoryBrowserPathMap<[RepositoryBrowserEntry]>=[:]
         private var generation:UUID?
         private var updating=false
+        private var menuSession=UUID()
         var retired=false
         var activeTransfer:RepositoryBrowserSelectionDrag?
         private(set) var dragSession:NSDraggingSession?
@@ -1172,7 +1183,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
         func captureDrag(_ path:String)->RepositoryBrowserSelectionDrag? {
             guard available,NSApp.modalWindow==nil else{return nil};return model.captureTreeTransfer(path)
         }
-        var available:Bool { !retired && model.canUseMenu && outline?.window?.attachedSheet==nil }
+        var available:Bool { !retired && model.canUseMenu && outline?.window?.attachedSheet==nil && NSApp.modalWindow==nil }
         var navigationAvailable:Bool {!retired && model.canNavigate && outline?.window?.attachedSheet==nil}
         init(_ model:RepositoryBrowserWindowModel) { self.model=model }
         func node(_ path:String) -> Node { if let value=nodes[path] { return value };let value=Node(path);nodes[path]=value;return value }
@@ -1190,6 +1201,7 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
             tree.openSelection={ [weak self] in self?.openSelected() }
             tree.copySelection={ [weak self] in self?.copySelected() }
             tree.contextSelection={ [weak self] row in self?.selectContext(row) }
+            tree.selectionMenuAvailable={ [weak self] in self?.available==true }
             let menu=NSMenu();menu.delegate=self;menu.autoenablesItems=false;tree.menu=menu
             tree.setDraggingSourceOperationMask(.copy,forLocal:false);tree.setDraggingSourceOperationMask(.copy,forLocal:true)
             scroll.documentView=tree;outline=tree;update();return scroll
@@ -1261,27 +1273,32 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
             outline.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false);updating=false
         }
         private final class Invocation:NSObject {
-            let path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int
+            let path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int,session:UUID
             var used=false
-            init(path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int) { self.path=path;self.target=target;self.command=command }
+            init(path:String,target:RepositoryBrowserWindowModel.MenuTarget,command:Int,session:UUID) {self.path=path;self.target=target;self.command=command;self.session=session}
         }
         func menuNeedsUpdate(_ menu:NSMenu) {
-            menu.removeAllItems()
+            menuSession=UUID();menu.removeAllItems()
             guard available,let outline,let item=outline.item(atRow:outline.selectedRow) as? Node,model.folderObjectID(item.path) != nil,let target=model.menuTarget() else { return }
             for (index,title,icon) in [(0,"Open",MenuIcon.open),(1,"Show log",.log),(4,"Save as archive…",.saveAs),(2,"Copy to clipboard",.copy),(3,"Copy hash",.copy)] {
                 if index==4 && !model.canSaveArchive(directory:item.path){continue}
                 if index==1 || index==2 { menu.addItem(.separator()) }
                 let caption=index==2 && (try? RepositoryBrowserGitPath(key:item.path).isRepresentable)==false ? "Copy displayed name (escaped)":title
-                let entry=NSMenuItem(title:caption,action:#selector(invoke(_:)),keyEquivalent:"");entry.target=self
-                entry.image=icon.contextImage(defaults:model.preferences);entry.representedObject=Invocation(path:item.path,target:target,command:index)
+                let entry=NSMenuItem(title:NSLocalizedString(caption,comment:""),action:#selector(invoke(_:)),keyEquivalent:"");entry.target=self
+                if index==0 {RepositoryBrowserMenuPresentation.markDefault(entry)}
+                entry.image=icon.contextImage(defaults:model.preferences);entry.representedObject=Invocation(path:item.path,target:target,command:index,session:menuSession)
                 menu.addItem(entry)
             }
         }
         @objc func invoke(_ sender:NSMenuItem) {
-            guard available,let action=sender.representedObject as? Invocation,!action.used,model.acceptsMenu(action.target) else { return }
+            guard available,let action=sender.representedObject as? Invocation,!action.used,action.session==menuSession,model.acceptsMenu(action.target) else { return }
             if action.command==4 {guard model.acceptsArchiveMenu(action.target),let outline,let selected=outline.item(atRow:outline.selectedRow) as? Node,RepositoryBrowserPathIdentity.equal(selected.path,action.path) else{return}}
             action.used=true
             switch action.command { case 0:model.openFolder(action.path);case 1:model.showFolderLog(action.path);case 2:model.copyFolder(action.path);case 3:model.copyFolder(action.path,hashes:true);case 4:model.saveArchive(directory:action.path);default:break }
+        }
+        func menuDidClose(_ menu:NSMenu) {
+            let session=menuSession
+            DispatchQueue.main.async{[weak self] in if self?.menuSession==session {self?.menuSession=UUID()}}
         }
         func outlineView(_ outlineView:NSOutlineView,writeItems items:[Any],to pasteboard:NSPasteboard)->Bool {
             guard let outline=outlineView as? RepositoryBrowserFolderOutline,items.count==1,let node=items.first as? Node,outline.acceptsDragItem(node),let transfer=captureDrag(node.path),transfer.write(to:pasteboard) else{return false}
@@ -1311,20 +1328,39 @@ private final class RepositoryBrowserLayoutSplitView:NSSplitView {
     }
     override func mouseDown(with event:NSEvent){_ = captureDragGesture(event);defer{dragStart=nil;dragItem=nil};super.mouseDown(with:event)}
     var openSelection:()->Void = {},copySelection:()->Void = {}
-    var contextSelection:(Int)->Void = { _ in }
+    var contextSelection:(Int)->Void = {_ in}
+    var selectionMenuAvailable:()->Bool={false}
+    var presentSelectionMenu:((NSMenu,NSPoint,NSView)->Void)?
+    private var presentingSelectionMenu=false
+    @discardableResult func showSelectedContextMenu()->Bool {
+        guard !presentingSelectionMenu,selectionMenuAvailable(),isEnabled,!isHiddenOrHasHiddenAncestor,
+              let window,window.isVisible,window.attachedSheet==nil,NSApp.modalWindow==nil,selectedRow>=0,let menu else{return false}
+        presentingSelectionMenu=true;defer{presentingSelectionMenu=false}
+        return RepositoryBrowserMenuPresentation.present(menu,in:self,row:selectedRow,using:presentSelectionMenu)
+    }
+    override func accessibilityPerformShowMenu()->Bool {showSelectedContextMenu()}
+    private func handleSelectionMenuKey(_ event:NSEvent)->Bool {
+        guard event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift,
+              let owner=window as? RepositoryBrowserNativeWindow,event.window===owner,owner.firstResponder===self,owner.commandKeyWindow()===owner else{return false}
+        return showSelectedContextMenu()
+    }
     override func keyDown(with event:NSEvent) {
+        if handleSelectionMenuKey(event) {return}
         if isEnabled,[36,76].contains(event.keyCode),!event.modifierFlags.contains(.option),window?.firstResponder === self,
-           let owner = window as? RepositoryBrowserNativeWindow,owner.commandKeyWindow() === owner,event.window === owner {openSelection();return}
+           let owner=window as? RepositoryBrowserNativeWindow,owner.commandKeyWindow()===owner,event.window===owner {openSelection();return}
         super.keyDown(with:event)
     }
-    override func performKeyEquivalent(with event:NSEvent) -> Bool {
-        let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
-        if isEnabled,flags == .command || flags == .control,event.keyCode == 8,
-           let owner = window as? RepositoryBrowserNativeWindow,owner.commandKeyWindow() === owner,event.window === owner,owner.firstResponder === self {copySelection();return true}
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if handleSelectionMenuKey(event) {return true}
+        let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if isEnabled,flags == .command || flags == .control,event.keyCode==8,
+           let owner=window as? RepositoryBrowserNativeWindow,owner.commandKeyWindow()===owner,event.window===owner,owner.firstResponder===self {copySelection();return true}
         return super.performKeyEquivalent(with:event)
     }
-    override func menu(for event:NSEvent) -> NSMenu? {
-        guard isEnabled else { return nil };let clicked=row(at:convert(event.locationInWindow,from:nil));guard clicked>=0 else { return nil }
+    override func menu(for event:NSEvent)->NSMenu? {
+        guard isEnabled,selectionMenuAvailable() else{return nil}
+        let clicked=row(at:convert(event.locationInWindow,from:nil));guard clicked>=0 else{return nil}
         contextSelection(clicked);menu?.update();return menu
     }
+    func retireMenuEntry(){selectionMenuAvailable={false};presentSelectionMenu=nil;openSelection={};copySelection={};contextSelection={_ in};dragContext={nil};dragStart=nil;dragItem=nil}
 }

@@ -139,20 +139,60 @@ struct BlameToolbarDockDrag {
         let rect=clampedFrame(frame),saved=BlameToolbarFloatingRect(x:rect.minX,y:rect.minY,width:rect.width,height:rect.height);guard bar.floatingRect != saved else{return};bar.floatingRect=saved;update(bar)
     }
     func hideBar(_ barID:UUID){guard var bar=store.load().allBars.first(where:{$0.id==barID}) else{return};bar.isVisible=false;update(bar)}
-    func contextMenu(barID:UUID)->NSMenu {
+    func contextMenu(barID:UUID,source:NSView? = nil)->NSMenu {
         let menu=NSMenu();menu.autoenablesItems=false
-        func item(_ title:String,_ action:String,_ checked:Bool=false){let entry=NSMenuItem(title:NSLocalizedString(title,comment:""),action:#selector(toolbarContextAction(_:)),keyEquivalent:"");entry.target=self;entry.representedObject=BlameToolbarContextReceipt(barID:barID,generation:configuration.generation,action:action);entry.isEnabled=available;entry.state=checked ? .on:.off;menu.addItem(entry)}
-        item("Customize Toolbar…","customize");item("Manage Toolbars…","manage");item("Reset All Toolbars","reset");menu.addItem(.separator())
-        for placement in BlameToolbarPlacement.allCases {item(placement.title,"place."+placement.rawValue,configuration.allBars.first{$0.id==barID}?.placement==placement)}
-        menu.addItem(.separator());item("Hide Toolbar","hide");return menu
+        guard available,let model=owner?.model,
+              configuration.allBars.contains(where:{$0.id==barID && $0.isVisible}),
+              source.map({contextSourceAvailable($0,barID:barID)}) ?? true else{return menu}
+        contextMenuGeneration=UUID()
+        let epoch=contextMenuGeneration
+        func item(_ title:String,_ action:String,_ icon:MenuIcon,_ checked:Bool=false,into parent:NSMenu? = nil,localized:Bool=true){
+            let entry=NSMenuItem(title:localized ? NSLocalizedString(title,comment:""):title,action:#selector(toolbarContextAction(_:)),keyEquivalent:"")
+            entry.target=self;entry.representedObject=BlameToolbarContextReceipt(barID:barID,generation:configuration.generation,menu:epoch,model:model,source:source,action:action)
+            entry.image=icon.contextImage(defaults:model.labelDefaults);entry.isEnabled=available;entry.state=checked ? .on:.off;(parent ?? menu).addItem(entry)
+        }
+        item("Customize Toolbar…","customize",.settingsDialogs);item("Manage Toolbars…","manage",.settingsContextMenu);item("Reset All Toolbars","reset",.restore);menu.addItem(.separator())
+        for placement in BlameToolbarPlacement.allCases {item(placement.title,"place."+placement.rawValue,.mergeSwitch,configuration.allBars.first{$0.id==barID}?.placement==placement)}
+        menu.addItem(.separator());item("Hide Toolbar","hide",.mergeCollapse)
+        let choices=NSMenu();choices.autoenablesItems=false
+        for bar in configuration.allBars {item(bar.name,"visible."+bar.id.uuidString,.settingsContextMenu,bar.isVisible,into:choices,localized:bar.id==BlameToolbarConfiguration.standardID)}
+        choices.addItem(.separator())
+        for pane in BlamePane.allCases {item(pane.title,"pane."+pane.rawValue,pane.icon,model.paneVisible(pane),into:choices)}
+        let parent=NSMenuItem(title:NSLocalizedString("Toolbars and Panes",comment:""),action:nil,keyEquivalent:"")
+        parent.image=MenuIcon.settingsDialogs.contextImage(defaults:model.labelDefaults);parent.submenu=choices;menu.addItem(parent)
+        return menu
     }
     @objc private func toolbarContextAction(_ sender:NSMenuItem){
-        guard let receipt=sender.representedObject as? BlameToolbarContextReceipt,receipt.generation==configuration.generation,available else{return}
+        guard sender.isEnabled,let receipt=sender.representedObject as? BlameToolbarContextReceipt,!receipt.used,
+              receipt.menu==contextMenuGeneration,receipt.generation==configuration.generation,
+              store.load().generation==receipt.generation,available,let model=owner?.model,
+              ObjectIdentifier(model)==receipt.model,model.historyControlEpoch==receipt.document,
+              model.showLog==receipt.logVisible,model.showProperties==receipt.propertiesVisible,
+              model.paneLayoutRevision==receipt.paneLayout,model.paneLayout==receipt.layout,
+              configuration.allBars.contains(where:{$0.id==receipt.barID && $0.isVisible}) else{return}
+        if receipt.hasSource {guard let source=receipt.source,let window=receipt.sourceWindow,source.window === window,contextSourceAvailable(source,barID:receipt.barID) else{return}}
+        receipt.used=true
         switch receipt.action {case "customize":customize();case "manage":edit();case "reset":reset();case "hide":hideBar(receipt.barID)
-        default:if receipt.action.hasPrefix("place."),let placement=BlameToolbarPlacement(rawValue:String(receipt.action.dropFirst(6))){setPlacement(barID:receipt.barID,placement:placement)}}
+        default:
+            if receipt.action.hasPrefix("place."),let placement=BlameToolbarPlacement(rawValue:String(receipt.action.dropFirst(6))){setPlacement(barID:receipt.barID,placement:placement)}
+            else if receipt.action.hasPrefix("visible."),let id=UUID(uuidString:String(receipt.action.dropFirst(8))),var bar=configuration.allBars.first(where:{$0.id==id}) {bar.isVisible.toggle();update(bar)}
+            else if receipt.action.hasPrefix("pane."),let pane=BlamePane(rawValue:String(receipt.action.dropFirst(5))) {model.setPaneVisible(pane,!model.paneVisible(pane))}
+        }
     }
 }
-private final class BlameToolbarContextReceipt:NSObject {let barID:UUID,generation:UUID;let action:String;init(barID:UUID,generation:UUID,action:String){self.barID=barID;self.generation=generation;self.action=action}}
+@MainActor private final class BlameToolbarContextReceipt:NSObject {
+    let barID:UUID,generation:UUID,menu:UUID,model:ObjectIdentifier,document:UUID
+    let action:String,hasSource:Bool,logVisible:Bool,propertiesVisible:Bool,paneLayout:Int
+    let layout:BlamePaneLayout
+    weak var source:NSView?
+    weak var sourceWindow:NSWindow?
+    var used=false
+    init(barID:UUID,generation:UUID,menu:UUID,model:BlameWindowModel,source:NSView?,action:String){
+        self.barID=barID;self.generation=generation;self.menu=menu;self.model=ObjectIdentifier(model);document=model.historyControlEpoch
+        self.source=source;sourceWindow=source?.window;hasSource=source != nil;self.action=action
+        logVisible=model.showLog;propertiesVisible=model.showProperties;paneLayout=model.paneLayoutRevision;layout=model.paneLayout
+    }
+}
 
 /// A real native handle provides pointer dragging and a menu/accessibility
 /// alternative. Dragging only updates a preview until mouse-up; Escape discards.
@@ -162,9 +202,15 @@ private final class BlameToolbarContextReceipt:NSObject {let barID:UUID,generati
     let generation:UUID
     init(chrome:BlameToolbarController,barID:UUID,frame:NSRect){self.chrome=chrome;self.barID=barID;generation=chrome.configuration.generation;super.init(frame:frame);setAccessibilityElement(true);setAccessibilityRole(.button);setAccessibilityLabel(NSLocalizedString("Move toolbar",comment:""));setAccessibilityIdentifier("TurtleGit.Blame.ToolbarGrip."+barID.uuidString)}
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
+    override var acceptsFirstResponder:Bool {true}
     override func draw(_ dirtyRect:NSRect){NSColor.secondaryLabelColor.setFill();for y in stride(from:bounds.midY-6,through:bounds.midY+6,by:4){NSBezierPath(ovalIn:NSRect(x:bounds.midX-3,y:y,width:2,height:2)).fill();NSBezierPath(ovalIn:NSRect(x:bounds.midX+1,y:y,width:2,height:2)).fill()}}
-    override func menu(for event:NSEvent)->NSMenu? {guard let chrome,chrome.authenticatedGrip(self) else{return nil};return chrome.contextMenu(barID:barID)}
-    override func accessibilityPerformPress()->Bool {guard let chrome,let window,chrome.available,chrome.authenticatedGrip(self) else{return false};chrome.contextMenu(barID:barID).popUp(positioning:nil,at:bounds.origin,in:self);window.makeFirstResponder(self);return true}
+    override func menu(for event:NSEvent)->NSMenu? {guard let chrome,chrome.contextSourceAvailable(self,barID:barID) else{return nil};return chrome.contextMenu(barID:barID,source:self)}
+    override func accessibilityPerformPress()->Bool {chrome?.showContextMenu(barID:barID,from:self) ?? false}
+    override func accessibilityPerformShowMenu()->Bool {chrome?.showContextMenu(barID:barID,from:self) ?? false}
+    override func keyDown(with event:NSEvent) {
+        if let chrome,chrome.contextKey(event,from:self,barID:barID){return}
+        super.keyDown(with:event)
+    }
     override func mouseDown(with event:NSEvent){
         guard let chrome,window != nil,chrome.authenticatedGrip(self) else{return}
         if event.clickCount==2 {chrome.toggleFloating(barID:barID);return}

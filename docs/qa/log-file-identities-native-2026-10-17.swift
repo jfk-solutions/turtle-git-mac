@@ -45,23 +45,29 @@ import TurtleGitCore
         defer { owner.close() }; owner.window!.alphaValue = 0; owner.window!.orderFront(nil); model.clipboard = clipboard
         try await wait(owner.window) { !model.busy && model.entries.contains { $0.hash == merge } }
         model.select([merge]); try await wait(owner.window) { model.files.count == 4 && model.fileGroups.count == 2 }
-        guard let probe = views(owner.window?.contentView).compactMap({ $0 as? CommitFileInteraction.Probe }).first else { throw Failure(description:"Missing native Log file probe") }
-        try await wait(owner.window) { probe.groupHeaders?.headings.count == 2 }
-        let table = probe.groupHeaders!.table!
+        try await wait(owner.window) {views(owner.window?.contentView).compactMap{$0 as? LogChangedFileNativeTable}.contains{$0.numberOfRows==model.fileTableRows.count}}
+        guard let table=views(owner.window?.contentView).compactMap({$0 as? LogChangedFileNativeTable}).first else {throw Failure(description:"Missing actual native Log file report")}
+        let headerRows=model.fileTableRows.indices.filter{model.fileTableRows[$0].header != nil}
+        try require(headerRows.count==2 && headerRows.allSatisfy{table.delegate?.tableView?(table,isGroupRow:$0)==true && table.delegate?.tableView?(table,shouldSelectRow:$0)==false},"Native parent headers disappeared or became selectable")
         let files = model.fileTableRows.compactMap(\.file), ids = GitPathSet(files.map(\.id))
         try require(ids.count == 4 && Set(model.fileTableRows.map(\.id)).count == 6,"Native Unicode or parent identities collapsed")
-        try require(probe.itemIDs!.map { GitReferenceName($0) } == model.fileTableRows.map { GitReferenceName($0.rawID) },"Probe received encoded rather than Git IDs")
+        // Observe each actual native selection delivery rather than checking a
+        // background adapter's mirrored ID array. Parent prefixes and canonically
+        // equivalent UTF-8 names must survive every row-to-model boundary.
+        for (row,value) in model.fileTableRows.enumerated() where value.file != nil {
+            table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)
+            try await wait(owner.window) {model.selectedFiles==GitPathSet([value.rawID]) && table.selectedRowIndexes==IndexSet(integer:row)}
+        }
         let first = files.first { GitReferenceName.equal($0.path,a) && $0.parentIndex == 0 }!, second = files.first { GitReferenceName.equal($0.path,b) && $0.parentIndex == 0 }!
         func selectNative(_ chosen: GitPathSet, line: Int = #line) async throws {
             try await wait(owner.window) {
                 let rows = model.fileTableRows
-                guard table.numberOfRows == rows.count,
-                      probe.itemIDs?.map({ GitReferenceName($0) }) == rows.map({ GitReferenceName($0.rawID) }) else { return false }
+                guard table.numberOfRows==rows.count else{return false}
                 let native = GitPathSet(table.selectedRowIndexes.compactMap { rows.indices.contains($0) ? rows[$0].file?.id:nil })
                 return native == model.selectedFiles
             }
             let indexes = IndexSet(model.fileTableRows.enumerated().compactMap { chosen.contains($0.element.rawID) ? $0.offset:nil })
-            CommitFileInteraction.replaceSelection(in:table,with:indexes)
+            table.deselectAll(nil);table.selectRowIndexes(indexes,byExtendingSelection:false)
             do { try await wait(owner.window) { model.selectedFiles == chosen && table.selectedRowIndexes == indexes } }
             catch { throw Failure(description:"Native selection at caller \(line): wanted \(chosen.map(GitPathRowIdentity.encode)), model \(model.nativeFileSelection), native indexes \(table.selectedRowIndexes), wanted indexes \(indexes)") }
         }

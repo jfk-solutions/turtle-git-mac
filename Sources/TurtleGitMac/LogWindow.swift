@@ -675,7 +675,7 @@ final class LogHistoryWindow: NSWindow {
         if model.cancelWorkingCommandRead(closeAfter:true) { return false }
         if model.cancelStartReferenceRead() { return false }
         if model.cancelIntegrationRead(closeAfter:true) { return false }
-        guard !model.confirmingQuit,!model.resettingRevisionColumns,!model.referencePickerBlocked, (!model.busy || model.loadingHistory || documentOpen != nil), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
+        guard !model.confirmingQuit,!model.resettingRevisionColumns,!model.changedFileColumnWorkPending,!model.referencePickerBlocked, (!model.busy || model.loadingHistory || documentOpen != nil), !model.unifiedViewerBusy, !model.findBlocked, !model.orderingBlocked, !hasBlockingReferenceChild, sender.attachedSheet == nil else { return false }
         if model.selecting { finishSelection(nil); return false }; return true
     }
     func windowWillClose(_ notification: Notification) {
@@ -698,8 +698,8 @@ final class LogHistoryWindow: NSWindow {
         window?.contentViewController = nil
         completion?(nil);multiple?(nil)
         let closed=onClosed;onClosed={}
-        if model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || model.unifiedComparisonReadPending || lfsOperation != nil {
-            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || model.unifiedComparisonReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
+        if model.noteWorkPending || model.revisionColumnWorkPending || model.changedFileColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || model.unifiedComparisonReadPending || lfsOperation != nil {
+            Task{@MainActor [self] in while model.noteWorkPending || model.revisionColumnWorkPending || model.changedFileColumnWorkPending || model.workingLFSReadPending || model.historyProjectionWorkPending || model.pendingHistoryLoads > 0 || model.fileNavigationReadPending || model.unifiedComparisonReadPending || lfsOperation != nil{try? await Task.sleep(nanoseconds:5_000_000)};closed()}
         }else{closed()}
     }
     private func setPatchPreviewVisible(_ visible: Bool) {
@@ -1051,8 +1051,10 @@ struct LogCommandRequest: Identifiable {
         }
     }
     @Published private(set) var resettingChangedFileColumns=false
+    private(set) static var activeChangedFileColumnQuestions=0
+    private(set) var changedFileColumnWorkPending=false
     private var changedFileColumnRequest=UUID()
-    var canChangeFileColumns:Bool { !isInvalidated && !busy && !resettingChangedFileColumns && window?.attachedSheet == nil }
+    var canChangeFileColumns:Bool { canInspectHistory && !busy && !resettingChangedFileColumns && !changedFileColumnWorkPending && !resettingRevisionColumns && window?.attachedSheet == nil }
     @discardableResult func saveChangedFileLayout(order:[StatusListColumn],widths:[StatusListColumn:Double])->Bool {
         guard canChangeFileColumns else { return false }
         let allowed=Set(StatusListColumn.defaultColumns)
@@ -1072,13 +1074,16 @@ struct LogCommandRequest: Identifiable {
     func resetChangedFileColumns(choose:@escaping () async -> Bool,accepted:@escaping ()->Void) {
         guard canChangeFileColumns else {return}
         let request=UUID();changedFileColumnRequest=request;resettingChangedFileColumns=true
-        Task { [weak self] in
-            guard let self else {return}
+        changedFileColumnWorkPending=true;Self.activeChangedFileColumnQuestions += 1
+        Task { [self] in
+            defer {changedFileColumnWorkPending=false;Self.activeChangedFileColumnQuestions -= 1;if changedFileColumnRequest==request {resettingChangedFileColumns=false}}
+            // choose returns only after the actual child and parent sheet links
+            // detach. Forced invalidation retires UI admission, not this worker.
             let yes=await choose()
-            guard !self.isInvalidated,self.changedFileColumnRequest == request else {return}
-            self.resettingChangedFileColumns=false
-            guard yes,!self.busy else {return}
-            self.changedFileColumns=StatusListColumnSettings();self.changedFileColumns.save(to:self.labelDefaults,key:Self.changedFileColumnsKey);accepted()
+            guard !isInvalidated,changedFileColumnRequest==request else{return}
+            resettingChangedFileColumns=false
+            guard yes,canInspectHistory,!busy else{return}
+            changedFileColumns=StatusListColumnSettings();changedFileColumns.save(to:labelDefaults,key:Self.changedFileColumnsKey);accepted()
         }
     }
     func changedFileIcon(_ file:CommitFile)->NSImage? {
@@ -2559,19 +2564,30 @@ struct LogCommandRequest: Identifiable {
         }
         else { close() }
     }
-    func setPathScope(_ paths: [String]) {
+    func setPathScope(_ paths: [String], reload:Bool=true) {
         guard !isInvalidated, !referencePickerBlocked, !busy || loadingHistory else { return }
         let scope = paths.contains(".") ? [] : paths
         let whole = HistoryWholeProjectPreference.load(root: repository.root, defaults: labelDefaults)
         guard historyPaths.map({ GitReferenceName($0) }) != scope.map({ GitReferenceName($0) }) || showWholeProject != whole else { return }
         historyWalk.followRenames = false; canFollowRenames = false
-        historyPaths = scope; showWholeProject = whole; updatePathScopeTitle(); reload()
+        historyPaths = scope; showWholeProject = whole; updatePathScopeTitle(); if reload {self.reload()}
+    }
+    var canReuseForPresentation:Bool {
+        canInspectHistory && !selecting && !busy && !loadingHistory && pendingHistoryLoads==0 &&
+            !resettingRevisionColumns && !resettingChangedFileColumns && !changedFileColumnWorkPending && !configureHistoryDefaults && commandRequest==nil &&
+            fileOpenRead==nil && fileNavigationActivities.isEmpty && combineSelectionReads.isEmpty &&
+            actionCancellation==nil && !fileNavigationReadPending && unifiedSessions.isEmpty && followedSession==nil &&
+            !findBlocked && !orderingBlocked && !referencePickerBlocked && !copyingDetails && noteRequest==nil &&
+            !loadingNote && !savingNote && !jumping && window?.attachedSheet==nil && NSApp.modalWindow==nil
     }
     func canReuseForRange(_ range: HistoryRevisionRange, paths:[String] = []) -> Bool {
         guard let current = revisionRange else { return false }
-        return !isInvalidated && !confirmingQuit && !busy && !jumping && !loadingNote && !savingNote && noteRequest == nil && !unifiedViewerBusy && !copyingDetails &&
+        return canReuseForPresentation &&
         current.kind == range.kind && GitReferenceName.equal(current.from, range.from) && GitReferenceName.equal(current.to, range.to) &&
         endRevision == nil && historyPaths.map({ GitReferenceName($0) }) == paths.map({ GitReferenceName($0) }) && showWholeProject == paths.isEmpty && startRevisions.isEmpty && effectiveReferenceScope == .current
+    }
+    func configureFixedReferenceScope() {
+        referenceScope = .current; startRevisions = []
     }
     func configureWholeProjectScope() {
         historyWalk.followRenames = false; canFollowRenames = false
@@ -2662,14 +2678,21 @@ struct LogCommandRequest: Identifiable {
         if loadingHistory { historyCancellation?.cancel(); historyCancellation = nil; busy = false }
         generation += 1; detailGeneration += 1
     }
-    func reload() {
-        let repository=self.repository.capturingDiffBackend(preferences:labelDefaults)
-        guard !isInvalidated,!confirmingQuit else{return}
-        guard !referencePickerBlocked, unifiedSessions.isEmpty, followedSession == nil, !fileNavigationReadPending, !closeAfterUnifiedRead, !busy || loadingHistory else {
-            // A user Refresh must survive a captured comparison/picker owner.
-            // Consume the coalesced intent only once this reload is admitted.
-            pendingRepositoryRefresh=true;scheduleRepositoryRefresh();return
+    var canAdmitHistoryReload:Bool {
+        !isInvalidated && !confirmingQuit && !referencePickerBlocked && unifiedSessions.isEmpty && followedSession==nil &&
+            !fileNavigationReadPending && !closeAfterUnifiedRead && (!busy || loadingHistory)
+    }
+    func reload() {_ = reload(acceptedBackend:nil)}
+    /// An incoming producer is admitted synchronously or refused unchanged. It
+    /// is never reduced to a generic refresh intent, whose later mutable form
+    /// and current preference backend would describe a different request.
+    @discardableResult func reload(acceptedBackend:GitLibGit2Configuration?)->Bool {
+        guard !isInvalidated,!confirmingQuit else{return false}
+        guard canAdmitHistoryReload else {
+            if acceptedBackend==nil {pendingRepositoryRefresh=true;scheduleRepositoryRefresh()}
+            return false
         }
+        let repository=acceptedBackend.map{self.repository.capturingBackend($0)} ?? self.repository.capturingDiffBackend(preferences:labelDefaults)
         cancelReferenceDescriptionRead()
         cancelSearchFilter()
         restoreHistorySnapshot()
@@ -2825,6 +2848,7 @@ struct LogCommandRequest: Identifiable {
                 }
             }
         }
+        return true
     }
     func select(_ hashes: Set<String>,mark:String? = nil,recordNavigation:Bool = true) {
         guard !isInvalidated else{return}
@@ -3138,7 +3162,7 @@ struct LogCommandRequest: Identifiable {
         }
     }
     enum CopyFileInformation: String, CaseIterable {
-        case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", all = "Copy all information to clipboard"
+        case fullPaths = "Full paths", relativePaths = "Relative paths", names = "File/folder names", extensions = "Extensions", all = "Copy all information to clipboard"
     }
     func canCopyFiles(_ ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
@@ -3153,10 +3177,16 @@ struct LogCommandRequest: Identifiable {
         case .fullPaths: kind = .fullPaths
         case .relativePaths: kind = .relativePaths
         case .names: kind = .names
+        case .extensions: kind = .column(.fileExtension)
         case .all: kind = .all
         }
-        let statuses = GitPathMap(uniqueKeysWithValues: selected.map { ($0.id, fileStatus($0)) })
-        copy(StatusListClipboard.text(selected, root: repository.root, statuses: statuses, copy: kind, label:FileListLabels.caption))
+        let columns=changedFileColumns.order.filter {changedFileColumns.visible.contains($0) && StatusListColumn.defaultColumns.contains($0)}
+        if information == .all {
+            copy(StatusListClipboard.heading(copy:.all,columns:columns,label:FileListLabels.caption)+selected.map{file in columns.map{changedFileText(file,column:$0)}.joined(separator:"\t")}.joined(separator:"\n")+"\n")
+        } else {
+            let statuses=GitPathMap(uniqueKeysWithValues:selected.map{($0.id,fileStatus($0))})
+            copy(StatusListClipboard.text(selected,root:repository.root,statuses:statuses,copy:kind,visibleColumns:columns,label:FileListLabels.caption))
+        }
     }
     func fileLog(_ ids: some Sequence<String>, oldName: Bool = false) {
         guard canInspectHistory else{return}
@@ -4202,44 +4232,9 @@ struct LogDialog: View {
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }
                     .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
                     .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
-                Table(of:LogFileTableRow.self,selection:$model.nativeFileSelection,sortOrder:Binding(get:{model.changedFileSort},set:model.setChangedFileSort)) {
-                    TableColumn("Path",sortUsing:LogChangedFileSort(column:.path)) { row in
-                        if let header = row.header {
-                            Text(header).fontWeight(.semibold).foregroundStyle(Color.accentColor).accessibilityAddTraits(.isHeader)
-                        } else if let file = row.file {
-                            HStack(spacing:4) { if let icon=model.changedFileIcon(file) {Image(nsImage:icon)};Text(model.changedFileText(file,column:.path)).background(NativeListSelectionLabelMarker()) }.foregroundStyle(model.fileForeground(file, selected: model.selectedFiles.contains(file.id))).repositoryFileHelp(repository: model.repository.root, path: file.path, detail: file.oldPath.map { HistoryLabels.text("Renamed from {path}", values: ["path": RepositoryBrowserGitPath.display(key:$0)]) } ?? "", preferences: model.colorPreferences)
-                        }
-                    }.width(min: 260, ideal: 460)
-                    TableColumn("Extension",sortUsing:LogChangedFileSort(column:.fileExtension)) { row in Text(row.file.map { StatusListClipboard.fileExtension($0.path, isDirectory: $0.isSubmodule) } ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(80)
-                    TableColumn("Status",sortUsing:LogChangedFileSort(column:.status)) { row in Text(FileListLabels.caption(row.file.map(model.fileStatus) ?? "")).foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(95)
-                    TableColumn("Lines added",sortUsing:LogChangedFileSort(column:.added)) { row in Text(row.file?.addedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(90)
-                    TableColumn("Lines removed",sortUsing:LogChangedFileSort(column:.removed)) { row in Text(row.file?.removedText ?? "").foregroundStyle(row.file.map { model.fileForeground($0, selected: model.selectedFiles.contains(row.rawID)) } ?? .primary) }.width(105)
-                } rows: {
-                    ForEach(model.fileTableRows) {row in
-                        TableRow(row)
-                    }
-                }.tableStyle(.bordered(alternatesRowBackgrounds:false)).fileListFont().frame(minHeight: 130, idealHeight: 180)
-                .background(LogFileDragInteraction(model:model,rows:model.fileTableRows))
-                .background(CommitFileInteraction(rows:model.fileTableRows.map {row in
-                    if let title=row.header {return .group(.changelist(title))}
-                    return row.statusEntry.map(StatusListRow.file) ?? .group(.changelist(""))
-                },leadingColumnCount:0,keyboardDeleteEnabled:model.selectedWorkingTree,nativeColumns:StatusListColumn.defaultColumns,
-                    rowTexts:model.fileTableRows.map {row in Dictionary(uniqueKeysWithValues:StatusListColumn.defaultColumns.map {column in (column,row.file.map {file in model.changedFileText(file,column:column)} ?? "")})},
-                    itemIDs:model.fileTableRows.map(\.rawID),copyIDs:{model.copyChangedFileIDs($0,status:$1)},copyColumnIDs:{model.copyChangedFileIDs($0,column:$1)},
-                    preferences:model.colorPreferences,visibleColumns:model.changedFileColumns.visible,availableColumns:Set(StatusListColumn.defaultColumns),columnText:{_,_ in ""},
-                    savedOrder:model.changedFileColumns.order,savedWidths:model.changedFileColumns.widths,saveLayout:{model.saveChangedFileLayout(order:$0,widths:$1)},
-                    setColumnVisible:model.setChangedFileColumn,resetColumns:{model.resetChangedFileColumns(choose:$0,accepted:$1)},focusedPath:$model.focusedChangedFile,
-                    enabled:model.canInspectHistory && !model.resettingChangedFileColumns,delete:{_,_,permanent in model.deleteWorkingFiles(model.selectedFiles,permanently:permanent,keyboard:true)},
-                    copy:{_,_ in},copyColumn:{_,_ in},toggleCheck:{_,_ in}))
-                .overlay { if model.hidesTooManyFiles { Text("Too many files to display.").foregroundStyle(.secondary).allowsHitTesting(false) } }
-                .onDeleteCommand { model.deleteWorkingFiles(model.selectedFiles, permanently: NSEvent.modifierFlags.contains(.shift), keyboard: true) }
-                .contextMenu(forSelectionType: String.self) { ids in
-                    TurtleGitContextMenu {
-                        fileContextActions(GitPathRowIdentity.paths(ids))
-                    }
-                } primaryAction: { ids in
-                    let paths = GitPathRowIdentity.paths(ids); model.selectedFiles = paths; model.primaryFileAction(paths)
-                }
+                LogChangedFileReport(model:model).frame(minHeight:130,idealHeight:180)
+                    .background(LogFileDragInteraction(model:model,rows:model.fileTableRows))
+                    .overlay {if model.hidesTooManyFiles {Text("Too many files to display.").foregroundStyle(.secondary).allowsHitTesting(false)}}
             }
             .background(LogPaneLayoutBridge(model: model))
             LogInformationBand(text:HistoryLabels.information(model.information))
@@ -4307,138 +4302,389 @@ struct LogDialog: View {
             .accessibilityIdentifier("Log.Feedback")
             .background(LogPresentationBandAnchor(identifier:"Log.Feedback"))
     }
-    @ViewBuilder private func fileContextActions(_ ids: GitPathSet) -> some View {
-        let snapshot = model.fileMenuSnapshot(ids)
+
+}
+
+@MainActor final class LogChangedFileNativeTable:AddNativeTable {
+    var fileRow:(Int)->Bool = {_ in false}
+    var focusedFileRow:()->Int? = {nil}
+    var focusFileRow:(Int)->Void = {_ in}
+    var activateSelection:()->Void = {}
+    var ownerAvailable:()->Bool = {false}
+    func ownsKeyboard(_ event:NSEvent)->Bool {
+        guard ownerAvailable(),let window,event.window===window,commandKeyWindow()===window,window.firstResponder===self,
+              window.isVisible,!isHiddenOrHasHiddenAncestor,isEnabled,window.attachedSheet==nil,NSApp.modalWindow==nil else{return false}
+        return true
+    }
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        guard ownsKeyboard(event) else{return false};return super.performKeyEquivalent(with:event)
+    }
+    override func accessibilityPerformShowMenu()->Bool {
+        guard ownerAvailable(),window?.isVisible==true,!isHiddenOrHasHiddenAncestor else{return false}
+        return super.accessibilityPerformShowMenu()
+    }
+    override func backdropRect(in viewport:NSRect)->NSRect? {nil}
+    override func menu(for event:NSEvent)->NSMenu? {
+        guard fileRow(row(at:convert(event.locationInWindow,from:nil))) else{return nil}
+        return super.menu(for:event)
+    }
+    override func keyDown(with event:NSEvent) {
+        guard ownsKeyboard(event) else{return}
+        if [36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty {activateSelection();return}
+        let navigation=[125,126,115,119].contains(event.keyCode) && event.modifierFlags.intersection([.command,.control,.option]).isEmpty
+        let anchor=focusedFileRow() ?? selectedRowIndexes.first
+        super.keyDown(with:event)
+        guard navigation,numberOfRows>0 else{return}
+        let forward=event.keyCode==125 || event.keyCode==115
+        var next=event.keyCode==115 ? 0:event.keyCode==119 ? numberOfRows-1:(anchor ?? (forward ? -1:numberOfRows))+(forward ? 1:-1)
+        while (0..<numberOfRows).contains(next),!fileRow(next) {next += forward ? 1:-1}
+        if (0..<numberOfRows).contains(next),selectedRowIndexes.contains(next) {focusFileRow(next)}
+    }
+}
+
+@MainActor final class LogChangedFileHeader:NSTableHeaderView {
+    var fitColumn:((NSTableColumn,Bool)->Bool)?
+    @discardableResult func fitDivider(atNativeIndex index:Int,useDefault:Bool)->Bool {
+        guard let tableView,tableView.headerView===self,let window,tableView.window===window,window.isVisible,
+              !isHiddenOrHasHiddenAncestor,!tableView.isHiddenOrHasHiddenAncestor,tableView.isEnabled,
+              tableView.tableColumns.indices.contains(index) else{return false}
+        return fitColumn?(tableView.tableColumns[index],useDefault) ?? false
+    }
+    override func mouseDown(with event:NSEvent) {
+        guard let window,event.window===window,window.isVisible,!isHiddenOrHasHiddenAncestor,
+              let tableView,tableView.window===window,tableView.headerView===self,!tableView.isHiddenOrHasHiddenAncestor,tableView.isEnabled else{return}
+        if event.clickCount==2 {
+            let point=convert(event.locationInWindow,from:nil)
+            if let index=tableView.tableColumns.indices.first(where:{!tableView.tableColumns[$0].isHidden && abs(headerRect(ofColumn:$0).maxX-point.x)<=4}),
+               fitDivider(atNativeIndex:index,useDefault:event.modifierFlags.contains(.shift)) {return}
+        }
+        super.mouseDown(with:event)
+    }
+}
+
+/// An owned AppKit report retains column/header objects while observed Log
+/// selection, details and feedback update. The original transfer probe remains
+/// its drag source, including already-accepted promises after this view retires.
+struct LogChangedFileReport:NSViewRepresentable {
+    @ObservedObject var model:LogWindowModel
+    @ObservedObject private var colors=StatusColorUpdates.shared
+    @AppStorage("LogFontForFileListCtrl") private var usesLogFont=false
+    @AppStorage("LogFontName") private var fontName=MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize=MessageEditorFont.defaultSize
+    @AppStorage("ShowListFullPathTooltip") private var fullPathTooltip=1
+    var geometry:FileListUniformRowGeometry {FileListUniformRowGeometry.resolve(useLogFont:usesLogFont,name:fontName,size:fontSize)}
+    func makeCoordinator()->Coordinator {Coordinator(model:model)}
+    func makeNSView(context:Context)->NSScrollView {context.coordinator.make()}
+    func updateNSView(_ view:NSScrollView,context:Context){context.coordinator.update(geometry:geometry)}
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator){coordinator.retire()}
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate,NSMenuDelegate {
+        let model:LogWindowModel
+        let table=LogChangedFileNativeTable(icon:.log)
+        private var rows:[LogFileTableRow]=[]
+        private var cells:[[StatusListColumn:String]]=[]
+        private var rowColors:[NSColor]=[]
+        private var tooltips:[String?]=[]
+        private var geometry=FileListUniformRowGeometry.resolve(useLogFont:false,name:MessageEditorFont.defaultName,size:MessageEditorFont.defaultSize)
+        private var renderedColumns:StatusListColumnSettings?
+        private var updating=false,retired=false
+        private var columnEpoch=UUID()
+        private var contextColumn:StatusListColumn?
+        private var resetQuestion:(UUID,NSAlert,NSWindow,(Bool)->Void)?
+        private var closeObserver:NSObjectProtocol?
+        private let fileMenu=NSMenu(),headerMenu=NSMenu()
+        init(model:LogWindowModel){self.model=model}
+        private var available:Bool {!retired && model.canInspectHistory && !model.resettingChangedFileColumns && table.window?.attachedSheet==nil && NSApp.modalWindow==nil}
+        private var selectedIDs:[String] {table.selectedRowIndexes.compactMap{rows.indices.contains($0) && rows[$0].file != nil ? rows[$0].rawID:nil}}
+        private func definition(_ column:NSTableColumn)->StatusListColumn? {StatusListColumn(rawValue:column.identifier.rawValue)}
+        private func singleLine(_ text:String)->String {
+            var value=text.replacingOccurrences(of:"\r\n",with:"↵")
+            for separator in ["\r","\n","\u{0085}","\u{2028}","\u{2029}","\u{000B}","\u{000C}"] {value=value.replacingOccurrences(of:separator,with:"↵")}
+            return value.replacingOccurrences(of:"\t",with:"⇥")
+        }
+        func make()->NSScrollView {
+            let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
+            table.dataSource=self;table.delegate=self;table.allowsMultipleSelection=true;table.allowsColumnReordering=true;table.usesAlternatingRowBackgroundColors=false
+            table.target=self;table.doubleAction=#selector(activateFile)
+            let header=LogChangedFileHeader(frame:.zero);header.fitColumn={[weak self] column,useDefault in self?.fitColumn(column,useDefault:useDefault)==true};table.headerView=header
+            table.floatsGroupRows=false
+            table.ownerAvailable={[weak self] in self?.available==true}
+            table.commandKeyWindow={[weak self] in (self?.table.window as? LogHistoryWindow)?.commandKeyWindow() ?? NSApp.keyWindow}
+            table.activateSelection={[weak self] in self?.activateSelection()}
+            fileMenu.delegate=self;fileMenu.autoenablesItems=false;headerMenu.delegate=self;headerMenu.autoenablesItems=false;table.menu=fileMenu;table.headerView?.menu=headerMenu
+            table.fileRow={[weak self] row in self?.rows.indices.contains(row)==true && self?.rows[row].file != nil}
+            table.focusedFileRow={[weak self] in guard let self,let focus=model.focusedChangedFile else{return nil};return rows.firstIndex{GitReferenceName.equal($0.rawID,focus) && $0.file != nil}}
+            table.focusFileRow={[weak self] row in guard let self,available,rows.indices.contains(row),rows[row].file != nil else{return};model.focusedChangedFile=rows[row].rawID}
+            table.selectionMenuAvailable={[weak self] in self?.available==true}
+            table.selectionMenuRow={[weak self] in self?.table.focusedFileRow()}
+            table.contextSelection={[weak self] row,column in self?.prepareMenu(row:row,column:column)}
+            table.copySelection={[weak self] status in guard let self,available else{return};let ids=GitPathSet(selectedIDs);model.withFileMenu(model.fileMenuSnapshot(ids),inspection:true){self.model.copyChangedFileIDs(Array(ids),status:status)}}
+            table.deleteSelection={[weak self] permanently in guard let self,available,model.selectedWorkingTree else{return};let ids=GitPathSet(selectedIDs);model.withFileMenu(model.fileMenuSnapshot(ids)){self.model.deleteWorkingFiles(ids,permanently:permanently,keyboard:true)}}
+            scroll.documentView=table
+            update(geometry:geometry);return scroll
+        }
+        func update(geometry nextGeometry:FileListUniformRowGeometry) {
+            guard !retired else{return};if model.isInvalidated {retire();return}
+            updating=true;defer{updating=false}
+            let next=model.fileTableRows
+            let nextCells=next.map {row in Dictionary(uniqueKeysWithValues:StatusListColumn.defaultColumns.map {column in (column,row.file.map{model.changedFileText($0,column:column)} ?? (column == .path ? row.header ?? "":""))})}
+            let nextColors=next.map {row in row.file.map{NSColor(model.fileForeground($0,selected:model.selectedFiles.contains($0.id)))} ?? NSColor.controlAccentColor}
+            let settings=model.changedFileColumns
+            let changed=rows.count != next.count || zip(rows,next).contains{a,b in !a.rawID.utf8.elementsEqual(b.rawID.utf8) || a.file != b.file || a.header != b.header} || cells != nextCells || rowColors != nextColors || geometry.font != nextGeometry.font
+            rows=next;cells=nextCells;rowColors=nextColors;geometry=nextGeometry
+            tooltips=rows.map {row in
+                guard let file=row.file else{return nil}
+                guard ((model.colorPreferences.object(forKey:"ShowListFullPathTooltip") as? NSNumber)?.intValue ?? 1) == 1 else{return nil}
+                let detail=file.oldPath.map{HistoryLabels.text("Renamed from {path}",values:["path":RepositoryBrowserGitPath.display(key:$0)])} ?? ""
+                return RepositoryFileHelpText.text(repository:model.repository.root,path:file.path,detail:detail)
+            }
+            if renderedColumns != settings {columnEpoch=UUID();renderedColumns=settings}
+            let order=settings.order.filter{StatusListColumn.defaultColumns.contains($0)}
+            for (index,column) in order.enumerated() {
+                let native=table.tableColumns.first{$0.identifier.rawValue==column.rawValue} ?? {
+                    let value=NSTableColumn(identifier:.init(column.rawValue));value.title=FileListLabels.caption(column.rawValue);value.minWidth=column == .path ? 120:45
+                    value.width=self.defaultWidth(column)
+                    value.sortDescriptorPrototype=NSSortDescriptor(key:column.rawValue,ascending:true);table.addTableColumn(value);return value
+                }()
+                let hidden = !settings.visible.contains(column)
+                if native.isHidden != hidden {native.isHidden=hidden}
+                if let width=settings.widths[column],abs(native.width-CGFloat(width))>0.25 {native.width=CGFloat(width)}
+                if let current=table.tableColumns.firstIndex(of:native),current != index {table.moveColumn(current,toColumn:index)}
+            }
+            let descriptors=model.changedFileSort.filter{StatusListColumn.defaultColumns.contains($0.column)}.map{NSSortDescriptor(key:$0.column.rawValue,ascending:$0.order == .forward)}
+            if table.sortDescriptors != descriptors {table.sortDescriptors=descriptors}
+            if table.rowHeight != geometry.rowHeight {table.rowHeight=geometry.rowHeight}
+            if table.isEnabled != available {table.isEnabled=available}
+            if changed {table.reloadData()}
+            let selected=IndexSet(rows.indices.filter{rows[$0].file != nil && model.selectedFiles.contains(rows[$0].rawID)})
+            if table.selectedRowIndexes != selected {table.selectRowIndexes(selected,byExtendingSelection:false)}
+            NativeListSelection.install(on:table,preferences:model.colorPreferences,primaryColumn:table.tableColumns.first{definition($0) == .path},labelText:{[weak self] row in guard let self,rows.indices.contains(row) else{return nil};return cells[row][.path]},font:geometry.font,leadingInset:22)
+            if closeObserver==nil,let window=table.window {closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){[weak self] _ in MainActor.assumeIsolated{self?.retire()}}}
+        }
+        func numberOfRows(in tableView:NSTableView)->Int {rows.count}
+        func tableView(_ tableView:NSTableView,isGroupRow row:Int)->Bool {rows.indices.contains(row) && rows[row].file==nil}
+        func tableView(_ tableView:NSTableView,shouldSelectRow row:Int)->Bool {available && rows.indices.contains(row) && rows[row].file != nil}
+        func tableView(_ tableView:NSTableView,selectionIndexesForProposedSelection proposedSelectionIndexes:IndexSet)->IndexSet {
+            IndexSet(proposedSelectionIndexes.filter{rows.indices.contains($0) && rows[$0].file != nil})
+        }
+        func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
+            guard rows.indices.contains(row) else{return nil}
+            if let heading=rows[row].header {
+                // AppKit asks for a spanning group view with tableColumn=nil.
+                let field=NSTextField(labelWithString:singleLine(heading));field.font=geometry.groupFont;field.textColor = .controlAccentColor
+                field.maximumNumberOfLines=1;field.lineBreakMode = .byTruncatingTail;field.toolTip=heading
+                field.frame=NSRect(x:3,y:2,width:max(0,table.bounds.width-6),height:table.rowHeight-4);field.autoresizingMask=[.width]
+                field.setAccessibilityRole(.group);field.setAccessibilityRoleDescription(NSLocalizedString("Group heading",comment:""));field.setAccessibilityLabel(heading)
+                return field
+            }
+            guard let tableColumn,let column=definition(tableColumn) else{return nil}
+            let value=rows[row],text=singleLine(cells[row][column] ?? "")
+            let field=NSTextField(labelWithString:text);field.lineBreakMode = .byTruncatingTail;field.maximumNumberOfLines=1
+            field.font=value.file==nil ? geometry.groupFont:geometry.font
+            field.textColor=rowColors[row];field.toolTip=cells[row][column]
+            if column == .added || column == .removed {field.alignment = .right}
+            guard column == .path else{return field}
+            let cell=NSTableCellView()
+            let image=NSImageView(frame:NSRect(x:2,y:max(0,(table.rowHeight-16)/2),width:16,height:16));image.image=value.file.flatMap{model.changedFileIcon($0)}
+            let inset:CGFloat=value.file==nil ? 3:22
+            field.frame=NSRect(x:inset,y:2,width:max(0,tableColumn.width-inset-3),height:table.rowHeight-4);field.autoresizingMask=[.width]
+            cell.addSubview(image);cell.addSubview(field);cell.imageView=image;cell.textField=field;cell.toolTip=tooltips[row]
+            return cell
+        }
+        func tableViewSelectionDidChange(_ notification:Notification) {
+            guard !updating,available else{return}
+            model.selectedFiles=GitPathSet(selectedIDs)
+            if rows.indices.contains(table.clickedRow),table.selectedRowIndexes.contains(table.clickedRow),rows[table.clickedRow].file != nil {model.focusedChangedFile=rows[table.clickedRow].rawID}
+            else if model.focusedChangedFile.map({!model.selectedFiles.contains($0)}) ?? true {model.focusedChangedFile=selectedIDs.first}
+        }
+        func tableView(_ tableView:NSTableView,sortDescriptorsDidChange oldDescriptors:[NSSortDescriptor]) {
+            guard !updating,available else{return}
+            model.setChangedFileSort(table.sortDescriptors.compactMap {descriptor in guard let key=descriptor.key,let column=StatusListColumn(rawValue:key),StatusListColumn.defaultColumns.contains(column) else{return nil};return LogChangedFileSort(column:column,order:descriptor.ascending ? .forward:.reverse)})
+        }
+        func tableView(_ tableView:NSTableView,shouldReorderColumn column:Int,toColumn newColumn:Int)->Bool {model.canChangeFileColumns && !retired}
+        func tableViewColumnDidMove(_ notification:Notification){saveLayout()}
+        func tableViewColumnDidResize(_ notification:Notification){saveLayout()}
+        private func saveLayout(){guard !updating,!retired else{return};_ = model.saveChangedFileLayout(order:table.tableColumns.compactMap(definition),widths:Dictionary(uniqueKeysWithValues:table.tableColumns.compactMap{column in definition(column).map{($0,Double(column.width))}}))}
+        private func defaultWidth(_ column:StatusListColumn)->CGFloat {column == .path ? 460:column == .fileExtension ? 80:column == .status ? 95:column == .added ? 90:105}
+        private func fitColumn(_ native:NSTableColumn,useDefault:Bool)->Bool {
+            guard available,model.canChangeFileColumns,table.window?.isVisible==true,!table.isHiddenOrHasHiddenAncestor,
+                  let header=table.headerView as? LogChangedFileHeader,!header.isHiddenOrHasHiddenAncestor,
+                  let column=definition(native),let index=table.tableColumns.firstIndex(where:{$0 === native}) else{return false}
+            let width=useDefault ? defaultWidth(column):tableView(table,sizeToFitWidthOfColumn:index)
+            let wasUpdating=updating;updating=true;native.width=width;updating=wasUpdating
+            var widths=model.changedFileColumns.widths
+            if useDefault {widths.removeValue(forKey:column)} else {widths[column]=Double(native.width)}
+            return model.saveChangedFileLayout(order:table.tableColumns.compactMap(definition),widths:widths)
+        }
+        func tableView(_ tableView:NSTableView,sizeToFitWidthOfColumn index:Int)->CGFloat {
+            guard table.tableColumns.indices.contains(index),let column=definition(table.tableColumns[index]) else{return 40}
+            let width=cells.enumerated().map {row,values in (singleLine(values[column] ?? "") as NSString).size(withAttributes:[.font:rows[row].file==nil ? geometry.groupFont:geometry.font]).width+(column == .path ? 36:14)}.max() ?? 40
+            return min(10000,max(table.tableColumns[index].minWidth,width))
+        }
+        @objc private func activateFile() {
+            guard available,rows.indices.contains(table.clickedRow),rows[table.clickedRow].file != nil,table.clickedColumn>=0 else{return}
+            let ids=GitPathSet([rows[table.clickedRow].rawID]),alternate=ComparisonToolInvocation.capture
+            ComparisonToolInvocation.$alternate.withValue(alternate){model.withFileMenu(model.fileMenuSnapshot(ids),inspection:true){model.primaryFileAction(ids)}}
+        }
+        private func activateSelection() {
+            guard available,!selectedIDs.isEmpty else{return}
+            let ids=GitPathSet(selectedIDs),alternate=ComparisonToolInvocation.capture
+            ComparisonToolInvocation.$alternate.withValue(alternate){model.withFileMenu(model.fileMenuSnapshot(ids),inspection:true){model.primaryFileAction(ids)}}
+        }
+        private func prepareMenu(row:Int,column:Int) {
+            contextColumn=nil
+            guard available,rows.indices.contains(row),rows[row].file != nil else{return}
+            model.selectedFiles=GitPathSet(selectedIDs);model.focusedChangedFile=rows[row].rawID
+            if table.tableColumns.indices.contains(column) {contextColumn=definition(table.tableColumns[column])}
+        }
+        func menuNeedsUpdate(_ menu:NSMenu) {
+            menu.removeAllItems();guard !retired else{return}
+            if menu===headerMenu {
+                guard available,model.canChangeFileColumns else{return}
+                let epoch=columnEpoch
+                func item(_ title:String,checked:Bool?=nil,_ action:@escaping()->Void) {
+                    let value=LogControlMenuItem(title:NSLocalizedString(title,comment:"")){[weak self] in guard let self,available,columnEpoch==epoch,model.canChangeFileColumns else{return};action()}
+                    value.image=MenuIcon.settingsDialogs.contextImage(defaults:model.colorPreferences);value.isEnabled=model.canChangeFileColumns;if let checked {value.state=checked ? .on:.off};menu.addItem(value)
+                }
+                item("Reset columns"){[weak self] in guard let self else{return};model.resetChangedFileColumns(choose:{[weak self] in await self?.confirmReset() ?? false},accepted:{})}
+                menu.addItem(.separator())
+                for column in StatusListColumn.defaultColumns where column != .path {let visible=model.changedFileColumns.visible.contains(column);item(column.rawValue,checked:visible){[weak self] in self?.model.setChangedFileColumn(column,visible:!visible)}}
+            } else if available,!selectedIDs.isEmpty {
+                let built=LogChangedFileMenus.make(model:model,ids:GitPathSet(selectedIDs),column:contextColumn,shift:NSEvent.modifierFlags.contains(.shift))
+                for item in built.items {built.removeItem(item);menu.addItem(item)}
+            }
+        }
+        private func confirmReset() async->Bool {
+            guard !retired,resetQuestion==nil,let window=table.window,window.attachedSheet==nil else{return false}
+            let alert=NSAlert();alert.messageText=NSLocalizedString("Are you sure to reset columns?",comment:"");alert.addButton(withTitle:NSLocalizedString("Yes",comment:""));alert.addButton(withTitle:NSLocalizedString("No",comment:""));alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+            let id=UUID();return await withCheckedContinuation {reply in resetQuestion=(id,alert,window,{reply.resume(returning:$0)});alert.beginSheetModal(for:window){[weak self] response in self?.finishReset(id,accepted:response == .alertFirstButtonReturn)}}
+        }
+        private func finishReset(_ id:UUID,accepted:Bool) {
+            guard let question=resetQuestion,question.0==id else{return};resetQuestion=nil
+            let parent=question.2;Task{[self] in await FileOperationWindowDrain.detach(question.1.window,parent:parent);question.3(accepted && !retired)}
+        }
+        func retire() {
+            guard !retired else{return};retired=true;columnEpoch=UUID()
+            if let question=resetQuestion {finishReset(question.0,accepted:false)}
+            if let closeObserver {NotificationCenter.default.removeObserver(closeObserver);self.closeObserver=nil}
+            (table.headerView as? LogChangedFileHeader)?.fitColumn=nil
+            table.selectionMenuAvailable={false};table.selectionMenuRow={nil};table.contextSelection={_,_ in};table.copySelection={_ in};table.deleteSelection={_ in};table.fileRow={_ in false};table.focusedFileRow={nil};table.focusFileRow={_ in};table.activateSelection={};table.ownerAvailable={false};table.commandKeyWindow={nil};table.menu=nil;table.headerView?.menu=nil;table.target=nil
+            NativeListSelection.remove(from:table);table.delegate=nil;table.dataSource=nil
+        }
+    }
+}
+
+/// File commands retain the same model receipt for every pointer, keyboard and
+/// accessibility entry point. Parent-prefixed IDs are never reduced to paths.
+@MainActor enum LogChangedFileMenus {
+    static func make(model:LogWindowModel,ids:GitPathSet,column:StatusListColumn?,shift:Bool)->NSMenu {
+        let menu=NSMenu();menu.autoenablesItems=false
+        let snapshot=model.fileMenuSnapshot(ids)
+        @discardableResult func item(_ title:String,_ icon:MenuIcon,enabled:Bool=true,inspection:Bool=false,localized:Bool=true,in target:NSMenu?=nil,_ action:@escaping(LogWindowModel)->Void)->NSMenuItem {
+            let value=LogControlMenuItem(title:localized ? NSLocalizedString(title,comment:""):title) { [weak model] in
+                guard let model else{return};ComparisonToolInvocation.$alternate.withValue(shift){model.withFileMenu(snapshot,inspection:inspection){action(model)}}
+            }
+            value.image=icon.contextImage(defaults:model.colorPreferences);value.isEnabled=enabled
+            (target ?? menu).addItem(value);return value
+        }
+        func separator(){if menu.items.last?.isSeparatorItem != true {menu.addItem(.separator())}}
+        func markDefault() {
+            let title=ids.count==1 && !model.workingConflictPaths(ids).isEmpty ? "Edit conflict…":"Compare with base"
+            if let value=menu.items.first(where:{$0.title==NSLocalizedString(title,comment:"") && $0.isEnabled}) {
+                value.attributedTitle=NSAttributedString(string:value.title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)])
+            }
+        }
+        func historicalActions() {
+            let available = !(model.selectedWorkingTree ? model.busy:!model.canInspectHistory) && (model.selectedWorkingTree || model.revision != nil)
+            item(model.selectedWorkingTree ? "Save As…":"Save revision to…",.saveAs,enabled:available,inspection:true){$0.saveHistoricalFile(ids)}
+            item(model.selectedWorkingTree ? "View in alternative editor":"View revision in alternative editor",.editor,enabled:available,inspection:true){$0.openHistoricalFile(ids,action:.alternativeEditor)}
+            item("Open",.open,enabled:available,inspection:true){$0.openHistoricalFile(ids,action:.open)}
+            item("Open With…",.open,enabled:available,inspection:true){$0.openHistoricalFile(ids,action:.openWith)}
+        }
+        func preparedActions(_ file:CommitFile) {
+            separator()
+            item("Mark for comparison",.compare,enabled:model.canInspectHistory && (model.selectedWorkingTree || model.revision != nil),inspection:true){$0.markForComparison(ids)}
+            if let mark=model.comparisonMark {
+                item(String(format:NSLocalizedString("Compare with %@",comment:""),mark.label(for:file.path)),.compare,enabled:model.canInspectHistory && (model.selectedWorkingTree || model.revision != nil) && model.onPreparedFileCompare != nil && model.canCompareMarkedFile(ids),inspection:true,localized:false){$0.compareWithMarkedFile(ids)}
+            }
+        }
         if !model.hasRepresentableFilePaths(ids) {
             if !model.selectedWorkingTree {
-                Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids) } } label: { CommandLabel(title:"Compare with base",icon:.compare) }.disabled(!model.canInspectHistory || model.revision == nil || model.onFileCompare == nil && model.onFileComparisons == nil)
-                Button { model.withFileMenu(snapshot, inspection: true) { model.selectedFileDiff(ids,alternate:NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff) }.disabled(!model.canInspectHistory || model.revision == nil)
-                if model.canCompareFilePair(ids) {
-                    Button { model.withFileMenu(snapshot, inspection: true) { model.compareFilePair(ids) } } label: { CommandLabel(title:"Compare two files",icon:.compare) }.disabled(!model.canInspectHistory || model.onFilePairCompare == nil)
-                }
-                if ids.count == 1,let file=model.visibleFiles.first(where:{ids.contains($0.id)}),!file.isSubmodule,!file.action.hasPrefix("D") {
-                    historicalFileActions(ids,snapshot:snapshot)
-                    preparedComparisonActions(ids,file:file,snapshot:snapshot)
-                }
-                Divider()
+                item("Compare with base",.compare,enabled:model.canInspectHistory && model.revision != nil && (model.onFileCompare != nil || model.onFileComparisons != nil),inspection:true){$0.compareFiles(ids)}
+                item("Show changes as unified diff",.unifiedDiff,enabled:model.canInspectHistory && model.revision != nil,inspection:true){$0.selectedFileDiff(ids,alternate:shift)}
+                if model.canCompareFilePair(ids) {item("Compare two files",.compare,enabled:model.canInspectHistory && model.onFilePairCompare != nil,inspection:true){$0.compareFilePair(ids)}}
+                if ids.count==1,let file=model.visibleFiles.first(where:{ids.contains($0.id)}),!file.isSubmodule,!file.action.hasPrefix("D") {historicalActions();preparedActions(file)}
+                separator()
             }
-            if ids.count == 1, let file=model.visibleFiles.first(where:{ids.contains($0.id)}) {
-                Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids) } } label: { CommandLabel(title:"Show log",icon:.log) }.disabled(!model.canInspectHistory || model.onFileLog == nil)
-                if file.oldPath != nil {
-                    Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids,oldName:true) } } label: { CommandLabel(title:"Show log of old name",icon:.log) }.disabled(!model.canInspectHistory || model.onFileLog == nil)
-                }
-                if !file.isSubmodule && !file.action.hasPrefix("D") {
-                    Button { model.withFileMenu(snapshot, inspection: true) { model.blameFile(ids) } } label: { CommandLabel(title:"Blame",icon:.blame) }.disabled(!model.canBlameFile(ids))
-                }
+            if ids.count==1,let file=model.visibleFiles.first(where:{ids.contains($0.id)}) {
+                item("Show log",.log,enabled:model.canInspectHistory && model.onFileLog != nil,inspection:true){$0.fileLog(ids)}
+                if file.oldPath != nil {item("Show log of old name",.log,enabled:model.canInspectHistory && model.onFileLog != nil,inspection:true){$0.fileLog(ids,oldName:true)}}
+                if !file.isSubmodule,!file.action.hasPrefix("D") {item("Blame",.blame,enabled:model.canBlameFile(ids),inspection:true){$0.blameFile(ids)}}
             }
-            Divider()
-            Button { model.withFileMenu(snapshot, inspection: true) { model.copyChangedFileIDs(Array(ids)) } } label: { CommandLabel(title:"Copy displayed names (escaped)",icon:.copy) }.disabled(!model.canCopyFiles(ids))
-            Button(RepositoryBrowserWindowModel.rawPathReason) {}.disabled(true)
-        } else {
+            separator()
+            item("Copy displayed names (escaped)",.copy,enabled:model.canCopyFiles(ids),inspection:true){$0.copyChangedFileIDs(Array(ids))}
+            item(RepositoryBrowserWindowModel.rawPathReason,.settings,enabled:false,localized:false){_ in}
+            markDefault();return menu
+        }
         if model.selectedWorkingTree {
-            if model.markedFile(ids)?.action == "?" || model.workingFlagMark(ids)?.entry.hasUnversionedCopy == true {
-                Button { model.withFileMenu(snapshot) { model.requestWorkingFiles(.add, ids: ids) } } label: { CommandLabel(title: "Add", icon: .add) }.disabled(!model.canWorkingFiles(.add, ids: ids))
-                if NSEvent.modifierFlags.contains(.shift) {
-                    ForEach([WorkingFileAddMode.executable, .symlink], id: \.self) { mode in
-                        if model.canWorkingAdd(ids, mode: mode) {
-                            Button { model.withFileMenu(snapshot) { model.requestWorkingAdd(ids, mode: mode) } } label: { CommandLabel(title: mode.rawValue, icon: .add) }
-                        }
-                    }
-                }
+            if model.markedFile(ids)?.action=="?" || model.workingFlagMark(ids)?.entry.hasUnversionedCopy==true {
+                item("Add",.add,enabled:model.canWorkingFiles(.add,ids:ids)){$0.requestWorkingFiles(.add,ids:ids)}
+                if shift {for mode in [WorkingFileAddMode.executable,.symlink] where model.canWorkingAdd(ids,mode:mode) {item(mode.rawValue,.add){$0.requestWorkingAdd(ids,mode:mode)}}}
             }
-            Button { model.withFileMenu(snapshot) { model.requestWorkingFiles(.commit, ids: ids) } } label: { CommandLabel(title: "Commit…", icon: .commit) }.disabled(!model.canWorkingFiles(.commit, ids: ids))
-            if model.visibleFiles.contains(where: { ids.contains($0.id) && $0.action != "?" }) {
-                Button { model.withFileMenu(snapshot) { model.requestWorkingFiles(.revert, ids: ids) } } label: { CommandLabel(title: "Revert…", icon: .revert) }.disabled(!model.canWorkingFiles(.revert, ids: ids))
+            item("Commit…",.commit,enabled:model.canWorkingFiles(.commit,ids:ids)){$0.requestWorkingFiles(.commit,ids:ids)}
+            if model.visibleFiles.contains(where:{ids.contains($0.id) && $0.action != "?"}) {item("Revert…",.revert,enabled:model.canWorkingFiles(.revert,ids:ids)){$0.requestWorkingFiles(.revert,ids:ids)}}
+            if let mark=model.workingFlagMark(ids) {
+                for action in IndexFlagAction.allCases where action.isAvailable(for:[mark]) {item(action.rawValue,.ignore,enabled:!model.busy && !model.isInvalidated && !model.bare){$0.setWorkingFlag(action,ids:ids)}}
             }
-            if let mark = model.workingFlagMark(ids) {
-                IndexFlagsMenu(files: model.workingIndexFiles.filter { ids.contains($0.id) }, selectionMark: mark) { action in model.withFileMenu(snapshot) { model.setWorkingFlag(action, ids: ids) } }.disabled(model.busy || model.isInvalidated || model.bare)
-            }
-            ForEach(model.workingLFSActions(ids), id: \.self) { action in
-                Button { model.withFileMenu(snapshot) { model.setWorkingLFSLocked(ids, locked: action == .lock) } } label: {
-                    CommandLabel(title: action.rawValue, icon: action == .lock ? .lock : .unlock)
-                }.disabled(!model.canWorkingLFS(ids, locked: action == .lock))
-            }
-            Divider()
+            for action in model.workingLFSActions(ids) {item(action.rawValue,action == .lock ? .lock:.unlock,enabled:model.canWorkingLFS(ids,locked:action == .lock)){$0.setWorkingLFSLocked(ids,locked:action == .lock)}}
+            separator()
         }
-        let conflicts = model.workingConflictPaths(ids)
-        if !conflicts.isEmpty {
-            ResolveSelectionMenu(paths: conflicts, rebase: model.conflictRebase, canEdit: ids.count == 1) { action, _ in model.withFileMenu(snapshot) { model.requestWorkingConflict(action, ids: ids) } }
-                .disabled(model.busy || model.isInvalidated || model.onConflictAction == nil)
-            Divider()
+        if !model.workingConflictPaths(ids).isEmpty {
+            let enabled = !model.busy && !model.isInvalidated && model.onConflictAction != nil
+            if ids.count==1 {item("Edit conflict…",.editConflict,enabled:enabled){$0.requestWorkingConflict(.editConflict,ids:ids)}}
+            for (title,action) in [("Resolved",RepositoryAction.resolveCurrent),(model.conflictRebase ? "Resolve using commit being replayed":"Resolve conflict using ‘theirs’",.resolveTheirs),(model.conflictRebase ? "Resolve using branch being rebased onto":"Resolve conflict using ‘mine’",.resolveMine)] {item(title,.resolve,enabled:enabled){$0.requestWorkingConflict(action,ids:ids)}}
+            separator()
         }
-        Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids) } } label: { CommandLabel(title: "Compare with base", icon: .compare) }.disabled(ids.isEmpty || model.onFileCompare == nil || !model.canInspectHistory)
-        Button { model.withFileMenu(snapshot, inspection: true) { model.selectedFileDiff(ids, alternate: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Show changes as unified diff", icon: .unifiedDiff) }.disabled(ids.isEmpty || !model.canInspectHistory || (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first == nil || model.visibleFiles.contains { ids.contains($0.id) && $0.action == "?" } : model.revision == nil))
-        Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, workingTree: true) } } label: { CommandLabel(title: "Compare with working tree", icon: .compare) }.disabled(ids.isEmpty || model.selectedWorkingTree || model.bare || model.onFileCompare == nil || !model.canInspectHistory)
-        if !model.bare, let title = model.fileParentComparisonTitle(ids) {
-            Button { model.withFileMenu(snapshot, inspection: true) { model.compareFiles(ids, parentWorkingTree: true) } } label: { CommandLabel(title: title, icon: .compare, localized: false) }.disabled(!model.canCompareFilesWithParent(ids))
+        item("Compare with base",.compare,enabled:!ids.isEmpty && model.onFileCompare != nil && model.canInspectHistory,inspection:true){$0.compareFiles(ids)}
+        item("Show changes as unified diff",.unifiedDiff,enabled:!ids.isEmpty && model.canInspectHistory && (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first != nil && !model.visibleFiles.contains{ids.contains($0.id) && $0.action=="?"}:model.revision != nil),inspection:true){$0.selectedFileDiff(ids,alternate:shift)}
+        item("Compare with working tree",.compare,enabled:!ids.isEmpty && !model.selectedWorkingTree && !model.bare && model.onFileCompare != nil && model.canInspectHistory,inspection:true){$0.compareFiles(ids,workingTree:true)}
+        if !model.bare,let title=model.fileParentComparisonTitle(ids) {item(title,.compare,enabled:model.canCompareFilesWithParent(ids),inspection:true,localized:false){$0.compareFiles(ids,parentWorkingTree:true)}}
+        if model.canCompareFilePair(ids) {item("Compare two files",.compare,enabled:model.canInspectHistory && (model.selectedWorkingTree ? model.onWorkingFilePairCompare != nil && !model.bare:model.revision != nil && model.onFilePairCompare != nil),inspection:true){$0.compareFilePair(ids)}}
+        if !model.selectedWorkingTree,!model.bare {
+            if model.canRevertHistoricalFiles(ids,parent:false) || model.busy {item("Revert to this revision",.revert,enabled:model.canRevertHistoricalFiles(ids,parent:false)){$0.revertHistoricalFiles(ids,parent:false)}}
+            if let title=model.fileParentComparisonTitle(ids,revert:true) {item(title,.revert,enabled:model.canRevertHistoricalFiles(ids,parent:true),localized:false){$0.revertHistoricalFiles(ids,parent:true)}}
         }
-        if model.canCompareFilePair(ids) {
-            Button { model.withFileMenu(snapshot, inspection: true) { model.compareFilePair(ids) } } label: { CommandLabel(title: "Compare two files", icon: .compare) }.disabled(!model.canInspectHistory || (model.selectedWorkingTree ? model.onWorkingFilePairCompare == nil || model.bare : model.revision == nil || model.onFilePairCompare == nil))
+        separator()
+        if ids.count==1,let file=model.files.first(where:{ids.contains($0.id)}) {
+            item("Show log",.log,enabled:model.canInspectHistory && model.onFileLog != nil && !(model.selectedWorkingTree && file.action=="?"),inspection:true){$0.fileLog(ids)}
+            if file.isSubmodule,!model.bare {item("Show submodule log",.log,enabled:model.canShowSubmoduleFileLog(ids),inspection:true){$0.showSubmoduleFileLog(ids)}}
+            if file.oldPath != nil {item("Show log of old name",.log,enabled:model.canInspectHistory && model.onFileLog != nil,inspection:true){$0.fileLog(ids,oldName:true)}}
+            if !file.isSubmodule,!file.action.hasPrefix("D") {item("Blame",.blame,enabled:model.canBlameFile(ids),inspection:true){$0.blameFile(ids)}}
+            separator()
         }
-        if !model.selectedWorkingTree && !model.bare {
-            if model.canRevertHistoricalFiles(ids, parent: false) || model.busy {
-                Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: false) } } label: { CommandLabel(title: "Revert to this revision", icon: .revert) }.disabled(!model.canRevertHistoricalFiles(ids, parent: false))
-            }
-            if let parentTitle = model.fileParentComparisonTitle(ids, revert: true) {
-                Button { model.withFileMenu(snapshot) { model.revertHistoricalFiles(ids, parent: true) } } label: { CommandLabel(title: parentTitle, icon: .revert, localized: false) }.disabled(!model.canRevertHistoricalFiles(ids, parent: true))
-            }
-        }
-        Divider()
-        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }) {
-            Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids) } } label: { CommandLabel(title: "Show log", icon: .log) }.disabled(!model.canInspectHistory || model.onFileLog == nil || model.selectedWorkingTree && file.action == "?")
-            if file.isSubmodule && !model.bare {
-                Button { model.withFileMenu(snapshot, inspection: true) { model.showSubmoduleFileLog(ids) } } label: { CommandLabel(title: "Show submodule log", icon: .log) }.disabled(!model.canShowSubmoduleFileLog(ids))
-            }
-            if file.oldPath != nil {
-                Button { model.withFileMenu(snapshot, inspection: true) { model.fileLog(ids, oldName: true) } } label: { CommandLabel(title: "Show log of old name", icon: .log) }.disabled(!model.canInspectHistory || model.onFileLog == nil)
-            }
-            if !file.isSubmodule && !file.action.hasPrefix("D") {
-                Button { model.withFileMenu(snapshot, inspection: true) { model.blameFile(ids) } } label: { CommandLabel(title: "Blame", icon: .blame) }.disabled(!model.canBlameFile(ids))
-            }
-            Divider()
-        }
-        Button { model.withFileMenu(snapshot, inspection: true) { model.chooseHistoricalExport(ids) } } label: { CommandLabel(title: "Export…", icon: .export) }
-            .disabled((model.selectedWorkingTree ? model.busy : !model.canInspectHistory) || !model.selectedWorkingTree && model.revision == nil || !model.visibleFiles.contains(where: { ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D") }))
-        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule && !file.action.hasPrefix("D") {
-            historicalFileActions(ids, snapshot: snapshot)
-        }
-        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.action.hasPrefix("D"), !model.bare {
-            Button { model.withFileMenu(snapshot) { model.revealFile(ids) } } label: { CommandLabel(title: "Reveal in Finder", icon: .explore) }.disabled(model.busy)
-        }
-        if ids.count == 1, let file = model.files.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") {
-            preparedComparisonActions(ids, file: file, snapshot: snapshot)
-        }
-        if model.canDeleteWorkingFiles(ids) {
-            Button { model.withFileMenu(snapshot) { model.deleteWorkingFiles(ids, permanently: NSEvent.modifierFlags.contains(.shift)) } } label: { CommandLabel(title: "Delete", icon: .remove) }
-        }
+        item("Export…",.export,enabled:!(model.selectedWorkingTree ? model.busy:!model.canInspectHistory) && (model.selectedWorkingTree || model.revision != nil) && model.visibleFiles.contains{ids.contains($0.id) && !$0.isSubmodule && !$0.action.hasPrefix("D")},inspection:true){$0.chooseHistoricalExport(ids)}
+        if ids.count==1,let file=model.files.first(where:{ids.contains($0.id)}),!file.isSubmodule,!file.action.hasPrefix("D") {historicalActions()}
+        if ids.count==1,let file=model.files.first(where:{ids.contains($0.id)}),!file.action.hasPrefix("D"),!model.bare {item("Reveal in Finder",.explore,enabled:!model.busy){$0.revealFile(ids)}}
+        if ids.count==1,let file=model.files.first(where:{ids.contains($0.id)}),!file.isSubmodule,!file.action.hasPrefix("D") {preparedActions(file)}
+        if model.canDeleteWorkingFiles(ids) {item("Delete",.remove){$0.deleteWorkingFiles(ids,permanently:shift)}}
         if model.canIgnoreFiles(ids) {
-            let paths = model.visibleFiles.filter { ids.contains($0.id) }.map(\.path)
-            IgnoreSelectionMenu(paths: paths) { action, selected in
-                model.withFileMenu(snapshot) { model.requestIgnoreFiles(ids, mask: action.ignoresByExtension, folder: GitPathSet(selected) != GitPathSet(paths)) }
+            let paths=model.visibleFiles.filter{ids.contains($0.id)}.map(\.path),suffixes=paths.map{IgnoreOptions.extensionSuffix(for:$0) ?? ""}
+            if Set(suffixes.map{$0.lowercased()}).count>1 {
+                item("Ignore \(paths.count) items by name",.ignore){$0.requestIgnoreFiles(ids,mask:false,folder:false)}
+                if let suffix=suffixes.first,!suffix.isEmpty {item("Ignore \(paths.count) items by extension",.ignore){$0.requestIgnoreFiles(ids,mask:true,folder:false)}}
+            } else {
+                let target=NSMenu();target.autoenablesItems=false
+                let parent=NSMenuItem(title:NSLocalizedString("Add to ignore list",comment:""),action:nil,keyEquivalent:"");parent.image=MenuIcon.ignore.contextImage(defaults:model.colorPreferences);parent.submenu=target;menu.addItem(parent)
+                item(paths.count==1 ? (paths[0] as NSString).lastPathComponent:"Ignore \(paths.count) items by name",.ignore,localized:false,in:target){$0.requestIgnoreFiles(ids,mask:false,folder:false)}
+                if let suffix=suffixes.first,!suffix.isEmpty {item(paths.count==1 ? "*"+suffix:"Ignore \(paths.count) items by extension",.ignore,localized:false,in:target){$0.requestIgnoreFiles(ids,mask:true,folder:false)}}
+                if paths.count==1 {let folder=(paths[0] as NSString).deletingLastPathComponent;if !folder.isEmpty {item(folder,.ignore,localized:false,in:target){$0.requestIgnoreFiles(ids,mask:false,folder:true)}}}
             }
         }
-        Menu {
-            ForEach(LogWindowModel.CopyFileInformation.allCases, id: \.self) { information in
-                Button { model.withFileMenu(snapshot, inspection: true) { model.copyFiles(ids, information: information) } } label: { CommandLabel(title: information.rawValue, icon: .copy) }
-            }
-        } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(!model.canCopyFiles(ids))
-        }
+        let copy=NSMenu();copy.autoenablesItems=false
+        let parent=NSMenuItem(title:NSLocalizedString("Copy to Clipboard",comment:""),action:nil,keyEquivalent:"");parent.image=MenuIcon.copy.contextImage(defaults:model.colorPreferences);parent.submenu=copy;parent.isEnabled=model.canCopyFiles(ids);menu.addItem(parent)
+        for information in LogWindowModel.CopyFileInformation.allCases {item(information.rawValue,.copy,enabled:model.canCopyFiles(ids),inspection:true,in:copy){$0.copyFiles(ids,information:information)}}
+        if let column,StatusListColumn.defaultColumns.contains(column) {item(String(format:NSLocalizedString("Copy \"%@\" to clipboard",comment:""),FileListLabels.caption(column.rawValue)),.copy,enabled:model.canCopyFiles(ids),inspection:true,localized:false,in:copy){$0.copyChangedFileIDs(Array(ids),column:column)}}
+        markDefault();return menu
     }
-    @ViewBuilder private func preparedComparisonActions(_ ids: GitPathSet, file: CommitFile, snapshot: LogFileMenuSnapshot) -> some View {
-        Divider()
-        Button { model.withFileMenu(snapshot, inspection: true) { model.markForComparison(ids) } } label: { CommandLabel(title: "Mark for comparison", icon: .compare) }.disabled(!model.canInspectHistory || !model.selectedWorkingTree && model.revision == nil)
-        if let mark = model.comparisonMark {
-            Button { model.withFileMenu(snapshot, inspection: true) { model.compareWithMarkedFile(ids) } } label: { CommandLabel(title: "Compare with " + mark.label(for: file.path), icon: .compare, localized: false) }.disabled(!model.canInspectHistory || !model.selectedWorkingTree && model.revision == nil || model.onPreparedFileCompare == nil || !model.canCompareMarkedFile(ids))
-        }
-    }
-    @ViewBuilder private func historicalFileActions(_ ids: GitPathSet, snapshot: LogFileMenuSnapshot) -> some View {
-        let unavailable = (model.selectedWorkingTree ? model.busy : !model.canInspectHistory) || !model.selectedWorkingTree && model.revision == nil
-        Button { model.withFileMenu(snapshot, inspection: true) { model.saveHistoricalFile(ids) } } label: { CommandLabel(title: model.selectedWorkingTree ? "Save As…" : "Save revision to…", icon: .saveAs) }.disabled(unavailable)
-        Button { model.withFileMenu(snapshot, inspection: true) { model.openHistoricalFile(ids, action: .alternativeEditor) } } label: { CommandLabel(title: model.selectedWorkingTree ? "View in alternative editor" : "View revision in alternative editor", icon: .editor) }.disabled(unavailable)
-        Button { model.withFileMenu(snapshot, inspection: true) { model.openHistoricalFile(ids, action: .open) } } label: { CommandLabel(title: "Open", icon: .open) }.disabled(unavailable)
-        Button { model.withFileMenu(snapshot, inspection: true) { model.openHistoricalFile(ids, action: .openWith) } } label: { CommandLabel(title: "Open With…", icon: .open) }.disabled(unavailable)
-    }
-
 }
 
 @MainActor final class LogControlMenuReceipt {

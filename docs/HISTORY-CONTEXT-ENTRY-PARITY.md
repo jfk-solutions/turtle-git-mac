@@ -41,9 +41,10 @@ accessibility routes. They are retained rather than replaced by these changes.
 
 ## Explicit remaining work
 
-Synchronization's SwiftUI conflict table still lacks an explicitly verified
-accessibility Show Menu bridge; its pointer menu and existing keyboard actions
-remain. This batch does not replace SwiftUI tables by runtime subclasses.
+The later [native conflict report family](RESOLVE-CONFLICT-REPORT-PARITY.md)
+supersedes this checkpoint's SwiftUI conflict-table accessibility gap. Browser,
+Log changed-file and Blame toolbar continuations retain their own implementation
+and evidence scopes; this older checkpoint does not certify those changes.
 Physical VoiceOver/keyboard tracking, complete light/dark layout comparison,
 signed Finder invocation, all dialog commands and full hosted CI remain separate
 acceptance gates. Native receiver evidence covers only its recorded cases.

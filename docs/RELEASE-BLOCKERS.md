@@ -5,6 +5,38 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Current committed-source hosted results — November 22, 2026
+
+The [exact9741751 diagnostic](qa/hosted-ci-9741751-diagnostic-2026-11-22.json)
+records terminal Pages success and macOS failure. Its small Statistics artifact
+proves a timeout during actual native error-alert OK dispatch; it does not
+establish the underlying cause. The other lane failures have step summaries
+but no accessible raw logs or diagnostic artifacts. No complete hosted pass
+is established. The newer Browser/Log/Blame work remains a separate uncommitted
+batch; its local results must not be attributed to this hosted source.
+
+## Historical file menus and child handoffs — November 22, 2026
+
+The [Browser/Log/Blame family](HISTORY-BROWSER-CONTEXT-PARITY.md) connects native
+context entry, stable Log changed-file columns, immutable historical navigation
+and owned toolbar management. The [checkpoint](qa/history-file-context-family-2026-11-22.json)
+records Debug build success and 22 distinct native case/Git passes cumulatively,
+with compiler/fixture failures, the isolated divider repair and focused rechecks
+retained. All 43 logged native PIDs are absent. Installed52 and signed54 are
+unchanged. A separate source review identifies mixed-conflict Return dispatch
+and captured conflict-child preferences/backend as actual remaining behavior;
+physical, signed/platform, full hosted and whole-port acceptance remain open.
+
+## Latest committed hosted checkpoint — November 22, 2026
+
+The [exact-source diagnostic record](qa/hosted-ci-9741751-diagnostic-2026-11-22.json)
+shows Pages passed and macOS failed for source9741751. The available Statistics
+artifact records a 300-second timeout at actual error-alert OK dispatch; it does
+not establish whether the cause is the native control interaction or application
+completion. Other lane step failures are recorded without inferred causes because
+their raw logs were unavailable. Newer Browser/Log/Blame working changes do not
+constitute a matching hosted repair or pass.
+
 ## Resolve/Sync conflict reports — November 22, 2026
 
 The [report family](RESOLVE-CONFLICT-REPORT-PARITY.md) implements source-default

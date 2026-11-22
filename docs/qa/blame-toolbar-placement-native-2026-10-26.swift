@@ -73,7 +73,7 @@ private extension NSWindow {
         try require(NSApp.windows.allSatisfy{!$0.isVisible || $0.alphaValue==0},"Placement/floating workflow exposed a window")
     }
     static func drained()->Bool {
-        BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && BlameDocumentOpener.activeReads==0
+        BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && BlameDocumentOpener.activeReads==0 && BlameToolbarController.activeEditors==0
     }
     static func cleanup()async {
         phase("cleanup begin")
@@ -109,7 +109,7 @@ private extension NSWindow {
         print("PASS Blame toolbar placement: native docks/floating panels, quick customization and live ownership; Git HEAD/index/files unchanged")
     }
     static func verify()async throws {
-        let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repository=GitRepository(root:root,executable:git)
+        let root=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL,git=URL(fileURLWithPath:CommandLine.arguments[2]),repository=GitRepository(root:root,executable:git)
         _ = try await repository.run(["init","-b","main"])
         for (key,value) in [("user.name","Blame Toolbar QA"),("user.email","toolbar@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repository.run(["config",key,value])}
         let firstPath="toolbar A 雪.txt",secondPath="toolbar B.txt",firstURL=root.appendingPathComponent(firstPath),secondURL=root.appendingPathComponent(secondPath)
@@ -354,7 +354,7 @@ private extension NSWindow {
         chrome.perform("about");chrome.setPlacement(barID:reviewID,placement:.bottom)
         try require(about==1 && chrome.configuration==busySnapshot,"Busy document accepted floating action/placement")
         first.model.busy=false
-        let blocking=NSPanel(contentRect:NSRect(x:0,y:0,width:240,height:100),styleMask:.titled,backing:.buffered,defer:false);blocking.alphaValue=0
+        let blocking=NSPanel(contentRect:NSRect(x:0,y:0,width:240,height:100),styleMask:.titled,backing:.buffered,defer:false);blocking.isReleasedWhenClosed=false;blocking.alphaValue=0
         window.beginSheet(blocking,completionHandler:nil)
         try require(!chrome.beginDockDrag(barID:reviewID) && !chrome.beginCommandDrag(barID:reviewID,index:0),"Owner sheet accepted floating drag")
         chrome.perform("about");try require(about==1,"Owner sheet allowed floating callback reentry")

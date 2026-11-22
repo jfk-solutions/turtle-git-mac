@@ -912,14 +912,14 @@ import TurtleGitCore
         if CommitWindowModel.activeReloads > 0 || CommitWindowModel.activeFileOperations > 0 || CommitWindowModel.activePreferenceOperations > 0 || CommitWindowModel.activeMetadataOperations > 0 { return .terminateCancel }
         if CommitWindowModel.activeFileDrops > 0 { return .terminateCancel }
         if LogWindowModel.activeNoteReads > 0 || LogWindowModel.activeNoteSaves > 0 || CommitNotePresenter.activeWarnings > 0 { return .terminateCancel }
-        if LogRevisionColumnQuestion.activeCount > 0 { return .terminateCancel }
+        if LogRevisionColumnQuestion.activeCount > 0 || LogWindowModel.activeChangedFileColumnQuestions > 0 { return .terminateCancel }
         if MessageEditorStylingSession.activeOperations > 0 { return .terminateCancel }
         if InputWindowController.activeSaves > 0 { return .terminateCancel }
         if AddRemoteWindowModel.activeOperations > 0 || RemoteReferenceWindowModel.activeOperations > 0 || RemoteTagWindowModel.activeOperations > 0 { return .terminateCancel }
         if BisectWindowModel.activeOperations > 0 { return .terminateCancel }
         if GitPropertiesWindowModel.activeOperations > 0 || sender.windows.compactMap({ $0.delegate as? GitPropertiesWindowController }).contains(where:{ $0.model.busy || $0.model.hasSettings || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if RepositoryBrowserWindowModel.activeOperations > 0 || RepositoryBrowserFileOperation.activeRequests > 0 { return .terminateCancel }
-        if BlameWindowController.activeNavigationOperations > 0 { return .terminateCancel }
+        if BlameWindowController.activeNavigationOperations > 0 || BlameToolbarController.activeEditors > 0 { return .terminateCancel }
         if sender.windows.compactMap({ $0.delegate as? BlameWindowController }).contains(where:{ $0.navigationWorkPending || $0.model.busy || $0.model.openingDocument || $0.model.searchFeedbackBusy || $0.hasBlockingHistoryChild || $0.window?.attachedSheet != nil }) { return .terminateCancel }
         if BlameDocumentOpener.activeReads > 0 { return .terminateCancel }
         if BlameWindowModel.activeHistoryOperations > 0 { return .terminateCancel }

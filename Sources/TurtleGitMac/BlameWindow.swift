@@ -413,10 +413,11 @@ import TurtleGitCore
             presentFindFeedback(alert,owner,request.reply)
         }
     }
-    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild }
+    func windowShouldClose(_ sender:NSWindow) -> Bool { !model.searchFeedbackBusy && !model.openingDocument && !model.resettingHistoryColumns && !hasBlockingHistoryChild && toolbarChrome?.hasPendingWork != true }
     func windowWillClose(_ notification:Notification) {
         guard notification.object as? NSWindow === window,!closing else{return};closing=true
-        toolbarChrome?.retire();toolbarChrome=nil
+        let retiringToolbar=toolbarChrome
+        retiringToolbar?.retire();toolbarChrome=nil
         let pendingColumnAlert=columnAlert
         let pendingOpenPanel=openPanel
         cancelGoToLine();focusGeneration += 1
@@ -430,9 +431,9 @@ import TurtleGitCore
         cancelFindFeedback()
         findWindow?.close()
         model.retireSourceView?();model.retireSourceView=nil;model.onFind=nil;model.onFindFeedback=nil;model.retire()
-        if navigationWorkPending || model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {
+        if navigationWorkPending || model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil || retiringToolbar?.hasPendingWork == true {
             columnResetRelease=Task { [self] in
-                while navigationWorkPending || model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil {try? await Task.sleep(nanoseconds:10_000_000)}
+                while navigationWorkPending || model.resettingHistoryColumns || pendingColumnAlert?.window.sheetParent != nil || documentOpener.isReading || pendingOpenPanel?.sheetParent != nil || retiringToolbar?.hasPendingWork == true {try? await Task.sleep(nanoseconds:10_000_000)}
                 columnResetRelease=nil;onClosed()
             }
         } else {onClosed()}
@@ -3627,7 +3628,7 @@ private struct BlameNativeDockWorkspace:NSViewControllerRepresentable {
 
 extension BlameWindowController {
     var commandsAvailable:Bool {
-        model.canFind && !navigationWorkPending && !hasBlockingHistoryChild && window?.attachedSheet == nil && goToWindow == nil
+        model.canFind && !navigationWorkPending && !hasBlockingHistoryChild && window?.attachedSheet == nil && goToWindow == nil && toolbarChrome?.hasPendingWork != true
     }
     private func showGoToLine() {
         guard commandsAvailable,!closing,goToRequest==nil,let window else {return}

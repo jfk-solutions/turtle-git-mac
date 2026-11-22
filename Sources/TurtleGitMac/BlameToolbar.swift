@@ -26,7 +26,11 @@ import TurtleGitCore
     private var lastState="",configurationGeneration=UUID(),standardGeneration=UUID(),lastPaletteRunning=false
     var showAbout:()->Void={TurtleGitAboutService.shared.show(.blame)}
     var presentPalette:(NSToolbar)->Void={$0.runCustomizationPalette(nil)}
+    static private(set) var activeEditors=0
     private(set) var editor:BlameToolbarEditorController?
+    var hasPendingWork:Bool {editor != nil}
+    var contextMenuGeneration=UUID()
+    var presentContextMenu:((NSMenu,NSPoint,NSView)->Void)?
     var presentEditor:(NSWindow,NSWindow)->Void={owner,panel in owner.beginSheet(panel)}
     init(owner:BlameWindowController,preferences:UserDefaults) {
         self.owner=owner;original=owner.model;store=BlameToolbarConfigurationStore(defaults:preferences)
@@ -172,6 +176,32 @@ import TurtleGitCore
         if let item=receipt.nativeItem{return toolbar.items.contains{$0 === item && $0.view === button}}
         return stripHosts.values.contains{$0.view?.ownsCommandControl(button)==true}
     }
+    func contextSourceAvailable(_ view:NSView,barID:UUID)->Bool {
+        guard available,!view.isHiddenOrHasHiddenAncestor,let window=view.window,window.isVisible,
+              window.attachedSheet==nil,window === owner?.window || ownsFloatingWindow(window),
+              configuration.allBars.contains(where:{$0.id==barID && $0.isVisible}) else{return false}
+        if let grip=view as? BlameToolbarGrip {return grip.barID==barID && authenticatedGrip(grip)}
+        if let strip=view as? BlameToolbarStrip {return strip.barID==barID && stripHosts[ObjectIdentifier(strip)]?.view === strip}
+        if let button=view as? BlameToolbarButton {return button.barID==barID && authenticatedPointerSource(button)}
+        return false
+    }
+    @discardableResult func showContextMenu(barID:UUID,from view:NSView)->Bool {
+        guard contextSourceAvailable(view,barID:barID),let window=view.window else{return false}
+        let menu=contextMenu(barID:barID,source:view)
+        guard menu.items.contains(where:{$0.isEnabled && !$0.isSeparatorItem}) else{return false}
+        let visible=view.bounds.intersection(view.visibleRect)
+        guard !visible.isNull,!visible.isEmpty else{return false}
+        window.makeFirstResponder(view)
+        let point=NSPoint(x:visible.minX,y:visible.maxY)
+        if let presentContextMenu {presentContextMenu(menu,point,view)}
+        else {menu.popUp(positioning:nil,at:point,in:view)}
+        return true
+    }
+    func contextKey(_ event:NSEvent,from view:NSView,barID:UUID)->Bool {
+        guard event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift,
+              let window=view.window,event.window === window,window.firstResponder === view,owner?.commandKeyWindow() === window else{return false}
+        return showContextMenu(barID:barID,from:view)
+    }
     private static func copyTarget(_ owner:BlameWindowController)->AnyObject? {
         guard BlameWindowController.focusedOwner(owner.commandKeyWindow()) === owner,let window=owner.toolbarChrome?.copyContentWindow() ?? owner.window else{return nil}
         let action=NSSelectorFromString("copy:"),probe=NSMenuItem(title:"Copy",action:NSSelectorFromString("copy:"),keyEquivalent:"")
@@ -221,17 +251,29 @@ import TurtleGitCore
     }
     func customize(){
         guard available,owner?.window?.toolbar === toolbar else{return}
+        contextMenuGeneration=UUID()
         restoring=true;toolbar.isVisible=true;restoring=false;presentPalette(toolbar)
         scheduleRefresh()
     }
     func edit(){
         guard available,editor==nil,let window=owner?.window else{return}
-        let controller=BlameToolbarEditorController(chrome:self);editor=controller
-        controller.onClosed={[weak self,weak controller] in if self?.editor === controller {self?.editor=nil;self?.synchronizePreferences()}}
-        guard let panel=controller.window else{return};panel.appearance=window.appearance;panel.alphaValue=window.alphaValue;presentEditor(window,panel)
+        contextMenuGeneration=UUID()
+        let controller=BlameToolbarEditorController(chrome:self,parent:window);editor=controller
+        Self.activeEditors += 1
+        controller.onClosing={[weak self] in self?.objectWillChange.send()}
+        // The callback deliberately retains this chrome until the captured
+        // editor's paired sheet links drain, including forced document closure.
+        controller.onClosed={[self,weak controller] in
+            guard editor === controller else{return}
+            editor=nil;Self.activeEditors -= 1
+            if live {synchronizePreferences();refresh()}
+        }
+        guard let panel=controller.window else {controller.closeEditor();return}
+        panel.appearance=window.appearance;panel.alphaValue=window.alphaValue;presentEditor(window,panel);refresh()
     }
     func canConfigure(_ session:UUID?)->Bool {
         guard live,let owner,owner.model.canFind,!owner.hasBlockingHistoryChild,owner.goToWindow==nil else{return false}
+        if editor?.isClosing == true{return false}
         if let session,editor?.sessionID != session{return false}
         if editor != nil,session != editor?.sessionID{return false}
         if let sheet=owner.window?.attachedSheet {return session != nil && sheet === editor?.window}
@@ -253,7 +295,7 @@ import TurtleGitCore
     }
     func retire(){guard !retired else{return};saveStandard();retired=true;observations=[];modeObservation=nil;visibilityObservation=nil
         cancelDockDrag();cancelCommandDrag();retireFloatingPanels();removePlacementGrip()
-        editor?.closeEditor();editor=nil
+        contextMenuGeneration=UUID();editor?.closeEditor()
         for item in toolbar.items{item.isEnabled=false};if owner?.window?.toolbar === toolbar {owner?.window?.toolbar=nil};owner=nil;original=nil
     }
 }
@@ -262,6 +304,15 @@ private final class BlameToolbarReceipt:NSObject {let id:String;let barID:UUID;l
     var receipt:BlameToolbarReceipt?
     weak var chrome:BlameToolbarController?
     var barID=UUID(),commandID=""
+    override func menu(for event:NSEvent)->NSMenu? {
+        guard let chrome,chrome.contextSourceAvailable(self,barID:barID) else{return nil}
+        return chrome.contextMenu(barID:barID,source:self)
+    }
+    override func accessibilityPerformShowMenu()->Bool {chrome?.showContextMenu(barID:barID,from:self) ?? false}
+    override func keyDown(with event:NSEvent) {
+        if let chrome,chrome.contextKey(event,from:self,barID:barID){return}
+        super.keyDown(with:event)
+    }
     override func mouseDown(with event:NSEvent){
         if !event.modifierFlags.contains(.option){super.mouseDown(with:event);return}
         guard let chrome,chrome.authenticatedPointerSource(self),let bar=chrome.configuration.allBars.first(where:{$0.id==barID}),let index=bar.items.firstIndex(of:commandID),chrome.beginCommandDrag(barID:barID,index:index) else{return}

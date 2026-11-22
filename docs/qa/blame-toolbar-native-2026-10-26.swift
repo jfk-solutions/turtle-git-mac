@@ -50,7 +50,7 @@ private extension NSWindow {
         try require(NSApp.sendAction(action,to:item.target,from:item),"Native overflow target rejected dispatch")
     }
     static func drained()->Bool {
-        BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && BlameDocumentOpener.activeReads==0
+        BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && BlameDocumentOpener.activeReads==0 && BlameToolbarController.activeEditors==0
     }
     static func cleanup()async {
         phase("cleanup begin")
@@ -83,7 +83,7 @@ private extension NSWindow {
         print("PASS Blame toolbar: native defaults/icons, customization/palette/overflow, persistent named bars, live document routing and owned cleanup; Git HEAD/index/files unchanged")
     }
     static func verify()async throws {
-        let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repository=GitRepository(root:root,executable:git)
+        let root=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL,git=URL(fileURLWithPath:CommandLine.arguments[2]),repository=GitRepository(root:root,executable:git)
         _ = try await repository.run(["init","-b","main"])
         for (key,value) in [("user.name","Blame Toolbar QA"),("user.email","toolbar@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repository.run(["config",key,value])}
         let firstPath="toolbar A 雪.txt",secondPath="toolbar B.txt",firstURL=root.appendingPathComponent(firstPath),secondURL=root.appendingPathComponent(secondPath)
@@ -123,9 +123,18 @@ private extension NSWindow {
             try require(action.icon == nil,"Text-only source main-menu command acquired invented artwork: \(action.rawValue)")
         }
         let placementMenu=chrome.contextMenu(barID:BlameToolbarConfiguration.standardID)
-        try require(placementMenu.items.filter{!$0.isSeparatorItem}.allSatisfy{$0.image == nil},"Toolbar customization context invented source images")
+        // The Mac port intentionally supplies existing source artwork for
+        // every context command, as requested, rather than leaving the MFC
+        // framework customization popup's project-unmapped entries unadorned.
+        let contextualIcons:[String:MenuIcon]=["Customize Toolbar…":.settingsDialogs,"Manage Toolbars…":.settingsContextMenu,"Reset All Toolbars":.restore,"Hide Toolbar":.mergeCollapse,"Toolbars and Panes":.settingsDialogs]
+        for (title,icon) in contextualIcons {try require(placementMenu.items.first{$0.title==NSLocalizedString(title,comment:"")}?.image?.tiffRepresentation==icon.contextImage(defaults:prefs)?.tiffRepresentation,"Toolbar context source artwork mapping differs: "+title)}
+        for placement in BlameToolbarPlacement.allCases {try require(placementMenu.items.first{$0.title==NSLocalizedString(placement.title,comment:"")}?.image?.tiffRepresentation==MenuIcon.mergeSwitch.contextImage(defaults:prefs)?.tiffRepresentation,"Placement context source artwork differs")}
+        guard let panes=placementMenu.items.first(where:{$0.title==NSLocalizedString("Toolbars and Panes",comment:"")})?.submenu else{throw Failure(description:"Toolbar/pane context choices missing")}
+        for (title,icon) in [("Standard",MenuIcon.settingsContextMenu),("Log",.log),("Properties",.imageInfo)] {try require(panes.items.first{$0.title==NSLocalizedString(title,comment:"")}?.image?.tiffRepresentation==icon.contextImage(defaults:prefs)?.tiffRepresentation,"Toolbar/pane context artwork differs: "+title)}
         prefs.set(false,forKey:"ShowAppContextMenuIcons")
         try require(chrome.menuItem("nextChange",standalone:true).image == nil,"Source overflow ignored context icon preference")
+        let withoutIcons=chrome.contextMenu(barID:BlameToolbarConfiguration.standardID)
+        try require(withoutIcons.items.allSatisfy{$0.image==nil && ($0.submenu?.items.allSatisfy{$0.image==nil} ?? true)},"Toolbar/pane context ignored private icon preference")
         try require(chrome.button("nextChange",mode:.icons,barID:BlameToolbarConfiguration.standardID).image != nil,"Context icon preference incorrectly removed toolbar image")
         prefs.set(true,forKey:"ShowAppContextMenuIcons")
         let allowed=chrome.toolbarAllowedItemIdentifiers(chrome.toolbar)
@@ -195,7 +204,7 @@ private extension NSWindow {
         try require(chrome.configuration.customBars.map(\.id)==[inspect,review],"Named toolbar order did not change")
         try require(chrome.createBar(name:"Expired",session:UUID())==nil,"Unknown editor session mutated layout")
         editor.closeEditor()
-        try await wait("Toolbar editor released") {chrome.editor==nil && window.attachedSheet==nil}
+        try await wait("Toolbar editor released after paired native detachment") {chrome.editor==nil && editorWindow.sheetParent==nil && window.attachedSheet==nil && BlameToolbarController.activeEditors==0}
         try require(chrome.createBar(name:"Expired",session:session)==nil,"Closed editor receipt retained mutation authority")
         try await wait("Simultaneous named native rows installed") {views(window.contentView).filter{$0 is BlameToolbarStrip}.count==2}
         let strip=BlameToolbarStrip(frame:NSRect(x:0,y:0,width:900,height:34))
@@ -283,7 +292,7 @@ private extension NSWindow {
         try invoke(try item("wrap",in:chrome));chrome.perform("about");chrome.edit();chrome.customize()
         try require(first.model.wrapLongLines==blockedWrap && aboutCalls==2 && chrome.editor==nil && !chrome.available,"Busy document accepted toolbar commands")
         first.model.busy=false;chrome.refresh()
-        let blocking=NSPanel(contentRect:NSRect(x:0,y:0,width:220,height:100),styleMask:.titled,backing:.buffered,defer:false);blocking.alphaValue=0
+        let blocking=NSPanel(contentRect:NSRect(x:0,y:0,width:220,height:100),styleMask:.titled,backing:.buffered,defer:false);blocking.isReleasedWhenClosed=false;blocking.alphaValue=0
         window.beginSheet(blocking,completionHandler:nil);chrome.refresh()
         try invoke(try item("open",in:chrome));chrome.perform("about")
         try require(pickerCalls==1 && aboutCalls==2,"Attached sheet allowed document command reentry")
@@ -317,7 +326,7 @@ private extension NSWindow {
         try require(store.load().standard.items==latestStandard.items && store.load().customBars.contains{$0.id==merged},"Closing background editor clobbered shared standard/custom composition")
         replacement.edit();let closingEditor=replacement.editor
         first.close()
-        try await wait("Closing document retires customization child") {replacement.editor==nil && closingEditor?.window?.sheetParent==nil && closingEditor?.window?.isVisible != true}
+        try await wait("Closing document retires customization child after native detachment") {replacement.editor==nil && closingEditor?.window?.sheetParent==nil && window.attachedSheet !== closingEditor?.window && closingEditor?.window?.isVisible != true && BlameToolbarController.activeEditors==0}
         try require(!replacement.live && first.model.retired,"Closed document retained toolbar authority")
         // Malformed/unknown saved commands restore only known native items.
         phase("unknown restore and late picker close")

@@ -4366,8 +4366,16 @@ private enum TransportBatchPresentationContext {
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.browserWindows[key] === controller else { return }; self.browserWindows.removeValue(forKey: key) }
         let serviceContext=finderServiceDispatch
         let show:(()->Void)->Void={body in FinderServicePresentationContext.$current.withValue(serviceContext){body()}}
-        controller.model.onLog = CommandProgressContext.capture { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showLog(repository: repository, access: access, paths: path.isEmpty ? [] : [path], endRevision: hash, preferences: defaults, sourceWindow: controller.window)} }
-        controller.model.onBlame = CommandProgressContext.capture { [weak self, weak controller] path, hash in guard let controller, controller.model.active else { return }; show {self?.showBlame(repository: repository, access: access, path: path, revision: hash, preferences: defaults)} }
+        controller.model.onLog = CommandProgressContext.capture { [weak self, weak controller] path, hash in
+            guard let controller, controller.model.active else { return }
+            let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
+            show {self?.showLog(repository:accepted,access:access,paths:path.isEmpty ? []:[path],endRevision:hash,selectedRevision:hash,preferences:defaults,sourceWindow:controller.window)}
+        }
+        controller.model.onBlame = CommandProgressContext.capture { [weak self, weak controller] path, hash in
+            guard let controller, controller.model.active else { return }
+            let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
+            show {self?.showBlame(repository:accepted,access:access,path:path,revision:hash,preferences:defaults)}
+        }
         controller.model.onCompare = CommandProgressContext.capture { [weak self, weak controller] path, hash in
             guard let controller, controller.model.active else { return }
             let accepted=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
@@ -4402,7 +4410,7 @@ private enum TransportBatchPresentationContext {
             }
             let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
             let child=GitRepository(root:checkout,executable:accepted.executable,askpass:accepted.askpass,diffDetection:accepted.diffDetection,libgit2Configuration:accepted.libgit2Configuration)
-            if showLog { self.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
+            if showLog { self.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID,selectedRevision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
             else { self.showRepositoryBrowser(repository:child,access:access,revision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
         }
         browserWindows[key] = controller
@@ -4527,9 +4535,9 @@ private enum TransportBatchPresentationContext {
         if let revisionRange, invocation == nil {
             reusable = logWindows.first { _, controller in
                 controller.model.repository.root == root && fileNavigationRuntimeKey(controller.model.repository) == fileNavigationRuntimeKey(repository) &&
-                controller.model.colorPreferences === defaults && controller.window?.attachedSheet == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
+                controller.model.colorPreferences === defaults && controller.window?.attachedSheet == nil && controller.window?.sheetParent == nil && controller.model.canReuseForRange(revisionRange,paths:paths)
             }
-        } else if let cached = logWindows[baseKey], !cached.model.isInvalidated {
+        } else if let cached = logWindows[baseKey], cached.model.colorPreferences === defaults, cached.model.canReuseForPresentation, cached.window?.attachedSheet == nil, cached.window?.sheetParent == nil {
             reusable = (key: baseKey, value: cached)
         } else { reusable = nil }
         // A retired controller retains itself until its workers drain. Replace
@@ -4541,7 +4549,11 @@ private enum TransportBatchPresentationContext {
         if let output = invocation?.outputFile, let outputAccess {
             let completion: (LogEntry?) -> Void = CommandProgressContext.capture { [weak self] revision in self?.writeCommandSelection(revision, file: output, permission: outputAccess) }
             controller = commandLineSelectionWindowFactory?(repository, access, completion) ?? LogWindowController(repository: repository, access: access, onChoose: completion, labelDefaults: defaults, loadsImmediately: false)
-        } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: invocation == nil) }
+        } else { controller = reusable?.value ?? logWindowFactory?(repository,access) ?? LogWindowController(repository: repository, access: access, labelDefaults: defaults, loadsImmediately: false) }
+        guard controller.model.canAdmitHistoryReload else {
+            if !controller.model.isInvalidated {controller.showWindow(nil);controller.window?.makeKeyAndOrderFront(nil)}
+            return
+        }
         let operationPreferences = controller.model.colorPreferences
         controller.onPullAfterLFSLock = CommandProgressContext.capture { [weak self] in
             self?.showFetch(repository: repository, access: access, isPull: true, preferences: operationPreferences)
@@ -4609,15 +4621,15 @@ private enum TransportBatchPresentationContext {
         controller.window?.title = location + " – Log Messages" + (endRevision.map { " at " + $0.prefix(7) } ?? "") + " – TurtleGit"
         if let invocation { controller.model.applyCommandLine(invocation, paths: paths, selectedRevision: selectedRevision) }
         else {
-            controller.model.setPathScope(paths)
             if let selectedRevision { ReferenceLogWindowModel.configureRevisionLog(controller.model, revision: selectedRevision) }
+            controller.model.setPathScope(paths,reload:false)
         }
         if let revisionRange {
             ReferenceLogWindowModel.configureRangeLog(controller.model, range: revisionRange)
             controller.model.historyPaths=paths;controller.model.showWholeProject=paths.isEmpty
             controller.window?.title = location + " – Log Messages " + revisionRange.expression + " – TurtleGit"
         }
-        controller.model.reload()
+        guard controller.model.reload(acceptedBackend:repository.libgit2Configuration) else{return}
         if let sourceWindow { controller.window?.appearance = sourceWindow.effectiveAppearance; controller.window?.alphaValue = sourceWindow.alphaValue }
         presentation?.apply(to: controller.window)
         if finderServiceDispatch?.action == .logSubmodule {

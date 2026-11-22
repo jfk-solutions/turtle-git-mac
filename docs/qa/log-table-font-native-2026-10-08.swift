@@ -68,7 +68,7 @@ import TurtleGitCore
         let filesWindow = NSWindow(contentRect: .init(x: 0, y: 0, width: 1200, height: 900), styleMask: [.titled], backing: .buffered, defer: false)
         filesWindow.isReleasedWhenClosed = false; filesWindow.contentView = filesHost; defer { filesWindow.close() }
         try await settle(filesHost)
-        let files = allTables(in: filesHost).first { $0.tableColumns.count == 5 }!
+        let files = allTables(in: filesHost).compactMap{$0 as? LogChangedFileNativeTable}.first!
         precondition(files.numberOfRows == 1)
         let ordinaryHeight = files.rect(ofRow: 0).height
         let fileIDs = model.files.map(\.id), selection = model.selectedFiles

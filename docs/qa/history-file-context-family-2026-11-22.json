@@ -1,0 +1,715 @@
+{
+  "date": "2026-11-22",
+  "recorded_utc": "2026-11-22T22:37:22.401779+00:00",
+  "status": "Connected Browser/Log/Blame family implemented; Debug app build and 22 distinct native case/Git combinations passed cumulatively after preserved repairs. Complete port/release acceptance remains open.",
+  "base_commit": "974175124f738661799fb92a630160590a571fe4",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_sha256": {
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "a62fac5055663564a4ff657a6349005e70724cbcffbacb85ef6c49312273533d",
+    "Sources/TurtleGitMac/BlameToolbar.swift": "7dc16c97edd14e163e9c30f0020abeeb1d5bcd0344cb00533afb1e1f982f21ad",
+    "Sources/TurtleGitMac/BlameToolbarDocking.swift": "17ab0c53fdcc3ba959549a430bbf32d347318f62cf1648b7f4e93cf59f05ec2a",
+    "Sources/TurtleGitMac/BlameToolbarViews.swift": "9ffe2aa9f2a24cea6c1f7373d063c8d3053b099d146bab68d322792e913b2b07",
+    "Sources/TurtleGitMac/BlameWindow.swift": "15ed9c3a1f5903f409043addbbb1370b92b9118c59d1fc26be8a7a242c7c4639",
+    "Sources/TurtleGitMac/LogWindow.swift": "08ce0ac30d8474194c6e56d349790f0463e9aeed39bd69786617d1a7f8fbb8f2",
+    "Sources/TurtleGitMac/ReferenceLogWindow.swift": "e28969af03d06979e0a84f38e91e7d42c0e9e4717859c38fee88083f16f36070",
+    "Sources/TurtleGitMac/RepositoryBrowserContentsTable.swift": "40b8aaecedb762a494987659152d3ffd19ae615327f900c4decbc1cdaa0b0314",
+    "Sources/TurtleGitMac/RepositoryBrowserWindow.swift": "193935bed082a2e82ae1a77c1877d5f800c331a15e8839eed7b376a03fd7f1e2",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "5f546540030636e5521211a31dfba8fbdcef617dee7763cb70ab14a12fc54ac6"
+  },
+  "implementation": [
+    "Browser folder/list native keyboard and accessibility context menus, default Open, exact literal labels and one-use owner receipts",
+    "Browser Log/Blame and submodule Log use accepted backend/preferences/lease and immutable selected endpoint; one configured cold Log read and idle-only reuse",
+    "Stable native Log changed-file five-column report, exact parent occurrence identities, spanning nonselectable groups, persisted layout/font/sort/clipboard, native primary and keyboard/menu actions",
+    "Native Log divider content fit and Shift default-width restoration with saved override removal",
+    "Blame toolbar host menus and icons, Toolbars and Panes visibility, dedicated editor/Quit lease and paired close/retirement drainage"
+  ],
+  "app_build": {
+    "invocations": [
+      {
+        "log": {
+          "path": "build/qa/history-file-context-app-build-2026-11-22.log",
+          "sha256": "2f8c7e70cfa276ba29f863dc510dfdce7ec23fe3d27cf4a3c6b345ff257e2486"
+        },
+        "exit_code": 65,
+        "reason": "Nested Log callback needed explicit self"
+      },
+      {
+        "log": {
+          "path": "build/qa/history-file-context-app-build-repair-2026-11-22.log",
+          "sha256": "8aa6fc19caa0e18e28eff3e8aca6965c1b6cc867d514d462d97848e483cccd23"
+        },
+        "exit_code": 65,
+        "reason": "Reference scope private setters replaced by owned model helper"
+      },
+      {
+        "log": {
+          "path": "build/qa/history-file-context-app-build-repair-2-2026-11-22.log",
+          "sha256": "fad4c9db654b722d0db62f6f53152419de5e31ce76691ee7fd35c6d6624d50a2"
+        },
+        "exit_code": 0
+      },
+      {
+        "log": {
+          "path": "build/qa/history-file-context-app-build-header-repair-2026-11-22.log",
+          "sha256": "8b11351e107c46032787acee55d04ed3c9a02ff2641d05885e84e2410762fa27"
+        },
+        "exit_code": 75,
+        "reason": "Owner interrupted exact build PID69842 to regenerate final manual change into Help before rebuilding"
+      },
+      {
+        "log": {
+          "path": "build/qa/history-file-context-app-build-header-repair-2-2026-11-22.log",
+          "sha256": "6f58d6a1c4727c8a8ceb7f9a3ae53ed0f75c1f7a81e13d34288fd4e7f4268e59"
+        },
+        "exit_code": 0
+      }
+    ],
+    "production_changes_after_final_build": false,
+    "diagnostic_limit": "Local SDK emits a contradictory command-failed-with-exit-zero diagnostic and isolation warnings; terminal successful builds and actual fresh-object native receivers are retained, not a hosted SDK pass."
+  },
+  "core_validation": {
+    "run": false,
+    "reason": "No Core/Git operation source changed; affected native consumers exercise actual system and bundled Git. CI owns full integration."
+  },
+  "native": {
+    "distinct_case_git_pairs_passed": 22,
+    "passed_pairs": [
+      {
+        "case": "blame-composition",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "blame-composition",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "blame-context",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "blame-context",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "blame-placement",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "blame-placement",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "browser-context",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "browser-context",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "browser-files",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "browser-files",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "log-context",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "log-context",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "log-drag-historical",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "log-drag-historical",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "log-drag-range",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "log-drag-range",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "log-drag-working",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "log-drag-working",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "log-identities",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "log-identities",
+        "git": "/usr/bin/git"
+      },
+      {
+        "case": "log-selection",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      },
+      {
+        "case": "log-selection",
+        "git": "/usr/bin/git"
+      }
+    ],
+    "attempts": [
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-recheck-1-2026-11-22.json",
+          "sha256": "51f18535ae6d9406da2f788defde3632d5f2749a4684e2bd3493da1d32595aa3"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-recheck-1-2026-11-22.log",
+          "sha256": "f9a72fd0378e8579c6c15fbcad46d0d99fc82141c682bfec826bcae4c3a2bf42"
+        },
+        "cases": [
+          {
+            "case": "browser-context",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:09:09.132031+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 13.425
+          },
+          {
+            "case": "browser-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:09:22.606558+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 9.787
+          },
+          {
+            "case": "blame-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:09:32.443862+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/eac05fbbd3d3a5b06c2e7ef8646d779b86aae3477cb6d4b1427c578a25a876c2/receiver-07dcb630923550422276df1aa2fd0d9eb856162c9545e37c9f944dd74a19ca69', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-blame-context-h0iu8tf_/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 33.4
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-continuation-2026-11-22.json",
+          "sha256": "74c459e6490c1c007f6e7025af22656882ef81ebef97fa758f30f9d9213fa0c7"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-continuation-2026-11-22.log",
+          "sha256": "a7a9d3202a31d4a269a86437a9a659f0c2f311326913412828a40032924c27ff"
+        },
+        "cases": [
+          {
+            "case": "log-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:16:56.716904+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/eac05fbbd3d3a5b06c2e7ef8646d779b86aae3477cb6d4b1427c578a25a876c2/receiver-07dcb630923550422276df1aa2fd0d9eb856162c9545e37c9f944dd74a19ca69', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-dramemup/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 3.06
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-retained-2026-11-22.json",
+          "sha256": "e57748e129b03d5a35aa094a424a5a1e38a89d27255759c87f0a385f94944341"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-retained-2026-11-22.log",
+          "sha256": "b768097d1168a2664c3093e62b4d7e00dce1022080cecdc8541a7f864677981c"
+        },
+        "cases": [
+          {
+            "case": "log-selection",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:17:18.070283+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/eac05fbbd3d3a5b06c2e7ef8646d779b86aae3477cb6d4b1427c578a25a876c2/receiver-07dcb630923550422276df1aa2fd0d9eb856162c9545e37c9f944dd74a19ca69', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-selection-8w9f_teg/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 34.298
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-outstanding-2026-11-22.json",
+          "sha256": "44b0d6bc740eb32a5aeb16ff28c16b77cb43d35a0f30ce95166ddc76ed222d53"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-outstanding-2026-11-22.log",
+          "sha256": "610da557fd62fcc0e1fea3fda06d76fab7da344dc9675ee3beab137fe3c364bb"
+        },
+        "cases": [
+          {
+            "case": "blame-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:25:58.548723+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d2ce62cd04e7e21c0345069e4bc619ff7b2404084a4a85cb897d9922cb26a539', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-blame-context-7aha45jf/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 44.844
+          },
+          {
+            "case": "blame-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:26:43.429098+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d2ce62cd04e7e21c0345069e4bc619ff7b2404084a4a85cb897d9922cb26a539', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-blame-context-xm2qt_c9/fixture', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 43.364
+          },
+          {
+            "case": "log-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:27:26.837061+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d2ce62cd04e7e21c0345069e4bc619ff7b2404084a4a85cb897d9922cb26a539', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-d785fg1h/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 3.089
+          },
+          {
+            "case": "log-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:27:29.973699+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d2ce62cd04e7e21c0345069e4bc619ff7b2404084a4a85cb897d9922cb26a539', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-y7fsz7wc/fixture', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.96
+          },
+          {
+            "case": "log-selection",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:27:32.978279+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 15.044
+          },
+          {
+            "case": "log-selection",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:27:48.053943+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 10.971
+          },
+          {
+            "case": "log-identities",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:27:59.059775+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 6.221
+          },
+          {
+            "case": "log-identities",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:05.314222+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 5.916
+          },
+          {
+            "case": "log-drag-historical",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:11.275855+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 3.135
+          },
+          {
+            "case": "log-drag-historical",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:14.458526+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.841
+          },
+          {
+            "case": "log-drag-range",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:17.333855+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.933
+          },
+          {
+            "case": "log-drag-range",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:20.300518+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.701
+          },
+          {
+            "case": "log-drag-working",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:23.035475+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.632
+          },
+          {
+            "case": "log-drag-working",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:25.702269+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.412
+          },
+          {
+            "case": "browser-files",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:28.147897+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 4.959
+          },
+          {
+            "case": "browser-files",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:33.136223+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 4.757
+          },
+          {
+            "case": "blame-composition",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:37.938066+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 11.919
+          },
+          {
+            "case": "blame-composition",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:28:49.900205+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 10.832
+          },
+          {
+            "case": "blame-placement",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:29:00.780724+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 13.093
+          },
+          {
+            "case": "blame-placement",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:29:13.921914+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 12.869
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-focused-2026-11-22.json",
+          "sha256": "b0a4a521699c28f60134af41a3d4902554c53e4979fede22c5f22ffe88a53a9f"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-focused-2026-11-22.log",
+          "sha256": "62c2c7749fdc8433439504a3ee1686bfee3094cdea2d21c1cd4c5c5e6154c569"
+        },
+        "cases": [
+          {
+            "case": "blame-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:29:45.758201+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d3ee1a08f241252210cb4b58a25cf2f7f0ba44573c8c4ff67f937f4a6b7588ac', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-blame-context-lw8x1q6a/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 4.161
+          },
+          {
+            "case": "blame-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:29:49.959702+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d3ee1a08f241252210cb4b58a25cf2f7f0ba44573c8c4ff67f937f4a6b7588ac', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-blame-context-zbzagvip/fixture', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 3.555
+          },
+          {
+            "case": "log-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:29:53.555689+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d3ee1a08f241252210cb4b58a25cf2f7f0ba44573c8c4ff67f937f4a6b7588ac', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-8j93rxrg/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 3.104
+          },
+          {
+            "case": "log-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:29:56.704562+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d3ee1a08f241252210cb4b58a25cf2f7f0ba44573c8c4ff67f937f4a6b7588ac', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-5w33x9hd/fixture', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 2.915
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-focused-2-2026-11-22.json",
+          "sha256": "c1b609609394b74dd9f4b720b726e7bcca893af857ceef29d68293b58cabd130"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-focused-2-2026-11-22.log",
+          "sha256": "23ad12cb0f72020d4e93bf1b37918e3572b7115494a32fe053200b4dc093a82b"
+        },
+        "cases": [
+          {
+            "case": "blame-context",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:34:42.001952+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 5.664
+          },
+          {
+            "case": "blame-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:34:47.700017+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 5.137
+          },
+          {
+            "case": "log-context",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:34:52.877926+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d69b9686d8137b56c6126545ab4a0b33d428804365cc3dd24e077e85d37a9ad6', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-7qf29z2i/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 5.742
+          },
+          {
+            "case": "log-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "failed",
+            "started_utc": "2026-11-22T22:34:58.667913+00:00",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/24275178dad38da5687b339154a4d7bbcf31674bb89db6d7cfcc7b812bf15db5/receiver-d69b9686d8137b56c6126545ab4a0b33d428804365cc3dd24e077e85d37a9ad6', '/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-file-log-context-30obg975/fixture', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 5.351
+          }
+        ]
+      },
+      {
+        "report": {
+          "path": "build/qa/history-file-context-native-log-final-2026-11-22.json",
+          "sha256": "d37b3db3bb246dddd6ebb5a8c711a9deffb8badbb639aab02e84d2b2872aaccf"
+        },
+        "log": {
+          "path": "build/qa/history-file-context-native-log-final-2026-11-22.log",
+          "sha256": "8ba3c0cb8114f2b4355f07fdf716c83ae42c5ecbc7fd83bb9b9284d4f193a6f4"
+        },
+        "cases": [
+          {
+            "case": "log-context",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:35:48.887136+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 6.85
+          },
+          {
+            "case": "log-context",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "started_utc": "2026-11-22T22:35:55.767150+00:00",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false,
+            "elapsed_seconds": 6.069
+          }
+        ]
+      }
+    ],
+    "initial_fixture_compile_failure": {
+      "log": {
+        "path": "build/qa/history-file-context-native-2026-11-22.log",
+        "sha256": "3b5bcce0db572091dde1033ef189cf9e679423610a513d830f541a76f40813f3"
+      },
+      "reason": "Unbalanced operator whitespace in fixture comparison; no native case ran"
+    },
+    "scope": "Cumulative passes: Browser pairs precede the isolated Log header-fit repair; later retained modes and focused cases use final app objects. Passing unrelated pairs were not repeated.",
+    "preserved_failures_and_repairs": [
+      "Old retained Log probe assumptions adapted to actual native table, with exact row selection/group semantics retained",
+      "Invisible SwiftUI AX tree omitted Done; actual production default Return action is exercised instead. Sheet native close-delegate boundary replaces unsupported performClose/titlebar assumption; no physical click claim",
+      "Log native double action uses a verified visible cell and actual table mouse tracker under scoped owned-window key state; actual original target/action and one-path/Shift assertions remain",
+      "Log working Ignore menu fixture now supplies Root-equivalent callback; production availability gate retained",
+      "Retained Blame placement logs AppKit zero-size split-view warnings during lifecycle; assertions and drainage passed"
+    ],
+    "owned_processes": {
+      "logged_native_pids": [
+        66803,
+        66837,
+        66973,
+        66996,
+        67463,
+        67925,
+        68620,
+        68835,
+        70135,
+        70143,
+        70161,
+        70255,
+        70380,
+        70502,
+        70623,
+        71206,
+        71780,
+        71922,
+        72068,
+        72170,
+        72296,
+        72395,
+        72493,
+        72576,
+        72656,
+        72782,
+        72906,
+        73039,
+        73170,
+        73275,
+        73403,
+        73429,
+        73474,
+        73521,
+        73644,
+        74189,
+        74216,
+        74284,
+        74351,
+        74528,
+        74817,
+        74844,
+        75028
+      ],
+      "all_absent_at_checkpoint": true,
+      "all_recorded_fallback_helper_cleanup": [
+        "False"
+      ]
+    },
+    "fixture_sha256": {
+      "docs/qa/blame-toolbar-context-native-2026-11-22.swift": "4efbae0dde65849d3fbc5daca8469c30334e9aad3ef537bb6b961869595cf190",
+      "docs/qa/browser-history-context-native-2026-11-22.swift": "b34860e5c07d29956835b2f5b97d8f1da1a177c8e1e6866c0023db0448db0be7",
+      "docs/qa/log-file-context-native-2026-11-22.swift": "558f070f700c0c41a54579595e0d59fc3c16acc0943daa92d5d276bf81348236",
+      "docs/qa/blame-toolbar-native-2026-10-26.swift": "abebb4abae9e6dc7d194b43349d6a555642c279997c0fc1f4b8e839600ceeac5",
+      "docs/qa/blame-toolbar-placement-native-2026-10-26.swift": "2abe1b9492664e0ad6f9afa2230c99c11747a64bfe73f3476793c521ff67529b",
+      "docs/qa/log-native-selection-2026-10-28.swift": "c19c7fe54108779dbd6ea61603032394f1f8af2f833a3dc2224bf5cab0fdb367",
+      "docs/qa/log-file-identities-native-2026-10-17.swift": "d0ee554d75a5dc71fdc0da6278df56e3794e33a7ddd5e933d56182486d91a977",
+      "docs/qa/log-changed-files-native-2026-10-14.swift": "3efbeef1a399a0a0598e80d1a22d0db4f0cdc964bd568d3600e2a1421ff54559",
+      "docs/qa/log-working-lfs-native-2026-10-28.swift": "a557db9b0a1c0603fd785819c5bb778996bd996d345a08ef28b82a9e30c9598a",
+      "docs/qa/log-table-font-native-2026-10-08.swift": "937c746f9ba10d091f4c8537c79c541abb662eee16a4cc16aa3bdac87e5c7414"
+    },
+    "related_retained_ci_adaptations": {
+      "not_locally_executed_or_separately_compiled": [
+        "log-changed-files-native-2026-10-14.swift",
+        "log-working-lfs-native-2026-10-28.swift",
+        "log-table-font-native-2026-10-08.swift"
+      ],
+      "reason": "Update removed Log probe dependencies for existing hosted receivers; grouped local new report covers corresponding control/selection/font behavior, without claiming those entire standalone cases passed."
+    },
+    "driver_sha256": "f49b9030b3c026aa11515f23b27a9a6503b3b6abc82972601e5f92749f5a28af"
+  },
+  "resources": {
+    "localizations": {
+      "mode": "check",
+      "exit_code": 0,
+      "languages": 38,
+      "keys": 1392
+    },
+    "help": {
+      "mode": "check",
+      "exit_code": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 98,
+      "bytes": 9410934
+    },
+    "workflow_yaml": {
+      "site_python_attempt": "PyYAML unavailable; no dependency installed",
+      "ruby_yaml_parse_exit_code": 0,
+      "grouped_step_and_artifact_count": 1
+    },
+    "coverage": {
+      "exit_code": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "not_a_feature_completion_percentage": true
+    }
+  },
+  "distribution": {
+    "installed_build": "52",
+    "installed_app_updated": false,
+    "signed54_updated": false,
+    "newer_source_excluded_from_signed54": true,
+    "published_binary": false
+  },
+  "remaining": [
+    "Mixed/multiple conflicted Log Return dispatch and conflict-child preferences/backend/ownership need a separate complete workflow batch",
+    "Physical pointer/keyboard/VoiceOver and actual sheet close-button availability/clicks",
+    "Translated distribution appearance and current new native-report screenshots",
+    "External file receiving applications and full optional Git/LFS/gitlink combinations",
+    "Current source full hosted CI success; latest committed974 macOS run failed with bounded diagnostics only",
+    "Signed Finder grants, shipping UI, Intel/minimum-macOS execution and full TortoiseGit port acceptance"
+  ]
+}

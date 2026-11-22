@@ -1585,3 +1585,17 @@ navigation synchronously, and actual manual movement cancels deferred intent.
 The immediate-key assertions remain in place. Physical keyboard/menu interaction,
 translated bundled-app acceptance, signed grants and complete source-layout
 parity remain separate.
+
+## Toolbar context and editor return continuation — November 22, 2026
+
+The [toolbar context family](BLAME-TOOLBAR-CONTEXT-PARITY.md) adds source-artwork
+context commands and checked toolbar/pane visibility choices, with native
+pointer, focused Shift-F10 and accessibility entry. Retained commands bind their
+original model, configuration, menu and host/window identities. Manage Toolbars
+keeps its editor, parent and dedicated Quit lease through actual paired sheet
+detachment on Done, Escape, native close-delegate requests or forced retirement.
+The sheet fixture does not claim an actual titlebar close-button click. Late session writes and
+retired chrome are refused. The [connected checkpoint](qa/history-file-context-family-2026-11-22.json)
+passes the new context and retained customization/placement cases with both Git
+engines, with failed fixture assumptions and actual repairs retained.
+Physical, signed/platform and full-port acceptance remain separate.

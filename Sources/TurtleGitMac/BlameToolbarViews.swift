@@ -36,6 +36,7 @@ struct BlameToolbarStripView:NSViewRepresentable {
     private var grip:BlameToolbarGrip?
     private var lastSignature=""
     override var isFlipped:Bool {true}
+    override var acceptsFirstResponder:Bool {true}
     private var controls:[(String,NSView)]=[]
     private let overflow=NSPopUpButton(frame:.zero,pullsDown:true)
     private let caption=NSTextField(labelWithString:"")
@@ -48,6 +49,7 @@ struct BlameToolbarStripView:NSViewRepresentable {
         clear();lastSignature=signature;self.chrome=chrome;self.bar=bar;chrome.stripHosts[ObjectIdentifier(self)]=BlameToolbarWeakStrip(self)
         let grip=BlameToolbarGrip(chrome:chrome,barID:bar.id,frame:NSRect(x:0,y:0,width:20,height:28));self.grip=grip;addSubview(grip)
         setAccessibilityIdentifier("TurtleGit.Blame.ToolbarStrip."+bar.id.uuidString+"."+bar.placement.rawValue)
+        setAccessibilityElement(true);setAccessibilityRole(.toolbar);setAccessibilityLabel(bar.name)
         caption.stringValue=bar.name;caption.setAccessibilityLabel(String(format:NSLocalizedString("%@ toolbar",comment:""),bar.name));caption.sizeToFit()
         for (index,id) in bar.items.enumerated() {
             let view:NSView
@@ -90,7 +92,12 @@ struct BlameToolbarStripView:NSViewRepresentable {
     func ownsCommandControl(_ view:NSView)->Bool {controls.contains{$0.1 === view}}
     func ownsGrip(_ view:BlameToolbarGrip)->Bool {grip === view}
     func ownsSpacer(_ view:NSView,index:Int)->Bool {controls.indices.contains(index) && controls[index].1 === view}
-    override func menu(for event:NSEvent)->NSMenu? {guard let bar,let chrome,chrome.stripHosts[ObjectIdentifier(self)]?.view === self,lastSignature.hasPrefix(chrome.configuration.generation.uuidString) else{return nil};return chrome.contextMenu(barID:bar.id)}
+    override func menu(for event:NSEvent)->NSMenu? {guard let bar,let chrome,chrome.contextSourceAvailable(self,barID:bar.id),lastSignature.hasPrefix(chrome.configuration.generation.uuidString) else{return nil};return chrome.contextMenu(barID:bar.id,source:self)}
+    override func accessibilityPerformShowMenu()->Bool {guard let bar,let chrome else{return false};return chrome.showContextMenu(barID:bar.id,from:self)}
+    override func keyDown(with event:NSEvent) {
+        if let bar,let chrome,chrome.contextKey(event,from:self,barID:bar.id){return}
+        super.keyDown(with:event)
+    }
     func insertionIndex(at point:NSPoint)->Int {
         guard let bar else{return 0};let vertical=bar.placement == .left || bar.placement == .right
         for (index,pair) in controls.enumerated() where !pair.1.isHidden {
@@ -101,17 +108,43 @@ struct BlameToolbarStripView:NSViewRepresentable {
 
 }
 
-@MainActor final class BlameToolbarEditorController:NSWindowController {
+@MainActor private final class BlameToolbarEditorPanel:NSPanel {
+    var dismiss:()->Void = {}
+    override func cancelOperation(_ sender:Any?){dismiss()}
+}
+
+@MainActor final class BlameToolbarEditorController:NSWindowController,NSWindowDelegate {
     var onClosed:()->Void={}
+    var onClosing:()->Void={}
+    private(set) var isClosing=false
     private var finished=false
+    private var release:Task<Void,Never>?
+    private let parent:NSWindow
     let sessionID=UUID()
-    init(chrome:BlameToolbarController){
-        let panel=NSPanel(contentRect:NSRect(x:0,y:0,width:760,height:520),styleMask:[.titled,.resizable],backing:.buffered,defer:false)
+    init(chrome:BlameToolbarController,parent:NSWindow){
+        self.parent=parent
+        let panel=BlameToolbarEditorPanel(contentRect:NSRect(x:0,y:0,width:760,height:520),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false)
         panel.title=NSLocalizedString("Toolbars",comment:"");panel.isReleasedWhenClosed=false;panel.minSize=NSSize(width:680,height:420)
-        super.init(window:panel);panel.contentViewController=NSHostingController(rootView:BlameToolbarEditor(chrome:chrome,session:sessionID,done:{[weak self] in self?.closeEditor()}))
+        super.init(window:panel);panel.delegate=self
+        panel.dismiss={[weak self] in self?.closeEditor()}
+        panel.contentViewController=NSHostingController(rootView:BlameToolbarEditor(chrome:chrome,session:sessionID,done:{[weak self] in self?.closeEditor()}))
     }
     required init?(coder:NSCoder){fatalError("init(coder:) is not supported")}
-    func closeEditor(){guard !finished else{return};finished=true;if let window{window.sheetParent?.endSheet(window,returnCode:.OK);window.close()};onClosed()}
+    override func close(){closeEditor()}
+    func windowShouldClose(_ sender:NSWindow)->Bool {closeEditor();return false}
+    func closeEditor(){
+        guard !isClosing,!finished else{return};isClosing=true
+        let closing=onClosing;onClosing={};closing()
+        release=Task { [self] in
+            if let window {
+                await FileOperationWindowDrain.detach(window,parent:parent)
+                window.delegate=nil;(window as? BlameToolbarEditorPanel)?.dismiss={}
+                window.contentViewController=nil;window.close()
+            }
+            finished=true;release=nil
+            let closed=onClosed;onClosed={};closed()
+        }
+    }
 }
 private struct BlameToolbarEditor:View {
     @ObservedObject var chrome:BlameToolbarController
@@ -151,7 +184,7 @@ private struct BlameToolbarEditor:View {
             }
             if !warning.isEmpty {Text(warning).foregroundStyle(.orange)}
             HStack {Button("Reset All Toolbars"){chrome.reset(session:session);selected=BlameToolbarConfiguration.standardID;selection=nil};Spacer();Button("Done",action:done).keyboardShortcut(.defaultAction)}
-        }.padding(16).onChange(of:selected){_ in selection=nil}
+        }.padding(16).disabled(!chrome.canConfigure(session)).onChange(of:selected){_ in selection=nil}
     }
     private func move(_ offset:Int){guard let index=selection,let bar else{return};let next=index+offset;guard bar.items.indices.contains(index),bar.items.indices.contains(next) else{return};modify{$0.items.swapAt(index,next)};selection=next}
 }

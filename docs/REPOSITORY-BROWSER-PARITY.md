@@ -721,3 +721,14 @@ snapshot/selected-entry boundary as export; raw-name restrictions remain intact.
 The existing standalone receiver retains original historical-byte, exclusive
 publication, cancellation and provider-release checks and adds actual folder
 promise delivery/collision checks. See [the grouped checkpoint](qa/hosted-native-recovery-2026-11-01.json).
+
+## Native historical menu continuation — November 22, 2026
+
+The [Browser history/menu family](BROWSER-HISTORY-CONTEXT-PARITY.md) adds paired
+folder/list keyboard and accessibility menu entry, an exact contents selection
+mark retained through sorting, native default-Open styling, localized captions
+and current accepted-backend historical handoff. Existing file materialization,
+Save/Open recovery, transfers and source command masks remain their own
+workflows. The [connected checkpoint](qa/history-file-context-family-2026-11-22.json)
+passes new Browser context/historical handoff and retained file delivery with
+both Git engines. Physical, signed and complete Browser acceptance remain separate.

@@ -1,0 +1,437 @@
+{
+  "schema": 1,
+  "recorded_date": "2026-11-22",
+  "source_commit": "974175124f738661799fb92a630160590a571fe4",
+  "scope": "Read-only hosted CI evidence for this committed source; separate from the newer uncommitted Browser/Log/Blame implementation batch.",
+  "runs": [
+    {
+      "id": 45007808681,
+      "name": "GitHub Pages",
+      "status": "completed",
+      "conclusion": "success",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45007808681",
+      "updated_at": "2026-11-22T09:31:03Z"
+    },
+    {
+      "id": 45007808748,
+      "name": "macOS",
+      "status": "completed",
+      "conclusion": "failure",
+      "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45007808748",
+      "updated_at": "2026-11-22T16:37:20Z"
+    }
+  ],
+  "macos_jobs": [
+    {
+      "id": 137210325897,
+      "name": "svn-runtime",
+      "status": "completed",
+      "conclusion": "success",
+      "failed_or_cancelled_steps": []
+    },
+    {
+      "id": 137216417891,
+      "name": "validation (history-references)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 110,
+          "name": "Native file selection and Log workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 221,
+          "name": "Native Browser historical Save and Open ownership",
+          "conclusion": "failure"
+        },
+        {
+          "number": 273,
+          "name": "Native Blame captured source menus",
+          "conclusion": "failure"
+        },
+        {
+          "number": 314,
+          "name": "Exact Unicode repository paths and browser actions",
+          "conclusion": "failure"
+        },
+        {
+          "number": 426,
+          "name": "Native Revision Graph window and Filter with both Git engines",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137216417922,
+      "name": "validation (settings-finder)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 101,
+          "name": "Commit options, Log columns and Settings appearance",
+          "conclusion": "failure"
+        },
+        {
+          "number": 325,
+          "name": "Native filesystem path completion",
+          "conclusion": "failure"
+        },
+        {
+          "number": 393,
+          "name": "Native language settings and compiled app resources",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137216417925,
+      "name": "validation (distribution)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 431,
+          "name": "Native Cherry Pick and Rebase recovery across Git versions",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137216417926,
+      "name": "validation (replay-transport)",
+      "status": "completed",
+      "conclusion": "cancelled",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 86,
+          "name": "Source history actions and replay identity family",
+          "conclusion": "failure"
+        },
+        {
+          "number": 191,
+          "name": "Grouped native LFS and Send Mail receivers with one compilation",
+          "conclusion": "failure"
+        },
+        {
+          "number": 196,
+          "name": "Rebase source forms and connected workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 235,
+          "name": "Native history navigation warnings Combine and child submodule inspections",
+          "conclusion": "failure"
+        },
+        {
+          "number": 252,
+          "name": "Native Clone progress and repository setup/transition recovery",
+          "conclusion": "failure"
+        },
+        {
+          "number": 268,
+          "name": "Native primary command launch family",
+          "conclusion": "failure"
+        },
+        {
+          "number": 333,
+          "name": "Native Log and Rebase font",
+          "conclusion": "failure"
+        },
+        {
+          "number": 346,
+          "name": "Grouped native Request Pull waiting, editor, mail and cancellation",
+          "conclusion": "failure"
+        },
+        {
+          "number": 359,
+          "name": "Native ordinary Fetch progress and post-actions",
+          "conclusion": "failure"
+        },
+        {
+          "number": 369,
+          "name": "Check connected Stash and Submodule recovery workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 370,
+          "name": "Check connected Switch, Reset and Bisect workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 374,
+          "name": "Native Rebase two-phase conflict messages and recovery",
+          "conclusion": "cancelled"
+        }
+      ]
+    },
+    {
+      "id": 137216417930,
+      "name": "validation (core)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 79,
+          "name": "Git integration tests",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137216417973,
+      "name": "validation (commit-repository)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 183,
+          "name": "Native historical file and folder item-provider receivers",
+          "conclusion": "failure"
+        },
+        {
+          "number": 231,
+          "name": "Native filtered historical file output and owned filter cancellation",
+          "conclusion": "failure"
+        },
+        {
+          "number": 255,
+          "name": "Native Add Remote and Select Remote Ref source workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 271,
+          "name": "Native workspace completion handoffs",
+          "conclusion": "failure"
+        },
+        {
+          "number": 302,
+          "name": "Source color conversion and native status text appearance",
+          "conclusion": "failure"
+        },
+        {
+          "number": 319,
+          "name": "Comparison savepoints, options, row edits and editor workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 371,
+          "name": "Native Commit, Rebase message editing and Fetch/Pull completion",
+          "conclusion": "failure"
+        },
+        {
+          "number": 389,
+          "name": "Native Commit and Rebase encoding receiver",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137216417982,
+      "name": "validation (images-documents)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 163,
+          "name": "EMF+ SourceCopy image and conflict workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 405,
+          "name": "Statistics source export filters and owned save cancellation",
+          "conclusion": "failure"
+        },
+        {
+          "number": 412,
+          "name": "Statistics source hover geometry and chart ownership",
+          "conclusion": "failure"
+        },
+        {
+          "number": 413,
+          "name": "Statistics exact author identity and graph exports",
+          "conclusion": "failure"
+        },
+        {
+          "number": 414,
+          "name": "Shared native graph scenes and enhanced-metafile save ownership",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137216418003,
+      "name": "validation (editors)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 169,
+          "name": "Scoped native Merge menus and pane shortcuts",
+          "conclusion": "failure"
+        },
+        {
+          "number": 177,
+          "name": "Compare and Merge folded keyboard input and aligned deletion",
+          "conclusion": "failure"
+        },
+        {
+          "number": 178,
+          "name": "Embedded Commit patches and Compare/Merge appearance ownership",
+          "conclusion": "failure"
+        },
+        {
+          "number": 202,
+          "name": "Native Encoding source sheet and editor transactions",
+          "conclusion": "failure"
+        },
+        {
+          "number": 209,
+          "name": "Native exact patch rename recovery and import provider paths",
+          "conclusion": "failure"
+        },
+        {
+          "number": 211,
+          "name": "Native legacy patch preview recovery and application",
+          "conclusion": "failure"
+        },
+        {
+          "number": 214,
+          "name": "Native Merge Editor source form and profile ownership",
+          "conclusion": "failure"
+        },
+        {
+          "number": 233,
+          "name": "Native replay readiness merge completion and Resolve inspection",
+          "conclusion": "failure"
+        },
+        {
+          "number": 287,
+          "name": "Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle",
+          "conclusion": "failure"
+        },
+        {
+          "number": 289,
+          "name": "Native Merge forced cleanup",
+          "conclusion": "failure"
+        },
+        {
+          "number": 295,
+          "name": "Grouped native Format Patch ownership, mail, policies and streaming",
+          "conclusion": "failure"
+        },
+        {
+          "number": 301,
+          "name": "Native patch file panel and recovery",
+          "conclusion": "failure"
+        },
+        {
+          "number": 313,
+          "name": "Native Compare and Merge AppKit toolbar workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 329,
+          "name": "Source Import Patch native list, options, owned panels and serial workflows",
+          "conclusion": "failure"
+        },
+        {
+          "number": 335,
+          "name": "Native message-history source dialog and Commit Merge handoff",
+          "conclusion": "failure"
+        },
+        {
+          "number": 360,
+          "name": "Native Abort Merge choices and Cancel routing",
+          "conclusion": "failure"
+        },
+        {
+          "number": 368,
+          "name": "Native Credential advanced editing and connected Merge workflows",
+          "conclusion": "failure"
+        }
+      ]
+    },
+    {
+      "id": 137277115090,
+      "name": "build-and-test",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_or_cancelled_steps": [
+        {
+          "number": 2,
+          "name": "Require every validation lane and runtime producer",
+          "conclusion": "failure"
+        }
+      ]
+    }
+  ],
+  "access_limitations": [
+    "Raw job logs from the connected GitHub log tool returned Transport closed for the queried core, history-references, editors, and commit-repository jobs.",
+    "Local gh CLI was unauthenticated (exit 4); no credentials were searched for or changed.",
+    "Step conclusions identify failed checks, not their underlying assertion or production root cause.",
+    "No runs or jobs were restarted/cancelled; no tests or builds were run for this diagnosis."
+  ],
+  "statistics_artifact": {
+    "id": 14760914760,
+    "name": "statistics-export-failure-45007808748-1",
+    "size_bytes": 32845,
+    "sha256": "2ed06bc31a36eb19ccb108a5f8d060164042561df1cff44c5ca9ee25d283fc0d",
+    "origin": "Downloaded through the connected GitHub workflow artifact tool; archive digest matches GitHub metadata. Large runtime artifact was not downloaded.",
+    "actual_result": "Statistics export ownership receiver exceeded the 300-second timeout with system Git /usr/bin/git.",
+    "prior_passes": [
+      "formats/system Git",
+      "selection/system Git",
+      "Ownership: held writer cancellation; forced owner close; Quit refusal; cancelled gate release; owner drain; preservation of the existing destination."
+    ],
+    "last_phase": "error sheet: actual OK performClick begin",
+    "last_state": "exports=0 calculations=0 pending=true canSave=false busy=false exporting=false hasSheet=true sheet= windowVisible=true error=none windows=5",
+    "receiver_pid": 74850,
+    "host_os": "macOS 15.7.9 (24G830), X86_64",
+    "source_evidence": [
+      {
+        "path": "docs/qa/statistics-export-family-native-2026-10-21.swift",
+        "line": 231,
+        "detail": "Fixture presents the actual NSAlert with beginSheetModal(for:completionHandler:), matching the production presentation API."
+      },
+      {
+        "path": "docs/qa/statistics-export-family-native-2026-10-21.swift",
+        "line": 236,
+        "detail": "The actual NSAlert OK button is invoked synchronously with performClick(nil); the immediately following returned-phase marker is absent."
+      },
+      {
+        "path": "Sources/TurtleGitMac/StatisticsWindow.swift",
+        "line": 263,
+        "detail": "Completion guards alert identity and owner retirement; then ends/orders out the sheet and awaits detachment before clearing exportError/model.hasSheet."
+      }
+    ],
+    "stack_evidence": "All 174 sampled main-thread stacks show NSApplication.run waiting for native events. No active performClick, NSAlert completion, endSheet, or waitForSheet frame appears. An auxiliary HIServices thread has the symbol SOME_OTHER_THREAD_SWALLOWED_AT_LEAST_ONE_EXCEPTION; this symbol alone does not identify an exception or its source.",
+    "diagnostic_limit": "Lost progress at native OK dispatch is proven. The evidence does not distinguish a fixture/AppKit action-dispatch failure from a production error-sheet completion problem. No production root-cause claim or sheet-retirement fix is justified yet.",
+    "next_bounded_diagnosis": "Add receiver-only failure diagnostics around native button target/action/state and error-completion entry/endSheet/settlement, plus bounded exception observation; recheck only ownership/system Git before choosing a repair. Keep the production ownership assertions intact."
+  },
+  "remaining_unknowns": "Underlying causes of the other failed hosted steps remain unreadable with currently available raw-log access. This record does not establish complete hosted CI, signed deployment, physical Finder integration, or whole-port completion.",
+  "available_artifacts": [
+    {
+      "id": 14762069953,
+      "name": "unsigned-appstore-distribution-audit-distribution",
+      "size_bytes": 381278,
+      "downloaded": false,
+      "reason": "Distribution audit, not a History/Core failure diagnostic."
+    },
+    {
+      "id": 14760914760,
+      "name": "statistics-export-failure-45007808748-1",
+      "size_bytes": 32845,
+      "downloaded": true
+    },
+    {
+      "id": 14754688359,
+      "name": "universal-git-svn-runtime",
+      "size_bytes": 147643325,
+      "downloaded": false,
+      "reason": "Large runtime artifact outside bounded diagnostic scope."
+    }
+  ],
+  "artifact_listing_scope": "Refreshed first-page workflow artifact API returned exactly these three artifacts; no History/Core failure diagnostic artifact was available."
+}

@@ -296,6 +296,15 @@ must finish or be cancelled before another file action starts. Closing Log cance
 pending inspection and waits for its cleanup; files already written remain in
 place. History-changing operations keep their normal availability rules.
 
+The changed-file report remembers its column order, widths and visibility.
+Right-click a heading to choose columns or reset them. Double-click a column
+divider to fit its contents; Shift-double-click restores its default width. File menus offer
+**Extensions**, **Copy all information to clipboard** in visible-column order,
+and a copy command for the pointed column. With the report focused, **Shift-F10**
+or accessibility **Show Menu** opens the selected files' menu. Parent headings
+describe merge comparisons and cannot be selected as files. Double-click acts on
+the pointed file; explicit multi-file commands retain the selected set.
+
 ![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-10-27.png)
 
 ![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-10-27.png)
@@ -330,6 +339,13 @@ range commands.
 Repository Browser reads the tree at a pinned revision. Navigate folders, inspect
 files, and use Open or Save to work with a historical copy. A historical file is
 not the current working file. Review a Revert action carefully before accepting it.
+
+Both the folder tree and contents list support **Shift-F10** and accessibility
+**Show Menu**. The contents menu retains the highlighted files and anchors at the
+focused selected item. **Open** is the default action when available. **Show log**
+opens history through the browsed revision for that file or folder; the browsed
+revision is selected when it belongs to that path's displayed history. **Show
+submodule log** uses the recorded child revision.
 
 Drag selected files or folders to export their historical contents. Folder drags
 also offer the recursive repository-relative paths as text; submodules contribute

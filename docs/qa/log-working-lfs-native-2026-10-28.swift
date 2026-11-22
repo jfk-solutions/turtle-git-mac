@@ -323,8 +323,9 @@ private extension NSWindow {
             try require(model.workingLFSActions(try c.ids(paths,owner)).isEmpty,"Ineligible/conflicted/directory selection exposed LFS: \(paths)")
         }
         try require(model.workingLFSActions(GitPathSet()).isEmpty && model.workingLFSActions(["not-a-row"]).isEmpty,"Empty/foreign selection exposed LFS")
-        let columnProbe=try unwrap(views(owner.window?.contentView).compactMap{$0 as? CommitFileInteraction.Probe}.first,"Missing native column adapter")
-        try require(!columnProbe.columnMenu().items.contains{$0.title==StatusListColumn.lfsOwner.rawValue},"Log invented an LFS-owner column")
+        let fileTable=try unwrap(views(owner.window?.contentView).compactMap{$0 as? LogChangedFileNativeTable}.first,"Missing actual native changed-file report")
+        let columnMenu=try unwrap(fileTable.headerView?.menu,"Missing actual native header menu");columnMenu.delegate?.menuNeedsUpdate?(columnMenu)
+        try require(!columnMenu.items.contains{$0.title==StatusListColumn.lfsOwner.rawValue} && fileTable.tableColumns.count==5,"Log invented an LFS-owner column")
         model.setChangedFileColumn(.lfsOwner,visible:true)
         try require(!model.changedFileColumns.visible.contains(.lfsOwner),"Log accepted a column outside the source allowed mask")
         try require(MenuIcon.lock.contextImage(defaults:c.preferences) != nil && MenuIcon.unlock.contextImage(defaults:c.preferences) != nil,"Original LFS command images missing")
