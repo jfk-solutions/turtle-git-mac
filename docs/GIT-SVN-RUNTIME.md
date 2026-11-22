@@ -30,6 +30,11 @@ runtime. Ordinary builds still refuse an existing output directory. Source error
 name the component, version, URL and cache file while retaining the original
 HTTP/checksum error. A checksum failure still stops without publishing an archive.
 
+Native dependency compilation stays parallel. The generated Perl bindings and
+their installation run serially because MakeMaker targets share module staging
+files; parallel copies can make another target's destination read-only. Completed
+native components retain their recipe stamps when this binding phase is repaired.
+
 Each CPU has its own private interpreter, core/XS modules and native libraries;
 the dispatcher is universal arm64/x86_64. This avoids merging architecture-
 specific Perl configuration files. macOS deployment is capped at 13.0. The

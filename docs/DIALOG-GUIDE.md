@@ -282,6 +282,12 @@ message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. [Finding revisions](LOG-FIND.md) explains Log's Find flow.
 
+Information, operation feedback and the footer retain their space while Log
+loads or reports an error, so the revision/message/file panes stay in place.
+Open the compact status disclosure for the complete selectable diagnostic.
+Its Copy button uses this Log window's status; it is unavailable while a Log
+details read already owns the clipboard.
+
 You can inspect a loaded revision's files while more history is arriving. Use
 Show log (including an old name), Blame, file comparisons, Open/Open With, Save
 revision or Export as offered for the selected files. Copy and historical file
@@ -485,6 +491,12 @@ configured to require rebase can select that behavior automatically. Read the
 progress and conflict result before starting another integration operation.
 
 ## Synchronization progress
+
+Quick Resolve from Sync's conflict list opens an owned confirmation/progress
+sheet. Finish or cancel that child before starting another Sync action. Its
+repository, selected files and settings remain those of the originating Sync
+window. The conflict list refreshes after the result closes when the saved
+refresh-after-resolving option is enabled. Clipboard includes Extensions.
 
 In the incoming/outgoing file and revision lists, Shift-F10 opens the selected
 rows' context menu. Accessibility **Show Menu** uses the same commands and

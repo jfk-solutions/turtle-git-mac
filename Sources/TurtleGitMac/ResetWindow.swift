@@ -18,14 +18,15 @@ struct ResetChooserDraft: Equatable {
     private var retiredProgress:ResetProgressWindowModel?
     private var retiredLogPickers:[LogWindowController]=[]
     private var retiredReferencePickers:[ReferenceBrowserWindowController]=[]
-    var transportBatchWorkPending:Bool {
+    private var underlyingWorkPending:Bool {
         model.pendingBatchWorkers>0 || model.chooser.hasPendingReferenceReads ||
         model.progress?.hasPendingWork == true || retiredProgress?.hasPendingWork == true ||
         progressController?.model.hasPendingWork == true ||
         ([commitPicker].compactMap{$0}+retiredLogPickers).contains{$0.model.pendingHistoryLoads>0 || $0.window?.sheetParent != nil} ||
         ([referencePicker].compactMap{$0}+retiredReferencePickers).contains{$0.model.pendingReferenceReads>0 || $0.window?.sheetParent != nil} ||
-        !childReleases.isEmpty || release != nil || window?.attachedSheet != nil || window?.sheetParent != nil
+        !childReleases.isEmpty
     }
+    var transportBatchWorkPending:Bool {underlyingWorkPending || release != nil || window?.attachedSheet != nil || window?.sheetParent != nil}
     private var release:ResetChildRelease?
     private var childReleases:[UUID:ResetChildRelease]=[:]
     private var closedActions:[()->Void]=[]
@@ -76,7 +77,7 @@ struct ResetChooserDraft: Equatable {
             if !self.closed {self.presentationParent=self.window?.sheetParent;self.window?.close()}
         }
         model.onReadSettled = { [weak self] in self?.finishReadClose() }
-        model.close = { [weak self] in guard let self else { return }; if self.model.confirmingQuit || self.model.confirmingHard {return}; if self.model.cancelReads(closeAfter: true) { return }; guard !self.model.busy, !self.model.showingModifiedFiles, !self.model.showingCommitPicker, !self.model.showingReferencePicker, self.model.progress == nil, self.window?.attachedSheet == nil else { return }; self.window?.close() }
+        model.close = { [weak self] in self?.requestClose() }
         model.onShowReferencePicker = { [weak self] in self?.showReferencePicker(preferences: preferences) }
         model.onShowCommitPicker = { [weak self] in self?.showCommitPicker(preferences: preferences) }
         model.onShowModified = { [weak self] in self?.showModifiedFiles() }
@@ -110,7 +111,7 @@ struct ResetChooserDraft: Equatable {
     }
     private func finishReadClose() {
         guard !closed, model.closeAfterRead, !model.busy, !model.chooser.busy, window?.attachedSheet == nil else { return }
-        window?.close()
+        requestClose()
     }
     private func releaseChild(_ child:NSWindow?,completion:@escaping ()->Void) {
         guard let child else {completion();return}
@@ -191,7 +192,18 @@ struct ResetChooserDraft: Equatable {
         controller.model.load()
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool { if model.confirmingQuit {return false}; if model.cancelReads(closeAfter: true) { return false }; return !model.showingModifiedFiles && !model.showingCommitPicker && !model.showingReferencePicker && !model.busy && !model.confirmingHard && model.progress == nil && !model.chooser.busy && sender.attachedSheet == nil }
-    func windowWillClose(_ notification: Notification) {
+    private func requestClose() {
+        guard !closed,!model.confirmingQuit,!model.confirmingHard,let window,windowShouldClose(window) else{return}
+        close()
+    }
+    override func close() {
+        presentationParent=window?.sheetParent ?? presentationParent
+        super.close();retireClosedWindow()
+    }
+    func windowWillClose(_ notification:Notification) {
+        presentationParent=window?.sheetParent ?? presentationParent;retireClosedWindow()
+    }
+    private func retireClosedWindow() {
         guard !closed else { return }; closed = true; retiredProgress=model.progress
         if let commitPicker {retiredLogPickers.append(commitPicker)}
         if let referencePicker {retiredReferencePickers.append(referencePicker)}
@@ -203,8 +215,8 @@ struct ResetChooserDraft: Equatable {
         modifiedComparison?.close(); modifiedComparison = nil
         model.finishModifiedFiles()
         guard let window else {released=true;onClosed();let actions=closedActions;closedActions=[];actions.forEach {$0()};return}
-        let release=ResetChildRelease(window:window,parent:presentationParent ?? window.sheetParent) { [self] in
-            self.release=nil;released=true;onClosed();let actions=closedActions;closedActions=[];actions.forEach {$0()}
+        let release=ResetChildRelease(window:window,parent:presentationParent ?? window.sheetParent,ready:{ [self] in !underlyingWorkPending }) { [self] in
+            self.release=nil;presentationParent=nil;released=true;onClosed();let actions=closedActions;closedActions=[];actions.forEach {$0()}
         }
         self.release=release;release.start()
     }

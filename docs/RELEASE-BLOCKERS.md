@@ -5,6 +5,24 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## History operation presentation — November 22, 2026
+
+The [connected family](HISTORY-OPERATION-PRESENTATION-PARITY.md) passes eight
+native case/engine combinations cumulatively after recorded driver/oracle and
+actual ownership repairs. It stabilizes Log feedback and owns Sync Resolve/Reset
+through confirmation, Git work and native release. The
+[checkpoint](qa/history-operation-presentation-2026-11-22.json) retains the
+parallel binding-build failure, corrected dependency preparation/promotion,
+three affected app build invocations and all native attempts. Prepared54 runtime
+kits are current and originals preserved; signed54 application construction and
+local testing remain next. Installed52 and signed53 are unchanged.
+
+The later observed 03344 [macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/44998460700)
+has a successful SVN producer and running/queued app validation lanes. That run
+predates this family's UI and serial binding recipe changes; it cannot prove
+matching-source acceptance for them. Full CI, signed/physical Finder/platform and
+whole-port acceptance remain open.
+
 ## Runtime source recovery — November 22, 2026
 
 The [source recovery](qa/runtime-source-recovery-2026-11-22.json) retains the
@@ -76,8 +94,8 @@ The later [f2c4f9dc macOS run](https://github.com/jfk-solutions/turtle-git-mac/a
 stopped at the pinned universal Perl/Subversion runtime producer. Application
 validation was skipped and the aggregate failed; Pages passed. The
 [job summary](qa/hosted-f2c4-producer-summary-2026-11-22.json) records that boundary
-without inferring the producer's underlying cause. This is the newest observed
-hosted state, not evidence that the app checks passed or failed.
+without inferring the producer's underlying cause. This completed run does not establish application test results; the later 03344
+running observation above is separate.
 
 The later [d368022a macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42425593387)
 is terminal failure. Its [step summary](qa/hosted-d368-terminal-summary-2026-11-22.json)

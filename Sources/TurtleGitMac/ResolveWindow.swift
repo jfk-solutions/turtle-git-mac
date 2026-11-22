@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
     var externalAvailability:()->Bool {get{model.externalAvailability}set{model.externalAvailability=newValue}}
     var onProgressLog:(String)->Void = {_ in}
     private var finishing=false
+    private var presentationParent:NSWindow?
     private var commitHandoff:(()->Void)?
     var onClosed: () -> Void = {}
     var onChanged: (String) -> Void = { _ in }
@@ -39,7 +40,7 @@ import UniformTypeIdentifiers
         super.init(window: window); window.delegate = self
         window.contentViewController = NSHostingController(rootView: ResolveDialog(model: model, commit: { [weak self] in self?.commit() }).defaultAppStorage(preferences))
         window.setContentSize(size); window.center()
-        model.close = { [weak self] in guard let self, !self.retired else { return }; self.window?.performClose(nil) }
+        model.close = { [weak self] in self?.requestClose() }
         model.confirm = { [weak self] choice, entries in self?.confirm(choice, entries: entries) }
         model.onChanged = { [weak self] output in guard let self, !self.retired else { return }; self.onChanged(output) }
         model.onProgress = { [weak self] in
@@ -138,7 +139,7 @@ import UniformTypeIdentifiers
     private func finishQuestion(_ id: UUID, answer: NSApplication.ModalResponse?) {
         guard let pending = question, pending.0 == id else { return }; question = nil
         Task { [self] in
-            await FileOperationWindowDrain.detach(pending.1.window)
+            await FileOperationWindowDrain.detach(pending.1.window,parent:window)
             model.hasQuestion=false;pending.2(answer)
         }
     }
@@ -154,8 +155,14 @@ import UniformTypeIdentifiers
         if model.busy{model.cancel();return false}
         return !model.confirmingQuit && !model.handoffPending && !model.hasQuestion && !model.hasChild && !model.progressFileActionBusy && !model.confirmingCancellation && sender.attachedSheet==nil
     }
-    override func close(){super.close();retireClosedWindow()}
-    func windowWillClose(_ notification:Notification){retireClosedWindow()}
+    private func requestClose() {
+        guard !retired,let window,windowShouldClose(window) else{return}
+        // A sheet has no ordinary enabled titlebar Close button. Use the same
+        // delegate policy directly instead of AppKit's button activation path.
+        close()
+    }
+    override func close(){presentationParent=window?.sheetParent ?? presentationParent;super.close();retireClosedWindow()}
+    func windowWillClose(_ notification:Notification){presentationParent=window?.sheetParent ?? presentationParent;retireClosedWindow()}
     private func retireClosedWindow(){
         guard !retired else{return};retired=true
         let callback=commitHandoff;commitHandoff=nil
@@ -167,8 +174,9 @@ import UniformTypeIdentifiers
         Self.activeReleases += 1
         Task { [self] in
             defer{Self.activeReleases -= 1;model.handoffPending=false}
-            for sheet in sheets{await FileOperationWindowDrain.detach(sheet)}
-            if let window{await FileOperationWindowDrain.detach(window)}
+            for sheet in sheets{await FileOperationWindowDrain.detach(sheet,parent:window)}
+            if let window{await FileOperationWindowDrain.detach(window,parent:presentationParent)}
+            presentationParent=nil
             while model.busy || model.confirmingCancellation || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
             window?.contentViewController=nil
             onClosed()
@@ -212,7 +220,7 @@ struct ResolveConflictRow: Identifiable {
     private(set) var generation = UUID()
     private var cancellation: OperationCancellation?
     private var refreshCancellation: OperationCancellation?
-    private var loaded = false, reloadQueued = false
+    private var loaded = false, reloadQueued = false, initialLoadStarted = false
     private var fileMenuEpoch = UUID()
     private var usedFileMenus = Set<UUID>()
     private var droppedProviders: [NSItemProvider] = []
@@ -338,8 +346,16 @@ struct ResolveConflictRow: Identifiable {
         try token.check(); guard live(token) else { return }
         publishConflicts(next.0,rebase:next.1)
     }
+    /// A managed presenter can start preparation before SwiftUI appears. That
+    /// view attachment must not enqueue another read which replaces the quick
+    /// Resolve confirmation's generation. Explicit later refreshes still load.
+    func loadInitial() {
+        guard active,!initialLoadStarted else{return}
+        load()
+    }
     func load() {
         guard active else { return }
+        initialLoadStarted=true
         if commandOptions?.noQuestion == true { startUnreviewedProgress(); return }
         if busy || hasQuestion || hasChild || showingProgress { reloadQueued = true; return }
         invalidateFileMenus()
@@ -607,7 +623,7 @@ private struct ResolveDialog: View {
                 }.padding(12)
                 .onDrop(of:[UTType.fileURL.identifier],isTargeted:nil) { model.receiveFileDrop($0) }
             }
-        }.onAppear { model.load() }
+        }.onAppear { model.loadInitial() }
         .alert("Could not resolve conflicts", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil; if model.quick != nil || model.silentAttempt { model.close() } }
         } message: { Text(model.error ?? "") }

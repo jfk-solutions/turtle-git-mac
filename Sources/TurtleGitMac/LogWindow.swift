@@ -2197,6 +2197,48 @@ struct LogCommandRequest: Identifiable {
         }
     }
     var unifiedWindow: PatchWindowController?
+    /// Passive feedback retains all diagnostics without adding layout rows.
+    /// Request identity also retires a retained Copy action when a new source
+    /// read happens to have the same translated caption.
+    var feedbackPresentation:LogFeedbackPresentation {
+        var messages:[String]=[]
+        if busy && !loadingHistory {messages.append(NSLocalizedString("Working…",comment:""))}
+        if patchPreviewLoading {messages.append(NSLocalizedString("Reading patch…",comment:""))}
+        if let error=patchPreviewError,!error.isEmpty {messages.append(error)}
+        if let error=patchPreferenceError,!error.isEmpty {messages.append(NSLocalizedString("Could not remember View Patch: ",comment:"")+error)}
+        if loadingNote {messages.append(NSLocalizedString("Reading notes…",comment:""))}
+        if copyingDetails {messages.append(NSLocalizedString("Reading log details for clipboard…",comment:""))}
+        return LogFeedbackPresentation(messages:messages,
+            activity:(busy && !loadingHistory) || patchPreviewLoading || loadingNote || copyingDetails,
+            failure:patchPreviewError?.isEmpty == false || patchPreferenceError?.isEmpty == false,
+            requests:[generation,patchPreviewGeneration,patchPreferenceGeneration,noteGeneration,clipboardGeneration],
+            controlEpoch:fileMenuGeneration)
+    }
+    var feedbackMessages:[String] {feedbackPresentation.messages}
+    @Published private(set) var feedbackDetails:LogFeedbackDetailsSnapshot?
+    var canReadFeedback:Bool {
+        !isInvalidated && !confirmingQuit && !findBlocked && !orderingBlocked && !referencePickerBlocked &&
+            !resettingRevisionColumns && !resettingChangedFileColumns && noteRequest == nil &&
+            !configureHistoryDefaults && commandRequest == nil && window != nil && window?.attachedSheet == nil && NSApp.modalWindow == nil
+    }
+    @discardableResult func showFeedbackDetails()->Bool {
+        let presentation=feedbackPresentation
+        guard canReadFeedback,!presentation.messages.isEmpty else{return false}
+        feedbackDetails=LogFeedbackDetailsSnapshot(owner:ObjectIdentifier(self),presentation:presentation)
+        return true
+    }
+    func closeFeedbackDetails() {feedbackDetails=nil}
+    func canCopyFeedbackDetails(_ snapshot:LogFeedbackDetailsSnapshot)->Bool {
+        canReadFeedback && !copyingDetails && snapshot.owner==ObjectIdentifier(self) &&
+            feedbackDetails?.id==snapshot.id && snapshot.presentation==feedbackPresentation
+    }
+    @discardableResult func copyFeedbackDetails(_ snapshot:LogFeedbackDetailsSnapshot)->Bool {
+        guard canCopyFeedbackDetails(snapshot) else{return false}
+        // A passive status Copy never cancels or steals a history clipboard
+        // request. While one owns the pasteboard, this command is unavailable.
+        clipboard.clearContents();clipboard.setString(snapshot.text,forType:.string)
+        return true
+    }
     @Published private(set) var patchPreviewVisible = false
     @Published private(set) var patchPreviewData = Data()
     @Published private(set) var patchPreviewLoading = false
@@ -2588,7 +2630,7 @@ struct LogCommandRequest: Identifiable {
     func invalidate() {
         // Fence callbacks before cancellation publishes any idle state. A
         // retired model is never a reusable reopen target.
-        isInvalidated=true;closeAfterUnifiedRead=false;cancelRepositoryRefresh()
+        isInvalidated=true;closeFeedbackDetails();closeAfterUnifiedRead=false;cancelRepositoryRefresh()
         retireRevisionColumns?()
         noteSaveCancellation?.cancel();noteIdentitySession?.retire()
         bisectRead?.cancel(); bisectRead = nil
@@ -4004,6 +4046,117 @@ extension LogWindowModel {
     }
 }
 
+struct LogInformationBand:View {
+    let text:String
+    var body:some View {
+        Text(text).font(.system(size:11)).lineLimit(2)
+            .frame(maxWidth:.infinity,minHeight:30,maxHeight:30,alignment:.topLeading)
+            .textSelection(.enabled).help(text)
+            .accessibilityIdentifier("Log.Information")
+            .background(LogPresentationBandAnchor(identifier:"Log.Information"))
+    }
+}
+
+struct LogFeedbackPresentation:Equatable {
+    let messages:[String],activity:Bool,failure:Bool
+    let requests:[Int],controlEpoch:UUID
+    static func ==(left:Self,right:Self)->Bool {
+        left.activity==right.activity && left.failure==right.failure && left.requests==right.requests &&
+            left.controlEpoch==right.controlEpoch && left.messages.elementsEqual(right.messages,by:{$0.utf8.elementsEqual($1.utf8)})
+    }
+    var text:String {messages.joined(separator:"\n")}
+    var summary:String {messages.flatMap{$0.components(separatedBy:.newlines)}.filter{!$0.isEmpty}.joined(separator:" · ")}
+}
+struct LogFeedbackDetailsSnapshot:Identifiable {
+    let id=UUID()
+    let owner:ObjectIdentifier
+    let presentation:LogFeedbackPresentation
+    var text:String {presentation.text}
+}
+/// An actual native status control exposes the complete, unflattened value to
+/// accessibility and native help, even where SwiftUI's host exposes no children.
+struct LogFeedbackDisclosure:NSViewRepresentable {
+    @ObservedObject var model:LogWindowModel
+    let presentation:LogFeedbackPresentation
+    @Environment(\.isEnabled) private var enabled
+    func makeCoordinator()->Coordinator {Coordinator(model)}
+    func makeNSView(context:Context)->NSButton {
+        let button=NSButton(title:"",target:context.coordinator,action:#selector(Coordinator.show(_:)))
+        button.isBordered=false;button.setButtonType(.momentaryPushIn);button.alignment = .left
+        button.font = .systemFont(ofSize:NSFont.smallSystemFontSize)
+        button.image=NSImage(systemSymbolName:"chevron.down",accessibilityDescription:nil)
+        button.imagePosition = .imageTrailing;button.imageHugsTitle=true
+        button.cell?.lineBreakMode = .byTruncatingTail;button.cell?.usesSingleLineMode=true
+        button.setContentHuggingPriority(.defaultLow,for:.horizontal)
+        button.setContentCompressionResistancePriority(.defaultLow,for:.horizontal)
+        button.identifier = .init("Log.FeedbackDisclosure")
+        button.setAccessibilityLabel(NSLocalizedString("Log status",comment:""))
+        return button
+    }
+    func sizeThatFits(_ proposal:ProposedViewSize,nsView:NSButton,context:Context)->CGSize? {
+        CGSize(width:proposal.width.flatMap{$0.isFinite ? $0:nil} ?? 100,height:20)
+    }
+    func updateNSView(_ button:NSButton,context:Context) {
+        context.coordinator.presentation=presentation
+        button.title=presentation.summary.isEmpty ? " ":presentation.summary
+        let color=presentation.failure ? NSColor.systemRed:NSColor.secondaryLabelColor
+        button.attributedTitle=NSAttributedString(string:button.title,attributes:[.font:button.font ?? NSFont.systemFont(ofSize:NSFont.smallSystemFontSize),.foregroundColor:color])
+        button.contentTintColor=color;button.toolTip=presentation.text
+        button.setAccessibilityValue(presentation.text)
+        button.isEnabled=enabled && model.canReadFeedback && !presentation.messages.isEmpty
+        button.setAccessibilityElement(!presentation.messages.isEmpty)
+    }
+    static func dismantleNSView(_ button:NSButton,coordinator:Coordinator) {
+        coordinator.retired=true;button.isEnabled=false;button.target=nil;button.action=nil
+    }
+    @MainActor final class Coordinator:NSObject {
+        private weak var model:LogWindowModel?
+        var presentation:LogFeedbackPresentation?
+        var retired=false
+        init(_ model:LogWindowModel) {self.model=model}
+        @objc func show(_ sender:NSButton) {
+            guard !retired,sender.isEnabled,let model,let presentation,
+                  sender.window === model.window,presentation==model.feedbackPresentation else{return}
+            model.showFeedbackDetails()
+        }
+    }
+}
+private struct LogFeedbackDetailsView:View {
+    @ObservedObject var model:LogWindowModel
+    let snapshot:LogFeedbackDetailsSnapshot
+    private var textHeight:CGFloat {
+        let rectangle=(snapshot.text as NSString).boundingRect(with:NSSize(width:440,height:CGFloat.greatestFiniteMagnitude),
+            options:[.usesLineFragmentOrigin,.usesFontLeading],attributes:[.font:NSFont.systemFont(ofSize:13)])
+        return min(260,max(30,ceil(rectangle.height)+4))
+    }
+    var body:some View {
+        VStack(alignment:.leading,spacing:10) {
+            Text("Log status").font(.headline)
+            ScrollView {
+                Text(snapshot.text).font(.system(size:13)).textSelection(.enabled)
+                    .frame(maxWidth:.infinity,alignment:.leading)
+            }.frame(width:440,height:textHeight)
+            HStack {
+                Spacer()
+                Button {model.copyFeedbackDetails(snapshot)} label: {CommandLabel(title:"Copy",icon:.copy)}
+                    .disabled(!model.canCopyFeedbackDetails(snapshot))
+            }
+        }.padding(12).accessibilityIdentifier("Log.FeedbackDetails")
+            .background(LogPresentationBandAnchor(identifier:"Log.FeedbackDetails"))
+    }
+}
+/// Stable native frame markers, with no event/accessibility ownership of their
+/// own. Information/status controls retain their normal keyboard and AX routes.
+struct LogPresentationBandAnchor:NSViewRepresentable {
+    let identifier:String
+    func makeNSView(context:Context)->Probe {let view=Probe();view.identifier = .init(identifier);return view}
+    func updateNSView(_ view:Probe,context:Context) {view.identifier = .init(identifier)}
+    final class Probe:NSView {
+        override func hitTest(_ point:NSPoint)->NSView? {nil}
+        override func isAccessibilityElement()->Bool {false}
+    }
+}
+
 struct LogDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: LogWindowModel
@@ -4089,8 +4242,7 @@ struct LogDialog: View {
                 }
             }
             .background(LogPaneLayoutBridge(model: model))
-            Text(HistoryLabels.information(model.information)).font(.system(size: 11)).lineLimit(2)
-                .frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled).help(HistoryLabels.information(model.information))
+            LogInformationBand(text:HistoryLabels.information(model.information))
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Toggle("Show Whole Project", isOn: Binding(get: { model.showWholeProject }, set: model.setWholeProject)).toggleStyle(.checkbox).disabled(!model.canChangeWholeProject)
@@ -4101,14 +4253,7 @@ struct LogDialog: View {
                 LogFilterField(model: model, kind: .paths).frame(minWidth: 180, maxWidth: .infinity)
                 Button("Help") { TurtleGitHelp.show(.log) }
             }
-            VStack(alignment:.leading,spacing:4) {
-                if model.busy && !model.loadingHistory { ProgressView().controlSize(.small) }
-                if model.patchPreviewLoading { ProgressView("Reading patch…").controlSize(.small) }
-                if let error = model.patchPreviewError { Text(error).foregroundStyle(.red).font(.caption) }
-                if let error = model.patchPreferenceError { Text("Could not remember View Patch: " + error).foregroundStyle(.red).font(.caption) }
-                if model.loadingNote { ProgressView("Reading notes…").controlSize(.small) }
-                if model.copyingDetails { ProgressView("Reading log details for clipboard…").controlSize(.small) }
-            }.frame(maxWidth:.infinity,alignment:.leading)
+            feedbackBand
             HStack {
                 Button("Refresh") { model.refreshFromSourceCommand() }.disabled(!model.canUseSourceCommands)
                 if model.loadingHistory {
@@ -4124,9 +4269,20 @@ struct LogDialog: View {
                 Spacer()
                 Button("OK") { model.accept() }.disabled(model.selecting && !model.canAcceptSelection).keyboardShortcut(.defaultAction)
                 Button("Cancel") { model.close() }.keyboardShortcut(.cancelAction)
-            }
+            }.frame(height:32)
+                .accessibilityIdentifier("Log.Footer")
+                .background(LogPresentationBandAnchor(identifier:"Log.Footer"))
         }.padding(12).frame(minWidth: 1040, minHeight: 650)
         .disabled(model.resettingRevisionColumns)
+        .onChange(of:model.feedbackPresentation) {_ in model.closeFeedbackDetails()}
+        .onChange(of:model.canReadFeedback) {available in if !available {model.closeFeedbackDetails()}}
+        .onReceive(NotificationCenter.default.publisher(for:NSWindow.willBeginSheetNotification)) {notice in
+            if notice.object as? NSWindow === model.window {model.closeFeedbackDetails()}
+        }
+        .onReceive(NotificationCenter.default.publisher(for:NSWindow.didEndSheetNotification)) {notice in
+            if notice.object as? NSWindow === model.window {model.objectWillChange.send()}
+        }
+        .onDisappear {model.closeFeedbackDetails()}
         .alert("Git operation failed", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: { Text(model.error ?? "") }
@@ -4136,6 +4292,20 @@ struct LogDialog: View {
         .sheet(isPresented: $model.configureHistoryDefaults) { HistoryLimitSettings(defaults: model.colorPreferences, onClose: { model.configureHistoryDefaults = false }).frame(width: 440).padding(20) }
         .sheet(item: $model.commandRequest) { request in LogRevisionDialog(model: model, request: request) }
 
+    }
+    private var feedbackBand:some View {
+        let presentation=model.feedbackPresentation,details=presentation.text
+        return HStack(spacing:6) {
+            ProgressView().controlSize(.small).frame(width:18,height:18)
+                .opacity(presentation.activity ? 1:0).accessibilityHidden(!presentation.activity).allowsHitTesting(false)
+            LogFeedbackDisclosure(model:model,presentation:presentation).frame(maxWidth:.infinity)
+                .opacity(details.isEmpty ? 0:1).accessibilityHidden(details.isEmpty)
+                .popover(isPresented:Binding(get:{model.feedbackDetails != nil},set:{if !$0 {model.closeFeedbackDetails()}})) {
+                    if let snapshot=model.feedbackDetails {LogFeedbackDetailsView(model:model,snapshot:snapshot)}
+                }
+        }.frame(maxWidth:.infinity,minHeight:24,maxHeight:24,alignment:.leading)
+            .accessibilityIdentifier("Log.Feedback")
+            .background(LogPresentationBandAnchor(identifier:"Log.Feedback"))
     }
     @ViewBuilder private func fileContextActions(_ ids: GitPathSet) -> some View {
         let snapshot = model.fileMenuSnapshot(ids)

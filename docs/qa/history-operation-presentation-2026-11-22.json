@@ -1,0 +1,589 @@
+{
+  "preceding_hosted": {
+    "run": 44998460700,
+    "source": "03344d0426653a1ec013672ab751f94fc04facc9",
+    "scope": "Observed job summaries; this run predates the current Log/Sync/Resolve and serial binding recipe changes",
+    "jobs": [
+      {
+        "id": 137134539371,
+        "name": "svn-runtime",
+        "status": "completed",
+        "conclusion": "success",
+        "current_steps": []
+      },
+      {
+        "id": 137139302305,
+        "name": "validation (core)",
+        "status": "in_progress",
+        "conclusion": null,
+        "current_steps": [
+          {
+            "name": "Application and embedded Finder extension",
+            "status": "in_progress",
+            "conclusion": null
+          }
+        ]
+      },
+      {
+        "id": 137139302316,
+        "name": "validation (images-documents)",
+        "status": "queued",
+        "conclusion": null,
+        "current_steps": []
+      },
+      {
+        "id": 137139302330,
+        "name": "validation (replay-transport)",
+        "status": "in_progress",
+        "conclusion": null,
+        "current_steps": [
+          {
+            "name": "Build and verify pinned universal Revision Graph layout engine",
+            "status": "in_progress",
+            "conclusion": null
+          }
+        ]
+      },
+      {
+        "id": 137139302347,
+        "name": "validation (settings-finder)",
+        "status": "queued",
+        "conclusion": null,
+        "current_steps": []
+      },
+      {
+        "id": 137139302355,
+        "name": "validation (distribution)",
+        "status": "queued",
+        "conclusion": null,
+        "current_steps": []
+      },
+      {
+        "id": 137139302364,
+        "name": "validation (commit-repository)",
+        "status": "in_progress",
+        "conclusion": null,
+        "current_steps": [
+          {
+            "name": "Build pinned universal Git runtime with source and licenses",
+            "status": "in_progress",
+            "conclusion": null
+          }
+        ]
+      },
+      {
+        "id": 137139302379,
+        "name": "validation (history-references)",
+        "status": "in_progress",
+        "conclusion": null,
+        "current_steps": [
+          {
+            "name": "Application and embedded Finder extension",
+            "status": "in_progress",
+            "conclusion": null
+          }
+        ]
+      },
+      {
+        "id": 137139302426,
+        "name": "validation (editors)",
+        "status": "queued",
+        "conclusion": null,
+        "current_steps": []
+      }
+    ]
+  },
+  "created_utc": "2026-11-22T08:43:49.674740+00:00",
+  "base_commit": "03344d0426653a1ec013672ab751f94fc04facc9",
+  "pinned_upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "Stable native Log information/feedback/footer and owned Sync Resolve/Reset recovery, plus runtime preparation blocking the app checkpoint; not full native port acceptance",
+  "source_fixture_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "ff2bed8d6aaa3e3292998a06ec4765f77850be5940c015f5b08cbf33d7a9925d",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "627f8617a793836ddce3a60bccb8039b0ce9e460a99cc118c1a1cbb3c59e1d66",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "c98b0ad7cb99465b4c91de52d39a723a5c39deae8fb65cebc655ac565195413b",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "83834592c47ea9f362b68d1570a25d7f40326b3db139ea27b37d09528eec37e9",
+    "Sources/TurtleGitMac/ResetWindow.swift": "df784bb052ea81b742c76e9d2afa7f58d1a24b245e1a4f8bc0e378d2f224797a",
+    "Sources/TurtleGitMac/FileOperationProgress.swift": "3d677e6ad3907580918f72f3f2478277d88a97a4cdaaf047972a1be539b8386b",
+    "scripts/build-git-svn-runtime.py": "763c7472ce6b82cdf4f881c500b71fe751ad7215931f9c3023cb1f87ccd8a984",
+    "scripts/test-history-feedback-conflict-batch.py": "49360fba8ba1d671915e288d82bc14806b9ae96e48e84f385db2ef5f4c89364e",
+    "scripts/test-log-controls-layout.py": "4fd11a96094beb39f9c67559c6e6a2c2f9eac43560dc6386de6619321cdd635d",
+    "scripts/test-sync-conflict-files.py": "a3e6966a987b0caebc49b6f48f88e97d7bba0c42bb2f8b01ff5618e1d6ed8884",
+    "docs/qa/log-feedback-stability-native-2026-11-22.swift": "eaae57b1581af761a4da7ddaf037f5737399e9a197d79d7b95a92e157ff89834",
+    "docs/qa/sync-conflict-recovery-native-2026-11-22.swift": "9bc762604ea2c9d685279d3dd8bd3d00c63208e9899dd496bbf46afe0506d4de",
+    "docs/qa/sync-conflict-files-native-2026-10-17.swift": "2ce0e11467470f84281c756ad0264d3f6dd8fd5b3e514d160a26e11f41caf95c"
+  },
+  "core": {
+    "run": false,
+    "reason": "No Core/Git operation change; affected actual native workflows and rebuilt dependency workflows checked"
+  },
+  "app_builds": [
+    {
+      "log": "build/qa/history-operation-app-build-2026-11-22.log",
+      "exit_code": 0
+    },
+    {
+      "log": "build/qa/history-operation-app-build-repair-2026-11-22.log",
+      "exit_code": 0,
+      "reason": "Affected Resolve initial-load race repair"
+    },
+    {
+      "log": "build/qa/history-operation-app-build-close-repair-2026-11-22.log",
+      "exit_code": 0,
+      "reason": "Affected paired native drainage and Resolve/Reset closure repair"
+    }
+  ],
+  "build_diagnostic_limit": "Local Xcode emitted contradictory failed-command-with-exit-zero diagnostics. Native receivers link actual fresh Debug objects. This is not a clean hosted-SDK or full-suite result.",
+  "native": {
+    "distinct_case_engine_passes": 8,
+    "passed": [
+      {
+        "case": "legacy-log",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "legacy-log",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "log",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "log",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "legacy-sync",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "legacy-sync",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "sync",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "sync",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      }
+    ],
+    "attempts": [
+      {
+        "log": "build/qa/history-operation-native-2026-11-22.log",
+        "scope": "Driver compiler rejected missing TurtleGitCore import; no runtime cases"
+      },
+      {
+        "result": "build/qa/history-operation-native-recheck-1-2026-11-22.json",
+        "cases": [
+          {
+            "case": "legacy-log",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "legacy-log",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "log",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/e439a76b59449ef0bf955d677adfe2e939aa9a95d910eb206cc19dedc5731519/receiver-b0ad309f34eb640a3e14a29e83b3c2a954ad74a8f876f484793de30b3de010ba', '/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-feedback-log-vgxf0vz3/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false
+          }
+        ]
+      },
+      {
+        "result": "build/qa/history-operation-native-recheck-2-2026-11-22.json",
+        "cases": [
+          {
+            "case": "log",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "log",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "legacy-sync",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "legacy-sync",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "sync",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/e439a76b59449ef0bf955d677adfe2e939aa9a95d910eb206cc19dedc5731519/receiver-729a36b7a13f83450d8440e241775fc7eaa8ae96730d857743fd9e7b507239eb', '/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-feedback-sync-8afybvqw/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false
+          }
+        ]
+      },
+      {
+        "result": "build/qa/history-operation-native-recheck-3-2026-11-22.json",
+        "cases": [
+          {
+            "case": "sync",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/e439a76b59449ef0bf955d677adfe2e939aa9a95d910eb206cc19dedc5731519/receiver-ab9e383aff36c96af53e1fe0205637f1b3f4bef0c23864d7237b9db5e01eee1b', '/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-feedback-sync-aky0f7z2/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false
+          }
+        ]
+      },
+      {
+        "result": "build/qa/history-operation-native-recheck-4-2026-11-22.json",
+        "cases": [
+          {
+            "case": "sync",
+            "git": "/usr/bin/git",
+            "status": "failed",
+            "exit_code": 1,
+            "error": "Command '['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-receivers/linked/a6be49337f7c0f19b3b799023d083d45c0be2901984f6298368d1b7514edc76e/receiver-4b551517fe4aaf1a87a0ad410b308eaa7aed89e17e66638dd028b01e2cb10355', '/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-history-feedback-sync-zv2kbj2y/fixture', '/usr/bin/git']' returned non-zero exit status 1.",
+            "fallback_helper_cleanup": false
+          }
+        ]
+      },
+      {
+        "result": "build/qa/history-operation-native-recheck-5-2026-11-22.json",
+        "cases": [
+          {
+            "case": "legacy-sync",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "legacy-sync",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "sync",
+            "git": "/usr/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          },
+          {
+            "case": "sync",
+            "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+            "status": "passed",
+            "exit_code": 0,
+            "fallback_helper_cleanup": false
+          }
+        ]
+      }
+    ],
+    "repairs": [
+      "Driver bootstrap imports TurtleGitCore for sequence-editor role handling; no source or app rebuild for that compiler repair.",
+      "Popover fixture distinguishes bounded actual native content from native window chrome, retaining explicit bounds on both.",
+      "Owned repository identity compares exact parent directory URL and original filesystem path separately; preserves captured executable/preferences/backend assertions.",
+      "Actual duplicate initial Resolve loads replaced confirmation generation; initial admission is now idempotent across presenter and SwiftUI attachment. Explicit later refresh remains unchanged.",
+      "No did not release its owned Resolve; programmatic closure now follows controller policy, native drainage waits both sheet links, and nested Reset retains tracked workers. The earlier timeout did not distinguish titlebar dispatch from paired-link timing, so neither alone is claimed as its proved cause."
+    ],
+    "repeat_scope": "Legacy Log and new Log passes retained after Sync-only repairs. Legacy Sync repeated only when shared file-operation drainage changed. No full Core suite repeated.",
+    "geometry_scope": "Actual Log at minimum/large dimensions with real readers; actual shared information component separately exercises explicit one/two/overflow lines. No claim that the fixture repository naturally soft-wraps its information summary.",
+    "nested_reset_scope": "Actual owned Reset presentation/cancel/drain seam; no new actual gitlink resolution or signed-grant claim"
+  },
+  "runtime_preparation": {
+    "attempt_receipts": [
+      {
+        "path": "build/qa/signed54-runtime-preparation-2026-11-22.json",
+        "sha256": "4c60e03c2c6e9899baa2bf0b6563f9dcb68351d2416b657d12d04a128e65ab41"
+      },
+      {
+        "path": "build/qa/signed54-runtime-preparation-repair-1-2026-11-22.json",
+        "sha256": "b5a114764606a5bacbc600042a7ffb96e7ed0872413b58d83735496973a11d99"
+      }
+    ],
+    "initial_failure": "Parallel generated MakeMaker module targets share blib/lib/SVN PM destinations; actual copy failed with Permission denied after another target made the destination read-only.",
+    "repair": "Only swig-pl and install-swig-pl explicitly serialized; jobs4 native phases and completed component stamps retained.",
+    "successful_operations": 11,
+    "actual_scope": "Both architecture buckets built;179 SVN native files/dependencies audited; private clone/fetch/dcommit/show-ignore/create-ignore and integrated Git/LFS workflows passed; exact isolated MergeDiff recipe built and validated.",
+    "promotion": {
+      "status": "promoted validated independent current-recipe copies; original defaults preserved",
+      "owned_runner_pid": 44452,
+      "started_utc": "2026-11-22T08:03:54.948254+00:00",
+      "driver_sha256": "d72794d495e4d3934065771c3be23756f59d829f256c108db4d75ddccdac9247",
+      "entries": [
+        {
+          "name": "git_svn",
+          "source": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/GitSVN-build54",
+          "default": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/GitSVN",
+          "stage": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/.GitSVN-promote54-2026-11-22",
+          "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/GitSVN-before54-2026-11-22",
+          "original_inventory_sha256": "d71c62d1743125735f6a63054fa027d4c75d3c48f3efe950ad1f65ad1a7bcb33",
+          "validated_inventory_sha256": "fb7ead520d03ca0572615f5c99c99704b26040ea3bda0a94ec060b8dd8afac0b",
+          "old_moved": true,
+          "new_installed": true,
+          "stage_inventory_equal": true,
+          "stage_manifest_sha256": "ff50feb67635d47632e38a2c92aceb2afd5456a307c0e7225c4131d82ecd6836",
+          "old_moved_utc": "2026-11-22T08:04:50.520506+00:00",
+          "new_installed_utc": "2026-11-22T08:04:50.521461+00:00",
+          "original_backup_inventory_equal": true,
+          "promoted_default_inventory_equal": true,
+          "immutable_build54_target_unchanged": true
+        },
+        {
+          "name": "git",
+          "source": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git-build54",
+          "default": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git",
+          "stage": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/.Git-promote54-2026-11-22",
+          "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git-before54-2026-11-22",
+          "original_inventory_sha256": "de50d10994328746ff36c0363cd44eaeadff2ec3febbdc8f63ca864ebf22e93b",
+          "validated_inventory_sha256": "786cb3d67ca4ea14db7f556c4e69f3c3451aad6bbf7cba6da5fb36c8482fb093",
+          "old_moved": true,
+          "new_installed": true,
+          "stage_inventory_equal": true,
+          "stage_manifest_sha256": "850d27fc22c8cc6da3e4725fdb1a4e8b2786fb5915def94dbfcda925a0af81fa",
+          "old_moved_utc": "2026-11-22T08:05:34.755298+00:00",
+          "new_installed_utc": "2026-11-22T08:05:34.756339+00:00",
+          "original_backup_inventory_equal": true,
+          "promoted_default_inventory_equal": true,
+          "immutable_build54_target_unchanged": true
+        },
+        {
+          "name": "merge_diff",
+          "source": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/merge-diff-runtime/MergeDiff-build54",
+          "default": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/merge-diff-runtime/MergeDiff",
+          "stage": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/merge-diff-runtime/.MergeDiff-promote54-2026-11-22",
+          "backup": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/merge-diff-runtime/MergeDiff-before54-2026-11-22",
+          "original_inventory_sha256": "ac5b36b22a5911e29ccfd9e51b04772bc134c817e1a63a56b305cc5c1dba085c",
+          "validated_inventory_sha256": "0c34247e9236a7df592945cb6b192eca3f1909ef77c14206c1a6f47f1dc0ef92",
+          "old_moved": true,
+          "new_installed": true,
+          "stage_inventory_equal": true,
+          "stage_manifest_sha256": "d45f33a632f33115307a1ffe79568f5c3f1081ecb8b0b14dc21263051fc04d6e",
+          "old_moved_utc": "2026-11-22T08:06:19.344335+00:00",
+          "new_installed_utc": "2026-11-22T08:06:19.345256+00:00",
+          "original_backup_inventory_equal": true,
+          "promoted_default_inventory_equal": true,
+          "immutable_build54_target_unchanged": true
+        }
+      ],
+      "finished_utc": "2026-11-22T08:06:19.474276+00:00",
+      "rollback_performed": false
+    },
+    "distinct_targets": {
+      "git_svn": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/GitSVN-build54",
+      "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git-build54",
+      "merge_diff": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/merge-diff-runtime/MergeDiff-build54"
+    },
+    "signing_scope": "Runtime builders apply their standard ad-hoc seals; no Apple Development app build/sign/launch/install in this preparation."
+  },
+  "static": {
+    "help_check": {
+      "exit_code": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 98,
+      "bytes": 9409210
+    },
+    "app_help_matches_source": true,
+    "localization_check": {
+      "exit_code": 0,
+      "languages": 38,
+      "keys": 1392
+    },
+    "dialog_coverage_reconciliation": {
+      "exit_code": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85
+    },
+    "git_diff_check_exit_code": 0
+  },
+  "cleanup": {
+    "created_utc": "2026-11-22T08:41:42.504745+00:00",
+    "owned_compiler_receiver_pids": [
+      59637,
+      59639,
+      63936,
+      63947,
+      64513,
+      65067,
+      68222,
+      68287,
+      68594,
+      68853,
+      69040,
+      69214,
+      71319,
+      71351,
+      73394,
+      73396,
+      73438,
+      79110,
+      79112,
+      79155,
+      79349,
+      79554,
+      79853
+    ],
+    "remaining_logged_pids": [],
+    "remaining_workspace_images": [],
+    "registrations_before": [
+      {
+        "path": "/Applications/TurtleGit for Mac.app",
+        "name": "TurtleGit",
+        "identifier": "org.turtlegit.macos",
+        "version": "52.0 ({length = 32, bytes = 0x34000000 00000000 00000000 00000000 ... 00000000 00000000 })",
+        "executable": "Contents/MacOS/TurtleGitMac",
+        "mod date": "2026-11-03 14:10 (POSIX 1793711426, 𝛥 2Wo. 4Tg. 19Std. 31Min. 17Sek.)",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, 𝛥 2Wo. 2Tg. 15Std. 55Min. 53Sek.)"
+      },
+      {
+        "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+        "name": "TurtleGitFinder",
+        "identifier": "org.turtlegit.macos.finder",
+        "version": "0.1 ({length = 32, bytes = 0x00000000 00000000 01000000 00000000 ... 00000000 00000000 })",
+        "executable": "TurtleGitFinder",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, 𝛥 2Wo. 2Tg. 15Std. 55Min. 55Sek.)",
+        "mod date": "2026-11-03 14:09 (POSIX 1793711354, 𝛥 2Wo. 4Tg. 19Std. 32Min. 31Sek.)"
+      }
+    ],
+    "default_handler_before": {
+      "api": "NSWorkspace.urlForApplication(toOpen:) read-only; URL not opened",
+      "exit_code": 0,
+      "path": "/Applications/TurtleGit for Mac.app",
+      "stderr": ""
+    },
+    "processes_before": [
+      {
+        "pid": 1602,
+        "name": "TurtleGitFinder",
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      },
+      {
+        "pid": 52997,
+        "name": "TurtleGitFinder",
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      }
+    ],
+    "installed_main_sha256_before": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "operations": [],
+    "signals_sent": false,
+    "installed_application_updated": false,
+    "registrations_after": [
+      {
+        "path": "/Applications/TurtleGit for Mac.app",
+        "name": "TurtleGit",
+        "identifier": "org.turtlegit.macos",
+        "version": "52.0 ({length = 32, bytes = 0x34000000 00000000 00000000 00000000 ... 00000000 00000000 })",
+        "executable": "Contents/MacOS/TurtleGitMac",
+        "mod date": "2026-11-03 14:10 (POSIX 1793711426, 𝛥 2Wo. 4Tg. 19Std. 31Min. 31Sek.)",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, 𝛥 2Wo. 2Tg. 15Std. 56Min. 7Sek.)"
+      },
+      {
+        "path": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex",
+        "name": "TurtleGitFinder",
+        "identifier": "org.turtlegit.macos.finder",
+        "version": "0.1 ({length = 32, bytes = 0x00000000 00000000 01000000 00000000 ... 00000000 00000000 })",
+        "executable": "TurtleGitFinder",
+        "reg date": "2026-11-05 17:45 (POSIX 1793897150, 𝛥 2Wo. 2Tg. 15Std. 56Min. 9Sek.)",
+        "mod date": "2026-11-03 14:09 (POSIX 1793711354, 𝛥 2Wo. 4Tg. 19Std. 32Min. 45Sek.)"
+      }
+    ],
+    "default_handler_after": {
+      "api": "NSWorkspace.urlForApplication(toOpen:) read-only; URL not opened",
+      "exit_code": 0,
+      "path": "/Applications/TurtleGit for Mac.app",
+      "stderr": ""
+    },
+    "processes_after": [
+      {
+        "pid": 1602,
+        "name": "TurtleGitFinder",
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      },
+      {
+        "pid": 52997,
+        "name": "TurtleGitFinder",
+        "executable": "/Applications/TurtleGit for Mac.app/Contents/PlugIns/TurtleGitFinder.appex/Contents/MacOS/TurtleGitFinder"
+      }
+    ],
+    "installed_main_sha256_after": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7",
+    "status": "Logged owned processes and workspace runtime images absent; Debug registrations absent; installed application routing retained"
+  },
+  "installed_application_updated": false,
+  "signed53_mutated": false,
+  "signed54_app_built": false,
+  "protected_unrelated_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "logs_sha256": {
+    "build/qa/history-operation-app-build-2026-11-22.log": "971506fe6d793d15e3c1d2cf0737abdb86f865b4cee278c4463ee07fc81de5a8",
+    "build/qa/history-operation-app-build-close-repair-2026-11-22.log": "5a7fddea35216bbd177b284aee6eb056f9710d6a50a2f1c36a5358cab8477856",
+    "build/qa/history-operation-app-build-repair-2026-11-22.log": "8ce0c188553b5fd4257fb5b4e702e475422d9c0f2b9d598548bfb87da39395ce",
+    "build/qa/history-operation-native-2026-11-22.log": "13df60e6264770a513ef581a4ce0bf0e76a6d5ff499f28d4abe21fbbe728dcf6",
+    "build/qa/history-operation-native-recheck-1-2026-11-22.log": "5230e2219fa3bc1bcb4cf4423bea4fd22c3e9d1eda97283b9e7eca8d2d6582a2",
+    "build/qa/history-operation-native-recheck-2-2026-11-22.log": "9672e848e0c83092172798d64a3151167562b8e68da03c2535c4c872627f1eba",
+    "build/qa/history-operation-native-recheck-3-2026-11-22.log": "af59b58f9521977bcb3b0feea6820d3c756ff59d8b0d7dce3ef8bea4c182e771",
+    "build/qa/history-operation-native-recheck-4-2026-11-22.log": "ea002ef5fc5f9c4152e63e1ed1aabc3b0117e08c27da8f2c5662e389920ad25a",
+    "build/qa/history-operation-native-recheck-5-2026-11-22.log": "b1da286f6682e2fb805d5fa7e3904ead21ec0eb645325d2d4b340cab85b926ac"
+  },
+  "remaining": [
+    "Current-source signed54 application build, candidate-specific review and local testing",
+    "Corrected-source complete hosted CI; observed03344 producer passed and app lanes were running",
+    "Physical Finder badges/menus/grants and complete dialog/font/keyboard/VoiceOver acceptance",
+    "SwiftUI Sync conflict-table standard AX Show Menu entry",
+    "Full native app port and future distribution requirement-by-requirement acceptance"
+  ]
+}

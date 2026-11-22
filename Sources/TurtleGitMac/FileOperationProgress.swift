@@ -203,9 +203,14 @@ struct FileOperationProgressTable: NSViewRepresentable {
     override func menu(for event:NSEvent)->NSMenu? {let row=row(at:convert(event.locationInWindow,from:nil));if row>=0,!selectedRowIndexes.contains(row){selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)};return makeMenu()}
 }
 @MainActor enum FileOperationWindowDrain {
-    static func detach(_ window:NSWindow)async {
-        if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.orderOut(nil)
-        while window.sheetParent != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+    static func detach(_ window:NSWindow,parent capturedParent:NSWindow? = nil)async {
+        let parent=window.sheetParent ?? capturedParent
+        if let parent,window.sheetParent != nil || parent.attachedSheet === window {parent.endSheet(window,returnCode:.cancel)}
+        window.orderOut(nil)
+        // AppKit clears these paired links at distinct moments. Returning at
+        // the child's nil link alone can immediately reject a caller's Close
+        // while the owner still reports that same dismissed question sheet.
+        while window.sheetParent != nil || parent?.attachedSheet === window {try? await Task.sleep(nanoseconds:5_000_000)}
     }
 }
 /// Own the native Open With sheet and the launch callback independently of

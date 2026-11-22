@@ -236,6 +236,11 @@ keeps the current draft's Undo history.</p>
 message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. <a href="LOG-FIND.html">Finding revisions</a> explains Log's Find flow.</p>
+<p>Information, operation feedback and the footer retain their space while Log
+loads or reports an error, so the revision/message/file panes stay in place.
+Open the compact status disclosure for the complete selectable diagnostic.
+Its Copy button uses this Log window's status; it is unavailable while a Log
+details read already owns the clipboard.</p>
 <p>You can inspect a loaded revision's files while more history is arriving. Use
 Show log (including an old name), Blame, file comparisons, Open/Open With, Save
 revision or Export as offered for the selected files. Copy and historical file
@@ -407,6 +412,11 @@ default. With multiple destinations, each destination's default is used.</p>
 configured to require rebase can select that behavior automatically. Read the
 progress and conflict result before starting another integration operation.</p>
 <h2 id="synchronization-progress">Synchronization progress</h2>
+<p>Quick Resolve from Sync's conflict list opens an owned confirmation/progress
+sheet. Finish or cancel that child before starting another Sync action. Its
+repository, selected files and settings remain those of the originating Sync
+window. The conflict list refreshes after the result closes when the saved
+refresh-after-resolving option is enabled. Clipboard includes Extensions.</p>
 <p>In the incoming/outgoing file and revision lists, Shift-F10 opens the selected
 rows' context menu. Accessibility <strong>Show Menu</strong> uses the same commands and
 retains the selected group. Reference/tag result menus also anchor at the

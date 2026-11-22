@@ -397,6 +397,12 @@ final class SynchronizationNativeWindow: NSWindow {
     var configureExport: (ExportWindowController) -> Void = { _ in }
     private static var placementSequence = 0
     private var conflictApplicationPanel: NSOpenPanel?
+    private(set) var conflictResolutionController: ResolveWindowController?
+    private var conflictResolutionEpoch=UUID()
+    private(set) var conflictResetController:ResetWindowController?
+    private var conflictResolutionCompletion:(()->Void)?
+    var configureConflictReset:(ResetWindowController,GitRepository)->Void = {_,_ in}
+    var configureConflictResolution:(ResolveWindowController)->Void = {_ in}
     let model: SynchronizationWindowModel
     let notificationFiles:RemoteProgressFileActions
     var onClosed: () -> Void = {}
@@ -457,6 +463,9 @@ final class SynchronizationNativeWindow: NSWindow {
             guard let self, let window, self.model.canUseConflictFiles else { return false }
             return window.attachedSheet == nil || window.attachedSheet === self.conflictApplicationPanel
         }
+        model.presentConflictResolution = { [weak self] paths,choice in self?.presentConflictResolution(paths:paths,choice:choice) }
+        model.retireConflictResolution = { [weak self] in self?.retireConflictRecovery() }
+        model.conflictResolutionQuitChanged = { [weak self] value in self?.conflictResolutionController?.model.confirmingQuit=value;self?.conflictResetController?.model.confirmingQuit=value }
         notificationFiles.window=window
         notificationFiles.available={ [weak model] in model?.notificationOwnerAvailable==true }
         notificationFiles.onBusy={ [weak model] in model?.fileActionBusy=$0 }
@@ -891,6 +900,85 @@ final class SynchronizationNativeWindow: NSWindow {
         guard let window = child.window else { remoteSettingsController = nil; model.managingRemotes = false; return }
         window.alphaValue = owner.alphaValue; owner.beginSheet(window); child.model.load()
     }
+    /// ConflictSyncDlg runs quick resolution modally. Keep this fresh child
+    /// independent of the app's cached standalone Resolve windows, and retain
+    /// its work ownership until Resolve's real worker/sheet release callback.
+    func presentConflictResolution(paths:[String],choice:ResolveChoice) {
+        guard !retiredPresentation,model.canUseConflictFiles,!model.hasBlockingChild,
+              conflictResolutionController==nil,!paths.isEmpty,let owner=window,
+              owner.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+        let repository=model.repository.capturingDiffBackend(preferences:model.preferences)
+        let child=ResolveWindowController(repository:repository,access:model.access,paths:paths,quick:choice,preferences:model.preferences)
+        let epoch=UUID();conflictResolutionEpoch=epoch
+        model.conflictFileActions.invalidateFileMenus()
+        conflictResolutionController=child;model.conflictResolutionActive=true
+        child.model.confirmingQuit=model.confirmingQuit
+        configureConflictResolution(child)
+        let configuredAvailability=child.externalAvailability
+        child.externalAvailability={ [weak self] in
+            guard let self else{return false}
+            return !self.retiredPresentation && !self.model.closed && !self.model.confirmingQuit && self.conflictResolutionEpoch==epoch && configuredAvailability()
+        }
+        child.model.onSubmoduleReset={ [weak self,weak child] repository,revision,done in
+            guard let self,let child else{return}
+            self.presentConflictReset(owner:child,repository:repository,revision:revision,epoch:epoch,completed:done)
+        }
+        let changed=child.onChanged
+        var changedOutput:String?
+        child.onChanged={ [weak self,weak child] output in
+            guard let self,let child,self.conflictResolutionController===child,self.conflictResolutionEpoch==epoch,!self.model.closed else{return}
+            changedOutput=output
+        }
+        child.onClosed={ [weak self,weak child] in
+            guard let self,let child,self.conflictResolutionController===child,self.conflictResolutionEpoch==epoch else{return}
+            self.conflictResolutionCompletion={ [weak self,weak child] in
+                guard let self,let child,self.conflictResolutionController===child,self.conflictResolutionEpoch==epoch else{return}
+                // Notify other repository views while this parent remains
+                // blocked, then refresh it once after its whole child chain.
+                if !self.retiredPresentation,!self.model.closed,let changedOutput {changed(changedOutput)}
+                self.model.conflictFileActions.invalidateFileMenus()
+                self.conflictResolutionController=nil;self.model.conflictResolutionActive=false
+                if !self.retiredPresentation,!self.model.closed,changedOutput != nil {
+                    ConflictListRefreshPolicy.perform(preferences:self.model.preferences) {self.model.refreshConflictFiles()}
+                }
+            }
+            self.conflictResetController?.close()
+            self.finishConflictRecoveryIfDrained()
+        }
+        guard let sheet=child.window else{child.close();return}
+        sheet.alphaValue=owner.alphaValue;sheet.appearance=owner.appearance
+        owner.beginSheet(sheet)
+        child.model.loadInitial()
+    }
+    private func presentConflictReset(owner:ResolveWindowController,repository:GitRepository,revision:String,epoch:UUID,completed:@escaping ()->Void) {
+        guard !retiredPresentation,!model.closed,!model.confirmingQuit,
+              conflictResolutionController===owner,conflictResolutionEpoch==epoch,
+              conflictResetController==nil,let parent=owner.window,parent.attachedSheet==nil else{return}
+        let child=ResetWindowController(repository:repository,access:model.access,revision:revision,preferences:model.preferences)
+        conflictResetController=child;configureConflictReset(child,repository)
+        let didReset=child.model.onReset
+        var succeeded=false
+        child.model.onReset={output in succeeded=true;didReset(output)}
+        child.onClosed={ [weak self,weak child,weak owner] in
+            guard let self,let child,self.conflictResetController===child else{return}
+            self.conflictResetController=nil
+            if let owner,!self.retiredPresentation,!self.model.closed,!self.model.confirmingQuit,
+               self.conflictResolutionController===owner,self.conflictResolutionEpoch==epoch,!owner.retired {
+                if succeeded {completed()} else {owner.model.dismissSubmoduleReset()}
+            }
+            self.finishConflictRecoveryIfDrained()
+        }
+        guard let sheet=child.window else{child.close();return}
+        sheet.alphaValue=parent.alphaValue;sheet.appearance=parent.appearance
+        parent.beginSheet(sheet);child.model.load()
+    }
+    private func finishConflictRecoveryIfDrained() {
+        guard conflictResetController==nil,let completion=conflictResolutionCompletion else{return}
+        conflictResolutionCompletion=nil;completion()
+    }
+    private func retireConflictRecovery() {
+        conflictResetController?.close();conflictResolutionController?.close()
+    }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         guard !model.transportRunning, !model.confirmingCancellation, !model.hasBlockingChild, sender.attachedSheet == nil else { return false }
@@ -1197,7 +1285,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         }
     }
 
-    var hasPendingInlineWork: Bool { fileActionBusy || !inlineAttempts.isEmpty || historyQuestionCount > 0 || !historyParentRequests.isEmpty || !combineSelectionReads.isEmpty || historyActionWorkers > 0 || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
+    var hasPendingInlineWork: Bool { conflictResolutionActive || fileActionBusy || !inlineAttempts.isEmpty || historyQuestionCount > 0 || !historyParentRequests.isEmpty || !combineSelectionReads.isEmpty || historyActionWorkers > 0 || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
 
     private(set) static var activePushWorkflows=0
     lazy var clientHooks=ClientHookSession(preferences:preferences)
@@ -1317,13 +1405,15 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         didSet {
             if confirmingQuit != oldValue { formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID() }
             conflictFileActionsStorage?.confirmingQuit = confirmingQuit
+            conflictFileActionsStorage?.invalidateFileMenus()
+            conflictResolutionQuitChanged(confirmingQuit)
             comparison.confirmingQuit = confirmingQuit
             incomingComparison.confirmingQuit = confirmingQuit
             for viewer in comparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
             for viewer in incomingComparison.unifiedWindows.values { viewer.model.confirmingQuit = confirmingQuit }
         }
     }
-    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID();resultGeneration=UUID();if oldValue==2 || tab==2 {notifications.retire()} } } }
+    @Published var tab = 0 { didSet { if tab != oldValue { fileListGeneration=UUID();resultGeneration=UUID();if oldValue==2 || tab==2 {notifications.retire()};if oldValue==6 || tab==6 {conflictFileActionsStorage?.invalidateFileMenus()} } } }
     @Published private(set) var incomingFromPatch = false
     private var lastTransportOldHash: String?
     @Published private(set) var incomingCommits: [LogEntry]? {didSet {resultGeneration=UUID();prepareHistorySVN()}}
@@ -1371,6 +1461,10 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         conflictFileActionsStorage = value; return value
     }
     var onConflictAction: (RepositoryAction,[String]) -> Void = { _,_ in }
+    var presentConflictResolution:(([String],ResolveChoice)->Void)?
+    var retireConflictResolution:()->Void = {}
+    var conflictResolutionQuitChanged:(Bool)->Void = {_ in}
+    @Published var conflictResolutionActive=false
     var canUseConflictFiles: Bool { !closed && !busy && !confirmingQuit && !confirmingCancellation && tab == 6 && !hasOtherBlockingChild }
     func refreshConflictFiles() { guard canUseConflictFiles else { return }; conflictFileActions.requestReload() }
     func conflictMenu(_ ids:some Sequence<String>,mark:String? = nil) -> StatusFileMenuSnapshot {
@@ -1380,7 +1474,15 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     }
     func performConflict(_ action:RepositoryAction,menu:StatusFileMenuSnapshot) {
         guard canUseConflictFiles,[RepositoryAction.editConflict,.resolveCurrent,.resolveMine,.resolveTheirs].contains(action),action != .editConflict || menu.entries.count == 1 else { return }
-        conflictFileActions.withFileMenu(menu) { onConflictAction(action,menu.entries.map(\.path)) }
+        conflictFileActions.withFileMenu(menu) {
+            let paths=menu.entries.map(\.path)
+            if let choice=action.resolveChoice,let presentConflictResolution {presentConflictResolution(paths,choice)}
+            else {onConflictAction(action,paths)}
+        }
+    }
+    func copyConflictFiles(_ information:StatusListCopy,menu:StatusFileMenuSnapshot) {
+        guard canUseConflictFiles else{return}
+        conflictFileActions.withFileMenu(menu) {conflictFileActions.copy(menu.entries.map(\.path),information:information)}
     }
     func performConflictFile(_ command:StatusFileCommand,menu:StatusFileMenuSnapshot) {
         guard canUseConflictFiles,[StatusFileCommand.log,.editor,.open,.openWith,.reveal].contains(command) else { return }
@@ -1896,7 +1998,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     @Published var creatingHistoryReference = false
     var hasBlockingChild: Bool { fileActionBusy || historyQuestionCount > 0 || conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
     private var hasOtherBlockingChild: Bool {
-        outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        conflictResolutionActive || outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
             child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
         }
     }
@@ -1950,7 +2052,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { optionsSSHContext?.retire();optionsSSHContext=nil;notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { retireConflictResolution();presentConflictResolution=nil;conflictResolutionQuitChanged={_ in};optionsSSHContext?.retire();optionsSSHContext=nil;notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
         formRevision=UUID()
@@ -2845,10 +2947,11 @@ struct SynchronizationConflictFiles: View {
                     Divider()
                     ForEach(target.commands,id:\.self) { command in Button {model.performConflictFile(command,menu:target)} label: {CommandLabel(title:command.rawValue,icon:command.icon)} }
                     Menu {
-                        Button {actions.withFileMenu(target) {actions.copy(ids,information:.relativePaths)}} label: {CommandLabel(title:"Relative paths",icon:.copy)}
-                        Button {actions.withFileMenu(target) {actions.copy(ids,information:.fullPaths)}} label: {CommandLabel(title:"Full paths",icon:.copy)}
-                        Button {actions.withFileMenu(target) {actions.copy(ids,information:.names)}} label: {CommandLabel(title:"File/folder names",icon:.copy)}
-                        Button {actions.withFileMenu(target) {actions.copy(ids,information:.all)}} label: {CommandLabel(title:"Copy all information to clipboard",icon:.copy)}
+                        Button {model.copyConflictFiles(.relativePaths,menu:target)} label: {CommandLabel(title:"Relative paths",icon:.copy)}
+                        Button {model.copyConflictFiles(.fullPaths,menu:target)} label: {CommandLabel(title:"Full paths",icon:.copy)}
+                        Button {model.copyConflictFiles(.names,menu:target)} label: {CommandLabel(title:"File/folder names",icon:.copy)}
+                        Button {model.copyConflictFiles(.column(.fileExtension),menu:target)} label: {CommandLabel(title:"Extensions",icon:.copy)}
+                        Button {model.copyConflictFiles(.all,menu:target)} label: {CommandLabel(title:"Copy all information to clipboard",icon:.copy)}
                     } label: {CommandLabel(title:"Copy to Clipboard",icon:.copy)}.disabled(target.entries.isEmpty)
                 }
             } primaryAction: {nativeIDs in

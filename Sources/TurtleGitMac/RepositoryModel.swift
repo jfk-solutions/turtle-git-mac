@@ -2710,23 +2710,18 @@ private enum TransportBatchPresentationContext {
             Task {await self.refresh()}
         }
     }
-    private func refreshAfterConflictChange(_ root:URL) {
-        ConflictListRefreshPolicy.perform(preferences:fileComparisonPreferences) {
+    private func refreshAfterConflictChange(_ root:URL,preferences:UserDefaults? = nil) {
+        ConflictListRefreshPolicy.perform(preferences:preferences ?? fileComparisonPreferences) {
             revertWindows.allValues(forKey: root.path).forEach { $0.model.requestReload() }; refreshStatusWindows(root);commitWindows.allValues(forKey: root.path).forEach { $0.model.reload() }
             for resolve in resolveWindows.values where resolve.model.repository.root == root {resolve.model.load()}
             synchronizationWindows.allValues(forKey: root.path).forEach { $0.model.refreshConflictFiles() }
         }
         rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() };refreshRepositoryLogs(root)
     }
-    private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults? = nil, commandOptions: ResolveCommandOptions? = nil, presentation: MergeWindowPresentation? = nil) {
-        guard !retired, !confirmingQuit else { return }
-        let root = repository.root, defaults = preferences ?? fileComparisonPreferences
-        let mode = commandOptions.map { "\0command:\($0.silent):\($0.noQuestion)" } ?? ""
-        let key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0") + mode + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
-        let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick, preferences: defaults, commandOptions: commandOptions)
-        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.resolveWindows[key] === controller else { return }; self.resolveWindows.removeValue(forKey: key) }
+    private func configureResolveInteractions(_ controller:ResolveWindowController,repository:GitRepository,access:RepositoryAccessLease?,preferences defaults:UserDefaults) {
+        let root=repository.root
         controller.onChanged = CommandProgressContext.capture { [weak self] output in
-            self?.refreshAfterConflictChange(root)
+            self?.refreshAfterConflictChange(root,preferences:defaults)
             guard let self, self.root == root else { return }
             self.output = output; Task { await self.refresh() }
         }
@@ -2735,14 +2730,14 @@ private enum TransportBatchPresentationContext {
             self?.showConflictEditor(repository: repository, access: access, path: path, owner: owner, preferences: defaults)
         }
         controller.model.onSubmoduleReset = CommandProgressContext.capture { [weak self, weak controller] child, revision, done in
-            self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: CommandProgressContext.capture { [weak controller] in controller?.model.dismissSubmoduleReset() })
+            self?.showReset(repository: child, access: access, revision: revision, completion: done, dismissed: CommandProgressContext.capture { [weak controller] in controller?.model.dismissSubmoduleReset() },preferences:defaults)
         }
         controller.model.onFileSubmoduleRevert = CommandProgressContext.capture { [weak self] revision,paths in
-            for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision)}
+            for path in paths {self?.showSubmoduleDiff(repository:repository,access:access,path:path,from:revision,preferences:defaults)}
         }
-        controller.model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository:repository,access:access,paths:[path]) }
-        controller.model.onFileBlame = CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision) }
-        controller.model.onFileSubmoduleLog = CommandProgressContext.capture { [weak self] child in self?.showLog(repository:child,access:access,paths:[]) }
+        controller.model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository:repository,access:access,paths:[path],preferences:defaults) }
+        controller.model.onFileBlame = CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:defaults) }
+        controller.model.onFileSubmoduleLog = CommandProgressContext.capture { [weak self] child in self?.showLog(repository:child,access:access,paths:[],preferences:defaults) }
         controller.model.onFilePair = CommandProgressContext.capture { [weak self, weak controller] paths in
             guard let controller, controller.model.active, !controller.model.confirmingQuit, let owner = controller.window else { return }
             self?.showWorkingFilePair(repository: repository, access: access, paths: paths, owner: owner, preferences: defaults,
@@ -2760,6 +2755,15 @@ private enum TransportBatchPresentationContext {
             guard let self, !self.retired, !self.confirmingQuit else { return }
             self.showCommitDialog(repository: repository, access: access, paths: [], preferences: capturedPreferences, sourceWindow: controller?.window)
         }
+    }
+    private func showResolve(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults? = nil, commandOptions: ResolveCommandOptions? = nil, presentation: MergeWindowPresentation? = nil) {
+        guard !retired, !confirmingQuit else { return }
+        let root = repository.root, defaults = preferences ?? fileComparisonPreferences
+        let mode = commandOptions.map { "\0command:\($0.silent):\($0.noQuestion)" } ?? ""
+        let key = root.path + "\0" + String(quick?.rawValue ?? -1) + "\0" + paths.joined(separator: "\0") + mode + "\0preferences:" + String(describing: ObjectIdentifier(defaults))
+        let controller = resolveWindows[key] ?? ResolveWindowController(repository: repository, access: access, paths: paths, quick: quick, preferences: defaults, commandOptions: commandOptions)
+        controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.resolveWindows[key] === controller else { return }; self.resolveWindows.removeValue(forKey: key) }
+        configureResolveInteractions(controller,repository:repository,access:access,preferences:defaults)
         presentation?.apply(to: controller.window)
         resolveWindows[key] = controller
         guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}
@@ -3300,11 +3304,18 @@ private enum TransportBatchPresentationContext {
             }
         }
         controller.model.onResolve = CommandProgressContext.capture { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
+        controller.configureConflictResolution = CommandProgressContext.capture { [weak self] child in
+            self?.configureResolveInteractions(child,repository:child.model.repository,access:access,preferences:child.model.preferences)
+        }
+        controller.configureConflictReset = CommandProgressContext.capture { [weak self] child,repository in
+            self?.configureResetInteractions(child,repository:repository,access:access)
+        }
         controller.model.onConflictAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
             guard let self, let controller, !controller.model.closed else { return }
-            if action == .editConflict, let path=paths.first { self.showConflictEditor(repository:repository,access:access,path:path,owner:controller.window) }
-            else if action == .log { self.showLog(repository:repository,access:access,paths:paths) }
-            else if action.resolveChoice != nil { self.showResolve(repository:repository,access:access,paths:paths,quick:action.resolveChoice) }
+            let preferences=controller.model.preferences
+            if action == .editConflict, let path=paths.first { self.showConflictEditor(repository:repository.capturingDiffBackend(preferences:preferences),access:access,path:path,owner:controller.window,preferences:preferences,alternateTool:ComparisonToolInvocation.capture) }
+            else if action == .log { self.showLog(repository:repository,access:access,paths:paths,preferences:preferences) }
+            else if let choice=action.resolveChoice {controller.presentConflictResolution(paths:paths,choice:choice)}
         }
         controller.configureOptions = CommandProgressContext.capture { [weak self] child in
             self?.configureFetchInteractions(child, repository: repository, access: access, followUp: PullFollowUp())

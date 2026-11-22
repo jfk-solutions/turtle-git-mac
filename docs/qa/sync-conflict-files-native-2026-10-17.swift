@@ -67,6 +67,9 @@ import TurtleGitCore
         try require(table.tableColumns.map{$0.title} == ["Path","Extension","Status","Lines added","Lines removed"],"Source conflict column order")
         let original=try await repo.run(["ls-files","--unmerged"]).stdout
         var routed=[(RepositoryAction,[String])](),opened=[String]()
+        // This retained fixture verifies the legacy callback routing seam.
+        // The newer recovery family covers the actual owned Resolve child.
+        model.presentConflictResolution=nil
         model.onConflictAction={routed.append(($0,$1))}
         actions.openWorkingFile={url,_ in opened.append(url.lastPathComponent)}
         actions.openAlternativeEditor={url in opened.append("editor:"+url.lastPathComponent)}

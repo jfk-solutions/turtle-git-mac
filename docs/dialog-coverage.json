@@ -726,6 +726,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/HISTORICAL-WINDOW-IDENTITY-PARITY.md",
+        "docs/HISTORY-OPERATION-PRESENTATION-PARITY.md",
         "docs/LOG-FILTER-PARITY.md",
         "docs/LOG-FOOTER-PARITY.md",
         "docs/LOG-MESSAGE-PARITY.md",
@@ -751,6 +752,7 @@
         "docs/qa/history-feedback-languages-2026-11-01.json",
         "docs/qa/history-lanes-2026-10-09.json",
         "docs/qa/history-languages-2026-10-31.json",
+        "docs/qa/history-operation-presentation-2026-11-22.json",
         "docs/qa/history-projection-2026-10-09.json",
         "docs/qa/installed-current-family-2026-10-24.json",
         "docs/qa/log-actions-2026-10-06.json",

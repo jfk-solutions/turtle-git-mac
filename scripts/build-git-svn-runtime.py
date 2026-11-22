@@ -176,8 +176,12 @@ def main():
             run(['./configure', '--prefix=' + str(svn), '--with-apr=' + str(deps), '--with-apr-util=' + str(deps), '--with-serf=' + str(deps), '--with-sqlite=' + sdk + '/usr', '--with-perl5=' + str(perl), '--with-lz4=internal', '--with-utf8proc=internal', '--without-apxs', '--without-berkeley-db', '--without-swig', '--without-gpg-agent', '--without-gnome-keyring', '--without-kwallet', '--without-jdk', '--disable-nls', '--disable-static'], cwd=trees['subversion'], env=svn_env)
             run(['/usr/bin/make', '-j' + str(args.jobs)], cwd=trees['subversion'], env=svn_env)
             run(['/usr/bin/make', 'install'], cwd=trees['subversion'], env=svn_env)
-            run(['/usr/bin/make', '-j' + str(args.jobs), 'LDFLAGS=' + flags + ' -Wl,-undefined,dynamic_lookup', 'LDDLFLAGS=-bundle -undefined dynamic_lookup ' + flags, 'swig-pl'], cwd=trees['subversion'], env=svn_env)
-            run(['/usr/bin/make', 'LDFLAGS=' + flags + ' -Wl,-undefined,dynamic_lookup', 'LDDLFLAGS=-bundle -undefined dynamic_lookup ' + flags, 'install-swig-pl'], cwd=trees['subversion'], env=svn_env)
+            # Generated MakeMaker module targets share blib/lib/SVN PM files.
+            # Parallel copies can chmod a destination read-only while another
+            # target writes it. Serialize this staging/install phase explicitly,
+            # including inherited make jobservers; native compilation stays parallel.
+            run(['/usr/bin/make', '-j1', 'LDFLAGS=' + flags + ' -Wl,-undefined,dynamic_lookup', 'LDDLFLAGS=-bundle -undefined dynamic_lookup ' + flags, 'swig-pl'], cwd=trees['subversion'], env=svn_env)
+            run(['/usr/bin/make', '-j1', 'LDFLAGS=' + flags + ' -Wl,-undefined,dynamic_lookup', 'LDDLFLAGS=-bundle -undefined dynamic_lookup ' + flags, 'install-swig-pl'], cwd=trees['subversion'], env=svn_env)
         component('subversion', build_svn)
         binding_root = svn / 'lib/perl5/site_perl'
         if not binding_root.is_dir(): raise RuntimeError('Subversion did not install its Perl bindings')

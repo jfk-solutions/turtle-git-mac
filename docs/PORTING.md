@@ -1,5 +1,25 @@
 # TurtleGit for Mac — full port tracking
 
+## History operation presentation and current dependencies — November 22, 2026
+
+The [Log/Sync family](HISTORY-OPERATION-PRESENTATION-PARITY.md) stabilizes Log's
+information, feedback and footer while retaining full diagnostic access. Sync
+owns actual Resolve and nested Reset with captured preferences, root and backend;
+completion waits for native/worker drainage. Native verification exposed real
+duplicate-load and sheet-close races, now repaired. Eight distinct case/engine
+pairs pass cumulatively after the recorded focused repairs. No Core suite was
+repeated for these native consumer changes.
+
+The [checkpoint](qa/history-operation-presentation-2026-11-22.json) also records
+the dependency rebuild blocking this app checkpoint: shared MakeMaker PM staging
+failed under parallel binding targets. Only those targets were serialized; the
+corrected build reused completed components. All eleven preparation/promotion
+operations passed, with original default kits preserved and independent current
+Git/SVN/MergeDiff targets retained. Runtime builders used their standard ad-hoc
+seals; no signed54 application or installation occurred. All 23 recorded native
+compiler/receiver PIDs are absent. Full hosted, signed/physical and whole-port
+acceptance remain open.
+
 ## Runtime source recovery — November 22, 2026
 
 The [runtime record](qa/runtime-source-recovery-2026-11-22.json) identifies a
