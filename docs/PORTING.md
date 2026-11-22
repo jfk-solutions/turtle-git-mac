@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Mixed Log activation and CI admission — November 23, 2026
+
+The [primary activation family](LOG-PRIMARY-ACTIVATION-PARITY.md) routes each
+selected row to its conflict editor or comparison under one owned warning and
+captured repository/settings. Conflict preparation retains cancellation and
+actual sheet drainage; native edits refresh the affected repository views.
+The [checkpoint](qa/log-primary-activation-family-2026-11-23.json) records one
+Debug build, eight native case/Git passes, a preserved fixture compile failure,
+and all thirteen logged native PIDs absent. Installed52 and signed54 are unchanged.
+
+Committed2ba's Pages run passed, but every macOS validation lane stopped at the
+workflow contract gate. The exact old source locally reproduces its unreviewed
+step rejection. Explicit mappings now preserve all original steps and admit
+only the owned context/primary consumers and bounded diagnostic artifacts;
+38 targeted contract checks pass. Matching hosted success, broader working-status
+semantics and physical/signed/platform/full-port acceptance remain open.
+
 ## Historical file menus and child handoffs — November 22, 2026
 
 The [Browser/Log/Blame family](HISTORY-BROWSER-CONTEXT-PARITY.md) connects native

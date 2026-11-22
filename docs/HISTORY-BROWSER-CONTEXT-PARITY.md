@@ -78,11 +78,10 @@ Return action when SwiftUI omits public AX button proxies; native sheet closure
 is checked at the delegate boundary. These do not prove physical focus or
 close-button clicks. No shipping screenshots or signed acceptance are claimed.
 
-A separate source review found a real remaining primary-action gap: Return on
-multiple conflicts or mixed conflict/ordinary files enters comparisons instead
-of opening each conflict editor. Log conflict handoffs also omit the Log's
-preferences and accepted backend. These require a related activation and child
-ownership batch; the current native-report passes do not certify those paths.
+The subsequent [primary activation family](LOG-PRIMARY-ACTIVATION-PARITY.md)
+repairs the mixed/multiple conflict Return dispatch and captured conflict-child
+preferences/backend identified by this review. Its separate checkpoint covers
+those paths; these earlier native-report passes alone do not certify them.
 
 Physical pointer/keyboard/VoiceOver use, translated distribution appearance,
 external receiving applications, all optional Git/LFS/gitlink combinations,

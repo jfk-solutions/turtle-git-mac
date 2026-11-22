@@ -880,7 +880,7 @@ struct MergeToolSettings: View {
     static var configureWordSession: (ExternalMergeSession) -> Void = { _ in }
     private(set) static var activeRequests = 0
     static func discardAll() { for folder in previews { try? FileManager.default.removeItem(at: folder) }; previews = [] }
-    static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?, cancellation: OperationCancellation? = nil, onPrepared: () -> Void = {}, preferences: MergeToolPreferences? = nil, expectedEntry: ConflictEntry? = nil, identityOptions: ConflictIdentityOptions = .init(defaults: .standard), launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication)? = nil) async throws -> Bool {
+    static func open(repository: GitRepository, access: RepositoryAccessLease?, path: String, alternate: Bool, owner: NSWindow?, cancellation: OperationCancellation? = nil, onPrepared: () -> Void = {}, prepared: (() async -> Void)? = nil, preferences: MergeToolPreferences? = nil, expectedEntry: ConflictEntry? = nil, identityOptions: ConflictIdentityOptions = .init(defaults: .standard), launch: ((URL, NSWorkspace.OpenConfiguration) async throws -> NSRunningApplication)? = nil) async throws -> Bool {
         let token = cancellation ?? OperationCancellation(); try token.check()
         let settings = preferences ?? MergeToolPreferences.load()
         guard let program = try settings.selected(path: path, alternate: alternate) else { return false }
@@ -899,6 +899,7 @@ struct MergeToolSettings: View {
         if program.builtIn == .libreOfficeDocument {
             configureLibreOfficeSession(session)
             onPrepared()
+            await prepared?();try token.check()
             guard await session.confirmWordPreparation(path: input.result.path, libreOffice: true), !session.retired else { return true }
             let root = try TurtleGitTemporaryStorage.root
             let preview = try await Task.detached { try LibreOfficeComparisonPreview.prepare(input, in: root, cancellation: token) }.value
@@ -919,6 +920,7 @@ struct MergeToolSettings: View {
         if program.builtIn == .wordDocument {
             configureWordSession(session)
             onPrepared()
+            await prepared?();try token.check()
             guard await session.confirmWordPreparation(path:input.result.path), !session.retired else { return true }
             let root=try TurtleGitTemporaryStorage.root
             let preview=try await Task.detached { try WordMergePreview.prepare(input,in:root,cancellation:token) }.value
@@ -975,6 +977,7 @@ struct MergeToolSettings: View {
             try await repository.validateExternalMergeInputs(input, cancellation: token)
             try token.check(); guard !session.retired else { throw OperationCancellationFailure.cancelled }
             onPrepared()
+            await prepared?();try token.check()
             if !program.isApplicationBundle {
                 let execution = try await ExternalToolProcesses.start(target, arguments: configuration.arguments, root: repository.root,
                     permissions: [grant] + (access.map { [$0] } ?? []), cancellation: settings.blockWhileMerging ? token : nil)

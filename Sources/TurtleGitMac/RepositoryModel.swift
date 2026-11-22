@@ -2550,81 +2550,105 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit, try await repository.conflictEditorEntry(path: entry.path, cancellation: token) == entry else { throw ResolveFailure.stale }
         try token.check()
     }
+    enum ConflictEditorLaunchResult: Equatable {case notAdmitted,native(ConflictEditorRoute),externalAccepted}
+    private func conflictWindowKey(repository:GitRepository,path:String,preferences:UserDefaults,entry:ConflictEntry)->String {
+        let stages=entry.stages.map {String($0.number)+":"+$0.mode+":"+$0.object}.joined(separator:";")
+        return repository.root.path+"\0"+path+"\0runtime:"+fileNavigationRuntimeKey(repository)+"\0preferences:"+String(describing:ObjectIdentifier(preferences))+"\0stages:"+stages
+    }
+    private func beginConflictEditorLaunch(repository:GitRepository,path:String,owner:NSWindow?,preferences:UserDefaults,alternate:Bool,cancellation:OperationCancellation?=nil,ownerIsCurrent:@escaping ()->Bool={true},mergeTools:MergeToolPreferences?=nil,identityOptions:ConflictIdentityOptions?=nil)->ConflictEditorLaunch? {
+        guard !retired,!confirmingQuit,ownerIsCurrent() else{return nil}
+        let key=repository.root.path+"\0"+path
+        guard conflictEditorPreparations[key]==nil else{return nil}
+        let request=ConflictEditorLaunch(owner:owner,preferences:preferences,alternateTool:alternate,cancellation:cancellation,
+            ownerIsCurrent:{[weak self] in self?.retired==false && self?.confirmingQuit==false && ownerIsCurrent()},tools:mergeTools,identityOptions:identityOptions)
+        conflictEditorPreparations[key]=request;conflictEditorPreparationCount=conflictEditorPreparations.count
+        request.showProgress(path:path);return request
+    }
     func showConflictEditor(repository: GitRepository, access: RepositoryAccessLease?, path: String, owner: NSWindow? = nil, preferences: UserDefaults? = nil, alternateTool: Bool? = nil, commandLaunch: Bool = false) {
-        guard !retired, !confirmingQuit else { return }
-        let key = repository.root.path + "\0" + path
-        guard conflictEditorPreparations[key] == nil else { return }
-        let alternate = alternateTool ?? ComparisonToolInvocation.capture
-        let owner = owner ?? (finderServiceDispatch != nil ? workspaceWindow : commandLaunch ? nil : NSApp.keyWindow ?? workspaceWindow)
-        let defaults = preferences ?? fileComparisonPreferences
-        let tools = MergeToolPreferences.load(from: defaults), identities = ConflictIdentityOptions(defaults: defaults)
-        let external = openExternalConflict, readEntry = readConflictEditorEntry
-        let request = ConflictEditorLaunch(owner: owner, preferences: defaults, alternateTool: alternate)
-        conflictEditorPreparations[key] = request; conflictEditorPreparationCount = conflictEditorPreparations.count
-        request.showProgress(path: path)
+        let owner=owner ?? (finderServiceDispatch != nil ? workspaceWindow:commandLaunch ? nil:NSApp.keyWindow ?? workspaceWindow)
+        let defaults=preferences ?? fileComparisonPreferences,alternate=alternateTool ?? ComparisonToolInvocation.capture
+        guard let request=beginConflictEditorLaunch(repository:repository,path:path,owner:owner,preferences:defaults,alternate:alternate) else{return}
         Task {
-            defer {
-                request.dismissProgress(); if conflictEditorPreparations[key] === request { conflictEditorPreparations.removeValue(forKey: key); conflictEditorPreparationCount = conflictEditorPreparations.count }
-                withExtendedLifetime(access) {}
-            }
-            do {
-                try await request.session.run(selectedCount: 0) { [self] token in
-                    try token.check(); guard !retired, !confirmingQuit else { return }
-                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
+            do {_ = try await runConflictEditor(repository:repository,access:access,path:path,owner:owner,request:request)}
+            catch {if !retired,!confirmingQuit,!request.session.cancellation.isCancelled {self.error=error.localizedDescription}}
+        }
+    }
+    /// Acknowledges preparation and accepted launch after the progress sheet has
+    /// drained. Native editors retain their own lifetime; launch is not resolution.
+    func showOwnedConflictEditor(repository:GitRepository,access:RepositoryAccessLease?,path:String,owner:NSWindow,preferences:UserDefaults,alternateTool:Bool,cancellation:OperationCancellation,ownerIsCurrent:@escaping ()->Bool,mergeTools:MergeToolPreferences?=nil,identityOptions:ConflictIdentityOptions?=nil) async throws -> ConflictEditorLaunchResult {
+        try cancellation.check()
+        guard let request=beginConflictEditorLaunch(repository:repository,path:path,owner:owner,preferences:preferences,alternate:alternateTool,cancellation:cancellation,ownerIsCurrent:ownerIsCurrent,mergeTools:mergeTools,identityOptions:identityOptions) else{return .notAdmitted}
+        return try await runConflictEditor(repository:repository,access:access,path:path,owner:owner,request:request)
+    }
+    private func runConflictEditor(repository:GitRepository,access:RepositoryAccessLease?,path:String,owner:NSWindow?,request:ConflictEditorLaunch) async throws -> ConflictEditorLaunchResult {
+        let key=repository.root.path+"\0"+path,defaults=request.preferences,tools=request.tools,identities=request.identityOptions
+        let alternate=request.session.alternateTool,external=openExternalConflict,readEntry=readConflictEditorEntry
+        var result=ConflictEditorLaunchResult.notAdmitted
+        defer {
+            if conflictEditorPreparations[key] === request {conflictEditorPreparations.removeValue(forKey:key);conflictEditorPreparationCount=conflictEditorPreparations.count}
+            withExtendedLifetime(access) {}
+        }
+        do {
+            try await request.session.run(selectedCount:0) { [self] token in
+                try request.session.check()
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
                     let entry: ConflictEntry
                     if let readEntry { entry = try await readEntry(repository, path, token) }
                     else { entry = try await repository.conflictEditorEntry(path: path, cancellation: token) }
                     guard GitReferenceName.equal(entry.path,path) else { throw ResolveFailure.stale }; try token.check()
                 if entry.isDeleteModify {
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
-                    request.dismissProgress(); if let conflictEditorPresentation { conflictEditorPresentation(.deleteModify, repository, path, nil) }
-                    else { showDeleteConflict(repository: repository, access: access, path: path, preferences: defaults) }; return
+                    await request.dismissProgressAndWait(); try request.session.check()
+                    if let conflictEditorPresentation {conflictEditorPresentation(.deleteModify,repository,path,nil);result = .native(.deleteModify)}
+                    else if showDeleteConflict(repository:repository,access:access,path:path,preferences:defaults,entry:entry) {result = .native(.deleteModify)}
+                    return
                 }
                 if !entry.isSubmodule {
                     let opened: Bool
-                    if let external { opened = try await external(repository, access, path, alternate, owner, entry, token, { request.dismissProgress() }, tools) }
-                    else { opened = try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: CommandProgressContext.capture { request.dismissProgress() }, preferences: tools, expectedEntry: entry, identityOptions: identities) }
+                    if let external { opened = try await external(repository, access, path, alternate, owner, entry, token, {request.dismissProgress()}, tools) }
+                    else { opened = try await MergeToolApplication.open(repository: repository, access: access, path: path, alternate: alternate, owner: owner, cancellation: token, onPrepared: {request.dismissProgress()}, prepared: {await request.dismissProgressAndWait();_ = try? request.session.check()}, preferences: tools, expectedEntry: entry, identityOptions: identities) }
                     if opened {
                         try token.check(); guard !retired, !confirmingQuit else { return }
                         let root = repository.root
-                        refreshAfterConflictChange(root)
-                        if self.root == root { await refresh() }; return
+                        await request.dismissProgressAndWait(); try request.session.check()
+                        refreshAfterConflictChange(root,preferences:defaults)
+                        if self.root == root { await refresh() }; result = .externalAccepted; return
                     }
-                    let root = repository.root, key = root.path + "\0" + path
+                    let root = repository.root, key = conflictWindowKey(repository:repository,path:path,preferences:defaults,entry:entry)
                     if let document = try await repository.imageConflictDocument(path: path, identityOptions: identities, cancellation: token) {
                         guard document.entry == entry else { throw ResolveFailure.stale }
                         try await validateConflictEditorEntry(entry, repository: repository, token: token)
-                        request.dismissProgress()
-                        if let conflictEditorPresentation { conflictEditorPresentation(.image, repository, path, document); return }
-                        let controller = imageConflictWindows[key] ?? ImageConflictWindowController(repository: repository, access: access, document: document, preferences: defaults)
+                        await request.dismissProgressAndWait(); try request.session.check()
+                        if let conflictEditorPresentation { result = .native(.image); conflictEditorPresentation(.image, repository, path, document); return }
+                        let controller = imageConflictWindows[key].flatMap{!$0.model.retired ? $0:nil} ?? ImageConflictWindowController(repository: repository, access: access, document: document, preferences: defaults)
                         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.imageConflictWindows[key] === controller else { return }; self.imageConflictWindows.removeValue(forKey: key) }
                         controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
-                            self?.refreshAfterConflictChange(root)
+                            self?.refreshAfterConflictChange(root,preferences:defaults)
                             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                         }
-                        imageConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); return
+                        imageConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); result = .native(.image); return
                     }
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
-                    request.dismissProgress()
-                    if let conflictEditorPresentation { conflictEditorPresentation(.text, repository, path, nil); return }
-                    let controller = (textConflictWindows[key]?.window != nil ? textConflictWindows[key] : nil) ?? TextConflictWindowController(repository: repository, access: access, path: path, preferences: defaults)
+                    await request.dismissProgressAndWait(); try request.session.check()
+                    if let conflictEditorPresentation { result = .native(.text); conflictEditorPresentation(.text, repository, path, nil); return }
+                    let controller = textConflictWindows[key].flatMap{$0.window != nil && !$0.model.retired ? $0:nil} ?? TextConflictWindowController(repository: repository, access: access, path: path, preferences: defaults)
                     controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.textConflictWindows[key] === controller else { return }; self.textConflictWindows.removeValue(forKey: key) }
                     controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
-                        self?.refreshAfterConflictChange(root)
+                        self?.refreshAfterConflictChange(root,preferences:defaults)
                         if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                     }
-                    textConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); return
+                    textConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); result = .native(.text); return
                 }
-                let root = repository.root, key = root.path + "\0" + path
+                let root = repository.root, key = conflictWindowKey(repository:repository,path:path,preferences:defaults,entry:entry)
                 try await validateConflictEditorEntry(entry, repository: repository, token: token)
-                request.dismissProgress()
-                if let conflictEditorPresentation { conflictEditorPresentation(.submodule, repository, path, nil); return }
-                let conflictKey=key+"\0git:"+repository.executable.path+"\0preferences:"+String(describing:ObjectIdentifier(defaults))
+                await request.dismissProgressAndWait(); try request.session.check()
+                if let conflictEditorPresentation { result = .native(.submodule); conflictEditorPresentation(.submodule, repository, path, nil); return }
+                let conflictKey=key
                 let reusable=submoduleConflictWindows[conflictKey].flatMap{$0.canReuse ? $0:nil}
                 let controller=reusable ?? SubmoduleConflictWindowController(repository:repository,access:access,path:path,preferences:defaults)
                 controller.onClosed=CommandProgressContext.capture { [weak self,weak controller] in guard let self,let controller,self.submoduleConflictWindows[conflictKey] === controller else{return};self.submoduleConflictWindows.removeValue(forKey:conflictKey) }
                 controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
-                    self?.refreshAfterConflictChange(root)
+                    self?.refreshAfterConflictChange(root,preferences:defaults)
                     if let self, self.root == root { self.output = output; Task { await self.refresh() } }
                 }
                 let preferences=controller.model.operation.preferences
@@ -2633,25 +2657,28 @@ private enum TransportBatchPresentationContext {
                     guard let self,!self.retired,!self.confirmingQuit,let controller,controller.canReuse,!controller.model.confirmingQuit else{controller?.model.dismissReset();return}
                     self.showReset(repository:child,access:access,revision:revision,completion:done,dismissed:CommandProgressContext.capture {[weak controller] in controller?.resetChildClosed()},preferences:preferences,onCreated:CommandProgressContext.capture {[weak controller] in controller?.retainReset($0)})
                 }
-                submoduleConflictWindows[conflictKey] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
-                }
-            } catch { if !retired, !request.session.cancellation.isCancelled, !confirmingQuit { self.error = error.localizedDescription } }
+                submoduleConflictWindows[conflictKey] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller); result = .native(.submodule)
+            }
+            await request.dismissProgressAndWait()
+            return result
+        } catch {
+            await request.dismissProgressAndWait();throw error
         }
     }
     private func presentConflictWindow(_ controller: NSWindowController) {
         if let conflictWindowPresentation { conflictWindowPresentation(controller) }
         else { controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil) }
     }
-    private func showDeleteConflict(repository: GitRepository, access: RepositoryAccessLease?, path: String, preferences: UserDefaults) {
-        let root = repository.root, key = root.path + "\0" + path
-        let controller = deleteConflictWindows[key] ?? DeleteConflictWindowController(repository: repository, access: access, path: path, preferences: preferences)
+    @discardableResult private func showDeleteConflict(repository: GitRepository, access: RepositoryAccessLease?, path: String, preferences: UserDefaults,entry:ConflictEntry) -> Bool {
+        let root = repository.root, key = conflictWindowKey(repository:repository,path:path,preferences:preferences,entry:entry)
+        let controller = deleteConflictWindows[key].flatMap{$0.model.operation.active ? $0:nil} ?? DeleteConflictWindowController(repository: repository, access: access, path: path, preferences: preferences)
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in guard let self, let controller, self.deleteConflictWindows[key] === controller else { return }; self.deleteConflictWindows.removeValue(forKey: key) }
         controller.model.onChanged = CommandProgressContext.capture { [weak self] output in
-            self?.refreshAfterConflictChange(root)
+            self?.refreshAfterConflictChange(root,preferences:preferences)
             if let self, self.root == root { self.output = output; Task { await self.refresh() } }
         }
-        controller.model.onLog = CommandProgressContext.capture { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision) }
-        deleteConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return}; presentConflictWindow(controller)
+        controller.model.onLog = CommandProgressContext.capture { [weak self] revision in self?.showLog(repository: repository, access: access, paths: [path], endRevision: revision,selectedRevision:revision,preferences:preferences) }
+        deleteConflictWindows[key] = controller; guard prepareFinderServiceWorkflow(controller,repository:repository,access:access) else{controller.close();return false}; presentConflictWindow(controller);return true
     }
     func configureResetInteractions(_ controller: ResetWindowController, repository: GitRepository, access: RepositoryAccessLease?, completion: (() -> Void)? = nil) {
         let root = repository.root, preferences = controller.model.presentationPreferences
@@ -4605,8 +4632,11 @@ private enum TransportBatchPresentationContext {
             self?.showIgnore(repository: repository, access: access, paths: paths, action: action)
         }
         controller.model.onConflictAction = CommandProgressContext.capture { [weak self, weak controller] action, paths in
-            if action == .editConflict, let path = paths.first { self?.showConflictEditor(repository: repository, access: access, path: path, owner: controller?.window) }
-            else { self?.showResolve(repository: repository, access: access, paths: paths, quick: action.resolveChoice) }
+            guard let self,let controller,!controller.model.isInvalidated,!controller.model.confirmingQuit else{return}
+            let captured=controller.model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:operationPreferences)
+            if action == .editConflict,let path=paths.first {
+                self.showConflictEditor(repository:captured,access:access,path:path,owner:controller.window,preferences:operationPreferences)
+            } else {self.showResolve(repository:captured,access:access,paths:paths,quick:action.resolveChoice,preferences:operationPreferences)}
         }
         controller.model.onRevisionChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshRepositoryLogs(root)
@@ -4645,10 +4675,53 @@ private enum TransportBatchPresentationContext {
                 String(repository.diffDetection.percentage), String(backend.enabled), String(backend.mask),
                 backend.helper?.base64EncodedString() ?? "no-helper"].joined(separator: "\0")
     }
+    /// One warning is owned by Log before this handoff. Every status-specific
+    /// preparation below shares that accepted selection, token and settings.
+    /// Native viewers own their independent lifetime after presentation.
+    private func showLogPrimaryFiles(_ plan:LogFilePrimaryActivation,access:RepositoryAccessLease?,cancellation:OperationCancellation) async throws {
+        guard !retired,!confirmingQuit,plan.ownerIsCurrent() else{throw OperationCancellationFailure.cancelled}
+        let id=UUID(),token=OperationCancellation(parent:cancellation)
+        let session=FileListComparisonSession(window:plan.window,preferences:plan.preferences,cancellation:token,alternateTool:plan.alternateTool)
+        session.isOwnerCurrent={[weak self] in self?.retired==false && self?.confirmingQuit==false && plan.ownerIsCurrent()}
+        fileComparisonSessions[id]=session
+        defer{fileComparisonSessions.removeValue(forKey:id);withExtendedLifetime(access){}}
+        let appearance=plan.window.effectiveAppearance,alpha=plan.window.alphaValue
+        do {
+            try await session.run(selectedCount:0) { [self] token in
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(plan.repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                for action in plan.actions {
+                    try session.check()
+                    switch action {
+                    case .conflict(let file):
+                        guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
+                        try session.check()
+                        _ = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:file.path,owner:plan.window,preferences:plan.preferences,
+                            alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity)
+                    case .comparison(let file,let from,let to):
+                        let snapshot=try await plan.repository.revisionFileComparison(from:from,to:to,paths:[file.path],cancellation:token)
+                        try session.check()
+                        guard snapshot.root==plan.repository.root else{throw RevisionComparisonFailure.selection}
+                        presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,preferences:plan.preferences,appearance:appearance,alpha:alpha)
+                    case .workingFile(let file):
+                        // Explicit selected paths include untracked/ignored leaves;
+                        // use the accepted base rather than querying a new HEAD.
+                        let snapshot=try await plan.repository.revisionFileComparison(from:plan.workingBase,to:.workingTree,paths:[file.path],cancellation:token)
+                        try session.check()
+                        guard snapshot.root==plan.repository.root else{throw RevisionComparisonFailure.selection}
+                        presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,preferences:plan.preferences,appearance:appearance,alpha:alpha)
+                    }
+                }
+            }
+        } catch OperationCancellationFailure.cancelled {return}
+    }
     /// Ordinary, selectable and embedded Logs share the same originating
     /// repository, settings and child-comparison ownership rules.
     private func configureLogFileNavigation(_ model: LogWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         let preferences=model.colorPreferences
+        model.onPrimaryFileActivation=CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else{throw OperationCancellationFailure.cancelled}
+            try await self.showLogPrimaryFiles(plan,access:access,cancellation:token)
+        }
         model.onPreparedFileCompare=CommandProgressContext.capture { [weak self,weak model] marked,current in
             guard let model,!model.isInvalidated,!model.confirmingQuit,let owner=model.window else{return}
             let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:preferences)
@@ -7009,12 +7082,24 @@ private enum FinderSelectionFailure: LocalizedError {
 /// The preparation sheet is dismissed before handing control to an editor/tool.
 @MainActor final class ConflictEditorLaunch: NSObject, NSWindowDelegate {
     let session: FileListComparisonSession
+    let preferences: UserDefaults
+    let tools: MergeToolPreferences
+    let identityOptions: ConflictIdentityOptions
     private weak var owner: NSWindow?
     private var panel: NSPanel?
+    private var retiringPanel: NSPanel?
+    private var progressRelease: Task<Void,Never>?
     private weak var cancelButton: NSButton?
-    init(owner: NSWindow?, preferences: UserDefaults, alternateTool: Bool) { self.owner = owner; session = FileListComparisonSession(window: owner, preferences: preferences, alternateTool: alternateTool); super.init() }
+    init(owner: NSWindow?, preferences: UserDefaults, alternateTool: Bool, cancellation: OperationCancellation? = nil, ownerIsCurrent: @escaping () -> Bool = {true}, tools: MergeToolPreferences? = nil, identityOptions: ConflictIdentityOptions? = nil) {
+        self.owner=owner; self.preferences=preferences
+        self.tools=tools ?? MergeToolPreferences.load(from:preferences)
+        self.identityOptions=identityOptions ?? ConflictIdentityOptions(defaults:preferences)
+        session=FileListComparisonSession(window:owner,preferences:preferences,cancellation:OperationCancellation(parent:cancellation),alternateTool:alternateTool)
+        session.isOwnerCurrent=ownerIsCurrent
+        super.init()
+    }
     func showProgress(path: String) {
-        guard panel == nil, !session.cancellation.isCancelled else { return }
+        guard panel == nil, retiringPanel == nil, !session.cancellation.isCancelled else { return }
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 520, height: 110))
         let progress = NSProgressIndicator(); progress.style = .spinning; progress.controlSize = .small; progress.isIndeterminate = true; progress.startAnimation(nil)
         progress.translatesAutoresizingMaskIntoConstraints = false; NSLayoutConstraint.activate([progress.widthAnchor.constraint(equalToConstant: 16), progress.heightAnchor.constraint(equalToConstant: 16)])
@@ -7034,9 +7119,14 @@ private enum FinderSelectionFailure: LocalizedError {
     @objc func cancel() { session.cancel(); cancelButton?.isEnabled = false; cancelButton?.title = "Cancelling…" }
     func windowShouldClose(_ sender: NSWindow) -> Bool { cancel(); return false }
     func dismissProgress() {
-        guard let panel else { return }; self.panel = nil; cancelButton = nil; panel.delegate = nil
-        if let parent = panel.sheetParent { parent.endSheet(panel, returnCode: .cancel) }; panel.orderOut(nil); panel.close()
+        guard let panel else{return};self.panel=nil;retiringPanel=panel;cancelButton=nil;panel.delegate=nil
+        let parent=panel.sheetParent ?? owner
+        progressRelease=Task { [self,panel] in
+            await FileOperationWindowDrain.detach(panel,parent:parent)
+            panel.close();retiringPanel=nil;progressRelease=nil
+        }
     }
+    func dismissProgressAndWait() async {dismissProgress();let release=progressRelease;await release?.value}
 }
 
 /// The metadata picker belongs to the initiating workspace and cancellation token.

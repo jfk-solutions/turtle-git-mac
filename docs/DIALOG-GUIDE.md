@@ -305,6 +305,15 @@ or accessibility **Show Menu** opens the selected files' menu. Parent headings
 describe merge comparisons and cannot be selected as files. Double-click acts on
 the pointed file; explicit multi-file commands retain the selected set.
 
+Press **Return** to activate selected files in list order. Conflicted working
+files open their conflict editors; ordinary, historical and unversioned files
+open their corresponding comparisons. The configured multi-file warning appears
+once before preparation starts. Hold **Shift** to use the alternate tool. The
+selection's repository, settings and working-tree base stay attached to that
+request. Closing Log cancels remaining preparation and waits for its cleanup;
+viewers already opened retain their independent windows. Resolving a conflict
+refreshes the affected repository views.
+
 ![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-10-27.png)
 
 ![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-10-27.png)

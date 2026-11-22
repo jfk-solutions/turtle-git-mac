@@ -80,11 +80,16 @@ import TurtleGitCore
         // already-launched tool inputs, but cannot mark resolved or fall back.
         var settings=MergeToolPreferences();settings.program.enabled=true;settings.program.applicationPath="/Applications/Preview.app";settings.blockWhileMerging=false
         var launched=false,prepared=false,arguments:[String]=[],sdkReply:((NSRunningApplication)->Void)?
+        var preparedReply:CheckedContinuation<Void,Never>?
+        defer{preparedReply?.resume()}
         let sdkOwner=owner(),token=OperationCancellation(),entry=try await text.conflictEditorEntry(path:path)
-        let opening=Task { try await MergeToolApplication.open(repository:text,access:nil,path:path,alternate:false,owner:sdkOwner,cancellation:token,onPrepared:{prepared=true},preferences:settings,expectedEntry:entry,launch:{_,configuration in
+        let opening=Task { try await MergeToolApplication.open(repository:text,access:nil,path:path,alternate:false,owner:sdkOwner,cancellation:token,onPrepared:{prepared=true},prepared:{await withCheckedContinuation{preparedReply=$0}},preferences:settings,expectedEntry:entry,launch:{_,configuration in
             launched=true;arguments=configuration.arguments
             return await withCheckedContinuation { continuation in sdkReply={continuation.resume(returning:$0)} }
         }) }
+        try await wait {preparedReply != nil}
+        try require(prepared && !launched && sdkReply==nil && arguments.isEmpty && MergeToolApplication.activeRequests>0,"External SDK launch crossed the held async preparation/drain boundary")
+        preparedReply?.resume();preparedReply=nil
         try await wait { sdkReply != nil };try require(prepared && launched && arguments.count == 4 && MergeToolApplication.activeRequests > 0,"External launch omitted prepared arguments/ownership")
         let folder=URL(fileURLWithPath:arguments[0]).deletingLastPathComponent()
         try require(try Data(contentsOf:URL(fileURLWithPath:arguments[0])) == Data("base\n".utf8) && Data(contentsOf:URL(fileURLWithPath:arguments[1])) == Data("theirs\n".utf8) && Data(contentsOf:URL(fileURLWithPath:arguments[2])) == Data("mine\n".utf8) && arguments[3] == text.root.appendingPathComponent(path).path,"External source files/working result mismatch")

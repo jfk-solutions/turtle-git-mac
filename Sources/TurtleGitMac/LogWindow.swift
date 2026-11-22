@@ -27,6 +27,35 @@ struct PreparedFileComparisonMark {
 
 enum HistoricalOpenAction { case open, openWith, alternativeEditor }
 
+/// One accepted native default action preserves list order and the original
+/// row kind. In particular, a multi-selection never converts conflicts into
+/// ordinary historical comparisons.
+enum LogFilePrimaryAction {
+    case conflict(CommitFile)
+    case comparison(CommitFile, from:ComparisonRevision, to:ComparisonRevision)
+    case workingFile(CommitFile)
+
+    var file:CommitFile {
+        switch self {case .conflict(let file),.comparison(let file,_,_),.workingFile(let file):return file}
+    }
+}
+
+/// Root dispatches these already-confirmed actions using the shared token. It
+/// must not recapture HEAD, tools, the active window or another warning session.
+@MainActor struct LogFilePrimaryActivation {
+    let actions:[LogFilePrimaryAction]
+    let selectedCount:Int
+    let repository:GitRepository
+    let preferences:UserDefaults
+    let window:NSWindow
+    let workingBase:ComparisonRevision
+    let isRebase:Bool
+    let alternateTool:Bool
+    let mergeTools:MergeToolPreferences
+    let conflictIdentity:ConflictIdentityOptions
+    let ownerIsCurrent:()->Bool
+}
+
 /// Native counterpart of PatchViewDlg's sticky edge and parent frame handling.
 enum LogPatchPlacement {
     static let gap: CGFloat = 8
@@ -876,6 +905,8 @@ struct LogCommandRequest: Identifiable {
     }
     private(set) static var activeFileNavigationActivities = 0
     private var fileNavigationActivities = Set<UUID>()
+    private var ownedFileActionSessions:[UUID:FileListComparisonSession]=[:]
+    var confirmPrimaryFileActivation:((Int) async -> Bool)?
     var fileNavigationReadPending: Bool { fileOpenRead != nil || !fileNavigationActivities.isEmpty }
     @discardableResult func beginFileNavigationActivity() -> UUID {
         let id=UUID();fileNavigationActivities.insert(id);Self.activeFileNavigationActivities += 1
@@ -892,7 +923,7 @@ struct LogCommandRequest: Identifiable {
     @discardableResult func cancelFileNavigationRead(closeAfter: Bool = false) -> Bool {
         guard fileNavigationReadPending else{return false}
         closeAfterFileNavigationRead = closeAfterFileNavigationRead || closeAfter
-        fileMenuGeneration=UUID();fileOpenRead?.cancel();cancelFileChoice();return true
+        fileMenuGeneration=UUID();fileOpenRead?.cancel();ownedFileActionSessions.values.forEach{$0.cancel()};cancelFileChoice();return true
     }
     private func finishPendingFileNavigationClose() {
         guard closeAfterFileNavigationRead,!fileNavigationReadPending else{return}
@@ -1239,7 +1270,7 @@ struct LogCommandRequest: Identifiable {
         didSet { if !preservingHistoryFileNavigationOwner { fileNavigationOwnerEpoch=UUID() } }
     }
     private var fileDragEpoch = UUID()
-    private func invalidateFileSelection(includingDrag:Bool=true) { cancelFileOpen(); fileOpenRead?.cancel(); fileSelectionGeneration = UUID(); fileMenuGeneration = UUID();if includingDrag{fileDragEpoch=UUID()} }
+    private func invalidateFileSelection(includingDrag:Bool=true) { ownedFileActionSessions.values.forEach{$0.cancel()};cancelFileOpen(); fileOpenRead?.cancel(); fileSelectionGeneration = UUID(); fileMenuGeneration = UUID();if includingDrag{fileDragEpoch=UUID()} }
     func markedFile(_ ids: some Sequence<String>) -> CommitFile? {
         let ids = GitPathSet(ids)
         if let fileSelectionMark, ids.contains(fileSelectionMark), let file = visibleFiles.first(where: { GitReferenceName.equal($0.id, fileSelectionMark) }) { return file }
@@ -1252,10 +1283,11 @@ struct LogCommandRequest: Identifiable {
     /// history projection. Appends are harmless; a different revision, file
     /// selection, setting/action epoch or owner retires the pending read. Its
     /// own warning sheet is deliberately outside this receipt's admission gate.
-    func captureFileNavigationOwner() -> () -> Bool {
+    func captureFileNavigationOwner(activity:UUID?=nil,ids:GitPathSet?=nil) -> () -> Bool {
         let request=generation, selection=selected, fileRequest=fileSelectionGeneration
         let ownerEpoch=fileNavigationOwnerEpoch, selectedIDs=selectedFiles
-        let records=files.enumerated().compactMap { selectedIDs.contains($0.element.id) ? ($0.offset,$0.element):nil }
+        let targetIDs=ids ?? selectedIDs
+        let records=files.enumerated().compactMap { targetIDs.contains($0.element.id) ? ($0.offset,$0.element):nil }
         return { [weak self] in
             guard let self,!self.isInvalidated,!self.confirmingQuit,
                   self.generation==request,self.selected==selection,
@@ -1264,7 +1296,9 @@ struct LogCommandRequest: Identifiable {
                   !self.jumping,!self.loadingNote,!self.savingNote,self.noteRequest==nil,
                   !self.findBlocked,!self.orderingBlocked,!self.referencePickerBlocked,!self.copyingDetails,
                   !self.unifiedViewerBusy,self.unifiedSessions.isEmpty,self.followedSession==nil,
-                  !self.fileNavigationReadPending,(!self.busy || self.loadingHistory) else{return false}
+                  self.fileOpenRead==nil,
+                  (activity.map {self.fileNavigationActivities==Set([$0])} ?? self.fileNavigationActivities.isEmpty),
+                  (!self.busy || self.loadingHistory || activity != nil) else{return false}
             return records.allSatisfy {self.files.indices.contains($0.0) && self.files[$0.0]==$0.1}
         }
     }
@@ -2448,6 +2482,7 @@ struct LogCommandRequest: Identifiable {
     var onFileLog: ((String, String?) -> Void)?
     var onBlame: ((String, String) -> Void)?
     var onConflictAction: ((RepositoryAction, [String]) -> Void)?
+    var onPrimaryFileActivation:((LogFilePrimaryActivation,OperationCancellation) async throws -> Void)?
     var onPreparedFileCompare: ((PreparedFileComparisonMark, PreparedFileComparisonMark) -> Void)?
     var onFilePairCompare: ((String, [CommitFile]) -> Void)?
     var onWorkingFiles: ((RepositoryAction, [String]) -> Void)?
@@ -3289,39 +3324,107 @@ struct LogCommandRequest: Identifiable {
     func workingConflictPaths(_ ids: some Sequence<String>) -> [String] {
         let ids = GitPathSet(ids)
         guard selectedWorkingTree, !bare else { return [] }
-        return visibleFiles.filter { ids.contains($0.id) && $0.action.hasPrefix("U") }.map(\.path)
+        return fileTableRows.compactMap(\.file).filter { ids.contains($0.id) && $0.action.hasPrefix("U") }.map(\.path)
     }
     func canWorkingConflict(_ action: RepositoryAction, ids: some Sequence<String>) -> Bool {
         let ids = GitPathSet(ids)
         guard hasRepresentableFilePaths(ids) else { return false }
-        guard !busy, !isInvalidated, onConflictAction != nil, !workingConflictPaths(ids).isEmpty else { return false }
+        guard canInspectHistory,!busy,(onConflictAction != nil || (action == .editConflict && onPrimaryFileActivation != nil)),!workingConflictPaths(ids).isEmpty else { return false }
         return action == .editConflict ? ids.count == 1 : action.resolveChoice != nil
     }
     func requestWorkingConflict(_ action: RepositoryAction, ids: some Sequence<String>) {
-        let ids = GitPathSet(ids)
-        guard requireNativeFilePaths(ids) else { return }
-        guard canWorkingConflict(action, ids: ids), let onConflictAction else { return }
-        let paths = workingConflictPaths(ids), selection = selected, request = generation, rebase = conflictRebase
-        let fileRequest = fileSelectionGeneration
-        busy = true
-        Task {
-            defer { busy = false }
+        let ids=GitPathSet(ids)
+        guard requireNativeFilePaths(ids),canWorkingConflict(action,ids:ids) else{return}
+        if action == .editConflict,onPrimaryFileActivation != nil {primaryFileAction(ids);return}
+        guard let onConflictAction else{return}
+        let paths=workingConflictPaths(ids),rebase=conflictRebase
+        let capturedRepository=repository.capturingDiffBackend(preferences:labelDefaults)
+        let activity=beginFileNavigationActivity(),sourceWindow=window
+        let capturedOwner=captureFileNavigationOwner(activity:activity,ids:ids)
+        let current:()->Bool = {[weak self,weak sourceWindow] in
+            guard let self,self.window === sourceWindow,capturedOwner() else{return false}
+            return NativeDiffBackendIdentity(self.repository.capturingDiffBackend(preferences:self.labelDefaults).libgit2Configuration)==NativeDiffBackendIdentity(capturedRepository.libgit2Configuration)
+        }
+        // Quick Resolve has no diff-count question, but owns the same real
+        // cancellation, navigation and Quit lifetime through its handoff.
+        let session=FileListComparisonSession(window:sourceWindow,preferences:labelDefaults)
+        session.isOwnerCurrent=current;ownedFileActionSessions[activity]=session
+        Task { [self] in
+            defer {ownedFileActionSessions.removeValue(forKey:activity);endFileNavigationActivity(activity);withExtendedLifetime(access){}}
             do {
-                for path in paths { try validateWorkingFileAccess(repository.root.appendingPathComponent(path)) }
-                let fresh = try await repository.conflicts(paths: paths)
-                guard GitPathSet(fresh.map(\.path)) == GitPathSet(paths) else { throw ResolveFailure.stale }
-                if action == .resolveMine || action == .resolveTheirs {
-                    guard try await repository.conflictIsRebase() == rebase else { throw ResolveFailure.stale }
+                try await session.run(selectedCount:0) {token in
+                    for path in paths {try token.check();try validateWorkingFileAccess(capturedRepository.root.appendingPathComponent(path))}
+                    let fresh=try await capturedRepository.conflicts(paths:paths,cancellation:token)
+                    guard GitPathSet(fresh.map(\.path))==GitPathSet(paths) else{throw ResolveFailure.stale}
+                    if action == .resolveMine || action == .resolveTheirs {
+                        guard try await capturedRepository.conflictIsRebase(cancellation:token)==rebase else{throw ResolveFailure.stale}
+                    }
+                    try token.check();guard current() else{throw OperationCancellationFailure.cancelled}
+                    acceptedNavigationRepository=capturedRepository
+                    onConflictAction(action,paths)
                 }
-                guard !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection else { return }
-                busy = false; onConflictAction(action, paths)
-            } catch { if !isInvalidated, request == generation, fileRequest == fileSelectionGeneration, selected == selection { self.error = error.localizedDescription } }
+            } catch {if current(),!session.cancellation.isCancelled {self.error=error.localizedDescription}}
         }
     }
     func primaryFileAction(_ ids: some Sequence<String>) {
-        let ids = GitPathSet(ids)
-        if canWorkingConflict(.editConflict, ids: ids) { requestWorkingConflict(.editConflict, ids: ids) }
-        else { compareFiles(ids) }
+        let ids=GitPathSet(ids)
+        guard let launch=onPrimaryFileActivation else {
+            // Unconfigured standalone consumers retain the older callbacks.
+            if canWorkingConflict(.editConflict,ids:ids) {requestWorkingConflict(.editConflict,ids:ids)}
+            else {compareFiles(ids)}
+            return
+        }
+        guard canInspectHistory,!ids.isEmpty,let parent=window,
+              ids.isSubset(of:GitPathSet(visibleFiles.map(\.id))),
+              !selectedWorkingTree || (!bare && requireNativeFilePaths(ids)),
+              requireHistoricalFilePaths(ids) else{return}
+        let chosen=fileTableRows.compactMap(\.file).filter{ids.contains($0.id)}
+        guard !chosen.isEmpty else{return}
+        let base=workingTreeSnapshot?.entry.parents.first.map{ComparisonRevision.revision($0)} ?? .emptyTree
+        let actions:[LogFilePrimaryAction]
+        if selectedWorkingTree {
+            actions=chosen.map { file in
+                if file.action.hasPrefix("U") {return .conflict(file)}
+                if file.action=="?" || file.action=="!" {return .workingFile(file)}
+                return .comparison(file,from:base,to:.workingTree)
+            }
+        } else {
+            guard let revision else{return}
+            actions=chosen.map { file in
+                let index=file.parentIndex ?? 0
+                let from=revision.parents.indices.contains(index) ? ComparisonRevision.revision(revision.parents[index]):.emptyTree
+                return .comparison(file,from:from,to:.revision(revision.hash))
+            }
+        }
+        let capturedRepository=repository.capturingDiffBackend(preferences:labelDefaults)
+        let diffTools=labelDefaults.data(forKey:"TurtleGit.DiffTools"),mergeData=labelDefaults.data(forKey:"TurtleGit.MergeTools")
+        let identity=ConflictIdentityOptions(defaults:labelDefaults),mergeTools=MergeToolPreferences.load(from:labelDefaults)
+        let alternate=ComparisonToolInvocation.capture,activity=beginFileNavigationActivity()
+        let capturedOwner=captureFileNavigationOwner(activity:activity,ids:ids)
+        let current:()->Bool = {[weak self,weak parent] in
+            guard let self,let parent,self.window === parent,capturedOwner(),
+                  self.labelDefaults.data(forKey:"TurtleGit.DiffTools")==diffTools,
+                  self.labelDefaults.data(forKey:"TurtleGit.MergeTools")==mergeData,
+                  ConflictIdentityOptions(defaults:self.labelDefaults)==identity,
+                  NativeDiffBackendIdentity(self.repository.capturingDiffBackend(preferences:self.labelDefaults).libgit2Configuration)==NativeDiffBackendIdentity(capturedRepository.libgit2Configuration) else{return false}
+            return true
+        }
+        let plan=LogFilePrimaryActivation(actions:actions,selectedCount:chosen.count,repository:capturedRepository,preferences:labelDefaults,window:parent,workingBase:base,isRebase:conflictRebase,alternateTool:alternate,mergeTools:mergeTools,conflictIdentity:identity,ownerIsCurrent:current)
+        let session=FileListComparisonSession(window:parent,preferences:labelDefaults,alternateTool:alternate)
+        session.confirmation=confirmPrimaryFileActivation;session.isOwnerCurrent=current
+        ownedFileActionSessions[activity]=session
+        Task { [self] in
+            defer {ownedFileActionSessions.removeValue(forKey:activity);endFileNavigationActivity(activity);withExtendedLifetime(access){}}
+            do {
+                try await session.run(selectedCount:plan.selectedCount) {token in
+                    try token.check();guard current() else{throw OperationCancellationFailure.cancelled}
+                    if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(capturedRepository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                    try await launch(plan,token)
+                }
+            } catch {
+                if current(),!session.cancellation.isCancelled {self.error=error.localizedDescription}
+            }
+        }
     }
     var prepareWorkingBlameLeaf:(URL,OperationCancellation) async throws -> Void = {file,token in
         try await Task.detached {try BlameDocumentLocation.validateWorkingLeaf(file,cancellation:token)}.value

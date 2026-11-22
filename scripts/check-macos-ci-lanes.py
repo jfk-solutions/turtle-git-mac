@@ -117,6 +117,46 @@ PANE_HEADER_FAILURE_EVIDENCE = {
         'retention-days': 7,
     },
 }
+HISTORY_CONTEXT_ANCHOR = 'Native Log selection and inspection while history streams'
+HISTORY_CONTEXT = {
+    'name': 'Native historical file menus and connected dialog handoffs',
+    'if': collection_condition('Native historical file menus and connected dialog handoffs', 'history-references'),
+    'timeout-minutes': 20,
+    'run': ('mkdir -p build/qa\nset -o pipefail\n'
+            'python3 scripts/test-history-file-context-family.py --keep-going --only browser-context --only blame-context --only log-context --git /usr/bin/git --git build/git-runtime/Git/bin/git --results build/qa/history-file-context-ci.json 2>&1 | tee build/qa/history-file-context-ci.log\n'),
+}
+HISTORY_CONTEXT_EVIDENCE = {
+    'name': 'Upload historical file context diagnostics',
+    'if': collection_condition('Upload historical file context diagnostics', 'history-references'),
+    'uses': 'actions/upload-artifact@v4',
+    'with': {
+        'name': 'history-file-context-${{ github.run_id }}-${{ github.run_attempt }}',
+        'path': ('build/qa/history-file-context-ci.json\n'
+                 'build/qa/history-file-context-ci.log\n'
+                 'build/qa/history-file-context-*-timeout.sample.txt\n'),
+        'retention-days': 7,
+    },
+}
+LOG_PRIMARY = {
+    'name': 'Native mixed Log primary file activation and conflict handoffs',
+    'if': collection_condition('Native mixed Log primary file activation and conflict handoffs', 'history-references'),
+    'timeout-minutes': 20,
+    'run': ('mkdir -p build/qa\nset -o pipefail\n'
+            'python3 scripts/test-log-primary-activation-batch.py --only primary --git /usr/bin/git --git build/git-runtime/Git/bin/git --results build/qa/log-primary-activation-native-results.json 2>&1 | tee build/qa/log-primary-activation-native.log\n'),
+}
+LOG_PRIMARY_EVIDENCE = {
+    'name': 'Upload mixed Log primary activation diagnostics',
+    'if': collection_condition('Upload mixed Log primary activation diagnostics', 'history-references'),
+    'uses': 'actions/upload-artifact@v4',
+    'with': {
+        'name': 'log-primary-activation-${{ github.run_id }}-${{ github.run_attempt }}',
+        'path': ('build/qa/log-primary-activation-native-results.json\n'
+                 'build/qa/log-primary-activation-native.log\n'
+                 'build/qa/log-primary-activation-primary-*-timeout.sample.txt\n'),
+        'if-no-files-found': 'warn',
+        'retention-days': 7,
+    },
+}
 
 def yaml_document(text):
     result = subprocess.run(['ruby', '-rjson', '-ryaml', '-e',
@@ -206,6 +246,20 @@ def verify(workflow, inventory, originals):
     require(actual[header_evidence[0]] == PANE_HEADER_FAILURE_EVIDENCE,
             'Changed pane-header diagnostic owner/guards/action/paths/retention')
     actual.pop(header_evidence[0])
+    # This exact connected history family is reviewed independently of the
+    # immutable baseline. No other new step or original neighbor is exempted.
+    history_additions = [HISTORY_CONTEXT, HISTORY_CONTEXT_EVIDENCE,
+                         LOG_PRIMARY, LOG_PRIMARY_EVIDENCE]
+    history_anchors = [i for i, step in enumerate(actual)
+                       if step.get('name') == HISTORY_CONTEXT_ANCHOR]
+    require(len(history_anchors) == 1, 'Missing or duplicate history-context anchor')
+    history_start = history_anchors[0] + 1
+    for offset, expected in enumerate(history_additions):
+        require(sum(step.get('name') == expected['name'] for step in actual) == 1,
+                'Missing or duplicate reviewed history addition: ' + expected['name'])
+        require(actual[history_start + offset] == expected,
+                'Changed history command, lane/readiness/cancellation, placement or diagnostic contract: ' + expected['name'])
+    del actual[history_start:history_start + len(history_additions)]
     app_index = next(i for i, step in enumerate(originals) if step.get('name') == 'Application and embedded Finder extension')
     require(actual[app_index + 1] == EDITOR_SETUP,
             'Every lane needs the unconditional SwiftPM executable before native/Core consumers')

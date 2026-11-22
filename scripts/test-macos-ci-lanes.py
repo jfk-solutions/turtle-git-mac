@@ -398,6 +398,93 @@ class MacOSLaneTests(unittest.TestCase):
             if mutation=='consumer-id':owner['id']='other'
             if mutation=='consumer-guard':owner['if']='always()'
             with self.subTest(mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+    def testReviewedHistoryFamilyHasExactPlacementAndLaneReadiness(self):
+        additions = [ci.HISTORY_CONTEXT, ci.HISTORY_CONTEXT_EVIDENCE,
+                     ci.LOG_PRIMARY, ci.LOG_PRIMARY_EVIDENCE]
+        steps = self.workflow['jobs']['validation']['steps']
+        anchor = next(i for i, step in enumerate(steps)
+                      if step.get('name') == ci.HISTORY_CONTEXT_ANCHOR)
+        self.assertEqual(steps[anchor + 1:anchor + 5], additions)
+        self.assertEqual(steps[anchor + 5]['name'], 'Native Log double-click preference receiver')
+        for step in additions:
+            name = step['name']
+            with self.subTest(name=name):
+                self.assertTrue(self.eligible(name, 'history-references', {'earlier_native': 'failure'}))
+                for lane in ci.LANES:
+                    if lane != 'history-references':
+                        self.assertFalse(self.eligible(name, lane))
+                self.assertFalse(self.eligible(name, 'history-references', cancelled=True))
+                for outcome in ['failure', 'skipped', 'cancelled', '']:
+                    self.assertFalse(self.eligible(name, 'history-references', {'native_ready': outcome}))
+        # Diagnostics remain eligible after their owned test fails. They do not
+        # mask that failure or depend on the other family's result.
+        for step in [ci.HISTORY_CONTEXT_EVIDENCE, ci.LOG_PRIMARY_EVIDENCE]:
+            self.assertTrue(self.eligible(step['name'], 'history-references',
+                                          {'earlier_native': 'failure', 'history_context': 'failure',
+                                           'log_primary': 'failure'}))
+        self.assertNotIn('--only conflict-routing', ci.LOG_PRIMARY['run'])
+        self.assertNotIn('--only conflict-commands', ci.LOG_PRIMARY['run'])
+        self.assertNotIn('--only image-conflict', ci.LOG_PRIMARY['run'])
+        self.verify()
+    def testReviewedHistoryAdditionsCannotDriftOrExemptOriginalNeighbors(self):
+        names = [ci.HISTORY_CONTEXT['name'], ci.HISTORY_CONTEXT_EVIDENCE['name'],
+                 ci.LOG_PRIMARY['name'], ci.LOG_PRIMARY_EVIDENCE['name']]
+        for name in names:
+            for mutation in ['missing', 'duplicate', 'reordered', 'renamed', 'wrong-lane',
+                             'drop-ready', 'drop-cancel', 'implicit-success', 'always',
+                             'continue-on-error', 'extra-env', 'extra-id']:
+                value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+                index = next(i for i, step in enumerate(steps) if step.get('name') == name)
+                step = steps[index]
+                if mutation == 'missing': steps.pop(index)
+                if mutation == 'duplicate': steps.insert(index + 1, copy.deepcopy(step))
+                if mutation == 'reordered': steps.insert(index - 1, steps.pop(index))
+                if mutation == 'renamed': step['name'] += ' changed'
+                if mutation == 'wrong-lane': step['if'] = step['if'].replace('history-references', 'core')
+                if mutation == 'drop-ready': step['if'] = step['if'].replace("steps.native_ready.outcome == 'success' && ", '')
+                if mutation == 'drop-cancel': step['if'] = step['if'].replace('!cancelled() && ', '')
+                if mutation == 'implicit-success': step['if'] = "matrix.lane == 'history-references'"
+                if mutation == 'always': step['if'] = step['if'].replace('!cancelled()', 'always()')
+                if mutation == 'continue-on-error': step['continue-on-error'] = True
+                if mutation == 'extra-env': step['env'] = {'UNREVIEWED': 'value'}
+                if mutation == 'extra-id': step['id'] = 'unreviewed'
+                with self.subTest(name=name, mutation=mutation), self.assertRaises(AssertionError):
+                    self.verify(value)
+        for name in [ci.HISTORY_CONTEXT_ANCHOR, 'Native Log double-click preference receiver']:
+            value = copy.deepcopy(self.workflow)
+            next(s for s in value['jobs']['validation']['steps'] if s.get('name') == name)['run'] = 'true'
+            with self.subTest(original_neighbor=name), self.assertRaises(AssertionError): self.verify(value)
+    def testHistoryCommandsKeepExactCasesBothGitEnginesAndFailurePropagation(self):
+        for name in [ci.HISTORY_CONTEXT['name'], ci.LOG_PRIMARY['name']]:
+            for mutation in ['command', 'omit-system', 'omit-bundled', 'broaden-cases',
+                             'pipefail', 'output', 'timeout', 'extra-command']:
+                value = copy.deepcopy(self.workflow)
+                step = next(s for s in value['jobs']['validation']['steps'] if s.get('name') == name)
+                if mutation == 'command': step['run'] = 'true'
+                if mutation == 'omit-system': step['run'] = step['run'].replace('--git /usr/bin/git ', '')
+                if mutation == 'omit-bundled': step['run'] = step['run'].replace('--git build/git-runtime/Git/bin/git ', '')
+                if mutation == 'broaden-cases': step['run'] = step['run'].replace('--only primary ', '') if name == ci.LOG_PRIMARY['name'] else step['run'].replace('--only browser-context ', '--only browser-files ')
+                if mutation == 'pipefail': step['run'] = step['run'].replace('set -o pipefail\n', '')
+                if mutation == 'output': step['run'] = step['run'].replace('2>&1 | tee', '2>&1 >')
+                if mutation == 'timeout': step.pop('timeout-minutes')
+                if mutation == 'extra-command': step['run'] += 'true\n'
+                with self.subTest(name=name, mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testHistoryDiagnosticArtifactsKeepNarrowExactContracts(self):
+        for name in [ci.HISTORY_CONTEXT_EVIDENCE['name'], ci.LOG_PRIMARY_EVIDENCE['name']]:
+            for mutation in ['action', 'artifact-name', 'broad-path', 'extra-path', 'missing-path',
+                             'retention', 'hidden-files', 'missing-file-policy', 'extra-command']:
+                value = copy.deepcopy(self.workflow)
+                step = next(s for s in value['jobs']['validation']['steps'] if s.get('name') == name)
+                if mutation == 'action': step['uses'] = 'actions/upload-artifact@v3'
+                if mutation == 'artifact-name': step['with']['name'] = 'unowned-diagnostics'
+                if mutation == 'broad-path': step['with']['path'] = 'build/**\n'
+                if mutation == 'extra-path': step['with']['path'] += '**\n'
+                if mutation == 'missing-path': step['with']['path'] = step['with']['path'].splitlines()[0] + '\n'
+                if mutation == 'retention': step['with']['retention-days'] = 90
+                if mutation == 'hidden-files': step['with']['include-hidden-files'] = True
+                if mutation == 'missing-file-policy': step['with']['if-no-files-found'] = 'ignore'
+                if mutation == 'extra-command': step['run'] = 'true'
+                with self.subTest(name=name, mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
     def testNoFailFastCancellationOrMissingAggregate(self):
         for change in ['fail-fast', 'aggregate', 'cancel', 'timeout']:
             value = copy.deepcopy(self.workflow)

@@ -1,0 +1,231 @@
+{
+  "date": "2026-11-23",
+  "recorded_utc": "2026-11-22T23:06:32.322434+00:00",
+  "status": "Mixed and multiple Log primary activation plus captured conflict handoffs implemented; one Debug app build, targeted CI contract proof and eight native case/Git pairs passed. Complete port/release acceptance remains open.",
+  "base_commit": "2ba21642934d8a3de56fd4b23ba8081187f54334",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "18fbb4a370efabbda8846b080a72e6f9b703d73458ebaa3d6ace832822fb0de0",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e635c615f4e2f5dd26ccc9a036e07a7265ef8f01278fe95d7e04a04c4b8f5445",
+    "Sources/TurtleGitMac/DiffToolSettings.swift": "c1fb2f944c3e724adb81e3d018a9aa766aba018a1a64e01ad57b70b8c66f9a6c"
+  },
+  "implementation": [
+    "Ordered primary actions distinguish each conflict, ordinary/historical parent comparison and unversioned/ignored working-file intent",
+    "Model-owned single selection warning captures source row identities/window/repository backend/base/preferences/tool intent/alternate choice; cancellation retains actual navigation/Quit lifetime",
+    "Explicit Edit conflict shares primary path; quick Resolve uses cancellable captured preflight and owns its synchronous child handoff",
+    "Root shares accepted token/receipt across sequential preparations without a second warning, and tracks pending preparations through success/error/cancel and paired progress detachment",
+    "Native conflict caches include runtime, preferences identity and exact index stages; retired controllers are not reused; native mutations refresh originating repository views",
+    "MergeToolApplication awaits optional async prepared boundary before its own question/launch; existing callers keep synchronous hook compatibility"
+  ],
+  "pre_validation_source_review": [
+    "Corrected delete-conflict helper call with required captured entry before compilation",
+    "Persisted private fixture tool preferences so generated association UUIDs represent stable accepted intent",
+    "Added two-real-conflict phase and held async prepared boundary to existing SDK fixture; no external application launched"
+  ],
+  "app_build": {
+    "command": "xcodebuild -quiet -jobs 4 -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+    "invocations": 1,
+    "terminal_exit_code": 0,
+    "log": {
+      "path": "build/qa/log-primary-activation-app-build-2026-11-22.log",
+      "sha256": "ba54f558221cc398dd9e92e458d09bf4e529896ce608319f2295f0ef16003802"
+    },
+    "production_changes_after_build": false,
+    "scope": "Local Debug build; SDK diagnostic text remains in log. Actual freshly linked native receivers exercise built objects; not hosted/platform acceptance."
+  },
+  "core_validation": {
+    "run": false,
+    "reason": "No Core/Git operation source changed; affected native consumers exercise actual system and bundled Git. Full integration belongs to CI."
+  },
+  "ci_contract": {
+    "affected_hosted_source": "2ba21642934d8a3de56fd4b23ba8081187f54334",
+    "pages": {
+      "run": 45078938163,
+      "conclusion": "success"
+    },
+    "macos": {
+      "run": 45078938060,
+      "conclusion": "failure",
+      "svn_runtime_job": 137382426339,
+      "svn_conclusion": "success",
+      "validation_lanes": "All eight failed at Check workflow lane contracts; subsequent application/Core/native checks skipped",
+      "history_job": 137382719041,
+      "core_job": 137382719042,
+      "aggregate_job": 137383113815
+    },
+    "proof": "Local exact committed2ba workflow and old verifier reproduce New/unmapped, removed or duplicate workflow step; reviewed additions repair admission without changing immutable inventory or original assertions.",
+    "check_log": {
+      "path": "build/qa/log-primary-activation-ci-contract-2026-11-22.log",
+      "sha256": "289ce37de4eee12e3e929d78ccf9cdc6e4dd733f749fb44eef8f173a914083cb"
+    },
+    "tests_passed": 38,
+    "terminal_exit_code": 0,
+    "hosted_current_source_pass_claimed": false,
+    "new_steps": "Existing historical context consumer/diagnostics and focused primary consumer/diagnostics have exact reviewed placement, command, eight-lane readiness/cancellation and bounded artifact contracts."
+  },
+  "native": {
+    "distinct_case_git_pairs_passed": 8,
+    "report": {
+      "path": "build/qa/log-primary-activation-native-recheck-1-2026-11-23.json",
+      "sha256": "71f9aec9dfd79e3daa79baee0d01e92e3cbe7e1012958ab597a1621de0bd49ab"
+    },
+    "log": {
+      "path": "build/qa/log-primary-activation-native-recheck-1-2026-11-23.log",
+      "sha256": "6900afb2b4db38597cc33b906c28c34c00dc7df68d71cb5c0c3d63c4c5152243"
+    },
+    "cases": [
+      {
+        "case": "primary",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:03:25.879172+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 16.866
+      },
+      {
+        "case": "primary",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:03:42.786429+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 13.169
+      },
+      {
+        "case": "conflict-routing",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:03:55.988302+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 8.847
+      },
+      {
+        "case": "conflict-routing",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:04:04.914260+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 8.206
+      },
+      {
+        "case": "conflict-commands",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:04:13.194359+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 15.053
+      },
+      {
+        "case": "conflict-commands",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:04:28.330901+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 13.524
+      },
+      {
+        "case": "image-conflict",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:04:41.916344+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 7.851
+      },
+      {
+        "case": "image-conflict",
+        "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-22T23:04:49.826120+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 7.697
+      }
+    ],
+    "initial_compile_failure": {
+      "log": {
+        "path": "build/qa/log-primary-activation-native-2026-11-23.log",
+        "sha256": "61d82d5b8d305b327f6a3a150ee9917c03f8fa7a47c8b2136bc09cf2c229848d"
+      },
+      "cases_executed": 0,
+      "reason": "Grouped fixture support omitted existing generic requireOne helper; driver now extracts exact original assertion implementation. App source/build unchanged."
+    },
+    "fixture_sha256": {
+      "docs/qa/log-primary-activation-native-2026-11-22.swift": "70e38b6852b502e5c97c264d6a62bc4c9a74312184eba0556eb14fce94f09081",
+      "docs/qa/conflict-editor-routing-native-2026-10-14.swift": "5708f8b13ffb549f22d0c999258278916251cd6511fdfc6d8c6955e9ef84514e",
+      "scripts/test-log-primary-activation-batch.py": "986d130eaef7b86f6d72e140182e826ac3dc853f1aebe7434ec65a01fb890531"
+    },
+    "ownership": {
+      "private_stores": "Explicit private Finder snapshot, saved access and comparison marks; private preferences/HOME/pasteboards/temp repositories and injected external responses",
+      "logged_pids": [
+        77903,
+        77909,
+        78240,
+        78253,
+        78640,
+        79030,
+        79263,
+        79496,
+        79992,
+        80006,
+        80529,
+        80545,
+        80801
+      ],
+      "all_absent_at_checkpoint": true,
+      "fallback_helper_cleanup": false,
+      "owned_windows_and_sheet_links_drained": true
+    }
+  },
+  "resources": {
+    "localizations": {
+      "write_and_check_exit": 0,
+      "languages": 38,
+      "keys": 1392
+    },
+    "help": {
+      "write_and_check_exit": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 98,
+      "bytes": 9411555
+    },
+    "coverage": {
+      "exit_code": 0,
+      "dialogs": 130,
+      "partial_family_audits": 120,
+      "pending_family_reviews": 10,
+      "certified_complete": 0,
+      "static_controls": 1659,
+      "mapped_controls": 1574,
+      "pending_control_reviews": 85,
+      "not_a_feature_completion_percentage": true
+    }
+  },
+  "distribution": {
+    "installed_build": "52",
+    "installed_app_updated": false,
+    "signed54_updated": false,
+    "newer_source_excluded_from_signed54": true,
+    "published_binary": false
+  },
+  "remaining": [
+    "Log Missing status presentation and missing-only activation semantics need a complete working-status review. CommitFile.action loses the separate bit, while backing workingIndexFiles retains index/worktree flags; no generic directory or multi-commit Log list feature should be invented from upstream comments.",
+    "Real Word/LibreOffice permission and external application execution, physical gestures/VoiceOver and all optional tool/index/gitlink combinations",
+    "Matching full hosted CI success; this batch repairs its admission gate rather than asserting earlier Core/native failures are fixed",
+    "Signed shipping UI/Finder, Intel/minimum-macOS execution and complete TortoiseGit port acceptance"
+  ],
+  "checkpoint_inputs_sha256": {
+    "docs/qa/log-primary-activation-native-2026-11-22.swift": "70e38b6852b502e5c97c264d6a62bc4c9a74312184eba0556eb14fce94f09081",
+    "docs/qa/conflict-editor-routing-native-2026-10-14.swift": "5708f8b13ffb549f22d0c999258278916251cd6511fdfc6d8c6955e9ef84514e",
+    "scripts/test-log-primary-activation-batch.py": "986d130eaef7b86f6d72e140182e826ac3dc853f1aebe7434ec65a01fb890531",
+    ".github/workflows/macos.yml": "fa726cbe1f3fe2f8eef106f3bc31f0c2ae82f23c278c503073025b5d8276636b",
+    "scripts/check-macos-ci-lanes.py": "5add1a6211f719343f1730a47087845bbc9d090b2e95e6e6fcf74b49ed2930ad",
+    "scripts/test-macos-ci-lanes.py": "559781802a6f729c414e29f02e23f6fc381713f2c25b051c8a444bedac7432ed"
+  }
+}

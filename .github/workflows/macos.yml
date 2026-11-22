@@ -1450,6 +1450,24 @@ jobs:
             build/qa/history-file-context-ci.log
             build/qa/history-file-context-*-timeout.sample.txt
           retention-days: 7
+      - name: Native mixed Log primary file activation and conflict handoffs
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
+        timeout-minutes: 20
+        run: |
+          mkdir -p build/qa
+          set -o pipefail
+          python3 scripts/test-log-primary-activation-batch.py --only primary --git /usr/bin/git --git build/git-runtime/Git/bin/git --results build/qa/log-primary-activation-native-results.json 2>&1 | tee build/qa/log-primary-activation-native.log
+      - name: Upload mixed Log primary activation diagnostics
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: log-primary-activation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/qa/log-primary-activation-native-results.json
+            build/qa/log-primary-activation-native.log
+            build/qa/log-primary-activation-primary-*-timeout.sample.txt
+          if-no-files-found: warn
+          retention-days: 7
       - name: Native Log double-click preference receiver
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
         run: python3 scripts/test-log-double-click.py
