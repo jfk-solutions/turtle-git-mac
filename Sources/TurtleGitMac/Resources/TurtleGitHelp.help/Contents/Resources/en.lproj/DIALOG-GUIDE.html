@@ -77,7 +77,9 @@ on a file. These open Add progress; mode choices change the index mode, leaving
 the working file intact. Mixed-selection commands follow the focused row and
 act on the captured selected paths.</p>
 <p>Add lists files eligible for the chosen Add operation. Check the paths to add,
-then choose OK. Header menus control optional columns. Adding records content in
+then choose OK. Shift-F10 or accessibility <strong>Show Menu</strong> opens the selected
+files' context menu without changing the checked files or selected group.
+Header menus control optional columns. Adding records content in
 Git's index; it does not create a commit. Add progress shows Action and Path
 notifications, followed by a colored Finished result with elapsed time. Its running
 bar disappears when finished. Use a file row's menu for Log, Open, Open With or
@@ -405,6 +407,10 @@ default. With multiple destinations, each destination's default is used.</p>
 configured to require rebase can select that behavior automatically. Read the
 progress and conflict result before starting another integration operation.</p>
 <h2 id="synchronization-progress">Synchronization progress</h2>
+<p>In the incoming/outgoing file and revision lists, Shift-F10 opens the selected
+rows' context menu. Accessibility <strong>Show Menu</strong> uses the same commands and
+retains the selected group. Reference/tag result menus also anchor at the
+selected row. These actions stay with the currently available result tab.</p>
 <p>For an explicitly enabled libgit2 Fetch, the Log tab uses source Action/Path reference-result rows with captured-hash Show Log and Copy actions. Diagnostics and completion stay alongside the result table; CLI operations retain the text output. See <a href="SYNC-TRANSFER-NOTIFICATIONS-PARITY.html">Synchronization Fetch results</a>.</p>
 <p>Selected libgit2 Fetch also follows the source configuration lifecycle: append the selected spec after loading the remote, use the loaded specs for this fetch, and retain the addition for later fetches. Repeated requests preserve duplicate entries; this behavior applies to the optional backend. See <a href="SYNC-TRANSFER-NOTIFICATIONS-PARITY.html#source-fetch-configuration-lifecycle--october-23-2026">lifecycle scope and limitations</a>.</p>
 <p>Synchronization replaces its branch/remote inputs with phase and progress while

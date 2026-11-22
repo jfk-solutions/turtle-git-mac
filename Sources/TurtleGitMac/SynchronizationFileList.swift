@@ -181,26 +181,48 @@ import TurtleGitCore
     var onCopy:(_ extended:Bool)->Void = {_ in}
     var makeRowMenu:(_ row:Int,_ column:Int)->NSMenu? = {_,_ in nil}
     var clickedRowQuery:(NSTableView)->Int = {$0.clickedRow}
+    var contextMenuAvailable:()->Bool = {false}
+    var presentSelectionMenu:(NSMenu,NSPoint,NSView)->Void = {menu,point,view in menu.popUp(positioning:nil,at:point,in:view)}
     private(set) var retired=false
     var keyOwnerQuery:(NSWindow)->Bool = {$0.isKeyWindow}
     private var keyboardOwnerAvailable:Bool {guard !retired,let window else{return false};return window.firstResponder === self && keyOwnerQuery(window) && window.attachedSheet==nil && NSApp.modalWindow==nil}
     override func menu(for event:NSEvent)->NSMenu? {
-        guard !retired else{return nil}
+        guard !retired,contextMenuAvailable(),event.window === window else{return nil}
         let point=convert(event.locationInWindow,from:nil),row=row(at:point),column=column(at:point)
         if row>=0,!selectedRowIndexes.contains(row) {selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)}
         return makeRowMenu(row,column)
     }
+    /// WM_CONTEXTMENU(-1,-1) in GitStatusListCtrl anchors its menu on the
+    /// selected item. Keyboard/VoiceOver must preserve the complete selection,
+    /// rather than synthesizing a pointer click and losing the other rows.
+    @discardableResult func showSelectedContextMenu()->Bool {presentSelectedMenu(keyboard:true)}
+    private func presentSelectedMenu(keyboard:Bool)->Bool {
+        guard !retired,let window,keyOwnerQuery(window),window.attachedSheet==nil,NSApp.modalWindow==nil,
+              !keyboard || window.firstResponder === self,
+              contextMenuAvailable(),!selectedRowIndexes.isEmpty else{return false}
+        let row=selectedRowIndexes.contains(selectedRow) ? selectedRow:selectedRowIndexes.first!
+        guard row>=0,row<numberOfRows else{return false}
+        scrollRowToVisible(row);layoutSubtreeIfNeeded()
+        guard let menu=makeRowMenu(row,-1),!menu.items.isEmpty else{return false}
+        let visible=rect(ofRow:row).intersection(visibleRect)
+        guard !visible.isEmpty else{return false}
+        let point=NSPoint(x:visible.minX+min(32,visible.width/2),y:visible.midY)
+        presentSelectionMenu(menu,point,self);return true
+    }
+    override func accessibilityPerformShowMenu()->Bool {presentSelectedMenu(keyboard:false)}
     override func keyDown(with event:NSEvent) {
         let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==109,flags == .shift {if event.window === window {_=showSelectedContextMenu()};return}
         if [36,76].contains(event.keyCode),flags.isEmpty || flags == .shift {if keyboardOwnerAvailable {onCompare(false,flags.contains(.shift))};return}
         super.keyDown(with:event)
     }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
         let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        if event.keyCode==109,flags == .shift {return event.window === window && showSelectedContextMenu()}
         if keyboardOwnerAvailable,event.charactersIgnoringModifiers?.lowercased()=="c",flags == .command || flags == [.command,.shift] {onCopy(flags.contains(.shift));return true}
         return super.performKeyEquivalent(with:event)
     }
-    func retire(){retired=true;onCompare={_,_ in};onCopy={_ in};makeRowMenu={_,_ in nil};target=nil;action=nil;doubleAction=nil;menu=nil}
+    func retire(){retired=true;onCompare={_,_ in};onCopy={_ in};makeRowMenu={_,_ in nil};contextMenuAvailable={false};presentSelectionMenu={_,_,_ in};keyOwnerQuery={_ in false};target=nil;action=nil;doubleAction=nil;menu=nil}
 }
 
 private final class SynchronizationFileMenuItem:NSMenuItem {
@@ -298,6 +320,7 @@ struct SynchronizationFiles:NSViewRepresentable {
             table.onCompare={ [weak self] unified,alternate in self?.activate(unified:unified,alternate:alternate) }
             table.onCopy={ [weak self] extended in self?.copySelection(extended:extended) }
             table.makeRowMenu={ [weak self] row,column in self?.rowMenu(row:row,column:column) }
+            table.contextMenuAvailable={ [weak self] in self?.nativeMenuAvailable==true }
             stateChanges=state.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async {self?.refresh()} }
             childChanges=state.comparison?.objectWillChange.sink { [weak self] _ in DispatchQueue.main.async {self?.refresh()} }
             if let window=model.window {closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main){[weak self] _ in MainActor.assumeIsolated {self?.retire()}}}
@@ -308,6 +331,7 @@ struct SynchronizationFiles:NSViewRepresentable {
         }
         func refresh() {
             guard !retired,let table else{return};updating=true;defer{updating=false}
+            let previousRows=currentRows
             currentRows=state.rows
             emptyLabel?.isHidden = !currentRows.isEmpty
             emptyLabel?.stringValue = model.busy ? NSLocalizedString("Please wait…",comment:""):model.error ?? NSLocalizedString("No differences found!",comment:"")
@@ -332,8 +356,15 @@ struct SynchronizationFiles:NSViewRepresentable {
                 if abs(actual.width-desired)>0.5 {actual.width=desired}
             }
             renderedEpoch=state.menuEpoch
-            table.rowHeight=max(24,ceil(font.ascender-font.descender+font.leading)+5);table.reloadData()
-            table.selectRowIndexes(IndexSet(currentRows.indices.filter {state.selection.contains(currentRows[$0].path)}),byExtendingSelection:false)
+            table.rowHeight=max(24,ceil(font.ascender-font.descender+font.leading)+5)
+            // Selection and preference publications do not replace this catalog.
+            // Reloading it clears AppKit's selection/caret before the model's
+            // asynchronous projection can restore it. Only an actual row change
+            // needs that transition; existing labels can be refreshed in place.
+            if previousRows != currentRows || table.numberOfRows != currentRows.count {table.reloadData()}
+            let indexes=IndexSet(currentRows.indices.filter {state.selection.contains(currentRows[$0].path)})
+            if table.selectedRowIndexes != indexes {table.selectRowIndexes(indexes,byExtendingSelection:false)}
+            refreshVisibleLabels()
             NativeListSelection.install(on:table,preferences:model.preferences,primaryColumn:table.tableColumn(withIdentifier:.init(StatusListColumn.path.rawValue)),labelText:{[weak self] row in guard let self,self.currentRows.indices.contains(row) else{return nil};return self.state.text(self.currentRows[row],column:.path)},font:font,leadingInset:23)
         }
         func retire(){guard !retired else{return};retired=true;dragPress=nil;if let dragMonitor{NSEvent.removeMonitor(dragMonitor);self.dragMonitor=nil};stateChanges=nil;childChanges=nil;if let closeObserver {NotificationCenter.default.removeObserver(closeObserver)};closeObserver=nil;if let table {NativeListSelection.remove(from:table);table.retire();table.delegate=nil;table.dataSource=nil}}
@@ -359,11 +390,32 @@ struct SynchronizationFiles:NSViewRepresentable {
             NSLayoutConstraint.activate([label.leadingAnchor.constraint(equalTo:cell.leadingAnchor,constant:leading),label.trailingAnchor.constraint(equalTo:cell.trailingAnchor,constant:-4),label.centerYAnchor.constraint(equalTo:cell.centerYAnchor)])
             return cell
         }
+        private func refreshVisibleLabels() {
+            guard let table else{return}
+            let range=table.rows(in:table.visibleRect)
+            guard range.location != NSNotFound,range.length>0 else{return}
+            let end=min(currentRows.count,range.location+range.length)
+            guard range.location<end else{return}
+            for row in range.location..<end {
+                let file=currentRows[row]
+                for (index,nativeColumn) in table.tableColumns.enumerated() {
+                    guard let column=StatusListColumn(rawValue:nativeColumn.identifier.rawValue),
+                          let cell=table.view(atColumn:index,row:row,makeIfNecessary:false) as? NSTableCellView,
+                          let label=cell.textField else{continue}
+                    label.stringValue=state.text(file,column:column);label.font=font
+                    label.textColor=NSColor(file.statusTextColor(selected:state.selection.contains(file.path),preferences:model.preferences))
+                    label.toolTip=column == .path ? file.path+(file.oldPath.map {"\nRenamed from "+$0} ?? ""):label.stringValue
+                }
+            }
+            table.needsDisplay=true
+        }
         func tableViewSelectionDidChange(_ notification:Notification) {
             guard !updating,!retired,let table,state.available else{return}
             let selected=GitPathSet(table.selectedRowIndexes.compactMap {currentRows.indices.contains($0) ? currentRows[$0].path:nil})
             if selected != state.selection {state.selection=selected}
-            table.reloadData()
+            // NativeListSelection observes the same notification. Updating cell
+            // colors must not reload the table and discard its native selection.
+            refreshVisibleLabels()
         }
         func tableView(_ tableView:NSTableView,sortDescriptorsDidChange oldDescriptors:[NSSortDescriptor]) {
             guard !updating,let sort=tableView.sortDescriptors.first,let key=sort.key,let column=StatusListColumn(rawValue:key) else{return}
@@ -375,13 +427,19 @@ struct SynchronizationFiles:NSViewRepresentable {
         func activate(unified:Bool=false,alternate:Bool=false) {guard let receipt=state.capture(state.selection) else{return};state.compare(receipt,unified:unified,alternate:alternate)}
         @objc func doubleClick(_ sender:NSTableView) {guard let table,sender===table else{return};let row=table.clickedRowQuery(table);guard currentRows.indices.contains(row),let receipt=state.capture([currentRows[row].path]) else{return};state.compare(receipt,unified:false,alternate:ComparisonToolInvocation.capture)}
         func copySelection(extended:Bool) {guard let receipt=state.capture(state.selection) else{return};state.copy(receipt,information:extended ? .pathsAndStatus:.relativePaths)}
+        private var nativeMenuAvailable:Bool {
+            guard !retired,state.available,let table,let window=model.window,
+                  table.window === window,table.numberOfRows==currentRows.count,
+                  currentRows==state.rows else{return false}
+            return true
+        }
         func rowMenu(row:Int,column:Int)->NSMenu {
             let menu=NSMenu();menu.autoenablesItems=false
-            guard currentRows.indices.contains(row),let table else{return menu}
+            guard nativeMenuAvailable,currentRows.indices.contains(row),let table else{return menu}
             let paths=state.selection.contains(currentRows[row].path) ? state.selection:GitPathSet([currentRows[row].path])
             let receipt=state.capture(paths)
             func add(_ title:String,_ id:String,_ icon:MenuIcon,_ operation:@escaping(SynchronizationFileListState.Receipt)->Void,in target:NSMenu) {
-                target.addItem(SynchronizationFileMenuItem(title,id:id,icon:icon,preferences:model.preferences,enabled:receipt != nil){if let receipt {operation(receipt)}})
+                target.addItem(SynchronizationFileMenuItem(title,id:id,icon:icon,preferences:model.preferences,enabled:receipt != nil){[weak self] in guard self?.nativeMenuAvailable==true,let receipt else{return};operation(receipt)})
             }
             add("Compare two revisions","compare",.compare,{[weak state] in state?.compare($0,unified:false,alternate:ComparisonToolInvocation.capture)},in:menu)
             add("Show unified diff","unified",.compare,{[weak state] in state?.compare($0,unified:true,alternate:ComparisonToolInvocation.capture)},in:menu)
@@ -395,10 +453,10 @@ struct SynchronizationFiles:NSViewRepresentable {
             let captured=state.menuEpoch
             for column in SynchronizationFileListState.availableColumns {
                 let visible=state.columns.visible.contains(column)
-                let item=SynchronizationFileMenuItem(column.rawValue,id:"column."+column.rawValue,icon:.settingsDialogs,preferences:model.preferences,enabled:state.available && column != .path){[weak state] in guard let state,state.menuEpoch==captured else{return};state.setColumn(column,visible:!visible)}
+                let item=SynchronizationFileMenuItem(column.rawValue,id:"column."+column.rawValue,icon:.settingsDialogs,preferences:model.preferences,enabled:state.available && column != .path){[weak self,weak state] in guard self?.nativeMenuAvailable==true,let state,state.menuEpoch==captured else{return};state.setColumn(column,visible:!visible)}
                 item.state=visible ? .on:.off;menu.addItem(item)
             }
-            menu.addItem(.separator());menu.addItem(SynchronizationFileMenuItem("Reset column order",id:"columns.reset",icon:.reset,preferences:model.preferences,enabled:state.available){[weak state] in guard let state,state.menuEpoch==captured else{return};state.resetColumns()});return menu
+            menu.addItem(.separator());menu.addItem(SynchronizationFileMenuItem("Reset column order",id:"columns.reset",icon:.reset,preferences:model.preferences,enabled:state.available){[weak self,weak state] in guard self?.nativeMenuAvailable==true,let state,state.menuEpoch==captured else{return};state.resetColumns()});return menu
         }
     }
 }

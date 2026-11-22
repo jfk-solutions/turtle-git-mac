@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Native contextual keyboard entry — November 22, 2026
+
+The [connected file/history batch](HISTORY-CONTEXT-ENTRY-PARITY.md) adds missing
+Shift-F10/accessibility menu entry in Add, Synchronization incoming/outgoing
+files and Blame's embedded Log. Existing commands, icons, Git operations and
+selection ownership remain shared with pointer entry. Synchronization history
+and reference/tag menus use current selected rows and real native owners;
+Blame source/gutter selection and change navigation respect blocking owners.
+Synchronization's SwiftUI conflict-table accessibility bridge and physical,
+signed and complete application acceptance remain open.
+
+The [checkpoint](qa/history-context-entry-2026-11-22.json) retains six distinct
+native case/engine passes after the recorded Sync source repair and fixture
+corrections. Both local build invocations exit zero with their contradictory
+local SDK diagnostics preserved. All seventeen recorded owned compiler/receiver
+PIDs and workspace runtime images are absent. Installed52 is unchanged.
+
 ## Editor history and Clone destinations — November 22, 2026
 
 Clone now derives the repository child directory from its initial clipboard or

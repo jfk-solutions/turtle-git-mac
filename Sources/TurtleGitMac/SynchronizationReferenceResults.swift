@@ -34,22 +34,31 @@ enum SynchronizationResultKind {case references,tags
     var presentContextMenu:(NSMenu,NSPoint,NSView)->Void = {menu,point,view in menu.popUp(positioning:nil,at:point,in:view)}
     private(set) var retired=false
     override func menu(for event:NSEvent)->NSMenu? {
-        guard !retired else{return nil}
+        guard !retired,contextMenuAvailable(),event.window === window else{return nil}
         let row=row(at:convert(event.locationInWindow,from:nil))
         if row>=0 {selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false)}
         return makeMenu()
     }
-    @discardableResult func showKeyboardContextMenu()->Bool {
-        guard !retired,let window,window.firstResponder === self,keyOwnerQuery(window),window.attachedSheet==nil,contextMenuAvailable(),selectedRow>=0,selectedRow<numberOfRows,let menu=makeMenu(),!menu.items.isEmpty else{return false}
-        let row=rect(ofRow:selectedRow),point=NSPoint(x:max(visibleRect.minX+4,min(row.minX+20,visibleRect.maxX-4)),y:max(visibleRect.minY,min(row.maxY,visibleRect.maxY)))
+    @discardableResult func showKeyboardContextMenu()->Bool {presentSelectedMenu(keyboard:true)}
+    private func presentSelectedMenu(keyboard:Bool)->Bool {
+        guard !retired,let window,!keyboard || window.firstResponder === self,keyOwnerQuery(window),window.attachedSheet==nil,NSApp.modalWindow==nil,contextMenuAvailable(),selectedRow>=0,selectedRow<numberOfRows else{return false}
+        scrollRowToVisible(selectedRow);layoutSubtreeIfNeeded()
+        guard let menu=makeMenu(),!menu.items.isEmpty else{return false}
+        let visible=rect(ofRow:selectedRow).intersection(visibleRect)
+        guard !visible.isEmpty else{return false}
+        let point=NSPoint(x:visible.minX+min(32,visible.width/2),y:visible.midY)
         presentContextMenu(menu,point,self);return true
     }
-    override func accessibilityPerformShowMenu()->Bool {showKeyboardContextMenu()}
+    override func accessibilityPerformShowMenu()->Bool {presentSelectedMenu(keyboard:false)}
     override func keyDown(with event:NSEvent) {
-        if event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift,showKeyboardContextMenu(){return}
+        if event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift {if event.window === window {_=showKeyboardContextMenu()};return}
         super.keyDown(with:event)
     }
-    func retire(){retired=true;makeMenu={nil};contextMenuAvailable={false};presentContextMenu={_,_,_ in};target=nil;action=nil;doubleAction=nil;menu=nil}
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift {return event.window === window && showKeyboardContextMenu()}
+        return super.performKeyEquivalent(with:event)
+    }
+    func retire(){retired=true;makeMenu={nil};contextMenuAvailable={false};presentContextMenu={_,_,_ in};keyOwnerQuery={_ in false};target=nil;action=nil;doubleAction=nil;menu=nil}
 }
 private final class SynchronizationResultHeader:NSTableHeaderView {
     var makeMenu:()->NSMenu = {NSMenu()}

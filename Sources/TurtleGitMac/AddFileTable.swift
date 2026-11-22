@@ -2,7 +2,37 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-private final class AddNativeTable: NativeWatermarkTable {
+final class AddNativeTable: NativeWatermarkTable {
+    var selectionMenuAvailable: () -> Bool = { false }
+    var selectionMenuRow: () -> Int? = { nil }
+    var presentSelectionMenu: ((NSMenu, NSPoint, NSView) -> Void)?
+    var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
+    private var presentingSelectionMenu = false
+    @discardableResult func showSelectedContextMenu() -> Bool {
+        guard !presentingSelectionMenu, selectionMenuAvailable(), let window,
+              window.attachedSheet == nil, NSApp.modalWindow == nil, isEnabled,
+              !isHiddenOrHasHiddenAncestor, let menu else { return false }
+        let row = selectionMenuRow().flatMap { selectedRowIndexes.contains($0) ? $0 : nil } ?? selectedRowIndexes.first
+        guard let row, row >= 0, row < numberOfRows else { return false }
+        presentingSelectionMenu = true; defer { presentingSelectionMenu = false }
+        // A keyboard request has no pointed subitem: never reuse a previous
+        // mouse column, and retain the focused selected file and all highlights.
+        contextSelection(row, -1)
+        menu.delegate?.menuNeedsUpdate?(menu)
+        guard menu.items.contains(where: { !$0.isHidden && !$0.isSeparatorItem && $0.isEnabled }) else { return false }
+        scrollRowToVisible(row); layoutSubtreeIfNeeded()
+        let visible = rect(ofRow: row).intersection(visibleRect)
+        let point = visible.isEmpty ? NSPoint(x: bounds.midX, y: rect(ofRow: row).midY) : NSPoint(x: visible.midX, y: visible.midY)
+        if let presentSelectionMenu { presentSelectionMenu(menu, point, self) }
+        else { menu.popUp(positioning: nil, at: point, in: self) }
+        return true
+    }
+    override func accessibilityPerformShowMenu() -> Bool { showSelectedContextMenu() }
+    private func handleSelectionMenuKey(_ event: NSEvent) -> Bool {
+        guard event.keyCode == 109, event.modifierFlags.intersection([.command, .control, .option, .shift]) == .shift,
+              let window, event.window === window, window.firstResponder === self, commandKeyWindow() === window else { return false }
+        return showSelectedContextMenu()
+    }
     var toggleChecks: () -> Void = {}
     var copySelection: (Bool) -> Void = { _ in }
     var deleteSelection: (Bool) -> Void = { _ in }
@@ -20,6 +50,7 @@ private final class AddNativeTable: NativeWatermarkTable {
         return acceptFileDrop(sender.draggingPasteboard)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
+        guard selectionMenuAvailable() else { return nil }
         let point = convert(event.locationInWindow, from: nil)
         let index = row(at: point)
         guard index >= 0 else { return nil }
@@ -28,6 +59,7 @@ private final class AddNativeTable: NativeWatermarkTable {
         return super.menu(for: event)
     }
     override func keyDown(with event: NSEvent) {
+        if handleSelectionMenuKey(event) { return }
         if event.keyCode == 51 || event.keyCode == 117 {
             deleteSelection(event.modifierFlags.contains(.shift)); return
         }
@@ -35,6 +67,7 @@ private final class AddNativeTable: NativeWatermarkTable {
         super.keyDown(with: event)
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if handleSelectionMenuKey(event) { return true }
         if event.charactersIgnoringModifiers?.lowercased() == "c", event.modifierFlags.contains(.command) { copySelection(event.modifierFlags.contains(.shift)); return true }
         return super.performKeyEquivalent(with: event)
     }
@@ -99,6 +132,11 @@ struct AddFileTable: NSViewRepresentable {
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
             table.target = self; table.doubleAction = #selector(preview)
             nativeTable.contextSelection = { [weak self] row, column in self?.prepareContext(row: row, column: column) }
+            nativeTable.selectionMenuAvailable = { [weak self] in self?.canPresentFileMenu == true }
+            nativeTable.selectionMenuRow = { [weak self] in
+                guard let self, let mark = model.selectionMark else { return nil }
+                return rows.firstIndex { GitReferenceName.equal($0.path, mark) }
+            }
             nativeTable.toggleChecks = { [weak self] in self?.toggleSelectedChecks() }
             nativeTable.copySelection = { [weak self] status in self?.copyText(status ? "pathsStatus" : "relative") }
             nativeTable.deleteSelection = { [weak self] permanently in self?.deleteSelected(permanently: permanently, keyboard: true) }
@@ -196,6 +234,8 @@ struct AddFileTable: NSViewRepresentable {
         func validateDrop(_ pasteboard: NSPasteboard) -> Bool { !retired && model.canReceiveFileDrop && table.window != nil && table.window?.attachedSheet == nil && NSApp.modalWindow==nil && !FileListDrag.isOwnWorkingDrop(pasteboard:pasteboard,origin:model.workingDragOrigin) && !droppedURLs(pasteboard).isEmpty }
         func retire(){
             retired=true;nativeTable.validateFileDrop={_ in false};nativeTable.acceptFileDrop={_ in false}
+            nativeTable.selectionMenuAvailable={false};nativeTable.selectionMenuRow={nil};nativeTable.presentSelectionMenu=nil
+            nativeTable.contextSelection={_,_ in}
             if workingDragSession==nil {workingDrag=nil}
         }
         func captureDrag(rows indexes:IndexSet)->WorkingFileListDrag? {
@@ -271,7 +311,8 @@ struct AddFileTable: NSViewRepresentable {
                   let type = try? FileManager.default.attributesOfItem(atPath: model.repository.root.appendingPathComponent(row.path).path)[.type] as? FileAttributeType else { return false }
             return type != .typeDirectory
         }
-        var canAct: Bool { !model.retired && !model.busy && !model.confirmingQuit && table.window?.attachedSheet == nil && !selectedRows.isEmpty }
+        var canPresentFileMenu: Bool { !retired && !model.retired && !model.busy && !model.confirmingQuit && table.window != nil && table.window?.attachedSheet == nil && NSApp.modalWindow == nil }
+        var canAct: Bool { canPresentFileMenu && !selectedRows.isEmpty }
         @objc func check() { guard canAct else { return }; model.checked.formUnion(selectedRows.map(\.path)); refresh() }
         @objc func uncheck() { guard canAct else { return }; model.checked.subtract(selectedRows.map(\.path)); refresh() }
         func toggleSelectedChecks() {

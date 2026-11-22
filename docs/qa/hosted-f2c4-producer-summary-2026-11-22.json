@@ -1,0 +1,17 @@
+{
+  "scope": "Connected GitHub API run and job summaries only; no raw logs or inferred failure cause",
+  "source": "f2c4f9dc0ee66606b89fb36ea34297b868c0c1d3",
+  "macos": {
+    "run": 44996371236,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/44996371236",
+    "status": "completed",
+    "conclusion": "failure",
+    "jobs": [
+      {"id": 137128163593, "name": "svn-runtime", "conclusion": "failure", "failed_step": {"number": 7, "name": "Build pinned universal private Perl/Subversion runtime"}},
+      {"id": 137128261925, "name": "build-and-test", "conclusion": "failure", "failed_step": {"number": 2, "name": "Require every validation lane and runtime producer"}},
+      {"id": 137128262428, "name": "validation (${{ matrix.lane }})", "conclusion": "skipped", "failed_steps": []}
+    ]
+  },
+  "pages": {"run": 44996371239, "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/44996371239", "status": "completed", "conclusion": "success"},
+  "interpretation": "The runtime producer failed before application validation lanes ran. Its underlying error is not established by these summaries. This is not evidence of application test failure or success."
+}

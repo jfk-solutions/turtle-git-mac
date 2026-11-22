@@ -5,6 +5,16 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Native contextual entry — November 22, 2026
+
+The [file/history family](HISTORY-CONTEXT-ENTRY-PARITY.md) adds missing keyboard
+and accessibility context-menu routes and repairs native Sync file selection
+clearing during presentation refresh. Its
+[record](qa/history-context-entry-2026-11-22.json) retains six distinct native
+case/engine passes and all earlier failures. Owned helpers are absent;
+installed52 and signed53 remain unchanged. Conflict-list accessibility,
+physical/visual, signed/platform and full hosted acceptance remain open.
+
 ## Editor and Clone continuation — November 22, 2026
 
 The [connected family](EDITOR-SAVE-HISTORY-READINESS-PARITY.md) adds document-owned
@@ -51,6 +61,13 @@ The later editor continuation above covers the separate Merge Save/history
 boundary with its own focused evidence. These newer source changes have not replaced installed52 or signed53.
 
 ## Current acceptance queue
+
+The later [f2c4f9dc macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/44996371236)
+stopped at the pinned universal Perl/Subversion runtime producer. Application
+validation was skipped and the aggregate failed; Pages passed. The
+[job summary](qa/hosted-f2c4-producer-summary-2026-11-22.json) records that boundary
+without inferring the producer's underlying cause. This is the newest observed
+hosted state, not evidence that the app checks passed or failed.
 
 The later [d368022a macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42425593387)
 is terminal failure. Its [step summary](qa/hosted-d368-terminal-summary-2026-11-22.json)

@@ -89,7 +89,9 @@ the working file intact. Mixed-selection commands follow the focused row and
 act on the captured selected paths.
 
 Add lists files eligible for the chosen Add operation. Check the paths to add,
-then choose OK. Header menus control optional columns. Adding records content in
+then choose OK. Shift-F10 or accessibility **Show Menu** opens the selected
+files' context menu without changing the checked files or selected group.
+Header menus control optional columns. Adding records content in
 Git's index; it does not create a commit. Add progress shows Action and Path
 notifications, followed by a colored Finished result with elapsed time. Its running
 bar disappears when finished. Use a file row's menu for Log, Open, Open With or
@@ -483,6 +485,11 @@ configured to require rebase can select that behavior automatically. Read the
 progress and conflict result before starting another integration operation.
 
 ## Synchronization progress
+
+In the incoming/outgoing file and revision lists, Shift-F10 opens the selected
+rows' context menu. Accessibility **Show Menu** uses the same commands and
+retains the selected group. Reference/tag result menus also anchor at the
+selected row. These actions stay with the currently available result tab.
 
 For an explicitly enabled libgit2 Fetch, the Log tab uses source Action/Path reference-result rows with captured-hash Show Log and Copy actions. Diagnostics and completion stay alongside the result table; CLI operations retain the text output. See [Synchronization Fetch results](SYNC-TRANSFER-NOTIFICATIONS-PARITY.md).
 

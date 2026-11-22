@@ -5822,7 +5822,7 @@ struct RevisionTable: NSViewRepresentable {
 }
 
 
-final class HistoryTableView: NSTableView {
+class HistoryTableView: NSTableView {
     var onWindowChanged:(()->Void)?
     override func viewDidMoveToWindow() { super.viewDidMoveToWindow(); onWindowChanged?() }
     var contextReference: (row: Int, name: String)?

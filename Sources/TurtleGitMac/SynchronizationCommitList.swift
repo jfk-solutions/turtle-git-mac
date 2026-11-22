@@ -22,11 +22,50 @@ enum SynchronizationHistoryColumns {
     }
 }
 
+/// Sync owns its native table independently of the main Log. A retained or
+/// off-tab table cannot present a menu in another window; an initial keyboard
+/// menu must be populated before AppKit starts tracking it.
+@MainActor final class SynchronizationHistoryNativeTable:HistoryTableView {
+    var keyOwnerQuery:(NSWindow)->Bool = {$0.isKeyWindow}
+    override func showKeyboardContextMenu(extended:Bool=false)->Bool {presentSelectedMenu(extended:extended,keyboard:true)}
+    override func accessibilityPerformShowMenu()->Bool {presentSelectedMenu(extended:false,keyboard:false)}
+    private func presentSelectedMenu(extended:Bool,keyboard:Bool)->Bool {
+        guard contextMenuAvailable(),let window,!keyboard || window.firstResponder === self,
+              keyOwnerQuery(window),window.attachedSheet==nil,NSApp.modalWindow==nil,
+              !selectedRowIndexes.isEmpty,let menu else{return false}
+        let row=selectedRowIndexes.contains(selectedRow) ? selectedRow:selectedRowIndexes.first!
+        guard row>=0,row<numberOfRows else{return false}
+        contextReference=nil;contextExtendedMenu=extended;contextRow=row
+        scrollRowToVisible(row);layoutSubtreeIfNeeded()
+        menu.delegate?.menuNeedsUpdate?(menu)
+        guard !menu.items.isEmpty else{return false}
+        let visible=rect(ofRow:row).intersection(visibleRect)
+        guard !visible.isEmpty else{return false}
+        let point=NSPoint(x:visible.minX+min(32,visible.width/2),y:visible.midY)
+        if let presentContextMenu {presentContextMenu(menu,point,self)}
+        else {menu.popUp(positioning:nil,at:point,in:self)}
+        return true
+    }
+    override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift {
+            return event.window === window && showKeyboardContextMenu(extended:true)
+        }
+        return super.performKeyEquivalent(with:event)
+    }
+    override func keyDown(with event:NSEvent) {
+        if event.keyCode==109,event.modifierFlags.intersection([.command,.control,.option,.shift]) == .shift {
+            if event.window === window {_=showKeyboardContextMenu(extended:true)}
+            return
+        }
+        super.keyDown(with:event)
+    }
+}
+
 struct SynchronizationHistoryTable: NSViewRepresentable {
     @ObservedObject var model: SynchronizationWindowModel
     func makeCoordinator() -> Coordinator { Coordinator(model) }
     func makeNSView(context: Context) -> NSScrollView {
-        let table = HistoryTableView();table.identifier = .init(context.coordinator.sourceTab==4 ? "Synchronization.InCommits":"Synchronization.OutCommits");table.allowsColumnReordering=true;table.allowsColumnResizing=true; table.rowHeight = context.coordinator.rowHeight; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle; table.allowsMultipleSelection = true
+        let table = SynchronizationHistoryNativeTable();table.identifier = .init(context.coordinator.sourceTab==4 ? "Synchronization.InCommits":"Synchronization.OutCommits");table.allowsColumnReordering=true;table.allowsColumnResizing=true; table.rowHeight = context.coordinator.rowHeight; table.columnAutoresizingStyle = .lastColumnOnlyAutoresizingStyle; table.allowsMultipleSelection = true
         table.menu = NSMenu(); table.menu?.delegate = context.coordinator
         for definition in SynchronizationHistoryColumns.definitions {
             let column = NSTableColumn(identifier: NSUserInterfaceItemIdentifier(definition.id)); column.title = NSLocalizedString(definition.title,comment:""); column.width = definition.width;column.minWidth=24;column.maxWidth=CGFloat.greatestFiniteMagnitude
@@ -224,7 +263,7 @@ struct SynchronizationHistoryTable: NSViewRepresentable {
             init(_ revision: String, isTag: Bool = false, sourceTab: Int? = nil) { self.revision = revision; self.isTag = isTag; self.sourceTab = sourceTab }
         }
         var revisionActionAvailable: Bool {
-            !retired && sourceTab==model.tab && !hasPendingQuestion && NSApp.modalWindow==nil && !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window?.attachedSheet == nil
+            !retired && sourceTab==model.tab && !hasPendingQuestion && NSApp.modalWindow==nil && !model.closed && !model.busy && !model.confirmingQuit && !model.confirmingCancellation && !model.hasBlockingChild && model.window != nil && table?.window === model.window && model.window?.attachedSheet == nil
         }
         func findHistory() -> Bool {
             guard sourceTab == model.tab, revisionActionAvailable, let action = model.onHistoryFind, table != nil else { return false }

@@ -676,6 +676,8 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         let owner:ObjectIdentifier,generation:Int,line:GitBlameLine,selectionText:String
     }
     var presentSourceMenu:((NSMenu,NSPoint,NSView)->Void)?
+    /// Native keyboard/accessibility presentation shares the captured row route.
+    var presentHistoryMenu:((NSMenu,NSPoint,NSView)->Void)?
     func sourceTarget(number:Int,selectionText:String = "") -> SourceTarget? {
         guard canFind,number>0,lines.indices.contains(number-1) else {return nil};let line=lines[number-1]
         return SourceTarget(owner:ObjectIdentifier(self),generation:generation,line:line,selectionText:selectionText)
@@ -920,12 +922,13 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var highlightedLine: GitBlameLine? { highlightedHash.flatMap { origins[$0] } }
     var hoverLine: GitBlameLine? { line(hoveredLine) }
     func highlight(_ row: Int, additive: Bool) {
-        guard lines.indices.contains(row) else { return }
+        guard canFind, lines.indices.contains(row) else { return }
         selection = lines[row].number
         selectedLogHashes = GitBlameSelection.selecting(lines[row].hash, in: selectedLogHashes, additive: additive)
         highlightedHash = selectedLogHashes.count == 1 ? selectedLogHashes.first : nil
     }
     func focusHistory(_ hashes: Set<String>, focus: String?) {
+        guard canFind else { return }
         let old = selectedLogHashes; selectedLogHashes = hashes; highlightedHash = nil
         if let focus, hashes.contains(focus), !old.contains(focus) { avatarHash=focus;refreshAuthorImage();if let line = lines.first(where: { $0.hash == focus }) { selection = line.number } }
     }
@@ -1052,7 +1055,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func retire() {
         retainedDocument=nil;documentNeedsLoadedNotification=false
-        retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;presentHistoryMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceSearchCaretRow = nil; sourceNavigation = nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -1225,7 +1228,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         selection = number; requestSourceNavigation(line: number, wholeLine: true); navigationMessage = "Line \(number)"
     }
     func navigateChange(previous: Bool) {
-        guard !busy, let start = firstVisibleSourceRow?(), let scrollSourceRowToTop else { return }
+        guard canFind, let start = firstVisibleSourceRow?(), let scrollSourceRowToTop else { return }
         guard let target = GitBlameNavigation.change(hashes: lines.map(\.hash), selected: selectedLogHashes, start: start, previous: previous) else { return }
         scrollSourceRowToTop(target)
     }
@@ -1734,7 +1737,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             sheetObservers.forEach {NotificationCenter.default.removeObserver($0)};sheetObservers=[]
             table?.menu?.cancelTracking();table?.menu?.delegate=nil;table?.menu=nil
             (table?.headerView as? BlameHistoryColumnHeader)?.buildMenu={nil}
-            if let table=table as? BlameHistoryNativeTable {table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in}}
+            if let table=table as? BlameHistoryNativeTable {table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in};table.contextAvailable={false}}
             table?.isEnabled=false;table?.target=nil;table?.doubleAction=nil;table?.action=nil;table?.delegate=nil;table?.dataSource=nil;table=nil
         }
         init(_ model:BlameWindowModel) { self.model=model }
@@ -1747,7 +1750,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             table.delegate=self;table.dataSource=self;table.target=self;table.doubleAction=#selector(openHistory)
             table.menu=NSMenu();table.menu?.delegate=self
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
-            table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.activateHistory() ?? false };table.showContext={ [weak self] event in self?.showContext(event) }
+            table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.activateHistory() ?? false };table.showContext={ [weak self] event in self?.showContext(event) };table.contextAvailable={ [weak self] in self?.available == true }
             self.table=table
             for name in [NSWindow.willBeginSheetNotification,NSWindow.didEndSheetNotification] {
                 sheetObservers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notification in
@@ -1891,7 +1894,22 @@ struct BlameHistoryTable:NSViewRepresentable {
             model.prepareHistoryParents(target) { [weak self,weak table,weak window] _ in
                 guard let self,self.contextRequest==request,let table,let window,table.window===window,window.isVisible,self.available,self.model.acceptsHistory(target),Set(self.selected.map(\.hash))==Set(target.entries.map(\.hash)),let menu=table.menu else { return }
                 self.contextTarget=target;defer { self.contextTarget=nil }
-                NSMenu.popUpContextMenu(menu,with:event,for:table)
+                // update() alone need not ask a delegate to populate a menu
+                // before its first presentation. Build the accepted target now.
+                menu.delegate?.menuNeedsUpdate?(menu)
+                guard !menu.items.isEmpty else {return}
+                if event.type == .keyDown {
+                    // A keyboard event has no meaningful pointer position. Keep
+                    // every selected revision and anchor at its first visible row.
+                    table.scrollRowToVisible(row);table.layoutSubtreeIfNeeded()
+                    let viewport=table.visibleRect,rectangle=table.rect(ofRow:row).intersection(viewport)
+                    guard !rectangle.isNull,rectangle.width>0,rectangle.height>0 else {return}
+                    let point=NSPoint(x:min(viewport.minX+8,viewport.midX),y:rectangle.maxY)
+                    if let present=self.model.presentHistoryMenu {present(menu,point,table)}
+                    else {menu.popUp(positioning:nil,at:point,in:table)}
+                } else if let present=self.model.presentHistoryMenu {
+                    present(menu,table.convert(event.locationInWindow,from:nil),table)
+                } else {NSMenu.popUpContextMenu(menu,with:event,for:table)}
             }
         }
         private class Invocation:NSObject { var used=false;let target:BlameWindowModel.HistoryTarget,command:String;init(_ target:BlameWindowModel.HistoryTarget,_ command:String) { self.target=target;self.command=command } }
@@ -2005,13 +2023,32 @@ struct BlameHistoryTable:NSViewRepresentable {
     var ownsCopyFocus:Bool {isEnabled && copyAvailable() && window?.firstResponder === self}
     private var canCopy:Bool {ownsCopyFocus && !selectedRowIndexes.isEmpty}
     var showContext:(NSEvent)->Void = { _ in }
-    override func rightMouseDown(with event:NSEvent) { if isEnabled { showContext(event) } }
-    override func mouseDown(with event:NSEvent) { if event.modifierFlags.contains(.control) { if isEnabled { showContext(event) };return };super.mouseDown(with:event) }
+    var contextAvailable:()->Bool = {false}
+    @discardableResult private func showKeyboardContext()->Bool {
+        guard isEnabled,contextAvailable(),window?.isVisible==true,
+              selectedRow>=0,selectedRow<numberOfRows,
+              let event=blameKeyboardContextEvent(self) else {return false}
+        showContext(event);return true
+    }
+    override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
+    override func rightMouseDown(with event:NSEvent) { if isEnabled,contextAvailable() { showContext(event) } }
+    override func mouseDown(with event:NSEvent) {
+        guard isEnabled,contextAvailable() else {return}
+        if event.modifierFlags.contains(.control) {showContext(event);return}
+        super.mouseDown(with:event)
+    }
     override func menu(for event:NSEvent)->NSMenu? {
-        guard isEnabled else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
+        guard isEnabled,contextAvailable() else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
         if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) };menu?.update();return menu
     }
-    override func keyDown(with event:NSEvent) { if BlameWindowController.routeCommandKey(event,from:window) {return};if isEnabled,event.keyCode==109,event.modifierFlags.contains(.shift) { showContext(event);return };if isEnabled,(event.keyCode==36 || event.keyCode==76),!event.modifierFlags.contains(.control),ComparisonToolInvocation.$alternate.withValue(event.modifierFlags.contains(.shift),operation:{openSelection()}) {return};super.keyDown(with:event) }
+    override func keyDown(with event:NSEvent) {
+        if BlameWindowController.routeCommandKey(event,from:window) {return}
+        guard isEnabled,contextAvailable(),blameOwnsKeyboardEvent(event,self) else {return}
+        let flags=event.modifierFlags.intersection([.shift,.command,.control,.option])
+        if event.keyCode==109,flags == .shift {_ = showKeyboardContext();return}
+        if (event.keyCode==36 || event.keyCode==76),!flags.contains(.control),ComparisonToolInvocation.$alternate.withValue(flags.contains(.shift),operation:{openSelection()}) {return}
+        super.keyDown(with:event)
+    }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
         if ownsCopyFocus,event.modifierFlags.intersection([.command,.control,.option]) == .command,event.charactersIgnoringModifiers?.lowercased()=="c" { if canCopy{copySelection()};return true };return super.performKeyEquivalent(with:event)
     }
@@ -2042,7 +2079,7 @@ private struct BlameTable: NSViewRepresentable {
             guard let table else {return};coordinator?.showContext(row:row,event:event,in:table)
         }
         table.onHover = { [weak coordinator = context.coordinator] row in
-            guard let model = coordinator?.model else { return }
+            guard let model = coordinator?.model,model.canFind else { return }
             let number = row.map { $0 + 1 }
             if model.hoveredLine != number { model.hoveredLine = number }
         }
@@ -2104,6 +2141,7 @@ private struct BlameTable: NSViewRepresentable {
         }
         coordinator.updateColumnMetrics(table)
         container.installNavigation(model)
+        table.isEnabled=model.canFind
         let changedRows = container.updateSource(model)
         let dataKey = "\(model.sourceVersion):\(model.sourceFont.fontName):\(model.effectiveFontSize):\(model.attributionDateKey):" + model.marginFields.map(\.rawValue).sorted().joined(separator:",")
         let viewportOrigin = container.scroll.contentView.bounds.origin
@@ -2190,12 +2228,12 @@ private struct BlameTable: NSViewRepresentable {
             return rectangles[row].height
         }
         func tableViewSelectionDidChange(_ notification: Notification) {
-            guard !updating, let table else { return }; model.selection = table.selectedRow >= 0 ? table.selectedRow + 1 : nil
+            guard !updating,model.canFind,let container,!container.retired,let table else { return }; model.selection = table.selectedRow >= 0 ? table.selectedRow + 1 : nil
             model.cancelPendingSourceNavigation()
-            if table.selectedRow >= 0 { container?.selectSourceLine(table.selectedRow + 1, wholeLine: true) }
+            if table.selectedRow >= 0 { container.selectSourceLine(table.selectedRow + 1, wholeLine: true) }
         }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard !updating, let container, !container.settingSelection,
+            guard !updating,model.canFind,let container,!container.retired,!container.settingSelection,
                   let row = container.sourceRow(at: container.editor.selectedRange().location) else { return }
             container.manualSourceSelectionChanged()
             model.cancelPendingSourceNavigation()
@@ -2296,6 +2334,14 @@ private struct BlameTable: NSViewRepresentable {
     }
 }
 
+/// AX actions may address a visible background pane, but keyboard events belong
+/// only to the currently keyed Blame content window (including a floating Log).
+@MainActor private func blameOwnsKeyboardEvent(_ event:NSEvent,_ view:NSView)->Bool {
+    guard let window=view.window,event.windowNumber==window.windowNumber,
+          let owner=BlameWindowController.focusedOwner(window),
+          owner.commandKeyWindow() === window,owner.commandsAvailable else {return false}
+    return true
+}
 private func blameKeyboardContextEvent(_ view:NSView)->NSEvent? {
     NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.shift,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:view.window?.windowNumber ?? 0,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:109)
 }
@@ -2308,6 +2354,7 @@ private final class BlameTableView: NSTableView {
     override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
     override func keyDown(with event:NSEvent) {
         if BlameWindowController.routeCommandKey(event,from:window) {return}
+        guard isEnabled,contextMenuAvailable(),blameOwnsKeyboardEvent(event,self) else {return}
         if event.keyCode==109,event.modifierFlags.intersection([.shift,.command,.control,.option]) == .shift,showKeyboardContext() {return}
         super.keyDown(with:event)
     }
@@ -2322,20 +2369,23 @@ private final class BlameTableView: NSTableView {
         addTrackingArea(tracking); hoverTracking = tracking
     }
     override func mouseDown(with event: NSEvent) {
+        guard isEnabled,contextMenuAvailable() else {return}
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
         if event.modifierFlags.contains(.control) { onContextMenu(row, event); return }
         super.mouseDown(with: event)
         if event.clickCount == 1, row >= 0, tableColumns.indices.contains(column), tableColumns[column].identifier.rawValue != "line" { onMarginClick(row, event.modifierFlags.contains(.command)) }
     }
     override func rightMouseDown(with event: NSEvent) {
+        guard isEnabled,contextMenuAvailable() else {return}
         onContextMenu(row(at: convert(event.locationInWindow, from: nil)), event)
     }
     override func mouseMoved(with event: NSEvent) {
+        guard isEnabled,contextMenuAvailable() else {return}
         let point = convert(event.locationInWindow, from: nil), row = row(at: point), column = column(at: point)
         onHover(row >= 0 && tableColumns.indices.contains(column) && tableColumns[column].identifier.rawValue != "line" ? row : nil)
         super.mouseMoved(with: event)
     }
-    override func mouseExited(with event: NSEvent) { onHover(nil); super.mouseExited(with: event) }
+    override func mouseExited(with event: NSEvent) { if isEnabled,contextMenuAvailable() {onHover(nil)}; super.mouseExited(with: event) }
 }
 
 private final class BlameMetadataCell: NSView {
@@ -2488,6 +2538,12 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func retire() {
         retired = true; editor.delegate = nil; editor.onContextMenu = { _,_ in }
+        if let table=scroll.documentView as? BlameTableView {
+            table.isEnabled=false;table.contextMenuAvailable={false}
+            table.onMarginClick={_,_ in};table.onHover={_ in};table.onContextMenu={_,_ in}
+            table.menu?.cancelTracking();table.menu?.delegate=nil;table.menu=nil
+            table.target=nil;table.doubleAction=nil;table.delegate=nil;table.dataSource=nil
+        }
         findSelectionCaret=nil
         syntaxGeneration += 1; syntaxToken?.cancel(); syntaxTask?.cancel()
         editor.retired = true; editor.isSelectable = false
@@ -2902,7 +2958,10 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
     var contextMenuAvailable:()->Bool = {true}
     var keyboardContextRow:(()->Int?)?
     @discardableResult private func showKeyboardContext()->Bool {
-        guard !retired,window?.isVisible==true,contextMenuAvailable(),let row=keyboardContextRow?(),let event=blameKeyboardContextEvent(self) else {return false}
+        guard !retired,window?.isVisible==true,contextMenuAvailable(),let row=keyboardContextRow?(),
+              rowRectangles.indices.contains(row),let event=blameKeyboardContextEvent(self) else {return false}
+        let caret=selectedRange().location
+        if caret != NSNotFound {scrollRangeToVisible(NSRange(location:caret,length:0))}
         onContextMenu(row,event);return true
     }
     override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
@@ -2946,9 +3005,9 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
         if item.action == #selector(copy(_:)){return !retired && isSelectable && copyAvailable() && window?.firstResponder === self && selectedCopyText != nil}
         return super.validateMenuItem(item)
     }
-    override func selectAll(_ sender: Any?) { guard !retired else { return }; super.selectAll(sender) }
+    override func selectAll(_ sender: Any?) { guard !retired,contextMenuAvailable() else { return }; super.selectAll(sender) }
     override func writeSelection(to pboard: NSPasteboard, types: [NSPasteboard.PasteboardType]) -> Bool {
-        guard !retired, isSelectable else { return false }
+        guard !retired,isSelectable,copyAvailable() else { return false }
         guard let contents=selectedCopyText else{return false}
         var written = false
         for type in types where type == .string || type.rawValue == "NSStringPboardType" { written = pboard.setString(contents,forType:type) || written }
@@ -2960,6 +3019,7 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
     override func keyDown(with event: NSEvent) {
         guard !retired else { return }
         if BlameWindowController.routeCommandKey(event,from:window) {return}
+        guard contextMenuAvailable(),blameOwnsKeyboardEvent(event,self) else {return}
         let flags = event.modifierFlags.intersection([.command,.control,.option,.shift])
         if event.keyCode==109,flags == .shift,showKeyboardContext() {return}
         if flags.contains(.command), !flags.contains(.control), !flags.contains(.option) {
@@ -2996,12 +3056,12 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
         }
     }
     override func rightMouseDown(with event: NSEvent) {
-        guard !retired else { return }
+        guard !retired,contextMenuAvailable() else { return }
         let point = convert(event.locationInWindow,from:nil)
         if let row=sourceRow(atY:point.y) { onContextMenu(row,event) }
     }
     override func mouseDown(with event: NSEvent) {
-        guard !retired else { return }
+        guard !retired,contextMenuAvailable() else { return }
         if event.modifierFlags.contains(.control) { rightMouseDown(with:event); return }
         super.mouseDown(with:event)
     }
