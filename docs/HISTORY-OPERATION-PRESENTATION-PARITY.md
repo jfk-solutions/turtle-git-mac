@@ -67,11 +67,14 @@ load/closure repairs remain recorded. Real-controller geometry covers normal
 short/long information; explicit one/two/overflow lines separately exercise the
 same production information component. Only affected cases were repeated.
 All 23 recorded compiler/receiver PIDs and workspace runtime images are absent.
-Installed52 and the frozen signed53 package are unchanged; signed54 has prepared
-dependencies but no application build yet.
+Installed52 and the frozen signed53 package were unchanged at that checkpoint.
+The later [signed54 record](qa/signed-candidate54-2026-11-22.json) records its
+separate completed build/package and narrower signed-helper scope.
 
-The SwiftUI conflict table still lacks its own standard accessibility Show Menu
-bridge. This batch does not replace that table merely for one entry route.
+The subsequent [Resolve/Sync conflict report family](RESOLVE-CONFLICT-REPORT-PARITY.md)
+replaces the fixed reports and connects standard keyboard/accessibility menu entry
+alongside report columns, sorting, clipboard and refresh ownership. Its grouped
+checkpoint remains separate from the evidence recorded here.
 Physical keyboard/pointer/VoiceOver behavior, complete light/dark layout parity,
 signed/physical Finder and platform coverage, full hosted CI and whole-port
 acceptance remain separate. The grouped native checkpoint must retain its actual

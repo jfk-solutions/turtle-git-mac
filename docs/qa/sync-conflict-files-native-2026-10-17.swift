@@ -62,9 +62,10 @@ import TurtleGitCore
         let owner=SynchronizationWindowController(repository:repo,access:nil,preferences:prefs),model=owner.model,window=owner.window!,actions=owner.model.conflictFileActions
         window.alphaValue=0;window.orderFront(nil);model.tab=6
         try await wait{!model.busy && !actions.busy && actions.files.count==2 && model.conflicts.count==2}
-        try await wait{views(window.contentView!).compactMap{$0 as? NSTableView}.contains{$0.tableColumns.count==5}}
-        let table=views(window.contentView!).compactMap{$0 as? NSTableView}.first{$0.tableColumns.count==5}!
-        try require(table.tableColumns.map{$0.title} == ["Path","Extension","Status","Lines added","Lines removed"],"Source conflict column order")
+        try await wait{views(window.contentView!).contains{$0 is ConflictReportNativeTable}}
+        let table=views(window.contentView!).compactMap{$0 as? ConflictReportNativeTable}.first!
+        try require(table.tableColumns.filter{!$0.isHidden}.map{$0.title} == ["Path","Extension","Status","Lines added","Lines removed"],"Source conflict visible column order")
+        try require(table.tableColumns.contains{$0.identifier.rawValue==StatusListColumn.fileName.rawValue && $0.isHidden} && !table.tableColumns.contains{$0.identifier.rawValue==StatusListColumn.lfsOwner.rawValue},"Source optional report columns or repository LFS gate differ")
         let original=try await repo.run(["ls-files","--unmerged"]).stdout
         var routed=[(RepositoryAction,[String])](),opened=[String]()
         // This retained fixture verifies the legacy callback routing seam.

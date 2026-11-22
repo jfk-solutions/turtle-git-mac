@@ -350,3 +350,15 @@ receipts. Checkbox events retain their native action; group rows cannot launch
 a different selected file. Explicit multi-file menu commands retain their
 existing behavior. Physical keyboard/VoiceOver and full-dialog acceptance remain
 separate from the connected native checkpoint.
+
+## Native conflict report continuation — November 22, 2026
+
+The [Resolve/Sync conflict report family](RESOLVE-CONFLICT-REPORT-PARITY.md)
+implements the source-default Path/Extension report, optional persisted columns,
+native sorting, selected-row Space, keyboard/accessibility menu entry and exact
+column/visible-column clipboard routes. This supersedes the earlier fixed-column
+and column-hit-menu implementation gaps within that scope. Its
+[grouped checkpoint](qa/conflict-report-family-2026-11-22.json) records twelve
+native case/Git passes cumulatively, including retained consumers and actual
+Resolve operations, with fixture failures and repairs retained. Physical,
+signed/platform and whole-dialog acceptance remain open.

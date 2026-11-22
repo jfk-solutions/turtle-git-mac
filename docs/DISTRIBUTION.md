@@ -3,10 +3,44 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The installed candidate is signed build52;
-the working source tree contains later changes and is a separate testing target.
+signed build54 is packaged separately for local testing, and the working source
+tree contains later changes that are a separate testing target.
 There is no public App Store listing or submitted release. The App Store remains
 a future distribution channel, with full-port acceptance, distribution signing
 and the existing license/Store terms review still open.
+
+## Signed local testing build54
+
+[Build54's record](qa/signed-candidate54-2026-11-22.json) identifies the separately
+packaged `0.1.0 (54)` candidate. Installed52 and the earlier53 package are retained.
+
+| Item | Recorded identity |
+| --- | --- |
+| Exact clean source | `75557ca848948beae021cffae3f1be4633ae8cdf` |
+| Build-input SHA-256 | `c77e081627b83f86f5b3a5ac8232d19c69cf52303cba56d10a0bec22c51af2a4` |
+| Local ZIP | `build/local-testing/TurtleGit-for-Mac-0.1.0-build54-signed/TurtleGit-for-Mac-0.1.0-build54-signed.zip` |
+| ZIP SHA-256 | `5d033184ce860b27e0ddaad58e23e973e0ccff267cf68d93c9380748055ae19d` |
+| Matching source archive SHA-256 | `5b0c2f8ecf3d0f61f318b11645f512c3775d8252207b00239b64233666da6b16` |
+| Signing channel | Apple Development, sandboxed AppStore configuration for local testing |
+
+This candidate includes the later cache/shutdown, History/Browser/Export,
+editor save/history, Clone suggestion, contextual entry and Log/Sync ownership
+repairs through its exact source revision. The subsequent Resolve/Sync report
+implementation in the working tree is excluded.
+
+The universal build, strict static audit and two independently passing signed
+helper phases are recorded. Packaged Help, localization and custom artwork match
+the frozen source. ZIP extraction preserves the complete sealed bundle, and the
+source companion matches all 14,651 tracked blobs, names and modes. An initial
+missing QA scratch directory and the pre-execution packaging cleanup-scope
+correction are retained in the record; neither changed the signed app.
+
+All 38 logged test-process PIDs were absent at cleanup. The installed application
+and URL handler remain build52. Before attributing a manual test to54, check
+**About** for `0.1.0 (54)`. Candidate54's shipping UI, physical Finder badges/grants,
+Intel and minimum-macOS execution, complete hosted CI and full upstream parity
+remain open. This package has not been installed, published, notarized or submitted
+to the App Store.
 
 ## Installed signed local testing build52
 

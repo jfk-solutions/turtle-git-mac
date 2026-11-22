@@ -10,7 +10,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
-        let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
+        let root=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL,repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _=try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","File Menu"),("user.email","menu@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_=try await repo.run(["config",key,value])}
         let paths=["-first 雪\n[*].txt","second.txt","missing.txt"]
@@ -47,8 +47,20 @@ import TurtleGitCore
         model.fileCommand(.reveal,menu:first);try require(revealed.isEmpty,"Retained menu invoked twice")
         let old=model.fileMenu([paths[0]]);model.load();try await wait {!model.busy};model.fileCommand(.log,menu:old)
         try require(logs.count==1,"Refreshed menu remained live")
-        for command in [ResolveFileCommand.open,.editor,.blame] {model.fileCommand(command,menu:model.fileMenu([paths[0]]));try await wait {!model.busy}}
-        try require(opened.first?.0==root.appendingPathComponent(paths[0]) && edited==[root.appendingPathComponent(paths[0])] && blames.count==1 && blames[0].0==paths[0] && blames[0].1==String(decoding:head,as:UTF8.self).trimmingCharacters(in:.newlines),"Open/editor/Blame handoff changed literal path or revision")
+        var handoffStates:[[String:Any]]=[]
+        for command in [ResolveFileCommand.open,.editor,.blame] {
+            let target=model.fileMenu([paths[0]])
+            let admitted=model.canFileCommand(command,menu:target),beforeError=model.error ?? "<nil>"
+            model.fileCommand(command,menu:target);try await wait {!model.busy}
+            handoffStates.append(["command":command.rawValue,"admitted":admitted,"beforeError":beforeError,"afterError":model.error ?? "<nil>","busy":model.busy,"active":model.active,"canInteract":model.canInteract,"hasChild":model.hasChild,"hasQuestion":model.hasQuestion,"generation":model.generation.uuidString,"menuEpoch":target.epoch.uuidString,"menuPaths":target.paths,"openedCount":opened.count,"editedCount":edited.count,"blamesCount":blames.count])
+        }
+        let handoffMatches=opened.first?.0==root.appendingPathComponent(paths[0]) && edited==[root.appendingPathComponent(paths[0])] && blames.count==1 && blames[0].0==paths[0] && blames[0].1==String(decoding:head,as:UTF8.self).trimmingCharacters(in:.newlines)
+        if !handoffMatches {
+            func url(_ value:URL)->[String:Any] {["absoluteString":value.absoluteString,"baseURL":value.baseURL?.absoluteString ?? "<nil>","pathUTF8":Array(value.path.utf8),"hasDirectoryPath":value.hasDirectoryPath]}
+            let diagnostic:[String:Any]=["rawRoot":url(root),"repositoryRoot":url(repo.root),"expectedFile":url(root.appendingPathComponent(paths[0])),"opened":opened.map{["url":url($0.0),"application":$0.1.map(url) ?? [:]]},"edited":edited.map(url),"blames":blames.map{["path":$0.0,"pathUTF8":Array($0.0.utf8),"hash":$0.1]},"expectedBlamePath":paths[0],"expectedBlameHash":String(decoding:head,as:UTF8.self).trimmingCharacters(in:.newlines),"states":handoffStates,"modelError":model.error ?? "<nil>","modelBusy":model.busy]
+            print("Resolve file-menu handoff diagnostic: "+String(decoding:try JSONSerialization.data(withJSONObject:diagnostic,options:[.sortedKeys]),as:UTF8.self))
+        }
+        try require(handoffMatches,"Open/editor/Blame handoff changed literal path or revision")
         model.fileCommand(.reveal,menu:model.fileMenu([paths[2]]));try await wait {!model.busy};try require(revealed==[[root]],"Missing path reveal did not use existing parent")
         model.fileCommand(.compareTwo,menu:model.fileMenu(Set(paths.prefix(2))));try await wait {!model.busy}
         try require(pairs==[Array(paths.prefix(2))],"Compare two files lost captured display order")
@@ -58,7 +70,8 @@ import TurtleGitCore
         model.fileCommand(.compareBase,menu:model.fileMenu([paths[0]]));try await wait {!model.busy};try require(prepared?.entry.path==paths[0] && prepared?.document.base.bytes==Data("base\n".utf8),"Base comparison did not retain stage 1")
         model.copyFileMenu(model.fileMenu(Set(paths.prefix(2))),copy:.relativePaths)
         try require(copied==paths.prefix(2).joined(separator:"\n")+"\n","Clipboard order/literal bytes differ")
-        model.copyFileMenu(model.fileMenu(["module.ext"]),copy:.all);try require(copied=="Path\tExtension\tStatus\nmodule.ext\t\tConflicted\n","Directory clipboard extension/status differ")
+        try require(model.visibleReportColumns == [.path,.fileExtension],"Resolve source default columns differ")
+        model.copyFileMenu(model.fileMenu(["module.ext"]),copy:.all);try require(copied=="Path\tExtension\nmodule.ext\t\n","Directory clipboard extension/default visible columns differ")
         // Open With must revalidate after the asynchronous application choice.
         var choose:CheckedContinuation<URL?,Never>?
         model.chooseFileApplication={await withCheckedContinuation{choose=$0}}

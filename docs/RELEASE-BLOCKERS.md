@@ -5,6 +5,31 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Resolve/Sync conflict reports — November 22, 2026
+
+The [report family](RESOLVE-CONFLICT-REPORT-PARITY.md) implements source-default
+and optional persisted columns, typed sorting, native clipboard and keyboard/
+accessibility routes, plus refresh/reset/drag ownership. Its
+[checkpoint](qa/conflict-report-family-2026-11-22.json) records one app build and
+twelve native case/Git passes cumulatively, retaining the fixture failures and
+focused repairs. All 21 logged native PIDs are absent. This newer source is
+excluded from54. Physical/visual, real LFS/gitlink, signed Finder/platform and
+full hosted/whole-port acceptance remain open.
+
+## Local candidate54
+
+[Signed build54](qa/signed-candidate54-2026-11-22.json) is packaged from exact
+source75557ca8, with its matching source archive, licenses and evidence. The
+universal build, sealed-bundle audit, two signed helper phases and ZIP/source
+round-trip checks pass their recorded scopes. Installed52 remains unchanged;
+54 shipping-UI/physical Finder and supported-platform execution are unverified.
+The later Resolve/Sync report changes are excluded from54. At the package
+checkpoint, its exact-source Pages run had passed and the macOS run was pending.
+Workflow configuration and live jobs
+indicate serialization behind the earlier run; its failed step summaries do not
+establish their causes. No complete corrected-source hosted pass or whole-port
+completion is claimed.
+
 ## History operation presentation — November 22, 2026
 
 The [connected family](HISTORY-OPERATION-PRESENTATION-PARITY.md) passes eight

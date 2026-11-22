@@ -14,7 +14,7 @@ from native_receiver import build_receiver, run_receiver
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
-parser.add_argument('--only', choices=['legacy-log', 'log', 'legacy-sync', 'sync'], action='append')
+parser.add_argument('--only', choices=['legacy-log', 'log', 'legacy-sync', 'sync', 'conflict-report', 'resolve-files', 'resolve-drop', 'refresh'], action='append')
 parser.add_argument('--results', type=Path)
 parser.add_argument('--captures', type=Path)
 args = parser.parse_args()
@@ -22,7 +22,7 @@ root = Path(__file__).resolve().parent.parent
 generated = root / 'build/qa/history-feedback-conflict-native-sources'
 generated.mkdir(parents=True, exist_ok=True)
 legacy=[]
-for name in ['log-controls-layout-native-2026-10-17.swift','sync-conflict-files-native-2026-10-17.swift']:
+for name in ['log-controls-layout-native-2026-10-17.swift','sync-conflict-files-native-2026-10-17.swift', 'resolve-file-menu-native-2026-10-16.swift', 'resolve-drop-native-2026-10-16.swift', 'file-list-refresh-native-2026-10-16.swift']:
     original=root/'docs/qa'/name
     output=generated/('Retained-'+name)
     output.write_text('#sourceLocation(file: '+json.dumps(str(original))+', line: 1)\n'+original.read_text().replace('@main ', '', 1))
@@ -55,13 +55,23 @@ private extension NSWindow {
   case "log": try await LogFeedbackStabilityVerification.verify(base:base,git:git)
   case "legacy-sync": try await SyncConflictFilesVerification.main()
   case "sync": try await SyncConflictRecoveryVerification.verify(base:base,git:git)
+  case "conflict-report": try await ConflictReportVerification.verify(base:base,git:git)
+  case "resolve-files": try await ResolveFileMenuVerification.main()
+  case "resolve-drop": try await ResolveDropVerification.main()
+  case "refresh": try await FileListRefreshVerification.verify()
   default: fatalError("Unknown history feedback case")
   }
-  print("PASS: history feedback conflict \(mode)")
+  for _ in 0..<3000 {
+   if ResolveWindowController.activeReleases==0 && ResolveWindowModel.activeOperations==0 && StatusWindowModel.activeOperations==0 && RevertWindowModel.activeOperations==0 && CommitWindowModel.activeReloads==0 && SynchronizationWindowController.activeInlineReleases==0 && NSApp.windows.allSatisfy({!$0.isVisible && $0.attachedSheet==nil}) {
+    print("PASS: history feedback conflict \(mode)");return
+   }
+   try await Task.sleep(nanoseconds:10_000_000)
+  }
+  throw NSError(domain:"TurtleGit.HistoryFeedback.OwnedDrain",code:1,userInfo:[NSLocalizedDescriptionKey:"Owned native windows, sheets or workers did not drain after \(mode)"])
  }
 }
 ''')
-receiver = build_receiver(root, [root / 'docs/qa/log-feedback-stability-native-2026-11-22.swift', root / 'docs/qa/sync-conflict-recovery-native-2026-11-22.swift', *legacy, bootstrap], generated)
+receiver = build_receiver(root, [root / 'docs/qa/log-feedback-stability-native-2026-11-22.swift', root / 'docs/qa/sync-conflict-recovery-native-2026-11-22.swift', root / 'docs/qa/conflict-report-native-2026-11-22.swift', *legacy, bootstrap], generated)
 
 # Existing exact image/resource ownership policy. No helper is signalled merely
 # because unrelated user argv mentions this repository or a fixture directory.

@@ -2889,78 +2889,42 @@ private struct SynchronizationDialog: View {
     }
 }
 
-private struct SynchronizationConflictRow: Identifiable {
-    let value: StatusRow
-    var id: String { GitPathRowIdentity.encode(value.id) }
-    var file: WorkingTreeFile { value.file }
-    var path: String { value.path }
-    var fileExtension: String { value.fileExtension }
-    var addedText: String { value.addedText }
-    var removedText: String { value.removedText }
-}
-private struct SynchronizationConflictSort: SortComparator {
-    var column: StatusListColumn
-    var order: SortOrder = .forward
-    func compare(_ lhs:SynchronizationConflictRow,_ rhs:SynchronizationConflictRow)->ComparisonResult {
-        StatusFileSort(column:column,order:order).compare(lhs.value,rhs.value)
-    }
-}
 struct SynchronizationConflictFiles: View {
-    @ObservedObject var model: SynchronizationWindowModel
-    @ObservedObject var actions: StatusWindowModel
-    @ObservedObject private var colors = StatusColorUpdates.shared
-    @State private var focusedIdentity: GitReferenceName?
-    private var focusedPath: String? { focusedIdentity?.rawValue }
-    private var focusBinding: Binding<String?> {
-        Binding(get:{ focusedIdentity?.rawValue },set:{ focusedIdentity = $0.map { GitReferenceName($0) } })
-    }
-    var body: some View {
-        let rows = actions.sortedRows.map(SynchronizationConflictRow.init)
-        let lookup = GitPathMap(rows.map { ($0.path,$0.value) },uniquingKeysWith:{_,last in last})
+    @ObservedObject var model:SynchronizationWindowModel
+    @ObservedObject var actions:StatusWindowModel
+    @ObservedObject private var colors=StatusColorUpdates.shared
+    @State private var focusedIdentity:GitReferenceName?
+    private var focusedPath:String? {focusedIdentity?.rawValue}
+    var body:some View {
+        let rows=actions.sortedRows
         VStack(alignment:.leading,spacing:6) {
-            Table(rows,selection:$actions.nativeFileSelection,sortOrder:Binding(get:{actions.sortOrder.map { SynchronizationConflictSort(column:$0.column,order:$0.order) }},set:{actions.setSortOrder($0.map {StatusFileSort(column:$0.column,order:$0.order)})})) {
-                TableColumn("Path",sortUsing:SynchronizationConflictSort(column:.path)) { row in
-                    HStack { Image(nsImage:row.file.state.icon.image() ?? NSImage()); Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected:actions.selection.contains(row.path),preferences:actions.colorPreferences)) }
-                        .repositoryFileHelp(repository:actions.repository.root,path:row.path,preferences:actions.colorPreferences)
-                }.width(min:240,ideal:440)
-                TableColumn("Extension",sortUsing:SynchronizationConflictSort(column:.fileExtension)) { Text($0.fileExtension) }.width(min:50,ideal:70)
-                TableColumn("Status",sortUsing:SynchronizationConflictSort(column:.status)) { row in Text("Conflicted").foregroundStyle(row.file.entry.statusTextColor(selected:actions.selection.contains(row.path),preferences:actions.colorPreferences)) }.width(min:100,ideal:140)
-                TableColumn("Lines added",sortUsing:SynchronizationConflictSort(column:.added)) { Text($0.addedText).frame(maxWidth:.infinity,alignment:.trailing) }.width(min:65,ideal:85)
-                TableColumn("Lines removed",sortUsing:SynchronizationConflictSort(column:.removed)) { Text($0.removedText).frame(maxWidth:.infinity,alignment:.trailing) }.width(min:70,ideal:95)
-            }.fileListFont()
-            .background(CommitFileInteraction(rows:rows.map { .file($0.file.entry) },leadingColumnCount:0,keyboardDeleteEnabled:false,
-                captureWorkingDrag:{actions.captureWorkingDrag($0)},workingDragOrigin:actions.workingDragOrigin,
-                nativeColumns:[.path,.fileExtension,.status,.added,.removed],configureRefresh:{actions.fileListRefresh.attach($0)},watermarkIcon:.resolve,preferences:model.preferences,
-                visibleColumns:actions.fileColumns.visible.intersection(SynchronizationWindowModel.conflictColumns),availableColumns:SynchronizationWindowModel.conflictColumns,
-                columnText:{entry,column in lookup[entry.path].map { actions.columnText($0,column) } ?? ""},savedOrder:actions.fileColumns.order,savedWidths:actions.fileColumns.widths,
-                saveLayout:{order,widths in guard model.canUseConflictFiles else {return false};return actions.saveColumnLayout(order:order,widths:widths)},
-                setColumnVisible:{column,visible in if model.canUseConflictFiles {actions.setColumn(column,visible:visible)}},
-                resetColumns:{choose,accepted in actions.requestResetColumns(choose:choose,onAccepted:accepted)},focusedPath:focusBinding,
-                enabled:model.canUseConflictFiles && !actions.busy,delete:{_,_,_ in},
-                copy:{entries,status in let target=model.conflictMenu(GitPathSet(entries.map(\.path)),mark:focusedPath);actions.withFileMenu(target) {actions.copy(GitPathSet(entries.map(\.path)),information:status ? .pathsAndStatus : .relativePaths)}},
-                copyColumn:{entries,column in let target=model.conflictMenu(GitPathSet(entries.map(\.path)),mark:focusedPath);actions.withFileMenu(target) {actions.copy(GitPathSet(entries.map(\.path)),information:.column(column))}},toggleCheck:{_,_ in}))
-            .contextMenu(forSelectionType:String.self) { nativeIDs in
-                let ids = GitPathRowIdentity.paths(nativeIDs)
-                let target = model.conflictMenu(ids,mark:focusedPath)
-                TurtleGitContextMenu {
-                    ResolveSelectionMenu(paths:target.entries.map(\.path),rebase:actions.conflictRebase,canEdit:target.entries.count == 1) {action,_ in model.performConflict(action,menu:target)}
-                    Divider()
-                    ForEach(target.commands,id:\.self) { command in Button {model.performConflictFile(command,menu:target)} label: {CommandLabel(title:command.rawValue,icon:command.icon)} }
-                    Menu {
-                        Button {model.copyConflictFiles(.relativePaths,menu:target)} label: {CommandLabel(title:"Relative paths",icon:.copy)}
-                        Button {model.copyConflictFiles(.fullPaths,menu:target)} label: {CommandLabel(title:"Full paths",icon:.copy)}
-                        Button {model.copyConflictFiles(.names,menu:target)} label: {CommandLabel(title:"File/folder names",icon:.copy)}
-                        Button {model.copyConflictFiles(.column(.fileExtension),menu:target)} label: {CommandLabel(title:"Extensions",icon:.copy)}
-                        Button {model.copyConflictFiles(.all,menu:target)} label: {CommandLabel(title:"Copy all information to clipboard",icon:.copy)}
-                    } label: {CommandLabel(title:"Copy to Clipboard",icon:.copy)}.disabled(target.entries.isEmpty)
-                }
-            } primaryAction: {nativeIDs in
-                let ids = GitPathRowIdentity.paths(nativeIDs)
-                if !ids.isEmpty, let mark=model.conflictMenu(ids,mark:focusedPath).mark {model.performConflict(.editConflict,menu:model.conflictMenu([mark.path],mark:mark.path))}
-            }
-            .disabled(!model.canUseConflictFiles || actions.busy)
-            if actions.busy {HStack {ProgressView().controlSize(.small);Text(actions.currentOperation).font(.caption)}}
-            if let error=actions.error {Text(error).foregroundStyle(.red).textSelection(.enabled)}
-        }.onAppear {model.refreshConflictFiles()}.defaultAppStorage(model.preferences)
+            ConflictReportTable(rows:rows.map{row in ConflictReportRow(path:row.path,text:Dictionary(uniqueKeysWithValues:StatusListColumn.allCases.map{($0,actions.columnText(row,$0))}),color:NSColor(row.file.entry.statusTextColor(selected:actions.selection.contains(row.path),preferences:actions.colorPreferences)),tooltip:RepositoryPresentationSettings(defaults:model.preferences).fileTooltip(repository:model.repository.root,path:row.path))},selection:actions.selection,settings:actions.fileColumns,available:actions.availableColumns,sort:actions.sortOrder.first?.column ?? .path,ascending:actions.sortOrder.first?.order != .reverse,enabled:model.canUseConflictFiles && !actions.busy,preferences:model.preferences,ownerRetired:model.closed,focusedPath:focusedPath,selectionChanged:{ids,mark in actions.selection=ids;focusedIdentity=mark.map{GitReferenceName($0)}},sortChanged:{column,ascending in actions.setSortOrder([StatusFileSort(column:column,order:ascending ? .forward:.reverse)])},layoutChanged:{order,widths in guard model.canUseConflictFiles else{return};_ = actions.saveColumnLayout(order:order,widths:widths)},columnChanged:{column,visible in if model.canUseConflictFiles {actions.setColumn(column,visible:visible)}},resetColumns:{choose in
+                guard model.canUseConflictFiles else{return}
+                actions.requestResetColumns(choose:choose,onAccepted:{})
+            },makeMenu:{paths,mark,column in model.conflictReportMenu(paths,mark:mark,column:column)},copySelection:{paths,status in model.copyConflictFiles(status ? .pathsAndStatus:.relativePaths,menu:model.conflictMenu(paths,mark:focusedPath))},activate:{path,_ in model.performConflict(.editConflict,menu:model.conflictMenu([path],mark:path))},captureDrag:{actions.captureWorkingDrag($0)},configureRefresh:{actions.fileListRefresh.attach($0)})
+            HStack {
+                ProgressView().controlSize(.small).opacity(actions.busy ? 1:0)
+                Text(actions.busy ? actions.currentOperation:actions.error ?? "").font(.caption).foregroundStyle(actions.error == nil ? Color.secondary:Color.red).lineLimit(1).truncationMode(.tail).help(actions.busy ? actions.currentOperation:actions.error ?? "").textSelection(.enabled)
+                Spacer(minLength:0)
+            }.frame(height:22)
+        }.onAppear{model.refreshConflictFiles()}.defaultAppStorage(model.preferences)
+    }
+}
+
+extension SynchronizationWindowModel {
+    func conflictReportMenu(_ paths:[String],mark:String?,column:StatusListColumn?)->NSMenu {
+        let target=conflictMenu(paths,mark:mark),actions=conflictFileActions,menu=NSMenu();menu.autoenablesItems=false
+        func item(_ title:String,_ icon:MenuIcon,_ action:@escaping()->Void) {menu.addItem(ConflictReportMenuItem(title,icon:icon,preferences:preferences,enabled:!target.entries.isEmpty,action:action))}
+        if target.entries.count==1 {item("Edit conflict…",.editConflict){[weak self] in self?.performConflict(.editConflict,menu:target)}}
+        for (title,action) in [("Resolved",RepositoryAction.resolveCurrent),(actions.conflictRebase ? "Resolve using commit being replayed":"Resolve conflict using ‘theirs’",.resolveTheirs),(actions.conflictRebase ? "Resolve using branch being rebased onto":"Resolve conflict using ‘mine’",.resolveMine)] {item(title,.resolve){[weak self] in self?.performConflict(action,menu:target)}}
+        menu.addItem(.separator())
+        for command in target.commands {item(command.rawValue,command.icon){[weak self] in self?.performConflictFile(command,menu:target)}}
+        let copy=NSMenu();copy.autoenablesItems=false
+        for (title,choice) in [("Relative paths",StatusListCopy.relativePaths),("Full paths",.fullPaths),("File/folder names",.names),("Extensions",.column(.fileExtension)),("Copy all information to clipboard",.all)] {
+            copy.addItem(ConflictReportMenuItem(title,icon:.copy,preferences:preferences){[weak self] in self?.copyConflictFiles(choice,menu:target)})
+        }
+        if let column {copy.addItem(ConflictReportMenuItem(String(format:NSLocalizedString("Copy \"%@\" to clipboard",comment:""),FileListLabels.caption(column.rawValue)),localized:false,icon:.copy,preferences:preferences){[weak self] in self?.copyConflictFiles(.column(column),menu:target)})}
+        let parent=NSMenuItem(title:NSLocalizedString("Copy to Clipboard",comment:""),action:nil,keyEquivalent:"");parent.image=MenuIcon.copy.contextImage(defaults:preferences);parent.submenu=copy;parent.isEnabled = !target.entries.isEmpty;menu.addItem(parent)
+        return menu
     }
 }

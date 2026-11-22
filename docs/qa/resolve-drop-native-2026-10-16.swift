@@ -12,7 +12,7 @@ import TurtleGitCore
     static func provider(_ url:URL)->NSItemProvider {NSItemProvider(item:url.dataRepresentation as NSData,typeIdentifier:UTType.fileURL.identifier)}
     @MainActor static func main() async throws {
         NSApp.setActivationPolicy(.prohibited)
-        let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
+        let root=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL,repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _=try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Drop Fixture"),("user.email","drop@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_=try await repo.run(["config",key,value])}
         let paths=["-first 雪\n[*].txt","folder/second.txt","last.txt"]
@@ -82,7 +82,9 @@ import TurtleGitCore
         try require(window.performKeyEquivalent(with:event(96,.function)),"Source F5 absent")
         try await wait {!model.busy};try require(reads==2,"Explicit F5 was gated by automatic-refresh preference")
         model.checked=[];try require(window.performKeyEquivalent(with:event(36,.control)) && !model.showingProgress,"Empty Control-Return resolved files")
-        let foreignWindow=NSWindow(contentRect:.zero,styleMask:.titled,backing:.buffered,defer:false);defer{foreignWindow.close()}
+        let foreignWindow=NSWindow(contentRect:.zero,styleMask:.titled,backing:.buffered,defer:false)
+        foreignWindow.isReleasedWhenClosed=false
+        defer{foreignWindow.close()}
         owner.commandKeyWindow={foreignWindow};try require(!owner.performCommandKey(event(96)),"Background F5 accepted");owner.commandKeyWindow={window}
         try require(try await repo.run(["rev-parse","HEAD"]).stdout==head && Data(contentsOf:root.appendingPathComponent(".git/index"))==index && paths.map{try Data(contentsOf:root.appendingPathComponent($0))}==bytes,"Drop/read commands mutated repository")
         // The real source acceptance shortcut resolves exactly the checked file.

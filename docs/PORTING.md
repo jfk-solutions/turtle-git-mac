@@ -1,5 +1,24 @@
 # TurtleGit for Mac — full port tracking
 
+## Conflict reports and local candidate54 — November 22, 2026
+
+The [Resolve/Sync report family](RESOLVE-CONFLICT-REPORT-PARITY.md) replaces fixed
+reports with persistent native columns, stable typed sorting, captured clipboard
+routes, selected-row checking and keyboard/accessibility menus. It retains
+separate Resolve stage identities and Sync command/child ownership. Review caught
+refresh-row, selection/focus and font issues before the single app build. The
+[checkpoint](qa/conflict-report-family-2026-11-22.json) records twelve distinct
+native case/Git passes cumulatively, including retained Resolve actions, owned
+Sync recovery and existing refresh consumers. Fixture path/ownership failures
+and focused repairs are retained. All 21 logged native PIDs are absent.
+
+Separately, [signed54](qa/signed-candidate54-2026-11-22.json) is packaged from
+exact75557ca8 with matching source, licenses and evidence. Static, two signed
+helper phases and ZIP/source checks pass their stated scope. It excludes this
+later report implementation, and installed52 remains unchanged. Corrected-source
+hosted CI, physical UI/Finder, platform execution and whole-port acceptance remain
+open. No public binary upload, notarization or Store submission occurred.
+
 ## History operation presentation and current dependencies — November 22, 2026
 
 The [Log/Sync family](HISTORY-OPERATION-PRESENTATION-PARITY.md) stabilizes Log's

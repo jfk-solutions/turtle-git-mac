@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 
-final class AddNativeTable: NativeWatermarkTable {
+class AddNativeTable: NativeWatermarkTable {
     var selectionMenuAvailable: () -> Bool = { false }
     var selectionMenuRow: () -> Int? = { nil }
     var presentSelectionMenu: ((NSMenu, NSPoint, NSView) -> Void)?

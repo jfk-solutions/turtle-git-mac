@@ -167,7 +167,7 @@ import UniformTypeIdentifiers
         guard !retired else{return};retired=true
         let callback=commitHandoff;commitHandoff=nil
         let sheets=[window?.attachedSheet,applicationPanel,question?.1.window].compactMap{$0}
-        ResolveSelectionMarkProbe.retire(in:window?.contentView);model.invalidate();progressFiles.retire();baseComparison?.close();baseComparison=nil
+        model.invalidate();progressFiles.retire();baseComparison?.close();baseComparison=nil
         applicationPanel?.cancel(nil);applicationPanel=nil
         Array(fileUnifiedWindows.values).forEach{$0.close()};fileUnifiedWindows=[:]
         if let pending=question{finishQuestion(pending.0,answer:nil)}
@@ -177,7 +177,7 @@ import UniformTypeIdentifiers
             for sheet in sheets{await FileOperationWindowDrain.detach(sheet,parent:window)}
             if let window{await FileOperationWindowDrain.detach(window,parent:presentationParent)}
             presentationParent=nil
-            while model.busy || model.confirmingCancellation || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
+            while model.busy || model.confirmingCancellation || model.reportResetActive || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
             window?.contentViewController=nil
             onClosed()
             if finishing,!model.confirmingQuit,model.externalAvailability(){callback?()}
@@ -229,6 +229,17 @@ struct ResolveConflictRow: Identifiable {
     var readDroppedURL: (NSItemProvider) async throws -> URL = CommitFileURLReader.read
     var readDroppedConflicts: (([String], OperationCancellation) async throws -> ([ConflictEntry], Bool))?
     @Published var entries: [ConflictEntry] = []
+    let reportRefresh=FileListRefreshCoordinator()
+    private(set) var reportResetActive=false
+    static let reportColumnsKey = "ResolveDlg.FileColumns"
+    static var defaultReportColumns:StatusListColumnSettings {StatusListColumnSettings(visible:[.path,.fileExtension])}
+    @Published private(set) var reportColumns:StatusListColumnSettings
+    @Published private(set) var reportSort:StatusListColumn = .path
+    @Published private(set) var reportAscending=true
+    @Published private(set) var reportHasLFS=false
+    @Published private(set) var reportMetadata:GitPathMap<StatusListMetadata> = [:]
+    @Published private(set) var reportStatistics:GitPathMap<CommitFile> = [:]
+    @Published private(set) var reportLFSOwners:GitPathMap<String> = [:]
     @Published var checked = GitPathSet()
     private var selectedPaths = GitPathSet()
     @Published var nativeSelection = Set<String>() {
@@ -238,7 +249,7 @@ struct ResolveConflictRow: Identifiable {
         get { selectedPaths }
         set { let ids = Set(newValue.map(GitPathRowIdentity.encode)); if nativeSelection != ids { nativeSelection = ids } }
     }
-    var focusedFilePath:String?
+    @Published var focusedFilePath:String?
     @Published private(set) var fileMutationTitle = ""
     private(set) var fileMutationActive = false
     private(set) var deletionResult:WorkingFileDeleteResult?
@@ -307,10 +318,11 @@ struct ResolveConflictRow: Identifiable {
     var canInteract: Bool { active && !confirmingQuit && !handoffPending && externalAvailability() && !busy && !showingProgress && !hasQuestion && !hasChild }
     var canCancel: Bool { active && busy && !cancelling && !confirmingCancellation && !hasQuestion && !hasChild }
     init(repository: GitRepository, access: RepositoryAccessLease?, paths: [String], quick: ResolveChoice?, preferences: UserDefaults = .standard, commandOptions: ResolveCommandOptions? = nil) {
+        reportColumns = preferences.integer(forKey:Self.reportColumnsKey+".Version") == 1 ? StatusListColumnSettings.load(from:preferences,key:Self.reportColumnsKey):Self.defaultReportColumns
         self.repository = repository; self.access = access; self.paths = paths; self.quick = quick; self.commandOptions = commandOptions; self.preferences = preferences; self.progress=FileOperationProgressState(preferences:preferences); progressPresentation = GitCommandPresentation(defaults: preferences)
     }
     func invalidate() {
-        progress.retire();invalidateFileMenus();cancelFileChoice();submoduleFileLog.retire();retireMutationChild()
+        reportRefresh.retire();progress.retire();invalidateFileMenus();cancelFileChoice();submoduleFileLog.retire();retireMutationChild()
         droppedProviders = [];dropTask?.cancel()
         if busy { cancelled = true } else {saveActionLog()}; active = false; generation = UUID(); cancellation?.cancel(); refreshCancellation?.cancel(); pendingResolution = nil; reloadQueued = false; patch = nil
     }
@@ -344,6 +356,19 @@ struct ResolveConflictRow: Identifiable {
         if let readConflicts { next = try await readConflicts(token) }
         else { next = try await (repository.conflicts(paths: paths, cancellation: token), repository.conflictIsRebase(cancellation: token)) }
         try token.check(); guard live(token) else { return }
+        if quick == nil {
+            let columns=Set(visibleReportColumns)
+            let metadata=try await repository.statusListMetadata(paths:next.0.map(\.path),columns:columns,cancellation:token)
+            let hasLFS=try await repository.hasLFS(cancellation:token)
+            let statistics:[CommitFile]
+            if !columns.isDisjoint(with:[.added,.removed]) {statistics=try await repository.workingTreeFiles(cancellation:token)} else {statistics=[]}
+            let locks:[LFSLock]
+            if hasLFS,reportColumns.visible.contains(.lfsOwner) {locks=try await repository.lfsLocks(cancellation:token)} else {locks=[]}
+            try token.check();guard live(token) else{return}
+            reportMetadata=metadata;reportHasLFS=hasLFS
+            reportStatistics=GitPathMap(statistics.map{($0.path,$0)},uniquingKeysWith:{_,last in last})
+            reportLFSOwners=GitPathMap(locks.map{($0.path,$0.owner)},uniquingKeysWith:{first,_ in first})
+        }
         publishConflicts(next.0,rebase:next.1)
     }
     /// A managed presenter can start preparation before SwiftUI appears. That
@@ -359,11 +384,15 @@ struct ResolveConflictRow: Identifiable {
         if commandOptions?.noQuestion == true { startUnreviewedProgress(); return }
         if busy || hasQuestion || hasChild || showingProgress { reloadQueued = true; return }
         invalidateFileMenus()
+        let position=reportRefresh.begin(preferences:preferences,selectedIDs:selection)
+        if !position.remember {selection=[];focusedFilePath=nil}
         let token = begin()
         Task {
-            defer { finish(token); withExtendedLifetime(access) {} }
+            defer {reportRefresh.finish(position);finish(token);withExtendedLifetime(access) {}}
             do {
-                try await refresh(token); guard live(token), !token.isCancelled else { return }
+                try await refresh(token)
+                await reportRefresh.restore(position,ids:sortedReportEntries.map(\.path))
+                guard live(token), !token.isCancelled else { return }
                 if let quick { guard !entries.isEmpty else { throw ResolveFailure.stale }; busy = false; request(quick, ids: GitPathSet(entries.map(\.path))) }
             } catch { if live(token), !token.isCancelled { self.error = error.localizedDescription } }
         }
@@ -395,10 +424,10 @@ struct ResolveConflictRow: Identifiable {
         let targets = selection.contains(path) ? selection.intersection(entries.map(\.path)) : GitPathSet([path])
         if value { checked.formUnion(targets) } else { checked.subtract(targets) }
     }
-    func resolveChecked() { guard canInteract else { return }; closeAfterResolution = true; apply(entries.filter { checked.contains($0.path) }, using: .current) }
+    func resolveChecked() { guard canInteract else { return }; closeAfterResolution = true; apply(sortedReportEntries.filter { checked.contains($0.path) }, using: .current) }
     func request(_ choice: ResolveChoice, ids values: some Sequence<String>) {
         let ids = GitPathSet(values)
-        let selected = entries.filter { ids.contains($0.path) }
+        let selected = sortedReportEntries.filter { ids.contains($0.path) }
         guard canInteract, !selected.isEmpty else { return }
         closeAfterResolution = false; pendingResolution = (generation, selected, choice); confirm(choice, selected)
     }
@@ -483,7 +512,7 @@ struct ResolveConflictRow: Identifiable {
     func cancel() {
         if active,fileMutationActive,hasChild {cancelMutationChild();return}
         guard canCancel, let token = cancellation else { return }
-        droppedProviders = [];cancelFileChoice();submoduleFileLog.cancel()
+        reportRefresh.cancel();droppedProviders = [];cancelFileChoice();submoduleFileLog.cancel()
         if !showingProgress || !preferences.bool(forKey: "ConfirmKillProcess") { cancelling = true; token.cancel();dropTask?.cancel(); refreshCancellation?.cancel(); return }
         confirmingCancellation = true; var answered = false
         confirmCancellation { [weak self] accepted in
@@ -549,12 +578,7 @@ private struct ResolveDialog: View {
     @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
     @ObservedObject var model: ResolveWindowModel
     let commit: () -> Void
-    @AppStorage("LogFontForFileListCtrl") private var reportUsesLogFont=false
-    @AppStorage("LogFontName") private var reportFontName=MessageEditorFont.defaultName
-    @AppStorage("LogFontSize") private var reportFontSize=MessageEditorFont.defaultSize
     var body: some View {
-        let geometry=FileListUniformRowGeometry.resolve(useLogFont:reportUsesLogFont,name:reportFontName,size:reportFontSize)
-        let primaryRows=model.entries.map{Optional($0.path)},primaryRevision=model.primaryActionRevision
         Group {
             if model.showingProgress {
                 VStack(alignment: .leading, spacing: 12) {
@@ -577,37 +601,7 @@ private struct ResolveDialog: View {
                 HStack(spacing: 16) { GitCommandActivity(animate: model.progressPresentation.animateActivity); Text(model.busy ? "Resolving selected conflicts…" : "Review the selected resolution.") }.padding(20)
             } else {
                 VStack(alignment: .leading, spacing: 12) {
-                    Table(model.entries.map(ResolveConflictRow.init), selection: $model.nativeSelection) {
-                        TableColumn("") { row in
-                            let entry = row.entry
-                            FileSelectionCheckbox(path: entry.path, verb: "Resolve", checked: model.checked.contains(entry.path), enabled: model.canInteract) { model.setFileChecked(entry.path, value: $0) }.frame(width: 20, height: 20).frame(height:geometry.contentHeight)
-                        }.width(24)
-                        TableColumn("Path") { row in let entry = row.entry; HStack { Image(nsImage: FileState.conflicted.icon.image() ?? NSImage()).resizable().frame(width:16,height:16); Text(entry.path).foregroundStyle(FileState.conflicted.textColor).background(NativeListSelectionLabelMarker()) }.frame(height:geometry.contentHeight).repositoryFileHelp(repository: model.repository.root, path: entry.path, preferences: model.preferences) }.width(min: 260, ideal: 440)
-                        TableColumn("Extension") { row in let value=StatusListClipboard.fileExtension(row.entry.path,isDirectory:row.entry.isSubmodule);Text(value).help(value).frame(height:geometry.contentHeight) }.width(70)
-                        TableColumn("Status") { _ in Text("Conflicted").help("Conflicted").foregroundStyle(FileState.conflicted.textColor).frame(height:geometry.contentHeight) }.width(95)
-                    } .disabled(!model.canInteract).fileListFont().environment(\.defaultMinListRowHeight,geometry.rowHeight).lineLimit(1).truncationMode(.tail).background(ResolveSelectionMarkProbe(model:model))
-                    .background(NativeListSelectionProbe(preferences:model.preferences,primaryTitle:"Path",labelText:{row in model.entries.indices.contains(row) ? model.entries[row].path:nil},font:geometry.font,leadingInset:24,uniformRowGeometry:geometry,rowIDs:{model.entries.map{Data($0.path.utf8)}}))
-                    .contextMenu(forSelectionType: String.self) { ids in
-                        let target = model.fileMenu(GitPathRowIdentity.paths(ids))
-                        TurtleGitContextMenu {
-                            ResolveSelectionMenu(paths:target.entries.map(\.path),rebase:model.rebase,canEdit:target.entries.count == 1) {action,paths in
-                                model.withFileMenu(target) {
-                                    if action == .editConflict {model.editOrCompare(GitPathSet(paths))} else {model.request(action.resolveChoice ?? .current,ids:GitPathSet(paths))}
-                                }
-                            }
-                            Divider()
-                            ForEach(target.commands,id:\.self) {command in
-                                Button {model.fileCommand(command,menu:target)} label: {CommandLabel(title:command.title,icon:command.icon)}.disabled(!model.canFileCommand(command,menu:target))
-                            }
-                            Divider()
-                            Menu {ForEach(ResolveClipboardChoice.allCases,id:\.self) {choice in
-                                Button {model.copyFileMenu(target,copy:choice.copy)} label: {CommandLabel(title:choice.rawValue,icon:.copy)}
-                            }} label: {CommandLabel(title:"Copy to clipboard",icon:.copy)}
-                        }
-                    } primaryAction: { ids in
-                        if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(ids),focus:model.focusedFilePath,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
-                    }
-                    .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,checkboxColumns:1,activate:model.activatePrimaryFile))
+                    ResolveConflictReport(model:model)
                     HStack {
                         SelectionAllCheckbox(checked: model.checked.count, total: model.entries.count, checkedCount: { model.checked.count }) { model.checked = $0 ? GitPathSet(model.entries.map(\.path)) : [] }.fixedSize().disabled(!model.canInteract)
                         Spacer()
@@ -760,8 +754,8 @@ enum ResolveFileCommand:String,CaseIterable {
     }
 }
 enum ResolveClipboardChoice:String,CaseIterable {
-    case full = "Full paths",relative = "Relative paths",names = "File/folder names",all = "Copy all information to clipboard"
-    var copy:StatusListCopy {switch self {case .full:return .fullPaths;case .relative:return .relativePaths;case .names:return .names;case .all:return .all}}
+    case full = "Full paths",relative = "Relative paths",names = "File/folder names",extensions = "Extensions",all = "Copy all information to clipboard"
+    var copy:StatusListCopy {switch self {case .full:return .fullPaths;case .relative:return .relativePaths;case .names:return .names;case .extensions:return .column(.fileExtension);case .all:return .all}}
 }
 struct ResolveFileMenuSnapshot {
     let id = UUID()
@@ -777,7 +771,7 @@ extension ResolveWindowModel {
     private func invalidateFileMenus() {fileMenuEpoch = UUID();usedFileMenus = []}
     func fileMenu(_ values:some Sequence<String>,markedPath:String? = nil,permanently:Bool? = nil)->ResolveFileMenuSnapshot {
         let ids = GitPathSet(values)
-        let selected = entries.filter{ids.contains($0.path)}
+        let selected = sortedReportEntries.filter{ids.contains($0.path)}
         let ordinary = selected.allSatisfy{!$0.isSubmodule}
         func exists(_ entry:ConflictEntry)->Bool {
             let type = (try? FileManager.default.attributesOfItem(atPath:repository.root.appendingPathComponent(entry.path).path)[.type]) as? FileAttributeType
@@ -832,7 +826,22 @@ extension ResolveWindowModel {
         guard acceptsFileMenu(menu) else {return};usedFileMenus.insert(menu.id);action()
     }
     func copyFileMenu(_ menu:ResolveFileMenuSnapshot,copy:StatusListCopy) {
-        withFileMenu(menu) {writeFileClipboard(StatusListClipboard.text(menu.entries,root:repository.root,copy:copy, label:FileListLabels.caption))}
+        let columns=visibleReportColumns
+        let metadata=reportMetadata,statistics=reportStatistics,owners=reportLFSOwners
+        withFileMenu(menu) {
+            let selected:[StatusListColumn]
+            switch copy {case .all:selected=columns;case .column(let column):selected=[column];case .pathsAndStatus:selected=[.path,.status];default:selected=[]}
+            let heading=StatusListClipboard.heading(copy:copy,columns:selected,label:FileListLabels.caption)
+            let text=heading+menu.entries.map {entry in
+                switch copy {
+                case .fullPaths:return repository.root.appendingPathComponent(entry.path).path
+                case .relativePaths:return entry.path
+                case .names:return (entry.path as NSString).lastPathComponent
+                default:return selected.map{reportText(entry,column:$0,metadata:metadata,statistics:statistics,owners:owners)}.joined(separator:"\t")
+                }
+            }.joined(separator:"\n")+"\n"
+            writeFileClipboard(text)
+        }
     }
     private func validateFileMenu(_ menu:ResolveFileMenuSnapshot,token:OperationCancellation) async throws {
         try checkAccess();try token.check()
@@ -947,38 +956,365 @@ extension ResolveWindowModel {
     }
 }
 
-/// Observe only this Resolve table's events; return every event unchanged.
-private struct ResolveSelectionMarkProbe:NSViewRepresentable {
-    let model:ResolveWindowModel
-    func makeNSView(context:Context)->Probe {let view=Probe();view.model=model;return view}
-    func updateNSView(_ view:Probe,context:Context) {view.model=model;if !model.active {view.stop()}}
-    static func dismantleNSView(_ view:Probe,coordinator:()) {view.stop()}
-    static func retire(in root:NSView?) {guard let root else {return};(root as? Probe)?.stop();root.subviews.forEach{retire(in:$0)}}
-    final class Probe:NSView {
-        weak var model:ResolveWindowModel?
-        private var monitor:Any?
-        override func hitTest(_ point:NSPoint)->NSView? {nil}
-        override func viewDidMoveToWindow() {
-            super.viewDidMoveToWindow();stop();guard window != nil else {return}
-            monitor=NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.rightMouseDown,.keyDown]) { [weak self] event in
-                guard let self,let window=self.window,event.window === window,let model=self.model,model.canInteract else {return event}
-                func tables(_ root:NSView)->[NSTableView] {(root as? NSTableView).map{[$0]} ?? root.subviews.flatMap(tables)}
-                guard let root=window.contentView,let table=tables(root).first else {return event}
-                if event.type == .keyDown {
-                    guard [123,124,125,126,115,119].contains(event.keyCode) else {return event}
-                    let generation=model.generation
-                    DispatchQueue.main.async { [weak self,weak table,weak model] in
-                        guard self?.window === window,let table,let model,model.canInteract,model.generation == generation,model.entries.indices.contains(table.selectedRow) else {return}
-                        model.focusedFilePath=model.entries[table.selectedRow].path
-                    }
-                } else {
-                    let point=table.convert(event.locationInWindow,from:nil),row=table.row(at:point)
-                    if table.bounds.contains(point),model.entries.indices.contains(row) {model.focusedFilePath=model.entries[row].path}
+// ResolveDlg and ConflictSyncDlg share the report/menu entry contract while
+// retaining their separate row models, action masks and operation ownership.
+extension ResolveWindowModel {
+    var availableReportColumns:Set<StatusListColumn> {Set(StatusListColumn.allCases.filter{$0 != .lfsOwner || reportHasLFS})}
+    var visibleReportColumns:[StatusListColumn] {reportColumns.order.filter{reportColumns.visible.contains($0) && availableReportColumns.contains($0)}}
+    var sortedReportEntries:[ConflictEntry] {
+        entries.sorted {a,b in
+            var result:ComparisonResult
+            switch reportSort {
+            case .fileSize:
+                let x=reportMetadata[a.path]?.size ?? -1,y=reportMetadata[b.path]?.size ?? -1
+                result=x<y ? .orderedAscending:x>y ? .orderedDescending:.orderedSame
+            case .lastModified:result=(reportMetadata[a.path]?.modificationDate ?? .distantPast).compare(reportMetadata[b.path]?.modificationDate ?? .distantPast)
+            case .added,.removed:
+                let x=(reportSort == .added ? reportStatistics[a.path]?.added:reportStatistics[a.path]?.removed) ?? -1
+                let y=(reportSort == .added ? reportStatistics[b.path]?.added:reportStatistics[b.path]?.removed) ?? -1
+                result=x<y ? .orderedAscending:x>y ? .orderedDescending:.orderedSame
+            default:result=reportText(a,column:reportSort).compare(reportText(b,column:reportSort),options:[.caseInsensitive,.numeric],locale:Locale(identifier:"en_US_POSIX"))
+            }
+            if result == .orderedSame {result=a.path.compare(b.path,options:[.caseInsensitive,.numeric],locale:Locale(identifier:"en_US_POSIX"))}
+            if result == .orderedSame,!a.path.utf8.elementsEqual(b.path.utf8) {result=a.path.utf8.lexicographicallyPrecedes(b.path.utf8) ? .orderedAscending:.orderedDescending}
+            return reportAscending ? result == .orderedAscending:result == .orderedDescending
+        }
+    }
+    func reportText(_ entry:ConflictEntry,column:StatusListColumn)->String {reportText(entry,column:column,metadata:reportMetadata,statistics:reportStatistics,owners:reportLFSOwners)}
+    private func reportText(_ entry:ConflictEntry,column:StatusListColumn,metadata:GitPathMap<StatusListMetadata>,statistics:GitPathMap<CommitFile>,owners:GitPathMap<String>)->String {
+        switch column {
+        case .path:return entry.path
+        case .fileName:return (entry.path as NSString).lastPathComponent
+        case .fileExtension:return StatusListClipboard.fileExtension(entry.path,isDirectory:entry.isSubmodule)
+        case .status:return FileListLabels.caption("Conflicted")
+        case .added:return statistics[entry.path]?.added.map(String.init) ?? "–"
+        case .removed:return statistics[entry.path]?.removed.map(String.init) ?? "–"
+        case .lastModified:return metadata[entry.path]?.dateText ?? "–"
+        case .fileSize:return metadata[entry.path]?.sizeText ?? "–"
+        case .lfsOwner:return owners[entry.path] ?? ""
+        }
+    }
+    func sortReport(_ column:StatusListColumn,ascending:Bool) {
+        guard canInteract,availableReportColumns.contains(column) else{return}
+        invalidateFileMenus();reportSort=column;reportAscending=ascending
+    }
+    func saveReportLayout(_ order:[StatusListColumn],widths:[StatusListColumn:Double]) {
+        guard canInteract else{return}
+        let next=StatusListColumnSettings(visible:reportColumns.visible,order:order,widths:widths)
+        guard next != reportColumns else{return};invalidateFileMenus();reportColumns=next;next.save(to:preferences,key:Self.reportColumnsKey)
+    }
+    func setReportColumn(_ column:StatusListColumn,visible:Bool) {
+        guard canInteract,column != .path,availableReportColumns.contains(column) else{return}
+        invalidateFileMenus()
+        if visible {reportColumns.visible.insert(column)} else {reportColumns.visible.remove(column)}
+        reportColumns.save(to:preferences,key:Self.reportColumnsKey)
+        if visible,[StatusListColumn.added,.removed,.lastModified,.fileSize,.lfsOwner].contains(column) {load()}
+    }
+    func resetReportColumns(choose:@escaping () async->Bool) {
+        guard canInteract else{return}
+        let epoch=fileMenuEpoch
+        hasQuestion=true;reportResetActive=true
+        Task { [self] in
+            let accepted=await choose()
+            hasQuestion=false;reportResetActive=false
+            guard accepted,canInteract,fileMenuEpoch==epoch else{return}
+            invalidateFileMenus();reportColumns=Self.defaultReportColumns;reportColumns.save(to:preferences,key:Self.reportColumnsKey)
+            reportSort = .path;reportAscending=true
+        }
+    }
+    func reportMenu(_ paths:[String],mark:String?,column:StatusListColumn?)->NSMenu {
+        let target=fileMenu(paths,markedPath:mark),menu=NSMenu()
+        menu.autoenablesItems=false
+        func item(_ title:String,_ icon:MenuIcon,enabled:Bool=true,_ action:@escaping()->Void) {menu.addItem(ConflictReportMenuItem(title,icon:icon,preferences:preferences,enabled:enabled,action:action))}
+        if target.entries.count==1 {item("Edit conflict…",.editConflict){[weak self] in self?.withFileMenu(target){self?.editOrCompare(target.paths)}}}
+        for (title,choice) in [("Resolved",ResolveChoice.current),(rebase ? "Resolve using commit being replayed":"Resolve conflict using ‘theirs’",.theirs),(rebase ? "Resolve using branch being rebased onto":"Resolve conflict using ‘mine’",.mine)] {
+            item(title,.resolve,enabled:!target.entries.isEmpty){[weak self] in self?.withFileMenu(target){self?.request(choice,ids:target.paths)}}
+        }
+        menu.addItem(.separator())
+        for command in target.commands {item(command.title,command.icon,enabled:canFileCommand(command,menu:target)){[weak self] in self?.fileCommand(command,menu:target)}}
+        menu.addItem(.separator())
+        let copy=NSMenu();copy.autoenablesItems=false
+        for choice in ResolveClipboardChoice.allCases {copy.addItem(ConflictReportMenuItem(choice.rawValue,icon:.copy,preferences:preferences){[weak self] in self?.copyFileMenu(target,copy:choice.copy)})}
+        if let column {
+            copy.addItem(ConflictReportMenuItem(String(format:NSLocalizedString("Copy \"%@\" to clipboard",comment:""),FileListLabels.caption(column.rawValue)),localized:false,icon:.copy,preferences:preferences){[weak self] in self?.copyFileMenu(target,copy:.column(column))})
+        }
+        let parent=NSMenuItem(title:NSLocalizedString("Copy to clipboard",comment:""),action:nil,keyEquivalent:"");parent.image=MenuIcon.copy.contextImage(defaults:preferences);parent.submenu=copy;parent.isEnabled = !target.entries.isEmpty;menu.addItem(parent)
+        return menu
+    }
+}
+
+/// The callback retains an immutable row/column receipt; a menu item cannot
+/// execute twice even if AppKit dispatches an accessibility and pointer action.
+@MainActor final class ConflictReportMenuItem:NSMenuItem {
+    private var callback:(()->Void)?
+    var validate:()->Bool = {true}
+    init(_ title:String,localized:Bool=true,icon:MenuIcon,preferences:UserDefaults,enabled:Bool=true,action:@escaping()->Void) {
+        callback=action;super.init(title:localized ? NSLocalizedString(title,comment:""):title,action:nil,keyEquivalent:"")
+        target=self;self.action=#selector(invoke);image=icon.contextImage(defaults:preferences);isEnabled=enabled
+    }
+    required init(coder:NSCoder){fatalError("init(coder:) is not supported")}
+    @objc private func invoke(){guard isEnabled,validate(),let callback else{return};self.callback=nil;callback()}
+}
+
+struct ConflictReportRow {
+    let path:String
+    let text:[StatusListColumn:String]
+    var checked:Bool?=nil
+    var color:NSColor = .labelColor
+    var tooltip:String?=nil
+}
+
+@MainActor final class ConflictReportNativeTable:AddNativeTable {
+    var focusedRow:()->Int? = {nil}
+    var focusMoved:(Int)->Void = {_ in}
+    override func keyDown(with event:NSEvent) {
+        let navigation=[125,126,115,119].contains(event.keyCode) && event.modifierFlags.intersection([.command,.control,.option]).isEmpty
+        let anchor=focusedRow() ?? selectedRowIndexes.first ?? 0
+        super.keyDown(with:event)
+        guard navigation,numberOfRows>0 else{return}
+        let target=event.keyCode==115 ? 0:event.keyCode==119 ? numberOfRows-1:min(numberOfRows-1,max(0,anchor+(event.keyCode==125 ? 1:-1)))
+        if selectedRowIndexes.contains(target) {focusMoved(target)}
+    }
+}
+
+/// Owned AppKit report avoids rebuilding headers as SwiftUI observes selection,
+/// check state or text changes. The data model owns sorting and action validity.
+struct ConflictReportTable:NSViewRepresentable {
+    @AppStorage("LogFontForFileListCtrl") private var usesLogFont=false
+    @AppStorage("LogFontName") private var fontName=MessageEditorFont.defaultName
+    @AppStorage("LogFontSize") private var fontSize=MessageEditorFont.defaultSize
+    @AppStorage("ShowListBackgroundImage") private var showsBackground=true
+    @AppStorage("ShowAppContextMenuIcons") private var showsMenuIcons=true
+    private var geometry:FileListUniformRowGeometry {FileListUniformRowGeometry.resolve(useLogFont:usesLogFont,name:fontName,size:fontSize)}
+    let rows:[ConflictReportRow]
+    let selection:GitPathSet
+    let settings:StatusListColumnSettings
+    let available:Set<StatusListColumn>
+    let sort:StatusListColumn
+    let ascending:Bool
+    let enabled:Bool
+    let preferences:UserDefaults
+    var hasCheckboxes=false
+    var ownerRetired=false
+    var focusedPath:String?
+    let selectionChanged:(GitPathSet,String?)->Void
+    let sortChanged:(StatusListColumn,Bool)->Void
+    let layoutChanged:([StatusListColumn],[StatusListColumn:Double])->Void
+    let columnChanged:(StatusListColumn,Bool)->Void
+    let resetColumns:(@escaping () async->Bool)->Void
+    let makeMenu:([String],String?,StatusListColumn?)->NSMenu
+    let copySelection:([String],Bool)->Void
+    let activate:(String,Bool)->Void
+    var checkChanged:((String,Bool)->Void)?=nil
+    var captureDrag:(([String])->WorkingFileListDrag?)?=nil
+    var configureRefresh:((any FileListRefreshClient)->Void)?=nil
+    func makeCoordinator()->Coordinator {Coordinator(self)}
+    func makeNSView(context:Context)->NSScrollView {context.coordinator.make()}
+    func updateNSView(_ view:NSScrollView,context:Context){context.coordinator.update(self)}
+    static func dismantleNSView(_ view:NSScrollView,coordinator:Coordinator){coordinator.retire()}
+    @MainActor final class Coordinator:NSObject,NSTableViewDataSource,NSTableViewDelegate,NSMenuDelegate,FileListRefreshClient {
+        var owner:ConflictReportTable
+        let table:ConflictReportNativeTable
+        private var updating=false,retired=false
+        private var renderedRows:[ConflictReportRow]=[]
+        private var renderedFont:NSFont?
+        private var contextMark:String?,contextColumn:StatusListColumn?
+        private var contextEpoch=UUID()
+        private var storedPosition:(path:String?,offset:CGFloat,point:NSPoint,selection:GitPathSet)?
+        private var restoreRequest:(ids:[Data],remember:Bool,reply:()->Void)?
+        private var drag:WorkingFileListDrag?
+        private var resetQuestion:(id:UUID,alert:NSAlert,reply:(Bool)->Void)?
+        private static var dragOwners:[ObjectIdentifier:Coordinator]=[:]
+        private let fileMenu=NSMenu(),headerMenu=NSMenu()
+        init(_ owner:ConflictReportTable){self.owner=owner;table=ConflictReportNativeTable(icon:.resolveBackdrop,defaults:owner.preferences)}
+        func make()->NSScrollView {
+            let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
+            table.dataSource=self;table.delegate=self;table.allowsMultipleSelection=true;table.allowsColumnReordering=true;table.usesAlternatingRowBackgroundColors=true
+            table.target=self;table.doubleAction=#selector(openSelected)
+            fileMenu.delegate=self;fileMenu.autoenablesItems=false;headerMenu.delegate=self;headerMenu.autoenablesItems=false
+            table.menu=fileMenu;table.headerView?.menu=headerMenu
+            table.selectionMenuAvailable={[weak self] in self?.isAvailable == true}
+            table.selectionMenuRow={[weak self] in guard let self,let mark=owner.focusedPath else{return nil};return renderedRows.firstIndex{GitReferenceName.equal($0.path,mark)}}
+            table.contextSelection={[weak self] row,column in self?.prepareMenu(row,column:column)}
+            table.focusedRow={[weak self] in guard let self,let path=owner.focusedPath else{return nil};return renderedRows.firstIndex{GitReferenceName.equal($0.path,path)}}
+            table.focusMoved={[weak self] row in guard let self,isAvailable,renderedRows.indices.contains(row) else{return};owner.selectionChanged(GitPathSet(selectedPaths),renderedRows[row].path)}
+            table.toggleChecks={[weak self] in self?.toggleChecks()}
+            table.copySelection={[weak self] status in guard let self,isAvailable else{return};owner.copySelection(selectedPaths,status)}
+            table.setDraggingSourceOperationMask([.copy,.move],forLocal:true);table.setDraggingSourceOperationMask([.copy,.move],forLocal:false)
+            scroll.documentView=table;owner.configureRefresh?(self);update(owner);return scroll
+        }
+        private var isAvailable:Bool {!retired && owner.enabled && table.window?.attachedSheet == nil && NSApp.modalWindow == nil}
+        private var selectedPaths:[String] {table.selectedRowIndexes.compactMap{renderedRows.indices.contains($0) ? renderedRows[$0].path:nil}}
+        private func column(_ native:NSTableColumn)->StatusListColumn? {StatusListColumn(rawValue:native.identifier.rawValue)}
+        func update(_ value:ConflictReportTable) {
+            guard !retired else{return}
+            if value.ownerRetired {retire();return}
+            updating=true;defer{updating=false}
+            let contextChanged=owner.settings != value.settings || owner.available != value.available || owner.enabled != value.enabled || owner.sort != value.sort || owner.ascending != value.ascending || renderedRows.count != value.rows.count || zip(renderedRows,value.rows).contains{a,b in !a.path.utf8.elementsEqual(b.path.utf8) || a.text != b.text}
+            owner=value;if contextChanged {contextEpoch=UUID()}
+            let visible=value.settings.order.filter{value.settings.visible.contains($0) && value.available.contains($0)}
+            let desired=(value.hasCheckboxes ? ["check"]:[])+value.settings.order.filter{value.available.contains($0)}.map(\.rawValue)
+            for existing in table.tableColumns where !desired.contains(existing.identifier.rawValue) {table.removeTableColumn(existing)}
+            for (index,id) in desired.enumerated() {
+                let native=table.tableColumns.first{$0.identifier.rawValue==id} ?? {
+                    let next=NSTableColumn(identifier:.init(id));next.minWidth=id=="check" ? 26:40;next.width=id=="check" ? 26:id==StatusListColumn.path.rawValue ? 420:110
+                    if id=="check" {next.maxWidth=26;next.resizingMask=[]} else {next.title=FileListLabels.caption(id);next.sortDescriptorPrototype=NSSortDescriptor(key:id,ascending:true)}
+                    table.addTableColumn(next);return next
+                }()
+                if let column=column(native) {native.isHidden = !visible.contains(column);if let width=value.settings.widths[column] {native.width=width}}
+                if let actual=table.tableColumns.firstIndex(of:native),actual != index {table.moveColumn(actual,toColumn:index)}
+            }
+            let descriptor=NSSortDescriptor(key:value.sort.rawValue,ascending:value.ascending)
+            if table.sortDescriptors != [descriptor] {table.sortDescriptors=[descriptor]}
+            let geometry=value.geometry
+            let changed=renderedRows.count != value.rows.count || zip(renderedRows,value.rows).contains{a,b in !a.path.utf8.elementsEqual(b.path.utf8) || a.text != b.text || a.checked != b.checked || a.color != b.color || a.tooltip != b.tooltip} || table.rowHeight != geometry.rowHeight || renderedFont != geometry.font
+            renderedRows=value.rows;renderedFont=geometry.font;table.rowHeight=geometry.rowHeight;table.isEnabled=value.enabled
+            if changed {table.reloadData()}
+            let indexes=IndexSet(renderedRows.indices.filter{value.selection.contains(renderedRows[$0].path)})
+            if table.selectedRowIndexes != indexes {table.selectRowIndexes(indexes,byExtendingSelection:false)}
+            NativeListSelection.install(on:table,preferences:value.preferences,primaryColumn:table.tableColumns.first{column($0) == .path},labelText:{[weak self] row in self?.renderedRows.indices.contains(row)==true ? self?.renderedRows[row].path:nil},font:geometry.font,leadingInset:24)
+            table.needsDisplay=true;finishPositionIfReady()
+        }
+        func numberOfRows(in tableView:NSTableView)->Int {renderedRows.count}
+        func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
+            guard renderedRows.indices.contains(row),let tableColumn else{return nil};let value=renderedRows[row]
+            if tableColumn.identifier.rawValue=="check" {
+                let button=NSButton(checkboxWithTitle:"",target:self,action:#selector(checkClicked(_:)));button.tag=row;button.state=value.checked == true ? .on:.off;button.isEnabled=owner.enabled
+                button.setAccessibilityLabel(NSLocalizedString("Resolve",comment:"")+" "+value.path);return button
+            }
+            guard let column=column(tableColumn) else{return nil}
+            let field=NSTextField(labelWithString:singleLine(value.text[column] ?? ""));field.lineBreakMode = .byTruncatingTail;field.maximumNumberOfLines=1
+            field.font=owner.geometry.font
+            field.textColor=column == .path || column == .status ? value.color:.labelColor;field.toolTip=value.text[column]
+            if [.added,.removed,.fileSize].contains(column) {field.alignment = .right}
+            guard column == .path else{return field}
+            let cell=NSTableCellView();let image=NSImageView(frame:NSRect(x:2,y:2,width:16,height:16));image.image=FileState.conflicted.icon.image()
+            field.frame=NSRect(x:23,y:2,width:max(0,tableColumn.width-26),height:table.rowHeight-4);field.autoresizingMask=[.width];cell.addSubview(image);cell.addSubview(field);cell.imageView=image;cell.textField=field;cell.toolTip=value.tooltip;return cell
+        }
+        private func singleLine(_ text:String)->String {
+            var result=text.replacingOccurrences(of:"\r\n",with:"↵")
+            for separator in ["\r","\n","\u{0085}","\u{2028}","\u{2029}","\u{000B}","\u{000C}"] {result=result.replacingOccurrences(of:separator,with:"↵")}
+            return result.replacingOccurrences(of:"\t",with:"⇥")
+        }
+        func tableViewSelectionDidChange(_ notification:Notification) {
+            guard !updating,!retired else{return}
+            let mark=renderedRows.indices.contains(table.clickedRow) && table.selectedRowIndexes.contains(table.clickedRow) ? renderedRows[table.clickedRow].path:selectedPaths.first
+            owner.selectionChanged(GitPathSet(selectedPaths),mark)
+        }
+        func tableView(_ tableView:NSTableView,sortDescriptorsDidChange oldDescriptors:[NSSortDescriptor]) {
+            guard !updating,isAvailable,let descriptor=table.sortDescriptors.first,let key=descriptor.key,let column=StatusListColumn(rawValue:key) else{return}
+            owner.sortChanged(column,descriptor.ascending)
+        }
+        func tableView(_ tableView:NSTableView,shouldReorderColumn column:Int,toColumn newColumn:Int)->Bool {isAvailable && (!owner.hasCheckboxes || column>0 && newColumn>0)}
+        func tableView(_ tableView:NSTableView,sizeToFitWidthOfColumn index:Int)->CGFloat {
+            guard table.tableColumns.indices.contains(index),let definition=column(table.tableColumns[index]) else{return 26}
+            let font=owner.geometry.font
+            let width=renderedRows.map{(singleLine($0.text[definition] ?? "") as NSString).size(withAttributes:[.font:font]).width+(definition == .path ? 38:14)}.max() ?? 40
+            return min(10000,max(table.tableColumns[index].minWidth,width))
+        }
+        func tableViewColumnDidMove(_ notification:Notification){saveLayout()}
+        func tableViewColumnDidResize(_ notification:Notification){saveLayout()}
+        private func saveLayout() {
+            guard !updating,isAvailable else{return}
+            owner.layoutChanged(table.tableColumns.compactMap(column),Dictionary(uniqueKeysWithValues:table.tableColumns.compactMap{native in column(native).map{($0,Double(native.width))}}))
+        }
+        @objc private func checkClicked(_ sender:NSButton) {
+            guard isAvailable,renderedRows.indices.contains(sender.tag),let checked=renderedRows[sender.tag].checked else{return}
+            owner.checkChanged?(renderedRows[sender.tag].path,!checked)
+        }
+        private func toggleChecks() {
+            guard isAvailable,owner.hasCheckboxes,let mark=selectedPaths.first(where:{GitReferenceName.equal($0,owner.focusedPath)}) ?? selectedPaths.first,let row=renderedRows.first(where:{GitReferenceName.equal($0.path,mark)}),let checked=row.checked else{return}
+            owner.checkChanged?(mark,!checked)
+        }
+        @objc private func openSelected() {
+            guard isAvailable,renderedRows.indices.contains(table.clickedRow),table.clickedColumn >= (owner.hasCheckboxes ? 1:0) else{return}
+            owner.activate(renderedRows[table.clickedRow].path,ComparisonToolInvocation.capture)
+        }
+        private func prepareMenu(_ row:Int,column index:Int) {
+            guard isAvailable,renderedRows.indices.contains(row) else{contextMark=nil;contextColumn=nil;return}
+            contextMark=renderedRows[row].path;contextColumn=table.tableColumns.indices.contains(index) ? column(table.tableColumns[index]):nil
+            owner.selectionChanged(GitPathSet(selectedPaths),contextMark)
+        }
+        func menuNeedsUpdate(_ menu:NSMenu) {
+            menu.removeAllItems();guard isAvailable else{return}
+            if menu === headerMenu {
+                menu.addItem(ConflictReportMenuItem("Reset columns",icon:.reset,preferences:owner.preferences){[weak self] in guard let self,isAvailable else{return};owner.resetColumns({[weak self] in await self?.confirmColumnReset() ?? false})})
+                menu.addItem(.separator())
+                for column in StatusListColumn.allCases where owner.available.contains(column) && column != .path {
+                    let visible=owner.settings.visible.contains(column)
+                    let item=ConflictReportMenuItem(column.rawValue,icon:.settingsDialogs,preferences:owner.preferences){[weak self] in guard let self,isAvailable else{return};owner.columnChanged(column,!visible)}
+                    item.state=visible ? .on:.off;menu.addItem(item)
                 }
-                return event
+            } else if !selectedPaths.isEmpty {
+                let built=owner.makeMenu(selectedPaths,contextMark,contextColumn)
+                for item in built.items {built.removeItem(item);menu.addItem(item)}
+            }
+            let epoch=contextEpoch
+            func gate(_ value:NSMenu) {
+                for item in value.items {
+                    if let callback=item as? ConflictReportMenuItem {callback.validate={[weak self] in self?.isAvailable==true && self?.contextEpoch==epoch}}
+                    if let submenu=item.submenu {gate(submenu)}
+                }
+            }
+            gate(menu)
+        }
+        func storeListPosition(selectedIDs:GitPathSet?) {
+            cancelListPosition()
+            let point=table.visibleRect.origin,row=table.row(at:NSPoint(x:point.x+1,y:point.y+1))
+            storedPosition=(renderedRows.indices.contains(row) ? renderedRows[row].path:nil,renderedRows.indices.contains(row) ? point.y-table.rect(ofRow:row).minY:0,point,selectedIDs ?? GitPathSet(selectedPaths))
+        }
+        func restoreListPosition(ids:[String],enabled:Bool,completion:@escaping()->Void) {
+            guard !retired else{completion();return}
+            if let prior=restoreRequest {restoreRequest=nil;prior.reply()}
+            restoreRequest=(ids.map{Data($0.utf8)},enabled,completion)
+            // The actor's published model reaches the representable on a later
+            // main-loop turn. Completion waits for those exact native row IDs.
+            DispatchQueue.main.async{[weak self] in self?.finishPositionIfReady()}
+        }
+        private func finishPositionIfReady() {
+            guard let request=restoreRequest,request.ids == renderedRows.map({Data($0.path.utf8)}) else{return}
+            restoreRequest=nil
+            if request.remember,let position=storedPosition {
+                let row=position.path.flatMap{path in renderedRows.firstIndex{GitReferenceName.equal($0.path,path)}}
+                table.enclosingScrollView?.contentView.scroll(to:NSPoint(x:position.point.x,y:row.map{table.rect(ofRow:$0).minY+position.offset} ?? position.point.y))
+            } else {
+                table.deselectAll(nil);owner.selectionChanged([],nil)
+                table.enclosingScrollView?.contentView.scroll(to:.zero)
+            }
+            if let scroll=table.enclosingScrollView {scroll.reflectScrolledClipView(scroll.contentView)}
+            request.reply()
+        }
+        func cancelListPosition(){storedPosition=nil;if let request=restoreRequest {restoreRequest=nil;request.reply()}}
+        func tableView(_ tableView:NSTableView,writeRowsWith rowIndexes:IndexSet,to pasteboard:NSPasteboard)->Bool {
+            guard isAvailable,let capture=owner.captureDrag else{return false}
+            let paths=rowIndexes.compactMap{renderedRows.indices.contains($0) ? renderedRows[$0].path:nil}
+            guard let captured=capture(paths),captured.write(to:pasteboard) else{return false};drag=captured;return true
+        }
+        func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,willBeginAt screenPoint:NSPoint,forRowIndexes rowIndexes:IndexSet) {if drag != nil {Self.dragOwners[ObjectIdentifier(session)]=self}}
+        func tableView(_ tableView:NSTableView,draggingSession session:NSDraggingSession,endedAt screenPoint:NSPoint,operation:NSDragOperation) {drag=nil;Self.dragOwners.removeValue(forKey:ObjectIdentifier(session));if retired {table.delegate=nil;table.dataSource=nil}}
+        private func confirmColumnReset() async->Bool {
+            guard !retired,resetQuestion==nil,let window=table.window,window.attachedSheet==nil else{return false}
+            let alert=NSAlert();alert.messageText=NSLocalizedString("Reset column order",comment:"");alert.informativeText=NSLocalizedString("Are you sure you want to reset the column order?",comment:"")
+            alert.addButton(withTitle:NSLocalizedString("Yes",comment:""));alert.addButton(withTitle:NSLocalizedString("No",comment:""));alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
+            let id=UUID()
+            return await withCheckedContinuation{reply in
+                resetQuestion=(id,alert,{reply.resume(returning:$0)})
+                alert.beginSheetModal(for:window){[weak self] response in self?.finishColumnReset(id,accepted:response == .alertFirstButtonReturn)}
             }
         }
-        func stop() {if let monitor {NSEvent.removeMonitor(monitor)};monitor=nil}
-        deinit {if let monitor {NSEvent.removeMonitor(monitor)}}
+        private func finishColumnReset(_ id:UUID,accepted:Bool) {
+            guard let request=resetQuestion,request.id==id else{return};resetQuestion=nil
+            let parent=table.window
+            Task{[self] in await FileOperationWindowDrain.detach(request.alert.window,parent:parent);request.reply(accepted && !retired)}
+        }
+        func retireListPresentation(){retire()}
+        func retire(){guard !retired else{return};retired=true;if let question=resetQuestion {finishColumnReset(question.id,accepted:false)};cancelListPosition();contextEpoch=UUID();table.selectionMenuAvailable={false};table.contextSelection={_,_ in};table.focusedRow={nil};table.focusMoved={_ in};table.toggleChecks={};table.copySelection={_ in};table.menu=nil;table.headerView?.menu=nil;table.target=nil;if drag==nil {table.delegate=nil;table.dataSource=nil};NativeListSelection.remove(from:table)}
+    }
+}
+
+private struct ResolveConflictReport:View {
+    @ObservedObject var model:ResolveWindowModel
+    var body:some View {
+        ConflictReportTable(rows:model.sortedReportEntries.map{entry in ConflictReportRow(path:entry.path,text:Dictionary(uniqueKeysWithValues:StatusListColumn.allCases.map{($0,model.reportText(entry,column:$0))}),checked:model.checked.contains(entry.path),color:NSColor(FileState.conflicted.textColor),tooltip:RepositoryPresentationSettings(defaults:model.preferences).fileTooltip(repository:model.repository.root,path:entry.path))},selection:model.selection,settings:model.reportColumns,available:model.availableReportColumns,sort:model.reportSort,ascending:model.reportAscending,enabled:model.canInteract,preferences:model.preferences,hasCheckboxes:true,ownerRetired:!model.active,focusedPath:model.focusedFilePath,selectionChanged:{model.selection=$0;model.focusedFilePath=$1},sortChanged:model.sortReport,layoutChanged:model.saveReportLayout,columnChanged:model.setReportColumn,resetColumns:model.resetReportColumns,makeMenu:model.reportMenu,copySelection:{paths,status in model.copyFileMenu(model.fileMenu(paths),copy:status ? .pathsAndStatus:.relativePaths)},activate:{path,alternate in model.activatePrimaryFile(StatusListPrimaryActionReceipt(path:path,revision:model.primaryActionRevision,alternate:alternate))},checkChanged:model.setFileChecked,configureRefresh:{model.reportRefresh.attach($0)})
     }
 }

@@ -413,6 +413,10 @@ final class StatusNativeWindow: NSWindow {
         }
     }
     var sortedRows: [StatusRow] { groupsEnabled ? tableRows.compactMap(\.contents):ungroupedSortedRows }
+    /// Position receipts must describe the rows actually rendered by the owner.
+    /// Embedded reports omit group headers while the standalone status table
+    /// retains their non-path identities and native slots.
+    private var fileListPositionIDs:[String] {groupsEnabled ? tableRows.map { $0.row.id }:ungroupedSortedRows.map(\.id)}
     var summary:String {StatusFooterStatistics(files:files,statistics:statistics,filter:filter).text}
     var nativeSummary: String {
         let rows = visibleFiles
@@ -499,7 +503,7 @@ final class StatusNativeWindow: NSWindow {
         // rows, so their source loaded-category toggles can reuse that snapshot.
         let position = fileListRefresh.begin(preferences:defaults,selectedIDs:selection)
         selection.formIntersection(GitPathSet(visibleFiles.map(\.id)));if !position.remember {selection = []}
-        Task { [self] in await fileListRefresh.restore(position,ids:tableRows.map { $0.row.id });fileListRefresh.finish(position) }
+        Task { [self] in await fileListRefresh.restore(position,ids:fileListPositionIDs);fileListRefresh.finish(position) }
     }
     @discardableResult func cancelOperation() -> Bool {
         if pendingRevertID != nil {cancelRevert?();return true}
@@ -592,7 +596,7 @@ final class StatusNativeWindow: NSWindow {
                 lfsLockedPaths = GitPathSet(nextLocks.map(\.path));lfsOwnershipKnown = true
             }
             if !position.remember {selection = []}
-            await fileListRefresh.restore(position,ids:tableRows.map { $0.row.id });try token.check()
+            await fileListRefresh.restore(position,ids:fileListPositionIDs);try token.check()
         })
     }
     func canLockLFS(_ selected: [WorkingTreeFile]) -> Bool {

@@ -175,13 +175,22 @@ final class FileListWatermark: NSView {
 /// One refresh owns one native position restore. The model keeps its read/token
 /// alive while SwiftUI publishes the matching rows; cancellation releases that
 /// wait without allowing an older callback to move a replacement table.
+@MainActor protocol FileListRefreshClient:AnyObject {
+    func storeListPosition(selectedIDs:GitPathSet?)
+    func restoreListPosition(ids:[String],enabled:Bool,completion:@escaping()->Void)
+    func cancelListPosition()
+    func retireListPresentation()
+}
+extension FileListRefreshClient {func retireListPresentation(){cancelListPosition()}}
+extension CommitFileInteraction.Probe:FileListRefreshClient {}
+
 @MainActor final class FileListRefreshCoordinator {
-    private weak var probe: CommitFileInteraction.Probe?
+    private weak var probe:(any FileListRefreshClient)?
     private var current: UUID?
     private var retired = false
     var hasPendingPosition:Bool {current != nil}
     struct Ticket { fileprivate let id: UUID; let remember: Bool }
-    func attach(_ value: CommitFileInteraction.Probe) {
+    func attach(_ value:any FileListRefreshClient) {
         guard !retired else { return }
         if let probe, probe !== value { cancel() }
         probe = value
@@ -202,7 +211,7 @@ final class FileListWatermark: NSView {
     }
     func finish(_ ticket: Ticket) { if current == ticket.id { cancel() } }
     func cancel() { current = nil; probe?.cancelListPosition() }
-    func retire() { retired = true; cancel(); probe = nil }
+    func retire() { retired = true; cancel(); probe?.retireListPresentation(); probe = nil }
 }
 
 /// A dialog-owned native file chooser. A response is delivered once and only

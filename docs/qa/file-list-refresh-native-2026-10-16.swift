@@ -13,7 +13,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async {do {try await verify()} catch {fputs("File-list refresh failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
-        let root = URL(fileURLWithPath:CommandLine.arguments[1]),repo = GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
+        let root = URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL,repo = GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("tgit.commitstagingsupport","false"),("tgit.showpatch","false")] {_ = try await repo.run(["config",key,value])}
         let paths = (0..<180).map{String(format:"file-%03d 雪.txt",$0)}
