@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import hashlib
+import importlib.util
 import io
 from pathlib import Path
 import tempfile
@@ -50,6 +51,17 @@ class PinnedDownloadTests(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, 'Cached source'):
                 download_verified('https://fixture.invalid/source', self.file, self.digest)
         self.assertEqual(self.file.read_bytes(), b'corrupt cache')
+
+
+def load_tests(loader, tests, pattern):
+    # The hosted download checkpoint also covers the reconstruction entry, so
+    # source errors cannot regress unnoticed behind an unchanged downloader.
+    path = Path(__file__).with_name('test-git-svn-source-fetch.py')
+    spec = importlib.util.spec_from_file_location('git_svn_source_fetch', path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    tests.addTests(loader.loadTestsFromModule(module))
+    return tests
 
 
 if __name__ == '__main__':

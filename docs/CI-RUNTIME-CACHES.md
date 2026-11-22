@@ -70,6 +70,25 @@ all six builder sources compile and declare the reconstruction dependency. The
 full native toolchains were not rebuilt for this Python-only change. Current
 hosted network and complete reconstruction acceptance remain separate.
 
+## Historical source recovery — November 22, 2026
+
+The f2c4 and 369beb01 SVN producers failed with HTTP 404 during source fetching,
+before app validation. The latter trace is retained in the
+[recovery record](qa/runtime-source-recovery-2026-11-22.json). Its URL was omitted;
+current probes identify APR-util's old rolling URL as missing, so that specific
+input attribution remains an inference. Four Apache source/checksum locations
+now use official historical archives. Versions and digests are unchanged.
+
+The reconstruction entry now names each source and cached-file error, retaining
+the underlying HTTP/checksum cause. Its `--fetch-only` mode validates all eight
+inputs without extraction, toolchain probes, compilation or output replacement.
+Eight downloader/entry tests and six cache tests passed; independent remote
+archive downloads and actual fetch-only receipts retain every original digest.
+Existing hosted downloader checks include the new entry cases. Cache keys still
+include the full pin/recipe bytes, so this change cannot silently reuse a previous
+runtime package. No app or native runtime was rebuilt for this Python-only batch.
+Corrected-source hosted compilation and complete app validation remain open.
+
 ## Collect independent native failures — 2026-11-03
 
 After the runtime, Debug app and SwiftPM editor preparation succeed, independent

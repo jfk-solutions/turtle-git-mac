@@ -1,0 +1,227 @@
+{
+  "source": "369beb01feed622e7c4fe90835dced6c17edabb1",
+  "run": 44997911373,
+  "job": 137132838270,
+  "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/44997911373/job/137132838270",
+  "observed_failure": "HTTP 404 during the source archive fetch comprehension; application validation not reached",
+  "source_log_excerpt": [
+    "2026-11-22T07:22:31.3621660Z   File \"/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/build-git-svn-runtime.py\", line 221, in <module>",
+    "2026-11-22T07:22:31.3622990Z   File \"/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/build-git-svn-runtime.py\", line 96, in main",
+    "2026-11-22T07:22:31.3624900Z   File \"/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/build-git-svn-runtime.py\", line 35, in fetch",
+    "2026-11-22T07:22:31.3626390Z   File \"/Users/runner/work/turtle-git-mac/turtle-git-mac/scripts/pinned_download.py\", line 34, in download_verified",
+    "2026-11-22T07:22:31.3636420Z urllib.error.HTTPError: HTTP Error 404: Not Found",
+    "2026-11-22T07:22:31.3971170Z ##[error]Process completed with exit code 1."
+  ],
+  "url_attribution": "The old APR-util URL reproduces 404 while the preceding Perl/APR URLs are available. The trace itself omits its URL, so identification of APR-util as the hosted failing input is an inference.",
+  "created_utc": "2026-11-22T07:28:08.534772+00:00",
+  "scope": "Pinned source recovery and reconstruction diagnostics; no app/Git operation or native payload rebuild",
+  "pin_delta": "Only four Apache source URL and checksum-location pairs changed; versions/digests and every other field retained",
+  "remote_verified_downloads": [
+    {
+      "name": "perl",
+      "url": "https://www.cpan.org/src/5.0/perl-5.44.0.tar.gz",
+      "bytes": 21265451,
+      "algorithm": "sha256",
+      "expected_digest": "3b855066b92491cb40e86affb1ca57d1a388aa43e51b91c7806a32c2f65f96c3",
+      "actual_digest": "3b855066b92491cb40e86affb1ca57d1a388aa43e51b91c7806a32c2f65f96c3",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/perl-5.44.0.tar.gz",
+      "verified": true
+    },
+    {
+      "name": "apr",
+      "url": "https://archive.apache.org/dist/apr/apr-1.7.6.tar.gz",
+      "bytes": 1138032,
+      "algorithm": "sha256",
+      "expected_digest": "6a10e7f7430510600af25fabf466e1df61aaae910bf1dc5d10c44a4433ccc81d",
+      "actual_digest": "6a10e7f7430510600af25fabf466e1df61aaae910bf1dc5d10c44a4433ccc81d",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/apr-1.7.6.tar.gz",
+      "verified": true
+    },
+    {
+      "name": "apr-util",
+      "url": "https://archive.apache.org/dist/apr/apr-util-1.6.5.tar.gz",
+      "bytes": 567877,
+      "algorithm": "sha256",
+      "expected_digest": "f43a1c8c79eef497a022ec6c99dddbdf57e42001da6ccbfae259631ed5aa2805",
+      "actual_digest": "f43a1c8c79eef497a022ec6c99dddbdf57e42001da6ccbfae259631ed5aa2805",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/apr-util-1.6.5.tar.gz",
+      "verified": true
+    },
+    {
+      "name": "subversion",
+      "url": "https://archive.apache.org/dist/subversion/subversion-1.14.5.tar.bz2",
+      "bytes": 8675355,
+      "algorithm": "sha512",
+      "expected_digest": "e4800564d0cc68be98f19aa58d89181de83f237f0ccff10824d9237f8c65eb0071f7176ac54e9e8f8ecbf685849bd3e94be48f678f4c23ed6a5fd7fb6edd0321",
+      "actual_digest": "e4800564d0cc68be98f19aa58d89181de83f237f0ccff10824d9237f8c65eb0071f7176ac54e9e8f8ecbf685849bd3e94be48f678f4c23ed6a5fd7fb6edd0321",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/subversion-1.14.5.tar.bz2",
+      "verified": true
+    },
+    {
+      "name": "serf",
+      "url": "https://archive.apache.org/dist/serf/serf-1.3.10.tar.bz2",
+      "bytes": 147744,
+      "algorithm": "sha512",
+      "expected_digest": "19165274d35c694935cda33f99ef92a7663a5d9c540fb7fd6792aa0efe39941b2fa87ff8b61afd060c6676baec634fd33dc2e9d34ecbee45ed99dfaed077802c",
+      "actual_digest": "19165274d35c694935cda33f99ef92a7663a5d9c540fb7fd6792aa0efe39941b2fa87ff8b61afd060c6676baec634fd33dc2e9d34ecbee45ed99dfaed077802c",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/serf-1.3.10.tar.bz2",
+      "verified": true
+    },
+    {
+      "name": "openssl",
+      "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+      "bytes": 53279637,
+      "algorithm": "sha256",
+      "expected_digest": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+      "actual_digest": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/openssl-3.5.9.tar.gz",
+      "verified": true
+    },
+    {
+      "name": "scons",
+      "url": "https://files.pythonhosted.org/packages/b8/a7/823091100c88d7d992c8c608d82a88ed59e227d13f8ccb33ea7a96d43d51/SCons-4.8.1-py3-none-any.whl",
+      "bytes": 4123564,
+      "algorithm": "sha256",
+      "expected_digest": "a4c3b434330e2d7d975002fd6783284ba348bf394db94c8f83fdc5bf69cdb8d7",
+      "actual_digest": "a4c3b434330e2d7d975002fd6783284ba348bf394db94c8f83fdc5bf69cdb8d7",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/SCons-4.8.1-py3-none-any.whl",
+      "verified": true
+    },
+    {
+      "name": "git",
+      "url": "https://www.kernel.org/pub/software/scm/git/git-2.55.0.tar.xz",
+      "bytes": 8177180,
+      "algorithm": "sha256",
+      "expected_digest": "457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357",
+      "actual_digest": "457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357",
+      "path": "build/qa/runtime-archive-pin-review-2026-11-22/git-2.55.0.tar.xz",
+      "verified": true
+    }
+  ],
+  "fetch_only_receipt": {
+    "mode": "fetch-only",
+    "verified_inputs": [
+      {
+        "algorithm": "sha256",
+        "bytes": 21265451,
+        "component": "perl",
+        "digest": "3b855066b92491cb40e86affb1ca57d1a388aa43e51b91c7806a32c2f65f96c3",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/perl-5.44.0.tar.gz",
+        "url": "https://www.cpan.org/src/5.0/perl-5.44.0.tar.gz",
+        "version": "5.44.0"
+      },
+      {
+        "algorithm": "sha256",
+        "bytes": 1138032,
+        "component": "apr",
+        "digest": "6a10e7f7430510600af25fabf466e1df61aaae910bf1dc5d10c44a4433ccc81d",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/apr-1.7.6.tar.gz",
+        "url": "https://archive.apache.org/dist/apr/apr-1.7.6.tar.gz",
+        "version": "1.7.6"
+      },
+      {
+        "algorithm": "sha256",
+        "bytes": 567877,
+        "component": "apr-util",
+        "digest": "f43a1c8c79eef497a022ec6c99dddbdf57e42001da6ccbfae259631ed5aa2805",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/apr-util-1.6.5.tar.gz",
+        "url": "https://archive.apache.org/dist/apr/apr-util-1.6.5.tar.gz",
+        "version": "1.6.5"
+      },
+      {
+        "algorithm": "sha512",
+        "bytes": 8675355,
+        "component": "subversion",
+        "digest": "e4800564d0cc68be98f19aa58d89181de83f237f0ccff10824d9237f8c65eb0071f7176ac54e9e8f8ecbf685849bd3e94be48f678f4c23ed6a5fd7fb6edd0321",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/subversion-1.14.5.tar.bz2",
+        "url": "https://archive.apache.org/dist/subversion/subversion-1.14.5.tar.bz2",
+        "version": "1.14.5"
+      },
+      {
+        "algorithm": "sha512",
+        "bytes": 147744,
+        "component": "serf",
+        "digest": "19165274d35c694935cda33f99ef92a7663a5d9c540fb7fd6792aa0efe39941b2fa87ff8b61afd060c6676baec634fd33dc2e9d34ecbee45ed99dfaed077802c",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/serf-1.3.10.tar.bz2",
+        "url": "https://archive.apache.org/dist/serf/serf-1.3.10.tar.bz2",
+        "version": "1.3.10"
+      },
+      {
+        "algorithm": "sha256",
+        "bytes": 53279637,
+        "component": "openssl",
+        "digest": "603f5602e2eef00d77fbd429d34dcd5822bb301757a1bc9cdb24c670f1eb859a",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/openssl-3.5.9.tar.gz",
+        "url": "https://github.com/openssl/openssl/releases/download/openssl-3.5.9/openssl-3.5.9.tar.gz",
+        "version": "3.5.9"
+      },
+      {
+        "algorithm": "sha256",
+        "bytes": 8177180,
+        "component": "git",
+        "digest": "457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/git-2.55.0.tar.xz",
+        "url": "https://www.kernel.org/pub/software/scm/git/git-2.55.0.tar.xz",
+        "version": "2.55.0"
+      },
+      {
+        "algorithm": "sha256",
+        "bytes": 4123564,
+        "component": "scons",
+        "digest": "a4c3b434330e2d7d975002fd6783284ba348bf394db94c8f83fdc5bf69cdb8d7",
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-svn-runtime/cache/SCons-4.8.1-py3-none-any.whl",
+        "url": "https://files.pythonhosted.org/packages/b8/a7/823091100c88d7d992c8c608d82a88ed59e227d13f8ccb33ea7a96d43d51/SCons-4.8.1-py3-none-any.whl",
+        "version": "4.8.1"
+      }
+    ]
+  },
+  "checks": [
+    {
+      "command": "python3 scripts/test-pinned-download.py",
+      "exit_code": 0,
+      "methods": 8,
+      "scope": "existing atomic/retry/cache verification plus actual loopback reconstruction entry and no-toolchain/output-preservation assertions"
+    },
+    {
+      "command": "python3 scripts/test-ci-runtime-caches.py",
+      "exit_code": 0,
+      "methods": 6
+    },
+    {
+      "command": "python3 scripts/build-git-svn-runtime.py --fetch-only",
+      "exit_code": 0,
+      "inputs": 8
+    }
+  ],
+  "logs_sha256": {
+    "build/qa/runtime-source-download-tests-2026-11-22.log": "7d6a3f9ecadf7d00b03775de4b4d1d5fc4748ef01a4f00947f1c473f3203fc47",
+    "build/qa/runtime-source-cache-tests-2026-11-22.log": "b003fc93dc352838b52acf72804e0e012a67b710ee7047e6a42ca5127fb8b996",
+    "build/qa/runtime-source-fetch-only-2026-11-22.log": "615632123298fdce93b133045cdc730b5340b24e118fd837e520f6ec4b30757f"
+  },
+  "implementation_sha256": {
+    "Configuration/GitSVNRuntime.json": "72b03d61a6f32fee176ea91790862ef707dcd1504ccdfe49c46cb91a003787f6",
+    "scripts/build-git-svn-runtime.py": "016ad0f73920a88f2a59c6d454cc33c543094c60fd1dafefddcf2ca719cf6e9a",
+    "scripts/pinned_download.py": "c9bfbd05a830f235e78521a3f0ba4ed5454c7389a96195939df2ea1110168b40",
+    "scripts/test-pinned-download.py": "58381dccb7f1b14549f80edfbeb402cfdbf55ecdf0a44f9bc155e635d6f56425",
+    "scripts/test-git-svn-source-fetch.py": "e40e4bbbde6877c4dce92015c64b3cbb88c1566e3cfad044baa1e5cd77d41571"
+  },
+  "private_fixture_cleanup": "Every owned loopback server shut down and its serving thread joined; temporary trees removed by unittest cleanup; no native process/window launched",
+  "installed_application_updated": false,
+  "signed_candidate53_updated": false,
+  "protected_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "remaining": [
+    "Corrected-source hosted runtime compilation and downstream app validation",
+    "Full native port/dialog/functionality acceptance",
+    "Signed/physical Finder and platform acceptance",
+    "Local testing before any public binary or App Store release"
+  ],
+  "static": {
+    "git_diff_check_exit_code": 0,
+    "dialog_coverage_reconciliation_exit_code": 0,
+    "help_regeneration_required": false,
+    "reason": "Changed guides are not included in docs/help-topics.json; no native labels changed"
+  }
+}

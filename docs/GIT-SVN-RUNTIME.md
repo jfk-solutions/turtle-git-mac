@@ -15,6 +15,21 @@ archive; see [Perl's release announcement](https://www.nntp.perl.org/group/perl.
 [APR downloads](https://apr.apache.org/download.cgi) and
 [Serf distributions](https://downloads.apache.org/serf/).
 
+Pinned Apache sources use the official historical archive rather than rolling
+download directories, which can remove older releases. Versions and checksums
+remain fixed. Before starting native compilation, verify every source and the
+pinned build tool with:
+
+```sh
+python3 scripts/build-git-svn-runtime.py --fetch-only
+```
+
+This checks all eight inputs, including cached archives, and emits a JSON receipt.
+It does not extract sources, probe Xcode, build native code or replace an existing
+runtime. Ordinary builds still refuse an existing output directory. Source errors
+name the component, version, URL and cache file while retaining the original
+HTTP/checksum error. A checksum failure still stops without publishing an archive.
+
 Each CPU has its own private interpreter, core/XS modules and native libraries;
 the dispatcher is universal arm64/x86_64. This avoids merging architecture-
 specific Perl configuration files. macOS deployment is capped at 13.0. The

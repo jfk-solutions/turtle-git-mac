@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+## Runtime source recovery — November 22, 2026
+
+The [runtime record](qa/runtime-source-recovery-2026-11-22.json) identifies a
+hosted source-download404 boundary, preserves dependency versions/digests while
+moving Apache pins to archived releases, and adds diagnostic source identities
+and a no-build `--fetch-only` entry. Actual remote archives and fetch-only inputs
+verify; the grouped Python checks pass. This directly addresses the producer
+blocking all app validation lanes. Native app/runtime builds, installed52 and
+signed53 are unchanged; corrected-source hosted acceptance remains open.
+
 ## Native contextual keyboard entry — November 22, 2026
 
 The [connected file/history batch](HISTORY-CONTEXT-ENTRY-PARITY.md) adds missing

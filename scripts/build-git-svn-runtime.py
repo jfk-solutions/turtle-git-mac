@@ -29,12 +29,16 @@ def run(arguments, cwd=None, env=None):
     print(' '.join(map(str, arguments)), flush=True)
     subprocess.run(list(map(str, arguments)), cwd=cwd, env=env, check=True)
 
-def fetch(pin, cache):
+def fetch(pin, cache, *, component):
     path = cache / pin['url'].rsplit('/', 1)[1]
-    if not path.exists():
+    identity = component + ' ' + pin['version']
+    print(('Verifying cached' if path.exists() else 'Downloading') + ' pinned source ' + identity + ': ' + pin['url'], flush=True)
+    try:
+        # The shared helper verifies cached files too, and publishes a newly
+        # downloaded source only after its streaming checksum has passed.
         download_verified(pin['url'], path, pin['digest'], algorithm=pin['hash'])
-    if hashlib.new(pin['hash'], path.read_bytes()).hexdigest() != pin['digest']:
-        raise RuntimeError('Cached source checksum mismatch: ' + path.name)
+    except Exception as error:
+        raise RuntimeError('Could not obtain pinned source ' + identity + ' from ' + pin['url'] + ' (cache ' + str(path) + '): ' + str(error)) from error
     return path
 
 def extract(archive, folder):
@@ -87,15 +91,26 @@ def main():
     parser.add_argument('--output', type=Path, default=ROOT / 'build/git-svn-runtime/GitSVN')
     parser.add_argument('--architectures', nargs='+', choices=['arm64', 'x86_64'])
     parser.add_argument('--jobs', type=int, default=4)
+    parser.add_argument('--fetch-only', action='store_true', help='Download and verify every pinned source and build tool without extracting or building.')
     args = parser.parse_args(); output = args.output.resolve()
-    if output.exists(): parser.error('Output exists; choose a new directory.')
+    if not args.fetch_only and output.exists(): parser.error('Output exists; choose a new directory.')
     pin = json.loads((ROOT / 'Configuration/GitSVNRuntime.json').read_text())
     git_pin = json.loads((ROOT / pin['git_pin']).read_text())
     architectures = list(dict.fromkeys(args.architectures or pin['architectures']))
     cache = ROOT / 'build/git-svn-runtime/cache'; cache.mkdir(parents=True, exist_ok=True)
-    archives = {name: fetch(item, cache) for name, item in pin['sources'].items()}
-    git_archive = fetch({'url': git_pin['source_url'], 'hash': 'sha256', 'digest': git_pin['source_sha256']}, cache)
-    wheel = fetch(pin['build_tools']['scons'], cache)
+    archives = {name: fetch(item, cache, component=name) for name, item in pin['sources'].items()}
+    git_source = {'version': git_pin['version'], 'url': git_pin['source_url'], 'hash': 'sha256', 'digest': git_pin['source_sha256']}
+    git_archive = fetch(git_source, cache, component='git')
+    wheel = fetch(pin['build_tools']['scons'], cache, component='scons')
+    if args.fetch_only:
+        sources = [(name, item, archives[name]) for name, item in pin['sources'].items()]
+        sources += [('git', git_source, git_archive), ('scons', pin['build_tools']['scons'], wheel)]
+        print(json.dumps({'mode': 'fetch-only', 'verified_inputs': [
+            {'component': name, 'version': item['version'], 'url': item['url'], 'algorithm': item['hash'],
+             'digest': item['digest'], 'path': str(path), 'bytes': path.stat().st_size}
+            for name, item, path in sources
+        ]}, sort_keys=True), flush=True)
+        return
     tools = cache / ('scons-' + pin['build_tools']['scons']['version'])
     if not tools.exists():
         tools.mkdir()

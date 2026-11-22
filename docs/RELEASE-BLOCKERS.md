@@ -5,6 +5,16 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Runtime source recovery — November 22, 2026
+
+The [source recovery](qa/runtime-source-recovery-2026-11-22.json) retains the
+later 369beb01 producer's HTTP 404 trace and moves four Apache source/checksum
+locations to official historical archives with unchanged versions/digests.
+All eight remote inputs and the actual fetch-only receipt verify. Downloader,
+reconstruction-entry and cache tests pass their recorded scope; this is not a
+native runtime rebuild or matching-source hosted acceptance. App validation,
+signed/platform and whole-port gates remain open.
+
 ## Native contextual entry — November 22, 2026
 
 The [file/history family](HISTORY-CONTEXT-ENTRY-PARITY.md) adds missing keyboard
