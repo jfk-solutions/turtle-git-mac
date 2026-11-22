@@ -2,6 +2,48 @@ import XCTest
 @testable import TurtleGitCore
 
 final class FileComparisonEditingTests: XCTestCase {
+    func testHistoryRestoresUnsavableCodecWithoutChangingSavedTargetOrOtherPane() throws {
+        let saved=ComparisonFileContent(path:"mine",revision:.workingTree,bytes:try ComparisonTextEncoding.utf8BOM.encode("saved\r\n"),mode:"100755",permissions:0o755)
+        let other=ComparisonFileContent(path:"base",revision:.workingTree,bytes:Data("other\n".utf8),mode:"100644",permissions:0o644)
+        var drafts=FileComparisonDrafts(FileComparisonDocument(base:other,destination:saved))
+        try drafts.update(text:"other pending\n",base:true)
+        try drafts.update(text:"雪🦎\r\n",base:false)
+        XCTAssertThrowsError(try drafts.setEncoding(.windows1252,base:false))
+        XCTAssertEqual(drafts.encoding(base:false),.utf8BOM)
+        try drafts.restoreEncodingForHistory(.windows1252,base:false)
+        XCTAssertEqual(drafts.text(base:false),"雪🦎\r\n")
+        XCTAssertEqual(drafts.text(base:true),"other pending\n")
+        XCTAssertThrowsError(try drafts.exported(base:false))
+        XCTAssertTrue(drafts.isDirty(base:false))
+        try drafts.restoreEncodingForHistory(.utf8BOM,base:false)
+        XCTAssertEqual(try drafts.exported(base:false),try ComparisonTextEncoding.utf8BOM.encode("雪🦎\r\n"))
+        // Returning to the accepted saved bytes must be clean; restoring a
+        // historical codec must never replace that baseline with a prior one.
+        try drafts.update(text:"saved\r\n",base:false)
+        XCTAssertFalse(drafts.isDirty(base:false))
+        XCTAssertTrue(drafts.isDirty(base:true))
+        try drafts.restoreEncodingForHistory(.utf16LEBOM,base:false)
+        XCTAssertTrue(drafts.isDirty(base:false))
+        try drafts.restoreEncodingForHistory(.utf8BOM,base:false)
+        XCTAssertFalse(drafts.isDirty(base:false))
+        let accepted=ComparisonFileContent(path:"mine",revision:.workingTree,bytes:try ComparisonTextEncoding.utf16LEBOM.encode("accepted\r\n"),mode:"100755",permissions:0o755)
+        try drafts.update(text:"accepted\r\n",base:false);try drafts.setEncoding(.utf16LEBOM,base:false);try drafts.didSave(accepted,base:false)
+        XCTAssertFalse(drafts.isDirty(base:false))
+        try drafts.restoreEncodingForHistory(.utf8BOM,base:false)
+        XCTAssertTrue(drafts.isDirty(base:false))
+        try drafts.restoreEncodingForHistory(.utf16LEBOM,base:false)
+        XCTAssertFalse(drafts.isDirty(base:false))
+        XCTAssertEqual(try drafts.exported(base:false),accepted.bytes)
+    }
+    func testHistoryCodecRestoreRefusesHistoricalAndBinaryPanes() throws {
+        let old=ComparisonFileContent(path:"old",revision:.revision(String(repeating:"a",count:40)),bytes:Data("old\n".utf8),mode:"100644")
+        let binary=ComparisonFileContent(path:"binary",revision:.workingTree,bytes:Data([0,255]),mode:"100644",permissions:0o644)
+        var drafts=FileComparisonDrafts(FileComparisonDocument(base:old,destination:binary))
+        XCTAssertThrowsError(try drafts.restoreEncodingForHistory(.utf8,base:true))
+        XCTAssertThrowsError(try drafts.restoreEncodingForHistory(.utf16LEBOM,base:false))
+        XCTAssertEqual(try drafts.exported(base:true),old.bytes)
+        XCTAssertEqual(try drafts.exported(base:false),binary.bytes)
+    }
     func testPaneIndentationMapsGapsUnicodeCRLFAndUnterminatedEOF() throws {
         let original = "雪🦎\r\nlast"
         let cells = FileComparisonAlignment(base: "base only\r\n" + original, destination: original).rows.map(\.destination)

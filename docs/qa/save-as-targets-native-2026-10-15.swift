@@ -7,10 +7,16 @@ import TurtleGitCore
         preconditionFailure("Save As target fixture did not settle at line \(line)")
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    @MainActor static func compareReady(_ model:FileComparisonWindowModel,_ window:NSWindow)->Bool {
+        guard !model.busy,!model.filtering,!model.hasPendingEditorChoice,model.document != nil,
+              let scroll=model.connectionEditors().1,let view=scroll.documentView as? NSTextView else{return false}
+        return model.window===window && view.window===window && model.ownsEditor(scroll,base:false) && model.ownsViewport(scroll,base:false)
+    }
     @MainActor static func textView(_ window: NSWindow, label: String) -> NSTextView {
         descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel() == label }!
     }
     @MainActor static func type(_ view: NSTextView, _ value: String) {
+        precondition(view.window != nil && view.isEditable && view.undoManager != nil,"Typing requires the actual current writable native editor")
         let history = view.undoManager!; history.groupsByEvent = false; history.beginUndoGrouping()
         view.insertText(value, replacementRange: NSRange(location: 0, length: (view.string as NSString).length)); history.endUndoGrouping()
     }
@@ -20,7 +26,10 @@ import TurtleGitCore
         precondition(item.isEnabled && item.image != nil && NSApp.sendAction(item.action!, to: item.target, from: item))
     }
     @MainActor static func main() async throws {
-        let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
+        // WorkingFileComparison/SavedMergePane standardize their filesystem
+        // URLs. Author the fixture and exact expected descendants under that
+        // same root, rather than mixing Darwin's /private and /var aliases.
+        let root = URL(fileURLWithPath: CommandLine.arguments[1]).standardizedFileURL, git = URL(fileURLWithPath: CommandLine.arguments[2])
         let suite = "TurtleGit.SaveAsTargets." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         MergeGeneralPreferences(firstDifference: false, firstConflict: false).save(to: prefs)
@@ -35,17 +44,20 @@ import TurtleGitCore
         let folder = root.appendingPathComponent("compare"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let left = folder.appendingPathComponent("left"), right = folder.appendingPathComponent("right"), chosen = folder.appendingPathComponent("chosen.txt")
         try Data("left\n".utf8).write(to: left); try Data("right\n".utf8).write(to: right)
-        let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left, destination: right), permissions: [])
+        let controller = FileComparisonWindowController(comparison: try WorkingFileComparison(base: left, destination: right), permissions: [],preferences:prefs)
         defer { controller.close() }
         let model = controller.model, window = controller.window!
         model.comparisonDefaults = prefs; model.editorConfigEnabled = [true: false, false: false]; model.load()
-        try await wait([window]) { !model.busy && !model.filtering && model.document != nil }
+        try await wait([window]) { compareReady(model,window) && model.canTransfer(toBase:false) }
         let view = textView(window, label: "Destination file")
         type(view, "saved 🐢\nlast"); try await wait([window]) { model.canTransfer(toBase: false) }
         model.changeEncoding(.utf16LEBOM, base: false)
         var pending: CheckedContinuation<URL?, Never>?, prompts = 0
         model.chooseExportLocation = { owner, name, directory in
-            precondition(owner === window && name == "right" && directory.path == folder.path); prompts += 1
+            precondition(owner === window,"Save As received another native owner")
+            precondition(name == "right","Save As initial filename changed: \(name)")
+            precondition(GitReferenceName.equal(directory.path,folder.path),"Save As initial directory changed: actual=\(directory.path.debugDescription) expected=\(folder.path.debugDescription)")
+            prompts += 1
             return await withCheckedContinuation { pending = $0 }
         }
         chooseSaveAs(view, prefs: prefs, board: board); try await wait([window]) { pending != nil }
@@ -54,7 +66,7 @@ import TurtleGitCore
         model.saveAs(base: true); model.updateDraft("blocked", base: false); model.load()
         precondition(prompts == 1 && model.draftText(base: false) == "saved 🐢\nlast")
         pending!.resume(returning: chosen); pending = nil
-        try await wait([window]) { !model.busy && !model.filtering }
+        try await wait([window]) { compareReady(model,window) }
         precondition(model.savedPaneURL(base: false) == chosen && model.document!.destination.path == chosen.path && !model.dirty)
         let first = try Data(contentsOf: chosen), untouched = try Data(contentsOf: right)
         let expectedFirst = try ComparisonTextEncoding.utf16LEBOM.encode("saved 🐢\nlast")
@@ -102,10 +114,10 @@ import TurtleGitCore
         precondition(!FileManager.default.fileExists(atPath: late.path) && model.savedPaneURL(base: false) == chosen)
         // A later ordinary Save must also reject a held empty-file answer after
         // forced retirement, keeping its own grant/operation lifetime bounded.
-        let other = FileComparisonWindowController(comparison: try WorkingFileComparison(base: chosenLeft, destination: chosen), permissions: [])
+        let other = FileComparisonWindowController(comparison: try WorkingFileComparison(base: chosenLeft, destination: chosen), permissions: [],preferences:prefs)
         defer { other.close() }; let secondModel = other.model, secondWindow = other.window!
         secondModel.editorConfigEnabled = [true: false, false: false]; secondModel.load()
-        try await wait([secondWindow]) { !secondModel.busy && !secondModel.filtering }
+        try await wait([secondWindow]) { compareReady(secondModel,secondWindow) && secondModel.canTransfer(toBase:false) }
         type(textView(secondWindow, label: "Destination file"), "")
         try await wait([secondWindow]) { !secondModel.filtering }
         var empty: CheckedContinuation<MergeEmptyResult, Never>?
@@ -122,13 +134,13 @@ import TurtleGitCore
         defer { controller.close() }
         let window = controller.window!, model = controller.model
         window.alphaValue = 0; window.orderOut(nil)
-        try await wait([window]) { !model.busy && !model.filtering && model.document != nil }
+        try await wait([window]) { compareReady(model,window) && model.canSavePaneAs }
         let temporary = URL(fileURLWithPath: model.document!.destination.path).deletingLastPathComponent()
         precondition(!model.canEdit(base: true) && !model.canEdit(base: false))
         let chosen = root.appendingPathComponent("snapshot-chosen")
         model.chooseExportLocation = { _, _, _ in chosen }
         chooseSaveAs(textView(window, label: "Destination file"), prefs: prefs, board: board)
-        try await wait([window]) { !model.busy && !model.filtering }
+        try await wait([window]) { compareReady(model,window) }
         precondition(model.savedPaneURL(base: false) == chosen && model.canEdit(base: false) && !model.canEdit(base: true))
         model.activatePane(base: false); model.editingEnabled = true
         type(textView(window, label: "Destination file"), "edited snapshot copy\n")
@@ -185,7 +197,7 @@ import TurtleGitCore
         for (file, value) in zip([base, mine, theirs], originals) { try Data(value.utf8).write(to: file) }
         let controller = TextConflictWindowController(repository: GitRepository(root: folder), access: nil, path: "merge.txt", workingMerge: try WorkingTextMerge(base: base, theirs: theirs, mine: mine), preferences: prefs)
         defer { controller.close() }; let model = controller.model, window = controller.window!
-        model.load(); try await wait([window]) { !model.busy && model.document != nil }
+        model.load(); try await wait([window]) { !model.busy && !model.preparing && model.document != nil && model.nativeEditorReady && model.sourceToolsAllowed }
         var answer: ((NSApplication.ModalResponse) -> Void)?
         model.sourceExporter.present = { _, owner, completion in precondition(owner === window); answer = completion }
         model.sourceExporter.selectedURL = { _ in chosen }
@@ -196,7 +208,8 @@ import TurtleGitCore
         let captured = try Data(contentsOf: chosen), untouched = try Data(contentsOf: mine)
         precondition(captured == bytes && untouched == Data(originals[1].utf8) && model.sourceTargetURL(mine: true) == chosen && model.result == beforeResult && model.dirty == beforeDirty)
         model.result = "<<<<<<< ours\nours\n=======\ntheirs\n>>>>>>> theirs\n"
-        window.contentView?.layoutSubtreeIfNeeded(); model.continueResolving()
+        try await wait([window]) {model.nativeEditorReady && model.sourceToolsAllowed}
+        model.continueResolving()
         precondition(model.selectedConflict == 0 && (model.selectionRequest == model.blocks.first?.range || descendants(window.contentView!).compactMap { $0 as? NSTextView }.contains { $0.selectedRange() == model.blocks.first?.range }) && model.sourceExporter.panel == nil)
         model.result = model.document!.workingContents.flatMap { model.document!.encoding.decode($0) } ?? model.document!.mine
         try Data("changed bound source\n".utf8).write(to: chosen); try FileManager.default.removeItem(at: mine)
@@ -215,7 +228,10 @@ import TurtleGitCore
 
         precondition(!FileManager.default.fileExists(atPath: mine.path))
         let late = folder.appendingPathComponent("late")
-        model.sourceExporter.selectedURL = { _ in late }; model.exportSource(mine: false); controller.close(); answer?(.OK)
+        try await wait([window]) {model.nativeEditorReady && model.sourceToolsAllowed}
+        model.sourceExporter.selectedURL = { _ in late }; model.exportSource(mine: false)
+        precondition(model.exportingSource && model.sourceExporter.panel != nil,"Late source destination refusal requires an accepted held chooser")
+        controller.close(); answer?(.OK)
         try await wait([]) { MergeSourceExport.activeExports == 0 }
         precondition(!FileManager.default.fileExists(atPath: late.path))
         let unchangedBase = try Data(contentsOf: base), unchangedTheirs = try Data(contentsOf: theirs)

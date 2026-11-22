@@ -21,7 +21,11 @@ origin; recursive/no-checkout/custom origin disable Bare. Selecting SVN clears a
 disables incompatible Git flags, and checks the three layout fields unless the URL
 ends in trunk. Disabled SVN values are not sent to a normal Git clone.
 
-URL edits derive the destination name and remove a final .git suffix. Subsequent
+Initial clipboard/history URLs and URL edits derive the destination name and remove
+a final .git suffix. Launch initialization applies the suggestion after the exact-path
+policy is known, so a Finder folder plus `rough.git` becomes `folder/rough` even
+before the URL field is edited. Exact-path command-line launches retain their
+supplied destination. Subsequent
 URL edits replace the automatically generated component while preserving a manually
 changed directory. Browse uses native directory/key panels. Accepted submissions save
 captured URL/key histories, parent directory and recursive preference, following
@@ -369,3 +373,14 @@ complete source visual parity, signed grants/Finder and App Store acceptance
 remain open. Crash recovery and an external writer replacing a destination before
 its first successful identity read are not proven by this continuation. Installed
 build 52 is unchanged; no binary publication is claimed.
+
+## Initial clipboard/history destination — November 22, 2026
+
+Launch configuration now runs the existing URL-derived directory suggestion even
+without an explicit source argument. Clipboard/history values predate the form's
+SwiftUI change observer; previously their initial directory remained only the
+selected parent. Exact-path policy is installed before the suggestion. The
+[grouped checkpoint](qa/editor-clone-save-history-2026-11-22.json) verifies the
+actual native Directory field plus repeat/URL/history/manual/Browse/exact-path
+cases with both Git executables. It does not perform a public network clone or
+update the installed app.

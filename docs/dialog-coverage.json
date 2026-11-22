@@ -2520,6 +2520,7 @@
         "docs/qa/clone-progress-2026-10-08.json",
         "docs/qa/clone-stream-2026-10-08.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
+        "docs/qa/editor-clone-save-history-2026-11-22.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/push-clone-recovery-2026-11-07.json",

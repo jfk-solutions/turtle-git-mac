@@ -18,8 +18,8 @@ struct MergeSourceBlocksVerification {
         defer { owner.close() }; model.chooseReload = { .discard }; owner.window!.alphaValue = 0; owner.window!.ignoresMouseEvents=true;owner.window!.orderFront(nil); model.load()
         var phase="initial native source rows"
         func wait(_ ready: () -> Bool,line:Int = #line) async throws {
-            for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() && ThreePaneEngineVerification.textViews(owner.window?.contentView).compactMap { $0 as? MergeContextMenuProviding }.allSatisfy(\.mergeSourceRowsReady) { return }; try await Task.sleep(nanoseconds:10_000_000) }
-            throw Failure(description:"Source block wait line=\(line) phase=\(phase) busy=\(model.busy) preparing=\(model.preparing) result=\(String(reflecting:model.result)) error=\(String(describing:model.error))")
+            for _ in 0..<2000 { owner.window?.contentView?.layoutSubtreeIfNeeded(); if ready() && ThreePaneEngineVerification.textViews(owner.window?.contentView).compactMap({ $0 as? MergeContextMenuProviding }).allSatisfy(\.mergeSourceRowsReady) { return }; try await Task.sleep(nanoseconds:10_000_000) }
+            throw Failure(description:"Source block wait line=\(line) phase=\(phase) busy=\(model.busy) preparing=\(model.preparing) result=\(String(reflecting:model.result)) error=\(String(describing:model.error)) undo=\(model.canUndo) redo=\(model.canRedo) nativeReady=\(model.nativeEditorReady) editable=\(ThreePaneEngineVerification.textViews(owner.window?.contentView).map(\.isEditable))")
         }
         try await wait { !model.busy && !model.preparing && model.document != nil && ThreePaneEngineVerification.textViews(owner.window?.contentView).filter { !$0.isFieldEditor }.count >= 3 }
         let views = ThreePaneEngineVerification.textViews(owner.window?.contentView), result = views.first { $0.isEditable }!, right = views.first { !$0.isEditable && $0.string.contains("new1") }!, left = views.first { !$0.isEditable && !$0.string.contains("new1") }!
@@ -91,10 +91,19 @@ struct MergeSourceBlocksVerification {
         right.setSelectedRange(NSRange(location:multiStart,length:multiEnd-multiStart));try dispatch(.theirs,route:2)
         try await wait{model.result=="head 🐢\ntail\n" && model.canUndo}
         let output=root.appendingPathComponent("generic-selected-result")
-        model.chooseStandaloneOutput={_,_ in output};model.changeEncoding(.utf8);model.save(markResolved:false)
-        try await wait{!model.busy}
+        model.chooseStandaloneOutput={_,_ in output};model.changeEncoding(.utf8)
+        var saved:Bool?,completionCanUndo=false
+        model.save(markResolved:false) { accepted in
+            saved=accepted
+            if accepted {completionCanUndo=model.canUndo;model.undo()}
+        }
+        // Dispatch at the operation's completion boundary, before another
+        // SwiftUI/AppKit settlement can conceal a stale native editing gate.
+        try await wait{saved != nil && !model.busy}
+        try require(saved==true && completionCanUndo,"Generic multi-row Save did not expose retained Undo at completion")
         try require(model.error==nil && (try Data(contentsOf:output))==Data("head 🐢\ntail\n".utf8),"Generic multi-row Save bytes or trailing boundary changed")
-        try await undoInitial()
+        phase="immediate Save-completion Undo preserves ordinary source-block history"
+        try await wait{model.resultPresentation==initial && result.string==model.resultDisplayText}
         phase="explicit native Base selection refuses previous mapped source"
         try select("new1",in:right)
         model.showBase=true

@@ -188,7 +188,62 @@ import TurtleGitCore
         let closed=try await menu();owner.close();closed.performActionForItem(at:1);for _ in 0..<5{await Task.yield()};try require(opened.count==calls,"Retired source control opened URL")
         let reopened=c.clone();try require(reopened.model.sourceBrowseAction == .open,"New owner lost source split choice")
     }
+    static func destinationSuggestions(_ c:Context)async throws {
+        let clipboard="https://github.com/node-projects/rough.git",parent=try c.directory("node-projects")
+        let owner=CloneWindowController(directory:parent,access:RepositoryAccessLease(url:c.root),preferences:c.prefs,executable:c.git,clipboardText:clipboard)
+        c.clones.append(owner.model)
+        owner.model.configureLaunch(source:nil,exactPath:false)
+        _=c.keep(owner)
+        let model=owner.model,expected=parent.appendingPathComponent("rough").path
+        try require(model.source==clipboard && model.directory==expected,"Initial clipboard Clone did not append repository name")
+        try await wait{views(owner.window?.contentView).compactMap{$0 as? PathEntryField.Field}.contains{$0.accessibilityLabel()=="Destination directory" && $0.stringValue==expected}}
+        model.configureLaunch(source:nil,exactPath:false)
+        try require(model.directory==expected,"Repeated launch configuration appended the repository twice")
+        model.source="https://github.com/node-projects/next.git";model.sourceChanged()
+        try require(model.directory==parent.appendingPathComponent("next").path,"URL edit nested rather than replaced automatic repository name")
+        let custom=c.root.appendingPathComponent("custom target 雪").path
+        model.directory=custom;model.source="https://github.com/node-projects/another.git";model.sourceChanged()
+        try require(model.directory==custom,"URL change overwrote an explicitly edited destination")
+
+        func draft(_ source:String,_ destination:URL?=nil)->CloneWindowModel {
+            let value=CloneWindowModel(directory:destination ?? parent,access:RepositoryAccessLease(url:c.root),preferences:c.prefs,executable:c.git,clipboardText:source)
+            c.clones.append(value);return value
+        }
+        let exactTarget=c.root.appendingPathComponent("exact target"),exact=draft(clipboard,exactTarget)
+        exact.configureLaunch(source:nil,exactPath:true)
+        try require(exact.directory==exactTarget.path,"Exact-path launch appended clipboard repository name")
+        exact.source="git@github.com:node-projects/replacement.git";exact.sourceChanged()
+        try require(exact.directory==exactTarget.path,"Exact destination followed later URL changes")
+        let explicit=draft(clipboard)
+        explicit.configureLaunch(source:"git@github.com:node-projects/explicit.git",exactPath:false)
+        try require(explicit.directory==parent.appendingPathComponent("explicit").path,"Explicit launch URL did not replace clipboard suggestion before deriving directory")
+        for (source,name) in [("git@github.com:node-projects/repo.git","repo"),("https://github.com/node-projects/café.GIT/","café"),("file:///private/tmp/local-repo.git","local-repo")] {
+            let value=draft("");value.configureLaunch(source:source,exactPath:false)
+            try require(value.directory==parent.appendingPathComponent(name).path,"Source-style repository leaf derivation failed: "+source)
+        }
+        let oldHistory=c.prefs.object(forKey:"Clone.URLHistory"),oldDirectory=c.prefs.object(forKey:"Clone.Directory")
+        defer {
+            if let oldHistory{c.prefs.set(oldHistory,forKey:"Clone.URLHistory")}else{c.prefs.removeObject(forKey:"Clone.URLHistory")}
+            if let oldDirectory{c.prefs.set(oldDirectory,forKey:"Clone.Directory")}else{c.prefs.removeObject(forKey:"Clone.Directory")}
+        }
+        c.prefs.set(["https://github.com/node-projects/history.git"],forKey:"Clone.URLHistory");c.prefs.set(parent.path,forKey:"Clone.Directory")
+        let history=CloneWindowModel(directory:nil,access:RepositoryAccessLease(url:c.root),preferences:c.prefs,executable:c.git,clipboardText:nil);c.clones.append(history)
+        history.configureLaunch(source:nil,exactPath:false)
+        try require(history.directory==parent.appendingPathComponent("history").path,"History source did not derive a repository below remembered parent")
+
+        // A Browse choice is an explicit final destination, not another base.
+        let browseOwner=CloneWindowController(directory:parent,access:RepositoryAccessLease(url:c.root),preferences:c.prefs,executable:c.git,clipboardText:clipboard),chosen=try c.directory("chosen destination")
+        c.clones.append(browseOwner.model);browseOwner.model.configureLaunch(source:nil,exactPath:false);_=c.keep(browseOwner)
+        browseOwner.model.selectedPanelURL={_ in chosen}
+        browseOwner.model.presentOpenPanel={_,_,reply in DispatchQueue.main.async{reply(.OK)}}
+        browseOwner.model.browseDirectory();try await wait{!browseOwner.model.hasPendingWork}
+        try require(browseOwner.model.directory==chosen.path,"Destination Browse did not retain selected directory")
+        browseOwner.model.source="https://github.com/node-projects/new.git";browseOwner.model.sourceChanged()
+        try require(browseOwner.model.directory==chosen.path,"URL edit appended to a browsed explicit destination")
+        print("PASS: Clone clipboard/history launch derives repository child before display; exact path, URL replacement, manual destination and Browse ownership retained")
+    }
     static func forms(_ c:Context,verifyAccessibility:Bool=false)async throws{
+        try await destinationSuggestions(c)
         let owner=c.clone(),model=owner.model
         model.source="https://example.invalid/"+String(repeating:"long-repository-component/",count:12)+"source.git";model.directory=c.root.appendingPathComponent(String(repeating:"long-destination-",count:9)).path
         try await wait{views(owner.window?.contentView).compactMap{$0 as? NSComboBox}.contains{$0.accessibilityLabel()=="Repository URL"}}

@@ -5,6 +5,18 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Editor and Clone continuation — November 22, 2026
+
+The [connected family](EDITOR-SAVE-HISTORY-READINESS-PARITY.md) adds document-owned
+Merge history across layouts, atomic Compare format history, synchronous current
+native editing readiness, and initial clipboard/history Clone child suggestions.
+Its [checkpoint](qa/editor-clone-save-history-2026-11-22.json) passes three focused
+Core methods, the Debug build and fourteen native case/engine pairs cumulatively
+after retained fixture repairs. The earlier ordinary Merge Save/Undo failure is
+covered by the strict immediate-completion native receiver; this does not certify
+all editor states or the full hosted suite. Installed52 and the frozen signed53
+package remain separate and unchanged.
+
 ## Local candidate53
 
 [Signed build53](qa/signed-candidate53-2026-11-07.json) is packaged separately
@@ -35,34 +47,31 @@ physical ownership, containing-reference routes and Log graph visibility, and
 ordinary Export destination publication. Its
 [checkpoint](qa/history-browser-recovery-2026-11-08.json) retains the original
 hosted diagnostics and distinguishes source repairs from stale receiver behavior.
-The separate Merge Save/history failure still needs its own connected editor
-batch. These newer source changes have not replaced installed52 or signed53.
+The later editor continuation above covers the separate Merge Save/history
+boundary with its own focused evidence. These newer source changes have not replaced installed52 or signed53.
 
 ## Current acceptance queue
 
-The latest observed [9a1ee028 macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42408561589)
-has terminal Core and History/References failures; other lanes continue or wait.
-Its [job-level snapshot](qa/hosted-9a1-terminal-diagnosis-2026-11-07.json) records
-the failed steps. The connector could not retrieve terminal logs and the CLI is
-unauthenticated. A later browser reading obtained the
-[actual Core errors](qa/hosted-9a1-core-errors-2026-11-07.json): 13 failed Metafile
-methods, 1,140 assertions across 3,445 executed tests, with three skipped tests.
-These include high-depth/texture paint selection, SVG structure expectations and
-one nested-image budget timeout; product versus consumer causes remain under
-inspection. The signed twenty-image smoke does not cover this complete family.
-The [later History log reading](qa/hosted-9a1-history-errors-2026-11-07.json)
-identifies ten failed steps: two already-corrected picker checks, outdated Browser
-delegate calls, a stale Browser delivery, Export timeout, block-save bytes,
-font/layout geometry, an English menu lookup and graph panning. They require
-separate source/consumer diagnosis; no common failure cause is assumed. The
-[previous exact picker evidence](qa/hosted-9a1-tracked-branch-2026-11-07.json)
-identifies an immediate-Cancel assertion repaired by the
-[connected tracked-branch family](qa/reference-tracking-consolidation-2026-11-07.json).
-The run predates the Stash/Submodule and Push/Clone source batches below, so its
-failures do not prove those later changes failed. Corrected source55fd's
-[macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42415320695)
-is pending; its [Pages deployment](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42415320719)
-passed. No complete corrected-source hosted pass is claimed.
+The later [d368022a macOS run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/42425593387)
+is terminal failure. Its [step summary](qa/hosted-d368-terminal-summary-2026-11-22.json)
+records successful SVN production, failed validation lanes and failed aggregate;
+the commit/repository lane stopped at runtime restoration. Raw-log access failed
+through the connector and was blocked by browser policy, so step labels are not
+application defect diagnoses. This newer local editor/Clone batch still requires
+matching-source hosted acceptance.
+
+The earlier November 7 observations retain the
+[9a1 job snapshot](qa/hosted-9a1-terminal-diagnosis-2026-11-07.json),
+[actual Core errors](qa/hosted-9a1-core-errors-2026-11-07.json) and
+[History errors](qa/hosted-9a1-history-errors-2026-11-07.json). They describe the
+source and time recorded there. The later cache/image, History/Browser and editor
+checkpoints preserve their original failures and scoped source/consumer repairs;
+they do not make the currently unread d368 Core failure the same defect.
+The earlier [tracked-picker evidence](qa/hosted-9a1-tracked-branch-2026-11-07.json)
+and [repair](qa/reference-tracking-consolidation-2026-11-07.json) retain their own
+exact Cancel/detachment scope. Old pending-run observations are historical;
+the completed d368 snapshot above is the later observed hosted state. No complete
+corrected-source hosted pass is claimed.
 
 The [Stash/Submodule checkpoint](qa/stash-submodule-recovery-2026-11-07.json)
 passes 40 focused Core cases and 34 native case/engine pairs cumulatively. The

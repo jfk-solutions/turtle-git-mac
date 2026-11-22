@@ -1,5 +1,35 @@
 # TurtleGit for Mac — full port tracking
 
+## Editor history and Clone destinations — November 22, 2026
+
+Clone now derives the repository child directory from its initial clipboard or
+history URL after applying the launch's exact-path policy. A Finder parent plus
+`rough.git` suggests `parent/rough` before the URL field is edited. Subsequent
+suggestions replace their previous automatic component; existing manual/Browse
+and exact command-line target handling remain intact.
+
+Merge's result history now belongs to the document and restores through its
+current native pane across Classic/P4 presentation changes. Compare keeps its
+ordered all-pane history and adds codec state to atomic format transactions.
+Native writability and current-owner checks cover Save completion, Undo/Redo,
+source/format choices, typing, clipboard and Find replacement. Saved output
+baselines and targets remain outside restorable edit snapshots. Reload and
+retirement still reset history.
+
+The [family review](EDITOR-SAVE-HISTORY-READINESS-PARITY.md) and
+[checkpoint](qa/editor-clone-save-history-2026-11-22.json) record three focused
+Core methods, the Debug build and fourteen native case/engine pairs passing
+cumulatively. Fixture actor isolation, read-only policy setup and retained Save As
+root/lifetime failures remain in the record; only affected native consumers were
+rechecked. Help and localization resources match the built app. All 22 logged
+owned compiler/receiver processes and workspace runtime images are absent.
+
+The [completed d368 hosted snapshot](qa/hosted-d368-terminal-summary-2026-11-22.json)
+records actual terminal lane failures without inferring causes from step names.
+Matching corrected-source hosted success, wider physical/signed/platform and
+complete source-dialog acceptance remain open. Installed52 and signed53 are not
+updated by this batch.
+
 ## History, Browser and Export recovery — November 8, 2026
 
 Browser refresh and folder navigation now cancel pending stored-file delivery

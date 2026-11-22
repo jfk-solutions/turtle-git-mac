@@ -192,7 +192,7 @@ private extension FileComparisonDocument {
         self.init(model: model)
     }
     private init(model: FileComparisonWindowModel) {
-        self.model = model
+        self.model = model;model.requiresNativeEditors=true
         let window = TextConflictNSWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 720), styleMask: [.titled, .closable, .resizable, .miniaturizable], backing: .buffered, defer: false)
         window.title = model.windowTitle; window.isReleasedWhenClosed = false
         // Appearance inheritance can precede image decoding and bridge mount.
@@ -382,7 +382,7 @@ private extension FileComparisonDocument {
         }
         updateHistoryState()
     }
-    func externalReloadStateChanged() { guard !retired else { return }; objectWillChange.send() }
+    func externalReloadStateChanged() { guard !retired else { return };synchronizeNativeEditors();objectWillChange.send() }
     func externalReloadFailed(_ error: Error) { guard !retired else { return }; self.error = error.localizedDescription }
     var openPermissions: [RepositoryAccessLease] { workingPermissions + [access].compactMap { $0 } }
     func retainPermissions(_ permissions: [RepositoryAccessLease]) {
@@ -639,7 +639,8 @@ private extension FileComparisonDocument {
             originalPaneDocument = originalPaneDocument?.exchangingSides()
         }
     }
-    @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil } }
+    @Published var alignment: FileComparisonAlignment? { didSet { combinedCache = nil;nativePresentationEpoch=UUID() } }
+    fileprivate private(set) var nativePresentationEpoch=UUID()
     @Published private(set) var onePaneMode = false
     private var loadedPaneMode = false
     private var combinedCache: OnePaneFileComparison?
@@ -893,7 +894,7 @@ private extension FileComparisonDocument {
         var sheetObserver: NSObjectProtocol?
         init(_ change: @escaping () -> Void,preservingProjection:Bool=false) { self.change = change;self.preservingProjection=preservingProjection }
     }
-    private var projectionChange: ProjectionChange?
+    private var projectionChange: ProjectionChange? {didSet{synchronizeNativeEditors()}}
     private(set) static var activeProjectionChoices = 0
     var presentProjectionQuestion: (NSAlert, NSWindow, @escaping (NSApplication.ModalResponse) -> Void) -> Void = { alert,owner,answer in alert.beginSheetModal(for:owner,completionHandler:answer) }
     private func finishProjectionChange(_ request: ProjectionChange) {
@@ -1000,8 +1001,12 @@ private extension FileComparisonDocument {
     }
     private var loadSession: FileListComparisonSession?
     private var closeAfterLoad = false
-    @Published var busy = false { didSet { if oldValue != busy { paneTabEpoch = UUID(); resumeExternalReload() } } }
-    @Published var confirmingQuit = false { didSet { if oldValue != confirmingQuit {paneTabEpoch=UUID();resumeExternalReload()} } }
+    @Published var busy = false { didSet { synchronizeNativeEditors(installPresentation:!busy);if oldValue != busy { paneTabEpoch = UUID(); resumeExternalReload() } } }
+    private var editorInteractionEpoch=UUID()
+    @Published var confirmingQuit = false { didSet {
+        if oldValue != confirmingQuit {editorInteractionEpoch=UUID();paneTabEpoch=UUID();if confirmingQuit {cancelOutput();formatPrompt?.cancel()};resumeExternalReload()}
+        synchronizeNativeEditors()
+    } }
     @Published var error: String?
     @Published var difference = -1
     @Published var showLineNumbers = MergeEditorPreferences.load().showLineNumbers
@@ -1143,10 +1148,10 @@ private extension FileComparisonDocument {
         editorPreferences = next; showLineNumbers = next.showLineNumbers
     }
     @Published private var drafts: FileComparisonDrafts?
-    @Published private(set) var activeBase = false
+    @Published private(set) var activeBase = false {didSet{synchronizeNativeEditors()}}
     var editingEnabled: Bool {
         get { mutablePane(activeBase) && !retired && drafts?.editingEnabled(base: activeBase) == true }
-        set { guard mutablePane(activeBase), !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }; drafts?.setEditing(newValue, base: activeBase) }
+        set { guard mutablePane(activeBase), !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }; drafts?.setEditing(newValue, base: activeBase);synchronizeNativeEditors() }
     }
     func canEdit(base: Bool) -> Bool { mutablePane(base) && !retired && drafts?.canEdit(base: base) == true }
     func draftText(base: Bool) -> String { drafts?.text(base: base) ?? "" }
@@ -1194,18 +1199,26 @@ private extension FileComparisonDocument {
     }
     weak var window: NSWindow?
     func undo() {
+        synchronizeNativeEditors(installPresentation:true)
         guard historyActionsAllowed, comparisonHistory.canUndo else { return }
         comparisonHistory.undo(); updateHistoryState()
     }
     func redo() {
+        synchronizeNativeEditors(installPresentation:true)
         guard historyActionsAllowed, comparisonHistory.canRedo else { return }
         comparisonHistory.redo(); updateHistoryState()
     }
     // Undo can supersede an edit's pending comparison request. Restoring its
     // presentation cancels that request and fences any late engine result.
-    private var historyActionsAllowed: Bool { !mergeToolReadOnly && !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
+    var historyActionsAllowed: Bool {
+        guard !mergeToolReadOnly,!retired,!busy,!hasPendingEditorChoice,!confirmingQuit,window?.attachedSheet==nil else{return false}
+        return !requiresNativeEditors || scrolls.values.contains{scroll in
+            guard let view=scroll.documentView as? FileComparisonTextView else{return false}
+            return ownsNativeEditor(view) && view.nativePresentationEpoch==nativePresentationEpoch
+        }
+    }
     var canTransfer: Bool { canTransfer(toBase: activeBase) }
-    func canTransfer(toBase base: Bool) -> Bool { mutablePane(base) && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering }
+    func canTransfer(toBase base: Bool) -> Bool { mutablePane(base) && drafts?.editingEnabled(base: base) == true && alignment != nil && !busy && !hasPendingEditorChoice && !confirmingQuit && !filtering && (!requiresNativeEditors || nativeCommandPaneAvailable(base:base)) }
     var copyCommandsAllowed: Bool { !retired }
     var contextCommandsAllowed: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     var oppositeViewCommandsAllowed: Bool { !onePaneActive && contextCommandsAllowed }
@@ -1237,14 +1250,14 @@ private extension FileComparisonDocument {
         catch { self.error = error.localizedDescription }
     }
     func encoding(base: Bool) -> ComparisonTextEncoding? { drafts?.encoding(base: base) }
-    private var formatRequest: UUID?
+    private var formatRequest: UUID? {didSet{synchronizeNativeEditors()}}
     var hasPendingEditorChoice: Bool { exporting || formatRequest != nil || paneSave != nil || projectionChange != nil || externalReload?.blocksCommands == true }
     var chooseFormat: ((NSWindow, String, MergeFormatSelection) async -> MergeFormatSelection?)?
     private var formatPrompt: MergeFormatPrompt?
     func showFormatDialog(base: Bool) {
         guard canTransfer(toBase: base), let window, window.attachedSheet == nil,
               let originalEncoding = encoding(base: base) else { return }
-        let original = draftText(base: base), request = UUID(), generation = alignmentGeneration
+        let original = draftText(base: base), request = UUID(), generation = alignmentGeneration,interaction=editorInteractionEpoch
         let permissions = openPermissions
         formatRequest = request; Self.activePaneExports += 1; onExportStateChanged()
         Task {
@@ -1262,22 +1275,35 @@ private extension FileComparisonDocument {
                 choice = await prompt.choose(window: window)
             }
             guard let choice,
-                  !retired, formatRequest == request, alignmentGeneration == generation, self.window === window, window.attachedSheet == nil,
+                  !retired,!confirmingQuit,editorInteractionEpoch==interaction,formatRequest == request, alignmentGeneration == generation, self.window === window, window.attachedSheet == nil,
                   draftText(base: base).utf8.elementsEqual(original.utf8), encoding(base: base) == originalEncoding else { return }
             // Release this chooser's lock before applying its captured result.
             formatRequest = nil; formatPrompt = nil; onExportStateChanged()
             guard canTransfer(toBase: base) else { return }
             do {
                 let converted = try choice.applying(to: original)
-                if !converted.utf8.elementsEqual(original.utf8) { editingActions(for: base)?.replace(converted, 0, nil) }
-                try drafts?.setEncoding(choice.encoding, base: base)
+                applyOutputFormat(text:converted,encoding:choice.encoding,base:base,actionName:"Change file format")
             } catch { self.error = error.localizedDescription }
         }
     }
     func changeEncoding(_ value: ComparisonTextEncoding, base: Bool) {
         guard canTransfer(toBase: base) else { return }
-        do { try drafts?.setEncoding(value, base: base) } catch { self.error = error.localizedDescription }
+        do {
+            _ = try value.encode(draftText(base:base))
+            applyOutputFormat(text:draftText(base:base),encoding:value,base:base,actionName:"Change encoding")
+        } catch { self.error = error.localizedDescription }
     }
+    private func applyOutputFormat(text:String,encoding:ComparisonTextEncoding,base:Bool,actionName:String) {
+        if let action=editingActions(for:base)?.format {action(text,encoding,actionName);return}
+        guard !requiresNativeEditors,canTransfer(toBase:base),!text.utf8.elementsEqual(draftText(base:base).utf8) || encoding != self.encoding(base:base) else{return}
+        do {
+            _ = try encoding.encode(text)
+            comparisonHistory.beginUndoGrouping();defer{comparisonHistory.endUndoGrouping();updateHistoryState()}
+            registerEditingHistory(base:base,fallbackCaret:0);comparisonHistory.setActionName(actionName)
+            try drafts?.update(text:text,base:base);try drafts?.setEncoding(encoding,base:base);rebuildAlignment()
+        } catch {self.error=error.localizedDescription}
+    }
+    fileprivate func setEditingEncoding(_ value:ComparisonTextEncoding,base:Bool)throws {try drafts?.setEncoding(value,base:base)}
     func changeWhitespace(_ command: MergeWhitespaceCommand, base: Bool) {
         guard canTransfer(toBase: base) else { return }
         let text = MergeWhitespace.applying(command, to: draftText(base: base), tabWidth: tabWidth(base: base))
@@ -1331,7 +1357,7 @@ private extension FileComparisonDocument {
         let index = alignment.differences.firstIndex { $0.contains(row) } ?? -1
         if difference != index { difference = index }
     }
-    @Published private(set) var exporting = false { didSet { onExportStateChanged() } }
+    @Published private(set) var exporting = false { didSet { synchronizeNativeEditors(installPresentation:!exporting);onExportStateChanged() } }
     // Includes held output/format choices after their owner has retired.
     static private(set) var activePaneExports = 0
     var onExportStateChanged: () -> Void = {}
@@ -1339,20 +1365,22 @@ private extension FileComparisonDocument {
         let cancellation = OperationCancellation()
         let permissions: [RepositoryAccessLease]
         weak var panel: NSSavePanel?
-        init(permissions: [RepositoryAccessLease]) { self.permissions = permissions }
+        weak var window:NSWindow?
+        let interaction:UUID
+        init(permissions: [RepositoryAccessLease],window:NSWindow?,interaction:UUID) {self.permissions=permissions;self.window=window;self.interaction=interaction}
     }
     private var outputRequest: OutputRequest?
     var canSavePaneAs: Bool { !mergeToolReadOnly && canBeginOutput && document != nil }
     private var canBeginOutput: Bool { !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet == nil }
     private func beginOutput() -> OutputRequest? {
         guard canBeginOutput else { return nil }
-        let request = OutputRequest(permissions: openPermissions)
+        let request = OutputRequest(permissions:openPermissions,window:window,interaction:editorInteractionEpoch)
         outputRequest = request; Self.activePaneExports += 1; ownedMergeOperations += 1
         error = nil; exporting = true; busy = true
         return request
     }
     private func acceptsOutput(_ request: OutputRequest) -> Bool {
-        !retired && outputRequest === request && !request.cancellation.isCancelled
+        !retired && !confirmingQuit && outputRequest === request && !request.cancellation.isCancelled && window === request.window && editorInteractionEpoch==request.interaction
     }
     private func finishOutput(_ request: OutputRequest) {
         Self.activePaneExports -= 1; ownedMergeOperations -= 1
@@ -1486,9 +1514,27 @@ private extension FileComparisonDocument {
         var annotate: (FileComparisonEditing.Annotations) -> Void
         var keep: (String) -> Void
         var resolveForSave: (String) -> Void
+        var format: ((String, ComparisonTextEncoding, String) -> Void)? = nil
     }
     private var editorActions: [Bool: EditorActions] = [:]
     private var editorOwners: [Bool: ObjectIdentifier] = [:]
+    var requiresNativeEditors=false
+    private struct NativeEditorStamp:Equatable {let owner:ObjectIdentifier;let epoch:UUID;let eligible:Bool}
+    private var nativeEditorStamps:[Bool:NativeEditorStamp]=[:]
+    private var nativeEditorPublicationScheduled=false
+    private func publishNativeEditorAvailability() {
+        guard !nativeEditorPublicationScheduled else{return};nativeEditorPublicationScheduled=true
+        DispatchQueue.main.async{[weak self] in guard let self else{return};self.nativeEditorPublicationScheduled=false;if !self.retired{self.objectWillChange.send()}}
+    }
+    fileprivate func nativeEditorDidUpdate(_ view:FileComparisonTextView) {
+        let stamp=NativeEditorStamp(owner:ObjectIdentifier(view),epoch:nativePresentationEpoch,eligible:ownsNativeEditor(view) && view.nativePresentationEpoch==nativePresentationEpoch)
+        guard nativeEditorStamps[view.baseSide] != stamp else{return}
+        nativeEditorStamps[view.baseSide]=stamp;publishNativeEditorAvailability()
+    }
+    private func nativeCommandPaneAvailable(base:Bool)->Bool {
+        guard let view=scrolls[base]?.documentView as? FileComparisonTextView else{return false}
+        return ownsNativeEditor(view) && view.nativePresentationEpoch==nativePresentationEpoch
+    }
     // TortoiseMerge's CUndo stores one ordered all-view history. Sharing it is
     // essential now that an edit snapshot also owns the opposite row layout.
     let comparisonHistory: UndoManager = { let value = UndoManager(); value.groupsByEvent = false; return value }()
@@ -1498,6 +1544,25 @@ private extension FileComparisonDocument {
     }
     func ownsEditor(_ scroll: NSScrollView, base: Bool) -> Bool {
         editorOwners[base] == ObjectIdentifier(scroll) && scrolls[base] === scroll
+    }
+    fileprivate func ownsNativeEditor(_ view:FileComparisonTextView)->Bool {
+        guard !retired,view.model === self,view.window != nil,view.window === window,
+              !view.isHiddenOrHasHiddenAncestor,let scroll=view.enclosingScrollView,
+              ownsEditor(scroll,base:view.baseSide),ownsViewport(scroll,base:view.baseSide) else{return false}
+        return singleFileMode || onePaneActive || view.curvedPresentation == comparisonDefaults.bool(forKey:"TurtleGit.Comparison.CurvedInterface")
+    }
+    func synchronizeNativeEditors(installPresentation:Bool=false) {
+        for scroll in Array(scrolls.values) {
+            guard let view=scroll.documentView as? FileComparisonTextView else{continue}
+            if installPresentation,ownsNativeEditor(view),view.nativePresentationEpoch != nativePresentationEpoch {
+                (view.delegate as? FileComparisonEditor.Coordinator)?.installCurrentPresentation()
+            }
+            view.synchronizeWritability()
+        }
+    }
+    func nativeEditorWritable(base:Bool)->Bool {
+        guard let view=scrolls[base]?.documentView as? FileComparisonTextView else{return false}
+        return view.nativeMutationAllowed
     }
     func registerEditor(base: Bool, scroll: NSScrollView, actions: EditorActions) {
         guard scrolls[base] === scroll else { return }
@@ -1521,11 +1586,12 @@ private extension FileComparisonDocument {
         let caret: HistoryCaret
         let presentation: EditingPresentation?
         let needsComparison: Bool
+        let encoding: ComparisonTextEncoding?
     }
     private func editingHistoryState(base: Bool, fallbackCaret: Int) -> EditingHistoryState {
         .init(base: base, text: draftText(base: base), annotations: annotations(base: base),
               caret: captureHistoryCaret(base: base) ?? .init(displayText: "", displayOffset: 0, sourceOffset: min(fallbackCaret, draftText(base: base).utf16.count)),
-              presentation: captureEditingPresentation(), needsComparison: filtering)
+              presentation: captureEditingPresentation(), needsComparison: filtering, encoding:encoding(base:base))
     }
     func registerEditingHistory(base: Bool, fallbackCaret: Int) {
         let state = editingHistoryState(base: base, fallbackCaret: fallbackCaret)
@@ -1537,6 +1603,10 @@ private extension FileComparisonDocument {
         defer { comparisonHistory.endUndoGrouping(); updateHistoryState() }
         registerEditingHistory(base: state.base, fallbackCaret: state.caret.sourceOffset)
         updateDraft(state.text, base: state.base)
+        if let encoding=state.encoding {
+            do {try drafts?.restoreEncodingForHistory(encoding,base:state.base)}
+            catch {self.error=error.localizedDescription;return}
+        }
         if let presentation = state.presentation { installEditingPresentation(presentation) }
         if state.presentation == nil || state.needsComparison {
             rebuildAlignment()
@@ -1616,6 +1686,7 @@ private extension FileComparisonDocument {
         guard scrolls[base] === scroll else { return }
         scrolls.removeValue(forKey: base); viewportNavigation.removeValue(forKey: base)
         if editorOwners[base] == ObjectIdentifier(scroll) { editorOwners.removeValue(forKey: base); editorActions.removeValue(forKey: base) }
+        nativeEditorStamps.removeValue(forKey:base);publishNativeEditorAvailability()
         refreshLocatorHighlights()
     }
     func applyViewportNavigation() { guard !retired else { return }; for action in viewportNavigation.values { action() } }
@@ -1624,7 +1695,7 @@ private extension FileComparisonDocument {
     var patchEditingEnabled: Bool { mutablePane(false) && drafts?.editingEnabled(base: false) == true }
     func setPatchEditing(_ enabled: Bool) {
         guard mutablePane(false), !retired, !busy, !hasPendingEditorChoice, !confirmingQuit else { return }
-        drafts?.setEditing(enabled, base: false); activeBase = false; updateHistoryState()
+        drafts?.setEditing(enabled, base: false); activeBase = false;synchronizeNativeEditors();updateHistoryState()
     }
     func acceptPatchSave(_ saved: FileComparisonDocument) throws {
         guard !mergeToolReadOnly, !retired, let document, document.destination.path == saved.destination.path else { throw FileComparisonEditFailure.changed }
@@ -1661,7 +1732,7 @@ private extension FileComparisonDocument {
         cancelOutput(); cancelPaneSave()
         formatPrompt?.cancel(); formatPrompt = nil; formatRequest = nil; previewRow = nil
         onExportStateChanged = {}
-        retired = true; movedBlockRecords = []; retainedMoveLinks = nil; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
+        retired = true;synchronizeNativeEditors();resetHistory();movedBlockRecords = []; retainedMoveLinks = nil; regexCancellation?.cancel(); regexCancellation = nil; regexList?.retire(); regexList = nil
         imageLoader?.retire(); imageLoader = nil
         imageInputSeeds=[];initialImageDocument=nil
         retainedImageModel?.retire(); retainedImageModel?.presentation.retire()
@@ -2056,7 +2127,7 @@ private extension FileComparisonDocument {
         guard paneTargets[false] != nil else { completion(false); return }
         save(sides: [false], ownerInitiated: true, completion: completion)
     }
-    private var paneSave: OperationCancellation?
+    private var paneSave: OperationCancellation? {didSet{synchronizeNativeEditors()}}
     private let saveChoices=MergeSaveChoices()
     private var updatingSaveDecision = false
     func cancelPaneSave() {paneSave?.cancel();saveChoices.cancel();saveFolderAccess.cancel();newOutputAdd.cancel()}
@@ -2654,6 +2725,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         context.coordinator.base = base
         let view = FileComparisonTextView(); view.isEditable = false; view.isRichText = false
         view.model = model; view.baseSide = base
+        view.curvedPresentation=model.comparisonDefaults.bool(forKey:"TurtleGit.Comparison.CurvedInterface")
         view.allowsUndo = true; view.delegate = context.coordinator
         view.isAutomaticQuoteSubstitutionEnabled = false; view.isAutomaticDashSubstitutionEnabled = false
         view.isAutomaticSpellingCorrectionEnabled = false
@@ -2709,8 +2781,6 @@ struct FileComparisonEditor: NSViewRepresentable {
                             otherCells: model.onePaneActive ? nil : model.alignment?.rows.map { base ? $0.destination : $0.base }, preferences: model.whitespaceDisplay)
             renderer.removal = base; renderer.highlightEndings = model.showInlineDiff
         }
-        let editable = model.editingEnabled && model.editableBase == base && !model.busy && !model.confirmingQuit
-        if view.isEditable != editable { view.isEditable = editable }
         (view as? FileComparisonTextView)?.mergeFindController?.updateGates()
         let peerCells = model.onePaneActive || model.singleFileMode ? nil : model.displayCells(base: !base)
         let style = MergeEditorPresentationCache.Style(font: model.generalPreferences.nativeFont, tabWidth: model.tabWidth(base: base), inline: model.showInlineDiff && !model.filtering, word: model.inlineWordDiff, maximumInlineLength: model.generalPreferences.maximumInlineLength, palette: model.palette.revision, mode: model.onePaneActive ? 2 : base ? 0 : 1)
@@ -2748,6 +2818,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         (scroll.verticalRulerView as? MergeLineRuler)?.updateMetrics(for: view)
         (scroll.verticalRulerView as? MergeLineRuler)?.markedRows = model.onePaneActive ? Set((model.combined?.rows ?? []).enumerated().compactMap { model.annotations(base: false).marked.contains($0.element.alignmentRow) ? $0.offset : nil }) : model.annotations(base: base).marked
         if presentationChanged { scroll.verticalRulerView?.needsDisplay = true }
+        if let target=view as? FileComparisonTextView {target.nativePresentationEpoch=model.nativePresentationEpoch;target.synchronizeWritability();model.nativeEditorDidUpdate(target)}
         model.registerViewportNavigation(base: base, scroll: scroll) { [weak coordinator = context.coordinator] in coordinator?.applyViewportSelection() }
         if let target = view as? MergeFindProviding {
             target.mergeFindHighlights.annotationsChanged = { [weak model] in model?.refreshLocatorHighlights() }
@@ -2763,6 +2834,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         coordinator.model.unregister(scroll, base: coordinator.base)
         NotificationCenter.default.removeObserver(coordinator)
         if let view = scroll.documentView as? FileComparisonTextView {
+            view.isEditable=false;view.nativePresentationEpoch=nil
             view.mergeFindController?.close(); view.delegate = nil; view.model = nil; view.history = nil
         }
         coordinator.scroll = nil
@@ -2820,7 +2892,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         init(model: FileComparisonWindowModel) { self.model = model; history = model.comparisonHistory }
         func applyViewportSelection() {
             let model = self.model, base = self.base
-            guard let scroll, model.ownsViewport(scroll, base: base), scroll.contentSize.width > 32, scroll.contentSize.height > 32,
+            guard let scroll,let owned=scroll.documentView as? FileComparisonTextView,model.ownsNativeEditor(owned),scroll.contentSize.width > 32, scroll.contentSize.height > 32,
                   let view = scroll.documentView as? FileComparisonTextView, view.blockGeneration == model.alignmentGeneration,
                   let layout = view.layoutManager, let container = view.textContainer else { return }
             layout.ensureLayout(for:container)
@@ -2844,7 +2916,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {
-            guard model.editingEnabled, model.editableBase == base, !model.busy, !model.confirmingQuit else { return false }
+            guard let view=textView as? FileComparisonTextView,view.model === model,view.baseSide==base,view.nativeMutationAllowed else {return false}
             if affectedCharRange.length == 0 && (replacementString ?? "").isEmpty { return false }
             do {
                 if !model.filtering, let alignment = model.alignment {
@@ -2860,7 +2932,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             return false
         }
         func textViewDidChangeSelection(_ notification: Notification) {
-            guard let view = notification.object as? NSTextView, (view as? FileComparisonTextView)?.presentationDepth == 0 else { return }
+            guard let view = notification.object as? FileComparisonTextView,view.presentationDepth==0,model.ownsNativeEditor(view),view.nativePresentationEpoch==model.nativePresentationEpoch else{return}
             if !model.selectingDifferenceBlock { (view as? FileComparisonTextView)?.foldLayout.reveal(selection: view.selectedRange(), in: view) }
             let range = view.selectedRange(), cells = cells, generation = model.alignmentGeneration
             // A user's new selection supersedes the caret requested by the
@@ -2871,7 +2943,8 @@ struct FileComparisonEditor: NSViewRepresentable {
                source.length > 0 || source.location != caret {
                 model.selectionRequest = nil
             }
-            DispatchQueue.main.async { if self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
+            let epoch=model.nativePresentationEpoch
+            DispatchQueue.main.async { if self.model.ownsNativeEditor(view),view.nativePresentationEpoch==epoch,self.model.nativePresentationEpoch==epoch,self.model.activeBase == self.base, self.model.alignmentGeneration == generation, view.selectedRange() == range { self.model.updateSelection(range, cells: cells) } }
         }
         func updateUndoState() { model.updateHistoryState() }
         func bind(_ scroll: NSScrollView, base: Bool) {
@@ -2879,19 +2952,21 @@ struct FileComparisonEditor: NSViewRepresentable {
             model.register(scroll, base: base)
             guard !model.ownsEditor(scroll, base: base) else { return }
             let current: () -> Coordinator? = { [weak self, weak scroll] in
-                guard let self, let scroll, self.base == base, self.model.ownsEditor(scroll, base: base), self.model.ownsViewport(scroll, base: base) else { return nil }
-                return self
+                guard let self,let scroll,self.base==base,let view=scroll.documentView as? FileComparisonTextView,self.model.ownsNativeEditor(view) else{return nil}
+                if view.nativePresentationEpoch != self.model.nativePresentationEpoch {self.installCurrentPresentation()}
+                return view.nativePresentationEpoch==self.model.nativePresentationEpoch ? self:nil
             }
             model.registerEditor(base: base, scroll: scroll, actions: .init(
                 replace: { text, caret, cleared in current()?.replace(text, caret: caret, cleared: cleared) },
                 type: { text, caret in current()?.replace(text, caret: caret, typing: true) },
                 annotate: { value in current()?.annotate(value) },
                 keep: { text in current()?.replace(text, caret: 0, clearMarks: true) },
-                resolveForSave: { text in current()?.replace(text, caret: 0, clearMarks: true, resolvingSave: true) }
+                resolveForSave: { text in current()?.replace(text, caret: 0, clearMarks: true, resolvingSave: true) },
+                format: { text,encoding,name in current()?.replace(text,caret:0,actionName:name,encoding:encoding) }
             ))
         }
         func installCurrentPresentation() {
-            guard !model.filtering, let scroll, model.ownsViewport(scroll, base: base), let view = scroll.documentView as? FileComparisonTextView else { return }
+            guard let scroll,let view=scroll.documentView as? FileComparisonTextView,model.ownsNativeEditor(view) else{return}
             cells = model.displayCells(base: base); view.sourceCells = cells
             if view.blockGeneration != model.alignmentGeneration { view.blockSelection.clear(in: view); view.invalidateNavigationRevision(); view.blockGeneration = model.alignmentGeneration }
             view.presentationDepth += 1
@@ -2899,6 +2974,7 @@ struct FileComparisonEditor: NSViewRepresentable {
             view.presentationDepth -= 1
             view.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
             view.whitespaceRenderer.update(text: view.string, cells: cells, otherCells: model.onePaneActive ? nil : model.displayCells(base: !base), preferences: model.whitespaceDisplay)
+            view.nativePresentationEpoch=model.nativePresentationEpoch;view.synchronizeWritability()
             model.restoreHistoryCaret(base: base, view: view, cells: cells)
         }
         func annotate(_ value:FileComparisonEditing.Annotations) {
@@ -2924,19 +3000,22 @@ struct FileComparisonEditor: NSViewRepresentable {
             let sourceCaret = (try? FileComparisonEditing.sourceRange(NSRange(location:displayCaret,length:0),cells:cells).location) ?? 0
             replace(edit.text,caret:sourceCaret,presentation:next,displayCaret:displayCaret,actionName:"Cycle line ending")
         }
-        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil, actionName:String = "Edit comparison") {
-            guard let scroll, model.ownsEditor(scroll, base: base), model.ownsViewport(scroll, base: base), model.canEdit(base: base), resolvingSave || (!model.busy && !model.confirmingQuit) else { return }
+        func replace(_ text: String, caret: Int, restored: FileComparisonEditing.Annotations? = nil, cleared: Range<Int>? = nil, typing: Bool = false, clearMarks: Bool = false, resolvingSave: Bool = false, presentation: FileComparisonWindowModel.EditingPresentation? = nil, displayCaret: Int? = nil, actionName:String = "Edit comparison",encoding:ComparisonTextEncoding? = nil) {
+            guard let scroll,let native=scroll.documentView as? FileComparisonTextView,model.ownsNativeEditor(native),native.nativePresentationEpoch==model.nativePresentationEpoch,model.canEdit(base:base),resolvingSave || model.contextCommandsAllowed else{return}
             let old = model.draftText(base: base), previous = model.annotations(base: base), oldAlignment = model.alignment
+            let encodingChanged=encoding.map{$0 != model.encoding(base:base)} ?? false
+            if let encoding {do {_ = try encoding.encode(text)}catch {model.error=error.localizedDescription;return}}
             var next = previous
             if clearMarks { next.marked = [] }
             if let cleared { next.marked.subtract(cleared); next.edited.subtract(cleared) }
             let textChanged = !old.utf8.elementsEqual(text.utf8)
-            guard textChanged || restored != nil || next != previous || presentation != nil || typing else { return }
-            if !textChanged, (restored ?? next) == previous, presentation == nil, !typing { return }
+            guard textChanged || encodingChanged || restored != nil || next != previous || presentation != nil || typing else { return }
+            if !textChanged, !encodingChanged, (restored ?? next) == previous, presentation == nil, !typing { return }
             history.beginUndoGrouping(); defer { history.endUndoGrouping(); updateUndoState() }
             model.registerEditingHistory(base: base, fallbackCaret: caret)
             history.setActionName(actionName)
             model.updateDraft(text, base: base)
+            if let encoding {do {try model.setEditingEncoding(encoding,base:base)}catch {model.error=error.localizedDescription;return}}
             if model.activeBase == base { model.selectionRequest = caret }
             if let presentation { model.installEditingPresentation(presentation) }
             else { model.rebuildAlignment() }
@@ -2956,6 +3035,7 @@ struct FileComparisonEditor: NSViewRepresentable {
                     // has selected another range.
                     if model.selectionRequest == caret { model.selectionRequest = nil }
                 }
+                if let native=view as? FileComparisonTextView {native.nativePresentationEpoch=model.nativePresentationEpoch;native.synchronizeWritability()}
             }
         }
         deinit { NotificationCenter.default.removeObserver(self) }
@@ -2979,7 +3059,7 @@ struct FileComparisonEditor: NSViewRepresentable {
 @MainActor protocol ComparisonContextMenuProviding {
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu
 }
-private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorPresentationProviding, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
+fileprivate final class FileComparisonTextView: MergePaneInputTextView, MergeEditorPresentationProviding, NSMenuDelegate, ComparisonContextMenuProviding, MergeLineNavigationProviding, MergeWhitespaceDisplaying, MergeFindProviding, MergeLineDiffHoverProviding, MergeInlineNavigationProviding, MergeBlockSelecting, MergeTypingProviding, MergeMarginSelecting {
     override var paneInputLayout:MergeFoldTextLayout {foldLayout}
     override var paneInputCells:[MergeSourceCell]? {sourceCells}
     override var paneInputRevision:Int {model?.alignmentGeneration ?? -1}
@@ -3002,7 +3082,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     var chooseNavigationLine: (NSWindow, Int) async -> Int? = MergeLineNumberPrompt.choose
     var navigationPending = false
     var navigationCells: [MergeSourceCell]? { sourceCells }
-    var navigationAllowed: Bool { model?.contextCommandsAllowed == true && model?.filtering == false }
+    var navigationAllowed: Bool { ownedPresentationReady && model?.contextCommandsAllowed == true && model?.filtering == false }
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
     func beginUserNavigation() { model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.cancelDeferredNavigation() }
@@ -3041,6 +3121,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     @objc private func nextDifferenceBlock(_ sender: Any?) { model?.navigate(1) }
     @objc private func previousDifferenceBlock(_ sender: Any?) { model?.navigate(-1) }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        guard ownedPresentationReady else{return false}
         if event.keyCode == 125 || event.keyCode == 126,
            event.modifierFlags.intersection([.command, .shift, .option, .control]) == .control {
             model?.navigate(event.keyCode == 125 ? 1 : -1); return true
@@ -3061,7 +3142,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         return super.performKeyEquivalent(with: event)
     }
     var mergeOverwrite:Bool { model?.overwriteModes[baseSide] == true }
-    var mergeTypingAllowed:Bool { isEditable && model?.contextCommandsAllowed == true && model?.canTransfer(toBase:baseSide) == true }
+    var mergeTypingAllowed:Bool { nativeMutationAllowed && model?.canTransfer(toBase:baseSide) == true }
     func toggleMergeOverwrite() { guard mergeTypingAllowed else {return};model?.overwriteModes[baseSide] = !mergeOverwrite;needsDisplay = true }
     private var currentEndingEdit:FileComparisonLineEndingEdit? {
         guard mergeTypingAllowed,let model,let alignment = model.alignment,let row = MergeTyping.displayRow(in:string,offset:selectedRange().location) else {return nil}
@@ -3081,6 +3162,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         else {super.drawInsertionPoint(in:rect,color:color,turnedOn:flag)}
     }
     override func insertText(_ insertString:Any,replacementRange:NSRange) {
+        guard nativeMutationAllowed else{return}
         var range = replacementRange
         let payload = (insertString as? String) ?? (insertString as? NSAttributedString)?.string
         if mergeOverwrite,mergeTypingAllowed,!hasMarkedText(),range.location == NSNotFound,let payload {
@@ -3089,6 +3171,23 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         super.insertText(insertString,replacementRange:range)
     }
     var history: UndoManager?
+    var curvedPresentation=false
+    var nativePresentationEpoch:UUID?
+    fileprivate var currentNativeOwner:Bool {model?.ownsNativeEditor(self)==true}
+    fileprivate var ownedPresentationReady:Bool {
+        guard let model,currentNativeOwner else{return false}
+        if nativePresentationEpoch != model.nativePresentationEpoch,model.contextCommandsAllowed {(delegate as? FileComparisonEditor.Coordinator)?.installCurrentPresentation()}
+        return nativePresentationEpoch==model.nativePresentationEpoch
+    }
+    fileprivate func synchronizeWritability() {
+        let writable=model.map{ $0.ownsNativeEditor(self) && nativePresentationEpoch==$0.nativePresentationEpoch && $0.contextCommandsAllowed && $0.editingEnabled && $0.editableBase==baseSide } ?? false
+        if isEditable != writable {isEditable=writable}
+    }
+    fileprivate var nativeMutationAllowed:Bool {
+        guard let model,model.contextCommandsAllowed,currentNativeOwner else{synchronizeWritability();return false}
+        if nativePresentationEpoch != model.nativePresentationEpoch {(delegate as? FileComparisonEditor.Coordinator)?.installCurrentPresentation()}
+        synchronizeWritability();return isEditable
+    }
     weak var model: FileComparisonWindowModel?
     var baseSide = false
     var sourceCells: [MergeSourceCell] = []
@@ -3109,6 +3208,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         super.updateTrackingAreas()
     }
     func previewLine(atDisplayOffset offset: Int?) {
+        guard ownedPresentationReady else{return}
         guard let offset, offset >= 0 else { model?.previewLine(atRow: nil); return }
         var start = 0
         for (index, cell) in sourceCells.enumerated() {
@@ -3133,8 +3233,8 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     var mergeFindController: MergeFindWindowController?
     var mergeFindDefaults: UserDefaults { model?.comparisonDefaults ?? .standard }
     var mergeFindPaneID: Int { baseSide ? 1 : 2 }
-    var mergeFindAllowed: Bool { window != nil && !navigationPending && model?.contextCommandsAllowed == true && model?.filtering == false }
-    var mergeFindWritable: Bool { mergeFindAllowed && isEditable }
+    var mergeFindAllowed: Bool { ownedPresentationReady && !navigationPending && model?.contextCommandsAllowed == true && model?.filtering == false }
+    var mergeFindWritable: Bool { mergeFindAllowed && nativeMutationAllowed }
     var mergeFindLines: [MergeFindLine] { MergeFindLine.displayCells(sourceCells) }
     func replaceFindMatches(_ ranges: [NSRange], with replacement: String) -> Bool {
         guard mergeFindWritable else { return false }
@@ -3150,13 +3250,14 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
 
     var missingOffsets: [Int] = []
     func menuDidClose(_ menu: NSMenu) {
-        guard let model, model.activeBase == baseSide, !model.busy, !model.confirmingQuit,
+        guard ownedPresentationReady,let model, model.activeBase == baseSide, !model.busy, !model.confirmingQuit,
               let window, window.attachedSheet == nil else { return }
         window.makeFirstResponder(self)
         setAccessibilityFocused(true)
     }
-    override func keyDown(with event: NSEvent) { beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
+    override func keyDown(with event: NSEvent) { guard ownedPresentationReady,model?.contextCommandsAllowed==true else {return};beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }; model?.clearNavigationBlockSelection(); super.keyDown(with:event) }
     override func mouseDown(with event: NSEvent) {
+        guard ownedPresentationReady,model?.contextCommandsAllowed==true else{return}
         beginUserNavigation(); model?.lineWrapping.beginViewportInput(); defer { model?.lineWrapping.endViewportInput() }
         model?.clearNavigationBlockSelection()
         model?.activatePane(base: baseSide)
@@ -3164,17 +3265,18 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         if model?.contextCommandsAllowed == true, foldLayout.expand(at: event, in: self) { return }
         super.mouseDown(with: event)
     }
-    @objc(undo:) func undoComparison(_ sender: Any?) { model?.undo() }
-    @objc(redo:) func redoComparison(_ sender: Any?) { model?.redo() }
+    @objc(undo:) func undoComparison(_ sender: Any?) { guard currentNativeOwner else{return};model?.undo() }
+    @objc(redo:) func redoComparison(_ sender: Any?) { guard currentNativeOwner else{return};model?.redo() }
     override func validateMenuItem(_ item: NSMenuItem) -> Bool {
-        if item.action == NSSelectorFromString("undo:") { return model?.canUndo == true && model?.busy == false && model?.confirmingQuit == false }
-        if item.action == NSSelectorFromString("redo:") { return model?.canRedo == true && model?.busy == false && model?.confirmingQuit == false }
+        if item.action == NSSelectorFromString("undo:") { return currentNativeOwner && model?.canUndo == true && model?.historyActionsAllowed == true }
+        if item.action == NSSelectorFromString("redo:") { return currentNativeOwner && model?.canRedo == true && model?.historyActionsAllowed == true }
         if item.action == NSSelectorFromString("copy:") { return !(clipboardText ?? "").isEmpty }
-        if item.action == NSSelectorFromString("cut:") { return isEditable && model?.canTransfer(toBase: baseSide) == true && !(clipboardText ?? "").isEmpty }
+        if item.action == NSSelectorFromString("cut:") { return nativeMutationAllowed && model?.canTransfer(toBase: baseSide) == true && !(clipboardText ?? "").isEmpty }
         if item.action == #selector(goToSourceLine(_:)) { return canNavigateToSourceLine }
         return super.validateMenuItem(item)
     }
     override func becomeFirstResponder() -> Bool {
+        guard currentNativeOwner else{return false}
         let accepted = super.becomeFirstResponder()
         if accepted { model?.activatePane(base: baseSide);model?.refreshPaneStatus() }
         return accepted
@@ -3192,11 +3294,11 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         blockSelection.draw(in:self,dirtyRect:dirtyRect)
     }
 
-    override var undoManager: UndoManager? { history ?? super.undoManager }
+    override var undoManager: UndoManager? { currentNativeOwner ? history:nil }
     override func insertTab(_ sender: Any?) { indent(remove: false) }
     override func insertBacktab(_ sender: Any?) { indent(remove: true) }
     private func indent(remove: Bool) {
-        guard isEditable, let model, let selection = model.indent(selectedRange(), cells: sourceCells, base: baseSide, remove: remove) else { return }
+        guard nativeMutationAllowed, let model, let selection = model.indent(selectedRange(), cells: sourceCells, base: baseSide, remove: remove) else { return }
         let start = FileComparisonEditing.displayOffset(sourceOffset: selection.location, cells: sourceCells)
         let end = FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(selection), cells: sourceCells)
         setSelectedRange(NSRange(location: start, length: max(0, end - start)))
@@ -3204,12 +3306,12 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     override func copy(_ sender: Any?) { copySelection(to: .general) }
     override func cut(_ sender: Any?) { cutSelection(to: .general) }
     fileprivate func cutSelection(to pasteboard: NSPasteboard) {
-        guard window != nil, isEditable, model?.contextCommandsAllowed == true,
+        guard nativeMutationAllowed, model?.contextCommandsAllowed == true,
               model?.canTransfer(toBase: baseSide) == true, copySelection(to: pasteboard) else { return }
         if selectedRange().length > 0 { insertText("", replacementRange: selectedRange()) }
     }
     fileprivate var clipboardText: String? {
-        guard let model, model.copyCommandsAllowed, window != nil else { return nil }
+        guard ownedPresentationReady,let model, model.copyCommandsAllowed else { return nil }
         let rows = mergeSelectedBlockRange.flatMap { MergeBlockSelection.rows($0,cells:sourceCells) }
         return try? MergeClipboard.sourceText(selection:selectedRange(),cells:sourceCells,blockRows:rows)
     }
@@ -3226,12 +3328,13 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         model?.selectContextBlock(at:displayOffset,base:baseSide)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard model != nil else { return super.menu(for:event) }
+        guard ownedPresentationReady else { return nil }
         selectContextBlock(at:characterIndexForInsertion(at:convert(event.locationInWindow,from:nil)))
         return comparisonContextMenu(defaults:.standard,pasteboard:.general)
     }
     func comparisonContextMenu(defaults: UserDefaults, pasteboard: NSPasteboard) -> NSMenu {
-        guard let model else { return NSMenu() }
+        guard ownedPresentationReady,let model else { return NSMenu() }
+        _=nativeMutationAllowed
         model.updateSelection(selectedRange(), cells: sourceCells)
         let menu = ComparisonClipboardMenu(); menu.autoenablesItems = false; menu.delegate = self
         let clipboard = ComparisonClipboardCommands(view: self, pasteboard: pasteboard); menu.clipboard = clipboard
@@ -3339,35 +3442,39 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
         return menu
     }
     @objc private func goToMovedBlock(_ sender: NSMenuItem) {
+        guard ownedPresentationReady else{return}
         guard let target = sender.representedObject as? [Int],target.count == 2 else { return }
         model?.followMovedBlock(row:target[0],base:baseSide,generation:target[1])
     }
-    @objc private func useBlock() { model?.useOtherBlock(targetBase: false) }
-    @objc private func useThisFirst() { model?.useOtherBlock(baseSide ? .otherThenCurrent : .currentThenOther, targetBase: false) }
-    @objc private func useThisLast() { model?.useOtherBlock(baseSide ? .currentThenOther : .otherThenCurrent, targetBase: false) }
-    @objc private func useFile() { model?.useOtherFile(targetBase: false) }
-    @objc private func prependRight() { model?.useOtherBlock(.otherThenCurrent, targetBase: true) }
-    @objc private func replaceByRight() { model?.useOtherBlock(targetBase: true) }
-    @objc private func appendRight() { model?.useOtherBlock(.currentThenOther, targetBase: true) }
-    @objc private func useRightFile() { model?.useOtherFile(targetBase: true) }
+    @objc private func useBlock() { guard ownedPresentationReady else{return};model?.useOtherBlock(targetBase: false) }
+    @objc private func useThisFirst() { guard ownedPresentationReady else{return};model?.useOtherBlock(baseSide ? .otherThenCurrent : .currentThenOther, targetBase: false) }
+    @objc private func useThisLast() { guard ownedPresentationReady else{return};model?.useOtherBlock(baseSide ? .currentThenOther : .otherThenCurrent, targetBase: false) }
+    @objc private func useFile() { guard ownedPresentationReady else{return};model?.useOtherFile(targetBase: false) }
+    @objc private func prependRight() { guard ownedPresentationReady else{return};model?.useOtherBlock(.otherThenCurrent, targetBase: true) }
+    @objc private func replaceByRight() { guard ownedPresentationReady else{return};model?.useOtherBlock(targetBase: true) }
+    @objc private func appendRight() { guard ownedPresentationReady else{return};model?.useOtherBlock(.currentThenOther, targetBase: true) }
+    @objc private func useRightFile() { guard ownedPresentationReady else{return};model?.useOtherFile(targetBase: true) }
     @objc private func changeEncoding(_ sender: NSMenuItem) {
+        guard ownedPresentationReady else{return}
         guard let raw = sender.representedObject as? String, let encoding = ComparisonTextEncoding(rawValue: raw) else { return }
         model?.changeEncoding(encoding, base: baseSide)
     }
     @objc private func changeWhitespace(_ sender: NSMenuItem) {
+        guard ownedPresentationReady else{return}
         guard MergeWhitespaceCommand.allCases.indices.contains(sender.tag) else { return }
         model?.changeWhitespace(MergeWhitespaceCommand.allCases[sender.tag], base: baseSide)
     }
     @objc private func changeLineEnding(_ sender: NSMenuItem) {
+        guard ownedPresentationReady else{return}
         guard MergeLineEnding.allCases.indices.contains(sender.tag) else { return }
         model?.changeLineEnding(MergeLineEnding.allCases[sender.tag], base: baseSide)
     }
-    @objc private func markBlock() { model?.markBlock(true, targetBase: false) }
-    @objc private func unmarkBlock() { model?.markBlock(false, targetBase: false) }
-    @objc private func leaveOnlyMarked() { model?.leaveOnlyMarked(targetBase: false) }
-    @objc private func exportPane() { model?.saveAs(base: baseSide) }
-    @objc private func undoEdit() { model?.undo() }
-    @objc private func redoEdit() { model?.redo() }
+    @objc private func markBlock() { guard ownedPresentationReady else{return};model?.markBlock(true, targetBase: false) }
+    @objc private func unmarkBlock() { guard ownedPresentationReady else{return};model?.markBlock(false, targetBase: false) }
+    @objc private func leaveOnlyMarked() { guard ownedPresentationReady else{return};model?.leaveOnlyMarked(targetBase: false) }
+    @objc private func exportPane() { guard ownedPresentationReady else{return};model?.saveAs(base: baseSide) }
+    @objc private func undoEdit() { guard ownedPresentationReady else{return};model?.undo() }
+    @objc private func redoEdit() { guard ownedPresentationReady else{return};model?.redo() }
 
 }
 
@@ -3381,7 +3488,7 @@ private final class FileComparisonTextView: MergePaneInputTextView, MergeEditorP
     @objc func copySelection(_ sender: Any?) { view?.copySelection(to: pasteboard) }
     @objc func cutSelection(_ sender: Any?) { view?.cutSelection(to: pasteboard) }
     @objc func pasteSelection(_ sender: Any?) {
-        guard let view, view.window != nil, view.isEditable, view.model?.contextCommandsAllowed == true,
+        guard let view,view.nativeMutationAllowed,view.model?.contextCommandsAllowed == true,
               view.model?.canTransfer(toBase: view.baseSide) == true, let text = pasteboard.string(forType: .string) else { return }
         view.insertText(text, replacementRange: view.selectedRange())
     }

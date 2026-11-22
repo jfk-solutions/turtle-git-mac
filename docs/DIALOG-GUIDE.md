@@ -25,6 +25,11 @@ recovery limits.
 
 Use Clone to choose a repository URL and a destination folder. Choose an empty
 or new destination, review the branch and clone options, then start the operation.
+When you open Clone from a folder, a URL already copied to the clipboard supplies
+the repository name below that folder. For example, `rough.git` suggests
+`selected-folder/rough`. The same suggestion applies to a URL loaded from history.
+Changing the URL replaces the suggested name; an explicitly edited or browsed
+destination is retained.
 The progress window reports Git's output and offers cancellation. A cancelled or
 failed clone can leave files in its destination; inspect them before retrying.
 
@@ -699,6 +704,11 @@ Undo follows the most recent edit across both comparison panes. An edit that
 leaves the same text still marks that pane modified after Save. Undo/Redo can
 return to the saved state. When both sides of an alignment gap become empty,
 the redundant row disappears; ordinary blank lines remain.
+
+Save and Save As retain the document's history. Switching the Classic/P4Merge-style
+interface preserves it in both Compare and Merge; it does not reopen the input
+files. Format history restores text, line endings and encoding together. Cancelling
+or failing Save As leaves the existing target, draft and history available.
 
 The [Merge comparison filters guide](MERGE-FILTERS.md) explains the shipped GUID
 preset and importing/exporting `regexfilters.ini` libraries.

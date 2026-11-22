@@ -275,7 +275,12 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     func configureLaunch(source: String?, exactPath: Bool) {
         guard canEditForm else { return }
         exactDestination = exactPath
-        if let source { self.source = source; sourceChanged() }
+        if let source { self.source = source }
+        // Clipboard/history sources are installed before the form exists, so
+        // SwiftUI's change observer does not see their initial value. Apply the
+        // same destination suggestion after the launch's exact-path policy is
+        // known, even when no explicit source argument was supplied.
+        sourceChanged()
     }
     func sourceChanged() {
         guard canEditForm else{return}
@@ -283,7 +288,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
         var name = value.components(separatedBy: CharacterSet(charactersIn: "/\\:")).last ?? ""
         if name.lowercased().hasSuffix(".git") { name.removeLast(4) }
         if !exactDestination, !name.isEmpty, name != ".", name != "..", !name.contains("\0") {
-            if let old = automaticDirectory, directory == old {
+            if let old = automaticDirectory, GitReferenceName.equal(directory,old) {
                 directory = URL(fileURLWithPath: old).deletingLastPathComponent().appendingPathComponent(name).path
                 automaticDirectory = directory
             } else if automaticDirectory == nil {

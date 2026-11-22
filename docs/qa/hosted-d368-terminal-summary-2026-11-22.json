@@ -1,0 +1,267 @@
+{
+  "source": "d368022a03f9f94a34d4bcf9da2767ff35464ff1",
+  "run": 42425593387,
+  "observed_date": "2026-11-22",
+  "evidence": "Connected GitHub workflow job/step summaries; full logs failed through connector (Transport closed). Browser job summary confirmed failure; raw-log navigation blocked by browser security policy. No alternate raw-log access attempted; causes not inferred from step names.",
+  "jobs": [
+    {
+      "id": 128574668127,
+      "name": "svn-runtime",
+      "status": "completed",
+      "conclusion": "success",
+      "failed_steps": []
+    },
+    {
+      "id": 128575020282,
+      "name": "validation (history-references)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 221,
+          "name": "Native Browser historical Save and Open ownership"
+        },
+        {
+          "number": 273,
+          "name": "Native Blame captured source menus"
+        },
+        {
+          "number": 314,
+          "name": "Exact Unicode repository paths and browser actions"
+        },
+        {
+          "number": 320,
+          "name": "Three-pane ordinary block choices, navigation, history and ignored conflicts"
+        },
+        {
+          "number": 426,
+          "name": "Native Revision Graph window and Filter with both Git engines"
+        }
+      ]
+    },
+    {
+      "id": 128575020326,
+      "name": "validation (editors)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 177,
+          "name": "Compare and Merge folded keyboard input and aligned deletion"
+        },
+        {
+          "number": 178,
+          "name": "Embedded Commit patches and Compare/Merge appearance ownership"
+        },
+        {
+          "number": 209,
+          "name": "Native exact patch rename recovery and import provider paths"
+        },
+        {
+          "number": 211,
+          "name": "Native legacy patch preview recovery and application"
+        },
+        {
+          "number": 214,
+          "name": "Native Merge Editor source form and profile ownership"
+        },
+        {
+          "number": 233,
+          "name": "Native replay readiness merge completion and Resolve inspection"
+        },
+        {
+          "number": 287,
+          "name": "Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle"
+        },
+        {
+          "number": 289,
+          "name": "Native Merge forced cleanup"
+        },
+        {
+          "number": 295,
+          "name": "Grouped native Format Patch ownership, mail, policies and streaming"
+        },
+        {
+          "number": 301,
+          "name": "Native patch file panel and recovery"
+        },
+        {
+          "number": 313,
+          "name": "Native Compare and Merge AppKit toolbar workflows"
+        },
+        {
+          "number": 329,
+          "name": "Source Import Patch native list, options, owned panels and serial workflows"
+        },
+        {
+          "number": 335,
+          "name": "Native message-history source dialog and Commit Merge handoff"
+        },
+        {
+          "number": 368,
+          "name": "Native Credential advanced editing and connected Merge workflows"
+        }
+      ]
+    },
+    {
+      "id": 128575020330,
+      "name": "validation (core)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 79,
+          "name": "Git integration tests"
+        }
+      ]
+    },
+    {
+      "id": 128575020356,
+      "name": "validation (commit-repository)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 58,
+          "name": "Restore universal SVN payload"
+        }
+      ]
+    },
+    {
+      "id": 128575020373,
+      "name": "validation (distribution)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 431,
+          "name": "Native Cherry Pick and Rebase recovery across Git versions"
+        }
+      ]
+    },
+    {
+      "id": 128575020394,
+      "name": "validation (images-documents)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 163,
+          "name": "EMF+ SourceCopy image and conflict workflows"
+        },
+        {
+          "number": 405,
+          "name": "Statistics source export filters and owned save cancellation"
+        },
+        {
+          "number": 412,
+          "name": "Statistics source hover geometry and chart ownership"
+        },
+        {
+          "number": 413,
+          "name": "Statistics exact author identity and graph exports"
+        },
+        {
+          "number": 414,
+          "name": "Shared native graph scenes and enhanced-metafile save ownership"
+        }
+      ]
+    },
+    {
+      "id": 128575020401,
+      "name": "validation (replay-transport)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 86,
+          "name": "Source history actions and replay identity family"
+        },
+        {
+          "number": 196,
+          "name": "Rebase source forms and connected workflows"
+        },
+        {
+          "number": 235,
+          "name": "Native history navigation warnings Combine and child submodule inspections"
+        },
+        {
+          "number": 252,
+          "name": "Native Clone progress and repository setup/transition recovery"
+        },
+        {
+          "number": 268,
+          "name": "Native primary command launch family"
+        },
+        {
+          "number": 333,
+          "name": "Native Log and Rebase font"
+        },
+        {
+          "number": 346,
+          "name": "Grouped native Request Pull waiting, editor, mail and cancellation"
+        },
+        {
+          "number": 359,
+          "name": "Native ordinary Fetch progress and post-actions"
+        },
+        {
+          "number": 369,
+          "name": "Check connected Stash and Submodule recovery workflows"
+        },
+        {
+          "number": 370,
+          "name": "Check connected Switch, Reset and Bisect workflows"
+        },
+        {
+          "number": 380,
+          "name": "Native Synchronization histories and revision lists"
+        },
+        {
+          "number": 381,
+          "name": "Native Synchronization outgoing, Fetch transports and owner lifetime"
+        },
+        {
+          "number": 385,
+          "name": "Native Synchronization reference and tag results"
+        }
+      ]
+    },
+    {
+      "id": 128575020406,
+      "name": "validation (settings-finder)",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 101,
+          "name": "Commit options, Log columns and Settings appearance"
+        },
+        {
+          "number": 226,
+          "name": "Grouped native exact-text Git identity, credentials and Network settings"
+        },
+        {
+          "number": 325,
+          "name": "Native filesystem path completion"
+        },
+        {
+          "number": 393,
+          "name": "Native language settings and compiled app resources"
+        }
+      ]
+    },
+    {
+      "id": 128625367886,
+      "name": "build-and-test",
+      "status": "completed",
+      "conclusion": "failure",
+      "failed_steps": [
+        {
+          "number": 2,
+          "name": "Require every validation lane and runtime producer"
+        }
+      ]
+    }
+  ]
+}

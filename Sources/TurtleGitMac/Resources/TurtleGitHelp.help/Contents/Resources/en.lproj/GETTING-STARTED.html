@@ -61,7 +61,9 @@ activation status. <strong>Apply</strong> saves badge preferences; macOS control
 activation. Enabling the extension does not grant folder access or register a
 repository.</p>
 <p>With the signed Finder extension enabled, select a folder and open <strong>TurtleGit</strong>
-in its context menu. <strong>Clone…</strong> opens the clone form with that destination;
+in its context menu. <strong>Clone…</strong> opens the clone form using that folder as the parent
+for the repository name from the clipboard or URL history (for example,
+<code>rough.git</code> becomes <code>selected-folder/rough</code>);
 <strong>Create repository…</strong> opens the creation form. For a repository already on disk,
 choose <strong>Add to TurtleGit…</strong>. The app requests folder access when needed, validates
 the repository and saves it in Open Recent and Watched Repositories. Registration
@@ -357,6 +359,10 @@ uses that file. <strong>Save As…</strong> chooses another destination, and Can
 current one. Inputs stay unchanged unless you explicitly select an input file
 as the output. Shared input paths are supported. If another program changes an
 input or an already-saved output, reload/review the changes before saving again.</p>
+<p>Saving keeps the document's Undo/Redo history. Switching between Classic and
+P4Merge-style presentation keeps that history too. Undo after Save restores an
+earlier edit state; format Undo restores text, line endings and
+encoding together. Cancelling Save As keeps the existing target and draft.</p>
 <p>When you return to a text comparison or merge window, TurtleGit checks its local
 source files. <strong>Load changes</strong> replaces the current views and discards unsaved
 edits. <strong>Ignore changes</strong> and <strong>Cancel</strong> keep the displayed versions and acknowledge

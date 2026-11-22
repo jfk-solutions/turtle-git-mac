@@ -565,6 +565,14 @@ public struct FileComparisonDrafts {
         _ = try value.encode(text)
         panes[base]?.encoding = value
     }
+    /// Restore an owned history snapshot, including an unsavable draft which
+    /// existed before the user chose another output codec. Unlike a new format
+    /// choice this does not validate or rewrite text, or alter the saved target.
+    /// Saving/exporting still performs the ordinary lossless encoding check.
+    public mutating func restoreEncodingForHistory(_ value: ComparisonTextEncoding, base: Bool) throws {
+        guard canEdit(base:base) else {throw FileComparisonEditFailure.unsupported}
+        panes[base]?.encoding=value
+    }
     public func text(base: Bool) -> String? { panes[base]?.text }
     public func annotations(base: Bool) -> FileComparisonEditing.Annotations { panes[base]?.annotations ?? .init() }
     public func editRevision(base: Bool) -> UUID? { panes[base]?.editRevision }
