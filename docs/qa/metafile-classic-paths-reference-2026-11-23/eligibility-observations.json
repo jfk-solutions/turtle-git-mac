@@ -1,0 +1,20 @@
+﻿{"scope":"Finite native GDI WidenPath eligibility only; no pixels or TurtleGit runtime","cases":[
+{"transform":"identity","kind":"classic","logicalWidth":1,"xMappedVector":[1,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,16,48,17]},
+{"transform":"identity","kind":"classic","logicalWidth":2,"xMappedVector":[2,0],"setup":1,"widen":1,"lastError":0,"pathCount":8,"logicalPathBounds":[7,15,49,17]},
+{"transform":"enlarge3","kind":"classic","logicalWidth":1,"xMappedVector":[3,0],"setup":1,"widen":1,"lastError":0,"pathCount":10,"logicalPathBounds":[8,16,48,17]},
+{"transform":"enlarge3","kind":"classic","logicalWidth":2,"xMappedVector":[6,0],"setup":1,"widen":1,"lastError":0,"pathCount":18,"logicalPathBounds":[7,15,49,17]},
+{"transform":"shrinkQuarter","kind":"classic","logicalWidth":1,"xMappedVector":[0,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[6,14,50,18]},
+{"transform":"shrinkQuarter","kind":"classic","logicalWidth":2,"xMappedVector":[1,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[6,14,50,18]},
+{"transform":"anisotropic","kind":"classic","logicalWidth":1,"xMappedVector":[3,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,14,48,18]},
+{"transform":"anisotropic","kind":"classic","logicalWidth":2,"xMappedVector":[6,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[7,14,49,18]},
+{"transform":"rotate45","kind":"classic","logicalWidth":1,"xMappedVector":[1,1],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,16,48,16]},
+{"transform":"rotate45","kind":"classic","logicalWidth":2,"xMappedVector":[1,1],"setup":1,"widen":1,"lastError":0,"pathCount":8,"logicalPathBounds":[7,15,49,17]},
+{"transform":"shear","kind":"classic","logicalWidth":1,"xMappedVector":[1,2],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[7,15,49,17]},
+{"transform":"shear","kind":"classic","logicalWidth":2,"xMappedVector":[2,3],"setup":1,"widen":1,"lastError":0,"pathCount":8,"logicalPathBounds":[7,15,49,17]},
+{"transform":"identity","kind":"classic","logicalWidth":0,"xMappedVector":[0,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,16,48,17]},
+{"transform":"shrinkQuarter","kind":"classic","logicalWidth":8,"xMappedVector":[2,0],"setup":1,"widen":1,"lastError":0,"pathCount":8,"logicalPathBounds":[4,12,52,20]},
+{"transform":"identity","kind":"geometric","logicalWidth":1,"xMappedVector":[1,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,16,48,17]},
+{"transform":"identity","kind":"cosmetic","logicalWidth":1,"xMappedVector":[1,0],"setup":1,"widen":0,"lastError":1003,"pathCount":2,"logicalPathBounds":[8,16,48,16]},
+{"transform":"identity","kind":"stock","logicalWidth":1,"xMappedVector":[1,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,16,48,17]},
+{"transform":"identity","kind":"null","logicalWidth":2,"xMappedVector":[2,0],"setup":1,"widen":1,"lastError":0,"pathCount":6,"logicalPathBounds":[8,16,48,17]}
+],"count":18}

@@ -254,23 +254,40 @@ extension GitRepository {
             .filter { $0.action != "M" || $0.hasStatistics }
     }
 
-    public func workingTreeFiles(amendToParent: Bool = false,paths:[String]?=nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+    public func workingTreeFiles(amendToParent: Bool = false,paths:[String]?=nil,includedStaged:Bool=false, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
         let scope=try workingStatusScope(paths)
         if scope?.isEmpty == true {return []}
         let head = (try? run(["rev-parse", "--verify", "HEAD"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation)) != nil
         let base = amendToParent ? [try commitComparisonBase(amendToParent: true, cancellation: cancellation)] : head ? ["HEAD"] : ["--cached"]
-        // Git's diff auto-refresh writes its index lock even with optional
-        // locks disabled. Display statistics must suppress that separate path.
-        let args = ["-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + base
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
-                                raw: try run(args + ["--raw", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
-            // With auto-refresh disabled, name/raw output can retain an M row
-            // whose stat changed but contents did not. Numstat performs the
-            // content comparison: real binary/mode/gitlink changes still have
-            // a record (including -/- or 0/0); non-M actions remain untouched.
-            .filter { $0.action != "M" || $0.hasStatistics }
+        // Keep each source invocation separate: combining two exact names can
+        // invent a rename whose A/D rows were independent in ChangedDlg.
+        let prefix = ["-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color"]
+        let wholeArguments=prefix+diffDetection.comparisonArguments+base
+        func read(_ paths:[String],cached:Bool=false)throws->[CommitFile] {
+            // Source cached inventory always uses default50 C-before-M; only
+            // whole-working comparisons inherit the configured percentage.
+            let args=cached ? prefix+["--cached","-C","-M"]+(amendToParent ? base:[]):wholeArguments
+            return try CommitFile.parse(names: run(args + ["--name-status", "-z", "--"]+paths, environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                 statistics: run(args + ["--numstat", "-z", "--"]+paths, environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                 raw: run(args + ["--raw", "-z", "--"]+paths, environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
+                .filter { $0.action != "M" || $0.hasStatistics }
+        }
+        guard let scope else {return try read([])}
+        var result:[CommitFile]=[],represented=GitPathSet()
+        for path in scope {
+            try cancellation?.check()
+            let rows=try read([path])
+            // Preserve U/M multiplicity inside one packet; only overlapping
+            // earlier invocations suppress the same path from a later packet.
+            result += rows.filter{!represented.contains($0.path)}
+            represented.formUnion(rows.map(\.path))
+        }
+        if includedStaged {
+            let cached=try read([],cached:true)
+            result += cached.filter{!workingStatusPath($0.path,isWithin:scope) && !represented.contains($0.path)}
+        }
+        return result
     }
 }
 

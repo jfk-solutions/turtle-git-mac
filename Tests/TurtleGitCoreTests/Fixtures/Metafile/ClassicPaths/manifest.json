@@ -1,0 +1,710 @@
+{
+  "files": [
+    {
+      "bytes": 296,
+      "file": "flatten-active-save-restore-control.emf",
+      "role": "independent record control",
+      "sha256": "937ccdab4deb233d71527f28775bb4cd32b865dcd3e4741d7bd1c599c3c727dd"
+    },
+    {
+      "bytes": 340,
+      "file": "flatten-active-save-restore.emf",
+      "role": "open path and current position belong to SaveDC",
+      "sha256": "d3e1881fbdf53050c36676e53d7c1d27440565e054728c5777516585dff42fe9"
+    },
+    {
+      "bytes": 8635,
+      "file": "flatten-bernstein-256.svg",
+      "format": "svg",
+      "role": "retained independently authored oversampled control; diagnostic positive, not the full-frame oracle",
+      "sha256": "4f8b2f40205695bf6e8600bdb148b4c2589e3f648b44e318cda3bb550ded7220"
+    },
+    {
+      "bytes": 324,
+      "file": "flatten-completed-save-restore-control.emf",
+      "role": "independent record control",
+      "sha256": "9b6e81d68137b81942143d024f4b4187ce4ead17ed259248ac03dd47e2e5c687"
+    },
+    {
+      "bytes": 400,
+      "file": "flatten-completed-save-restore.emf",
+      "role": "completed path survives replacement and RestoreDC",
+      "sha256": "3a7458e352de19ee0fee207be283272a765435884df55eeb4a9ae69786051737"
+    },
+    {
+      "bytes": 4105,
+      "file": "flatten-cubic-stroke-control.svg",
+      "format": "svg",
+      "role": "independent exact authored Bernstein rational SVG, not returned renderer geometry",
+      "sha256": "ea15e2a72abc8ea37744c0a11fc1ed495bd48fce761564c68eb8c1b0fba1c609"
+    },
+    {
+      "bytes": 324,
+      "file": "flatten-cubic-stroke.emf",
+      "role": "bounded line-only replacement and logical current position",
+      "sha256": "9b6e81d68137b81942143d024f4b4187ce4ead17ed259248ac03dd47e2e5c687",
+      "tolerance": 2
+    },
+    {
+      "bytes": 4225,
+      "file": "flatten-following-position-control.svg",
+      "format": "svg",
+      "role": "independent exact authored Bernstein rational SVG, not returned renderer geometry",
+      "sha256": "262909a4d181492db409973d7de7037c4e386077c737bcccf34ed6d75cd74351"
+    },
+    {
+      "bytes": 340,
+      "file": "flatten-following-position.emf",
+      "role": "bounded line-only replacement and logical current position",
+      "sha256": "1452b5e456d5900c7a5d84c541af87a296130c061c68ca15024538702c336511",
+      "tolerance": 2
+    },
+    {
+      "bytes": 208,
+      "file": "flatten-no-early-ink-control.emf",
+      "role": "independent record control",
+      "sha256": "a175ac1d7d2c3085fb6ace35fcfae471d44d5043da94c030e5b917d5513ada54"
+    },
+    {
+      "bytes": 308,
+      "file": "flatten-no-early-ink.emf",
+      "role": "replacement alone never paints",
+      "sha256": "90ae3b828cdf700635d5209e65769106f48d35eceda560370d34f61f49f4385a"
+    },
+    {
+      "bytes": 316,
+      "file": "flatten-original-cubic.emf",
+      "role": "original native cubic raster retained separately; not assumed pixel-identical to flattened line coverage",
+      "sha256": "20eb30a05997e6c2b87e3a08874da3a8934b20c8672082423366bd90cd1d1fd7"
+    },
+    {
+      "bytes": 2416,
+      "file": "flatten-rounded-bernstein.emf",
+      "role": "additional valid EMF wire; legacy SvgContext rounds device vertices to two decimals, not an exact geometry oracle",
+      "sha256": "f5db37347eee271675e73611c92e01a431a86fd55d30f4b4a2ff513b62c1dc2e"
+    },
+    {
+      "bytes": 336,
+      "file": "polydraw16-close-current-position-control.emf",
+      "role": "independent record control",
+      "sha256": "c187b62fa2afdc6aec569ea04ace42bc7817d5f9378ae5b92f397b56afce5bc6"
+    },
+    {
+      "bytes": 308,
+      "file": "polydraw16-close-current-position.emf",
+      "role": "closing line returns current position to figure start",
+      "sha256": "465e2e2ff0f2723f19da3a5815504a104b5176200381a3f52135be6ddd63a7c9"
+    },
+    {
+      "bytes": 356,
+      "file": "polydraw16-cubic-control.emf",
+      "role": "independent record control",
+      "sha256": "76a4379cf7a90d4a3983b47705d775071167669788901ca9dcbdaf701a99ba52"
+    },
+    {
+      "bytes": 308,
+      "file": "polydraw16-cubic.emf",
+      "role": "typed cubic and explicit close",
+      "sha256": "1176fe99626faeedda0a45def0c6e919ffa6b2fccce02208ebe78ee675802222"
+    },
+    {
+      "bytes": 292,
+      "file": "polydraw16-current-position-control.emf",
+      "role": "independent record control",
+      "sha256": "e50d9c75dbcae95bbffcb49ef660296263963524dddac6b87ba204180cf6c3b4"
+    },
+    {
+      "bytes": 284,
+      "file": "polydraw16-current-position.emf",
+      "role": "implicit current position and subsequent LineTo",
+      "sha256": "0fe12505b6946e1ac0d19ff423f5cf687e5d06016cd40d0f9e5559cbbb5f53c4"
+    },
+    {
+      "bytes": 368,
+      "file": "polydraw16-figures-control.emf",
+      "role": "independent record control",
+      "sha256": "364f422dee4826b9753a6ae336494521a3fdd0499f051aba1af934c204874290"
+    },
+    {
+      "bytes": 312,
+      "file": "polydraw16-figures.emf",
+      "role": "multiple figures and close flag1",
+      "sha256": "a7b04ce2bd1df5bd03334509c480b919933d07f31386797794973f844bcc3069"
+    },
+    {
+      "bytes": 336,
+      "file": "polydraw32-close-current-position-control.emf",
+      "role": "independent record control",
+      "sha256": "c187b62fa2afdc6aec569ea04ace42bc7817d5f9378ae5b92f397b56afce5bc6"
+    },
+    {
+      "bytes": 320,
+      "file": "polydraw32-close-current-position.emf",
+      "role": "closing line returns current position to figure start",
+      "sha256": "7387d2d576bc81883ce2b6f2578aa8358d312d6bab0f0330de819d197fd4180a"
+    },
+    {
+      "bytes": 356,
+      "file": "polydraw32-cubic-control.emf",
+      "role": "independent record control",
+      "sha256": "76a4379cf7a90d4a3983b47705d775071167669788901ca9dcbdaf701a99ba52"
+    },
+    {
+      "bytes": 332,
+      "file": "polydraw32-cubic.emf",
+      "role": "typed cubic and explicit close",
+      "sha256": "3b7a729911ac495df6b3add7473c8feaf4dac018b19234e746b040aabc0d6358"
+    },
+    {
+      "bytes": 292,
+      "file": "polydraw32-current-position-control.emf",
+      "role": "independent record control",
+      "sha256": "e50d9c75dbcae95bbffcb49ef660296263963524dddac6b87ba204180cf6c3b4"
+    },
+    {
+      "bytes": 296,
+      "file": "polydraw32-current-position.emf",
+      "role": "implicit current position and subsequent LineTo",
+      "sha256": "f2f561e4c7dca5bf07f3690803b5b30206ac14a1cc63a261d6e8264990be48ba"
+    },
+    {
+      "bytes": 368,
+      "file": "polydraw32-figures-control.emf",
+      "role": "independent record control",
+      "sha256": "364f422dee4826b9753a6ae336494521a3fdd0499f051aba1af934c204874290"
+    },
+    {
+      "bytes": 340,
+      "file": "polydraw32-figures.emf",
+      "role": "multiple figures and close flag1",
+      "sha256": "1b8025d04ce8afd822e3d26645b84c2c13b3b1bc7d4e4b5694f9657a0502a9ba"
+    },
+    {
+      "bytes": 288,
+      "file": "refused-clip-active.emf",
+      "refused": true,
+      "sha256": "98fce8cf1d55ed9052b52ffc7223c4e50ab5668709527af952394e2c793ce32b"
+    },
+    {
+      "bytes": 276,
+      "file": "refused-end-without-begin.emf",
+      "refused": true,
+      "sha256": "65ba36eada6901b7f618f20331e2874e48bf7cd37eb0ca9cc7c75323852834ca"
+    },
+    {
+      "bytes": 284,
+      "file": "refused-flatten-active.emf",
+      "refused": true,
+      "sha256": "fd764bf51fe06e99a9b1749e8cf2b5be630d059a72d071ed27d60f293f9f355e"
+    },
+    {
+      "bytes": 364,
+      "file": "refused-flatten-body.emf",
+      "refused": true,
+      "sha256": "3f236223eee2ce965c5d12f28489a0dd70c7613b51d693b9783e464fae68777f"
+    },
+    {
+      "bytes": 276,
+      "file": "refused-flatten-idle.emf",
+      "refused": true,
+      "sha256": "afaebce7e0d162cbf015facfca10570d92dca6eab8231260c8c9fdf7eb659a9b"
+    },
+    {
+      "bytes": 284,
+      "file": "refused-nested-begin.emf",
+      "refused": true,
+      "sha256": "ca6bbe3ef19d93af095cef79d322e8f25e7ba127c6ee6a837a950cf2223042d2"
+    },
+    {
+      "bytes": 144308,
+      "file": "refused-path-scan-budget.emf",
+      "refused": true,
+      "role": "repeated small PolyDraw cannot cause unbounded cumulative joined-path scanning",
+      "sha256": "987c317a6c8e2f1119f446fff128ce31ddf677289ab0e669689f7d62f15e4367"
+    },
+    {
+      "bytes": 344,
+      "file": "refused-polydraw16-close-move.emf",
+      "refused": true,
+      "sha256": "2040377eedead4fedae0c8e003cfbb89594f22d8167a8273c9d48968fb27a1f8"
+    },
+    {
+      "bytes": 352,
+      "file": "refused-polydraw16-first-close.emf",
+      "refused": true,
+      "sha256": "2e3adff673402490b737031f4a4c5791bd33468e7d8e8d858f8d4a282273908a"
+    },
+    {
+      "bytes": 352,
+      "file": "refused-polydraw16-mixed-cubic.emf",
+      "refused": true,
+      "sha256": "e4acd2d40fb6e0510c461f20797277b05ecbe5c8aa2bddfe18ea214bdd3aae5a"
+    },
+    {
+      "bytes": 352,
+      "file": "refused-polydraw16-second-close.emf",
+      "refused": true,
+      "sha256": "b355fc2c68441d6e2ed1c4b6a392d03dd03aebdd25049bfe66d877c3ffa3ce0d"
+    },
+    {
+      "bytes": 348,
+      "file": "refused-polydraw16-short-cubic.emf",
+      "refused": true,
+      "sha256": "cb512ba8730f16f1221314ab8230d49acc66679c8f71f1133512532758cf5aee"
+    },
+    {
+      "bytes": 344,
+      "file": "refused-polydraw16-truncated.emf",
+      "framing": true,
+      "refused": true,
+      "sha256": "72c0b27cb2e31d8abfd4321e9ff52c52f43361807ff92593c12b4cdcffd7c94c"
+    },
+    {
+      "bytes": 344,
+      "file": "refused-polydraw16-unknown-type.emf",
+      "refused": true,
+      "sha256": "c7d42c235a9c442bd6807aee67733874eab513fc9552262032a0fe8099e2656b"
+    },
+    {
+      "bytes": 344,
+      "file": "refused-polydraw16-zero-type.emf",
+      "refused": true,
+      "sha256": "a7dcb1f569fa3a03aab0b21a35a4e16cdec13ec5fc1800ab54f0ba80a43d9c3b"
+    },
+    {
+      "bytes": 348,
+      "file": "refused-polydraw32-close-move.emf",
+      "refused": true,
+      "sha256": "7499c2d4caa0333d5eba4fe084351a99073de24e3f0fe5d64ae701db889ba19c"
+    },
+    {
+      "bytes": 364,
+      "file": "refused-polydraw32-first-close.emf",
+      "refused": true,
+      "sha256": "c3c3c61823fa5e79ab07a11c6ac402c4d0a4e394b0085da738820caf4e1d4a62"
+    },
+    {
+      "bytes": 364,
+      "file": "refused-polydraw32-mixed-cubic.emf",
+      "refused": true,
+      "sha256": "83205d85437384a1244d437cb0797ac6b05bfdd327bab35a2a1bdd5c43cb74a6"
+    },
+    {
+      "bytes": 364,
+      "file": "refused-polydraw32-second-close.emf",
+      "refused": true,
+      "sha256": "069213774823202b76799846a40a49b33f5c66054fe3b70eae963c8195b40653"
+    },
+    {
+      "bytes": 356,
+      "file": "refused-polydraw32-short-cubic.emf",
+      "refused": true,
+      "sha256": "66ae6e0c7b817fe2bd6784d6f507d5182ed3ca107099de8e0385a31b83fdc8b6"
+    },
+    {
+      "bytes": 352,
+      "file": "refused-polydraw32-truncated.emf",
+      "framing": true,
+      "refused": true,
+      "sha256": "66171ad2027173494f33aa97c795598c1c9b20a2f7a634a4855c31e03ed05a4f"
+    },
+    {
+      "bytes": 348,
+      "file": "refused-polydraw32-unknown-type.emf",
+      "refused": true,
+      "sha256": "1c9179714a6365fa434749b08bb690b8c12db94b237268192d9764bfbf533636"
+    },
+    {
+      "bytes": 348,
+      "file": "refused-polydraw32-zero-type.emf",
+      "refused": true,
+      "sha256": "c70a770582c4f467e4c175335ad5b729b92f5a22c9a840a7d7b9757460d70508"
+    },
+    {
+      "bytes": 880352,
+      "file": "refused-selected-path-text-budget.emf",
+      "refused": true,
+      "role": "legacy path construction exceeds selected text budget before any consumer ink",
+      "sha256": "9b2902ea5197e641166a30b3fbc3ba79d58504dd1ed07a4b7cb44ce99a08a71c"
+    },
+    {
+      "bytes": 300,
+      "file": "refused-stroke-active.emf",
+      "refused": true,
+      "sha256": "4522967a6707d9c5d41889975539771fec19940fd2da31aa0f44be8357e7b6c3"
+    },
+    {
+      "bytes": 364,
+      "file": "refused-widen-body.emf",
+      "refused": true,
+      "sha256": "85492384efd939e31ee7cc7e753bd0e415b714dbfb61230c24d04cf7702d71de"
+    },
+    {
+      "bytes": 424,
+      "file": "refused-widen-cosmetic.emf",
+      "refused": true,
+      "sha256": "f4e13ac75156a9005c6173a05de90ef1340626c74840d3771ccf6ab04367ab7c"
+    },
+    {
+      "bytes": 276,
+      "file": "refused-widen-idle.emf",
+      "refused": true,
+      "sha256": "2db89d2b0b78854d96b7711692876887321129dcfbf8ac3d816303d4ac337d56"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-bevel-fill-control.emf",
+      "role": "independent record control",
+      "sha256": "c8a2a8560073966b10fb55722ab0a17fa578aac34245bb7bf9aff51da71bd5b8"
+    },
+    {
+      "bytes": 404,
+      "file": "widen-bevel-fill.emf",
+      "role": "current selected geometric pen becomes fill area",
+      "sha256": "d0fe2e707122b95cbe4d230fa5badb7e59574d9481293e8d207143b87afb70e9",
+      "tolerance": 2
+    },
+    {
+      "bytes": 412,
+      "file": "widen-clip.emf",
+      "role": "widened geometry consumed by SelectClipPath",
+      "sha256": "dea0576b895c4452e2d1b2b8b3b2ae5deebe61b57fdbaf2a9bdc69aec88f1562"
+    },
+    {
+      "bytes": 440,
+      "file": "widen-cubic-flatten-repeat.emf",
+      "role": "cubic widening then repeated replacement",
+      "sha256": "eb0c05917e08811a7a99c15ac2e16a6f67f1c774662e19319a365872f451ada1"
+    },
+    {
+      "bytes": 452,
+      "file": "widen-current-pen.emf",
+      "role": "operation uses new selected pen; blue fill, not red pen color",
+      "sha256": "5dac35b5a98666136f86f42a042f08f8e462d5ec6bd7ccdd704b0650972629f6"
+    },
+    {
+      "bytes": 404,
+      "file": "widen-dash-fill-control.emf",
+      "role": "independent record control",
+      "sha256": "4bc059905524360e2d45281ba9ab448a163aafd00afed3d8d0279fd7a9b12bb2"
+    },
+    {
+      "bytes": 412,
+      "file": "widen-dash-fill.emf",
+      "role": "current selected geometric pen becomes fill area",
+      "sha256": "c9596722685c8383781c1c65c6a710489919fbbe034df00d943b03f0dcdfc02b",
+      "tolerance": 2
+    },
+    {
+      "bytes": 248,
+      "file": "widen-default-pen-control.emf",
+      "role": "independent record control",
+      "sha256": "f507a6a24b1b2cad939a72c0967865153235c36440ff2fcc77ce3cd31a638ecb"
+    },
+    {
+      "bytes": 236,
+      "file": "widen-default-pen.emf",
+      "role": "unselected native DC pen is implicit stock BLACK_PEN without mutating selection",
+      "sha256": "7e573d22f753683f7e2aeb6d6db99e8fc6d4889431d5bb35c7f66fb6ebadb532"
+    },
+    {
+      "bytes": 388,
+      "file": "widen-device-capture-control.emf",
+      "role": "independent record control",
+      "sha256": "e3b68818a073a93230d905c05a222f58c980d70c77b1f1afdb4f614657be63f4"
+    },
+    {
+      "bytes": 452,
+      "file": "widen-device-capture.emf",
+      "role": "captured device geometry survives later world change",
+      "sha256": "8d19120d80453b62febb5df34199272b740f9f2ea957bbe6432c644a404a9647"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-flat-fill-control.emf",
+      "role": "independent record control",
+      "sha256": "2c4bf05ba0b3e493c298e90e0f4e178d1eee14105eae8dc432b84a415570a716"
+    },
+    {
+      "bytes": 404,
+      "file": "widen-flat-fill.emf",
+      "role": "current selected geometric pen becomes fill area",
+      "sha256": "1a0c426eee3977f8f9b1cf790ed9a718e05d53738f50395108e0c201a532f62b",
+      "tolerance": 2
+    },
+    {
+      "bytes": 396,
+      "file": "widen-miter-fill-control.emf",
+      "role": "independent record control",
+      "sha256": "6250da89fe7016f42129d183bd07858d7557beb0e9537f78b50cc64f9c1943b0"
+    },
+    {
+      "bytes": 404,
+      "file": "widen-miter-fill.emf",
+      "role": "current selected geometric pen becomes fill area",
+      "sha256": "19ba6a3f8c5037cb8d71dc12a7c5186361a708a5d7dea90b31a5d33cdfc98d34",
+      "tolerance": 2
+    },
+    {
+      "bytes": 208,
+      "file": "widen-no-early-ink-control.emf",
+      "role": "independent record control",
+      "sha256": "a175ac1d7d2c3085fb6ace35fcfae471d44d5043da94c030e5b917d5513ada54"
+    },
+    {
+      "bytes": 372,
+      "file": "widen-no-early-ink.emf",
+      "role": "widen alone never paints",
+      "sha256": "2eb62c5a769e0c604944eaf9a768a7279034f9de4b3d2f0ea33142bc05f63489"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-normal-anisotropic.emf",
+      "role": "native-success transformed ordinary nib and minimum device coverage",
+      "sha256": "dec1943738f5d339ceeeb7c6bbf739eeb8a4bd6429e8ee5430611ce0fc192a51"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-normal-enlarged.emf",
+      "role": "native-success transformed ordinary nib and minimum device coverage",
+      "sha256": "de84c77944080f06563e4532595a06d1cd82e865a735d3b8dd7aca7ec60221a0"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-normal-sheared.emf",
+      "role": "native-success transformed ordinary nib and minimum device coverage",
+      "sha256": "e9ec3411f6562fc7cfc688ffff8ffb89028d3ab93ac2a09c2f87083af758a962"
+    },
+    {
+      "bytes": 388,
+      "file": "widen-normal-thin-control.emf",
+      "role": "independent record control",
+      "sha256": "b6d4e3f485de4cccaa7e844e49b7b69501d72da3c45c6630475e2a12d1db797b"
+    },
+    {
+      "bytes": 364,
+      "file": "widen-normal-thin.emf",
+      "role": "native-success CreatePen width1",
+      "sha256": "766a2119f8442e6c5e8ea3544ca98ef67692a9b69844d799d49e994daf4ed234"
+    },
+    {
+      "bytes": 364,
+      "file": "widen-normal-wide-dash-solid-control.emf",
+      "role": "independent record control",
+      "sha256": "9a3f5bba999bdcf13d3c356f879d920f0f401cd150b10ebef8d6a6da3fb57ec0"
+    },
+    {
+      "bytes": 364,
+      "file": "widen-normal-wide-dash-solid.emf",
+      "role": "CreatePen width above1 normalizes built-in dash to solid",
+      "sha256": "4a43b39df9a9cb37deca3aa5ed7c109a499ac23b951444e0ff9c91b7f821e8d3"
+    },
+    {
+      "bytes": 364,
+      "file": "widen-normal-wide.emf",
+      "role": "CreatePen width above1",
+      "sha256": "82a51d2d56e61d067d1a66b4efa9a7338859382d0aac810447d1f2fdf9dffb21"
+    },
+    {
+      "bytes": 388,
+      "file": "widen-normal-zero-control.emf",
+      "role": "independent record control",
+      "sha256": "d22736419d3d83bfd99ff3e4de1a95667d5f9515e4fe8825ba43100cb32ce60b"
+    },
+    {
+      "bytes": 364,
+      "file": "widen-normal-zero.emf",
+      "role": "native-success CreatePen zero device hairline",
+      "sha256": "ae18c78375b58613774865f6a719fc4e8781653143c6b347c1d366992b4d2b9d"
+    },
+    {
+      "bytes": 388,
+      "file": "widen-null-control.emf",
+      "role": "independent record control",
+      "sha256": "d22736419d3d83bfd99ff3e4de1a95667d5f9515e4fe8825ba43100cb32ce60b"
+    },
+    {
+      "bytes": 364,
+      "file": "widen-null.emf",
+      "role": "native-success null pen still supplies solid device geometry",
+      "sha256": "fa0e57925364caa318a998b729e7dc7a7b4fec37b14cd6231a1d2925637cb0fd"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-round-fill-control.emf",
+      "role": "independent record control",
+      "sha256": "a73159ef64d610f9d4c0c2c2f785b065abcf2940548b172698729e571f9ca631"
+    },
+    {
+      "bytes": 404,
+      "file": "widen-round-fill.emf",
+      "role": "current selected geometric pen becomes fill area",
+      "sha256": "28c3585e3ad6c69b7f2e7719888882109c2882532641eb9ab84e2bbb8530c9f1",
+      "tolerance": 2
+    },
+    {
+      "bytes": 388,
+      "file": "widen-shrunk-minimum-control.emf",
+      "role": "independent record control",
+      "sha256": "91052168e63feaed71e418f37d106b987ccb96bf58ca7577b98f65c92e4fccfb"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-shrunk-minimum.emf",
+      "role": "shrunk classic nib retains minimum one device pixel",
+      "sha256": "5983d921e985ea351cdda75861db0d2fd357d1fdb978ed74e78c80b2bb13a48a"
+    },
+    {
+      "bytes": 396,
+      "file": "widen-square-fill-control.emf",
+      "role": "independent record control",
+      "sha256": "06459acf533efba7c8fff143c5134b5bd5f06b2ba6279187c7e2b4d8444729e3"
+    },
+    {
+      "bytes": 404,
+      "file": "widen-square-fill.emf",
+      "role": "current selected geometric pen becomes fill area",
+      "sha256": "173ab3ede405d92b90c9a5e3964478d071ed7a5ebdd2ca6bffeba5ebcbcdba24",
+      "tolerance": 2
+    },
+    {
+      "bytes": 388,
+      "file": "widen-stock-control.emf",
+      "role": "independent record control",
+      "sha256": "d22736419d3d83bfd99ff3e4de1a95667d5f9515e4fe8825ba43100cb32ce60b"
+    },
+    {
+      "bytes": 336,
+      "file": "widen-stock.emf",
+      "role": "native-success stock BLACK_PEN device hairline",
+      "sha256": "e68185108b9bb1a63945294433f9061514f113625f8212d92af5dc8c3c7118d3"
+    }
+  ],
+  "flattenReference": {
+    "maximumSecondDerivative": 240.0,
+    "method": "uniform chord error <= sup norm of second derivative / (8*N^2); next power of two",
+    "subdivisions": 128,
+    "tolerance": 0.00390625
+  },
+  "pairs": [
+    {
+      "control": "polydraw16-cubic-control.emf",
+      "subject": "polydraw16-cubic.emf"
+    },
+    {
+      "control": "polydraw16-figures-control.emf",
+      "subject": "polydraw16-figures.emf"
+    },
+    {
+      "control": "polydraw16-current-position-control.emf",
+      "subject": "polydraw16-current-position.emf"
+    },
+    {
+      "control": "polydraw16-close-current-position-control.emf",
+      "subject": "polydraw16-close-current-position.emf"
+    },
+    {
+      "control": "polydraw32-cubic-control.emf",
+      "subject": "polydraw32-cubic.emf"
+    },
+    {
+      "control": "polydraw32-figures-control.emf",
+      "subject": "polydraw32-figures.emf"
+    },
+    {
+      "control": "polydraw32-current-position-control.emf",
+      "subject": "polydraw32-current-position.emf"
+    },
+    {
+      "control": "polydraw32-close-current-position-control.emf",
+      "subject": "polydraw32-close-current-position.emf"
+    },
+    {
+      "control": "flatten-cubic-stroke-control.svg",
+      "subject": "flatten-cubic-stroke.emf"
+    },
+    {
+      "control": "flatten-following-position-control.svg",
+      "subject": "flatten-following-position.emf"
+    },
+    {
+      "control": "flatten-no-early-ink-control.emf",
+      "subject": "flatten-no-early-ink.emf"
+    },
+    {
+      "control": "flatten-active-save-restore-control.emf",
+      "subject": "flatten-active-save-restore.emf"
+    },
+    {
+      "control": "flatten-completed-save-restore-control.emf",
+      "subject": "flatten-completed-save-restore.emf"
+    },
+    {
+      "control": "widen-round-fill-control.emf",
+      "subject": "widen-round-fill.emf"
+    },
+    {
+      "control": "widen-flat-fill-control.emf",
+      "subject": "widen-flat-fill.emf"
+    },
+    {
+      "control": "widen-square-fill-control.emf",
+      "subject": "widen-square-fill.emf"
+    },
+    {
+      "control": "widen-miter-fill-control.emf",
+      "subject": "widen-miter-fill.emf"
+    },
+    {
+      "control": "widen-bevel-fill-control.emf",
+      "subject": "widen-bevel-fill.emf"
+    },
+    {
+      "control": "widen-dash-fill-control.emf",
+      "subject": "widen-dash-fill.emf"
+    },
+    {
+      "control": "widen-no-early-ink-control.emf",
+      "subject": "widen-no-early-ink.emf"
+    },
+    {
+      "control": "widen-device-capture-control.emf",
+      "subject": "widen-device-capture.emf"
+    },
+    {
+      "control": "widen-default-pen-control.emf",
+      "subject": "widen-default-pen.emf"
+    },
+    {
+      "control": "widen-normal-thin-control.emf",
+      "subject": "widen-normal-thin.emf"
+    },
+    {
+      "control": "widen-normal-zero-control.emf",
+      "subject": "widen-normal-zero.emf"
+    },
+    {
+      "control": "widen-stock-control.emf",
+      "subject": "widen-stock.emf"
+    },
+    {
+      "control": "widen-null-control.emf",
+      "subject": "widen-null.emf"
+    },
+    {
+      "control": "widen-normal-wide-dash-solid-control.emf",
+      "subject": "widen-normal-wide-dash-solid.emf"
+    },
+    {
+      "control": "widen-shrunk-minimum-control.emf",
+      "subject": "widen-shrunk-minimum.emf"
+    }
+  ],
+  "schema": 1,
+  "source": "Normative manually authored EMF records and two independent exact Bernstein SVG controls; no renderer-generated or Windows pixel expectations",
+  "specifications": [
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/01b63e3f-19d6-437c-8fc6-2758884bc08d",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/b930b989-30ec-4954-a889-1dc60ce0b689",
+    "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-widenpath"
+  ]
+}

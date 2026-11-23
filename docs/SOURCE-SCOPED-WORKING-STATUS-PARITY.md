@@ -117,7 +117,7 @@ the selected-folder scope, remain Added during fresh selection, leave the
 outside index/worktree untouched during mutation, and remain local during Retry.
 A paired independent destination/old-name invocation must retain both A/D rows
 and Revert both, restoring the old bytes while keeping the added working bytes.
-These are written assertions awaiting the grouped Core/native checkpoint.
+These assertions passed in the [grouped scope checkpoint](qa/scoped-working-reads-2026-11-23.json).
 Physical Finder integration and all historical/amend combinations are not proven
 by these cases.
 

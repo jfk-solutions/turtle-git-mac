@@ -162,14 +162,14 @@ private extension NSWindow {
             let reload=c.mark();model.reload();try await wait("Scoped Revert refresh did not drain"){model.canInteract}
             try c.prove("refresh",after:reload,allowed:[c.scope]);try await c.preserved()
             let root=c.root();var progress:RevertProgressWindowController?,attempts=0,factoryScope:[String]?,finished=false
-            root.makeDirectRevertProgress={repository,access,entries,amend,againstHead,prefs,policy,scope in
+            root.makeDirectRevertProgress={repository,access,entries,amend,againstHead,prefs,policy,scope,readScope in
                 factoryScope=scope
-                let child=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:false,preferences:prefs,policy:policy,paths:scope)
+                let child=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:false,preferences:prefs,policy:policy,paths:scope,readScope:readScope)
                 c.owners.append(child);progress=child
                 child.model.execute={rows,token,notify,output in
                     attempts += 1
                     if attempts==1 {throw NSError(domain:"ScopedRetryFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Private first-attempt failure before mutation"])}
-                    return try await repository.revertWorkingFiles(rows,amend:amend,amendDiffToLastCommit:againstHead,policy:policy,paths:scope,cancellation:token,progress:notify,onOutput:output)
+                    return try await repository.revertWorkingFiles(rows,amend:amend,amendDiffToLastCommit:againstHead,policy:policy,paths:scope,readScope:readScope,cancellation:token,progress:notify,onOutput:output)
                 }
                 return child
             }

@@ -1,0 +1,133 @@
+{
+  "schema": 1,
+  "scope": "Original finite native Windows GDI API/status and GetPath geometry observations; no TurtleGit output and no expected pixels",
+  "captureDate": "2026-11-23",
+  "cohorts": [
+    {
+      "name": "eligibility",
+      "count": 18,
+      "architecture": "ARM64",
+      "os": "Microsoft Windows NT 10.0.26200.0",
+      "compilerCommand": "cl /nologo /std:c++17 /EHsc /W4 Eligibility.cpp /link user32.lib gdi32.lib",
+      "originalEnvironmentSHA256": "c0265743274e274c9cac0d3f7f55021e2cd457acaecf3dc32e49b15c2690a7ca",
+      "originalSHA256ReceiptSHA256": "f39e757d4a531d87486022eca581641d10e0c2ee95ec64419960343210360ab7",
+      "originalFileHashes": [
+        {
+          "file": "capture.ps1",
+          "sha256": "080bec367b186a1281d16670514e50694f5284de8a0a543eb9fa38d182c6591f"
+        },
+        {
+          "file": "compiler.txt",
+          "sha256": "5c6095c4b76a9d0a7f20a8b855adc1b98793103efc9ef625de3c6ebf6c23fa9e"
+        },
+        {
+          "file": "Eligibility.cpp",
+          "sha256": "c066ed65190af764058e6d2eb7c912a0a385fbeff43bfeba1b859d5a4fcf668f"
+        },
+        {
+          "file": "Eligibility.exe",
+          "sha256": "2f9b4276c713a008f692a5f3183a9f011d96e0259dba8f703f8a649775392cf9"
+        },
+        {
+          "file": "Eligibility.obj",
+          "sha256": "edf7c02b9288918f48d047fda2443e3d87f683e9b95eae6ef96708afffbf2c85"
+        },
+        {
+          "file": "environment.json",
+          "sha256": "c0265743274e274c9cac0d3f7f55021e2cd457acaecf3dc32e49b15c2690a7ca"
+        },
+        {
+          "file": "observations.json",
+          "sha256": "da96172013fc95454cd8bbb11b9eb9c44ce1fd7fac9b3a93b8187dcd91e782ad"
+        },
+        {
+          "file": "runtime-versions.json",
+          "sha256": "713a326d17e4a9384e326bf3f84defe5ba1b10d096fb376f7d1434afb4955fd1"
+        },
+        {
+          "file": "gdi32.dll",
+          "sha256": "d030db7b41326258e8837d10e85a4d9a55c594776e6497745d3788281540a42c"
+        },
+        {
+          "file": "win32u.dll",
+          "sha256": "345d86e4357ccd1773929361863a6a8fe39ca7ac2995851c88495d0c42b3726e"
+        }
+      ],
+      "exports": {
+        "Eligibility.cpp": "c066ed65190af764058e6d2eb7c912a0a385fbeff43bfeba1b859d5a4fcf668f",
+        "eligibility-observations.json": "da96172013fc95454cd8bbb11b9eb9c44ce1fd7fac9b3a93b8187dcd91e782ad",
+        "eligibility-compiler.txt": "5c6095c4b76a9d0a7f20a8b855adc1b98793103efc9ef625de3c6ebf6c23fa9e",
+        "eligibility-runtime-versions.json": "713a326d17e4a9384e326bf3f84defe5ba1b10d096fb376f7d1434afb4955fd1"
+      }
+    },
+    {
+      "name": "geometry",
+      "count": 14,
+      "architecture": "ARM64",
+      "os": "Microsoft Windows NT 10.0.26200.0",
+      "compilerCommand": "cl /nologo /std:c++17 /EHsc /W4 EligibilityGeometry.cpp /link user32.lib gdi32.lib",
+      "originalEnvironmentSHA256": "30ea7d4ff6863f1ad57c4e399b300c8c19d9135f0e1d919ce9eb95303d74814b",
+      "originalSHA256ReceiptSHA256": "d77ad8472fbbf9176a446120c06713776782727f38da22b6bde3c1d216218c4e",
+      "originalFileHashes": [
+        {
+          "file": "capture-geometry.ps1",
+          "sha256": "bb473af3f5a4163e61f585505c9cdf99a7d7f400baab5eafa09bd5445fccb94f"
+        },
+        {
+          "file": "compiler.txt",
+          "sha256": "a12b660119c5dcb4d091cd71860e5f8ba31998f60f9945132441e769b2e56718"
+        },
+        {
+          "file": "EligibilityGeometry.cpp",
+          "sha256": "f480a159492ab56ccd95153ca0cfa1baee8554f0ae1c5a2a1b15880aa32225fc"
+        },
+        {
+          "file": "EligibilityGeometry.exe",
+          "sha256": "0f8eafc05ce2a0d35c495aabfa45b840536faa452401d88a723faacc05cd8078"
+        },
+        {
+          "file": "EligibilityGeometry.obj",
+          "sha256": "4aae2c5a266e7581b3b19e130cd691644626ebe52275a40aca078b6f725a86aa"
+        },
+        {
+          "file": "environment.json",
+          "sha256": "30ea7d4ff6863f1ad57c4e399b300c8c19d9135f0e1d919ce9eb95303d74814b"
+        },
+        {
+          "file": "observations.json",
+          "sha256": "3698f79eeae00de0d7fefefcad72887707f66c59df6835ac876fa4e1bdb956df"
+        },
+        {
+          "file": "runtime-versions.json",
+          "sha256": "713a326d17e4a9384e326bf3f84defe5ba1b10d096fb376f7d1434afb4955fd1"
+        },
+        {
+          "file": "gdi32.dll",
+          "sha256": "d030db7b41326258e8837d10e85a4d9a55c594776e6497745d3788281540a42c"
+        },
+        {
+          "file": "win32u.dll",
+          "sha256": "345d86e4357ccd1773929361863a6a8fe39ca7ac2995851c88495d0c42b3726e"
+        }
+      ],
+      "exports": {
+        "EligibilityGeometry.cpp": "f480a159492ab56ccd95153ca0cfa1baee8554f0ae1c5a2a1b15880aa32225fc",
+        "geometry-observations.json": "3698f79eeae00de0d7fefefcad72887707f66c59df6835ac876fa4e1bdb956df",
+        "geometry-compiler.txt": "a12b660119c5dcb4d091cd71860e5f8ba31998f60f9945132441e769b2e56718",
+        "geometry-runtime-versions.json": "713a326d17e4a9384e326bf3f84defe5ba1b10d096fb376f7d1434afb4955fd1"
+      }
+    }
+  ],
+  "ownership": "Existing running Windows VM was not started/stopped/reconfigured; synchronous owned compiler/executables were waited; transfer hashes verified before deleting unique guest scratch. No GUI applications launched.",
+  "privacy": "Export receipts retain original content hashes and basenames, omitting host/shared-folder and ephemeral guest paths. Raw observations/source/compiler/runtime-version bytes are unchanged.",
+  "limits": [
+    "API eligibility/geometry only; no native raster certification",
+    "Windows integer outlining and per-device cap/raster identity remain unproven",
+    "No new HQ interpolation or other renderer family included"
+  ],
+  "specifications": [
+    "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-widenpath",
+    "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-createpen",
+    "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/b930b989-30ec-4954-a889-1dc60ce0b689"
+  ]
+}

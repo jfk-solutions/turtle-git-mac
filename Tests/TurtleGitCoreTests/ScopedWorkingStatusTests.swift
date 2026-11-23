@@ -303,3 +303,98 @@ extension ScopedWorkingStatusTests {
         }
     }
 }
+
+
+extension ScopedWorkingStatusTests {
+    func testChangedStatisticsKeepInsideWholeAndOutsideCachedWithoutOutsideUntrackedRead()async throws {
+        let(root,initial)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let inside=folder+"/clean",partial="outside/independent"
+        try Data("clean\ninside staged\n".utf8).write(to:root.appendingPathComponent(inside))
+        try Data("independent base\noutside staged\n".utf8).write(to:root.appendingPathComponent(partial))
+        try await initial.stage([inside,partial])
+        try Data("clean\ninside staged\ninside unstaged\n".utf8).write(to:root.appendingPathComponent(inside))
+        try Data("independent base\noutside staged\noutside unstaged\n".utf8).write(to:root.appendingPathComponent(partial))
+        let(repo,log)=try counted(initial),index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let scoped=try await repo.workingTreeFiles(paths:[folder],includedStaged:true)
+        XCTAssertEqual(scoped.first{GitReferenceName.equal($0.path,inside)}?.added,2)
+        XCTAssertEqual(scoped.first{GitReferenceName.equal($0.path,partial)}?.added,1,"Outside staged rows report cached statistics, not unrelated working changes")
+        XCTAssertFalse(scoped.contains{$0.path=="outside/unstaged" || $0.path.hasPrefix("generated/")})
+        for args in try commands(log) where args.contains("diff") {
+            let separator=try XCTUnwrap(args.firstIndex(of:"--"))
+            XCTAssertEqual(Array(args.dropFirst(separator+1)),args.contains("--cached") ? []:[folder])
+            XCTAssertTrue(args.contains("diff.autoRefreshIndex=false"))
+        }
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
+        let separate=try await repo.workingTreeFiles(paths:[destination,outside])
+        XCTAssertEqual(separate.first{$0.path==destination}?.action,"A")
+        XCTAssertEqual(separate.first{$0.path==outside}?.action,"D")
+    }
+    func testChangedRevertRetainsGlobalCachedOriginWithScopedWholeRead()async throws {
+        let(root,repo)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let rows=try await repo.workingTreeStatus(readPolicy:.automatic,paths:[folder],includedStaged:true)
+        let selected=try XCTUnwrap(rows.first{$0.id==destination}).entry
+        XCTAssertTrue(selected.isRenamed);XCTAssertEqual(selected.reportingOriginalPath,outside)
+        let scope=WorkingFileRevertReadScope(paths:[folder],includedStaged:true,additionalPaths:[outside])
+        let fresh=try await repo.workingFileRevertSelection([selected],readScope:scope)
+        XCTAssertEqual(fresh,[selected],"Per-name A/D rediscovery must not replace the accepted cached Rename")
+        let independent=try Data(contentsOf:root.appendingPathComponent("outside/independent"))
+        _=try await repo.revertWorkingFiles(fresh,policy:.init(recycle:false),readScope:scope)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(outside)),bytes)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent("outside/independent")),independent)
+    }
+    func testChangedOutsideStagedRetryRetainsExactNamesAfterUnstage()async throws {
+        let(root,repo)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let name="outside/independent"
+        try Data("independent base\naccepted staged\n".utf8).write(to:root.appendingPathComponent(name));try await repo.stage([name])
+        let initial=try await repo.status(readPolicy:.automatic,paths:[folder],includedStaged:true)
+        let selected=try XCTUnwrap(initial.first{$0.path==name})
+        let scope=WorkingFileRevertReadScope(paths:[folder],includedStaged:true,additionalPaths:[name])
+        // A partially completed operation can publish index changes before Retry.
+        try await repo.unstage([name])
+        let retry=try await repo.workingFileRevertSelection([selected],readScope:scope)
+        XCTAssertEqual(retry.count,1);XCTAssertEqual(retry.first?.path,name);XCTAssertEqual(retry.first?.worktree,"M")
+        _=try await repo.revertWorkingFiles(retry,policy:.init(recycle:false),readScope:scope)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(name)),Data("independent base\n".utf8))
+        let unrelated=StatusEntry(path:"outside/unstaged",originalPath:nil,index:" ",worktree:"M")
+        do {_=try await repo.workingFileRevertSelection([unrelated],readScope:scope);XCTFail("Exact outside acceptance became a parent-directory grant")}catch is GitFailure {}
+    }
+    func testChangedRevertRefusesUnacceptedOriginsAndInvalidExtraNamesBeforeGit()async throws {
+        let(root,initial)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let initialRows=try await initial.status(readPolicy:.automatic,paths:[folder],includedStaged:true)
+        let selected=try XCTUnwrap(initialRows.first{$0.path==destination})
+        let(repo,log)=try counted(initial)
+        let scope=WorkingFileRevertReadScope(paths:[folder],includedStaged:true)
+        do {_=try await repo.workingFileRevertSelection([selected],readScope:scope);XCTFail("Missing exact old-name acceptance widened the folder")}catch is GitFailure {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath:log.path))
+        let invalid=WorkingFileRevertReadScope(paths:[folder],includedStaged:true,additionalPaths:["../outside"])
+        do {_=try await repo.revertWorkingFiles([selected],policy:.init(recycle:false),readScope:invalid);XCTFail("Invalid extra path admitted")}catch {}
+        XCTAssertFalse(FileManager.default.fileExists(atPath:log.path))
+    }
+}
+
+
+extension ScopedWorkingStatusTests {
+    func testChangedCachedStatisticsRetainDefaultThresholdOutsideStrictWorkingScope()async throws {
+        let(root,initial)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let old="outside/threshold-old",new="outside/threshold-new"
+        let original=(0..<100).map{"original threshold numbered line \($0) abcdefghijklmnopqrstuvwxyz\n"}
+        try Data(original.joined().utf8).write(to:root.appendingPathComponent(old));try await initial.stage([old]);_=try await initial.commit(message:"threshold base")
+        _=try await initial.run(["mv","--",old,new])
+        let edited=(0..<100).map{$0<25 ? "replacement threshold changed completely \($0) 012345678901234567890123456789\n":original[$0]}
+        try Data(edited.joined().utf8).write(to:root.appendingPathComponent(new));try await initial.stage([new])
+        let(wrapped,log)=try counted(initial)
+        let strict=GitRepository(root:root,executable:wrapped.executable,askpass:nil,diffDetection:.init(percentage:90),libgit2Configuration:.init(enabled:false))
+        let status=try await strict.status(readPolicy:.automatic,paths:[folder],includedStaged:true)
+        XCTAssertTrue(try XCTUnwrap(status.first{$0.path==new}).isRenamed)
+        try Data().write(to:log) // Observe only this statistics reader, not status's cached-name roster.
+        let stats=try await strict.workingTreeFiles(paths:[folder],includedStaged:true)
+        let row=try XCTUnwrap(stats.first{$0.path==new})
+        XCTAssertTrue(row.action.hasPrefix("R"));XCTAssertEqual(row.oldPath,old);XCTAssertEqual(row.added,25);XCTAssertEqual(row.removed,25)
+        let cached=try commands(log).filter{$0.contains("diff") && $0.contains("--cached")}
+        XCTAssertEqual(cached.count,3)
+        for args in cached {
+            XCTAssertTrue(args.contains("-C") && args.contains("-M"));XCTAssertFalse(args.contains("-C90%") || args.contains("-M90%"))
+            XCTAssertLessThan(try XCTUnwrap(args.firstIndex(of:"-C")),try XCTUnwrap(args.firstIndex(of:"-M")))
+        }
+    }
+}

@@ -5,6 +5,34 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Classic EMF path batch — November 23, 2026
+
+The [classic path family](METAFILE-CLASSIC-PATH-PARITY.md) implements typed
+16/32-bit PolyDraw cubics, captured path/current-position lifecycle, copied saved
+paths and real FlattenPath/WidenPath replacement. Later fill/stroke/clip consumers
+use the accepted geometry and selected pen/brush, with bounded work and complete
+malformed-image refusal. The [checkpoint](qa/metafile-classic-paths-2026-11-23.json)
+records universal helper and Debug-app builds, 15 distinct focused Core methods
+cumulatively, and native consumer/ownership checks with both Git engines. It
+retains fixture/control repairs and the independent analytic Flatten reference.
+No installed app, signed candidate or Windows pixel certification is implied.
+This finishes the already-started path batch; no new WMF/EMF family is being
+started under the owner's current direction. Separate HQ sampler WIP remains
+uncommitted and is excluded from this validated source selection.
+
+## Working Tree acquisition and accepted actions — November 23, 2026
+
+The [Changed/Working Tree family](CHANGED-SCOPED-STATUS-PARITY.md) now passes
+original literal paths and Show Staged into discovery before Git reads. Whole
+Project explicitly restores the global view. Source Added/Rename operands,
+outside staged rows, exact metadata and whole/cached statistics stay consistent
+through native comparison and owned Revert Retry. Cached statistics retain the
+source default similarity threshold under custom whole-working detection.
+The [checkpoint](qa/changed-scoped-status-2026-11-23.json) records 67 distinct
+focused Core passes cumulatively, six native cohort/Git passes, the final Debug
+build and 47 distinct workflow-contract passes, retaining failures and focused
+repairs. No installed-app update or full hosted/signed/whole-port pass is claimed.
+
 ## Folder-scoped reads and hosted compiler repair — November 23, 2026
 
 The [scoped working-read family](SCOPED-WORKING-READS-PARITY.md) now bounds Commit,

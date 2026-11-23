@@ -222,7 +222,10 @@ final class StatusNativeWindow: NSWindow {
     @Published private(set) var refreshCancelled = false
     @Published private(set) var hasStatusSnapshot = false
     @Published private(set) var cancelling = false
-    var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
+    private var usesDefaultStatusRead=true
+    var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile] {didSet{usesDefaultStatusRead=false}}
+    private var acceptedReadPaths:[String]?
+    private var acceptedReadIncludesStaged=false
     var embeddedReload: (() -> Void)?
     var actionOwnerAvailable: () -> Bool = {true}
     var onPrimaryFileActivation:StatusListPrimaryActivationSession.Launch?
@@ -343,16 +346,30 @@ final class StatusNativeWindow: NSWindow {
     var onAction: (RepositoryAction, [String]) -> Void = { _, _ in }
     var onRevert:(([StatusEntry],WorkingFileRevertPolicy,Bool,@escaping(Bool)->Void)->(()->Void))?
     private var pendingRevertID:UUID?,pendingRevertRows:[StatusEntry]=[]
+    private(set) var pendingRevertInvocationPaths:[String]?
+    private(set) var pendingRevertIncludesStaged=false
+    private(set) var pendingRevertAdditionalPaths:[String]=[]
     private var cancelRevert:(()->Void)?
     var revertSelectionIsCurrent:Bool {pendingRevertID != nil && !retired && !confirmingQuit && pendingRevertRows.allSatisfy{row in files.contains{$0.entry==row}}}
     func requestRevert(_ snapshot:StatusFileMenuSnapshot) {
         guard accepts(snapshot),snapshot.offersRevert,let onRevert else{return}
         let rows=snapshot.entries,identity=UUID(),policy=WorkingFileRevertPolicy.load(from:defaults)
         let directories=WorkingFileRevertPresentation.directories(rows,root:repository.root,known:submodules)
+        pendingRevertInvocationPaths=acceptedReadPaths;pendingRevertIncludesStaged=acceptedReadIncludesStaged
+        var allowed:[String]=[],seen=GitPathSet()
+        if let scope=acceptedReadPaths,acceptedReadIncludesStaged {
+            for row in rows where row.staged {
+                for path in [row.path]+(row.isRenamed ? row.reportingOriginalPath.map{[$0]} ?? []:[]) {
+                    let inside=scope.contains{GitReferenceName.equal(path,$0) || path.utf8.starts(with:($0+"/").utf8)}
+                    if !inside,seen.insert(path).inserted {allowed.append(path)}
+                }
+            }
+        }
+        pendingRevertAdditionalPaths=allowed
         pendingRevertID=identity;pendingRevertRows=rows;busy=true;Self.activeOperations += 1
         let cancel=onRevert(rows,policy,WorkingFileRevertPresentation.needsConfirmation(rows,directories:directories)) { [self] succeeded in
             guard self.pendingRevertID==identity else{return}
-            self.pendingRevertID=nil;self.pendingRevertRows=[];self.cancelRevert=nil;Self.activeOperations -= 1
+            self.pendingRevertID=nil;self.pendingRevertRows=[];self.pendingRevertInvocationPaths=nil;self.pendingRevertIncludesStaged=false;self.pendingRevertAdditionalPaths=[];self.cancelRevert=nil;Self.activeOperations -= 1
             guard !self.retired else{return}
             if succeeded {self.selection.subtract(rows.map(\.path))}
             self.busy=false;self.reload()
@@ -574,21 +591,24 @@ final class StatusNativeWindow: NSWindow {
         let position = fileListRefresh.begin(preferences:defaults,reset:resetPosition,selectedIDs:selection)
         let acceptedFilter = filter
         let scopePaths = acceptedFilter.paths
+        let requestedScope:[String]?=acceptedFilter.wholeProject || scopePaths.isEmpty ? nil:scopePaths
         refreshFailure = nil; refreshCancelled = false
         runOperation("Refreshing working tree…",reportCancellation:false,statusRefresh:true,operation: { [self] token in
             defer {fileListRefresh.finish(position)}
             // Publish one complete snapshot. A failed/cancelled read retains the prior table.
             let nextInvocation = try await repository.workingTreeInvocation(paths: scopePaths, cancellation: token)
             let nextStash = try await repository.workingTreeHasStash(cancellation: token)
-            let nextFiles = try await readStatus(token)
+            let nextFiles:[WorkingTreeFile]
+            if usesDefaultStatusRead {nextFiles=try await repository.workingTreeStatus(readPolicy:.automatic,paths:requestedScope,includedStaged:acceptedFilter.showAllStaged,cancellation:token)}
+            else {nextFiles=try await readStatus(token)}
             let nextChangelists = try await repository.changelists(cancellation: token)
             let nextBranch = try await repository.branch(cancellation: token)
             let nextHasHead = try await repository.run(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes:0...1, cancellation:token).exitCode == 0
             let nextRebase = try await repository.conflictIsRebase(cancellation: token)
-            let nextSubmodules = try await repository.submodulePathNames(cancellation: token).map(\.rawValue)
+            let nextSubmodules = try await repository.submodulePathNames(paths:nextFiles.map(\.id),cancellation: token).map(\.rawValue)
             let nextLFS = try await repository.hasLFS(cancellation: token)
             let nextMetadata = await repository.statusListMetadata(paths: nextFiles.map(\.id))
-            let nextStatistics = try await repository.workingTreeFiles(cancellation: token)
+            let nextStatistics = try await repository.workingTreeFiles(paths:requestedScope,includedStaged:acceptedFilter.showAllStaged,cancellation: token)
             let nextLocks:[LFSLock]
             if nextLFS && showLFSOwners {nextLocks = try await queryLFSOwners(token)} else {nextLocks = []}
             try await missingStagedRecovery.process(repository: repository,
@@ -599,6 +619,7 @@ final class StatusNativeWindow: NSWindow {
             guard isLive(token) else { return }
             resetPositionOnReload = false
             invocation = nextInvocation; hasStash = nextStash; hasHead = nextHasHead; hasStatusSnapshot = true; refreshFailure = nil; refreshCancelled = false; updateScopeTitle()
+            acceptedReadPaths=requestedScope;acceptedReadIncludesStaged=acceptedFilter.showAllStaged
             changelists = nextChangelists; files = nextFiles; branch = nextBranch; conflictRebase = nextRebase; submodules = GitPathSet(nextSubmodules)
             hasLFS = nextLFS; fileMetadata = nextMetadata
             statistics = GitPathMap(nextStatistics.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })

@@ -1,0 +1,284 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T07:15:25.660217+00:00",
+  "status": "Changed scoped acquisition, accepted actions and immutable Revert Retry passed; whole port remains incomplete",
+  "sourceBase": "12fb532d6f41d8844aaf34e24982a4c8a7187567",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceDirtyDuringValidation": true,
+  "sourceSHA256": {
+    ".github/workflows/macos.yml": "546da678eb0f095646ffa01c21c63f6becb2f341592247ba733efec72ff02fa1",
+    "scripts/check-macos-ci-lanes.py": "3c7f10622ea2627dd9ea41eeb92719f64195bac31b74c912c9dc7de1e8ae440a",
+    "scripts/test-macos-ci-lanes.py": "83c3ea94ae4c814d14f8380e4ac5fff66dd8c56904b17fc36dcf00b01f6c7105",
+    "Sources/TurtleGitCore/CommitSelection.swift": "9cd7c94597a17a73353c788208f43f31da9b54df2b6600c3811abfc623532c76",
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "f7d36b799b85541b41f4587e84e22bba808bceccf53c7718533a763bd8398b44",
+    "Sources/TurtleGitMac/StatusWindow.swift": "12d9b146ef1a4bf13a47e0ff437c560e62dfbbac68c3536842aed6c45f297638",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "095ad576e6a2982e30b7c4795e8e73c305ab0908cd6a35c0953c80c7d13ed5dc",
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "67d4c5d9643911301ee403f9989e0e89121081289478cdc8ea67c578e0fa9303",
+    "Tests/TurtleGitCoreTests/ScopedWorkingStatusTests.swift": "0d03e73e05e8503734ec037b89a3f654e53828733c59dc8cc0f826494091c82b",
+    "docs/qa/add-revert-file-flow-native-2026-10-17.swift": "c9cd23b39167e2f5f084a11d4ede58fbacc85f15fc94b129a219d63c5d06921c",
+    "docs/qa/scoped-working-reads-native-2026-11-23.swift": "258b54edb1cfa4782774840272ff128a6bb0d78b956ccb610f6b7ba432d14b58",
+    "docs/qa/changed-scoped-status-native-2026-11-23.swift": "1a5849bdb991b0cf40c18b45e4686557e2cbcec75ddb191bc09d8ad17fbd57d3",
+    "scripts/test-changed-scoped-status.py": "0427730bcb5e88945fada9dd80320ba306727c22ec71a6c919e18051e2e19e8b",
+    "docs/CHANGED-SCOPED-STATUS-PARITY.md": "e440cbec054f8dfa0cb432a84760557c202314c0fde6e9d6009d7af60d12ac3a"
+  },
+  "implementation": [
+    "Original literal paths and Show Staged reach discovery before Git; Whole Project explicitly uses global scope.",
+    "Outside staged actual XY reads disable untracked inventory; source cached action/origin and independent whole queries remain distinct.",
+    "Independent whole statistics preserve same-packet U/M multiplicity; outside cached fallback retains default50 C-before-M under custom whole-working detection.",
+    "Accepted entries drive empty-side Added comparison, old-name actions and exact gitlink metadata.",
+    "Revert captures original query scope, included-staged policy and exact selected outside destination/source-R origin allowlist through Root, progress, fresh mutation and Retry; partial unstage does not widen permission.",
+    "Legacy injected/global/embedded readers retain compatibility."
+  ],
+  "core": {
+    "distinctPassed": 67,
+    "filter": "ScopedWorkingStatusTests|WorkingTreeTests|WorkingFileRevert.*Tests",
+    "initial": {
+      "log": "build/changed-working-core.log",
+      "exitCode": 1,
+      "executed": 0,
+      "failure": "await inside XCTUnwrap autoclosure in new fixture; repaired asynchronous setup"
+    },
+    "group": {
+      "log": "build/changed-working-core-threshold-repair.log",
+      "exitCode": 1,
+      "executed": 67,
+      "passedMethods": 66,
+      "failedMethods": 1,
+      "failure": "New statistics witness expected bare R instead of scored R071 and counted separate status roster in statistics argv; numeric/threshold result was correct"
+    },
+    "focusedRepair": {
+      "log": "build/changed-working-core-statistics-recheck.log",
+      "exitCode": 0,
+      "executed": 1,
+      "passed": 1,
+      "repair": "Accept valid scored rename while retaining origin/count assertions; clear status roster before counting all three statistics queries"
+    },
+    "passedMethods": [
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testChangedCachedStatisticsRetainDefaultThresholdOutsideStrictWorkingScope]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testChangedOutsideStagedRetryRetainsExactNamesAfterUnstage]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testChangedRevertRefusesUnacceptedOriginsAndInvalidExtraNamesBeforeGit]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testChangedRevertRetainsGlobalCachedOriginWithScopedWholeRead]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testChangedStatisticsKeepInsideWholeAndOutsideCachedWithoutOutsideUntrackedRead]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testIncludedStagedPublishesIndependentOutsideRowsWithoutUntrackedTraversal]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testOutsideOrEmptyCapturedRevertScopeRefusesBeforeLaunchingGit]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testRawScopesLoopIndividuallyAndIncludedStagedOnlyWidensCachedRead]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testScopedAddWorkingFlagsAndStatisticsNeverReadUnrelatedTrees]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testScopedCommitReusesCachedRosterAndKeepsOutsidePartialStateAndNumbers]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testScopedFreshRevertAndRetryNeverAcquireOutsideRenameSource]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testScopedIgnoredCleanDirectEmptyAndCancellationContracts]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testScopedParentAmendKeepsGlobalParentChangesAndMultiScopeAAndD]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testScopedSubmoduleModeInventoryUsesLiteralAcceptedPathsAndRetainsGlobalDefault]",
+      "-[TurtleGitCoreTests.ScopedWorkingStatusTests testSeparateDestinationAndOldNameScopesRevertBothWithoutDroppingDeletion]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testMixedCancellationRetainsCompletedTrashWithoutPublishingPreparedIndex]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testMixedSymlinksRecycleTheirLinksWithoutFollowingOutsideTargets]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testMixedTrashFailureRetainsAllRequestedNamesRecoveryAndOriginalIndexOnRetry]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testNoTrashMixedCohortDoesNotRestoreEarlierVersionedBatchesBeforeUnknownError]",
+      "-[TurtleGitCoreTests.WorkingFileRevertMixedTests testRetryRefreshesIgnoredTransitionsAndFailsExplicitlyForLostVersionedIdentity]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testCancellationDrainsAnInFlightScopedStatusWithoutPublishingASelection]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testDistinctUnversionedHardlinksKeepMixedGitFailureAndRecoveryPolicy]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testIgnoredAndAbsentRetryNamesRetainTheirExactScopedSpelling]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testOrdinaryParentDirectoryWithGitlinkDescendantIsRejectedBeforeMutation]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testOwnershipReadRejectsIncompleteOrNonUTF8PacketsBeforeDisposal]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testRawRenameCounterpartKeepsItsPolicyUnlessItsIgnoredObstructionWasSelected]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testScopedDeletionAndLocalCopyCoalesceAfterCounterpartFilteringInEitherOrder]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testScopedReadRejectsIncompleteStatusOrIndexPacketsWithoutMutation]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testScopedRetryQueriesKeepCanonicalIndexPeerAndLiteralControlCharacters]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPathReadTests testStaleUnknownOrIgnoredCanonicalAliasCannotBecomeATrackedPeer]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testDisabledRenameRecyclingStillRefusesDirectoriesAndNeverFollowsOldNameSymlink]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testIndependentDefaultsAndCapturedNonzeroPreferences]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testNoTrashCancellationKeepsCompletedWorkingChangesButOriginalIndexAndNoRecoveryCopies]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testNoTrashFilterFailureKeepsIndexAndDoesNotInventRecoveryReceipt]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testPolicyMatrixRestoresFilesAndNamesPreservingAdditionsAndUnselectedIndex]",
+      "-[TurtleGitCoreTests.WorkingFileRevertPolicyTests testRawSourceRecyclingPolicyKeepsCopyAndRenameSeparateFromPorcelainStaging]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testAlreadyCancelledDoesNotTouchRepository]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testCancellationAfterTrashPreservesIndexAndReturnsExactRecoveryURL]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testCancellationAtRestoreStartDoesNotRunCheckout]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testCancellationBetweenBatchesStopsLaterWorkingFileChanges]",
+      "-[TurtleGitCoreTests.WorkingFileRevertProgressTests testSuccessReportsAllOperationsAndLeavesAddedWorkingFile]",
+      "-[TurtleGitCoreTests.WorkingFileRevertRetryTests testRetryReadsCurrentRowsWithoutIncludingUnselectedChanges]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testAddedLiteralFileRetainsWorkingContentsWhenRevertedBeforeInitialCommit]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testCheckoutFilterFailureKeepsRealIndexAndReportsRecoverableWorkingCopy]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testCleanTrackedStatusRowRevertsAndRejectsChangesAfterSelection]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testConflictedFileRevertRestoresHeadWhileKeepingMergeAndUnrelatedEdits]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testDeletedFileRestoredAndAmendUsesParentEvenWhenShowingHead]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testInvalidStaleAndIndexLockedSelectionsDoNotMoveWorkingFiles]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testLinkedWorktreeRevertUsesItsOwnIndex]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testModifiedBinaryRevertsIndexAndWorktreeAndRetainsLaterBytesInTrash]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testRevertGitlinkConflictPreservesInitializedAndUninitializedChildContents]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testRevertSymlinkAndRejectEscapingParent]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testStagedRenameReturnsOldNameAndRecyclesDestination]",
+      "-[TurtleGitCoreTests.WorkingFileRevertTests testSubmoduleRenameReturnsCheckoutToOldPathWithoutLosingLocalEdits]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testCancelledHeadInspectionCannotFallBackToUnbornMutationOrDiff]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testCancelledScopeAndStashReadsPreserveRepository]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testCancelledWorkingTreeCommandsPreserveIndexAndContent]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testCleanIgnoredUnversionedAndIndexFlagsWithLiteralNames]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testClearFlagsUsesLinkedWorktreeIndexAndPreservesPermissions]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testIndexFlagActionsPreserveBothContentsAndClearBothFlagsWithLiteralPaths]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testIndexFlagMarkedStatusGatesIncludeCombinedAddedDeletedAndUnversionedActions]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testInvalidIndexFlagSelectionAndIndexLockLeaveIndexUntouched]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testInvocationScopesKeepSourceDirectoryAndExplicitFileRules]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testMarkedFlagActionUpdatesIndexedSelectionAndReportsUnavailablePaths]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testScopedStatusIncludesOtherStagedFilesOnlyWhenEnabledAndPreservesMixedChanges]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testStashAvailabilityIncludesPackedAndLinkedWorktreeRefs]",
+      "-[TurtleGitCoreTests.WorkingTreeTests testUnbornWorkingTreeDiffIncludesIndexWithoutCreatingHead]"
+    ]
+  },
+  "app": {
+    "attempts": [
+      {
+        "log": "build/changed-working-app-build.log",
+        "exitCode": 0,
+        "source": "Initial full family before source cached-threshold review repair"
+      },
+      {
+        "log": "build/changed-working-app-threshold-repair.log",
+        "exitCode": 0,
+        "source": "Final production after cached default-threshold repair"
+      }
+    ],
+    "installedAppUpdated": false
+  },
+  "native": {
+    "log": "build/changed-working-native.log",
+    "exitCode": 0,
+    "cohortGitPasses": 6,
+    "results": [
+      {
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "cohorts": [
+          "projection",
+          "retry",
+          "cancellation"
+        ]
+      },
+      {
+        "git": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "cohorts": [
+          "projection",
+          "retry",
+          "cancellation"
+        ]
+      }
+    ],
+    "cohorts": [
+      "projection",
+      "retry",
+      "cancellation"
+    ],
+    "argvReceipts": [
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/cancellation-cancel-argv.json",
+        "sha256": "5bd6c29169f540b49219933b32d50a99b068daf058f8999b98ca13b0b16a59fb"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/cancellation-forced-close-argv.json",
+        "sha256": "da922006baac6e1cf1ef74a6e2d09744d4133fe96e94b0b4749ae37f9eed89f5"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/cancellation-rescope-argv.json",
+        "sha256": "d79c6d15b23c09820bdd5d1bfa984c393e1b396709a75988ea54dc36f19c0415"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/projection-initial-argv.json",
+        "sha256": "0a58e1e6ae1bab57d6b6bda0adc1838e098eb01f4ba33016bf97869cb73c4628"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/projection-restored-argv.json",
+        "sha256": "32384846d5790a71272d0a3b55e4f27d02b7413f379d2334656eaeb35e8855d4"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/projection-staged-on-argv.json",
+        "sha256": "2049a9cc4ed7bd30f4092bf9e92fff1a346af23627baa178b9414c85ba58087a"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/projection-whole-argv.json",
+        "sha256": "4080b828acbc5e66563b9386b8a7ab237e4c0991ae493f6d07cd22764a3ce73a"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/0/retry-revert-retry-argv.json",
+        "sha256": "768df86a36ceb5318866cd88a86d915328e5ec9ae1537327d30c1e915213f13c"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/cancellation-cancel-argv.json",
+        "sha256": "35ba7ea23b7d56abd852293e87e54c8aa2d09066207c213d257595622cb4ad16"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/cancellation-forced-close-argv.json",
+        "sha256": "ebe3770334af0b20d35e16049ef64da1b4c3b2fd6beaa6a6b9cb6b516322cd69"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/cancellation-rescope-argv.json",
+        "sha256": "5886127ebd4c25404999b15341d22ffbeccbc2f3f693b80d3845653f42122322"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/projection-initial-argv.json",
+        "sha256": "2b5f42080b245e015becb92aea96c87d08194dddd3a74fdc99aee17e5c4acdff"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/projection-restored-argv.json",
+        "sha256": "6864817293e7d2aaa7b6350f77a35fc3830ef5a766353b8094568e42705a8e80"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/projection-staged-on-argv.json",
+        "sha256": "a33c9be196c64a45d6cb4558d04f257c27d32fc96b09a5444f09bac77c24b976"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/projection-whole-argv.json",
+        "sha256": "329065491ebf517c14c40574d0f9318470a3422568bcdf33879d79c6f628229e"
+      },
+      {
+        "path": "build/qa/changed-scoped-status-receipts/1/retry-revert-retry-argv.json",
+        "sha256": "60fd2847132fdd563a5cac2f1301e15c7da2f5154c66455030cffa18389f4906"
+      }
+    ]
+  },
+  "ciContracts": {
+    "distinctPassed": 47,
+    "initial": {
+      "log": "build/qa/changed-classic-ci-admission.log",
+      "executed": 47,
+      "passed": 46,
+      "failed": 1,
+      "failure": "Retained neighbor assertion had not advanced past explicit Changed sibling"
+    },
+    "focusedSequenceRepair": "build/qa/changed-classic-ci-sequence-recheck-2026-11-23.json",
+    "scopeRestoration": "build/qa/changed-classic-ci-scope-restoration-2026-11-23.json",
+    "finalSourceExactlyRestoredToValidatedHashes": true,
+    "fullSuiteNotRepeated": true
+  },
+  "cleanup": {
+    "ownedPIDsObservedAbsent": [
+      82786,
+      84452,
+      86898,
+      86907,
+      87072,
+      87681
+    ],
+    "privateRepositoriesPreferences": true,
+    "receiversInvisible": true,
+    "ownedGitHelpersRetired": true,
+    "userOwnedAppsClosed": false
+  },
+  "resources": {
+    "localizationCheck": {
+      "log": "build/qa/changed-working-localizations.log",
+      "exitCode": 0,
+      "languages": 38,
+      "acceptedKeys": 1392,
+      "completeLocalizationClaim": false
+    },
+    "bundledHelpGuidesChanged": false
+  },
+  "notProven": [
+    "Complete hosted CI for this source",
+    "Installed/signed Finder or final distribution build",
+    "Wall-clock performance on owner repositories",
+    "Physical keyboard/VoiceOver and all source layouts",
+    "Complete port or App Store licensing clearance"
+  ]
+}

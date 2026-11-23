@@ -221,6 +221,20 @@ SCOPED_WORKING_READS = {
     'if': collection_condition('Native scoped working reads and immutable retry', 'commit-repository'),
     'run': 'python3 scripts/test-scoped-working-reads.py --only add --only revert --only rescope-cancel --only commit --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
 }
+CHANGED_SCOPED_STATUS = {
+    'name': 'Native Changed scoped acquisition and captured actions',
+    'if': collection_condition('Native Changed scoped acquisition and captured actions', 'commit-repository'),
+    'run': 'python3 scripts/test-changed-scoped-status.py --only projection --only retry --only cancellation --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+CLASSIC_METAFILE_PATHS = {
+    'name': 'Native classic metafile path construction and replacement ownership',
+    'if': collection_condition('Native classic metafile path construction and replacement ownership', 'images-documents'),
+    'run': 'python3 scripts/test-metafile-classic-paths.py --only consumers --only ownership --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+METAFILE_PATH_ADDITIONS = (
+    ('Classic WMF and EMF Boolean raster consumers and conflict ownership', (CLASSIC_METAFILE_PATHS,),
+     'Classic EMF masked and transparent bitmap transfers'),
+)
 BLAME_SOURCE_NAME = 'Native Blame captured source menus'
 BLAME_SOURCE_ORIGINAL_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
 BLAME_SOURCE_FOCUS_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --only focus --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
@@ -231,7 +245,7 @@ STATUS_CONSUMER_ADDITIONS = (
      'Native Blame retained-byte encoding recovery and cancellation'),
     ('Native Commit staging activation and preference lifetime', (ADD_OPERANDS,),
      'Native Commit source category checking'),
-    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS, WORKING_STATUS_PROJECTION, SCOPED_WORKING_READS),
+    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS, WORKING_STATUS_PROJECTION, SCOPED_WORKING_READS, CHANGED_SCOPED_STATUS),
      'Native Commit report rows, fonts and geometry ownership'),
 )
 
@@ -337,7 +351,7 @@ def verify(workflow, inventory, originals):
         require(actual[history_start + offset] == expected,
                 'Changed history command, lane/readiness/cancellation, placement or diagnostic contract: ' + expected['name'])
     del actual[history_start:history_start + len(history_additions)]
-    for anchor, additions, following in STATUS_CONSUMER_ADDITIONS:
+    for anchor, additions, following in STATUS_CONSUMER_ADDITIONS + METAFILE_PATH_ADDITIONS:
         anchors = [i for i, step in enumerate(actual) if step.get('name') == anchor]
         require(len(anchors) == 1, 'Missing or duplicate status-family anchor: ' + anchor)
         start = anchors[0] + 1

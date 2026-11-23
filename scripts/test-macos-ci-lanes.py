@@ -482,7 +482,7 @@ class MacOSLaneTests(unittest.TestCase):
 
     def testReviewedStatusConsumersHaveExactPlacementAndReadyOwners(self):
         steps=self.workflow['jobs']['validation']['steps']
-        for anchor,additions,following in ci.STATUS_CONSUMER_ADDITIONS:
+        for anchor,additions,following in ci.STATUS_CONSUMER_ADDITIONS + ci.METAFILE_PATH_ADDITIONS:
             index=next(i for i,step in enumerate(steps) if step.get('name')==anchor)
             self.assertEqual(steps[index+1:index+1+len(additions)],list(additions))
             self.assertEqual(steps[index+1+len(additions)]['name'],following)
@@ -498,7 +498,7 @@ class MacOSLaneTests(unittest.TestCase):
         self.verify()
 
     def testReviewedStatusConsumersRejectUnknownMissingDuplicateMovedAndCommandDrift(self):
-        names=[step['name'] for _,steps,_ in ci.STATUS_CONSUMER_ADDITIONS for step in steps]
+        names=[step['name'] for _,steps,_ in ci.STATUS_CONSUMER_ADDITIONS + ci.METAFILE_PATH_ADDITIONS for step in steps]
         mutations=['missing','duplicate','moved','renamed','wrong-lane','drop-ready','drop-cancel',
                    'implicit-success','always','command','omit-system','omit-bundled','scope',
                    'extra-command','extra-env','extra-id','continue-on-error','extra-action']
@@ -530,7 +530,7 @@ class MacOSLaneTests(unittest.TestCase):
         with self.assertRaises(AssertionError):self.verify(value)
 
     def testReviewedStatusConsumerAnchorsAndOriginalNeighborsRemainImmutable(self):
-        for anchor,_,following in ci.STATUS_CONSUMER_ADDITIONS:
+        for anchor,_,following in ci.STATUS_CONSUMER_ADDITIONS + ci.METAFILE_PATH_ADDITIONS:
             for name in [anchor,following]:
                 value=copy.deepcopy(self.workflow)
                 step=next(step for step in value['jobs']['validation']['steps'] if step.get('name')==name)
@@ -544,7 +544,8 @@ class MacOSLaneTests(unittest.TestCase):
         self.assertEqual(steps[index],ci.WORKING_STATUS_PROJECTION)
         self.assertEqual(steps[index-1]['name'],ci.STATUS_OPERANDS['name'])
         self.assertEqual(steps[index+1],ci.SCOPED_WORKING_READS)
-        self.assertEqual(steps[index+2]['name'],'Native Commit report rows, fonts and geometry ownership')
+        self.assertEqual(steps[index+2],ci.CHANGED_SCOPED_STATUS)
+        self.assertEqual(steps[index+3]['name'],'Native Commit report rows, fonts and geometry ownership')
         self.assertTrue(self.eligible(name,'commit-repository',{'earlier_native':'failure'}))
         self.assertFalse(self.eligible(name,'commit-repository',cancelled=True))
         for cohort in ['commit','status','add','log','revert']:
@@ -565,7 +566,8 @@ class MacOSLaneTests(unittest.TestCase):
         index=next(i for i,step in enumerate(steps) if step.get('name')==name)
         self.assertEqual(steps[index],ci.SCOPED_WORKING_READS)
         self.assertEqual(steps[index-1],ci.WORKING_STATUS_PROJECTION)
-        self.assertEqual(steps[index+1]['name'],'Native Commit report rows, fonts and geometry ownership')
+        self.assertEqual(steps[index+1],ci.CHANGED_SCOPED_STATUS)
+        self.assertEqual(steps[index+2]['name'],'Native Commit report rows, fonts and geometry ownership')
         for cohort in ['add','revert','rescope-cancel','commit']:
             self.assertEqual(steps[index]['run'].count('--only '+cohort+' '),1)
             value=copy.deepcopy(self.workflow)
@@ -579,6 +581,32 @@ class MacOSLaneTests(unittest.TestCase):
             if lane!='commit-repository':self.assertFalse(self.eligible(name,lane))
         # The full reviewed-status mutation matrix also exercises both Git
         # arguments, command drift, duplicate/missing/moved steps and guards.
+
+    def testNewChangedAndClassicPathConsumersHaveExactCasesAndOwnedLanes(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        cases=[
+            (ci.CHANGED_SCOPED_STATUS,'commit-repository',['projection','retry','cancellation'],ci.SCOPED_WORKING_READS['name'],'Native Commit report rows, fonts and geometry ownership'),
+            (ci.CLASSIC_METAFILE_PATHS,'images-documents',['consumers','ownership'],'Classic WMF and EMF Boolean raster consumers and conflict ownership','Classic EMF masked and transparent bitmap transfers'),
+        ]
+        for expected,lane,cohorts,before,after in cases:
+            name=expected['name']
+            index=next(i for i,step in enumerate(steps) if step.get('name')==name)
+            self.assertEqual(steps[index],expected)
+            self.assertEqual(steps[index-1]['name'],before)
+            self.assertEqual(steps[index+1]['name'],after)
+            for cohort in cohorts:
+                self.assertEqual(steps[index]['run'].count('--only '+cohort+' '),1)
+                value=copy.deepcopy(self.workflow)
+                value['jobs']['validation']['steps'][index]['run']=steps[index]['run'].replace('--only '+cohort+' ','')
+                with self.subTest(name=name,missing=cohort),self.assertRaises(AssertionError):self.verify(value)
+            self.assertTrue(self.eligible(name,lane,{'earlier_native':'failure'}))
+            self.assertFalse(self.eligible(name,lane,cancelled=True))
+            for outcome in ['failure','skipped','cancelled','']:
+                self.assertFalse(self.eligible(name,lane,{'native_ready':outcome}))
+            for other in ci.LANES:
+                if other!=lane:self.assertFalse(self.eligible(name,other))
+        # Generic exact-consumer mutations include both families: missing/
+        # duplicate/moved steps, wrong guards, both Git arguments and drift.
 
     def testBlameFocusRetainsOriginalCasesReadyOwnerAndExactNeighbors(self):
         steps=self.workflow['jobs']['validation']['steps']

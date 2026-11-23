@@ -1,0 +1,10 @@
+﻿**********************************************************************
+** Visual Studio 2026 Developer Command Prompt v18.12.0
+** Copyright (c) 2026 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'arm64'
+EligibilityGeometry.cpp
+EligibilityGeometry.cpp(21): warning C4189: "m": Lokale Variable ist initialisiert aber nicht referenziert
+EligibilityGeometry.cpp(21): warning C4189: "begin": Lokale Variable ist initialisiert aber nicht referenziert
+EligibilityGeometry.cpp(21): warning C4189: "end": Lokale Variable ist initialisiert aber nicht referenziert
+EligibilityGeometry.cpp(21): warning C4189: "l": Lokale Variable ist initialisiert aber nicht referenziert

@@ -676,6 +676,9 @@ jobs:
       - name: Classic WMF and EMF Boolean raster consumers and conflict ownership
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-metafile-raster.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Native classic metafile path construction and replacement ownership
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'images-documents' }}
+        run: python3 scripts/test-metafile-classic-paths.py --only consumers --only ownership --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Classic EMF masked and transparent bitmap transfers
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-metafile-masked-transfers.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
@@ -1110,6 +1113,9 @@ jobs:
       - name: Native scoped working reads and immutable retry
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-scoped-working-reads.py --only add --only revert --only rescope-cancel --only commit --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Native Changed scoped acquisition and captured actions
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
+        run: python3 scripts/test-changed-scoped-status.py --only projection --only retry --only cancellation --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Commit report rows, fonts and geometry ownership
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-commit-report-rows.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

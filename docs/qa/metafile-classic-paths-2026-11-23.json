@@ -1,0 +1,140 @@
+{
+  "schema": 1,
+  "date": "2026-11-23",
+  "scope": "Classic EMF typed PolyDraw/path lifecycle/FlattenPath/WidenPath only; isolated baseline; no HQ work included",
+  "baseline": "6a0a5e69036567248a8c66877fbf52f3e9f2d4ed",
+  "sourceSHA256": {
+    "Sources/TurtleGitMetafile/main.swift": "53973a5c4b250adccd209ff60892aa227774a231461716c250a8da64658ed0e5",
+    "Configuration/MetafileRuntime.json": "e20ccbe1f02286904f0daf66714c98398d271789027493cd346cce45a68a3596",
+    "patches/metafile-renderer.patch": "566f7c462b166deee2b9a0392911d8087ab501b019951dcbef81af243282e768"
+  },
+  "fixtureManifestSHA256": "3f4df6abbc0f376d88050205484c7263de5d3609c8d029979c9d8e087a2883ad",
+  "fixtureFiles": 94,
+  "fixtureFormats": {
+    "emf": 91,
+    "svg": 3
+  },
+  "independentPairs": 28,
+  "refusals": 28,
+  "originalCubicSubjectUnchanged": true,
+  "flattenReference": {
+    "maximumSecondDerivative": 240.0,
+    "method": "uniform chord error <= sup norm of second derivative / (8*N^2); next power of two",
+    "subdivisions": 128,
+    "tolerance": 0.00390625
+  },
+  "helper": {
+    "exit": 0,
+    "architectures": [
+      "arm64",
+      "x86_64"
+    ],
+    "cacheKey": "701f216860f4b38eaacc1871cd3f4181ca8855a3a0e784040ef3c4927bb730a1",
+    "binarySHA256": "9799907c41d4f46e779f5ba500174e83f57615a1ed3fad514be7e902ccce46aa",
+    "rendererSHA256": "b2e81e072433b2dd0febcfd6b05a2a1ce5c59c725e380156dfc24d3c21aa243b",
+    "validation": "Pinned reconstruction, source/license/universal macOS13 framework structure; focused actual rendering checked below"
+  },
+  "app": {
+    "exit": 0,
+    "configuration": "Debug arm64, unsigned private checkpoint; no install or user app launch",
+    "embeddedRuntimeCacheKey": "701f216860f4b38eaacc1871cd3f4181ca8855a3a0e784040ef3c4927bb730a1",
+    "embeddedBinarySHA256": "82f2d58685141003a6d6330e84cd5a7a8c9c4358b938b029f2ba514eb6cf7a3d"
+  },
+  "core": {
+    "distinctMethodsPassedCumulatively": 15,
+    "newMethods": [
+      "testAuthoredSourceInventoryAndOriginalByteHashes",
+      "testCompactAndWidePolyDrawCubicCloseFiguresAndCurrentPositionMatchExplicitRecords",
+      "testFlattenReplacementNoEarlyInkAndBothOpenAndCompletedSavedPaths",
+      "testWidenSelectedGeometricPenCapsJoinsAndDashBecomesFillableArea",
+      "testNativeSuccessThinStockNullAndMappedClassicWidenGeometry",
+      "testWidenClipCapturedDeviceGeometryAndAbortDoNotLeakOriginalStroke",
+      "testMalformedTypedGroupsReplacementStateAndThinNullPensRefuseWholeImage"
+    ],
+    "retainedMethods": 8,
+    "retainedScope": "Classic clip geometry/captured transforms/refusal; extended pen dashes/caps/joins/brush/state/clip/ROP/refusal; classic positioned-text path behavior",
+    "attempts": [
+      {
+        "log": "classic-core-group.log",
+        "tests": 15,
+        "failures": 129,
+        "retainedPasses": 8,
+        "newInventoryAndRefusalPasses": 2,
+        "cause": "Fixture expected64 instead of inclusive-header65; two resampled line color channels; original cubic-vs-line raster delta7"
+      },
+      {
+        "log": "classic-core-positive-dimension-repair.log",
+        "tests": 5,
+        "failures": 1,
+        "passes": 4,
+        "cause": "Dimension repair passed four positive methods; original cubic raster control still delta7"
+      },
+      {
+        "log": "classic-core-flatten-control-repair.log",
+        "tests": 1,
+        "failures": 2,
+        "cause": "Independent Bernstein EMF control rounded to two decimals; following control restored mapping without restoring logical CP, producing M117440512 83886080 instead of M56 40"
+      },
+      {
+        "log": "classic-core-flatten-svg-control-repair.log",
+        "tests": 1,
+        "failures": 2,
+        "cause": "SVG repaired coordinate/CP encoding, but arbitrary256 subdivisions differed at terminal cap by35; none/high isolation equal, actual129-point path exactly every other Bernstein vertex"
+      },
+      {
+        "log": "classic-core-flatten-derivative-control-repair.log",
+        "tests": 1,
+        "failures": 0,
+        "cause": "Independent authored second-derivative bound selects128 uniform subdivisions; fullframe tolerance2 and exact per-returned-segment analytic hull/open extent/endpoints/CP assertions retained"
+      }
+    ],
+    "finalFixtureIntegrity": "Generator --check passed; every final original fixture hash and byte count verified. Inventory XCTest was not redundantly repeated after additive control-only authoring."
+  },
+  "native": {
+    "exit": 0,
+    "engineRuns": [
+      {
+        "git": "/usr/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "cohorts": [
+          "consumers",
+          "ownership"
+        ],
+        "seconds": 10.886
+      },
+      {
+        "git": "/Users/jkuehner/.codex/worktrees/turtlegit-classic-paths-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "returncode": 0,
+        "passed": true,
+        "cohorts": [
+          "consumers",
+          "ownership"
+        ],
+        "seconds": 11.163
+      }
+    ],
+    "scopes": "Actual comparisons incl typed16/32/Flatten saved paths/Widen mapped/thin/null/default pen; genuine3-stage image conflict/reload/drop; malformed whole-image refusal; original input/index/HEAD identity; held decoder Close/Quit drain",
+    "privateOwners": "NSApplication.prohibited; test windows offscreen/alpha0; private preferences/repos; actual receivers/helpers/compiler reaped with explicit cleanup"
+  },
+  "controlRepairs": "No production code changed after successful helper/app builds. Original cubic and rounded/oversampled controls retained separately. No increased pixel tolerance, renderer-generated expected pixels or rerun of passed native/retained scopes.",
+  "metadataNote": "Configuration classic_paths prepared/pending wording was frozen before validation to preserve runtime input hashes; this final focused receipt is authoritative for the checkpoint.",
+  "logsSHA256": {
+    "classic-helper-build.log": "f1904d0f785021f18ba20365c418d81174416fe7960ced4bdf94969aed75a084",
+    "classic-app-build.log": "c30b5bdfdfc22c091581dd005befdfb3bc45ef44512c570181285ed2a80f0b76",
+    "classic-core-group.log": "1a2669d127c53345fae5ff155e08d59a79c659eb7e48f674a2d33caabf00f62f",
+    "classic-core-positive-dimension-repair.log": "c9380bb22b66156fdfc6763d502620b8352f2f4fa734684d1f6570b0ecbcc1d7",
+    "classic-core-flatten-control-repair.log": "d333cae3605ac0b01a10394799376e03e465383d16cd7d013eebb0819da948b9",
+    "classic-core-flatten-svg-control-repair.log": "39650ee4e179aa3aea2804a5b8499f9e293e09a9b618faeb0c9502179ef4f3fb",
+    "classic-core-flatten-derivative-control-repair.log": "36b025c439e5dc684cbdb79aa1e9bccd367178a31f40c959e8d168fcfa7bc91d",
+    "classic-native-group.log": "9a4472b0fb4f6c2b0989cd6463e51530ebf1908bb1375f2b4009dd33b2f5be14",
+    "metafile-classic-path-native-results.json": "be71ce9f5cee48a72ee8748fe619260797d7d15ba72d90a3469564ed30f7de95"
+  },
+  "windowsWitness": "metafile-classic-paths-reference-2026-11-23/manifest.json",
+  "remainingLimits": [
+    "Windows exact integer flatten/outline/cap/raster parity is not certified",
+    "Existing generic legacy SVG formatting precision is unchanged",
+    "Unrelated HQ interpolation WIP excluded and uncommitted",
+    "Focused local checks do not prove hosted full CI, signed deployment, physical Finder or all upstream dialogs"
+  ]
+}

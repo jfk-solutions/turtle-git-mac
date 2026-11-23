@@ -1659,12 +1659,12 @@ private final class NativeStrokeGeometry {
         return (0...count).map { i in let a=start+sweep*CGFloat(i)/CGFloat(count);return add(center,.init(x:cos(a)*radius,y:sin(a)*radius)) }
     }
     private func circle(_ center:CGPoint,_ radius:CGFloat,to path:CGMutablePath,tolerance:CGFloat) throws {try polygon(arcPoints(center:center,radius:radius,start:0,sweep:2 * .pi,tolerance:tolerance),to:path)}
-    private func parse(_ text:String,inverse:CGAffineTransform,tolerance:CGFloat,radius:CGFloat) throws ->[Figure] {
+    private func parse(_ text:String,inverse:CGAffineTransform,tolerance:CGFloat,radius:CGFloat,inferArcClosure:Bool=true) throws ->[Figure] {
         guard text.utf8.count<=2*1024*1024 else {throw Self.invalid("input path budget exceeded")}
         var scanner=Scanner(bytes:Array(text.utf8)),result:[Figure]=[],points:[CGPoint]=[],closed=false,current=CGPoint.zero,start=CGPoint.zero,commands=0,lastArc=false
         func transformed(_ p:CGPoint)->CGPoint {p.applying(inverse)}
         func append(_ p:CGPoint) throws {try reserveInput();try finite(p);if points.last.map({length(sub($0,p))>1e-10}) ?? true {points.append(p)}}
-        func finish() {if !points.isEmpty {var values=points;let arcClosed=lastArc && values.count>2 && length(sub(values[0],values[values.count-1]))<1e-8;if (closed || arcClosed) && values.count>1 && length(sub(values[0],values[values.count-1]))<1e-8 {values.removeLast()};result.append(.init(points:values,closed:closed || arcClosed))};points=[];closed=false;lastArc=false}
+        func finish() {if !points.isEmpty {var values=points;let arcClosed=inferArcClosure && lastArc && values.count>2 && length(sub(values[0],values[values.count-1]))<1e-8;if (closed || arcClosed) && values.count>1 && length(sub(values[0],values[values.count-1]))<1e-8 {values.removeLast()};result.append(.init(points:values,closed:closed || arcClosed))};points=[];closed=false;lastArc=false}
         func flat(_ p0:CGPoint,_ p1:CGPoint,_ p2:CGPoint,_ p3:CGPoint)->Bool {
             let chord=sub(p3,p0),n=length(chord)
             func segmentDistance(_ point:CGPoint)->CGFloat {
@@ -1744,6 +1744,26 @@ private final class NativeStrokeGeometry {
             }
         }
         finish();return result
+    }
+    /// Classic FlattenPath replaces selected device geometry; it must not paint,
+    /// normalize open figures into regions, or infer closure from coincident ends.
+    func flatten(_ text:String) throws -> [String:Any] {
+        let figures=try parse(text,inverse:.identity,tolerance:1.0/256,radius:0,inferArcClosure:false)
+        var commands:[String]=[],count=0,bounds:CGRect?
+        for figure in figures {
+            for (index,point) in figure.points.enumerated() {
+                try finite(point);count += 1
+                let command=(index==0 ? "M ":"L ")+String(Double(point.x))+" "+String(Double(point.y))
+                guard command.utf8.count<=32*1024*1024-markupBytes else {throw Self.invalid("aggregate flattened path markup budget exceeded")}
+                markupBytes += command.utf8.count;commands.append(command)
+                if let old=bounds {bounds=CGRect(x:min(old.minX,point.x),y:min(old.minY,point.y),width:max(old.maxX,point.x)-min(old.minX,point.x),height:max(old.maxY,point.y)-min(old.minY,point.y))}
+                else {bounds=CGRect(origin:point,size:.zero)}
+            }
+            if figure.closed {commands.append("Z");markupBytes += 1}
+        }
+        guard markupBytes<=32*1024*1024 else {throw Self.invalid("aggregate flattened path markup budget exceeded")}
+        let box=bounds ?? .zero
+        return ["path":commands.joined(separator:" "),"pointCount":count,"bounds":[Double(box.minX),Double(box.minY),Double(box.maxX),Double(box.maxY)]]
     }
     private func trim(_ points:[CGPoint],by amount:CGFloat,fromStart:Bool)->[CGPoint] {
         var values=fromStart ? points:Array(points.reversed()),remaining=amount
@@ -2058,7 +2078,11 @@ private final class NativeStrokeGeometry {
         guard abs(world.a*world.d-world.b*world.c)>1e-14,abs(pen.a*pen.d-pen.b*pen.c)>1e-14 else {throw Self.invalid("singular stroke transform")}
         let device=hairline ? CGAffineTransform.identity:pen.concatenating(world),scale=hypot(device.a,device.b)+hypot(device.c,device.d)
         guard scale.isFinite,scale>0 else {throw Self.invalid("invalid device stroke scale")}
-        let tolerance:CGFloat=0.05/max(1e-9,scale),figures=try parse(text,inverse:geometry,tolerance:tolerance,radius:width)
+        let explicitClosure:Bool
+        if let value=options.forProperty("explicitPathClosure"),!value.isUndefined {
+            guard value.isBoolean else {throw Self.invalid("invalid explicit path closure option")};explicitClosure=value.toBool()
+        } else {explicitClosure=false}
+        let tolerance:CGFloat=0.05/max(1e-9,scale),figures=try parse(text,inverse:geometry,tolerance:tolerance,radius:width,inferArcClosure:!explicitClosure)
         let storedStart=try customCap(options,"customStart",width:width,tolerance:tolerance),storedEnd=try customCap(options,"customEnd",width:width,tolerance:tolerance)
         guard startCap != 255 || storedStart != nil,endCap != 255 || storedEnd != nil else {throw Self.invalid("missing custom cap object")}
         let customStart=startCap==255 ? storedStart:nil,customEnd=endCap==255 ? storedEnd:nil
@@ -2103,7 +2127,27 @@ private final class NativeStrokeGeometry {
         if !caps.isEmpty {result=result.union(caps,using:.winding)}
         if !inset.isEmpty {result=result.union(inset.normalized(using:.winding).intersection(closedFill,using:.evenOdd),using:.winding)}
         var transform=output
-        guard let transformed=result.copy(using:&transform) else {throw Self.invalid("could not transform stroke outline")}
+        guard var transformed=result.copy(using:&transform) else {throw Self.invalid("could not transform stroke outline")}
+        if let minimum=options.forProperty("classicMinimumDeviceWidth"),!minimum.isUndefined {
+            guard minimum.isBoolean else {throw Self.invalid("invalid classic minimum-device-width option")}
+            if minimum.toBool() {
+                guard explicitClosure,alignment==0,bands==[0,1],worldValues==[1,0,0,1,0,0],customStart==nil,customEnd==nil,!alternate else {throw Self.invalid("invalid classic minimum-device-width profile")}
+                // Keep the transformed nib, but never collapse ordinary GDI
+                // pen coverage below a device hairline. Split in original pen
+                // space first, so the minimum outline cannot fill dash gaps.
+                let minimumPath=CGMutablePath()
+                for figure in figures {
+                    for piece in try dashed(figure,pattern:dashPattern,offset:dashOffset,width:width) {
+                        let deviceFigure=Figure(points:piece.points.map{$0.applying(output)},closed:piece.closed)
+                        try outline(deviceFigure,width:1,bands:[0,1],pattern:[],offset:0,
+                                    startCap:piece.start ? startCap:dashCap,endCap:piece.end ? endCap:dashCap,
+                                    dashCap:dashCap,join:join,limit:miterLimit,tolerance:0.05,to:minimumPath)
+                    }
+                }
+                try checkNormalizationBudget()
+                transformed=transformed.union(minimumPath.normalized(using:.winding),using:.winding)
+            }
+        }
         var commands:[String]=[],finalPoints=0,serializationError:ConversionError?
         func coordinate(_ value:CGFloat)->String {String(Double(value))}
         transformed.applyWithBlock { pointer in
@@ -3123,6 +3167,11 @@ private func run() throws {
         catch ConversionError.invalid(let message) { nativeError(message); return [:] }
         catch { nativeError("Metafile pen geometry failed: " + String(describing: error)); return [:] }
     }
+    let flattenPath:@convention(block)(String)->NSDictionary = {path in
+        do {return try strokeGeometry.flatten(path) as NSDictionary}
+        catch ConversionError.invalid(let message) {nativeError(message);return [:]}
+        catch {nativeError("Metafile path flattening failed: "+String(describing:error));return [:]}
+    }
     let strokeCoverage:@convention(block)(String,JSValue)->NSDictionary = { id,options in
         do {return try strokeGeometry.coverage(id,options:options) as NSDictionary}
         catch ConversionError.invalid(let message) {nativeError(message);return [:]}
@@ -3354,6 +3403,7 @@ private func run() throws {
     context.setObject(layoutText, forKeyedSubscript: "__turtleLayoutText" as NSString)
     context.setObject(positionedText,forKeyedSubscript:"__turtlePositionedText" as NSString)
     context.setObject(strokePath, forKeyedSubscript: "__turtleStrokePath" as NSString)
+    context.setObject(flattenPath,forKeyedSubscript:"__turtleFlattenPath" as NSString)
     context.setObject(strokeCoverage,forKeyedSubscript:"__turtleStrokeCoverage" as NSString)
     context.setObject(paintCoverage,forKeyedSubscript:"__turtlePaintCoverage" as NSString)
     context.setObject(regionPath,forKeyedSubscript:"__turtleRegionPath" as NSString)

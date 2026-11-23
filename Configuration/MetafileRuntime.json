@@ -165,5 +165,27 @@
     "geometry": "Original rounded transfer lattice; inclusive negative anchors; finished-output reflection; measured source boundary and leading-black support.",
     "connected_playback": "WMF SETPIXEL source-DC paint; transparent initial WMF output and null-pen Rectangle device-edge exclusion, retaining opaque white RGB interpretation for Boolean/source-DC reads.",
     "limits": "Axis-aligned captured Bitmap16 family. Signed self-source reuses the serialized profile without a separate signed-self oracle. Affine and wider source-size/enlargement branch parity remains unproven."
+  },
+  "classic_paths": {
+    "implementation": "Original TurtleGit typed classic path playback and native bounded geometry; GPL-2.0-or-later",
+    "records": [
+      "EMR_POLYDRAW 0x38",
+      "EMR_POLYDRAW16 0x5C",
+      "EMR_BEGINPATH/ENDPATH/CLOSEFIGURE/ABORTPATH",
+      "EMR_FLATTENPATH 0x41",
+      "EMR_WIDENPATH 0x42",
+      "EMR_FILLPATH/STROKEPATH/STROKEANDFILLPATH/SELECTCLIPPATH"
+    ],
+    "geometry": "Captured device paths, exact logical current position and copied SaveDC/RestoreDC path state; selected geometric or ordinary/stock/null pen supplies widening geometry with a minimum classic device hairline, later brush supplies FillPath color. Flatten uses original adaptive subdivision at1/256device-pixel tolerance.",
+    "bounds": "131072 points per PolyDraw record;1048576 aggregate classic path points;2MiB selected path geometry;64MiB aggregate path wire/replacement markup and independent64MiB saved-path copies and64MiB cumulative retained-path scanning; EndPath and consumers enforce selected-path size before paint; native geometry retains existing cumulative flatten/outline budgets.",
+    "specifications": [
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/01b63e3f-19d6-437c-8fc6-2758884bc08d",
+      "https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-emf/b930b989-30ec-4954-a889-1dc60ce0b689",
+      "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-flattenpath",
+      "https://learn.microsoft.com/en-us/windows/win32/api/wingdi/nf-wingdi-widenpath"
+    ],
+    "documentation": "docs/METAFILE-CLASSIC-PATH-PARITY.md",
+    "limits": "Prepared implementation; grouped checkpoint pending. Windows integer flatten/outline and per-device cosmetic widening identity unverified. Ordinary thin/zero/stock/null widening uses geometry-derived minimum device coverage; ExtCreatePen cosmetic widening remains a native-failure refusal. HQ6/7 affine interpolation remains a separate open numerical family.",
+    "third_party_code_copied": false
   }
 }

@@ -206,13 +206,13 @@ import TurtleGitCore
             router=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:engine,askpass:nil,libgit2Configuration:.init(enabled:false))},snapshotWriter:{_ in false})
             router.fileComparisonPreferences=prefs;router.notifyFinder={}
             router.presentRevertQuestion={ [self] _,alert,reply in capture(alert,reply:reply);return true}
-            router.makeDirectRevertProgress={ [self] repository,access,rows,amend,againstHead,preferences,policy,scopePaths in
+            router.makeDirectRevertProgress={ [self] repository,access,rows,amend,againstHead,preferences,policy,scopePaths,readScope in
                 payloads.append(rows)
-                let child=RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:amend,againstHead:againstHead,autoCloseSuccess:false,preferences:preferences,policy:policy,paths:scopePaths)
+                let child=RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:amend,againstHead:againstHead,autoCloseSuccess:false,preferences:preferences,policy:policy,paths:scopePaths,readScope:readScope)
                 child.model.execute={ [self] rows,token,notify,output in
                     executionPayloads.append(rows)
                     if holdExecution {await withCheckedContinuation{heldExecution=$0}}
-                    return try await repository.revertWorkingFiles(rows,amend:amend,amendDiffToLastCommit:againstHead,policy:policy,paths:scopePaths,cancellation:token,progress:notify,onOutput:output)
+                    return try await repository.revertWorkingFiles(rows,amend:amend,amendDiffToLastCommit:againstHead,policy:policy,paths:scopePaths,readScope:readScope,cancellation:token,progress:notify,onOutput:output)
                 }
                 progresses.append(child);return child
             }

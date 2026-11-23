@@ -656,6 +656,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/CHANGED-SCOPED-STATUS-PARITY.md",
         "docs/PRIMARY-CONDITIONAL-UI-PARITY.md",
         "docs/PRIMARY-DIALOG-VISUAL-REVIEW.md",
         "docs/REFERENCE-CHILD-DELIVERY-PARITY.md",
@@ -665,6 +666,7 @@
         "docs/WORKSPACE-REPORT-OWNERSHIP-PARITY.md"
       ],
       "qa_records": [
+        "docs/qa/changed-scoped-status-2026-11-23.json",
         "docs/qa/dialog-geometry-2026-10-08.json",
         "docs/qa/fetch-pull-stream-2026-10-08.json",
         "docs/qa/file-list-layout-2026-10-14.json",

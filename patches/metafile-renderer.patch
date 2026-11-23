@@ -127,7 +127,7 @@ diff --git a/src/turtleGit.js b/src/turtleGit.js
 +  function i32(b,o) { return u32(b,o)|0; }
 +  function f32(b,o) { if(o < 0 || o+4 > b.length) fail('truncated floating-point record'); const v=new DataView(b.buffer,b.byteOffset,b.byteLength).getFloat32(o,true); if(!Number.isFinite(v)||Math.abs(v)>1e9) fail('invalid coordinate'); return v; }
 +  let conversion=null;
-+  const sharedCounters=['ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','DibPrivateBytes','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','EffectPixels','EffectBytes','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
++  const sharedCounters=['ClassicPathPoints','ClassicPathBytes','ClassicPathSavedBytes','ClassicPathScannedBytes','ClassicGradientMeshes','ClassicGradientVertices','ClassicGradientWork','ClassicPenEntries','CopyBytes','CopyPaints','DecodedPathPoints','DibPrivateBytes','GdiMaskBytes','GdiRegionRectangles','GradientPixels','PathGradientBoundaryWork','PathGradientRasterWork','ImageMarkup','ImageTiles','EffectPixels','EffectBytes','MaskBytes','PenPoints','PositionedUnits','RasterBrushBytes','RasterBrushDefinitions','RasterBrushSequence','RasterDecoded','RasterPaletteEntries','RasterPatternPixels','RasterTilePixels','RegionMaskBytes','RegionNodes','RegionPoints','RegionRectangles','TextureMarkup','TexturePixels','TextureTiles','TracedPathPoints'];
 +  function shareBudgets(ctx) {
 +    const counters=conversion.counters;
 +    for(const suffix of sharedCounters){const key='_turtle'+suffix;Object.defineProperty(ctx,key,{get(){return counters[key]||0;},set(value){if(!Number.isFinite(value)||value<0)fail('invalid shared rendering budget');counters[key]=value;}});}
@@ -2715,7 +2715,7 @@ diff --git a/src/turtleGitPositionedText.js b/src/turtleGitPositionedText.js
 diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 --- /dev/null
 +++ b/src/turtleGitRaster.js
-@@ -0,0 +1,614 @@
+@@ -0,0 +1,615 @@
 +// Original TurtleGit Boolean GDI playback. GPL-2.0-or-later, see NOTICE.
 +// SVG snapshots contain only the private renderer's escaped drawing stream.
 +module.exports=function installRaster({EmfDrawer,WmfDrawer,SvgContext,fail,u32,i32,f32,escape,normalizePaintColors}) {
@@ -2814,6 +2814,7 @@ diff --git a/src/turtleGitRaster.js b/src/turtleGitRaster.js
 +  decodeDib.brush=(bytes,bmi,cbBmi,bits,cbBits,usage,d,mono=false)=>decodeDib(bytes,bmi,cbBmi,bits,cbBits,usage,d,false,false,mono?2:1);
 +  const brushes=require('./turtleGitRasterBrush')({fail,u32,i32,escape,decodeDib});
 +  const classicPen=require('./turtleGitClassicPen')({fail,u32,i32,escape,decodeDib,brushes,clipped,composite});
++  require('./turtleGitClassicPaths')({EmfDrawer,fail,u32,i32,classicPen});
 +  const regions=require('./turtleGitClassicRegion')({fail,u32,i32,word,short,escape,brushes,clipped,composite,svg,dimension});
 +  const directScanlines=require('./turtleGitDirectScanlines')({fail,u32,i32,decodeDib,declaredDib,transfer,mapping,group,clipped,composite,bitmapBudget,dimension,dibColor});
 +  const classicGradient=require('./turtleGitClassicGradient')({fail,u32,i32,clipped,group,dimension,bitmapBudget});
@@ -3644,7 +3645,7 @@ diff --git a/src/utils/nestedMetafilePlayer.js b/src/utils/nestedMetafilePlayer.
 diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 --- /dev/null
 +++ b/src/turtleGitClassicPen.js
-@@ -0,0 +1,130 @@
+@@ -0,0 +1,147 @@
 +// Original TurtleGit classic extended-pen playback. GPL-2.0-or-later.
 +// EMR_EXTCREATEPEN offsets include the record's eight-byte header; data does not.
 +module.exports=function({fail,u32,i32,escape,decodeDib,brushes,clipped,composite}) {
@@ -3686,7 +3687,7 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +    if(m.some(v=>!Number.isFinite(v)||Math.abs(v)>1e9)||Math.abs(m[0]*m[3]-m[1]*m[2])<1e-14)fail('invalid extended pen affine mapping');
 +    return m;
 +  }
-+  function outline(d,pen,path){
++  function outline(d,pen,path,explicitPathClosure=false,classicMinimumDeviceWidth=false){
 +    if(!path)return null;
 +    if(path.length>8*1024*1024||typeof globalThis.__turtleStrokePath!=='function')fail('extended pen outline adapter unavailable or path budget exceeded');
 +    const line=pen.style&15,width=pen.width,unit=width||1;
@@ -3696,7 +3697,7 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +    else if(line>=1&&line<=4){const u=pen.geometric?unit:1;dash=([[],[5,5],[1,1],[5,5,1,5],[5,5,1,1,1,5]][line]).map(v=>v*u/unit);}
 +    const cap=pen.geometric?({0:2,256:1,512:0}[pen.style&0xf00]):0;
 +    const join=pen.geometric?({0:2,4096:1,8192:3}[pen.style&0xf000]):0;
-+    const result=__turtleStrokePath(path,{width,transform:pen.geometric?mapping(d):identity,world:identity,startCap:cap,endCap:cap,join,miterLimit:d.ctx.miterLimit===undefined?10:d.ctx.miterLimit,dash,dashCap:cap,classicDashZeros:true,classicAlternate:line===8,dashOffset:0,alignment:0,fillRule:'nonzero'});
++    const result=__turtleStrokePath(path,{width,transform:pen.geometric?mapping(d):identity,world:identity,startCap:cap,endCap:cap,join,miterLimit:d.ctx.miterLimit===undefined?10:d.ctx.miterLimit,dash,dashCap:cap,classicDashZeros:true,classicAlternate:line===8,explicitPathClosure,classicMinimumDeviceWidth,dashOffset:0,alignment:0,fillRule:'nonzero'});
 +    if(!result||typeof result.path!=='string'||result.path.length>32*1024*1024)fail('invalid extended pen outline');
 +    return result.path;
 +  }
@@ -3773,7 +3774,24 @@ diff --git a/src/turtleGitClassicPen.js b/src/turtleGitClassicPen.js
 +    }finally{d._turtleClassicInsideBounds=old;}
 +    return true;
 +  }
-+  return {create,stroke,shape};
++  function pathOutline(d,path){
++    const current=d.gdiObjectManager._currentPen||{type:'pen',style:0,width:1,_isStockPen:true};
++    let pen=selected(d);
++    if(pen){
++      if(!pen.geometric)fail('WidenPath does not accept ExtCreatePen cosmetic pens');
++      return outline(d,pen,path,true)||'';
++    }
++    if(!current._turtleClassicPen&&!current._isStockPen)fail('unsupported classic WidenPath pen');
++    // Native GDI accepts ordinary hairlines, stock and null pens here even
++    // though the API eligibility prose only mentions wide CreatePen pens.
++    const deviceHairline=current._isStockPen||(current.style&15)===5||!current.width;
++    const width=deviceHairline?0:Math.abs(current.width);
++    let style=deviceHairline?0:current.style;
++    if(width>1&&(style&15)>=1&&(style&15)<=4)style=(style&~15);
++    pen={...current,style,width,geometric:!deviceHairline,entries:[]};
++    return outline(d,pen,path,true,!deviceHairline)||'';
++  }
++  return {create,stroke,shape,pathOutline};
 +};
 diff --git a/src/turtleGitClassicRegion.js b/src/turtleGitClassicRegion.js
 --- /dev/null
@@ -4544,5 +4562,133 @@ new file mode 100644
 +      const s=state(owner);
 +      return Object.freeze({owner,type,world:currentMatrix(owner),smoothingMode:s.smoothingMode,antialias:s.antialias,pixelOffsetMode:s.pixelOffsetMode});
 +    }
++  };
++};
+diff --git a/src/turtleGitClassicPaths.js b/src/turtleGitClassicPaths.js
+--- /dev/null
++++ b/src/turtleGitClassicPaths.js
+@@ -0,0 +1,124 @@
++// Original TurtleGit classic EMF path construction and replacement. GPL-2.0-or-later.
++// MS-EMF Point enumeration; paths stay in captured device coordinates.
++module.exports=function installClassicPaths({EmfDrawer,fail,u32,i32,classicPen}) {
++  const ep=EmfDrawer.prototype,MAX_POINTS=1048576,MAX_BYTES=64*1024*1024;
++  function charge(ctx,points,bytes,saved=false){
++    const pointKey='_turtleClassicPathPoints',byteKey=saved?'_turtleClassicPathSavedBytes':'_turtleClassicPathBytes';
++    const p=(ctx[pointKey]||0)+points,b=(ctx[byteKey]||0)+bytes;
++    if(!Number.isSafeInteger(p)||p>MAX_POINTS||!Number.isSafeInteger(b)||b>MAX_BYTES)fail('aggregate classic path budget exceeded');
++    ctx[pointKey]=p;ctx[byteKey]=b;
++  }
++  function position(p){if(!p||![p.x,p.y].every(v=>Number.isFinite(v)&&Math.abs(v)<=1e9))fail('classic path position exceeds limit');return{x:p.x,y:p.y};}
++  function point(d,p){return position(d.coordinateTransformer.transform(p.x,p.y));}
++  function logical(d,p){
++    const o=point(d,{x:0,y:0}),x=point(d,{x:1,y:0}),y=point(d,{x:0,y:1});
++    const a=x.x-o.x,b=x.y-o.y,c=y.x-o.x,e=y.y-o.y,det=a*e-b*c;
++    if(!Number.isFinite(det)||Math.abs(det)<1e-14)fail('singular classic path mapping');
++    return position({x:(e*(p.x-o.x)-c*(p.y-o.y))/det,y:(-b*(p.x-o.x)+a*(p.y-o.y))/det});
++  }
++  function geometry(d){
++    let bytes=0;
++    for(const segment of d.ctx._segments){
++      const work=segment.length+1;bytes+=work;
++      const scanned=(d.ctx._turtleClassicPathScannedBytes||0)+work;
++      if(bytes>2*1024*1024||scanned>MAX_BYTES)fail('classic path geometry or scan budget exceeded');
++      d.ctx._turtleClassicPathScannedBytes=scanned;
++    }
++    return d.ctx._d();
++  }
++  function start(d){
++    const pattern=/\bM\s*([-+0-9.eE]+)[\s,]+([-+0-9.eE]+)/g;let match,latest;
++    while((match=pattern.exec(geometry(d))))latest=position({x:Number(match[1]),y:Number(match[2])});
++    return latest?logical(d,latest):position(d.currentPos||{x:0,y:0});
++  }
++  function clear(d){d.ctx.beginPath();d.currentPath=[];d.pathState='idle';d._turtleClassicAfterClose=false;}
++  function replace(d,receipt){
++    if(!receipt||typeof receipt.path!=='string'||receipt.path.length>2*1024*1024)fail('invalid classic path replacement');
++    const count=receipt.pointCount===undefined?0:receipt.pointCount;
++    if(!Number.isSafeInteger(count)||count<0||count>MAX_POINTS)fail('invalid classic path replacement count');
++    charge(d.ctx,count,receipt.path.length);d.ctx._segments=receipt.path?[receipt.path]:[];d.ctx._hasSubpath=!!receipt.path;
++    d.pathState='completed';d._turtleClassicAfterClose=false;
++  }
++  function flatten(path){
++    if(typeof globalThis.__turtleFlattenPath!=='function')fail('native classic path geometry unavailable');
++    const result=__turtleFlattenPath(path);
++    if(!result||typeof result.path!=='string')fail('invalid flattened classic path');return result;
++  }
++  function decode(d,data,compact){
++    if(data.length<20)fail('truncated classic PolyDraw record');
++    const count=u32(data,16),stride=compact?4:8,needed=20+count*(stride+1),padded=Math.ceil(needed/4)*4;
++    if(count>131072||data.length!==padded)fail('invalid classic PolyDraw extent');
++    charge(d.ctx,count,needed);
++    const types=20+count*stride,values=[];
++    for(let i=0;i<count;i++){
++      const offset=20+i*stride;
++      const short=o=>(data[o]|data[o+1]<<8)<<16>>16;
++      const p=position({x:compact?short(offset):i32(data,offset),y:compact?short(offset+2):i32(data,offset+4)}),type=data[types+i];
++      if(type&~7||![2,4,6].includes(type&6)||(type&6)===6&&(type&1))fail('invalid classic PolyDraw point type');
++      values.push({p,device:point(d,p),type});
++    }
++    const commands=[];
++    for(let i=0;i<count;i++){
++      const value=values[i],kind=value.type&6;
++      if(kind===4){
++        if(i+2>=count||values[i].type!==4||values[i+1].type!==4||(values[i+2].type&6)!==4)fail('invalid classic PolyDraw cubic group');
++        commands.push({kind,values:values.slice(i,i+3),close:!!(values[i+2].type&1)});i+=2;
++      }else commands.push({kind,values:[value],close:!!(value.type&1)});
++    }
++    // Validate the complete packet before touching geometry or painting state.
++    if(!count)return;
++    const ctx=d.ctx,recording=d.pathState==='active';
++    if(!recording)ctx.beginPath();
++    let current=position(d.currentPos||{x:0,y:0}),figure=ctx._hasSubpath?start(d):current,afterClose=recording&&!!d._turtleClassicAfterClose;
++    const move=p=>{const q=point(d,p);ctx.moveTo(q.x,q.y);figure={...p};afterClose=false;};
++    for(const command of commands){
++      if(command.kind===6){current={...command.values[0].p};move(current);continue;}
++      if(!ctx._hasSubpath||afterClose)move(current);
++      if(command.kind===2){const q=command.values[0].device;ctx.lineTo(q.x,q.y);}
++      else{const p=command.values.map(v=>v.device);ctx.bezierCurveTo(p[0].x,p[0].y,p[1].x,p[1].y,p[2].x,p[2].y);}
++      current={...command.values[command.values.length-1].p};
++      if(command.close){ctx.closePath();current={...figure};afterClose=true;}
++    }
++    geometry(d);if(count)d.currentPos=current;d._turtleClassicAfterClose=afterClose;
++    if(!recording&&!d._penNull&&count)ctx.stroke();
++  }
++  // SaveDC owns a copy of both open and selected path geometry, not only styles.
++  const capture=ep._captureDcState,restore=ep._restoreDcState;
++  ep._captureDcState=function(){
++    const s=capture.call(this),live=this.pathState==='active'||this.pathState==='completed',path=live?geometry(this):'';charge(this.ctx,0,path.length,true);
++    s.turtleClassicPath={segments:live?this.ctx._segments.slice():[],subpath:live&&this.ctx._hasSubpath,state:this.pathState||'idle',current:position(this.currentPos||{x:0,y:0}),afterClose:!!this._turtleClassicAfterClose};return s;
++  };
++  ep._restoreDcState=function(s){
++    restore.call(this,s);const path=s&&s.turtleClassicPath;
++    if(path){this.ctx._segments=path.segments.slice();this.ctx._hasSubpath=path.subpath;this.pathState=path.state;this.currentPos={...path.current};this._turtleClassicAfterClose=path.afterClose;}
++  };
++  const dispatch=ep.processEmfRecordType;
++  ep.processEmfRecordType=function(type,data){
++    if(this._turtlePlusSeen&&!this._turtleGetDC&&type!==70&&type!==14&&type!==1)return;
++    if(type===56||type===92){decode(this,data,type===92);return;}
++    if([59,60,61,65,66,68].includes(type)){
++      if(data.length!==0)fail('invalid classic path bracket record');
++      if(type===59){if(this.pathState==='active')fail('nested classic BeginPath');this.ctx.beginPath();this.pathState='active';this._turtleClassicAfterClose=false;return;}
++      if(type===68){clear(this);return;}
++      if(type===60){if(this.pathState!=='active')fail('EndPath without active classic path');geometry(this);this.pathState='completed';return;}
++      if(type===61){
++        if(this.pathState!=='active')fail('CloseFigure without active classic path');
++        if(this.ctx._hasSubpath){this.currentPos=start(this);this.ctx.closePath();this._turtleClassicAfterClose=true;}return;
++      }
++      if(this.pathState!=='completed')fail('classic path replacement requires completed path');
++      const path=geometry(this);
++      if(type===65)replace(this,flatten(path));
++      else replace(this,flatten(classicPen.pathOutline(this,path)));
++      return;
++    }
++    if(type===27){if(data.length!==8)fail('invalid classic path MoveTo');this._turtleClassicAfterClose=false;}
++    if([5,6,54,55,88,89].includes(type)&&this.pathState==='active'&&this._turtleClassicAfterClose){const p=point(this,this.currentPos);this.ctx.moveTo(p.x,p.y);this._turtleClassicAfterClose=false;}
++    const consuming=[62,63,64,67].includes(type);
++    if([62,63,64].includes(type)&&data.length!==16)fail('invalid classic path painting record');
++    if(consuming&&this.pathState!=='completed')fail('classic path consumer requires completed path');
++    if(consuming)geometry(this);
++    const result=dispatch.call(this,type,data);
++    if(consuming)clear(this);
++    return result;
 +  };
 +};
