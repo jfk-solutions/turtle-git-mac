@@ -45,7 +45,11 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
     /// The status-list menu gates base/unified comparisons by the marked row.
     /// Unversioned and ignored rows still support their double-click preview.
     public var canCompareWithBaseFromStatusList: Bool {
-        ![FileState.untracked, .ignored].contains(state) && !hasUnversionedCopy
+        guard ![FileState.untracked, .ignored].contains(state),!hasUnversionedCopy else {return false}
+        // Added/renamed/copied index entries that have disappeared from disk
+        // carry an additional Missing action upstream. Plain Deleted|Missing
+        // and Modified|Deleted|Missing remain valid base comparisons.
+        return worktree != "D" || ![Character("A"),"R","C"].contains(index)
     }
     /// Porcelain v1 -z uses NUL-terminated raw paths and destination before source for renames.
     public static func parse(_ data: Data) -> [StatusEntry] {

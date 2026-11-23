@@ -54,12 +54,32 @@ private extension NSWindow {
         }
     }
     static func bridge(_ owner:NSWindowController)async throws->StatusListPrimaryActionBridge.Probe {
-        owner.window?.contentView?.layoutSubtreeIfNeeded()
-        try await wait("Primary row bridge not mounted"){views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.contains{$0.active && !$0.rows.isEmpty}}
+        do {
+            try await wait("Primary row bridge not mounted") {
+                // Offscreen windows still need layout after their asynchronous
+                // report snapshot replaces the initial loading presentation.
+                owner.window?.contentView?.layoutSubtreeIfNeeded()
+                return views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.contains{$0.active && !$0.rows.isEmpty}
+            }
+        } catch {
+            let probes=views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
+            let tables=views(owner.window?.contentView).compactMap{$0 as? NSTableView}
+            let probeState=probes.map {"active=\($0.active),rows=\($0.rows.count),window=\($0.window != nil)"}
+            let tableState=tables.map {"rows=\($0.numberOfRows),hidden=\($0.isHiddenOrHasHiddenAncestor)"}
+            print("PRIMARY MOUNT: owner=\(type(of:owner)) visible=\(owner.window?.isVisible == true) frame=\(String(describing:owner.window?.frame)) probes=\(probeState) tables=\(tableState)")
+            throw error
+        }
         return try unwrap(views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.first{$0.active && !$0.rows.isEmpty},"No live primary bridge")
     }
     static func table(_ owner:NSWindowController)throws->NSTableView {try unwrap(views(owner.window?.contentView).compactMap{$0 as? NSTableView}.first{$0.headerView != nil},"No native source report")}
     static func select(_ owner:NSWindowController,paths:[String],accepted:()->Bool)async throws {
+        if owner is ResolveWindowController {
+            let table=try Self.table(owner),report=try unwrap(table.dataSource as? ConflictReportTable.Coordinator,"Native Resolve coordinator missing"),wanted=GitPathSet(paths)
+            try await wait("Native Resolve rows not ready"){owner.window?.contentView?.layoutSubtreeIfNeeded();return table.numberOfRows==report.owner.rows.count}
+            owner.window?.makeFirstResponder(table)
+            CommitFileInteraction.replaceSelection(in:table,with:IndexSet(report.owner.rows.indices.filter{wanted.contains(report.owner.rows[$0].path)}))
+            try await wait("Native Resolve multi-selection not projected"){accepted()};return
+        }
         let probe=try await bridge(owner),table=try table(owner),wanted=GitPathSet(paths)
         try await wait("Native rows not ready"){table.numberOfRows==probe.rows.count}
         owner.window?.makeFirstResponder(table)
@@ -67,6 +87,7 @@ private extension NSWindow {
         try await wait("Native multi-selection not projected"){accepted()}
     }
     static func click(_ owner:NSWindowController,path:String,shift:Bool=false,column:Int?=nil)async throws {
+        if owner is ResolveWindowController {try nativeResolveClick(owner,path:path,shift:shift,column:column ?? 1);return}
         let probe=try await bridge(owner),table=try table(owner)
         let row=try unwrap(probe.rows.firstIndex(where:{candidate in candidate.map{GitReferenceName.equal($0,path)} ?? false}),"Clicked row absent")
         table.scrollRowToVisible(row);owner.window?.contentView?.layoutSubtreeIfNeeded()
@@ -77,20 +98,68 @@ private extension NSWindow {
         if col<probe.checkboxColumns {try require(observed === event,"Checkbox event was swallowed by row activation adapter")}
         else {try require(observed==nil,"Source default double-click was not consumed by actual row adapter")}
     }
+    /// The native Resolve report replaced the earlier SwiftUI Probe. Exercise
+    /// its real AppKit mouse tracker/target/action, using the same scoped
+    /// offscreen key-state seam as the retained Log/Browser pointer fixtures.
+    static func nativeResolveClick(_ owner:NSWindowController,path:String,shift:Bool,column:Int)throws {
+        let table=try Self.table(owner),report=try unwrap(table.dataSource as? ConflictReportTable.Coordinator,"Native Resolve coordinator missing")
+        let row=try unwrap(report.owner.rows.firstIndex{GitReferenceName.equal($0.path,path)},"Native Resolve clicked row absent")
+        let window=try unwrap(table.window,"Native Resolve window absent")
+        table.scrollRowToVisible(row);table.scrollColumnToVisible(column);window.contentView?.layoutSubtreeIfNeeded()
+        try require(window.makeFirstResponder(table),"Native Resolve report refused focus")
+        let rectangle=table.frameOfCell(atColumn:column,row:row).intersection(table.visibleRect)
+        try require(!rectangle.isEmpty,"Native Resolve clicked cell is clipped")
+        let point=table.convert(NSPoint(x:rectangle.midX,y:rectangle.midY),to:nil),stamp=ProcessInfo.processInfo.systemUptime
+        let down=try unwrap(NSEvent.mouseEvent(with:.leftMouseDown,location:point,modifierFlags:shift ? .shift:[],timestamp:stamp,windowNumber:window.windowNumber,context:nil,eventNumber:11,clickCount:2,pressure:1),"Native Resolve down absent")
+        let up=try unwrap(NSEvent.mouseEvent(with:.leftMouseUp,location:point,modifierFlags:shift ? .shift:[],timestamp:stamp+0.01,windowNumber:window.windowNumber,context:nil,eventNumber:12,clickCount:2,pressure:0),"Native Resolve up absent")
+        let selector=#selector(getter:NSWindow.isKeyWindow),method=try unwrap(class_getInstanceMethod(NSWindow.self,#selector(getter:NSWindow.isKeyWindow)),"Native key-state getter absent")
+        let original=method_getImplementation(method)
+        let injected:@convention(block)(NSWindow)->Bool={source in
+            if source === window{return true}
+            typealias Getter=@convention(c)(NSWindow,Selector)->Bool
+            return unsafeBitCast(original,to:Getter.self)(source,selector)
+        }
+        let implementation=imp_implementationWithBlock(injected)
+        class_replaceMethod(NSWindow.self,selector,implementation,method_getTypeEncoding(method))
+        defer{class_replaceMethod(NSWindow.self,selector,original,method_getTypeEncoding(method));imp_removeBlock(implementation)}
+        NSApp.postEvent(up,atStart:true)
+        ComparisonToolInvocation.$alternate.withValue(shift){table.mouseDown(with:down)}
+    }
     static func checkbox(_ owner:NSWindowController,path:String,value:()->Bool)async throws {
         let before=value()
-        try await click(owner,path:path,column:0)
+        // Resolve's separate pointer assertion already exercised its real
+        // checkbox column. Unlike Probe.observe, native mouse tracking can
+        // toggle that control, so do not add another pointer mutation here.
+        if !(owner is ResolveWindowController) {try await click(owner,path:path,column:0)}
         @MainActor func button()throws->NSButton {
+            if owner is ResolveWindowController {
+                let table=try Self.table(owner),report=try unwrap(table.dataSource as? ConflictReportTable.Coordinator,"Native Resolve checkbox coordinator missing")
+                let row=try unwrap(report.owner.rows.firstIndex{GitReferenceName.equal($0.path,path)},"Native Resolve checkbox row absent")
+                return try unwrap(views(table.view(atColumn:0,row:row,makeIfNecessary:true)).compactMap{$0 as? NSButton}.first,"Native Resolve checkbox missing")
+            }
             let probe=try unwrap(views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.first{$0.active},"Checkbox bridge retired")
             let row=try unwrap(probe.rows.firstIndex(where:{candidate in candidate.map{GitReferenceName.equal($0,path)} ?? false}),"Checkbox row missing")
             let table=try Self.table(owner)
             return try unwrap(views(table.view(atColumn:0,row:row,makeIfNecessary:true)).compactMap{$0 as? NSButton}.first,"No mounted native checkbox")
         }
+        @MainActor func reflected()->Bool {
+            owner.window?.contentView?.layoutSubtreeIfNeeded()
+            guard let button=try? button(),button.state == (value() ? .on:.off) else{return false}
+            guard owner is ResolveWindowController else{return true}
+            guard let table=try? Self.table(owner),let report=table.dataSource as? ConflictReportTable.Coordinator,
+                  let row=report.owner.rows.first(where:{GitReferenceName.equal($0.path,path)}) else{return false}
+            // The action reads its coordinator snapshot, not just NSButton's
+            // immediate visual toggle. Await SwiftUI's accepted projection
+            // before sending the next genuine native control action.
+            return row.checked==value()
+        }
+        try await wait("Native checkbox source projection not ready"){reflected()}
         try button().performClick(nil)
         try await wait("Native checkbox did not toggle"){value() != before}
-        try await wait("Native checkbox presentation did not follow action"){(try? button().state) == (before ? .off:.on)}
+        try await wait("Native checkbox presentation/source did not follow action"){reflected() && (try? button().state) == (before ? .off:.on)}
         try button().performClick(nil)
         try await wait("Native checkbox did not restore"){value() == before}
+        try await wait("Native checkbox restored source/presentation did not settle"){reflected()}
     }
     static func verify(_ c:Context)async throws {
         let commit=CommitWindowController(repository:c.repository,access:nil,defaults:c.prefs);c.owners.append(commit);commit.showWindow(nil);commit.model.reload(paths:["."])
@@ -125,6 +194,8 @@ private extension NSWindow {
         let oldCommit=StatusListPrimaryActionReceipt(path:c.normal,revision:commit.model.fileReportRevision,alternate:false)
         commit.model.reload(paths:["."]);try await wait("Commit reload not ready"){commit.model.fileListAvailable && !commit.model.busy && !commit.model.savingPreferences}
         commit.model.activatePrimaryFile(oldCommit);try require(commitActions.count==2,"Reload accepted stale clicked-row receipt")
+        // Retain the historical focused-receipt compatibility oracle. Actual
+        // native selected Return is covered by the connected November23 cohort.
         let keyboardRows=try await bridge(commit).rows
         let keyboard=try unwrap(StatusListPrimaryActionReceipt.focused([c.conflict,c.normal],focus:c.conflict,rows:keyboardRows,revision:commit.model.fileReportRevision),"No focused keyboard row")
         commit.model.activatePrimaryFile(keyboard);try require(commitActions.count==3 && commitActions.last!.1==[c.conflict],"Keyboard primary action lost focused conflict")
@@ -182,8 +253,12 @@ private extension NSWindow {
         method_exchangeImplementations(order,quiet);method_exchangeImplementations(sheet,quietSheet)
         defer{method_exchangeImplementations(sheet,quietSheet);method_exchangeImplementations(order,quiet)}
         let c=try Context()
-        do {try await c.setup();try await verify(c);await c.clean()}catch{await c.clean();throw error}
+        do {
+            try await c.setup();try await verify(c);await c.clean()
+            try await StatusPrimarySelectionVerification.verify(base:c.root,git:c.git)
+            try await LogWorkingRowAffordanceVerification.verify(base:c.root.appendingPathComponent("log-working-row-family",isDirectory:true),git:c.git)
+        }catch{await c.clean();throw error}
         try require(drained() && c.owners.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil},"Primary activation left owned windows/workers")
-        print("PASS: Source status primary activation, actual native row events, multi-selection conflict intent, Shift capture, checkbox native-action roundtrip, group exclusion, stale/sorted/closed ownership and drain")
+        print("PASS: Source status primary activation, SwiftUI row bridge and native Resolve AppKit mouse tracker, multi-selection conflict intent, Shift capture, checkbox native-action roundtrip, group exclusion, stale/sorted/closed ownership and drain")
     }
 }

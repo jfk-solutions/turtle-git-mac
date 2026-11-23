@@ -128,7 +128,13 @@ Unrelated staged changes are preserved outside the checked-file commit.
 
 **Show Unversioned Files** includes files that Git does not yet track. **Show
 Whole Project** expands a scoped selection to the repository. In Classic,
-double-click a file to inspect its diff or edit its conflict. **Do not autoselect submodules**
+double-click a file to inspect that clicked file's diff or edit its conflict.
+With the file table focused, Return or keypad Enter opens the selected files in
+list order, editing conflicts and previewing unversioned files individually.
+The same keys apply in Working Tree and Revert. A large selection asks for one
+confirmation before opening its viewers; declining opens none. Hold Shift to
+use the alternate comparison or merge tool. These keys keep their normal
+behavior while editing a text field. **Do not autoselect submodules**
 controls automatic submodule selection in checked-file mode; it is disabled in
 staging mode.
 

@@ -236,6 +236,14 @@ keeps the current draft's Undo history.</p>
 message and changed files. Use filters to narrow the displayed history. Select a
 revision to inspect it; file and revision menus offer the relevant comparisons
 and history operations. <a href="LOG-FIND.html">Finding revisions</a> explains Log's Find flow.</p>
+<p>In the working-tree row, Missing identifies a tracked file absent from disk;
+Deleted identifies removal from the index. An added file keeps its Added caption
+even if it is missing. A file retained on disk after removal
+from the index keeps one Deleted row and still offers Open, Export, Reveal and
+Mark for comparison. Missing added, renamed or copied files do not offer base
+or unified comparison. Return keeps the selected order, skips those missing
+files, and asks at most one multiple-file question. Untracked and retained local
+copies preview the current working file rather than substituting HEAD.</p>
 <p>Information, operation feedback and the footer retain their space while Log
 loads or reports an error, so the revision/message/file panes stay in place.
 Open the compact status disclosure for the complete selectable diagnostic.

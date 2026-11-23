@@ -3495,6 +3495,10 @@ private enum TransportBatchPresentationContext {
     private func showRevert(repository: GitRepository, access: RepositoryAccessLease?, paths: [String]) {
         let root = repository.root
         let controller = revertWindows[root.path] ?? RevertWindowController(repository: repository, access: access, preferences: fileComparisonPreferences)
+        controller.model.onPrimaryFileActivation=CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else {throw OperationCancellationFailure.cancelled}
+            try await self.showStatusListPrimaryFiles(plan,access:access,cancellation:token)
+        }
         controller.onClosed = CommandProgressContext.capture { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
         controller.model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
         controller.model.onAccepted = CommandProgressContext.capture { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
@@ -4069,6 +4073,10 @@ private enum TransportBatchPresentationContext {
         }
         let key = reusable?.key ?? (statusWindows[root.path] == nil ? root.path : root.path + "\0" + UUID().uuidString)
         let controller = reusable?.value ?? StatusWindowController(repository: repository, access: access, defaults: preferences)
+        controller.model.onPrimaryFileActivation=CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else {throw OperationCancellationFailure.cancelled}
+            try await self.showStatusListPrimaryFiles(plan,access:access,cancellation:token)
+        }
         controller.onPullAfterLFSLock = CommandProgressContext.capture { [weak self] in self?.showFetch(repository: repository, access: access, isPull: true) }
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in if self?.statusWindows[key] === controller { self?.statusWindows.removeValue(forKey: key) } }
         controller.model.onCopyAdd = CommandProgressContext.capture { [weak self] paths in self?.showCopy(repository: repository, access: access, sources: paths.map { repository.root.appendingPathComponent($0) }) }
@@ -4702,10 +4710,23 @@ private enum TransportBatchPresentationContext {
                         try session.check()
                         guard snapshot.root==plan.repository.root else{throw RevisionComparisonFailure.selection}
                         presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,preferences:plan.preferences,appearance:appearance,alpha:alpha)
-                    case .workingFile(let file):
-                        // Explicit selected paths include untracked/ignored leaves;
-                        // use the accepted base rather than querying a new HEAD.
-                        let snapshot=try await plan.repository.revisionFileComparison(from:plan.workingBase,to:.workingTree,paths:[file.path],cancellation:token)
+                    case .workingFile(let file,let currentVersion):
+                        if file.isSubmodule || file.path.hasSuffix("/") {
+                            showSubmoduleDiff(repository:plan.repository,access:access,path:file.path,from:currentVersion.label,
+                                fromIndex:currentVersion == .workingTree,preferences:plan.preferences,appearance:appearance,alpha:alpha)
+                            continue
+                        }
+                        // StartDiffWC clears Added/Deleted intent. The Log
+                        // working row's current-version sentinel opens the
+                        // accepted disk file on both sides, including retained
+                        // copies after removal from the index.
+                        let snapshot:RevisionComparisonSnapshot
+                        if currentVersion == .workingTree {
+                            snapshot=try await plan.repository.preparedPathComparison(from:.workingTree,fromPath:file.path,
+                                to:.workingTree,toPath:file.path,cancellation:token)
+                        } else {
+                            snapshot=try await plan.repository.revisionFileComparison(from:currentVersion,to:.workingTree,paths:[file.path],cancellation:token)
+                        }
                         try session.check()
                         guard snapshot.root==plan.repository.root else{throw RevisionComparisonFailure.selection}
                         presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,preferences:plan.preferences,appearance:appearance,alpha:alpha)
@@ -4713,6 +4734,59 @@ private enum TransportBatchPresentationContext {
                 }
             }
         } catch OperationCancellationFailure.cancelled {return}
+    }
+    /// Classic Commit, Working Tree and Revert accept a single ordered request.
+    /// Its source dialog has already owned the one multi-file question; each
+    /// resulting child preparation keeps that source's token and settings.
+    func showStatusListPrimaryFiles(_ plan:StatusListPrimaryActivation,access:RepositoryAccessLease?,cancellation:OperationCancellation) async throws {
+        guard !retired,!confirmingQuit,plan.ownerIsCurrent() else {throw OperationCancellationFailure.cancelled}
+        let id=UUID(),token=OperationCancellation(parent:cancellation)
+        let session=FileListComparisonSession(window:plan.window,preferences:plan.preferences,cancellation:token,alternateTool:plan.alternateTool)
+        session.isOwnerCurrent={[weak self] in self?.retired==false && self?.confirmingQuit==false && plan.ownerIsCurrent()}
+        fileComparisonSessions[id]=session
+        defer {fileComparisonSessions.removeValue(forKey:id);withExtendedLifetime(access){}}
+        let appearance=plan.window.effectiveAppearance,alpha=plan.window.alphaValue
+        try await session.run(selectedCount:0) { [self] token in
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(plan.repository.root) != true) {
+                throw RepositoryAccessFailure.securityScopeUnavailable
+            }
+            for action in plan.actions {
+                try session.check()
+                switch action {
+                case .conflict(let row):
+                    guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else {throw ResolveFailure.stale}
+                    try session.check()
+                    _ = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:row.entry.path,owner:plan.window,
+                        preferences:plan.preferences,alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,
+                        mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity)
+                case .comparison(let row):
+                    let snapshot=try await plan.repository.revisionFileComparison(from:plan.base,to:.workingTree,paths:[row.entry.path],cancellation:token)
+                    try session.check()
+                    guard snapshot.root==plan.repository.root else {throw RevisionComparisonFailure.selection}
+                    presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,
+                        preferences:plan.preferences,appearance:appearance,alpha:alpha)
+                case .workingFile(let row):
+                    if row.isDirectory || row.isSubmodule {
+                        // CGitDiff routes directory operands to its submodule
+                        // pointer dialog; two working sentinels use the index
+                        // pointer as the old side, rather than inventing a
+                        // repository-relative empty directory comparison.
+                        showSubmoduleDiff(repository:plan.repository,access:access,path:row.entry.path,from:"Working tree",fromIndex:true,
+                            preferences:plan.preferences,appearance:appearance,alpha:alpha)
+                    } else {
+                        // StartDiffWC clears Added/Deleted intent and passes
+                        // working sentinels for this preview. A retained disk
+                        // copy after index deletion must still open as a file.
+                        let snapshot=try await plan.repository.preparedPathComparison(from:.workingTree,fromPath:row.entry.path,
+                            to:.workingTree,toPath:row.entry.path,cancellation:token)
+                        try session.check()
+                        presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,
+                            preferences:plan.preferences,appearance:appearance,alpha:alpha)
+                    }
+                case .skipMissing:continue
+                }
+            }
+        }
     }
     /// Ordinary, selectable and embedded Logs share the same originating
     /// repository, settings and child-comparison ownership rules.
@@ -5032,6 +5106,10 @@ private enum TransportBatchPresentationContext {
     }
     private func configureCommitInteractions(_ model: CommitWindowModel, repository: GitRepository, access: RepositoryAccessLease?) {
         let preferences = model.colorPreferences
+        model.onPrimaryFileActivation=CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else {throw OperationCancellationFailure.cancelled}
+            try await self.showStatusListPrimaryFiles(plan,access:access,cancellation:token)
+        }
         model.onCommitSubmodule = CommandProgressContext.capture { [weak self] checkout in
             guard !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(checkout) == true else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
             self?.showCommitDialog(repository: GitRepository(root: checkout, executable: repository.executable), access: access, paths: [], preferences: preferences)

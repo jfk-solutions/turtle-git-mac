@@ -9,9 +9,9 @@ import TurtleGitCore
     static func require(_ value:Bool,_ message:String,line:Int = #line)throws {if !value {throw Failure(description:"Log primary \(line): "+message)}}
     static func unwrap<T>(_ value:T?,_ message:String)throws->T {guard let value else{throw Failure(description:message)};return value}
     static func views(_ view:NSView?)->[NSView] {guard let view else{return []};return [view]+view.subviews.flatMap{views($0)}}
-    static func wait(_ label:String,window:NSWindow?=nil,_ condition:()->Bool)async throws {
+    static func wait(_ label:String,window:NSWindow?=nil,diagnostic:()->String={""},_ condition:()->Bool)async throws {
         for _ in 0..<3500 {window?.contentView?.layoutSubtreeIfNeeded();if condition(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(description:"Log primary timeout: "+label)
+        throw Failure(description:"Log primary timeout: "+label+" "+diagnostic())
     }
     static func key(_ window:NSWindow)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!}
     @MainActor final class Gate<Value> {
@@ -110,16 +110,34 @@ import TurtleGitCore
             try Data("<<<<<<< mine\nmine\n=======\ntheirs\n>>>>>>> theirs\n".utf8).write(to:root.appendingPathComponent(path))
         }
         func table()throws->LogChangedFileNativeTable {try unwrap(views(owner?.window?.contentView).compactMap{$0 as? LogChangedFileNativeTable}.first,"Actual Log file report missing")}
+        func focusDiagnostic(_ table:LogChangedFileNativeTable,_ window:NSWindow)->String {
+            let responder=window.firstResponder.map{String(reflecting:type(of:$0))} ?? "nil"
+            return "responder=\(responder), currentTable=\((try? self.table()) === table), attached=\(table.window === window), visible=\(window.isVisible), hidden=\(table.isHiddenOrHasHiddenAncestor), enabled=\(table.isEnabled), ownerAvailable=\(table.ownerAvailable()), inspect=\(owner?.model.canInspectHistory == true), rows=\(table.numberOfRows)/\(owner?.model.fileTableRows.count ?? -1), selection=\(table.selectedRowIndexes), sheet=\(window.attachedSheet != nil), modal=\(NSApp.modalWindow != nil)"
+        }
         func select(_ ids:GitPathSet)async throws {
-            let model=try unwrap(owner?.model,"Source Log missing"),table=try table()
-            try await wait("rendered source rows",window:owner?.window){table.numberOfRows==model.fileTableRows.count && !model.busy}
+            let model=try unwrap(owner?.model,"Source Log missing"),table=try table(),window=try unwrap(owner?.window,"Source window missing")
+            func ready()->Bool {
+                owner?.window === window && !model.isInvalidated && !model.busy && model.canInspectHistory &&
+                (try? self.table()) === table && table.window === window && window.isVisible &&
+                !table.isHiddenOrHasHiddenAncestor && table.isEnabled && table.ownerAvailable() &&
+                table.numberOfRows==model.fileTableRows.count
+            }
+            // Row count/model settlement may precede AppKit's actual enable
+            // update. Never send Return through a table that refused focus.
+            try await wait("rendered source rows and native admission",window:window,diagnostic:{self.focusDiagnostic(table,window)}){ready()}
             let rows=model.fileTableRows,indexes=IndexSet(rows.indices.filter{rows[$0].file != nil && ids.contains(rows[$0].rawID)})
             try require(indexes.count==ids.count,"Native selected occurrence missing")
             table.selectRowIndexes(indexes,byExtendingSelection:false)
-            try await wait("native selected IDs",window:owner?.window){model.selectedFiles==ids}
-            owner?.window?.makeFirstResponder(table)
+            try await wait("native selected IDs and readiness",window:window,diagnostic:{self.focusDiagnostic(table,window)}){ready() && model.selectedFiles==ids && table.selectedRowIndexes==indexes}
+            try require(window.makeFirstResponder(table),"Source window rejected native table focus; "+focusDiagnostic(table,window))
+            try await wait("native first-responder ownership",window:window,diagnostic:{self.focusDiagnostic(table,window)}){ready() && window.firstResponder === table}
         }
-        func activate()throws {let table=try table(),window=try unwrap(owner?.window,"Source window missing");try require(window.firstResponder===table,"Source table does not own Return");ComparisonToolInvocation.$alternate.withValue(true){table.keyDown(with:LogPrimaryActivationVerification.key(window))}}
+        func activate()throws {
+            let table=try table(),window=try unwrap(owner?.window,"Source window missing")
+            try require(table.window === window && table.isEnabled && table.ownerAvailable() && window.isVisible && !table.isHiddenOrHasHiddenAncestor,"Source table lost native admission; "+focusDiagnostic(table,window))
+            try require(window.firstResponder===table,"Source table does not own Return; "+focusDiagnostic(table,window))
+            ComparisonToolInvocation.$alternate.withValue(true){table.keyDown(with:LogPrimaryActivationVerification.key(window))}
+        }
         func working()async throws {
             let model=try unwrap(owner?.model,"Working Log missing")
             model.select([""])
@@ -171,7 +189,12 @@ import TurtleGitCore
             c.workspace.fileComparisonPreferences=c.foreign;c.finishRead()
             try await wait("mixed actual launch acknowledgement",window:window){!model.fileNavigationReadPending && !model.busy && c.workspace.conflictEditorPreparationCount==0 && c.children.count==1 && c.comparisons.count==3}
             try require(c.warnings==[4,4] && c.extraWarnings==0 && c.presentationDrains==[true] && c.preparingPanel?.sheetParent==nil && window.attachedSheet==nil,"Repeated warning or early native child presentation")
-            try require(c.comparisons.map{$0.2}==[c.normal,c.second,c.unknown] && c.comparisons.allSatisfy{$0.0==plan.workingBase && $0.1 == .workingTree},"Ordinary/untracked comparisons changed source order/base")
+            try require(c.comparisons.map{$0.2}==[c.normal,c.second,c.unknown],"Ordinary/untracked comparisons changed source order")
+            try require(c.comparisons.prefix(2).allSatisfy{$0.0==plan.workingBase && $0.1 == .workingTree},"Ordinary comparisons changed the accepted base")
+            // StartDiffWC:2996 clears Added/Deleted intent and captures the
+            // source m_CurrentVersion (empty working-tree sentinel), not HEAD.
+            guard case .workingFile(let local,let currentVersion)=plan.actions[3] else{throw Failure(description:"Untracked primary lost typed working-file intent")}
+            try require(local.path==c.unknown && currentVersion == .workingTree && c.comparisons[2].0 == .workingTree && c.comparisons[2].1 == .workingTree,"Actual untracked preview substituted HEAD for the captured working version")
             try require(c.externalCalls.count==1 && c.externalCalls[0].0==c.conflict && c.externalCalls[0].1 && c.externalCalls[0].2===window && c.externalCalls[0].3==savedTools && c.externalCalls[0].4,"Actual conflict launch lost captured owner/tool/lease")
             let child=try unwrap(c.children.first as? TextConflictWindowController,"Real text conflict child was not created")
             try await wait("actual text child load",window:child.window){!child.model.preparing && child.model.document != nil}

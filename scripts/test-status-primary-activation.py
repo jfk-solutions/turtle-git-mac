@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Native source status-list clicked-row activation, conflict intent and owned selection."""
+"""Grouped SwiftUI/native status-list pointer and selected-Return activation family."""
 import argparse
 import ast
 import json
@@ -23,7 +23,7 @@ exec(compile(ast.Module(body=[cleanup], type_ignores=[]), '<owned Status primary
 retire_owned_helpers = namespace['retire_owned_helpers']
 generated = root/'build/qa/status-primary-activation-native-sources'
 generated.mkdir(parents=True, exist_ok=True)
-receiver = build_receiver(root, [root/'docs/qa/status-primary-activation-native-2026-10-30.swift'], generated)
+receiver = build_receiver(root, [root/'docs/qa/status-primary-activation-native-2026-10-30.swift', root/'docs/qa/status-primary-selection-native-2026-11-23.swift', root/'docs/qa/log-working-row-affordances-native-2026-11-23.swift'], generated)
 results = []
 for index, git in enumerate(args.git or [Path('/usr/bin/git'), root/'build/git-runtime/Git/bin/git']):
     git = git.absolute()

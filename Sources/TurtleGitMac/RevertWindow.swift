@@ -113,6 +113,7 @@ private final class RevertNativeWindow:NSWindow {
         pending.1.resume(returning:!model.retired && accepted)
     }
     func windowShouldClose(_ sender:NSWindow)->Bool {
+        if model.commands.primaryActivationPending {_ = model.cancel(closeAfter:true);return false}
         guard sender.attachedSheet == nil,!model.confirmingQuit,!model.hasChild else {return false}
         if model.cancel(closeAfter:true) {return false};return !model.commands.busy && !model.commands.unifiedViewerBusy
     }
@@ -121,7 +122,14 @@ private final class RevertNativeWindow:NSWindow {
         if let sheetObserver {NotificationCenter.default.removeObserver(sheetObserver);self.sheetObserver = nil}
         if let pending = question {finishQuestion(pending.0,accepted:false)}
         lfsOperation?.close();lfsOperation = nil;revertProgress?.close();revertProgress = nil
-        window?.contentViewController = nil;onClosed()
+        window?.contentViewController = nil
+        let closed=onClosed;onClosed={}
+        if model.commands.primaryActivationPending {
+            Task { @MainActor [self] in
+                while model.commands.primaryActivationPending {try? await Task.sleep(nanoseconds:5_000_000)}
+                closed()
+            }
+        } else {closed()}
     }
     required init?(coder:NSCoder) {fatalError("init(coder:) is not supported")}
 }
@@ -182,6 +190,14 @@ private final class RevertNativeWindow:NSWindow {
     var confirmRevert:([StatusEntry]) async -> Bool = {_ in false}
     var onRevert:([StatusEntry])->Void = {_ in}
     var onCompare:(([String])->Void)?
+    var onPrimaryFileActivation:StatusListPrimaryActivationSession.Launch? {
+        get {commands.onPrimaryFileActivation}
+        set {commands.onPrimaryFileActivation=newValue}
+    }
+    var confirmPrimaryFileActivation:((Int) async -> Bool)? {
+        get {commands.confirmPrimaryFileActivation}
+        set {commands.confirmPrimaryFileActivation=newValue}
+    }
     @Published private(set) var comparisonMark:PreparedFileComparisonMark?
     private var comparisonGeneration = UUID()
     private var comparisonOwnerEpoch = UUID()
@@ -213,6 +229,15 @@ private final class RevertNativeWindow:NSWindow {
         commands.filter.showUnversioned = true;commands.filter.showIgnored = true;commands.filter.showUnmodified = true;commands.filter.showLocalChangesIgnored = true
         commands.embeddedReload = { [weak self] in self?.reload() }
         commands.actionOwnerAvailable = { [weak self] in guard let self else {return false};return !self.retired && !self.busy && !self.confirmingQuit && !self.hasChild && self.window?.attachedSheet == nil && !self.commands.unifiedViewerBusy }
+        commands.capturePrimarySourceOwner = {[weak self] _ in
+            guard let self else{return {false}}
+            let epoch=self.comparisonOwnerEpoch,generation=self.generation,selection=self.highlighted,parent=self.window
+            return {[weak self,weak parent] in
+                guard let self,let parent,self.window === parent,!self.retired,!self.accepted,!self.busy,!self.confirmingQuit,!self.hasChild,
+                      self.comparisonOwnerEpoch==epoch,self.generation==generation,self.highlighted==selection else{return false}
+                return true
+            }
+        }
         commands.onAction = { [weak self] action,paths in
             guard let self else {return};if action == .log,let path = paths.first {self.onFileLog(path)} else {self.onAction(action,paths)}
         }
@@ -328,13 +353,14 @@ private final class RevertNativeWindow:NSWindow {
     }
     func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
         guard receipt.revision==commands.primaryActionRevision,canInteract else{return}
-        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction([receipt.path])}
+        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction(receipt.paths)}
     }
     func primaryFileAction(_ paths:some Sequence<String>) {
         let ids=GitPathSet(paths)
         guard canInteract,!ids.isEmpty else{return}
         let snapshot=commands.fileMenu(ids)
         guard snapshot.entries.count==ids.count else{return}
+        if onPrimaryFileActivation != nil {commands.primaryFileAction(ids);return}
         if snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {
             commands.withFileMenu(snapshot) {onAction(.editConflict,[entry.path])}
         } else {diff(ids)}
@@ -536,7 +562,7 @@ private struct RevertDialog:View {
                     }
                 }.disabled(!model.canInteract)
             } primaryAction:{ids in
-                if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(ids),focus:focusedPath,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
+                if let receipt=StatusListPrimaryActionReceipt.selected(GitPathRowIdentity.paths(ids),rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
             }
             .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,checkboxColumns:1,activate:model.activatePrimaryFile))
             HStack {

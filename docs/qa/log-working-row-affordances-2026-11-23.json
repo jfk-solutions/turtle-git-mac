@@ -1,0 +1,44 @@
+{
+  "schema": 1,
+  "scope": "Connected native Log working-row caption, color, physical-content actions, comparison eligibility and mixed primary activation; grouped checkpoint passed with system and bundled Git.",
+  "sourcePin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceBlobs": {
+    "src/Git/GitStatusListCtrl.cpp": "bb3424966659715269d38fca610c8d46810b0b15",
+    "src/Git/TGitPath.cpp": "312f765756181b69ef0421d6c681b1aa7ff6ebb2"
+  },
+  "sourceReferences": {
+    "src/Git/GitStatusListCtrl.cpp:1739-1770": "Marked aggregate action gates base/unified comparison; plain D|Missing and MD|Missing remain eligible.",
+    "src/Git/GitStatusListCtrl.cpp:1873-1900": "Physical Open/Export and saved/marked/reveal action masks.",
+    "src/Git/GitStatusListCtrl.cpp:2926-2980,3618-3658": "Double-click acts on clicked row; Return asks once for selection and skips ineligible missing rows in order.",
+    "src/Git/GitStatusListCtrl.cpp:2996-3023": "StartDiffWC clears Added/Deleted action intent and captures m_CurrentVersion; working Log row previews its working file rather than HEAD.",
+    "src/Git/GitStatusListCtrl.cpp:3423-3439": "Color priority is Gray, Conflict, Modified, Added/Copy, Deleted/Missing, Renamed, Merged.",
+    "src/Git/TGitPath.cpp:1782-1815": "Caption priority Conflict, Added, Missing, Deleted, Modified, Renamed/Copy."
+  },
+  "implementation": [
+    "Raw XY/hasUnversionedCopy from accepted workingIndexFiles; O(1) GitPathMap cache rebuilt once on publication, not from view/menu body.",
+    "Missing caption and Added precedence use accepted metadata; historical D unchanged. Colors use shared StatusEntry.statusTextRole separately from caption priority; selected/gray semantic precedence retained.",
+    "Retained index-D local copies use one path identity with physical Open/Save/Export/Reveal/mark gates; absent worktree-D denies physical reads.",
+    "Shared StatusEntry.canCompareWithBaseFromStatusList suppresses AD/RD/CD Missing, untracked/ignored and retained-copy base/unified actions; plainD/MD Missing remain comparable.",
+    "Owned primary compactMap skips ineligible missing rows in native order, preserves original selectedCount and one shared warning/cancellation context.",
+    "Working-file primary action captures currentVersion:.workingTree and Root supplies explicit same-working-file preparation, not a HEAD lookup.",
+    "Native menu captured-owner receipts and typed mixed-source plan retained. Existing canWorkingAdd menu stat replaced by accepted slash/gitlink metadata plus existing asynchronous fresh file-only check."
+  ],
+  "receiver": "docs/qa/log-working-row-affordances-native-2026-11-23.swift::LogWorkingRowAffordanceVerification.verify(base:git:)",
+  "receiverScope": [
+    "Private real Git states: worktree missing, index deletion, retained index-D local copy, modified, AD missing, RD missing, untracked and historical D.",
+    "Actual native report selection, menu icons/affordances, Open read and Save/Export/mark captured callbacks, stale-menu rejection.",
+    "CD missing invokes shared raw-porcelain eligibility helper because real Git status need not discover copied files.",
+    "Actual native Return to Root dispatcher, one original-count warning, ordered filtered plan and accepted working-file source intent; held warning selection retirement and cleanup."
+  ],
+  "remaining": [
+    "No claim of separate upstream rows for index-D plus unversioned/ignored copy; one literal path identity is an explicit adaptation.",
+    "No new untracked-directory/multicommit-file-list parity claim.",
+    "No physical Finder, signed/App Store access, external editor/application or complete dialog visual acceptance in this receiver."
+  ],
+  "validation": {
+    "record": "status-activation-family-2026-11-23.json",
+    "native": "Both Git engines passed the combined retained clicked-row, selected-Return and Log working-row receiver",
+    "presentation": "Private repositories/preferences/pasteboards; hidden windows; injected Save/Export and child viewer presentations; actual Open leaf validation",
+    "scope": "No physical Finder, signed/App Store, external-application or complete visual-parity claim"
+  }
+}

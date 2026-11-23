@@ -196,6 +196,16 @@ final class RevisionComparisonTests: XCTestCase {
         }
         let retained = StatusEntry.parse(Data("D  file\0?? file\0".utf8))[0]
         XCTAssertTrue(retained.hasUnversionedCopy); XCTAssertFalse(retained.canCompareWithBaseFromStatusList)
+        // GitStatusListCtrl's Missing mask excludes added/renamed/copied rows,
+        // while an ordinary missing tracked file still compares as a deletion.
+        for code in ["AD", "RD", "CD"] {
+            let raw=Data((code+" file\0"+((code.first == "R" || code.first == "C") ? "old\0":"")).utf8)
+            let missing=StatusEntry.parse(raw)[0]
+            XCTAssertFalse(missing.canCompareWithBaseFromStatusList,code)
+        }
+        for code in ["MD", " D"] {
+            XCTAssertTrue(StatusEntry.parse(Data((code+" file\0").utf8))[0].canCompareWithBaseFromStatusList,code)
+        }
     }
     func testCheckboxTargetsPreserveHighlightAndExcludeStaleAndHeaderIDs() {
         let entries = StatusEntry.parse(Data(" M a\0?? new 雪\n.txt\0 M other\0".utf8))

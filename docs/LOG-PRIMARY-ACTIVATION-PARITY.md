@@ -63,8 +63,11 @@ paths follow the report order. Resolve children own their subsequent work.
 
 `showLogPrimaryFiles` executes the ordered plan under a child cancellation token
 and an owned Root session with `selectedCount: 0`; only the source model asks the
-selected-count question. Ordinary and working-file comparisons use each
-accepted base and exact selected path. They never query a replacement HEAD.
+selected-count question. Ordinary comparisons use the accepted base and exact
+selected path. Working-file previews retain their captured current-version
+sentinel: the working Log row opens the actual working file on both sides,
+including an unversioned copy retained after index deletion. Neither route
+queries a replacement HEAD.
 Conflict actions verify the captured rebase direction before calling the async
 owned conflict preparation API with the original tool and identity settings.
 
@@ -89,11 +92,15 @@ renderers.
 
 ## Remaining limits
 
-The current Log `CommitFile` action projection loses the upstream separate
-`MISSING` bit. Its backing `workingIndexFiles` still retains index/worktree
-status: the Log status caption currently treats missing content as Deleted.
-Complete working-status presentation and missing-only activation semantics
-remain a related review; existing deleted comparisons were preserved here.
+The [working-row continuation](LOG-WORKING-ROW-AFFORDANCES-PARITY.md) now
+uses the backing raw index/worktree status for Missing/Added/Deleted captions,
+color priority, physical-content actions and comparison eligibility. It skips
+missing added/renamed/copied rows in primary activation while preserving the
+original warning count and selected order; plain deleted/missing rows still
+compare. The macOS retained-copy row keeps one path identity, which remains an
+explicit adaptation from separate upstream deletion/unversioned rows. Its
+[scoped checkpoint](qa/status-activation-family-2026-11-23.json) passed with both
+Git engines; it does not certify the complete Log dialog.
 
 Source review does not establish a missing automatic multi-commit Log file
 list. `LogDlg.cpp:793–806` clears the views and `1041–1050` leaves them empty

@@ -1,0 +1,242 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T01:12:20.103219+00:00",
+  "status": "Scoped local UI-family checkpoint passed; full port and hosted CI remain open",
+  "sourceBase": "617a0f8028028fb1b5cd007273ad1df6ab168d89",
+  "sourceDirtyDuringValidation": true,
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/GitModels.swift": "7bb90b5f80692e3b08fd657c664ce518e08a9be518bcadc5bc8b89c605ec227b",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+    "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+    "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "61f427dda4f295102f3807faf7397fc36641b5374e5a3095e3ee0c9dedd60a8e",
+    "Sources/TurtleGitMac/RevertWindow.swift": "8b4e4c55ce4ea0174165f1f932490b1dfe391d69dcb6e11399d22ea30939d135",
+    "Sources/TurtleGitMac/StatusWindow.swift": "b6c272a9fd9dd1ca0284232c84a691d8ea1069a9afdd2cb01867a609fcf648e0",
+    "Sources/TurtleGitMac/StatusListPrimaryActivation.swift": "752af1103c78d2247f89236ee6a786102dcf832b97cfccad6344c966c50bb00b",
+    "Tests/TurtleGitCoreTests/RevisionComparisonTests.swift": "c6f6bd5e23c49284f2fc84ed00142dc44039fb0aeba2dd5eb26058f3a5d09c0d",
+    "docs/DIALOG-GUIDE.md": "a215c60e65b1aabbe40154eb86da58e39d57ea76b3d1a2da0715960942b5db56",
+    "docs/GETTING-STARTED.md": "3dd6957351295a85612ed623f9155634d1f3b65f81ec5537a7d2ae5998335db3",
+    "docs/LOG-WORKING-ROW-AFFORDANCES-PARITY.md": "84a9e5864fb83e747718d91cad414c7674761f628a4582473ed07c4336def9be",
+    "docs/STATUS-PRIMARY-SELECTION-PARITY.md": "b7ef1b30f227bf6ad72080df4fd87fa9547ad0c30f000d8fc21f7a6c296fedf1",
+    "docs/qa/log-working-row-affordances-2026-11-23.json": "63df18d1b5db903b679d8d1c090b274e836f7ea09b68e21207573957e0537211",
+    "docs/qa/log-working-row-affordances-native-2026-11-23.swift": "f9dc4b4cbd6b4409a61800fb1442e82153dfa43af20ea83bd8ac25fc188f17a9",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "cfe6d7a60d867cb77ed7ed453ce469f53c5e65580f6d3d3ed9da3b83134c14a2",
+    "docs/qa/status-primary-selection-native-2026-11-23.swift": "303f6db304f87e13bb767d9c16349b47145440b4d5489cd7bcc6408d5d498d05",
+    "scripts/test-status-primary-activation.py": "bfcdcd2178a8b27efcd2140a412ed47d588d809e3784ba496350925a1235b21f",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "2d2743dc683931b5b34c7a5409b80d7c8f8d3ecb415cd0082e6f79f6dc6973cf",
+    "docs/qa/log-primary-activation-native-2026-11-22.swift": "58acfce190b5e5241e5f596ac0cfebb4238f60afb4bc857e8e152dd141bbe1c5",
+    "docs/LOG-PRIMARY-ACTIVATION-PARITY.md": "665e613dbe2ddaa5f05e5a366a21811d9d8b563ee8921ff5d749a2d2a9d3bf76",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist": "c001c7210a3cc15e70bf1024d1279ae713c9275104d0eb609dd152a55156f27e",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html": "5ccfdb82e2937d21485cc6fcc5059a7a098c853a8851eb87016e112166af47f1",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html": "d85e75815be6f6a129bf41fc3d4befecf802a2621187751810b3937fa4a1bb63",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json": "537ea560253327e3a255244d8121e6da3d52d66e1a6f2fa90d8fc72339bc1eed"
+  },
+  "isolation": {
+    "checkout": "turtlegit-status-family-2026-11-23",
+    "unfinishedMetafileChangesExcluded": true,
+    "runtimeKits": "11 independent APFS clones of the frozen signed54 source kits; frozen inputs unchanged; complete embedding contracts validated by Debug build",
+    "installedApplication": "Build52 unchanged",
+    "frozenSigned54": "Unchanged"
+  },
+  "implementation": [
+    "Classic Commit, Working Tree and Revert exact-report selected Return/keypad Enter versus clicked-row activation; empty/stale/foreign/field-editor admission",
+    "One selected-count warning, ordered conflict/ordinary/current-file/missing routing, captured settings/backend/base and real Root async handoff",
+    "Source cancellation, owned warning/child preparation drainage, forced close/Quit acknowledgement and deferred Commit refresh",
+    "Log accepted-XY captions/colors; constant-time literal-path lookups; missing and retained-copy menu/read/default-action policy",
+    "Pinned current-version sentinel for untracked/local-copy previews; historical deleted-row behavior unchanged",
+    "Shared AD/RD/CD missing comparison gate; included user guides and regenerated Mac Help"
+  ],
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --filter RevisionComparisonTests.testStatusListBaseComparisonGateSeparatesUnversionedPreviewFromTrackedMenu",
+    "exitCode": 0,
+    "methods": 1,
+    "assertionFailures": 0,
+    "log": "build/status-family-core.log",
+    "notRerunAfterPass": true
+  },
+  "app": {
+    "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+    "exitCode": 0,
+    "log": "build/status-family-app-build-actor-repaired.log",
+    "scope": "Unsigned Debug macOS build, native arm64; no signed deployment or Intel execution claim",
+    "priorFailures": [
+      {
+        "log": "build/status-family-app-build.log",
+        "exitCode": 65,
+        "cause": "New shared Swift file absent from generated Xcode project; regenerated project adds four references"
+      },
+      {
+        "log": "build/status-family-app-build-repaired.log",
+        "exitCode": 65,
+        "cause": "Nested Intent does not inherit enclosing enum MainActor isolation; explicitly annotated the struct"
+      }
+    ]
+  },
+  "native": {
+    "command": "python3 scripts/test-status-primary-activation.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "log": "build/status-family-native-menu-receipts.log",
+    "exitCode": 0,
+    "engines": [
+      {
+        "git": "system",
+        "returncode": 0,
+        "passed": true
+      },
+      {
+        "git": "bundled",
+        "returncode": 0,
+        "passed": true
+      }
+    ],
+    "scope": [
+      "Retained clicked-row/Shift/checkbox/stale/sorted/closed ownership checks, including actual native Resolve mouse tracker",
+      "All three mounted selected-Return models, one warning/decline/native No, pinned base, stale settings, foreign/field/empty/projection guards",
+      "Real private index/conflict/file preparation through Root with injected child viewer presentations, original-byte preservation and forced-close/quit read acknowledgement",
+      "Log real AD/RD/Deleted/Missing/retained/untracked states, native menus/icons/role colors, Open leaf validation and captured Save/Export/mark paths, mixed Root dispatch, fresh unused stale-menu rejection and historical D"
+    ],
+    "priorRepairs": [
+      {
+        "log": "build/status-family-native.log",
+        "phase": "fixture compile",
+        "cause": "Optional backend configuration assertion required optional chaining with explicit false equality"
+      },
+      {
+        "log": "build/status-family-native-fixture-repaired.log",
+        "phase": "receiver",
+        "cause": "Retained Resolve fixture searched for SwiftUI bridge replaced by native ConflictReportTable"
+      },
+      {
+        "log": "build/status-family-native-layout-repaired.log",
+        "phase": "fixture compile",
+        "cause": "Diagnostic interpolation quoting corrected; no behavioral case ran"
+      },
+      {
+        "log": "build/status-family-native-layout-diagnostics.log",
+        "phase": "receiver",
+        "cause": "Diagnostics confirmed actual native Resolve report with two rows and no retired Probe"
+      },
+      {
+        "log": "build/status-family-native-resolve-adapter.log",
+        "phase": "receiver",
+        "cause": "Native checkbox sequence required separate pointer assertion and awaited native/coordinator binding before roundtrip clicks"
+      },
+      {
+        "log": "build/status-family-native-checkbox-adapter.log",
+        "phase": "receiver",
+        "cause": "New standalone Commit surface omitted explicit initial reload; now starts it and waits complete snapshot/metadata readiness"
+      },
+      {
+        "log": "build/status-family-native-startup-repaired.log",
+        "phase": "receiver",
+        "cause": "Log fixture reused consumed one-shot popup receipt for Save/Export/Open; each gesture now has fresh popup and unused stale callback"
+      }
+    ]
+  },
+  "hostedFailureFollowup": {
+    "source": "617a0f8028028fb1b5cd007273ad1df6ab168d89",
+    "run": 45081783589,
+    "artifact": 14781480646,
+    "zipSHA256": "8d1e54f0775587c946a63fa36010c750d678e375e06a0d409c5530bb78ca73d0",
+    "assertion": "Source table does not own Return",
+    "repair": "Require actual current enabled/visible table and confirmed focus before injecting Return; preserve real keyDown and focus assertion with diagnostics",
+    "untrackedPremiseCorrection": "Default working preview is workingTree to workingTree, matching StartDiffWC; tracked comparisons still use accepted base",
+    "focusedCommand": "python3 scripts/test-log-primary-activation-batch.py --only primary --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+    "log": "build/status-family-hosted-focus-native.log",
+    "cases": [
+      {
+        "case": "primary",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-23T01:07:13.439985+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 15.008
+      },
+      {
+        "case": "primary",
+        "git": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git",
+        "status": "passed",
+        "started_utc": "2026-11-23T01:07:28.490463+00:00",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false,
+        "elapsed_seconds": 13.572
+      }
+    ],
+    "localExitCode": 0,
+    "scope": "Local focused pass only, not a new hosted CI pass"
+  },
+  "cleanup": {
+    "loggedOwnedPIDs": [
+      "93363",
+      "93366",
+      "93498",
+      "93508",
+      "93901",
+      "93952",
+      "93959",
+      "94447",
+      "94456",
+      "95510",
+      "95518",
+      "95950",
+      "95958",
+      "96853",
+      "96861",
+      "97514",
+      "98498",
+      "98507",
+      "98885"
+    ],
+    "loggedOwnedPIDsStillPresent": [],
+    "driverOwnedGitCleanup": "verified without fallback retirement on passing runs",
+    "windows": "Hidden/offscreen owned receiver windows and sheets closed; receivers reaped",
+    "userApplicationsTerminated": false
+  },
+  "preflightCorrections": [
+    "Clone helper initially assumed all provenance source_sha256 fields were maps; scalar schemas were handled without replacing unknown kits",
+    "Git runtime manifest is runtime-manifest.json; setup inspection corrected the assumed provenance filename"
+  ],
+  "remaining": [
+    "Add and Resolve native full-selection Return and Add clicked-row/checkbox gates",
+    "Sync Conflicts full Return; historical comparison owner cancellation across held warnings and strict key routing/default menu emphasis",
+    "High-quality metafile affine/edge parity remains a separate uncommitted implementation batch",
+    "Other hosted failure assertions not yet available; full hosted CI is not green",
+    "Physical interaction/VoiceOver, signed sandbox grants, external editors, exhaustive status combinations and full dialog visual parity remain separate acceptance"
+  ],
+  "scopeLimits": [
+    "Save/Export paths are captured callbacks, not external panels or destination writes",
+    "No full Core suite rerun; CI owns complete integration suite",
+    "No Finder integration test in this cohort",
+    "No installed update, notarization, App Store submission or public app binary publication",
+    "No port completion percentage or whole-port completion claim"
+  ],
+  "generatedConsistency": {
+    "localizations": {
+      "exitCode": 0,
+      "languages": 38,
+      "keys": 1392,
+      "log": "build/status-family-localizations-check.log",
+      "claim": "Catalog consistency only, not complete localization"
+    },
+    "help": {
+      "exitCode": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 98,
+      "bytes": 9412605,
+      "log": "build/status-family-help-check.log"
+    },
+    "coverage": {
+      "exitCode": 0,
+      "dialogs": 130,
+      "partialFamilyAudits": 120,
+      "pendingFamilyReviews": 10,
+      "certifiedComplete": 0,
+      "staticControls": 1659,
+      "mappedControls": 1574,
+      "pendingControlReviews": 85,
+      "log": "build/status-family-coverage-final.log",
+      "claim": "Coverage ledger consistency, not a feature completion percentage"
+    }
+  }
+}

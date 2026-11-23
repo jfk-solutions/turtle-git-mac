@@ -192,7 +192,14 @@ final class StatusNativeWindow: NSWindow {
         guard !closingStatus else { return }; closingStatus = true
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .cancel); sheet.orderOut(nil) }
         model.invalidate(); lfsOperation?.close(); lfsOperation = nil
-        model.unifiedWindow?.close();window?.contentViewController=nil;onClosed()
+        model.unifiedWindow?.close();window?.contentViewController=nil
+        let closed=onClosed;onClosed={}
+        if model.primaryActivationPending {
+            Task { @MainActor [self] in
+                while model.primaryActivationPending {try? await Task.sleep(nanoseconds:5_000_000)}
+                closed()
+            }
+        } else {closed()}
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -218,6 +225,10 @@ final class StatusNativeWindow: NSWindow {
     var readStatus: (OperationCancellation) async throws -> [WorkingTreeFile]
     var embeddedReload: (() -> Void)?
     var actionOwnerAvailable: () -> Bool = {true}
+    var onPrimaryFileActivation:StatusListPrimaryActivationSession.Launch?
+    var confirmPrimaryFileActivation:((Int) async -> Bool)?
+    var capturePrimarySourceOwner:([String])->(()->Bool) = {_ in {true}}
+    @Published private(set) var primaryActivationPending=false
     var groupsEnabled = true
     var showsStagedStatus = true
     var clipboard = NSPasteboard.general
@@ -523,13 +534,15 @@ final class StatusNativeWindow: NSWindow {
     private func isLive(_ token: OperationCancellation) -> Bool {
         !retired && operationCancellation === token && !token.isCancelled
     }
-    private func runOperation(_ title: String, reportCancellation:Bool = true, statusRefresh:Bool = false, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
+    private func runOperation(_ title: String, reportCancellation:Bool = true, statusRefresh:Bool = false, primaryActivation:Bool=false, operation: @escaping (OperationCancellation) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
         guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         let token = OperationCancellation(); operationCancellation = token
+        if primaryActivation {primaryActivationPending=true}
         busy = true; cancelling = false; currentOperation = title; refreshing = statusRefresh; Self.activeOperations += 1
         Task {
             defer {
                 Self.activeOperations -= 1
+                if primaryActivation {primaryActivationPending=false}
                 if operationCancellation === token {
                     if statusRefresh && token.isCancelled && !retired { refreshCancelled = true }
                     operationCancellation = nil; busy = false; cancelling = false; currentOperation = ""; refreshing = false
@@ -632,15 +645,35 @@ final class StatusNativeWindow: NSWindow {
     var primaryActionRevision:UUID {menuGeneration}
     func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
         guard receipt.revision==primaryActionRevision else{return}
-        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction([receipt.path])}
+        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction(receipt.paths)}
     }
     func primaryFileAction(_ ids:some Sequence<String>) {
         let ids=GitPathSet(ids),snapshot=fileMenu(ids)
         guard !ids.isEmpty,snapshot.entries.count==ids.count else{return}
-        withFileMenu(snapshot) {
-            if snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {
-                onAction(.editConflict,[entry.path])
-            } else {onAction(.diff,snapshot.entries.map(\.path))}
+        if let launch=onPrimaryFileActivation,let parent=comparisonWindow {
+            let ordered=sortedRows.filter{ids.contains($0.id)}
+            guard ordered.count==ids.count else{return}
+            let rows=ordered.map{row in StatusListPrimaryFile(entry:row.file.entry,isDirectory:row.metadata?.isDirectory==true || row.statistics?.isSubmodule==true || submodules.contains(row.id),isSubmodule:row.statistics?.isSubmodule==true || submodules.contains(row.id))}
+            let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:defaults,window:parent,amendToParent:false,alternateTool:ComparisonToolInvocation.capture)
+            let sourceOwner=capturePrimarySourceOwner(ordered.map(\.id))
+            withFileMenu(snapshot) {
+                runOperation("Preparing file comparison…",reportCancellation:false,primaryActivation:true,operation:{[self] token in
+                    let epoch=comparisonEpoch,selection=self.selection
+                    let records=files.enumerated().compactMap{ids.contains($0.element.id) ? ($0.offset,$0.element.entry):nil}
+                    let current:()->Bool = {[weak self,weak parent] in
+                        guard let self,let parent,self.comparisonWindow === parent,self.isLive(token),!self.confirmingQuit,!self.unifiedViewerBusy,
+                              self.menuGeneration==snapshot.generation,self.comparisonEpoch==epoch,self.selection==selection,sourceOwner(),
+                              records.count==rows.count else{return false}
+                        return records.allSatisfy{self.files.indices.contains($0.0) && self.files[$0.0].entry==$0.1}
+                    }
+                    try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+                })
+            }
+        } else {
+            withFileMenu(snapshot) {
+                if snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {onAction(.editConflict,[entry.path])}
+                else {onAction(.diff,snapshot.entries.map(\.path))}
+            }
         }
     }
     func diff(_ ids: some Sequence<String>, saving: Bool = false) { let ids = GitPathSet(ids);
@@ -1080,7 +1113,7 @@ struct StatusDialog: View {
                     }
                 }
             } primaryAction: { nativeIDs in
-                if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(nativeIDs),focus:focusedPath,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
+                if let receipt=StatusListPrimaryActionReceipt.selected(GitPathRowIdentity.paths(nativeIDs),rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
             }
             .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,activate:model.activatePrimaryFile))
             .frame(minHeight: 300)

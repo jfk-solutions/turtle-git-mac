@@ -267,12 +267,25 @@ extension CommitFileInteraction.Probe:FileListRefreshClient {}
     }
 }
 
-/// A status-list primary action belongs to one displayed row, rather than the
-/// selected set supplied by SwiftUI's selection-based context-menu API.
+/// Pointer activation belongs to its clicked displayed row. Keyboard activation
+/// owns the complete selected rows independently of SwiftUI Set enumeration.
 struct StatusListPrimaryActionReceipt {
     let path:String
     let revision:UUID
     let alternate:Bool
+    /// nil is the legacy/clicked-row receipt; Return carries the complete
+    /// accepted native selection in displayed order, including no checkbox IDs.
+    let selectedPaths:[String]?
+    var paths:[String] {selectedPaths ?? [path]}
+    init(path:String,revision:UUID,alternate:Bool,selectedPaths:[String]?=nil) {
+        self.path=path;self.revision=revision;self.alternate=alternate;self.selectedPaths=selectedPaths
+    }
+    @MainActor static func selected(_ ids:some Sequence<String>,rows:[String?],revision:UUID,alternate:Bool?=nil)->Self? {
+        if let event=NSApp.currentEvent,event === nonRowPointerEvent {return nil}
+        let requested=GitPathSet(ids),ordered=rows.compactMap{$0}.filter{requested.contains($0)}
+        guard let first=ordered.first,!ordered.isEmpty else{return nil}
+        return .init(path:first,revision:revision,alternate:alternate ?? ComparisonToolInvocation.capture,selectedPaths:ordered)
+    }
     @MainActor private static weak var nonRowPointerEvent:NSEvent?
     @MainActor static func excludePointerActivation(_ event:NSEvent) {nonRowPointerEvent=event}
     @MainActor static func focused(_ ids:some Sequence<String>,focus:String?,rows:[String?],revision:UUID)->Self? {
@@ -296,12 +309,13 @@ struct StatusListPrimaryActionBridge:NSViewRepresentable {
     final class Probe:NSView {
         var rows:[String?]=[],revision=UUID(),checkboxColumns=0
         var activate:((StatusListPrimaryActionReceipt)->Void)?
+        var commandKeyWindow:()->NSWindow? = {NSApp.keyWindow}
         private var monitor:Any?,closeObserver:NSObjectProtocol?
         private(set) var active=false
         override func hitTest(_ point:NSPoint)->NSView? {nil}
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow();stop();guard let window else{return};active=true
-            monitor=NSEvent.addLocalMonitorForEvents(matching:.leftMouseDown) { [weak self] event in guard let self else{return event};return self.observe(event) }
+            monitor=NSEvent.addLocalMonitorForEvents(matching:[.leftMouseDown,.keyDown]) { [weak self] event in guard let self else{return event};return self.observe(event) }
             closeObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.stop()} }
         }
         func stop() {
@@ -314,6 +328,22 @@ struct StatusListPrimaryActionBridge:NSViewRepresentable {
             return view.subviews.lazy.compactMap{self.table(in:$0,point:point)}.first
         }
         func observe(_ event:NSEvent)->NSEvent? {
+            if event.type == .keyDown {
+                guard active,[36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty,
+                      let window,event.window === window,commandKeyWindow() === window,window.isVisible,
+                      window.attachedSheet==nil,NSApp.modalWindow==nil,
+                      let table=window.firstResponder as? NSTableView,table.window === window,table.isEnabled,
+                      !table.isHiddenOrHasHiddenAncestor,!isHiddenOrHasHiddenAncestor,
+                      convert(bounds,to:nil).intersects(table.convert(table.visibleRect,to:nil)) else{return event}
+                // An in-flight native projection cannot authorize old row IDs,
+                // but Return still belongs to the list, never the dialog button.
+                guard table.numberOfRows==rows.count else{return nil}
+                let ids=table.selectedRowIndexes.compactMap{rows.indices.contains($0) ? rows[$0]:nil}
+                if let receipt=StatusListPrimaryActionReceipt.selected(ids,rows:rows,revision:revision,alternate:event.modifierFlags.contains(.shift)) {activate?(receipt)}
+                // The shared source list consumes Return even without selection;
+                // it must not submit Commit/Revert's default dialog button.
+                return nil
+            }
             guard active,event.type == .leftMouseDown,event.clickCount==2,let window,event.window === window,
                   let root=window.contentView,let table=table(in:root,point:event.locationInWindow) else{return event}
             let point=table.convert(event.locationInWindow,from:nil),row=table.row(at:point),column=table.column(at:point)

@@ -716,6 +716,7 @@ import TurtleGitCore
         } else {onClosed()}
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if model.primaryActivationPending {model.cancelFileOperation();return false}
         if model.preparingCommitIdentity || model.preparingDetachedHead || model.detachedHeadWorkPending || model.attemptWorkPending {model.cancel();return false}
         if model.missingStagedRecovery.busy { model.missingStagedRecovery.cancel(); return false }
         if model.submoduleLog.isReading { model.submoduleLog.cancel(); return false }
@@ -1384,6 +1385,11 @@ import TurtleGitCore
     var showMessageHistory: (@escaping (String) -> Void) -> Void = { _ in }
     var pickRevision: (Bool, @escaping (String) -> Void) -> Void = { _, _ in }
     var configureLogPicker: (LogWindowModel) -> Void = { _ in }
+    var onPrimaryFileActivation:StatusListPrimaryActivationSession.Launch?
+    var confirmPrimaryFileActivation:((Int) async -> Bool)?
+    @Published private(set) var primaryActivationPending=false
+    private var primaryActivationForm:UUID?
+    private var primaryActivationRefreshRequested=false
     var onCompare: ([String], Bool) -> Void = { _, _ in }
     var onCompareTwoFiles: ([String]) -> Void = { _ in }
     lazy var submoduleLog = SubmoduleWorkingLogSession(repository: repository, access: access, preferences: dialogDefaults)
@@ -1931,28 +1937,35 @@ import TurtleGitCore
         guard let fileOperationToken else { return false }
         fileOperationCancelling = true; fileOperationToken.cancel(); return true
     }
-    private func runFileOperation(_ title: String, operation: @escaping (OperationCancellation, FileMenuSnapshot?) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
+    private func runFileOperation(_ title: String, primaryActivation:Bool=false, operation: @escaping (OperationCancellation, FileMenuSnapshot?) async throws -> Void, completed: @escaping () -> Void = {}, failed: @escaping () -> Void = {}) {
         guard messageFocusAvailable, !inputsBlocked else { return }
         let snapshot = activeFileMenu
         guard snapshot.map({ acceptsFileMenu($0) }) ?? true else { return }
         let token = OperationCancellation(); fileOperationToken = token
+        if primaryActivation {primaryActivationPending=true}
         busy = true; fileOperationCancelling = false; fileOperationTitle = title; Self.activeFileOperations += 1;pendingFileOperations += 1
+        if primaryActivation {primaryActivationForm=formRevision}
         Task {
             defer {
                 Self.activeFileOperations -= 1;pendingFileOperations -= 1
+                if primaryActivation {primaryActivationPending=false;primaryActivationForm=nil}
                 if fileOperationToken === token { fileOperationToken = nil; busy = false; fileOperationCancelling = false; fileOperationTitle = "" }
+                if primaryActivation,primaryActivationRefreshRequested {
+                    primaryActivationRefreshRequested=false
+                    if messageFocusAvailable,!confirmingQuit,!busy {reload()}
+                }
                 withExtendedLifetime(access) {}
             }
             do {
                 try validateRestoreAccess(); try await operation(token, snapshot)
                 guard messageFocusAvailable, fileOperationToken === token else { return }
                 finishFileOperation(token)
-                if token.isCancelled { failed(); self.error = "Operation cancelled. Any completed changes are retained." }
+                if token.isCancelled {failed();if !primaryActivation {self.error = "Operation cancelled. Any completed changes are retained."}}
                 else { completed() }
             } catch {
                 guard messageFocusAvailable, fileOperationToken === token else { return }
                 let diagnostic = token.isCancelled ? "Operation cancelled. Any completed changes are retained." : error.localizedDescription
-                finishFileOperation(token); failed(); self.error = diagnostic
+                finishFileOperation(token);failed();if !primaryActivation || !token.isCancelled {self.error=diagnostic}
             }
         }
     }
@@ -2306,6 +2319,9 @@ import TurtleGitCore
         if let issueID = invocation.issueID { self.issueID = issueID }
     }
     func reload(paths: [String]? = nil,wholeProject:Bool? = nil) {
+        if primaryActivationPending,paths==nil,wholeProject==nil,messageFocusAvailable {
+            primaryActivationRefreshRequested=true;return
+        }
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel, !unversionedPromptVisible else { return }
         unversionedPromptPending=false;fileListReadError=nil;fileListReadCancelled=false
@@ -2943,13 +2959,36 @@ import TurtleGitCore
         },completed:{ [weak self] in self?.requestMessageFocus(ifCurrent:focus) })
     }
     func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
-        guard !gitGuiInterface,fileListAvailable,receipt.revision==fileReportRevision,
-              let entry=visibleEntries.first(where:{GitReferenceName.equal($0.id,receipt.path)}) else{return}
-        let snapshot=fileMenu([entry.id],mark:entry.id)
-        ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {
+        guard !gitGuiInterface,fileListAvailable,receipt.revision==fileReportRevision else{return}
+        let ids=GitPathSet(receipt.paths),ordered=displayedFileEntries.filter{ids.contains($0.id)}
+        guard !ordered.isEmpty,ordered.count==ids.count else{return}
+        let snapshot=fileMenu(ordered.map(\.id),mark:receipt.path)
+        if let launch=onPrimaryFileActivation,let parent=comparisonWindow {
+            let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:dialogDefaults,window:parent,amendToParent:amendToParent,alternateTool:receipt.alternate)
+            let rows=ordered.map {entry in StatusListPrimaryFile(entry:entry,isDirectory:fileMetadata[entry.id]?.isDirectory==true || submodules.contains(entry.id),isSubmodule:submodules.contains(entry.id) || statistics[entry.id]?.isSubmodule==true)}
             withFileMenu(snapshot) {
-                if entry.state == .conflicted {onResolve(.editConflict,[entry.path])}
-                else {compare(paths:[entry.id])}
+                runFileOperation("Preparing file comparison…",primaryActivation:true,operation:{[self] token,captured in
+                    guard let captured,let form=primaryActivationForm else{return}
+                    let selection=self.selection
+                    let records=entries.enumerated().compactMap{ids.contains($0.element.id) ? ($0.offset,$0.element):nil}
+                    let current:()->Bool = {[weak self,weak parent] in
+                        guard let self,let parent,self.comparisonWindow === parent,!self.gitGuiInterface,self.formRevision==form,self.selection==selection,
+                              self.isFileOperationLive(token),!self.confirmingQuit,self.fileMenuGeneration==captured.generation,
+                              records.count==ordered.count else{return false}
+                        // Poll only accepted rows, never rebuild an all-files
+                        // dictionary on each cancellation-watcher tick.
+                        return records.allSatisfy{self.entries.indices.contains($0.0) && self.entries[$0.0]==$0.1}
+                    }
+                    try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+                })
+            }
+        } else {
+            // Standalone consumers retain their configured legacy callbacks.
+            ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {
+                withFileMenu(snapshot) {
+                    if ordered.count==1,let entry=ordered.first,entry.state == .conflicted {onResolve(.editConflict,[entry.path])}
+                    else {compare(paths:ordered.map(\.id))}
+                }
             }
         }
     }
@@ -4092,7 +4131,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 }
             }
         } primaryAction: { nativeIDs in
-            if let receipt=StatusListPrimaryActionReceipt.focused(GitPathRowIdentity.paths(nativeIDs),focus:focus.wrappedValue,rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
+            if let receipt=StatusListPrimaryActionReceipt.selected(GitPathRowIdentity.paths(nativeIDs),rows:primaryRows,revision:primaryRevision) {model.activatePrimaryFile(receipt)}
         }
         .background(StatusListPrimaryActionBridge(rows:primaryRows,revision:primaryRevision,checkboxColumns:1,activate:model.activatePrimaryFile))
         .background(CommitFileInteraction(rows: rows,contentRevision:model.fileReportRevision,uniformRowGeometry:geometry,ownsNativeColumns:true,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin, configureRefresh: {dropTargets.set($0,for:focusKey);model.registerFileList($0,key:focusKey);model.fileListRefresh.attach($0)},preferences:model.colorPreferences, visibleColumns: Set(model.visibleFileColumns), availableColumns: model.availableFileColumns, columnText: { entry, column in
