@@ -1,0 +1,61 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T05:55:58.447676+00:00",
+  "head": "6a0a5e69036567248a8c66877fbf52f3e9f2d4ed",
+  "workflowRun": 45117335084,
+  "status": "Concrete hosted compiler failure identified; source repair prepared, full hosted success pending",
+  "acquisition": "Approved GitHub artifact connector, exact small ZIP downloads verified against GitHub SHA256; no raw-log or annotation-route workaround",
+  "artifacts": [
+    {
+      "lane": "core",
+      "artifactID": 14792752353,
+      "bytes": 4865,
+      "sha256": "43f80724bbb8c5d430573745d518888cf3001484da1a0a27cf95f36e5031d572"
+    },
+    {
+      "lane": "history",
+      "artifactID": 14792827334,
+      "bytes": 12083,
+      "sha256": "12f400f58f4fcd958349e0475231fc2dab5a40f1b29d78718e3cac6aee40e656"
+    },
+    {
+      "lane": "replay",
+      "artifactID": 14792292870,
+      "bytes": 13148,
+      "sha256": "83aaecfd3450f7c4221951a3bec8310857a4d906e53d2fd15e7e8e3ed2b8213e"
+    }
+  ],
+  "toolchain": {
+    "Xcode": "16.4 (16F6)",
+    "Swift": "Apple Swift6.1.2",
+    "SDK": "macOS15.5",
+    "target": "x86_64-apple-macos13.0",
+    "languageMode": "Swift5"
+  },
+  "failure": {
+    "file": "Sources/TurtleGitMac/SynchronizationWindow.swift",
+    "line": 2062,
+    "messages": [
+      "value of type 'AnyObject' has no member 'unifiedWindows'",
+      "value of type 'AnyObject' has no member 'comparisonWindows'",
+      "value of type 'AnyObject' has no member 'busy'"
+    ],
+    "scope": "All three downloaded lane artifacts report the same Sync comparison-model array inference error"
+  },
+  "repair": {
+    "change": "Explicit [RevisionComparisonWindowModel] local array before contains closure; same exclusion and busy/child ownership checks retained",
+    "newAPI": false,
+    "CommandsBuilderChanges": false
+  },
+  "validation": {
+    "localAppBuildExitCode": 0,
+    "log": "build/scoped-working-app-build.log",
+    "retainedSyncNative": {
+      "exitCode": 0,
+      "enginePasses": 2,
+      "log": "build/scoped-working-retained-sync.log",
+      "scope": "Existing Sync ownership/primary activation cohort; optional gitlink catalog default remains global"
+    },
+    "hosted": "No hosted recheck against the repaired commit exists yet; local newer-SDK build is not proof of hosted older-SDK success"
+  }
+}

@@ -140,6 +140,10 @@ final class CommitDialogReadTests:XCTestCase {
         XCTAssertTrue(flagged.assumeUnchanged);XCTAssertTrue(flagged.skipWorktree)
         let old=try await repo.workingTreeFiles(),unstaged=try await repo.stagingFiles(staged:false)
         XCTAssertEqual(snapshot.working,old);XCTAssertEqual(snapshot.unstaged,unstaged)
+        let scoped=try await reader.commitDialogRead(amend:false,amendDiffToLastCommit:true,paths:["conflict"])
+        let expectedConflict=unstaged.filter{$0.path=="conflict"}
+        XCTAssertEqual(expectedConflict.map(\.action),["U","M"],"Git's unmerged stream retains distinct U and M records")
+        XCTAssertEqual(scoped.unstaged.filter{$0.path=="conflict"},expectedConflict,"Scope merging must not collapse a single stream's conflict records")
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }
 

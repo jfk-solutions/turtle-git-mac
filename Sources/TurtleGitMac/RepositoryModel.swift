@@ -726,7 +726,7 @@ private enum TransportBatchPresentationContext {
     private var revertProgressWindows: [UUID: RevertProgressWindowController] = [:]
     private var directRevertRequests:[UUID:DirectWorkingFileRevertRequest]=[:]
     var presentRevertQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
-    var makeDirectRevertProgress:((GitRepository,RepositoryAccessLease?,[StatusEntry],Bool,Bool,UserDefaults,WorkingFileRevertPolicy)->RevertProgressWindowController)?
+    var makeDirectRevertProgress:((GitRepository,RepositoryAccessLease?,[StatusEntry],Bool,Bool,UserDefaults,WorkingFileRevertPolicy,[String]?)->RevertProgressWindowController)?
     private var addWindows = RepositoryCommandWindowMap<AddWindowController>()
     private var addUnifiedWindows = RepositoryCommandWindowMap<PatchWindowController>()
     private var svnWindows = RepositoryCommandWindowMap<SVNWindowController>()
@@ -2970,8 +2970,9 @@ private enum TransportBatchPresentationContext {
                 controller.model.onRevert = CommandProgressContext.capture { [weak self,weak controller] entries,done in
                     guard let self,let controller else{done(false);return{}}
                     let model=controller.model,preferences=model.presentationPreferences
+                    let invocationPaths=model.invocationPaths
                     return self.showDirectRevert(repository:repository,access:access,entries:entries,owner:controller.window,preferences:preferences,
-                        policy:model.pendingRevertPolicy ?? .load(from:preferences),needsConfirmation:false,
+                        policy:model.pendingRevertPolicy ?? .load(from:preferences),needsConfirmation:false,paths:invocationPaths,
                         available:{[weak model] in guard let model else{return false};return !model.retired && model.reverting && !model.confirmingQuit && entries.allSatisfy{entry in model.entries.contains{$0.status==entry}}},completion:done)
                 }
                 controller.model.onRestoreChanged = CommandProgressContext.capture { [weak model = controller.model] in model?.onIgnoreChanged("Working copies restored.") }
@@ -3529,7 +3530,11 @@ private enum TransportBatchPresentationContext {
         }
         controller.onClosed = CommandProgressContext.capture { [weak self] in self?.revertWindows.removeValue(forKey: root.path) }
         controller.model.onFileLog = CommandProgressContext.capture { [weak self] path in self?.showLog(repository: repository, access: access, paths: [path]) }
-        controller.model.onAccepted = CommandProgressContext.capture { [weak self] entries in self?.showRevertProgress(repository: repository, access: access, entries: entries) }
+        controller.model.onAccepted = CommandProgressContext.capture { [weak self,weak controller] entries in
+            guard let self,let controller else{return}
+            let invocationPaths=controller.model.invocationPaths
+            self.showRevertProgress(repository:repository,access:access,entries:entries,paths:invocationPaths)
+        }
         controller.model.onCompare = CommandProgressContext.capture { [weak self, weak controller] paths in
             guard let controller, controller.model.canInteract, let owner = controller.window else { return }
             self?.showWorkingFiles(repository: repository, access: access, paths: paths, owner: owner, preferences: controller.model.preferences,
@@ -4041,24 +4046,24 @@ private enum TransportBatchPresentationContext {
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); controller.model.start()
     }
     @discardableResult func showDirectRevert(repository:GitRepository,access:RepositoryAccessLease?,entries:[StatusEntry],owner:NSWindow?,
-        preferences:UserDefaults,policy:WorkingFileRevertPolicy,needsConfirmation:Bool,amend:Bool=false,againstHead:Bool=false,
+        preferences:UserDefaults,policy:WorkingFileRevertPolicy,needsConfirmation:Bool,amend:Bool=false,againstHead:Bool=false,paths:[String]?=nil,
         available:@escaping()->Bool,completion:@escaping(Bool)->Void) -> ()->Void {
         guard !retired,!confirmingQuit,!entries.isEmpty else{completion(false);return{}}
         let identity=UUID()
         let request=DirectWorkingFileRevertRequest(window:owner,entries:entries,policy:policy,needsQuestion:needsConfirmation,
             available:{ [weak self] in self?.retired==false && self?.confirmingQuit==false && available() },present:presentRevertQuestion,
-            makeProgress:{ [weak self] done in self?.showRevertProgress(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:true,policy:policy,preferences:preferences,completionOnClose:true,directFactory:true,completion:done) },
+            makeProgress:{ [weak self] done in self?.showRevertProgress(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:true,policy:policy,preferences:preferences,completionOnClose:true,directFactory:true,paths:paths,completion:done) },
             completed:{ [weak self] result in self?.directRevertRequests.removeValue(forKey:identity);completion(result) })
         directRevertRequests[identity]=request
         request.begin()
         return{[weak request] in request?.cancel()}
     }
-    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, policy: WorkingFileRevertPolicy? = nil, preferences:UserDefaults? = nil, completionOnClose:Bool = false, directFactory:Bool = false, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
+    @discardableResult private func showRevertProgress(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool = false, againstHead: Bool = false, autoCloseSuccess: Bool = false, policy: WorkingFileRevertPolicy? = nil, preferences:UserDefaults? = nil, completionOnClose:Bool = false, directFactory:Bool = false, paths:[String]? = nil, completion: @escaping (Bool) -> Void = { _ in }) -> RevertProgressWindowController {
         let root = repository.root, id = UUID()
         let inherited=preferences ?? fileComparisonPreferences,capturedPolicy=policy ?? WorkingFileRevertPolicy.load(from:inherited)
         let controller:RevertProgressWindowController
-        if directFactory,let makeDirectRevertProgress {controller=makeDirectRevertProgress(repository,access,entries,amend,againstHead,inherited,capturedPolicy)}
-        else {controller=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:autoCloseSuccess,preferences:inherited,policy:capturedPolicy)}
+        if directFactory,let makeDirectRevertProgress {controller=makeDirectRevertProgress(repository,access,entries,amend,againstHead,inherited,capturedPolicy,paths)}
+        else {controller=RevertProgressWindowController(repository:repository,access:access,entries:entries,amend:amend,againstHead:againstHead,autoCloseSuccess:autoCloseSuccess,preferences:inherited,policy:capturedPolicy,paths:paths)}
         var result=false,answered=false
         func finish(_ succeeded:Bool){guard !answered else{return};answered=true;completion(succeeded)}
         controller.model.confirmingQuit=confirmingQuit

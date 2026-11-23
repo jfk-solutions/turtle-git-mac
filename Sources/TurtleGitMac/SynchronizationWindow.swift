@@ -2058,7 +2058,8 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     var hasBlockingChildExceptPrimary: Bool { fileActionBusy || historyQuestionCount > 0 || conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
     private var hasOtherBlockingChild: Bool {hasOtherBlockingChild(excluding:nil)}
     private func hasOtherBlockingChild(excluding accepted:RevisionComparisonWindowModel?)->Bool {
-        conflictResolutionActive || outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
+        let children:[RevisionComparisonWindowModel]=[comparison,incomingComparison]
+        return conflictResolutionActive || outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || children.contains { child in
             child !== accepted && (child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil })
         }
     }

@@ -225,9 +225,45 @@ public actor GitRepository {
     /// Automatic observers must not publish Git's optional index-stat refresh:
     /// that write is itself a repository event and can retrigger every observer.
     /// Disabling optional locks still computes status from current file contents.
-    public func status(readPolicy:GitStatusReadPolicy,includeIgnored:Bool=true,sourceReporting:Bool=true,cancellation:OperationCancellation? = nil) throws -> [StatusEntry] {
-        let entries=StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all"] + (includeIgnored ? ["--ignored"]:[]) + [diffDetection.statusArgument], environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:], cancellation:cancellation).stdout)
-        return sourceReporting ? try sourceWorkingStatus(entries,readPolicy:readPolicy,cancellation:cancellation):entries
+    private func workingStatusPorcelain(readPolicy:GitStatusReadPolicy,includeIgnored:Bool,includeUntracked:Bool,paths:[String]?,cancellation:OperationCancellation?)throws->Data {
+        try run(["status","--porcelain=v1","-z",includeUntracked ? "--untracked-files=all":"--untracked-files=no"] + (includeIgnored ? ["--ignored"]:[]) + [diffDetection.statusArgument] + (paths.map{["--"]+$0} ?? []),environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:],cancellation:cancellation).stdout
+    }
+    func workingStatusIncludingStaged(_ entries:[StatusEntry],names:[String],readPolicy:GitStatusReadPolicy,cancellation:OperationCancellation?)throws->[StatusEntry] {
+        var seen=GitPathSet(entries.map(\.path)),missing:[String]=[]
+        for name in names {try cancellation?.check();if seen.insert(name).inserted {missing.append(name)}}
+        let arguments=["status","--porcelain=v1","-z","--untracked-files=no",diffDetection.statusArgument,"--"]
+        let invocation=commandInvocation(arguments)
+        let batches=try SubmoduleUpdateBatchPlan.paths(missing,fixedArguments:[invocation.executable.path]+invocation.arguments,byteLimit:SubmoduleUpdateBatchPlan.platformByteLimit)
+        var result=entries,published=GitPathSet(entries.map(\.path))
+        for batch in batches {
+            try cancellation?.check()
+            let fresh=StatusEntry.parse(try workingStatusPorcelain(readPolicy:readPolicy,includeIgnored:false,includeUntracked:false,paths:batch,cancellation:cancellation))
+            for entry in fresh where entry.staged && published.insert(entry.path).inserted {result.append(entry)}
+        }
+        return result
+    }
+    public func status(readPolicy:GitStatusReadPolicy,includeIgnored:Bool=true,sourceReporting:Bool=true,paths:[String]?=nil,includedStaged:Bool=false,cancellation:OperationCancellation? = nil) throws -> [StatusEntry] {
+        try cancellation?.check()
+        let scope=try workingStatusScope(paths)
+        if scope?.isEmpty == true {return []}
+        var packets=Data()
+        if let scope {
+            for path in scope {
+                try cancellation?.check()
+                packets.append(try workingStatusPorcelain(readPolicy:readPolicy,includeIgnored:includeIgnored,includeUntracked:true,paths:[path],cancellation:cancellation))
+            }
+        } else {packets=try workingStatusPorcelain(readPolicy:readPolicy,includeIgnored:includeIgnored,includeUntracked:true,paths:nil,cancellation:cancellation)}
+        var entries=StatusEntry.parse(packets)
+        if let scope,includedStaged,!scope.contains(".") {
+            // Included-staged owns a global INDEX inventory, not a global
+            // untracked/generated-tree traversal. Query actual XY only for
+            // missing cached names, retaining the original scoped rows first.
+            let roster=try run(["-c","diff.autoRefreshIndex=false","diff","--cached","--no-ext-diff","--no-color","--no-renames","--name-only","-z","--"],environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:],cancellation:cancellation).stdout
+            guard roster.isEmpty || roster.last==0 else{throw SourceWorkingStatusFailure.malformedOutput}
+            let names=roster.split(separator:0).compactMap{String(bytes:$0,encoding:.utf8)}
+            entries=try workingStatusIncludingStaged(entries,names:names,readPolicy:readPolicy,cancellation:cancellation)
+        }
+        return sourceReporting ? try sourceWorkingStatus(entries,readPolicy:readPolicy,paths:scope,includedStaged:includedStaged,cancellation:cancellation):entries
     }
     public func trackedPaths(cancellation:OperationCancellation? = nil) throws -> [String] {
         try run(["ls-files", "-z"],cancellation:cancellation).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }

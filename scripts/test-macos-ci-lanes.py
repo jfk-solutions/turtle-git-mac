@@ -543,7 +543,8 @@ class MacOSLaneTests(unittest.TestCase):
         index=next(i for i,step in enumerate(steps) if step.get('name')==name)
         self.assertEqual(steps[index],ci.WORKING_STATUS_PROJECTION)
         self.assertEqual(steps[index-1]['name'],ci.STATUS_OPERANDS['name'])
-        self.assertEqual(steps[index+1]['name'],'Native Commit report rows, fonts and geometry ownership')
+        self.assertEqual(steps[index+1],ci.SCOPED_WORKING_READS)
+        self.assertEqual(steps[index+2]['name'],'Native Commit report rows, fonts and geometry ownership')
         self.assertTrue(self.eligible(name,'commit-repository',{'earlier_native':'failure'}))
         self.assertFalse(self.eligible(name,'commit-repository',cancelled=True))
         for cohort in ['commit','status','add','log','revert']:
@@ -557,6 +558,27 @@ class MacOSLaneTests(unittest.TestCase):
             if lane!='commit-repository':self.assertFalse(self.eligible(name,lane))
         # The generic reviewed-status mutation matrix also covers this exact
         # addition's guard, command, duplicate, missing and neighbor contracts.
+
+    def testScopedWorkingReadsRetainAllCohortsExactNeighborsAndReadyOwner(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        name=ci.SCOPED_WORKING_READS['name']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==name)
+        self.assertEqual(steps[index],ci.SCOPED_WORKING_READS)
+        self.assertEqual(steps[index-1],ci.WORKING_STATUS_PROJECTION)
+        self.assertEqual(steps[index+1]['name'],'Native Commit report rows, fonts and geometry ownership')
+        for cohort in ['add','revert','rescope-cancel','commit']:
+            self.assertEqual(steps[index]['run'].count('--only '+cohort+' '),1)
+            value=copy.deepcopy(self.workflow)
+            value['jobs']['validation']['steps'][index]['run']=steps[index]['run'].replace('--only '+cohort+' ','')
+            with self.subTest(missing=cohort),self.assertRaises(AssertionError):self.verify(value)
+        self.assertTrue(self.eligible(name,'commit-repository',{'earlier_native':'failure'}))
+        self.assertFalse(self.eligible(name,'commit-repository',cancelled=True))
+        for outcome in ['failure','skipped','cancelled','']:
+            self.assertFalse(self.eligible(name,'commit-repository',{'native_ready':outcome}))
+        for lane in ci.LANES:
+            if lane!='commit-repository':self.assertFalse(self.eligible(name,lane))
+        # The full reviewed-status mutation matrix also exercises both Git
+        # arguments, command drift, duplicate/missing/moved steps and guards.
 
     def testBlameFocusRetainsOriginalCasesReadyOwnerAndExactNeighbors(self):
         steps=self.workflow['jobs']['validation']['steps']

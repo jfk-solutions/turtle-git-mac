@@ -210,26 +210,43 @@ extension GitRepository {
         _ = try run(["checkout", "-b", name], cancellation: cancellation)
     }
     /// Exact index identities, including distinct Unicode spellings and stage deduplication.
-    public func submodulePathNames(cancellation: OperationCancellation? = nil) throws -> Set<GitReferenceName> {
-        Set(try run(["ls-files", "--stage", "-z"], cancellation: cancellation).stdout.split(separator: 0).compactMap { record in
-            let fields = record.split(separator: 9, maxSplits: 1)
-            guard fields.count == 2, fields[0].starts(with: Array("160000 ".utf8)) else { return nil }
-            return GitReferenceName(String(decoding: fields[1], as: UTF8.self))
-        })
+    public func submodulePathNames(paths:[String]?=nil,cancellation: OperationCancellation? = nil) throws -> Set<GitReferenceName> {
+        try cancellation?.check()
+        let scope=try workingStatusScope(paths)
+        let arguments=["ls-files","--stage","-z"]
+        let batches:[[String]?]
+        if let scope {
+            if scope.isEmpty {return []}
+            let invocation=commandInvocation(arguments+["--"])
+            batches=try SubmoduleUpdateBatchPlan.paths(scope,fixedArguments:[invocation.executable.path]+invocation.arguments,byteLimit:SubmoduleUpdateBatchPlan.platformByteLimit).map{Optional($0)}
+        } else {batches=[nil]}
+        var result=Set<GitReferenceName>()
+        for batch in batches {
+            try cancellation?.check()
+            let bytes=try run(arguments+(batch.map{["--"]+$0} ?? []),environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
+            for record in bytes.split(separator:0) {
+                let fields=record.split(separator:9,maxSplits:1)
+                guard fields.count==2,fields[0].starts(with:Array("160000 ".utf8)) else{continue}
+                result.insert(GitReferenceName(String(decoding:fields[1],as:UTF8.self)))
+            }
+        }
+        return result
     }
     // Existing working-file models still expose String sets. New submodule
     // workflows use submodulePathNames so their catalog never collapses names.
-    public func submodulePaths(cancellation: OperationCancellation? = nil) throws -> Set<String> {
-        Set(try submodulePathNames(cancellation: cancellation).map(\.rawValue))
+    public func submodulePaths(paths:[String]?=nil,cancellation: OperationCancellation? = nil) throws -> Set<String> {
+        Set(try submodulePathNames(paths:paths,cancellation:cancellation).map(\.rawValue))
     }
-    public func stagingFiles(staged: Bool, base: String? = nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+    public func stagingFiles(staged: Bool, base: String? = nil,paths:[String]?=nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
+        let scope=try workingStatusScope(paths)
+        if scope?.isEmpty == true {return []}
         // Git's diff auto-refresh writes its index lock even with optional
         // locks disabled. Display statistics must suppress that separate path.
         let args = ["-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + (staged ? ["--cached"] + (base.map { [$0] } ?? []) : [])
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
-                                raw: try run(args + ["--raw", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
+        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                statistics: try run(args + ["--numstat", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                raw: try run(args + ["--raw", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
             // With auto-refresh disabled, name/raw output can retain an M row
             // whose stat changed but contents did not. Numstat performs the
             // content comparison: real binary/mode/gitlink changes still have
@@ -237,16 +254,18 @@ extension GitRepository {
             .filter { $0.action != "M" || $0.hasStatistics }
     }
 
-    public func workingTreeFiles(amendToParent: Bool = false, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
+    public func workingTreeFiles(amendToParent: Bool = false,paths:[String]?=nil, cancellation: OperationCancellation? = nil) throws -> [CommitFile] {
         try cancellation?.check()
+        let scope=try workingStatusScope(paths)
+        if scope?.isEmpty == true {return []}
         let head = (try? run(["rev-parse", "--verify", "HEAD"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation)) != nil
         let base = amendToParent ? [try commitComparisonBase(amendToParent: true, cancellation: cancellation)] : head ? ["HEAD"] : ["--cached"]
         // Git's diff auto-refresh writes its index lock even with optional
         // locks disabled. Display statistics must suppress that separate path.
         let args = ["-c", "diff.autoRefreshIndex=false", "diff", "--no-ext-diff", "--no-color"] + diffDetection.comparisonArguments + base
-        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
-                                statistics: try run(args + ["--numstat", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
-                                raw: try run(args + ["--raw", "-z", "--"], environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
+        return CommitFile.parse(names: try run(args + ["--name-status", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                statistics: try run(args + ["--numstat", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout,
+                                raw: try run(args + ["--raw", "-z", "--"]+(scope ?? []), environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"], cancellation: cancellation).stdout)
             // With auto-refresh disabled, name/raw output can retain an M row
             // whose stat changed but contents did not. Numstat performs the
             // content comparison: real binary/mode/gitlink changes still have

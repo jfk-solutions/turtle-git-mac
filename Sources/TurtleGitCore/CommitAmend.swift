@@ -166,20 +166,20 @@ extension GitRepository {
         return try run(["mktree"], cancellation: cancellation).text.trimmingCharacters(in: .newlines)
     }
 
-    public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil, refreshIndex: Bool = true) throws -> [StatusEntry] {
+    public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil, refreshIndex: Bool = true,paths:[String]?=nil,includedStaged:Bool=false) throws -> [StatusEntry] {
         try cancellation?.check()
-        let current=try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,sourceReporting:!amendToParent,cancellation:cancellation)
+        let current=try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,sourceReporting:!amendToParent,paths:paths,includedStaged:includedStaged,cancellation:cancellation)
         let indexed:[CommitFile],working:[CommitFile]
         let sourceBase:String?
         if amendToParent {
             let base=try commitComparisonBase(amendToParent:true,cancellation:cancellation)
             sourceBase=base
-            indexed=try stagingFiles(staged:true,base:base,cancellation:cancellation)
-            working=try workingTreeFiles(amendToParent:true,cancellation:cancellation)
+            indexed=try stagingFiles(staged:true,base:base,paths:includedStaged ? nil:paths,cancellation:cancellation)
+            working=try workingTreeFiles(amendToParent:true,paths:paths,cancellation:cancellation)
         } else {indexed=[];working=[];sourceBase=nil}
         let entries=try commitDialogEntries(current:current,amendToParent:amendToParent,indexed:indexed,working:working,cancellation:cancellation)
         if let sourceBase {
-            return try sourceWorkingStatus(entries,base:.revision(sourceBase),readPolicy:refreshIndex ? .refreshIndex:.automatic,cancellation:cancellation)
+            return try sourceWorkingStatus(entries,base:.revision(sourceBase),readPolicy:refreshIndex ? .refreshIndex:.automatic,paths:paths,includedStaged:includedStaged,cancellation:cancellation)
         }
         return entries
     }

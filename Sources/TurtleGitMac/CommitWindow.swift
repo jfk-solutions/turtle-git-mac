@@ -2334,6 +2334,7 @@ import TurtleGitCore
         let requestedScope = paths.map { $0.contains(".") ? [] : $0 } ?? scopePaths
         let scopedPreference=dialogDefaults.bool(forKey:CommitScopePreference.key(root:repository.root))
         let requestedWholeProject=wholeProject ?? (paths == nil ? showWholeProject:requestedScope.isEmpty || scopedPreference)
+        let requestedReadScope:[String]?=requestedWholeProject ? nil:requestedScope
         let changingWholeProject=wholeProject != nil && !requestedScope.isEmpty
         let resetChecks=changingWholeProject || paths != nil && (!hasLoaded || requestedScope != scopePaths)
         var retainedScopeChecks=scopeCheckStates
@@ -2364,7 +2365,7 @@ import TurtleGitCore
                 else { preferences=try await readReload(token) { try await repository.commitPreferences(cancellation:token) } }
                 setReloadPhase(.changes, token: token)
                 let captured:CommitDialogRead?
-                if usesCapturedCommitRead {captured=try await readReload(token) {try await repository.commitDialogRead(amend:amend,amendDiffToLastCommit:amendDiffToLastCommit,cancellation:token)}}
+                if usesCapturedCommitRead {captured=try await readReload(token) {try await repository.commitDialogRead(amend:amend,amendDiffToLastCommit:amendDiffToLastCommit,paths:requestedReadScope,cancellation:token)}}
                 else {captured=nil}
                 NativeDialogStartupTrace.mark("commit.change-read.ready", began: loadBegan, count: captured?.entries.count ?? 0)
                 let nextOperation:CommitOperation?,nextHasHead:Bool,nextHasParent:Bool

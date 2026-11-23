@@ -65,7 +65,7 @@ private final class RevertNativeWindow:NSWindow {
         }
         model.onRevert = { [weak self] rows in
             guard let self,!self.model.retired,self.revertProgress == nil else {return}
-            let progress = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:false,autoCloseSuccess:false,preferences:preferences,policy:self.model.pendingRevertPolicy)
+            let progress = RevertProgressWindowController(repository:repository,access:access,entries:rows,amend:false,againstHead:false,autoCloseSuccess:false,preferences:preferences,policy:self.model.pendingRevertPolicy,paths:self.model.invocationPaths)
             progress.model.externalAvailability={ [weak model=self.model] in model?.retired == false && model?.confirmingQuit == false }
             progress.onProgressLog={ [weak model=self.model] path in guard let model,!model.retired,!model.confirmingQuit else{return};model.onFileLog(path) }
             self.revertProgress = progress;self.model.hasChild = true
@@ -169,14 +169,16 @@ private final class RevertNativeWindow:NSWindow {
     @Published private(set) var fileColumns:StatusListColumnSettings
     @Published var sortOrder = [StatusFileSort(column:.path)] {didSet {commands.sortOrder = sortOrder}}
     private var paths = ["."],hasLoaded = false,closeAfterRead = false
+    var invocationPaths:[String] {paths}
     private var request:OperationCancellation?
     private var generation = UUID()
     private var queuedForce = GitPathSet()
     private var refreshRequested = false
     private var observer:AnyCancellable?
     private(set) var retired = false
-    var readStatus:(OperationCancellation) async throws -> [WorkingTreeFile]
-    var readStatistics:(OperationCancellation) async throws -> [CommitFile]
+    private var usesDefaultStatusRead=true,usesDefaultStatisticsRead=true
+    var readStatus:(OperationCancellation) async throws -> [WorkingTreeFile] {didSet{usesDefaultStatusRead=false}}
+    var readStatistics:(OperationCancellation) async throws -> [CommitFile] {didSet{usesDefaultStatisticsRead=false}}
     var validateDrop:(URL,OperationCancellation) async throws -> Void
     var close:()->Void = {}
     var updateTitle:(URL)->Void = {_ in}
@@ -297,14 +299,20 @@ private final class RevertNativeWindow:NSWindow {
                     dropPaths = GitPathSet(added)
                 }
                 let invocation = try await repository.workingTreeInvocation(paths:nextScope,cancellation:token)
-                let files = try await readStatus(token);try token.check()
+                let files:[WorkingTreeFile]
+                if usesDefaultStatusRead {files=try await repository.workingTreeStatus(refreshIndex:false,paths:nextScope,includedStaged:false,cancellation:token)}
+                else {files=try await readStatus(token)}
+                try token.check()
                 let direct = GitPathSet(nextScope.filter {path in path != "." && (try? FileManager.default.attributesOfItem(atPath:repository.root.appendingPathComponent(path).path)[.type]) as? FileAttributeType != .typeDirectory})
                 let status = files.filter{$0.state != .normal || direct.contains($0.id)}.map(\.entry)
                 let selection = RevertDialogSelection(status:status,paths:nextScope,directFiles:direct)
                 let ids = GitPathSet(selection.entries.map(\.path)),selectedFiles = files.filter{ids.contains($0.id)}
-                let stats = GitPathMap(try await readStatistics(token).map{($0.path,$0)},uniquingKeysWith:{_,last in last})
+                let rawStatistics:[CommitFile]
+                if usesDefaultStatisticsRead {rawStatistics=try await repository.workingTreeFiles(paths:nextScope,cancellation:token)}
+                else {rawStatistics=try await readStatistics(token)}
+                let stats = GitPathMap(rawStatistics.map{($0.path,$0)},uniquingKeysWith:{_,last in last})
                 let metadata = await repository.statusListMetadata(paths:selection.entries.map(\.path));try token.check()
-                let modules = try await repository.submodulePaths(cancellation:token),rebase = try await repository.conflictIsRebase(cancellation:token)
+                let modules = try await repository.submodulePaths(paths:selection.entries.map(\.path),cancellation:token),rebase = try await repository.conflictIsRebase(cancellation:token)
                 let hasHead = try await repository.run(["rev-parse","--verify","--quiet","HEAD"],successfulExitCodes:0...1,cancellation:token).exitCode == 0
                 let hasLFS = try await repository.hasLFS(cancellation:token)
                 guard !retired,request === token,generation == identity,!token.isCancelled else {return}

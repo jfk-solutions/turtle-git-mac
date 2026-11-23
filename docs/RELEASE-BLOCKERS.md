@@ -5,7 +5,29 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
-## Working-status actions and current gates — November 23, 2026
+## Folder-scoped reads and hosted compiler repair — November 23, 2026
+
+The [scoped working-read family](SCOPED-WORKING-READS-PARITY.md) now bounds Commit,
+Add and Revert discovery before Git reads. Commit retains outside staged and
+partially staged files without scanning unrelated untracked trees; Whole Project
+explicitly restores the global view. Revert retains its literal invocation through
+acceptance, progress and Retry. Accepted gitlink metadata is bounded too. The
+[checkpoint](qa/scoped-working-reads-2026-11-23.json) records 95 distinct focused
+Core cases across retained/repair scopes, eight scoped native case/Git passes,
+two retained Sync/Git passes and 46 workflow-contract checks. These query-boundary
+receipts establish behavior, not a wall-clock performance promise.
+
+Small [hosted compiler artifacts](qa/hosted-ci-6a0a5e69-compile-2026-11-23.json)
+identified Xcode16.4/Swift6.1.2 inferring Sync's comparison-model array as AnyObject.
+An explicit model-array type preserves the existing ownership checks and builds
+locally. Complete hosted success against the repaired commit is still pending.
+No installed-app update, signing, notarization or store submission was performed.
+
+Remaining gates include WMF/EMF rendering/path acceptance and HQ affine arithmetic,
+remaining source/layout acceptance, full hosted CI, signed/platform/physical Finder
+checks and owner acceptance before publication.
+
+## Working-status action checkpoint — November 23, 2026
 
 The [working-status family](WORKING-STATUS-PROJECTION-PARITY.md) now carries the
 pinned cached/whole action rules through Commit, Changes, Add, Log, comparisons,
@@ -21,9 +43,9 @@ the connected API, so future failed builds now retain small compiler/toolchain
 text artifacts. The updated admission suite passes 45 checks locally; this does
 not establish hosted application success. Installed52 and signed54 are unchanged.
 
-Remaining end-user work includes scoped Add/Revert reads (currently filtered only
-after whole-repository queries), WMF/EMF path/rendering parity and the remaining
-source/layout acceptance. Full hosted, signed/platform, physical Finder and
+At this earlier checkpoint, scoped Add/Revert reads and WMF/EMF path/rendering
+parity remained open; see the newer scope checkpoint above for completed reads.
+Remaining source/layout acceptance is tracked separately. Full hosted, signed/platform, physical Finder and
 owner acceptance remain separate gates. No publication or App Store submission
 is authorized by these local passes.
 

@@ -154,8 +154,9 @@ extension GitRepository {
         try cancellation?.check()
         return result
     }
-    public func commitDialogRead(amend:Bool,amendDiffToLastCommit:Bool,cancellation:OperationCancellation? = nil)throws->CommitDialogRead {
+    public func commitDialogRead(amend:Bool,amendDiffToLastCommit:Bool,paths:[String]?=nil,cancellation:OperationCancellation? = nil)throws->CommitDialogRead {
         try cancellation?.check()
+        let scope=try workingStatusScope(paths)
         func directory(_ argument:String)throws->URL {
             var bytes=try run(["rev-parse",argument],cancellation:cancellation).stdout
             try cancellation?.check()
@@ -184,19 +185,56 @@ extension GitRepository {
         // One repository actor call owns this read. External processes may
         // still change Git/index/worktree state: this is display data, never a
         // substitute for fresh mutation preflight/index bytes at Commit time.
-        let current=try status(readPolicy:.automatic,includeIgnored:false,sourceReporting:false,cancellation:cancellation)
-        func diffData(_ arguments:[String],sourceIndexed:Bool=false,detection:[String]?=nil)throws->Data {
+        var current=try status(readPolicy:.automatic,includeIgnored:false,sourceReporting:false,paths:scope,cancellation:cancellation)
+        func diffData(_ arguments:[String],sourceIndexed:Bool=false,detection:[String]?=nil,selectedPaths:[String]?=nil)throws->Data {
             let command=sourceIndexed ? "diff-index":"diff"
-            let args=["-c","diff.autoRefreshIndex=false",command,"--no-ext-diff","--no-color","--no-abbrev"]+(detection ?? [diffDetection.copyArgument,diffDetection.renameArgument])+arguments+["--raw","--numstat","-z","--"]
+            let args=["-c","diff.autoRefreshIndex=false",command,"--no-ext-diff","--no-color","--no-abbrev"]+(detection ?? [diffDetection.copyArgument,diffDetection.renameArgument])+arguments+["--raw","--numstat","-z","--"]+(selectedPaths ?? [])
             return try run(args,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
         }
-        let workingData=try diffData(base.map{[$0]} ?? head.map{[$0]} ?? ["--cached"],sourceIndexed:head != nil)
-        let working=try CommitCombinedDiff.parse(workingData,cancellation:cancellation)
-        // Before the first commit both comparisons are exactly --cached.
-        // Reuse accepted bytes rather than walking the same index twice.
-        let stagedData=head == nil ? workingData:try diffData(["--cached"]+(base.map{[$0]} ?? head.map{[$0]} ?? []),sourceIndexed:true,detection:["-C","-M"])
+        func scopedDiff(_ arguments:[String],sourceIndexed:Bool=false,detection:[String]?=nil)throws->(Data,[CommitFile]) {
+            let queries:[String?]=scope.map{$0.map{Optional($0)}} ?? [nil]
+            var bytes=Data(),files:[CommitFile]=[]
+            for path in queries {
+                try cancellation?.check()
+                let data=try diffData(arguments,sourceIndexed:sourceIndexed,detection:detection,selectedPaths:path.map{[$0]})
+                bytes.append(data)
+                files += try CommitCombinedDiff.parse(data,cancellation:cancellation)
+            }
+            return(bytes,files)
+        }
+        let (workingData,scopedWorking)=try scopedDiff(base.map{[$0]} ?? head.map{[$0]} ?? ["--cached"],sourceIndexed:head != nil)
+        // Included-staged is global even for selected paths. An unborn GLOBAL
+        // read can reuse its whole stream, preserving the existing two walks.
+        let stagedData:Data
+        if scope?.isEmpty == true {stagedData=Data()}
+        else if head == nil && scope == nil {stagedData=workingData}
+        else {stagedData=try diffData(["--cached"]+(base.map{[$0]} ?? head.map{[$0]} ?? []),sourceIndexed:head != nil,detection:["-C","-M"])}
         let staged=try CommitCombinedDiff.parse(stagedData,cancellation:cancellation)
-        let unstaged=try CommitCombinedDiff.parse(diffData([],detection:["-C","-M"]),cancellation:cancellation)
+        if scope != nil {
+            // Reuse cached bytes, not another global roster/enrichment walk.
+            current=try workingStatusIncludingStaged(current,names:staged.flatMap{[$0.path]+($0.oldPath.map{[$0]} ?? [])},readPolicy:.automatic,cancellation:cancellation)
+        }
+        let (_,scopedUnstaged)=try scopedDiff([],detection:["-C","-M"])
+        var unstaged=scopedUnstaged
+        if let scope {
+            // Source diff-files updates staging even outside the selected
+            // directory. Read only captured outside cached names, never an
+            // unrelated unstaged-only or untracked/generated subtree.
+            let outside=GitPathOperationOrder.sorted(GitPathSet(staged.flatMap{[$0.path]+($0.oldPath.map{[$0]} ?? [])}.filter{!workingStatusPath($0,isWithin:scope)}))
+            let arguments=["-c","diff.autoRefreshIndex=false","diff","--no-ext-diff","--no-color","--no-abbrev","-C","-M","--raw","--numstat","-z","--"]
+            let invocation=commandInvocation(arguments)
+            let batches=try SubmoduleUpdateBatchPlan.paths(outside,fixedArguments:[invocation.executable.path]+invocation.arguments,byteLimit:SubmoduleUpdateBatchPlan.platformByteLimit)
+            var seen=GitPathSet(unstaged.map(\.path))
+            for batch in batches {
+                let bytes=try diffData([],detection:["-C","-M"],selectedPaths:batch)
+                let batchFiles=try CommitCombinedDiff.parse(bytes,cancellation:cancellation)
+                // U and M can coexist for one literal path in a single raw
+                // stream. Deduplicate previous scopes, never that multiplicity.
+                unstaged += batchFiles.filter{!seen.contains($0.path)}
+                seen.formUnion(batchFiles.map(\.path))
+            }
+        }
+        var working=scopedWorking
         let projected=try commitDialogEntries(current:current,amendToParent:compareParent,indexed:staged,working:working,cancellation:cancellation)
         let entries:[StatusEntry]
         let sourceProjectionNeeded=compareParent || current.contains {entry in
@@ -210,6 +248,11 @@ extension GitRepository {
             // Reuse both captured streams; reporting adds no repository walk.
             entries=SourceWorkingStatus.applying(try SourceWorkingStatus.parse(stagedData)+SourceWorkingStatus.parse(workingData),to:projected)
         } else {entries=projected}
+        if let scope {
+            let accepted=GitPathSet(entries.map(\.path))
+            var present=GitPathSet(working.map(\.path))
+            for file in staged where accepted.contains(file.path) && !workingStatusPath(file.path,isWithin:scope) && present.insert(file.path).inserted {working.append(file)}
+        }
         // Unversioned embedded repositories can be reported as "nested/".
         // They have no index flags or gitlink mode to query; keep their display
         // row unchanged and use the ordinary false defaults below.

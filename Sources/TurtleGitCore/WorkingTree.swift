@@ -97,20 +97,29 @@ extension GitRepository {
         return result.exitCode == 0
     }
 
-    public func workingTreeStatus(refreshIndex: Bool = true, cancellation: OperationCancellation? = nil) throws -> [WorkingTreeFile] {
-        try workingTreeStatus(readPolicy:refreshIndex ? .refreshIndex:.automatic,cancellation:cancellation)
+    public func workingTreeStatus(refreshIndex: Bool = true,paths:[String]?=nil,includedStaged:Bool=false, cancellation: OperationCancellation? = nil) throws -> [WorkingTreeFile] {
+        try workingTreeStatus(readPolicy:refreshIndex ? .refreshIndex:.automatic,paths:paths,includedStaged:includedStaged,cancellation:cancellation)
     }
-    public func workingTreeStatus(readPolicy:GitStatusReadPolicy,cancellation:OperationCancellation? = nil) throws -> [WorkingTreeFile] {
+    public func workingTreeStatus(readPolicy:GitStatusReadPolicy,paths:[String]?=nil,includedStaged:Bool=false,cancellation:OperationCancellation? = nil) throws -> [WorkingTreeFile] {
         try cancellation?.check()
-        let changes = try status(readPolicy:readPolicy,cancellation:cancellation)
+        let scope=try workingStatusScope(paths)
+        if scope?.isEmpty == true {return []}
+        let changes = try status(readPolicy:readPolicy,paths:scope,includedStaged:includedStaged,cancellation:cancellation)
         var entries = GitPathMap(changes.map { ($0.path, $0) }, uniquingKeysWith: { _, new in new })
         var flags = GitPathMap<(Bool,Bool)>()
-        for record in try run(["ls-files", "-v", "-z"], cancellation: cancellation).stdout.split(separator: 0) {
+        for record in try run(["ls-files", "-v", "-z"]+(scope.map{["--"]+$0} ?? []),environmentOverrides:readPolicy == .automatic ? ["GIT_OPTIONAL_LOCKS":"0"]:[:], cancellation: cancellation).stdout.split(separator: 0) {
             guard record.count >= 3 else { continue }
             let bytes = Array(record), path = String(decoding: bytes.dropFirst(2), as: UTF8.self)
             let code = bytes[0]
             flags[path] = (code >= 97 && code <= 122, code == 83 || code == 115)
             if entries[path] == nil { entries[path] = StatusEntry(path: path, originalPath: nil, index: " ", worktree: " ") }
+        }
+        if let scope,includedStaged {
+            let outside=changes.filter{!workingStatusPath($0.path,isWithin:scope) && $0.state != .untracked && $0.state != .ignored}.map(\.path)
+            if !outside.isEmpty {
+                let extra=try commitDisplayIndex(paths:outside,cancellation:cancellation).flags
+                for (path,value) in extra {flags[path]=value}
+            }
         }
         return entries.values.map { entry in
             let date = (try? FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(entry.path).path)[.modificationDate]) as? Date

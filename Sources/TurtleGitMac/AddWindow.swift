@@ -262,6 +262,7 @@ private final class AddNativeWindow: NSWindow {
     @Published var error: String?
     @Published var sortOrder = [KeyPathComparator(\AddDialogEntry.path)]
     private var paths: [String] = ["."]
+    var invocationPaths:[String] {paths}
     var scopePaths: [String] { paths }
     private var loaded = false
     private(set) var ignoring = false
@@ -669,14 +670,14 @@ private final class AddNativeWindow: NSWindow {
     }
     func read() async throws {
         try validateAccess()
-        let token = cancellation
+        let token = cancellation,scope=paths,ignored=includeIgnored
         let selection: AddDialogSelection
-        if let querySelection { selection = try await querySelection(paths, includeIgnored, token) }
-        else { selection = try await repository.addDialogSelection(paths: paths, includeIgnored: includeIgnored, cancellation: token) }
+        if let querySelection { selection = try await querySelection(scope, ignored, token) }
+        else { selection = try await repository.addDialogSelection(paths: scope, includeIgnored: ignored, cancellation: token) }
         guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
         let head = try? await repository.run(["rev-parse", "--verify", "HEAD^{commit}"], cancellation: cancellation)
         if retired || cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
-        let flags = try await repository.workingTreeStatus(refreshIndex: false, cancellation: token)
+        let flags = try await repository.workingTreeIndexFlags(entries:selection.entries.map(\.status),cancellation:token)
         if cancellation.isCancelled { throw OperationCancellationFailure.cancelled }
         guard !retired, cancellation === token, !token.isCancelled else { throw OperationCancellationFailure.cancelled }
         let lfs = try await repository.hasLFS(cancellation: token)

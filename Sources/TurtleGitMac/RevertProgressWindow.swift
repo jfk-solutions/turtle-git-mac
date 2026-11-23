@@ -50,8 +50,8 @@ private final class RevertProgressNativeWindow: NSWindow {
     var presentQuestion:(NSWindow,NSAlert,@escaping(NSApplication.ModalResponse)->Void)->Bool = {window,alert,reply in guard window.attachedSheet==nil else{return false};alert.beginSheetModal(for:window,completionHandler:reply);return true}
     var onClosed: () -> Void = {}
     private var question: (UUID, NSAlert, (Bool) -> Void)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard, policy: WorkingFileRevertPolicy? = nil) {
-        model = RevertProgressWindowModel(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences: preferences, policy: policy)
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard, policy: WorkingFileRevertPolicy? = nil, paths:[String]? = nil) {
+        model = RevertProgressWindowModel(repository: repository, access: access, entries: entries, amend: amend, againstHead: againstHead, autoCloseSuccess: autoCloseSuccess, preferences: preferences, policy: policy, paths:paths)
         progressFiles=FileOperationProgressFiles(repository:repository,access:access)
         let window = RevertProgressNativeWindow(contentRect: NSRect(x: 0, y: 0, width: 1000, height: 550), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         RepositoryWindowTitles.set(window, repository: repository.root, dialog: "Revert Progress", preferences: preferences)
@@ -128,6 +128,7 @@ private struct RevertProgressRow: Identifiable {
     let repository: GitRepository
     private let access: RepositoryAccessLease?
     private let entries: [StatusEntry]
+    let invocationPaths:[String]?
     private let amend: Bool
     private let againstHead: Bool
     private let autoCloseSuccess: Bool
@@ -167,7 +168,8 @@ private struct RevertProgressRow: Identifiable {
     var close: () -> Void = {}
     var onFinished: (String, Bool) -> Void = { _, _ in }
     var execute: (([StatusEntry], OperationCancellation, @escaping @Sendable (WorkingFileRevertProgress) -> Void, @escaping @Sendable (GitOutputChunk) -> Void) async throws -> WorkingFileRevertResult)?
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard, policy: WorkingFileRevertPolicy? = nil) {
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [StatusEntry], amend: Bool, againstHead: Bool, autoCloseSuccess: Bool, preferences: UserDefaults = .standard, policy: WorkingFileRevertPolicy? = nil, paths:[String]? = nil) {
+        self.invocationPaths=paths
         self.policy=policy ?? WorkingFileRevertPolicy.load(from:preferences)
         progress=FileOperationProgressState(preferences:preferences)
         self.repository = repository; self.access = access; self.entries = entries; self.amend = amend; self.againstHead = againstHead; self.autoCloseSuccess = autoCloseSuccess; self.preferences = preferences; progressPresentation = GitCommandPresentation(defaults: preferences); autoClosePolicy = GitProgressAutoClose(preferences: preferences)
@@ -215,14 +217,14 @@ private struct RevertProgressRow: Identifiable {
             defer { Self.activeOperations -= 1; withExtendedLifetime(access) {}; if cancellation === request { cancellation = nil;busy=false; if !retired {progress.finish(success:completedSuccessfully,cancelled:cancelled,started:attemptStarted);saveActionLog(); finishAutomaticClose() } } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
-                let selected = refreshSelection ? try await repository.workingFileRevertSelection(entries, amend: amend, againstHead: againstHead, cancellation: request) : entries
+                let selected = refreshSelection ? try await repository.workingFileRevertSelection(entries, amend: amend, againstHead: againstHead, paths:invocationPaths, cancellation: request) : entries
                 try request.check(); guard !retired else { return }
                 let (stream, continuation) = AsyncStream<WorkingFileRevertProgress>.makeStream()
                 let operation = Task { [self] in
                     defer { continuation.finish() }
                     return try await LocalGitCommandProgress.stream(preferences: preferences, update: { [weak self] progress in guard let self, !self.retired, self.cancellation === request else { return }; self.commandOutput = progress.output }, resultText: { _ in "" }) { [self] emit in
                         if let execute { return try await execute(selected, request, { continuation.yield($0) }, emit) }
-                        return try await repository.revertWorkingFiles(selected, amend: amend, amendDiffToLastCommit: againstHead, policy: policy, cancellation: request, progress: { continuation.yield($0) }, onOutput: emit)
+                        return try await repository.revertWorkingFiles(selected, amend: amend, amendDiffToLastCommit: againstHead, policy: policy, paths:invocationPaths, cancellation: request, progress: { continuation.yield($0) }, onOutput: emit)
                     }
                 }
                 for await event in stream { receive(event, request: request) }

@@ -1,0 +1,231 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T06:21:34.292786+00:00",
+  "status": "Scoped Commit/Add/Revert read and ownership family passed; whole port remains incomplete",
+  "sourceBase": "6a0a5e69036567248a8c66877fbf52f3e9f2d4ed",
+  "sourceDirtyDuringValidation": true,
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceSHA256": {
+    ".github/workflows/macos.yml": "6fc2806c5e41da903aba40cf182756cc555aabe275a8a9d75db4de36bfb80221",
+    "Sources/TurtleGitCore/Add.swift": "2d80298338571a74847ae05fb59f3fd587574eb0410576a806b960780d307053",
+    "Sources/TurtleGitCore/CommitAmend.swift": "cf57a13d0622954d86e26fdd09b60896bc9d87934dfd8521379296d5bd3798c8",
+    "Sources/TurtleGitCore/CommitSelection.swift": "eec0cc98ac4b5c04b8076af59a7eca5fc37d7c04361bd80114b383ff96dacb2b",
+    "Sources/TurtleGitCore/GitRepository.swift": "da6388808b5fd5b39145c48186e548653ef1fdf7de84a1c9a5ee84fa38cc911a",
+    "Sources/TurtleGitCore/SourceWorkingStatus.swift": "3a3d391630517ee8472dc218bde7f1215066b2459eaf437aee0eee3c69f83fc0",
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "9637afcab257ced2b2ec64b51c19658200c608ea502485deed0edcd19a3cb2af",
+    "Sources/TurtleGitCore/WorkingTree.swift": "4261ec011804bcbec1acf1e40abdb43aa3b05c2da4c5edf009a86f3ff6c8b0e7",
+    "Sources/TurtleGitMac/AddWindow.swift": "22ac682b3aea7039de8947e5c51a2fcea7f5c9363d4198b0432e3460df087ab5",
+    "Sources/TurtleGitMac/CommitWindow.swift": "a6e092a0b3f1c57cbe71bb27cd29dfc98ca3affe65362c9c480479acb3b55947",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "e7ddc47a38af08b90f6ce29f2b482f450af4935c529975ad1365caa40f6046db",
+    "Sources/TurtleGitMac/RevertProgressWindow.swift": "aeb57e08f34f31d5986e89f9abe0d848a6f132916be07fb4d248c0a50d4c0dd6",
+    "Sources/TurtleGitMac/RevertWindow.swift": "a7d4074b11cb87d1f6207131629e77b05bf80d6b564edf174bc562f1a66383f9",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "708032f95c858e3270baff80fd3922b9fb46e04ab2314c488d4966ad4314d264",
+    "Tests/TurtleGitCoreTests/ScopedWorkingStatusTests.swift": "911250efc07b4c60f6c6822b9348b7b761669457b7e140d747ad7c0eba28d592",
+    "docs/qa/add-revert-file-flow-native-2026-10-17.swift": "553745fa58a50a21e995b12db7423a8d827f1fd0c8bd004e15e0d334d09ea017",
+    "docs/qa/scoped-working-reads-native-2026-11-23.swift": "a7241ee1ea72e3ac9502d3534e9132de83dd51199c937bffaa2446fe97dd7933",
+    "scripts/check-macos-ci-lanes.py": "5f55e79afdd465f325f2fbbcf927b83975f381d43376e851b87097ee55f9dba6",
+    "scripts/test-macos-ci-lanes.py": "d73c122b26c620d8731e8c32a0d60688f1bd8cd39b646882ca74cdcbd2026821",
+    "scripts/test-scoped-working-reads.py": "cf0ac1659a045f912417fea500a97cf0ea48036782a3e2983cae9ca436781996",
+    "Sources/TurtleGitCore/CommitDialogRead.swift": "db4dcc1dec2da0f5793e569cc4ff34c607a4868f02dc0df84a65a75a1758156a",
+    "Tests/TurtleGitCoreTests/CommitDialogReadTests.swift": "5d98468d3db3048aa4a07b487e54fa58532c65cc19af6164003c7ad5b75ef418",
+    "docs/SOURCE-SCOPED-WORKING-STATUS-PARITY.md": "51fa89547bef2d5c3cb8bf5eb61dccd24afcc07b578b29e3aa9ac275acc4a36d",
+    "docs/SCOPED-WORKING-READS-PARITY.md": "e426cc85fbdebf67fa29ec76699a13d48d8d0515c3a56fc017f8ddce98ee1ad7",
+    "docs/RELEASE-BLOCKERS.md": "b8597c55551583fe8a804e1713fccc0521c31b7661333c70b94c988b25686c05",
+    "docs/qa/hosted-ci-6a0a5e69-compile-2026-11-23.json": "21bdfe2181192572ace1c6e73c5d3a46ede19fd4e4b0d80f33d5ab32d0bfccfc"
+  },
+  "implementation": [
+    "Original literal file/folder scopes enter porcelain and raw queries before inventory; per-scope order preserves rename-boundary identity",
+    "Commit retains global cached staged rows, outside partial staging/real statistics, parent-amend changes and Whole Project behavior without global untracked discovery",
+    "Cached bytes supply Commit staged roster/source projection; nil/global retains original three scans and unborn two",
+    "Add exact accepted index flags and Revert exact accepted gitlink metadata replace unrelated inventories",
+    "Revert captures immutable invocation through confirmation/progress, fresh mutation and Retry; empty/outside/forged origins refuse before Git",
+    "Raw cached-index ownership safety inventory remains global when needed for local alias disposal; no untracked traversal is inferred from that exception",
+    "Unmerged U/M record multiplicity within one stream is retained; scalar file statistics keep their existing dictionary policy",
+    "Actual hosted Swift6.1.2 Sync array inference failure fixed with explicit comparison-model array type"
+  ],
+  "core": {
+    "compileAttempts": [
+      {
+        "exitCode": 1,
+        "session": 38102,
+        "log": "scoped-working-core.log",
+        "cause": "New fixture local outside StatusEntry shadowed class String path"
+      },
+      {
+        "exitCode": 1,
+        "session": 36104,
+        "log": "scoped-working-core-fixture-repair.log",
+        "cause": "Remaining shadowed comparisons; fixture local renamed and explicit path references retained"
+      }
+    ],
+    "initialExecution": {
+      "exitCode": 1,
+      "session": 48067,
+      "tests": 95,
+      "passed": 94,
+      "failures": 1,
+      "seconds": 63.1,
+      "log": "scoped-working-core-metadata-repair.log",
+      "failure": "Scoped stream deduplication collapsed U/M records of the same path; production repaired and nil/scoped regression assertion added"
+    },
+    "focusedRepair": {
+      "exitCode": 0,
+      "session": 67143,
+      "tests": 17,
+      "seconds": 10.611,
+      "filter": "ScopedWorkingStatusTests|CommitDialogReadTests",
+      "log": "scoped-working-core-multiplicity-repair.log"
+    },
+    "distinctPassingCases": 95,
+    "scope": "Retained unaffected Core scopes plus affected reader rechecks; not full Core or hosted suite"
+  },
+  "app": {
+    "attempts": [
+      {
+        "exitCode": 0,
+        "session": 28091,
+        "log": "scoped-working-app-build.log"
+      },
+      {
+        "exitCode": 0,
+        "session": 58794,
+        "log": "scoped-working-app-metadata-repair.log",
+        "change": "Bounded gitlink catalog and scoped Revert caller"
+      },
+      {
+        "exitCode": 0,
+        "session": 68831,
+        "log": "scoped-working-app-multiplicity-repair.log",
+        "change": "Preserved raw conflict-stream multiplicity"
+      }
+    ],
+    "scope": "Local unsigned arm64 Debug; no older hosted SDK/Intel/minimum-OS execution claim"
+  },
+  "native": {
+    "initial": {
+      "exitCode": 1,
+      "session": 82700,
+      "log": "scoped-working-native.log",
+      "passed": [
+        "system:commit",
+        "system:add"
+      ],
+      "failure": "Revert report still enumerated global ls-files --stage for submodule metadata; fixed bounded optional catalog API and exact accepted-row caller, strict oracle unchanged"
+    },
+    "passed": [
+      {
+        "engine": "system",
+        "cohorts": [
+          "commit",
+          "add"
+        ],
+        "passes": 2,
+        "log": "scoped-working-native.log",
+        "retention": "No conflict multiplicity case or submodule catalog consumer in these scopes changed; actual callbacks/argv/projection passes retained"
+      },
+      {
+        "engine": "system",
+        "cohorts": [
+          "revert",
+          "rescope-cancel"
+        ],
+        "passes": 2,
+        "exitCode": 0,
+        "log": "scoped-working-native-system-remaining.log"
+      },
+      {
+        "engine": "bundled",
+        "cohorts": [
+          "commit",
+          "add",
+          "revert",
+          "rescope-cancel"
+        ],
+        "passes": 4,
+        "exitCode": 0,
+        "log": "scoped-working-native-bundled-all.log"
+      },
+      {
+        "engines": [
+          "system",
+          "bundled"
+        ],
+        "cohorts": [
+          "Sync primary ownership"
+        ],
+        "passes": 2,
+        "exitCode": 0,
+        "session": 61921,
+        "log": "scoped-working-retained-sync.log",
+        "retention": "Explicit Sync type fix unchanged; global-default gitlink semantics retained"
+      }
+    ],
+    "repairGroupSession": 17947,
+    "argvReceipts": "build/qa/scoped-working-system-remaining-receipts and scoped-working-bundled-all-receipts",
+    "scope": "Private actual reports, staging panes, Whole Project, Root failed-progress/retry, rescope/Cancel/Quit, ownership and exact Git argv; no physical Finder or complete visual parity claim"
+  },
+  "ciAdmission": {
+    "tests": 46,
+    "exitCode": 0,
+    "log": "build/qa/scoped-working-ci-admission.log",
+    "scope": "Fail-closed exact new native step and inherited compiler artifact contract; immutable baseline unchanged"
+  },
+  "hostedCompilerEvidence": "docs/qa/hosted-ci-6a0a5e69-compile-2026-11-23.json",
+  "resources": {
+    "localizations": {
+      "writeSession": 66083,
+      "checkExitCode": 0,
+      "log": "build/qa/scoped-working-localizations.log",
+      "languages": 38,
+      "acceptedKeys": 1392,
+      "limit": "Counts do not prove full translation; English fallback retained"
+    },
+    "help": "No guide included by help-topics.json changed; no Help rebuild required",
+    "coverage": "Final reconciliation unchanged:130 dialogs/120 partial-family audits/10 pending-family reviews/85 pending controls/0 certified complete; not a feature completion percentage"
+  },
+  "cleanup": {
+    "ownedNativePIDs": [
+      70251,
+      70255,
+      70277,
+      70720,
+      70732,
+      71036,
+      76856,
+      76858,
+      76867,
+      77040
+    ],
+    "liveAtFinalObservation": [],
+    "scope": "Prohibited/offscreen/invisible private owners and child windows; receiver worker/Close/Quit/drain assertions and wrapper/helper cleanup passed",
+    "protectedFiles": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "isolation": {
+    "checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "installedApp": "No installed-app mutation",
+    "signed54": "No immutable artifact mutation",
+    "excluded": "Classic/HQ metafile changes and unrelated protected reference work; renderer checkpoint uses another checkout"
+  },
+  "logsSHA256": {
+    "scoped-working-core.log": "412e6e68a5bb98693138775a54d2190d8b4fe02482a1a0bec071e38e9f58b03e",
+    "scoped-working-core-fixture-repair.log": "ab2b1698d563359b34abb97b87de666ea372a61252fc8585d11bb0d2a212812e",
+    "scoped-working-core-metadata-repair.log": "59ed42c2d4187e1a86137476dbb7d01ede8d1fba23dcd7f1f71d1c1c4353ea29",
+    "scoped-working-core-multiplicity-repair.log": "cc10765d5a1126b506598628aae42360ce2cbdbb2683a4a175bee68140007266",
+    "scoped-working-app-build.log": "b3d1f05b567a5a90ae54872024fb70d98fba67e9d2af04b430ae5aefb24e4275",
+    "scoped-working-app-metadata-repair.log": "68523036b1708da9b55485ccbd36fdb999ce27e8466ad0607f5ac98a625758f5",
+    "scoped-working-app-multiplicity-repair.log": "3edf9fd829d2312fb2f4f8f99ed0b6518b1d553442366e81ee4325bc867917ee",
+    "scoped-working-native.log": "0426298af52051f71010dd2917618bfda927c4c9bfd29324b9689f6e6a3b5ef2",
+    "scoped-working-native-system-remaining.log": "1a2bd02adc9daf1201f03abbaacca554cbcc2ce71fa16c569e15be414f7c4c2a",
+    "scoped-working-native-bundled-all.log": "763f1e382acc6dbe5a3dddafefb2ee11ffcdb998f25c3008b779d6a540d7a138",
+    "scoped-working-retained-sync.log": "76d6f3ba681b091cd418cbcff2c36ecf46ca9ae766e816a7edbfece52634d8d6"
+  },
+  "remaining": [
+    "Full hosted success for the repaired source, including old-SDK Intel compilation",
+    "WMF/EMF path/rendering acceptance and unresolved HQ affine interpolation",
+    "Remaining source/layout/physical Finder/signed/platform and owner acceptance",
+    "Publication/App Store distribution gates; no upload or notarization performed"
+  ]
+}

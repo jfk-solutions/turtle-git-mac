@@ -216,6 +216,11 @@ WORKING_STATUS_PROJECTION = {
     'if': collection_condition('Native natural Copy and Rename working status projection', 'commit-repository'),
     'run': 'python3 scripts/test-working-status-projection.py --only commit --only status --only add --only log --only revert --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
 }
+SCOPED_WORKING_READS = {
+    'name': 'Native scoped working reads and immutable retry',
+    'if': collection_condition('Native scoped working reads and immutable retry', 'commit-repository'),
+    'run': 'python3 scripts/test-scoped-working-reads.py --only add --only revert --only rescope-cancel --only commit --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
 BLAME_SOURCE_NAME = 'Native Blame captured source menus'
 BLAME_SOURCE_ORIGINAL_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
 BLAME_SOURCE_FOCUS_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --only focus --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
@@ -226,7 +231,7 @@ STATUS_CONSUMER_ADDITIONS = (
      'Native Blame retained-byte encoding recovery and cancellation'),
     ('Native Commit staging activation and preference lifetime', (ADD_OPERANDS,),
      'Native Commit source category checking'),
-    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS, WORKING_STATUS_PROJECTION),
+    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS, WORKING_STATUS_PROJECTION, SCOPED_WORKING_READS),
      'Native Commit report rows, fonts and geometry ownership'),
 )
 

@@ -149,11 +149,38 @@ enum SourceWorkingStatus {
 }
 
 extension GitRepository {
+    /// Nil is the existing whole-repository contract; an empty explicit scope
+    /// reads nothing. Preserve literal names and caller order, including '.',
+    /// without interpreting glob/pathspec magic or resolving spelling aliases.
+    func workingStatusScope(_ paths:[String]?)throws->[String]? {
+        guard let paths else{return nil}
+        var seen=GitPathSet(),result:[String]=[]
+        for path in paths {
+            guard !path.isEmpty,!path.hasPrefix("/"),!path.contains("\0"),
+                  !path.components(separatedBy:"/").contains(where:{$0==".." || $0.caseInsensitiveCompare(".git") == .orderedSame}) else{throw WorkingFileRestoreFailure.location}
+            if path != "." {_=try restoreLocation(path)}
+            if seen.insert(path).inserted {result.append(path)}
+        }
+        return result
+    }
+    func workingStatusPath(_ path:String,isWithin scope:[String]?)->Bool {
+        guard let scope else{return true}
+        func components(_ value:String)->[[UInt8]] {
+            value.utf8.split(separator:47).filter{!$0.elementsEqual([UInt8(46)])}.map{Array($0)}
+        }
+        let candidate=components(path)
+        return scope.contains {value in
+            let prefix=components(value)
+            return prefix.count<=candidate.count && zip(prefix,candidate).allSatisfy{pair in pair.0.elementsEqual(pair.1)}
+        }
+    }
     /// An explicit base enables an amend/status projection to reuse these same
     /// source rules. Global observers avoid extra scans unless an ordinary A/R/C
     /// candidate can introduce a pairing not represented in porcelain XY.
-    public func sourceWorkingStatus(_ entries:[StatusEntry],base:ComparisonRevision?=nil,readPolicy:GitStatusReadPolicy = .automatic,cancellation:OperationCancellation?=nil)throws->[StatusEntry] {
+    public func sourceWorkingStatus(_ entries:[StatusEntry],base:ComparisonRevision?=nil,readPolicy:GitStatusReadPolicy = .automatic,paths:[String]?=nil,includedStaged:Bool=false,cancellation:OperationCancellation?=nil)throws->[StatusEntry] {
         try cancellation?.check()
+        let scope=try workingStatusScope(paths)
+        if scope?.isEmpty == true {return []}
         let tracked=entries.filter{$0.state != .untracked && $0.state != .ignored}
         guard !tracked.isEmpty else{return entries}
         if base == nil,!tracked.contains(where:{$0.state != .conflicted && [$0.index,$0.worktree].contains(where:{[Character("A"),"R","C"].contains($0)})}) {return entries}
@@ -169,10 +196,19 @@ extension GitRepository {
         }
         guard [40,64].contains(hash.utf8.count),hash.utf8.allSatisfy({(48...57).contains($0) || (97...102).contains($0)}) else{throw SourceWorkingStatusFailure.invalidBase}
         let prefix=["-c","diff.autoRefreshIndex=false","diff-index","--no-ext-diff","--no-color","--raw"]
-        let cached=try run(prefix+["--cached",hash,"--numstat","-C","-M","-z","--"],environmentOverrides:environment,cancellation:cancellation).stdout
-        try cancellation?.check()
-        let whole=try run(prefix+[hash,"--numstat",diffDetection.copyArgument,diffDetection.renameArgument,"-z","--"],environmentOverrides:environment,cancellation:cancellation).stdout
-        try cancellation?.check()
-        return SourceWorkingStatus.applying(try SourceWorkingStatus.parse(cached)+SourceWorkingStatus.parse(whole),to:entries)
+        var records:[SourceWorkingStatus.Record]=[]
+        // Upstream loops selected paths independently. Do not combine pathspecs:
+        // cross-scope rename detection changes accepted Added/old-name operands.
+        for path in scope.map({$0.map{Optional($0)}}) ?? [nil] {
+            try cancellation?.check()
+            let scoped=path.map{[$0]} ?? []
+            let cachedScope=includedStaged ? []:scoped
+            let cached=try run(prefix+["--cached",hash,"--numstat","-C","-M","-z","--"]+cachedScope,environmentOverrides:environment,cancellation:cancellation).stdout
+            try cancellation?.check()
+            let whole=try run(prefix+[hash,"--numstat",diffDetection.copyArgument,diffDetection.renameArgument,"-z","--"]+scoped,environmentOverrides:environment,cancellation:cancellation).stdout
+            try cancellation?.check()
+            records += try SourceWorkingStatus.parse(cached)+SourceWorkingStatus.parse(whole)
+        }
+        return SourceWorkingStatus.applying(records,to:entries)
     }
 }

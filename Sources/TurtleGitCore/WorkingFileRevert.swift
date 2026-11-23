@@ -77,8 +77,8 @@ extension GitRepository {
     /// Read ignored metadata only for requested names omitted by the Commit
     /// projection. Revert must neither inventory unrelated ignored trees nor
     /// silently turn an ignored item in a mixed request into an omitted item.
-    private func workingFileRevertStatus(_ requested: GitPathSet, explicitlySelected:GitPathSet, amendToParent: Bool, cancellation: OperationCancellation?) throws -> [StatusEntry] {
-        var current = try commitDialogStatus(amendToParent: amendToParent, cancellation: cancellation)
+    private func workingFileRevertStatus(_ requested: GitPathSet, explicitlySelected:GitPathSet, amendToParent: Bool, paths:[String]?,cancellation: OperationCancellation?) throws -> [StatusEntry] {
+        var current = try commitDialogStatus(amendToParent: amendToParent, cancellation: cancellation,refreshIndex:false,paths:paths,includedStaged:false)
         let counterparts=GitPathSet(current.compactMap{$0.isRenamed ? $0.reportingOriginalPath:nil})
         let represented=GitPathSet(current.map(\.path)).union(counterparts.subtracting(explicitlySelected))
         let missing = GitPathOperationOrder.sorted(requested.subtracting(represented))
@@ -107,7 +107,7 @@ extension GitRepository {
             guard let position=positions[entry.path] else {positions[entry.path]=combined.count;combined.append(entry);continue}
             let previous=combined[position],local=[FileState.untracked,.ignored].contains(entry.state),previousLocal=[FileState.untracked,.ignored].contains(previous.state)
             var versioned=previousLocal && !local ? entry:previous
-            if (local || previousLocal) && versioned.index=="D" {versioned.hasUnversionedCopy=true}
+            if (local || previousLocal) && versioned.index=="D" {versioned.hasUnversionedCopy=true;versioned.unversionedCopyState=local ? entry.state:previous.state}
             combined[position]=versioned
         }
         return combined
@@ -245,12 +245,16 @@ extension GitRepository {
     /// request. A former unknown/ignored file moved to Trash is still a requested
     /// Git pathspec; retain it while absent so Git reports its actual disposition.
     /// Clean tracked paths remain eligible; any other lost identity fails closed.
-    public func workingFileRevertSelection(_ selected: [StatusEntry], amend: Bool = false, againstHead: Bool = false, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] {
+    public func workingFileRevertSelection(_ selected: [StatusEntry], amend: Bool = false, againstHead: Bool = false,paths:[String]?=nil, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] {
         try cancellation?.check()
         let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.isRenamed ? $0.reportingOriginalPath.map { [$0] } ?? []:[]) })
         _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
+        let scope=try workingStatusScope(paths)
+        guard requested.allSatisfy({workingStatusPath($0,isWithin:scope)}) else {
+            throw GitFailure(arguments:["revert"],code:1,message:"The selected files do not belong to the captured Revert scope. Refresh before reverting.")
+        }
         let explicitlySelected = GitPathSet(selected.map(\.path))
-        let current = try workingFileRevertStatus(requested, explicitlySelected:explicitlySelected, amendToParent: amend && !againstHead, cancellation: cancellation)
+        let current = try workingFileRevertStatus(requested, explicitlySelected:explicitlySelected, amendToParent: amend && !againstHead,paths:scope,cancellation: cancellation)
         // Rename counterparts belong to that captured rename, not to an
         // additional unknown-file selection. An old-name obstruction must keep
         // the rename's captured recycling policy unless explicitly selected too.
@@ -274,14 +278,18 @@ extension GitRepository {
     /// replaced contents according to the captured policy. With recycling off,
     /// Git replaces those contents directly. The index stays private until all
     /// Git steps pass; working-file effects are not rolled back on failure.
-    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, policy: WorkingFileRevertPolicy = .init(), cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> WorkingFileRevertResult {
+    public func revertWorkingFiles(_ selected: [StatusEntry], amend: Bool = false, amendDiffToLastCommit: Bool = false, policy: WorkingFileRevertPolicy = .init(),paths:[String]?=nil, cancellation: OperationCancellation? = nil, progress: @Sendable (WorkingFileRevertProgress) -> Void = { _ in }, onOutput: (@Sendable (GitOutputChunk) -> Void)? = nil) throws -> WorkingFileRevertResult {
         try cancellation?.check()
         guard !selected.isEmpty, GitPathSet(selected.map(\.path)).count == selected.count else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "Select files to revert.")
         }
         let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.isRenamed ? $0.reportingOriginalPath.map { [$0] } ?? []:[]) })
         _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
-        var current = GitPathMap(try workingFileRevertStatus(requested, explicitlySelected:GitPathSet(selected.map(\.path)), amendToParent: amend && !amendDiffToLastCommit, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
+        let scope=try workingStatusScope(paths)
+        guard requested.allSatisfy({workingStatusPath($0,isWithin:scope)}) else {
+            throw GitFailure(arguments:["revert"],code:1,message:"The selected files do not belong to the captured Revert scope. Refresh before reverting.")
+        }
+        var current = GitPathMap(try workingFileRevertStatus(requested, explicitlySelected:GitPathSet(selected.map(\.path)), amendToParent: amend && !amendDiffToLastCommit,paths:scope,cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         let clean = selected.filter { current[$0.path] == nil && $0.index == " " && $0.worktree == " " && $0.originalPath == nil && !$0.hasUnversionedCopy }
         let absent = selected.filter { current[$0.path] == nil && [FileState.untracked, .ignored].contains($0.state) }
         if !clean.isEmpty || !absent.isEmpty {
