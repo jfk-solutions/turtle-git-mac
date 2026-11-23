@@ -76,6 +76,12 @@ records do not establish that a job passed. The capture/collector contracts run
 with `python3 scripts/test-ci-step-failures.py`; workflow placement and guard
 contracts remain in `scripts/test-macos-ci-lanes.py`.
 
+Statistics export's ownership receiver additionally retains bounded native action
+and exception metadata on failure. It observes the actual OK button dispatch and
+completion without replacing its target/action or scheduling. The
+[local checkpoint](qa/statistics-native-action-trace-2026-11-23.json) passes with
+both Git engines; the hosted Intel error-sheet timeout remains unexplained.
+
 The macOS workflow separates the former serial job into eight Intel lanes:
 Core; Commit/repository; history/references; replay/transport; text editors;
 Settings/Finder; images/documents; and distribution. At most four lanes run

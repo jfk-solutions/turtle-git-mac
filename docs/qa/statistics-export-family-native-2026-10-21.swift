@@ -11,6 +11,64 @@ private extension NSWindow {
         alphaValue=0;setFrameOrigin(.init(x:-20000,y:-20000));statisticsExportHiddenOrder(place,relativeTo:number)
     }
 }
+// Receiver-only observers: preserve actual AppKit target/action and exception
+// handling. A reported exception is recorded before forwarding, never swallowed.
+@MainActor private enum StatisticsExportNativeDiagnostics {
+    static var directory:URL?
+    static weak var watchedButton:NSButton?
+    static weak var owner:StatisticsWindowController?
+    static weak var parent:NSWindow?
+    private static var events=[[String:Any]](),omitted=0,recording=false
+    private static func text(_ value:String,_ bytes:Int=512)->String {String(decoding:value.utf8.prefix(bytes),as:UTF8.self)}
+    private static func identity(_ value:NSObject?)->String {value.map{NSStringFromClass(type(of:$0))+"@"+String(describing:ObjectIdentifier($0))} ?? "nil"}
+    static func watch(_ button:NSButton,parent:NSWindow?,owner:StatisticsWindowController) {
+        watchedButton=button;self.parent=parent;self.owner=owner;record("before native performClick")
+    }
+    static func clear(){directory=nil;watchedButton=nil;owner=nil;parent=nil;events=[];omitted=0}
+    static func record(_ event:String,action:Selector?=nil,target:Any?=nil,result:Bool?=nil,exception:NSException?=nil,response:NSApplication.ModalResponse?=nil) {
+        guard !recording,let directory else{return};recording=true;defer{recording=false}
+        let button=watchedButton,child=button?.window,parent=self.parent,actualTarget=button?.target as? NSObject
+        var item:[String:Any]=["event":text(event),"mainThread":Thread.isMainThread,
+            "button":identity(button),"buttonTitle":text(button?.title ?? "nil"),"buttonEnabled":button?.isEnabled ?? false,
+            "buttonTarget":identity(actualTarget),"buttonAction":button?.action.map(NSStringFromSelector) ?? "nil",
+            "buttonTargetResponds":button?.action.map{actualTarget?.responds(to:$0) ?? false} ?? false,
+            "child":identity(child),"parent":identity(parent),"childSheetParent":identity(child?.sheetParent),
+            "parentAttachedSheet":identity(parent?.attachedSheet),"pairedLinks":child != nil && child?.sheetParent === parent && parent?.attachedSheet === child,
+            "childVisible":child?.isVisible ?? false,"childKey":child?.isKeyWindow ?? false,"childAlpha":child?.alphaValue ?? -1,
+            "parentVisible":parent?.isVisible ?? false,"parentKey":parent?.isKeyWindow ?? false,"parentAlpha":parent?.alphaValue ?? -1,
+            "applicationKeyWindow":identity(NSApp.keyWindow),"applicationModalWindow":identity(NSApp.modalWindow),
+            "pending":owner?.hasPendingWork ?? false,"hasSheet":owner?.model.hasSheet ?? false]
+        if let action {item["dispatchedAction"]=NSStringFromSelector(action);item["dispatchedTarget"]=identity(target as? NSObject)}
+        if let result {item["actionResult"]=result}
+        if let response {item["response"]=response.rawValue}
+        if let exception {
+            item["exceptionName"]=text(exception.name.rawValue);item["exceptionReason"]=text(exception.reason ?? "nil",2048)
+            item["exceptionCallStack"]=Array(exception.callStackSymbols.prefix(16)).map{text($0,512)}
+        }
+        events.append(item)
+        while events.count>48 {events.removeFirst();omitted+=1}
+        var bytes:Data?
+        repeat {
+            bytes=try? JSONSerialization.data(withJSONObject:["pid":ProcessInfo.processInfo.processIdentifier,"events":events,"omittedEvents":omitted],options:[.prettyPrinted,.sortedKeys])
+            if let bytes,bytes.count>64*1024,events.count>1 {events.removeFirst();omitted+=1}else{break}
+        }while true
+        if let bytes,bytes.count<=64*1024 {try? bytes.write(to:directory.appendingPathComponent("native-action-exception.json"),options:.atomic)}
+        print("Statistics native diagnostic: "+event);fflush(stdout)
+    }
+}
+private extension NSApplication {
+    @objc func statisticsExportDiagnosticSendAction(_ action:Selector,to target:Any?,from sender:Any?)->Bool {
+        let observed=(sender as? NSButton).map{$0 === StatisticsExportNativeDiagnostics.watchedButton} ?? false
+        if observed {StatisticsExportNativeDiagnostics.record("native sendAction entered",action:action,target:target)}
+        let result=statisticsExportDiagnosticSendAction(action,to:target,from:sender)
+        if observed {StatisticsExportNativeDiagnostics.record("native sendAction returned",action:action,target:target,result:result)}
+        return result
+    }
+    @objc func statisticsExportDiagnosticReportException(_ exception:NSException) {
+        StatisticsExportNativeDiagnostics.record("NSApplication reportException",exception:exception)
+        statisticsExportDiagnosticReportException(exception)
+    }
+}
 actor StatisticsExportWriteProbe {
     private(set) var records:[(Data,URL)]=[]
     func write(_ data:Data,to url:URL,cancellation:OperationCancellation)async throws {
@@ -228,12 +286,25 @@ actor StatisticsExportWriteGate {
         let failed=try await c.owner();var alert:NSAlert?,answer:((NSApplication.ModalResponse)->Void)?
         failed.writeGraph={_,_,_ in throw NSError(domain:"Private statistics writer failure",code:19)}
         failed.selectedSaveURL={_ in target};failed.presentSavePanel={_,_,reply in reply(.OK)}
-        failed.presentExportError={question,parent,reply in alert=question;answer=reply;phase("error sheet: native beginSheet begin",c,failed);question.beginSheetModal(for:parent,completionHandler:reply);phase("error sheet: native beginSheet returned",c,failed)}
+        failed.presentExportError={question,parent,reply in
+            alert=question;answer=reply;phase("error sheet: native beginSheet begin",c,failed)
+            question.beginSheetModal(for:parent) {response in
+                StatisticsExportNativeDiagnostics.record("native error completion entered",response:response)
+                phase("error sheet: native completion entered",c,failed)
+                reply(response)
+                StatisticsExportNativeDiagnostics.record("native error completion returned",response:response)
+                phase("error sheet: native completion returned",c,failed)
+            }
+            phase("error sheet: native beginSheet returned",c,failed)
+        }
         phase("error sheet: first Save begin",c,failed);failed.saveGraphAs();phase("error sheet: first Save returned",c,failed)
         try await wait("first error sheet attachment"){alert?.window.sheetParent === failed.window}
         phase("error sheet: first attached",c,failed)
         try require(failed.hasPendingWork && !failed.windowShouldClose(failed.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Owned export error lost sheet/Quit guard")
-        let question=try unwrap(alert,"Actual failure alert missing");phase("error sheet: actual OK performClick begin",c,failed);question.buttons[0].performClick(nil);phase("error sheet: actual OK performClick returned",c,failed)
+        let question=try unwrap(alert,"Actual failure alert missing")
+        StatisticsExportNativeDiagnostics.watch(question.buttons[0],parent:failed.window,owner:failed)
+        phase("error sheet: actual OK performClick begin",c,failed);question.buttons[0].performClick(nil);phase("error sheet: actual OK performClick returned",c,failed)
+        StatisticsExportNativeDiagnostics.record("native performClick returned")
         try await wait("first error sheet detach/drain"){!failed.hasPendingWork && failed.window?.attachedSheet==nil && question.window.sheetParent==nil}
         phase("error sheet: first detached/drained",c,failed)
         phase("error sheet: duplicate first reply begin",c,failed);answer?(.alertFirstButtonReturn);phase("error sheet: duplicate first reply returned",c,failed);try require(failed.canSaveGraph,"Duplicate error reply blocked fresh export")
@@ -249,9 +320,21 @@ actor StatisticsExportWriteGate {
     }
     static func main()async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.statisticsExportHiddenOrder(_:relativeTo:)))!
-        method_exchangeImplementations(original,hidden);defer{method_exchangeImplementations(original,hidden)}
-        let c=Context();DialogGeometry.install(preferences:c.prefs);defer{DialogGeometry.install(preferences:.standard)}
+        var exchanged=[(Method,Method)]()
+        defer {
+            for (original,replacement) in exchanged.reversed(){method_exchangeImplementations(original,replacement)}
+            StatisticsExportNativeDiagnostics.clear()
+        }
+        for (type,originalSelector,replacementSelector) in [
+            (NSWindow.self as AnyClass,#selector(NSWindow.order(_:relativeTo:)),#selector(NSWindow.statisticsExportHiddenOrder(_:relativeTo:))),
+            (NSApplication.self as AnyClass,#selector(NSApplication.sendAction(_:to:from:)),#selector(NSApplication.statisticsExportDiagnosticSendAction(_:to:from:))),
+            (NSApplication.self as AnyClass,#selector(NSApplication.reportException(_:)),#selector(NSApplication.statisticsExportDiagnosticReportException(_:)))] {
+            let original=try unwrap(class_getInstanceMethod(type,originalSelector),"Original public AppKit selector missing")
+            let replacement=try unwrap(class_getInstanceMethod(type,replacementSelector),"Receiver AppKit observer missing")
+            method_exchangeImplementations(original,replacement);exchanged.append((original,replacement))
+        }
+        let c=Context();StatisticsExportNativeDiagnostics.directory=c.base
+        DialogGeometry.install(preferences:c.prefs);defer{DialogGeometry.install(preferences:.standard)}
         do {
             phase("seed: begin",c);try await c.seed();phase("seed: complete",c);let which=CommandLine.arguments[3]
             switch which {case "formats":try await formats(c);case "selection":try await selection(c);case "ownership":try await ownership(c);default:throw Failure(description:"Unknown statistics export case")}

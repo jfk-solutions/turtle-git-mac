@@ -1,0 +1,46 @@
+{
+  "passed_ownership_cases": 2,
+  "owned_pids": [
+    2524,
+    2531,
+    2589
+  ],
+  "owned_pids_absent": true,
+  "native_send_action_entered": 2,
+  "native_send_action_returned": 2,
+  "reported_exceptions": 0,
+  "source_sha256": "149c9cc4e1e6bb0ec409df4f8eafcb5c5bbed71ff54c44c7780a95a965e1c6d0",
+  "date": "2026-11-23",
+  "scope": "Statistics export native action/exception tracing; actual synchronous OK click and assertions unchanged",
+  "production_changes": false,
+  "hosted_failure": {
+    "source": "12fb532d6f41d8844aaf34e24982a4c8a7187567",
+    "run": 45124224080,
+    "artifact": 14804747680,
+    "artifact_sha256": "8d34e6effa4e1d335c5ff998de7857912f16a8f1c5b30f3699a134a90c29d177",
+    "case": "ownership",
+    "timeout_seconds": 300,
+    "last_phase": "error sheet: actual OK performClick begin",
+    "cause_proven": false
+  },
+  "checks": [
+    {
+      "command": "python3 scripts/test-statistics-export-family.py --only ownership --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+      "exit": 1,
+      "log": "build/qa/statistics-native-error-action-trace-2026-11-23.log",
+      "finding": "Main checkout rejected stale Debug objects before compiling or launching a receiver."
+    },
+    {
+      "command": "Same ownership-only command from isolated checkout with byte-identical app/Core/receiver/driver inputs and current cached Debug objects",
+      "exit": 0,
+      "log": "build/qa/statistics-native-error-action-trace-isolated-2026-11-23.log",
+      "scope": "Two Git engines; one changed fixture compilation; no full app or Core rebuild."
+    }
+  ],
+  "diagnostic": "Bounded64KiB/48-event native-action-exception.json captures paired sheet links, button target/action, sendAction entry/return, native completion entry/return and reported exceptions. Original public AppKit methods are forwarded exactly once; exchanged selectors restored on normal/Swift-error paths. Existing failure driver retains private fixture and kills/reaps owned process group on timeout.",
+  "limits": [
+    "Local arm64 success does not reproduce or resolve hosted Intel/macOS15 timeout.",
+    "No full hosted, signed shipping GUI, physical Finder or complete upstream parity acceptance.",
+    "No user app terminated, installed or submitted."
+  ]
+}
