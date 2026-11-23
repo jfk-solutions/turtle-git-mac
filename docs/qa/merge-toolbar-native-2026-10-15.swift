@@ -7,8 +7,8 @@ import TurtleGitCore
         for _ in 0..<2000 { if condition() { return }; try await Task.sleep(nanoseconds: 5_000_000) }
         throw NSError(domain: "MergeToolbar", code: line, userInfo: [NSLocalizedDescriptionKey: "Toolbar transition at line \(line)"])
     }
-    @MainActor static func require(_ value: @autoclosure () -> Bool, line: Int = #line) throws {
-        if !value() { throw NSError(domain: "MergeToolbar", code: line, userInfo: [NSLocalizedDescriptionKey: "Toolbar assertion at line \(line)"]) }
+    @MainActor static func require(_ value: @autoclosure () -> Bool, line: Int = #line, detail:String = "") throws {
+        if !value() { throw NSError(domain: "MergeToolbar", code: line, userInfo: [NSLocalizedDescriptionKey: "Toolbar assertion at line \(line)"+(detail.isEmpty ? "":"; "+detail)]) }
     }
     @MainActor static func item(_ command: MergeToolbarCommand, in toolbar: MergeEditorToolbar) -> NSToolbarItem {
         toolbar.toolbar.items.first { $0.itemIdentifier == command.identifier }!
@@ -51,7 +51,10 @@ import TurtleGitCore
         try await wait { toolbar.toolbar.items.count >= 10 }
         try require(owner.window?.toolbar === toolbar.toolbar && model.nativeToolbarInstalled && !toolbar.toolbar.autosavesConfiguration)
         try require(Array(toolbar.toolbar.items.prefix(7).map(\.itemIdentifier)) == [MergeToolbarCommand.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference].map(\.identifier))
-        for item in toolbar.toolbar.items { try require(item.image != nil && item.menuFormRepresentation?.image != nil && !item.autovalidates) }
+        for item in toolbar.toolbar.items {
+            try require(item.image != nil && item.menuFormRepresentation?.image != nil && !item.autovalidates,
+                        detail:"item=\(item.itemIdentifier.rawValue) class=\(String(describing:type(of:item))) image=\(item.image != nil) overflow=\(item.menuFormRepresentation != nil) overflowImage=\(item.menuFormRepresentation?.image != nil) autovalidates=\(item.autovalidates) contextIcons=\(MenuPresentationSettings.applicationContextIcons(defaults:prefs))")
+        }
         var helpCalls = 0; owner.showEditorHelp = { helpCalls += 1 }
         toolbar.perform(.help); try require(helpCalls == 1)
         // Navigation is caret-relative; start inside the first changed block.

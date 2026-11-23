@@ -73,7 +73,9 @@ import TurtleGitCore
         _ = try await repo.run(["update-ref","refs/tags/late",prior])
         guard let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:refresh.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:96) else { throw Failure(description:"F5 event unavailable") }
         refresh.commandKeyWindow={nil}
-        try require(!refresh.window!.performKeyEquivalent(with:event) && !refresh.model.busy,"Hidden non-key reference browser accepted F5")
+        let beforeF5=refresh.model.formContext,beforeF5Busy=refresh.model.busy,beforeF5Namespace=refresh.model.namespaceRevision,beforeF5Count=refresh.model.snapshot?.references.count
+        let consumedF5=refresh.window!.performKeyEquivalent(with:event)
+        try require(!consumedF5 && !refresh.model.busy,"Hidden non-key reference browser accepted F5: consumed=\(consumedF5) busyBefore=\(beforeF5Busy) busyAfter=\(refresh.model.busy) formBefore=\(beforeF5.revision) formAfter=\(refresh.model.formContext.revision) namespaceBefore=\(beforeF5Namespace) namespaceAfter=\(refresh.model.namespaceRevision) countBefore=\(String(describing:beforeF5Count)) countAfter=\(String(describing:refresh.model.snapshot?.references.count)) latePresent=\(refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == true) injectedKeyOwner=\(refresh.commandKeyWindow() === refresh.window) appKeyOwner=\(NSApp.keyWindow === refresh.window) eventOwner=\(event.window === refresh.window) visible=\(refresh.window?.isVisible == true) attachedSheet=\(refresh.window?.attachedSheet != nil) closed=\(refresh.model.closed)")
         refresh.commandKeyWindow={ [weak window=refresh.window] in window }
         try require(refresh.window!.performKeyEquivalent(with:event),"F5 not handled")
         try await wait([refresh.window!]) { !refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == true }
