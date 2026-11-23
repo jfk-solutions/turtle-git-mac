@@ -39,6 +39,13 @@ import TurtleGitCore
         }
         do {
             let initial = try await open(), initialModel = initial.model
+            if !(initialModel.amendMessage.contains("cherry picked from commit " + first.hash) && initialModel.replayMessageCommit?.author == first.author && initialModel.replayMessageCommit?.date == first.date) {
+                print("Initial Edit attribution diagnostic: message=\(String(reflecting: initialModel.amendMessage)), expectedTrailerOID=\(String(reflecting: first.hash))")
+                print("Initial Edit metadata diagnostic: expectedAuthor=\(String(reflecting: first.author)), actualAuthor=\(String(reflecting: initialModel.replayMessageCommit?.author)), expectedDate=\(String(reflecting: first.date)), actualDate=\(String(reflecting: initialModel.replayMessageCommit?.date)), appliedCommit=\(String(reflecting: initialModel.replayMessageCommit?.hash))")
+                if let state = initialModel.state {
+                    print("Initial Edit state diagnostic: active=\(state.active), editPause=\(state.isEditPause), cherryPick=\(state.isCherryPick), stoppedCommit=\(String(reflecting: state.stoppedCommit)), stoppedEntryID=\(String(reflecting: state.stoppedEntryID)), originalHead=\(String(reflecting: state.originalHead)), onto=\(String(reflecting: state.onto)), step=\(state.currentStep)/\(state.total), session=\(String(reflecting: state.session))")
+                } else { print("Initial Edit state diagnostic: state=nil") }
+            }
             try require(initialModel.amendMessage.contains("cherry picked from commit " + first.hash) && initialModel.replayMessageCommit?.author == first.author && initialModel.replayMessageCommit?.date == first.date, "Edit lost applied attribution/author/date")
             let draft = "Approved first\n\n(cherry picked from commit " + first.hash + ")\n"
             let binding = initialModel.messageBinding(initialModel.formContext), editorID = initialModel.replayMessageEditorID
