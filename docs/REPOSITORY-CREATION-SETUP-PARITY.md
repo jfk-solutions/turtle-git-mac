@@ -81,3 +81,16 @@ sandbox permission renewal, Finder icon persistence on deployment file systems,
 signed/minimum-version execution, full source layout/state coverage and complete
 hosted integration remain open. This family does not replace Finder Sync badges
 or prove App Store distribution readiness.
+
+
+## Accepted Clone cancellation — November 23, 2026
+
+The [Clone acceptance repair](CLONE-COMPLETION-PARITY.md)
+separates the accepted command's bounded read-only identity verification from its
+cancelled presentation token. Optional setup still follows its captured
+cancellation/access rules; retired UI owners cannot adopt a late result. This
+does not change bare icon eligibility or repeat a successful clone.
+[The focused receipt](qa/clone-accepted-cancellation-2026-11-23.json) records
+17 passing Core tests, a successful Debug build and two native Clone engine
+cases. Full hosted, signed and physical integration remain unproven by this
+checkpoint; signed build 55 does not contain this repair.

@@ -29,8 +29,28 @@ import TurtleGitCore
         try require(RepositoryBrowserWindowModel(repository:repo,access:nil,revision:"HEAD",preferences:prefs).dividerWidth==nil,"Invalid divider preference did not fall back")
         prefs.set(333.0,forKey:RepositoryBrowserWindowModel.dividerKey)
         let owner=RepositoryBrowserWindowController(repository:repo,access:nil,revision:"HEAD",preferences:prefs),model=owner.model,window=owner.window!
-        defer {owner.close()};model.clipboard=clipboard;owner.commandKeyWindow={window};window.alphaValue=0;window.orderFront(nil)
+        var restoredOwner:RepositoryBrowserWindowController?
+        defer {owner.close();restoredOwner?.close()};model.clipboard=clipboard;owner.commandKeyWindow={window};window.alphaValue=0;window.orderFront(nil)
+        func drainDescription()->String {
+            let controllers=[owner]+(restoredOwner.map{[$0]} ?? [])
+            return "activeOperations=\(RepositoryBrowserWindowModel.activeOperations) owners="+controllers.map {
+                "pending=\($0.hasPendingWork),modelPending=\($0.model.hasPendingWork),busy=\($0.model.busy),visible=\($0.window?.isVisible == true),sheetParent=\($0.window?.sheetParent != nil),attachedSheet=\($0.window?.attachedSheet != nil)"
+            }.joined(separator:"; ")
+        }
+        func closeAndDrain()async throws {
+            let controllers=[owner]+(restoredOwner.map{[$0]} ?? [])
+            let windows=controllers.compactMap(\.window),parents=windows.compactMap(\.sheetParent),sheets=windows.compactMap(\.attachedSheet)
+            controllers.forEach{$0.close()}
+            do {
+                try await wait {
+                    controllers.allSatisfy{!$0.hasPendingWork} && RepositoryBrowserWindowModel.activeOperations==0 &&
+                        windows.allSatisfy{!$0.isVisible && $0.sheetParent==nil && $0.attachedSheet==nil} &&
+                        sheets.allSatisfy{$0.sheetParent==nil} && parents.allSatisfy{parent in !windows.contains{parent.attachedSheet === $0}}
+                }
+            } catch {throw Failure(description:"Owned browser cleanup did not drain: \(drainDescription()); \(error)")}
+        }
         func table()->NSTableView? {views(window.contentView!).compactMap{$0 as? NSTableView}.first{$0.accessibilityLabel()=="Repository contents"}}
+        do {
         try await wait {window.contentView?.layoutSubtreeIfNeeded();return !model.busy && model.entries.count==45 && table()?.numberOfRows==45}
         let list=table()!,coordinator=NativeListSelection.originalDelegate(of:list) as! RepositoryBrowserContentsTable.Coordinator,header=list.headerView as! RepositoryBrowserColumnHeader
         let split=views(window.contentView!).compactMap{$0 as? NSSplitView}.first{$0.isVertical && $0.arrangedSubviews.count==2}!
@@ -88,14 +108,24 @@ import TurtleGitCore
         try await wait {!model.busy && model.snapshot != nil}
         let savedWidth=model.dividerWidth!,saved=model.columns;menu=header.buildMenu()!;owner.close();try send(menu.item(withTitle:"Extension")!)
         split.setPosition(200,ofDividerAt:0);try require(model.dividerWidth==savedWidth && model.columns==saved,"Retired menu/divider wrote preferences")
-        let restored=RepositoryBrowserWindowController(repository:repo,access:nil,revision:"HEAD",preferences:prefs);defer {restored.close()}
+        let restored=RepositoryBrowserWindowController(repository:repo,access:nil,revision:"HEAD",preferences:prefs);restoredOwner=restored;defer {restored.close()}
         restored.window!.alphaValue=0;restored.window!.orderFront(nil)
         try await wait {restored.window!.contentView?.layoutSubtreeIfNeeded();return !restored.model.busy && views(restored.window!.contentView!).compactMap{$0 as? NSSplitView}.contains{$0.isVertical && $0.arrangedSubviews.count==2 && abs($0.arrangedSubviews[0].frame.width-savedWidth)<2}}
         try require(restored.model.columns==saved,"Reopened browser columns changed")
         let globalAfter=UserDefaults.standard.dictionaryRepresentation().filter{$0.key.contains("TurtleGit.RepositoryBrowserDivider")}
         try require(NSDictionary(dictionary:globalBefore).isEqual(to:globalAfter),"Private browser changed global AppKit divider autosave")
         let after=try await repo.run(["rev-parse","HEAD"]).stdout
-        try require(after==head && Data(contentsOf:root.appendingPathComponent(".git/index"))==index && RepositoryBrowserWindowModel.activeOperations==0,"Presentation changed repository or stranded operations")
+        try require(after==head,"Presentation changed HEAD: before=\(String(reflecting:String(decoding:head,as:UTF8.self))) after=\(String(reflecting:String(decoding:after,as:UTF8.self)))")
+        let afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let firstDifference=zip(index,afterIndex).enumerated().first{$0.element.0 != $0.element.1}?.offset
+        try require(afterIndex==index,"Presentation changed raw index: beforeBytes=\(index.count) afterBytes=\(afterIndex.count) firstDifference=\(String(describing:firstDifference)); \(drainDescription())")
+        try await closeAndDrain()
+        try require(RepositoryBrowserWindowModel.activeOperations==0,"Presentation stranded operations after owned close/drain: \(drainDescription())")
         print("PASS: Browser scoped divider restore/save/retirement, source header/default Reset No/Yes, one-use stale-menu fences, stable viewport/selection, Ctrl-A/native Copy/F5 owner gates, reopened layout and unchanged repository/global autosave")
+        } catch {
+            let original=error
+            do {try await closeAndDrain()} catch {fputs("Browser presentation cleanup failed after \(original): \(error)\n",stderr)}
+            throw original
+        }
     }
 }

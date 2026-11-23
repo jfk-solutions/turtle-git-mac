@@ -28,7 +28,9 @@ final class RepositorySetupAcceptanceTests:XCTestCase {
         let outcome=try await repo.cloneOutcome(options,to:destination,cancellation:token,onCommandFinished:{completion in
             XCTAssertTrue(completion.success);XCTAssertEqual(completion.exitCode,0);token.cancel()
         },backend:.init(enabled:false))
-        XCTAssertTrue(outcome.verified);XCTAssertTrue(outcome.cancelledAfterCreation);XCTAssertFalse(outcome.configurationPending)
+        XCTAssertTrue(outcome.verified,outcome.verificationError ?? "Accepted CLI Clone has no verified identity")
+        XCTAssertTrue(outcome.cancelledAfterCreation,"Accepted CLI Clone lost its cancellation receipt")
+        XCTAssertFalse(outcome.configurationPending)
         XCTAssertEqual(outcome.repositoryRoot?.resolvingSymlinksInPath().path,destination.standardizedFileURL.resolvingSymlinksInPath().path)
         let recovered=try await repo.inspectCloneOutcome(outcome,at:destination)
         XCTAssertTrue(recovered.verified);XCTAssertTrue(recovered.cancelledAfterCreation);XCTAssertEqual(recovered.identity,outcome.identity)
@@ -152,7 +154,8 @@ final class RepositorySetupAcceptanceTests:XCTestCase {
         let outcome=try await repo.cloneOutcome(options,to:destination,cancellation:token,onCommandFinished:{receipt in
             XCTAssertTrue(receipt.success);XCTAssertEqual(receipt.exitCode,0);token.cancel()
         },backend:backend,onNotification:events.append)
-        XCTAssertTrue(outcome.verified);XCTAssertTrue(outcome.cancelledAfterCreation)
+        XCTAssertTrue(outcome.verified,outcome.verificationError ?? "Accepted libgit2 Clone has no verified identity")
+        XCTAssertTrue(outcome.cancelledAfterCreation,"Accepted libgit2 Clone lost its cancellation receipt")
         let expected=String(decoding:sourceHead,as:UTF8.self).trimmingCharacters(in:.newlines)
         XCTAssertTrue(events.events.contains {if case .reference(let update)=$0 {return update.reference=="refs/remotes/origin/main" && update.newHash==expected};return false})
         XCTAssertFalse(events.events.contains {if case .issue(let issue)=$0 {return !issue.commandSucceeded};return false})

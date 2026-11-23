@@ -25,7 +25,7 @@ for git in engines:
         parser.error('Git executable is missing: ' + str(git))
 with tempfile.TemporaryDirectory(prefix='turtlegit-revision-graph-native-') as temporary:
     directory = Path(temporary)
-    executable = build_receiver(root, [root / 'docs/qa/revision-graph-window-native-2026-10-10.swift'], directory)
+    executable = build_receiver(root, [root / 'docs/qa/revision-graph-window-native-2026-10-10.swift'], directory, fixture_mode='per-file')
     environment = os.environ.copy()
     environment['DYLD_FRAMEWORK_PATH'] = str(products)
     for iteration in range(args.repeat):

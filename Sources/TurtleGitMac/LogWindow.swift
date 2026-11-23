@@ -2627,7 +2627,10 @@ struct LogCommandRequest: Identifiable {
         historyPaths = scope; showWholeProject = whole; updatePathScopeTitle(); if reload {self.reload()}
     }
     var canReuseForPresentation:Bool {
-        canInspectHistory && !selecting && !busy && !loadingHistory && pendingHistoryLoads==0 &&
+        // A repeated request for this cached Log may arrive during its initial
+        // history read. Reload already owns/cancels that read by generation;
+        // requiring idle history here creates a duplicate instead of reusing it.
+        canInspectHistory && !selecting && (loadingHistory || (!busy && pendingHistoryLoads==0)) &&
             !resettingRevisionColumns && !resettingChangedFileColumns && !changedFileColumnWorkPending && !configureHistoryDefaults && commandRequest==nil &&
             fileOpenRead==nil && fileNavigationActivities.isEmpty && combineSelectionReads.isEmpty &&
             actionCancellation==nil && !fileNavigationReadPending && unifiedSessions.isEmpty && followedSession==nil &&

@@ -1,0 +1,259 @@
+{
+  "date": "2026-11-23",
+  "status": "focused-scopes-passed-cumulatively",
+  "baseline": "e468f8de",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production": [
+    "Repeated same-key Log requests can reuse a live initial history load while retired Notes workers drain. Picker/mutation/sheet/retirement and cache identity fences remain.",
+    "Blame pane focus retains one-use original-document/layout/focus/semantic-readiness ownership and completes from actual native table readiness; column-pixel saves and unchanged key-window refresh do not invalidate intent."
+  ],
+  "fixture_repairs": [
+    "Blame actual owner visibility and current source focus admission after Find and native dock/tab transitions; real F6 and focus assertions preserved.",
+    "Browser deterministic Unicode indexed bytes, typed collision refusal and independent zero-dispatch assertion.",
+    "Browser exact HEAD/index assertions separated from explicit close and global worker/sheet drainage.",
+    "Log untracked caption expected current Untracked label, keeping raw XY/action/affordance assertions.",
+    "Graph typed helper extraction and per-file compilation, unchanged timeout/assertions/defer ownership."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "60adc36cc10ed826cd832c362c11132a6931fd65e974bac49d897e00703980df",
+    "Sources/TurtleGitMac/BlameWindow.swift": "d59ed187537fb368b8b91f10796d0e06e5d9c36826a6ca46f60082ccd1b80e67",
+    "docs/qa/blame-command-family-native-2026-10-16.swift": "7e3ce4c1af8eb23208b5e5e4d33ede1b19e1f083ed31c4de28f15755d25cddd4",
+    "docs/qa/blame-history-policy-native-2026-10-18.swift": "6d5da2c4934f5311fae5475f1d9edc81e688948ab1e331ac47e05ad376eb7fb1",
+    "docs/qa/browser-presentation-native-2026-10-16.swift": "6f01098b28416f8aeff6e9dc9588deb96ac98bfb22507f45a89557f2bb979d14",
+    "docs/qa/repository-browser-paths-native-2026-10-16.swift": "12f8c567db7afab70906a08f6cda9b84d7d9d486b05775bd148a84badc93cf35",
+    "docs/qa/log-working-row-affordances-native-2026-11-23.swift": "05f0bd84ac923fb3902d74e134aa96339b1eb6692f5bca5cd7765a6b2c0ccd3c",
+    "docs/qa/revision-graph-window-native-2026-10-10.swift": "0de0d9effb924ea582a623269410e1f33b4be6763d7b1a36cf736513ace15b24",
+    "scripts/test-revision-graph-window.py": "a3936adffc905b5dec002ff8f0b3a7091e31495b0e013ed134045139139aa850"
+  },
+  "initial_group": [
+    {
+      "name": "log-lfs-reuse",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-log-working-lfs.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 36.269,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-log-lfs-reuse-2026-11-23.log"
+    },
+    {
+      "name": "blame-history",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-history-action-family.py",
+        "--only",
+        "blame",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 9.512,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-blame-history-2026-11-23.log"
+    },
+    {
+      "name": "blame-native",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-blame-source-menu.py",
+        "--only",
+        "commands",
+        "--only",
+        "source-menu",
+        "--only",
+        "focus",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 1,
+      "seconds": 21.293,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-blame-native-2026-11-23.log"
+    },
+    {
+      "name": "browser-paths",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-browser-paths.py",
+        "--only",
+        "paths",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 8.009,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-browser-paths-2026-11-23.log"
+    },
+    {
+      "name": "browser-presentation",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-browser-file-actions.py",
+        "--only",
+        "presentation",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 8.275,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-browser-presentation-2026-11-23.log"
+    },
+    {
+      "name": "log-row-captions",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-status-primary-activation.py",
+        "--only",
+        "log",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 12.595,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-log-row-captions-2026-11-23.log"
+    },
+    {
+      "name": "graph-window",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-revision-graph-window.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 1,
+      "seconds": 43.834,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/hosted-history-repair-graph-window-2026-11-23.log"
+    }
+  ],
+  "repairs": [
+    {
+      "log": "build/qa/hosted-history-repair-graph-payload-recheck-2026-11-23.log",
+      "exit": 0,
+      "scope": "Only bundled Graph rechecked using CI runtime path. Original app-symlink argument resolved to standalone binary without libexec and failed submodule lookup after system case passed."
+    },
+    {
+      "log": "build/qa/hosted-history-repair-blame-native-focus-recheck-2026-11-23.log",
+      "exit": 1,
+      "finding": "Tabbed fixture focused cached source before setup rebuild settled; source admission barrier repaired."
+    },
+    {
+      "log": "build/qa/hosted-history-blame-tabbed-setup-recheck-2026-11-23.log",
+      "exit": 1,
+      "finding": "Floating focus still failed; no precise receipt witness yet."
+    },
+    {
+      "log": "build/qa/hosted-history-repair-blame-native-focus-identity-2026-11-23.log",
+      "exit": 1,
+      "finding": "Old admitted disposition alone did not prove current handoff."
+    },
+    {
+      "log": "build/qa/hosted-history-repair-blame-post-admission-witness-2026-11-23.log",
+      "exit": 1,
+      "finding": "Witness none and no accepted target prove no new floating handoff; source admission after dock rebuild was missing."
+    },
+    {
+      "log": "build/qa/hosted-history-blame-source-admission-final-2026-11-23.log",
+      "exit": 0,
+      "scope": "Commands/source-menu/focus with both Git engines, six case/engine passes; destination Log table is not awaited before F6."
+    }
+  ],
+  "builds": [
+    {
+      "log": "build/qa/hosted-history-repair-debug-build-2026-11-23.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/hosted-history-focus-repair-debug-build-2026-11-23.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/hosted-history-focus-identity-build-2026-11-23.log",
+      "exit": 0
+    },
+    {
+      "log": "build/qa/clone-and-pane-witness-build-2026-11-23.log",
+      "exit": 0
+    }
+  ],
+  "retained_history_policy_passes": [
+    "build/qa/hosted-history-repair-blame-history-focus-recheck-2026-11-23.log",
+    "build/qa/hosted-history-repair-blame-history-focus-identity-2026-11-23.log"
+  ],
+  "history_native_distinct_case_engine_passes": 18,
+  "core_scope": "No history Core suite repeated. Separate Clone change has 17 focused tests and two native engine passes in its own receipt.",
+  "owned_pids": [
+    8549,
+    8553,
+    8570,
+    8939,
+    9307,
+    9333,
+    9424,
+    9513,
+    9520,
+    9573,
+    9581,
+    9662,
+    9743,
+    9750,
+    9816,
+    9885,
+    9898,
+    10005,
+    10114,
+    10153,
+    10583,
+    11111,
+    12050,
+    12055,
+    12059,
+    12114,
+    12123,
+    12210,
+    12620,
+    12627,
+    13386,
+    13391,
+    13395,
+    13453,
+    13463,
+    13549,
+    15158,
+    15160,
+    15169,
+    15267,
+    15369,
+    15378,
+    15678,
+    15690,
+    15724,
+    15761,
+    15765,
+    15897,
+    16031,
+    16038,
+    16129
+  ],
+  "all_logged_owned_pids_absent": true,
+  "remaining_pids": [],
+  "limits": [
+    "No complete hosted CI pass, physical Finder/VoiceOver or shipping signed GUI certification.",
+    "Signed55 and installed52 unchanged and exclude these product repairs.",
+    "Original hosted Blame command failure did not prove a production floating focus bug; source fixture preconditions and actual admission are recorded separately.",
+    "No WMF/EMF scope or unrelated WIP included."
+  ]
+}

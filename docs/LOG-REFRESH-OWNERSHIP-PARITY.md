@@ -65,3 +65,29 @@ artificial fixture seam. No Core implementation changed or Core suite repeated.
 These Debug checks do not certify physical focus, every upstream Log option,
 signed deployment or a complete hosted CI pass. Installed build43 predates this
 Log repair. No product layout or native label changes are part of this batch.
+
+## Reopening while history loads — November 23, 2026
+
+The native command router caches Log windows by repository, runtime, preferences,
+paths and revision/range. Reopening that same Log during its history read now
+reuses the live owner. Previously the idle-only reuse condition created another
+window, including immediately after replacing a retired owner whose Notes read
+was still draining. The existing reload generation and cancellation machinery
+owns the replacement read; the retired controller's identity-checked close
+callback cannot remove the new cache entry.
+
+Selection-dialog roles, pending mutations, Notes, child viewers, file operations,
+column/configuration work, sheets, Quit and invalidation retain their existing
+reuse restrictions. A closed Log remains retired. This is a native routing
+correction, with no change to Git actions, upstream menu layout or captions.
+
+The triggering hosted assertion was `log-working-lfs-native-2026-10-28.swift:274`
+in run `45124224080`, history job `137525216995`: “Root failed to reuse live
+replacement while retired owner drained.” Related hosted Blame, Browser and
+Graph failures have distinct fixture/readiness and compilation causes; their
+repairs must not be interpreted as additional product defects or complete
+dialog acceptance.
+
+[The grouped checkpoint](qa/hosted-history-readiness-2026-11-23.json) retains
+the actual failures, affected rechecks and eighteen distinct native case/Git
+passes cumulatively. No unrelated history Core suite was repeated.

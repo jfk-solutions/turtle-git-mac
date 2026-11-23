@@ -5,6 +5,21 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Clone and native history repair — November 23, 2026
+
+The [Clone checkpoint](qa/clone-accepted-cancellation-2026-11-23.json) fixes lost
+verification after successful-command cancellation: seventeen focused Core tests,
+the Debug build and both native Clone engines pass. The
+[history checkpoint](qa/hosted-history-readiness-2026-11-23.json) fixes duplicate
+Log opening during loading and adds guarded Blame focus readiness, retaining
+eighteen distinct native case/Git passes cumulatively and actual failed attempts.
+Related fixture and Graph compilation repairs preserve assertions and cleanup.
+All 51 logged owned compiler/receiver processes are absent.
+
+Signed55 and installed52 are unchanged and exclude these repairs. Exact current
+hosted CI, shipping signed GUI/Finder, broader layout/accessibility and owner
+acceptance remain open; this is not whole-port or Store acceptance.
+
 ## Local candidate55 — November 23, 2026
 
 [Signed55](qa/signed-consolidation-build55-2026-11-23.json) is packaged from exact

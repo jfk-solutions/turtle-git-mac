@@ -1,17 +1,47 @@
 import AppKit
 import Darwin
+import ObjectiveC
 import TurtleGitCore
 
+private extension NSWindow {
+    @objc func quietBlameCommandsOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {alphaValue=0;quietBlameCommandsOrder(mode,relativeTo:number)}
+    @objc func quietBlameCommandsSheet(_ sheet:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {sheet.alphaValue=0;quietBlameCommandsSheet(sheet,completionHandler:completionHandler)}
+}
 @main struct BlameCommandFamilyVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     @MainActor static func require(_ value:Bool,_ message:String)throws {if !value {print("Blame command assertion: "+message);fflush(stdout);throw Failure(description:message)}}
     @MainActor static func views(_ view:NSView?)->[NSView] {guard let view else {return []};return [view]+view.subviews.flatMap{views($0)}}
-    @MainActor static func wait(line:UInt = #line,_ condition:()->Bool) async throws {
-        for _ in 0..<1000 {if condition(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(description:"Blame command readiness at line \(line)")
+    @MainActor private static var diagnosticOwner:BlameWindowController?
+    @MainActor static func wait(_ phase:String="native readiness",line:UInt = #line,_ condition:()->Bool) async throws {
+        for _ in 0..<1000 {
+            diagnosticOwner?.window?.contentView?.layoutSubtreeIfNeeded()
+            if condition(){return};try await Task.sleep(nanoseconds:10_000_000)
+        }
+        if let owner=diagnosticOwner {
+            let model=owner.model,window=owner.window
+            let sources=views(window?.contentView).compactMap{$0 as? NSTextView}.filter{$0.accessibilityLabel()=="Blame source text"}
+            let tables=views(window?.contentView).compactMap{$0 as? BlameHistoryNativeTable}
+            let sourceState=sources.map{"window=\($0.window === window),hidden=\($0.isHiddenOrHasHiddenAncestor),first=\(window?.firstResponder === $0),selectable=\($0.isSelectable)"}
+            let tabs=views(window?.contentView).compactMap{$0 as? NSTabView}.map{"selected=\(String(describing:$0.selectedTabViewItem?.identifier)),items=\($0.numberOfTabViewItems),window=\($0.window === window),hidden=\($0.isHiddenOrHasHiddenAncestor)"}
+            let floatingState=BlamePane.allCases.compactMap {pane -> String? in
+                guard let host=owner.floatingPaneWindow(pane) else{return nil}
+                let values=views(host.contentView).compactMap{$0 as? BlameHistoryNativeTable}.map{"rows=\($0.numberOfRows),enabled=\($0.isEnabled),hidden=\($0.isHiddenOrHasHiddenAncestor),accepts=\($0.acceptsFirstResponder),visibleRect=\($0.visibleRect),first=\(host.firstResponder === $0),identity=\(ObjectIdentifier($0)),sameAccepted=\(owner.paneFocusAcceptedTable === $0)"}
+                let responder=host.firstResponder.map{"\(type(of:$0)):\(ObjectIdentifier($0))"} ?? "nil"
+                return "\(pane.rawValue):visible=\(host.isVisible),parent=\(host.parent === window),key=\(host.isKeyWindow),sameAcceptedWindow=\(owner.paneFocusAcceptedWindow === host),responder=\(responder),tables=\(values)"
+            }
+            let tableState=tables.map{"rows=\($0.numberOfRows),window=\($0.window === window),hidden=\($0.isHiddenOrHasHiddenAncestor),enabled=\($0.isEnabled),first=\(window?.firstResponder === $0)"}
+            print("BLAME COMMAND PHASE: \(phase) line=\(line) visible=\(window?.isVisible==true) responder=\(String(describing:window?.firstResponder.map{type(of:$0)})) focusDisposition=\(owner.paneFocusDisposition) commands=\(owner.commandsAvailable) canFind=\(model.canFind) busy=\(model.busy) syntax=\(model.syntaxWorking) navigation=\(owner.navigationWorkPending) find=\(owner.findWindow != nil) goTo=\(owner.goToWindow != nil) sheet=\(window?.attachedSheet != nil) showLog=\(model.showLog) autoHidden=\(model.paneAutoHidden(.log)) sources=\(sourceState) tables=\(tableState) floating=\(floatingState) tabs=\(tabs) error=\(String((model.error ?? "none").prefix(512)))");fflush(stdout)
+        }
+        if let owner=diagnosticOwner {print("BLAME NATIVE FOCUS: \(owner.paneFocusNativeWitness)");fflush(stdout)}
+        throw Failure(description:"Blame command readiness: \(phase) at line \(line)")
     }
     @MainActor static func main() async throws {
-        NSApp.setActivationPolicy(ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_COMMAND_CAPTURE"] == nil ? .prohibited:.accessory)
+        let capturing=ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_COMMAND_CAPTURE"] != nil
+        NSApp.setActivationPolicy(capturing ? .accessory:.prohibited)
+        let order=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,quiet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietBlameCommandsOrder(_:relativeTo:)))!
+        let sheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!,quietSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietBlameCommandsSheet(_:completionHandler:)))!
+        if !capturing {method_exchangeImplementations(order,quiet);method_exchangeImplementations(sheet,quietSheet)}
+        defer {diagnosticOwner=nil;if !capturing {method_exchangeImplementations(sheet,quietSheet);method_exchangeImplementations(order,quiet)}}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Command Fixture"),("user.email","commands@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
@@ -21,12 +51,13 @@ import TurtleGitCore
         let suite="TurtleGit.BlameCommands."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(false,forKey:"EnableGravatar");prefs.set(false,forKey:"Blame.EnableLexer");defer{prefs.removePersistentDomain(forName:suite)}
         let owner=BlameWindowController(repository:repo,access:nil,path:file.lastPathComponent,revision:"HEAD",preferences:prefs),model=owner.model,window=owner.window!
-        defer{owner.close()};window.alphaValue=0;window.ignoresMouseEvents=true;window.orderFront(nil)
+        diagnosticOwner=owner
+        defer{owner.close()};window.alphaValue=0;window.ignoresMouseEvents=true;if !capturing {window.setFrameOrigin(.init(x:-24000,y:-24000))};window.orderFront(nil)
         var focused:NSWindow?=window;owner.commandKeyWindow={focused}
         let context=BlameMenuContext(keyWindow:{focused})
-        try await wait {!model.busy && !model.syntaxWorking && model.lines.count==4 && views(window.contentView).contains{($0 as? NSTextView)?.accessibilityLabel()=="Blame source text"}}
-        let source=views(window.contentView).compactMap{$0 as? NSTextView}.first{$0.accessibilityLabel()=="Blame source text"}!
-        window.makeFirstResponder(source)
+        try await wait("initial live source rendering") {!model.busy && !model.syntaxWorking && model.lines.count==4 && views(window.contentView).contains{($0 as? NSTextView)?.accessibilityLabel()=="Blame source text"}}
+        var source=views(window.contentView).compactMap{$0 as? NSTextView}.first{$0.accessibilityLabel()=="Blame source text"}!
+        try require(window.makeFirstResponder(source) && window.firstResponder === source,"Initial source focus was not admitted")
         func event(_ key:UInt16,_ flags:NSEvent.ModifierFlags=[],_ text:String="",in host:NSWindow?=nil)->NSEvent {
             NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:(host ?? window).windowNumber,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:key)!
         }
@@ -119,23 +150,52 @@ import TurtleGitCore
         try require(source.selectedRange() != beforeModalRange,"Find did not resume inclusive current-row selection after modal cancellation")
         find.close();model.goToLine(4)
         // Both menu directions and native F6 reach existing source/Log panes.
-        focused=window;window.makeFirstResponder(source)
+        focused=window
+        try await wait("modeless Find close and live source/Log admission") {
+            guard owner.findWindow==nil,!owner.navigationWorkPending,owner.commandsAvailable,model.canFind,
+                  let liveSource=views(window.contentView).compactMap({$0 as? NSTextView}).first(where:{$0.accessibilityLabel()=="Blame source text"}),
+                  liveSource.window === window,!liveSource.isHiddenOrHasHiddenAncestor,
+                  let history=views(window.contentView).compactMap({$0 as? BlameHistoryNativeTable}).first,
+                  history.window === window,!history.isHiddenOrHasHiddenAncestor,history.isEnabled,
+                  history.numberOfRows==model.historyEntries.count else{return false}
+            source=liveSource
+            return window.makeFirstResponder(source) && window.firstResponder === source
+        }
         try require(window.performKeyEquivalent(with:event(97,.function,"\u{F709}")),"F6 absent")
-        try await wait {window.firstResponder is BlameHistoryNativeTable}
+        try await wait("F6 live source to Log focus") {window.firstResponder is BlameHistoryNativeTable}
         try require(window.performKeyEquivalent(with:event(97,[.shift,.function],"\u{F709}")),"Shift-F6 absent")
-        try await wait {window.firstResponder === source}
+        try await wait("Shift-F6 Log to source focus") {window.firstResponder === source}
         model.showLog=false;context.perform(.nextPane);try require(window.firstResponder === source && !model.showLog,"F6 reopened hidden Log")
         model.showLog=true;model.setPaneAutoHidden(.log,true);context.perform(.nextPane)
         try require(window.firstResponder === source && model.paneAutoHidden(.log),"F6 reopened auto-hidden Log")
         model.setPaneAutoHidden(.log,false);model.tabPane(.log,joined:true);model.selectPaneTab(.properties)
-        window.makeFirstResponder(source);context.perform(.nextPane)
-        try await wait {model.paneLayout.activeTab == .log && window.firstResponder is BlameHistoryNativeTable}
+        try await wait("tabbed Properties layout and exact source focus before F6") {
+            guard owner.commandsAvailable,model.panesAreTabbed,model.paneLayout.activeTab == .properties,
+                  let tabs=views(window.contentView).compactMap({$0 as? NSTabView}).first(where:{($0.selectedTabViewItem?.identifier as? String)==BlamePane.properties.rawValue}),
+                  tabs.window === window,!tabs.isHiddenOrHasHiddenAncestor,
+                  let liveSource=views(window.contentView).compactMap({$0 as? NSTextView}).first(where:{$0.accessibilityLabel()=="Blame source text"}),
+                  liveSource.window === window,!liveSource.isHiddenOrHasHiddenAncestor else{return false}
+            source=liveSource
+            return window.makeFirstResponder(source) && window.firstResponder === source
+        }
+        context.perform(.nextPane)
+        try await wait("tabbed Log F6 focus") {model.paneLayout.activeTab == .log && window.firstResponder is BlameHistoryNativeTable}
         context.perform(.previousPane);try await wait {window.firstResponder === source}
         model.setPanePlacement(.log,.floating)
-        try await wait {owner.floatingPaneWindow(.log) != nil}
+        // Changing dock topology detaches/reparents the main source host.
+        // Admit the next real F6 from its current source responder; deliberately
+        // do not wait for the floating Log table to mount before dispatch.
+        try await wait("floating layout and exact source focus before F6") {
+            guard owner.floatingPaneWindow(.log) != nil,model.paneLayout.placement(.log) == .floating,
+                  owner.commandsAvailable,!views(window.contentView).contains(where:{$0 is BlameHistoryNativeTable}),
+                  let liveSource=views(window.contentView).compactMap({$0 as? NSTextView}).first(where:{$0.accessibilityLabel()=="Blame source text"}),
+                  liveSource.window === window,!liveSource.isHiddenOrHasHiddenAncestor else{return false}
+            source=liveSource
+            return window.makeFirstResponder(source) && window.firstResponder === source
+        }
         context.perform(.nextPane)
         let floating=owner.floatingPaneWindow(.log)!
-        try await wait {floating.firstResponder is BlameHistoryNativeTable}
+        try await wait("floating Log F6 focus") {floating.firstResponder is BlameHistoryNativeTable}
         focused=floating
         try require(floating.performKeyEquivalent(with:event(97,.function,"\u{F709}",in:floating)),"Floating pane did not route F6")
         try await wait {window.firstResponder === source}

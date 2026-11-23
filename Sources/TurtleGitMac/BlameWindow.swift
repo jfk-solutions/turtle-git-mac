@@ -39,6 +39,24 @@ import TurtleGitCore
     }
     var commandKeyWindow: () -> NSWindow? = { NSApp.keyWindow }
     private var focusGeneration = 0
+    @MainActor private final class LogPaneFocusReceipt {
+        let generation:Int,model:BlameWindowModel,sourceVersion:Int,historyVersion:Int,controls:BlameWindowModel.PaneFocusIdentity,layout:BlamePaneLayout
+        weak var sourceWindow:NSWindow?,destinationWindow:NSWindow?,responder:NSResponder?
+        init(generation:Int,model:BlameWindowModel,source:NSWindow,destination:NSWindow,responder:NSResponder) {
+            self.generation=generation;self.model=model;sourceVersion=model.sourceVersion;historyVersion=model.historyVersion;controls=model.paneFocusIdentity;layout=model.paneLayout
+            sourceWindow=source;destinationWindow=destination;self.responder=responder
+        }
+    }
+    private var pendingLogPaneFocus:LogPaneFocusReceipt?
+    private(set) var paneFocusDisposition="none"
+    private(set) weak var paneFocusAcceptedTable:BlameHistoryNativeTable?
+    private(set) weak var paneFocusAcceptedWindow:NSWindow?
+    private(set) var paneFocusNativeWitness="none"
+    private func retirePaneFocus(_ reason:String="retired") {
+        focusGeneration += 1
+        if pendingLogPaneFocus != nil {paneFocusDisposition=reason}
+        pendingLogPaneFocus=nil
+    }
     private(set) var findWindow: BlameFindWindowController?
     private(set) var findAlert:NSAlert?
     private(set) var columnAlert:NSAlert?
@@ -209,7 +227,7 @@ import TurtleGitCore
                     return try await self.chooseMetadataFolder(requirement,cancellation:token)
                 })
                 guard openingGeneration==identity,!closing,!old.retired,model === old else { return }
-                cancelGoToLine();focusGeneration += 1
+                cancelGoToLine();retirePaneFocus()
                 toolbarChrome?.retire();toolbarChrome=nil
                 old.retireSourceView?();old.onFind=nil;old.onFindFeedback=nil;old.retire()
                 let replacement=BlameWindowModel(repository:document.repository,access:document.access,path:document.snapshot.path,revision:"HEAD",options:document.options,labelDefaults:preferences,historyRegexExecutable:old.historyRegexExecutable)
@@ -248,6 +266,10 @@ import TurtleGitCore
     }
     private func configureHistoryActions() {
         let current = model
+        model.onHistoryNativeReady={ [weak self,weak current] table in
+            guard let self,let current,self.model === current else{return}
+            self.completeLogPaneFocus(table)
+        }
         model.presentationCommandsAvailable = { [weak self, weak current] in
             guard let self, let current, self.model === current else { return false }
             return self.commandsAvailable && NSApp.modalWindow == nil
@@ -317,6 +339,10 @@ import TurtleGitCore
         refreshPaneLayout()
     }
     func refreshPaneLayout() {
+        if let request=pendingLogPaneFocus,
+           request.model !== model || request.layout != model.paneLayout || !model.showLog || model.paneAutoHidden(.log) {
+            retirePaneFocus("retired-layout")
+        }
         guard !model.retired,let window else { return }
         let vertical=BlamePane.allCases.filter { model.paneVisible($0) && !model.paneAutoHidden($0) && [.top,.bottom].contains(model.paneLayout.placement($0)) }.count
         window.minSize=NSSize(width:820,height:vertical>1 ? 520 : 400)
@@ -328,6 +354,7 @@ import TurtleGitCore
                 floatingPanes[pane]?.window?.order(.above,relativeTo:window.windowNumber)
             } else if let child=floatingPanes.removeValue(forKey:pane) { child.retire() }
         }
+        if let request=pendingLogPaneFocus,(floatingPaneWindow(.log) ?? window) !== request.destinationWindow {retirePaneFocus("retired-destination")}
     }
     fileprivate func floatingPaneClosed(_ pane:BlamePane) {
         floatingPanes.removeValue(forKey:pane)
@@ -420,7 +447,7 @@ import TurtleGitCore
         retiringToolbar?.retire();toolbarChrome=nil
         let pendingColumnAlert=columnAlert
         let pendingOpenPanel=openPanel
-        cancelGoToLine();focusGeneration += 1
+        cancelGoToLine();retirePaneFocus()
         model.onPaneLayoutChanged={};model.onPaneFloatRequested={_,_ in};retireFloatingPanes()
         openingGeneration += 1;documentOpener.cancel()
         if let alert=columnAlert { alert.window.sheetParent?.endSheet(alert.window,returnCode:.cancel);alert.window.close() };columnResetReply?(.cancel)
@@ -554,6 +581,10 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         didSet { if historyContextMenuPolicy != oldValue { historyMenuGeneration = UUID(); historyParentToken?.cancel(); cancelHistoryComparisons() } }
     }
     private var historyMenuGeneration = UUID()
+    struct PaneFocusIdentity:Equatable {
+        fileprivate let generation:Int,menu:UUID
+    }
+    var paneFocusIdentity:PaneFocusIdentity {.init(generation:generation,menu:historyMenuGeneration)}
     private(set) var historyHasWorkingTree = false
     private(set) var historyHead:String?
     private(set) var historyReferencesByHash:[String:[RevisionReference]]=[:]
@@ -747,6 +778,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     @Published private(set) var paneLayout=BlamePaneLayout() { didSet { guard !retired else { return };if let data=try? JSONEncoder().encode(paneLayout) { labelDefaults.set(data,forKey:"Blame.PaneLayout") };onPaneLayoutChanged() } }
     @Published var paneDropPreview:BlamePanePlacement?
     var onPaneLayoutChanged:()->Void={}
+    var onHistoryNativeReady:((BlameHistoryNativeTable)->Void)?
     var onPaneFloatRequested:(BlamePane,CGPoint)->Void={_,_ in}
     var panesAreTabbed:Bool { paneLayout.tabbed == true && paneLayout.log == paneLayout.properties && paneLayout.log != .floating }
     func tabPane(_ pane:BlamePane,joined:Bool) {
@@ -1093,7 +1125,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     func retire() {
         retainedDocument=nil;documentNeedsLoadedNotification=false
-        retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;presentHistoryMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
+        retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};onHistoryNativeReady=nil;presentSourceMenu=nil;presentHistoryMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
     func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceSearchCaretRow = nil; sourceNavigation = nil;historySourceFocus=nil;historySourceFocusHandler=nil;historyReveal=nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
@@ -1781,7 +1813,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             sheetObservers.forEach {NotificationCenter.default.removeObserver($0)};sheetObservers=[]
             table?.menu?.cancelTracking();table?.menu?.delegate=nil;table?.menu=nil
             (table?.headerView as? BlameHistoryColumnHeader)?.buildMenu={nil}
-            if let table=table as? BlameHistoryNativeTable {table.inputEpoch=UUID();table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in};table.contextAvailable={false};table.focusedRevisionRow={nil};table.focusRevision={_ in};table.selectionEventRow=nil}
+            if let table=table as? BlameHistoryNativeTable {table.inputEpoch=UUID();table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in};table.contextAvailable={false};table.focusedRevisionRow={nil};table.focusRevision={_ in};table.selectionEventRow=nil;table.nativeReady={} }
             table?.isEnabled=false;table?.target=nil;table?.doubleAction=nil;table?.action=nil;table?.delegate=nil;table?.dataSource=nil;table=nil
         }
         init(_ model:BlameWindowModel) { self.model=model }
@@ -1796,6 +1828,10 @@ struct BlameHistoryTable:NSViewRepresentable {
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
             table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.activateHistory() ?? false };table.showContext={ [weak self] event in self?.showContext(event) };table.contextAvailable={ [weak self] in self?.available == true }
             self.table=table
+            table.nativeReady={ [weak self,weak table] in
+                guard let self,let table,!self.retired,self.table === table,table.isEnabled,table.window != nil else{return}
+                self.model.onHistoryNativeReady?(table)
+            }
             table.focusedRevisionRow={ [weak self] in
                 guard let self,let hash=self.model.focusedHistoryHash else{return nil}
                 return self.entries.firstIndex{$0.hash==hash && self.model.selectedLogHashes.contains(hash)}
@@ -1859,6 +1895,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                 model.consumeHistoryReveal(receipt.hash,serial:receipt.serial)
             }
             table.isEnabled = !retired && model.canFind;table.allowsColumnReordering=available;table.allowsColumnResizing=available
+            (table as? BlameHistoryNativeTable)?.scheduleNativeReady()
             if preserveViewport,!revealed,let oldOrigin,let scroll=table.enclosingScrollView {scroll.contentView.scroll(to:oldOrigin);scroll.reflectScrolledClipView(scroll.contentView)}
         }
         func numberOfRows(in tableView:NSTableView)->Int { entries.count }
@@ -2092,6 +2129,17 @@ struct BlameHistoryTable:NSViewRepresentable {
     }
 }
 @MainActor final class BlameHistoryNativeTable:NSTableView,NSMenuItemValidation {
+    var nativeReady:()->Void = {}
+    private var nativeReadyScheduled=false
+    func scheduleNativeReady() {
+        guard !nativeReadyScheduled else{return};nativeReadyScheduled=true
+        DispatchQueue.main.async { [weak self] in
+            guard let self else{return};self.nativeReadyScheduled=false;self.nativeReady()
+        }
+    }
+    override func viewDidMoveToWindow() {super.viewDidMoveToWindow();scheduleNativeReady()}
+    override func viewDidUnhide() {super.viewDidUnhide();scheduleNativeReady()}
+    override func layout() {super.layout();scheduleNativeReady()}
     var inputEpoch=UUID() {didSet{nativeFocusRow=nil}}
     private var nativeFocusRow:Int?
     var selectionEventEpoch:UUID?
@@ -3815,36 +3863,55 @@ extension BlameWindowController {
         guard let root else {return []};return [root]+root.subviews.flatMap {commandViews($0)}
     }
     func focusSource() {
-        focusGeneration += 1
+        retirePaneFocus()
         guard commandsAvailable,let window,
-              let source = Self.commandViews(window.contentView).first(where:{$0 is BlameSourceContainer}) as? BlameSourceContainer else {return}
+              let source = Self.commandViews(window.contentView).first(where:{$0 is BlameSourceContainer}) as? BlameSourceContainer,
+              source.window === window,!source.isHiddenOrHasHiddenAncestor else {return}
         window.makeKeyAndOrderFront(nil);window.makeFirstResponder(source.editor)
     }
-    /// F6 cycles the interactive source and revision Log, including a floating Log.
-    /// Hidden/auto-hidden Log panes remain hidden; tabbed Log is selected on entry.
+    private func completeLogPaneFocus(_ table:BlameHistoryNativeTable) {
+        guard let request=pendingLogPaneFocus else{return}
+        guard !closing,focusGeneration==request.generation,model === request.model,
+              model.sourceVersion==request.sourceVersion,model.historyVersion==request.historyVersion else {retirePaneFocus("retired-document");return}
+        guard model.paneFocusIdentity==request.controls else {retirePaneFocus("retired-history-state");return}
+        guard model.paneLayout==request.layout,model.showLog,!model.paneAutoHidden(.log) else {retirePaneFocus("retired-layout");return}
+        guard commandsAvailable,NSApp.modalWindow==nil else {retirePaneFocus("retired-command-owner");return}
+        guard let source=request.sourceWindow,let destination=request.destinationWindow,let responder=request.responder,
+              source.isVisible,destination.isVisible,source.attachedSheet==nil,destination.attachedSheet==nil else {retirePaneFocus("retired-window");return}
+        guard commandKeyWindow() === source,source.firstResponder === responder else {retirePaneFocus("retired-source-focus");return}
+        guard Self.focusedOwner(source) === self,Self.focusedOwner(destination) === self,
+              isBlameContentWindow(source),isBlameContentWindow(destination),
+              (floatingPaneWindow(.log) ?? window) === destination else {retirePaneFocus("retired-destination");return}
+        // A late table from a docked-away host cannot satisfy this receipt.
+        guard table.window === destination,table.isEnabled,table.acceptsFirstResponder,!table.isHiddenOrHasHiddenAncestor,
+              !table.visibleRect.isEmpty,Self.commandViews(destination.contentView).contains(where:{$0 === table}) else {paneFocusDisposition="waiting-native-target";return}
+        if let view=responder as? NSView,view.window !== source {retirePaneFocus("retired-source-view");return}
+        // Claim before AppKit notifications re-enter. A native refusal is final:
+        // later unrelated layout must not steal focus after this handoff.
+        pendingLogPaneFocus=nil
+        destination.makeKeyAndOrderFront(nil)
+        let accepted=destination.makeFirstResponder(table),actual=destination.firstResponder
+        paneFocusAcceptedTable=accepted ? table:nil;paneFocusAcceptedWindow=accepted ? destination:nil
+        paneFocusNativeWitness="returned=\(accepted),target=\(ObjectIdentifier(table)),window=\(ObjectIdentifier(destination)),actualClass=\(actual.map{String(describing:type(of:$0))} ?? "nil"),actual=\(actual.map{String(describing:ObjectIdentifier($0))} ?? "nil"),matches=\(actual === table)"
+        paneFocusDisposition=accepted && actual === table ? "admitted":accepted ? "native-accepted-other-responder":"native-refused"
+    }
+    /// F6 owns one pending native focus request across deferred pane creation.
+    /// Hidden/auto-hidden panes stay hidden; new focus/layout/document work
+    /// retires the receipt rather than reviving it after another user's action.
     func focusNextPane(previous:Bool) {
-        guard commandsAvailable,let window else {return}
-        let key = commandKeyWindow(),responding = key?.firstResponder
+        retirePaneFocus("superseded-focus")
+        paneFocusAcceptedTable=nil;paneFocusAcceptedWindow=nil;paneFocusNativeWitness="none"
+        guard commandsAvailable,let window,let key=commandKeyWindow(),let responding=key.firstResponder,
+              Self.focusedOwner(key) === self,isBlameContentWindow(key),key.isVisible else{return}
         let onLog = responding is BlameHistoryNativeTable
         let onSource = (responding as? NSView).map {view in Self.commandViews(window.contentView).contains{$0 is BlameSourceContainer && view.isDescendant(of:$0)}} ?? false
         guard model.showLog,!model.paneAutoHidden(.log),!onLog,(onSource || previous) else {focusSource();return}
         if model.panesAreTabbed {model.selectPaneTab(.log)}
-        focusGeneration += 1
-        let identity = focusGeneration,original = model
-        func focusLog() -> Bool {
-            guard focusGeneration == identity,model === original,Self.focusedOwner(commandKeyWindow()) === self,commandsAvailable,model.showLog,!model.paneAutoHidden(.log) else {return true}
-            let host = floatingPaneWindow(.log) ?? window
-            host.contentView?.layoutSubtreeIfNeeded()
-            guard let table = Self.commandViews(host.contentView).first(where:{$0 is BlameHistoryNativeTable}) else {return false}
-            host.makeKeyAndOrderFront(nil);return host.makeFirstResponder(table)
-        }
-        if !focusLog() {
-            Task { @MainActor [weak self] in
-                await Task.yield()
-                guard let self,self.focusGeneration == identity,self.model === original else {return}
-                _ = focusLog()
-            }
-        }
+        let destination=floatingPaneWindow(.log) ?? window
+        pendingLogPaneFocus=LogPaneFocusReceipt(generation:focusGeneration,model:model,source:key,destination:destination,responder:responding)
+        paneFocusDisposition="waiting-native-target"
+        destination.contentView?.layoutSubtreeIfNeeded()
+        if let table=Self.commandViews(destination.contentView).first(where:{$0 is BlameHistoryNativeTable}) as? BlameHistoryNativeTable {completeLogPaneFocus(table)}
     }
     @discardableResult static func routeCommandKey(_ event:NSEvent,from source:NSWindow?)->Bool {
         guard let source,let owner = focusedOwner(source),!owner.model.retired,

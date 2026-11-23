@@ -162,7 +162,11 @@ extension GitRepository {
         let output=command.text
         var warnings:[String]=[]
         var identity:RepositoryCreationIdentity?,verificationError:String?
-        do {identity=try boundedCreationVerification(cancellation:token) {try createdRepositoryIdentity(at:destination,cancellation:$0)}}
+        // Exact successful command completion is already accepted above.
+        // As with init, read-only identity verification owns its bounded scope:
+        // a cancelled/retired presentation must not erase a repository Git
+        // finished creating. Optional configuration still uses the owner token.
+        do {identity=try boundedCreationVerification {try createdRepositoryIdentity(at:destination,cancellation:$0)}}
         catch {verificationError="Clone completed, but the repository could not be verified: "+error.localizedDescription;warnings.append(verificationError!)}
         let needsConfiguration=(options.svn && capturedSSHCommand != nil) || options.loadSSHKeyWithAgent && options.sshKey != nil
         var configurationPending=needsConfiguration

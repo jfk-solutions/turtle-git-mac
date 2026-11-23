@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Clone acceptance and native history readiness — November 23, 2026
+
+Successful Clone now keeps its bounded repository verification when cancellation
+arrives after Git exits zero. Configuration cancellation, durable receipts,
+current-owner adoption and read-only recovery retain their separate roles.
+[Clone evidence](qa/clone-accepted-cancellation-2026-11-23.json) records seventeen
+focused Core tests and two native engine passes.
+
+Repeated same-key Log opening reuses its live history load instead of creating
+another window. Blame pane focus uses guarded native readiness. The
+[history checkpoint](qa/hosted-history-readiness-2026-11-23.json) records eighteen
+distinct native case/Git passes cumulatively, with stale Blame/Browser/Log
+fixtures and Graph compilation repaired separately from product defects.
+All 51 logged owned compiler/receiver PIDs are absent. These changes are not in
+signed55 or installed52; full hosted, signed/physical and owner acceptance remain
+open. No new WMF/EMF work or publication was performed.
+
 ## Classic EMF path batch — November 23, 2026
 
 The [classic path family](METAFILE-CLASSIC-PATH-PARITY.md) implements typed

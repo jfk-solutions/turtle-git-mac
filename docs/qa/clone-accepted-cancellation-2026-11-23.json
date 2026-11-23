@@ -1,0 +1,70 @@
+{
+  "date": "2026-11-23",
+  "status": "focused-core-build-and-native-clone-checkpoint-passed",
+  "source_base_commit": "e468f8de5d596fbedfb59af8ade4fecddb7855b5",
+  "source_state": "Validated uncommitted repair on source_base_commit; exact inputs below, not a claim the base commit contains the repair.",
+  "source_sha256": {
+    "Sources/TurtleGitCore/Clone.swift": "0e7e18578c11a384b0c617412ecf30f3ff218f26d1a3c15fc912efcc27052797",
+    "Tests/TurtleGitCoreTests/RepositorySetupAcceptanceTests.swift": "8ce88c19078d8c6ee2fa7d0214af51413a44a63fb2b88d4f96d63dfb1d357b53"
+  },
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "repair": "Independent existing-five-second read-only verification after exact successful Clone completion; cancellation still fences optional config and current-owner adoption.",
+  "hosted_failure_evidence": {
+    "source": "39bf152f5911400700794cfe7e85007b7d935f54",
+    "run": 45155574090,
+    "core_artifact": 14819967642,
+    "core_step_uuid": "df59dcc9-b750-4987-a6ec-c7ce8b28fe8b",
+    "core_report": "build/qa/ci-39bf-redacted-failures-45155574090/14819967642/contents/df59dcc9-b750-4987-a6ec-c7ce8b28fe8b.txt",
+    "native_artifact": 14824641988,
+    "native_step_uuid": "1e67ca90-d710-4ada-9337-8aae71fc104e",
+    "native_report": "build/qa/ci-39bf-redacted-failures-45155574090/14824641988/contents/1e67ca90-d710-4ada-9337-8aae71fc104e.txt",
+    "assertions": [
+      "CLI accepted Clone repositoryRoot nil; cancellation/verification assertion failed",
+      "Selected libgit2 Clone cancellation/verification assertion failed",
+      "Repository setup110: Accepted Clone receipt/adoption boundary lost"
+    ],
+    "artifact_digest_receipts": "build/qa/ci-39bf-redacted-failures-45155574090/download-receipts.json"
+  },
+  "core": {
+    "selected_tests": 17,
+    "failures": 0,
+    "log": "build/qa/clone-acceptance-core-2026-11-23.log",
+    "cache": "existing default .build",
+    "suites": [
+      "CloneTests",
+      "CloneCommandCompletionTests",
+      "RepositorySetupAcceptanceTests"
+    ]
+  },
+  "build": {
+    "exit": 0,
+    "log": "build/qa/clone-and-pane-witness-build-2026-11-23.log",
+    "success_marker": "** BUILD SUCCEEDED **"
+  },
+  "native": {
+    "exit": 0,
+    "case": "clone",
+    "engines": [
+      "system /usr/bin/git",
+      "built Debug app packaged Git"
+    ],
+    "case_engine_pairs": 2,
+    "seconds": 11.808,
+    "log": "build/qa/hosted-history-repair-clone-acceptance-2026-11-23.log",
+    "unchanged_fixture": "docs/qa/repository-setup-transitions-native-2026-10-29.swift",
+    "scope": [
+      "cancel",
+      "retire",
+      "inspection failure and retry",
+      "pre-command and nonzero refusal",
+      "configuration-only recovery",
+      "once-only parent callbacks and owned helper drain"
+    ]
+  },
+  "limits": [
+    "No new checks were run for this documentation update.",
+    "Focused local pass does not establish full hosted CI, physical Finder, signed deployment or whole-port parity.",
+    "Signed build55 predates and excludes this repair.",
+    "Independent Blame witness in the same orchestration is outside this Clone receipt."
+  ]
+}

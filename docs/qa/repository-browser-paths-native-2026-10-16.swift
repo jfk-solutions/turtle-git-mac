@@ -7,9 +7,13 @@ struct RepositoryBrowserPathsVerification {
     @MainActor static func verify() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
-        for (k,v) in [("user.name","Browser path QA"),("user.email","paths@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",k,v])}
+        for (k,v) in [("user.name","Browser path QA"),("user.email","paths@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("core.precomposeUnicode","true")] {_ = try await repo.run(["config",k,v])}
         let a="caf\u{e9}.txt",b="cafe\u{301}.txt",da="d\u{e9}",db="de\u{301}"
         let working=Data("working\n".utf8);try working.write(to:root.appendingPathComponent(a));try await repo.stage([a]);_ = try await repo.commit(message:"working NFC")
+        // Bind the alias scenario to actual cached Git bytes rather than the
+        // host Git client's platform/default precomposition setting.
+        let cached=try await repo.run(["-c","core.precomposeUnicode=false","ls-files","--cached","-z","--"]).stdout.split(separator:0)
+        try require(cached.count==1 && cached[0].elementsEqual(a.utf8),"Fixture seed did not retain exact NFC index spelling; cached="+cached.map{Data($0).base64EncodedString()}.joined(separator:","))
         let first=Data([0,1,0xff,10]),second=Data([9,2,0xfe,13,10])
         let ah=try await repo.run(["hash-object","-w","--stdin"],input:first).text.trimmingCharacters(in:.newlines)
         let bh=try await repo.run(["hash-object","-w","--stdin"],input:second).text.trimmingCharacters(in:.newlines)
@@ -57,10 +61,24 @@ struct RepositoryBrowserPathsVerification {
         let gate=RepositoryBrowserWindowModel(repository:repo,access:nil,revision:tree,preferences:prefs)
         defer{gate.invalidate()};gate.refresh();try await RepositoryBrowserTableVerification.wait{!gate.busy && gate.snapshot != nil}
         var compared:[String]=[];gate.onCompare={path,_ in compared.append(path)}
-        gate.compareEntryToWorkingTree(be);try await RepositoryBrowserTableVerification.wait{!gate.busy}
-        try require(compared.isEmpty && gate.error?.contains("Unicode normalization") == true,"Working comparison dispatched an alias path")
+        guard let snapshot=gate.snapshot else{throw Failure(description:"Working comparison fixture lost displayed snapshot")}
+        try require(gate.canUseMenu && snapshot.entries.contains(be),"Working comparison fixture was not admitted before validation")
+        var expectedRefusal:String?
+        do {
+            try await repo.validateRepositoryBrowserWorkingPath(snapshot,entry:be)
+        }catch RepositoryBrowserFailure.normalizationCollision(let path) {
+            try require(Data(path.utf8)==Data(b.utf8),"Typed collision witness changed exact requested UTF-8 spelling")
+            expectedRefusal=RepositoryBrowserFailure.normalizationCollision(path).localizedDescription
+        }catch {throw Failure(description:"Expected typed working-path collision, got: \(error)")}
+        guard let expectedRefusal else{throw Failure(description:"Typed validation admitted the NFD alias of the exact cached NFC path")}
+        gate.compareEntryToWorkingTree(be)
+        try require(gate.busy,"Working comparison never entered validation; error="+(gate.error ?? "nil"))
+        try await RepositoryBrowserTableVerification.wait{!gate.busy}
+        try require(compared.isEmpty,"Working comparison dispatched alias callback(s); raw UTF-8="+compared.map{Data($0.utf8).base64EncodedString()}.joined(separator:","))
+        try require(gate.error==expectedRefusal,"Working comparison lost typed collision diagnostic; actual="+(gate.error ?? "nil")+"; expected="+expectedRefusal)
         gate.error=nil;gate.compareEntryToWorkingTree(gate.entries.first{$0.name == "plain.txt"}!)
-        try await RepositoryBrowserTableVerification.wait{!gate.busy && compared.count == 1};try require(compared == ["plain.txt"],"Valid working callback refused")
+        try await RepositoryBrowserTableVerification.wait{!gate.busy && compared.count == 1}
+        try require(compared.count==1 && Data(compared[0].utf8)==Data("plain.txt".utf8),"Valid working callback refused or changed raw path")
         try require(try Data(contentsOf:root.appendingPathComponent(a)) == working && Data(contentsOf:root.appendingPathComponent(".git/index")) == index,"Browser path actions changed working/index state")
         let after=try await repo.run(["rev-parse","HEAD"]).stdout;try require(after == head,"Browser path actions changed HEAD")
         print("PASS: exact Unicode tree/list IDs, native selection, captured Copy/blob bytes, parallel folder caches/nodes/refresh, retired menus, guarded async working comparison and unchanged HEAD/index/disk; owned window closed")

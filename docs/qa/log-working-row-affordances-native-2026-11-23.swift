@@ -82,9 +82,12 @@ import TurtleGitCore
             func menu(_ ids:GitPathSet)->NSMenu {LogChangedFileMenus.make(model:model,ids:ids,column:.status,shift:true)}
             func item(_ menu:NSMenu,_ title:String)->NSMenuItem? {menu.items.first{$0.title==NSLocalizedString(title,comment:"")}}
             func invoke(_ value:NSMenuItem)throws {let action=try unwrap(value.action,"Native menu action missing");try require(NSApp.sendAction(action,to:value.target,from:value),"Native menu dispatch rejected")}
-            for (path,caption,compare,readable) in [(missing,"Missing",true,false),(removed,"Deleted",true,false),(retained,"Deleted",false,true),(added,"Added",false,false),(renamed,"Missing",false,false),(modified,"Modified",true,true),(unknown,"Unversioned",false,true)] {
+            for (path,caption,compare,readable) in [(missing,"Missing",true,false),(removed,"Deleted",true,false),(retained,"Deleted",false,true),(added,"Added",false,false),(renamed,"Missing",false,false),(modified,"Modified",true,true),(unknown,"Untracked",false,true)] {
                 try await select(GitPathSet([path]));let file=try row(path),nativeMenu=menu(GitPathSet([file.id]))
-                try require(model.fileStatus(file)==caption,"Caption lost raw XY: "+path)
+                let actualCaption=model.fileStatus(file),entry=accepted[path]
+                let rawXY=entry.map{String($0.index)+String($0.worktree)} ?? "<missing>"
+                let sourceActions=entry?.sourceActions.map{String($0.rawValue)} ?? "nil"
+                try require(actualCaption==caption,"Caption mismatch: path=\(String(reflecting:path)) actual=\(String(reflecting:actualCaption)) expected=\(String(reflecting:caption)) rawXY=\(String(reflecting:rawXY)) sourceActions=\(sourceActions) reportingActions=\(entry.map{String($0.reportingActions.rawValue)} ?? "<missing>")")
                 if path==added {try require(model.fileStatusTextRole(file) == .added,"AD row used Deleted color instead of source Added role")}
                 if path==renamed || path==missing {try require(model.fileStatusTextRole(file) == .deleted,"Missing row lost combined Deleted/Missing color role")}
                 try require(model.canCompareFileWithBase(file)==compare,"Base policy lost raw XY: "+path)

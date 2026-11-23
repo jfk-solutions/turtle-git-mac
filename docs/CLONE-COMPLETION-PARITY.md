@@ -80,3 +80,29 @@ TurtleGit folder icon after actual bare discovery. Metadata failure is retained 
 a completed-result warning without repeating Git. Direct and progress routes share
 the helper; inspection retries reuse the destination receipt. Ownership and access
 remain held through actual optional work even when the window is retired.
+
+
+## Accepted cancellation verification repair — November 23, 2026
+
+Hosted evidence at source 39bf152f5911400700794cfe7e85007b7d935f54 exposed a
+shared Clone acceptance defect: cancellation from the successful command receipt
+also cancelled the child used to verify the repository. Git had completed, but
+the result could lose its verified identity and offer only inspection recovery.
+
+After exact exit-zero acceptance, Clone now verifies the captured destination in
+an independent read-only scope with the existing five-second deadline, matching
+Init. Pre-command cancellation and nonzero command failures remain failures.
+The result keeps its cancelled-after-creation fact, and cancellation still skips
+optional SSH configuration. Explicit Inspect remains owner-cancellable and
+read-only, with replacement identity checks and configuration-only recovery;
+neither path repeats a successful clone. Durable verified delivery remains
+separate from current-owner UI adoption.
+
+[Focused repair evidence](qa/clone-accepted-cancellation-2026-11-23.json) records
+17 existing Core tests with zero failures, one successful Debug app build, and
+the unchanged native accepted-Clone cohort passing with both system and the
+built app's packaged Git. Native coverage includes cancellation, forced owner
+retirement, inspection failure/recovery, pre-command/nonzero refusal, config-only
+recovery and helper drainage. These results do not certify full hosted CI,
+physical/signed Finder integration or the complete port. Signed build 55 predates
+this repair.

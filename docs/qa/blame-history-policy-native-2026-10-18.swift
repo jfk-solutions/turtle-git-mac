@@ -1,18 +1,43 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @MainActor enum BlameHistoryPolicyVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
-    static func wait(_ condition:@escaping ()->Bool) async throws {
-        for _ in 0..<1200 { if condition() { return };try await Task.sleep(nanoseconds:10_000_000) }
-        throw Failure(description:"Blame history policy did not settle")
+    private static var owners:[BlameWindowController]=[]
+    static func diagnose(_ phase:String,line:Int) {
+        for (index,owner) in owners.enumerated() {
+            let model=owner.model,window=owner.window
+            let tables=window?.contentView.map{descendants($0).compactMap{$0 as? BlameHistoryNativeTable}} ?? []
+            let states=tables.map {table -> String in
+                let coordinator=table.delegate as? BlameHistoryTable.Coordinator
+                return "rows=\(table.numberOfRows)/\(coordinator?.numberOfRows(in:table) ?? -1),selected=\(table.selectedRowIndexes),enabled=\(table.isEnabled),hidden=\(table.isHiddenOrHasHiddenAncestor),available=\(coordinator?.available == true),exactWindow=\(table.window === window)"
+            }
+            print("BLAME HISTORY PHASE \(phase) line=\(line) owner=\(index) visible=\(window?.isVisible == true) busy=\(model.busy) syntax=\(model.syntaxWorking) canFind=\(model.canFind) entries=\(model.historyEntries.count) selected=\(model.selectedLogHashes.sorted().map{String($0.prefix(8))}) parents=\(model.readingHistoryParents) active=\(BlameWindowModel.activeHistoryOperations) sheet=\(window?.attachedSheet != nil) tables=\(states) error=\(String((model.error ?? "none").prefix(1024)))")
+        }
+        fflush(stdout)
+    }
+    static func wait(_ phase:String,line:Int = #line,_ condition:@escaping ()->Bool) async throws {
+        for _ in 0..<1200 {
+            owners.forEach{$0.window?.contentView?.layoutSubtreeIfNeeded()}
+            if condition(){return};try await Task.sleep(nanoseconds:10_000_000)
+        }
+        diagnose(phase,line:line)
+        throw Failure(description:"Blame history policy did not settle: "+phase+" at line \(line)")
+    }
+    static func present(_ owner:BlameWindowController) {
+        owners.append(owner)
+        owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.window?.orderFront(nil)
     }
     static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
     static func send(_ item:NSMenuItem) throws {
         guard let action=item.action else {throw Failure(description:"No action for \(item.title)")};_ = NSApp.sendAction(action,to:item.target,from:item)
     }
     static func verify() async throws {
+        owners=[]
+        defer{owners.forEach{$0.close()};owners=[]}
+        do {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","History QA"),("user.email","history@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
@@ -27,24 +52,25 @@ import TurtleGitCore
         let owner=BlameWindowController(repository:repo,access:nil,path:"history.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:helper)
         defer {owner.close()}
         let model=owner.model,window=owner.window!
-        try await wait {!model.busy && !model.syntaxWorking && model.historyEntries.count==3}
+        present(owner)
+        try await wait("working model load") {!model.busy && !model.syntaxWorking && model.historyEntries.count==3}
         window.contentView?.layoutSubtreeIfNeeded()
         guard let table=descendants(window.contentView!).compactMap({$0 as? BlameHistoryNativeTable}).first,let coordinator=table.delegate as? BlameHistoryTable.Coordinator,let menu=table.menu else {throw Failure(description:"No native Blame history")}
         // Model publication precedes SwiftUI's representable/table update. A
         // native row selection is meaningful only after the actual data source
         // has installed that same snapshot.
-        try await wait {table.numberOfRows==3 && coordinator.numberOfRows(in:table)==3 && model.canFind}
+        try await wait("working native projection and Find admission") {table.numberOfRows==3 && coordinator.numberOfRows(in:table)==3 && model.canFind}
         var comparisons=0,logs=0,exports:[String]=[]
         model.onChanges={_ in comparisons += 1};model.onLog={_,_ in logs += 1};model.onHistoryExport={exports.append($0)}
         let initialHash=model.historyEntries[0].hash
         table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
-        try await wait {table.selectedRowIndexes==IndexSet(integer:0) && model.selectedLogHashes==Set([initialHash])}
+        try await wait("working exact native selection") {table.selectedRowIndexes==IndexSet(integer:0) && model.selectedLogHashes==Set([initialHash])}
         coordinator.menuNeedsUpdate(menu)
         try require(model.historyHasWorkingTree && model.historyHead==model.historyEntries[0].hash,"Owned metadata did not capture WC/HEAD")
         try require(!menu.items.contains{$0.title=="Switch/Checkout to this…"},"HEAD offered redundant checkout")
         table.openSelection();try require(comparisons==0 && logs==0,"Default disabled double-click unexpectedly acted")
         prefs.set(true,forKey:"DiffByDoubleClickInLog");table.openSelection()
-        try await wait {comparisons==1 && BlameWindowModel.activeHistoryOperations==0}
+        try await wait("working default comparison parent drain") {comparisons==1 && BlameWindowModel.activeHistoryOperations==0}
         coordinator.menuNeedsUpdate(menu)
         guard let compare=menu.items.first(where:{$0.title=="Compare with previous revision"}) else {throw Failure(description:"Missing prepared compare")}
         let font=compare.attributedTitle?.attribute(.font,at:0,effectiveRange:nil) as? NSFont
@@ -66,26 +92,27 @@ import TurtleGitCore
         model.historyContextMenuPolicy = .blame;coordinator.menuNeedsUpdate(menu)
         let retired=menu.items.first{$0.title=="Export this version…"}!
         owner.close();try send(retired);try require(exports==[pinned],"Closed Blame owner accepted action")
-        try await wait {BlameWindowModel.activeHistoryOperations==0}
+        try await wait("working owner retirement drain") {BlameWindowModel.activeHistoryOperations==0}
         // Bare snapshots retain historical comparison but have no WC unified or checkout action.
         let bareRoot=root.appendingPathComponent("bare.git");_ = try await repo.run(["clone","--bare","--no-hardlinks",root.path,bareRoot.path])
         let bare=GitRepository(root:bareRoot,executable:git),bareOwner=BlameWindowController(repository:bare,access:nil,path:"history.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:helper)
         defer {bareOwner.close()}
-        try await wait {!bareOwner.model.busy && !bareOwner.model.syntaxWorking && bareOwner.model.historyEntries.count==3}
+        present(bareOwner)
+        try await wait("bare model load") {!bareOwner.model.busy && !bareOwner.model.syntaxWorking && bareOwner.model.historyEntries.count==3}
         bareOwner.window?.contentView?.layoutSubtreeIfNeeded()
         guard let bareTable=descendants(bareOwner.window!.contentView!).compactMap({$0 as? BlameHistoryNativeTable}).first,let bareCoordinator=bareTable.delegate as? BlameHistoryTable.Coordinator,let bareMenu=bareTable.menu else {throw Failure(description:"No bare history table")}
         let bareSelectedHash=bareOwner.model.historyEntries[1].hash
         do {
-            try await wait {bareTable.numberOfRows==3 && bareCoordinator.numberOfRows(in:bareTable)==3 && bareOwner.model.canFind}
+            try await wait("bare native projection and Find admission") {bareTable.numberOfRows==3 && bareCoordinator.numberOfRows(in:bareTable)==3 && bareOwner.model.canFind}
             bareTable.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
-            try await wait {bareTable.selectedRowIndexes==IndexSet(integer:1) && bareOwner.model.selectedLogHashes==Set([bareSelectedHash])}
+            try await wait("bare exact native selection") {bareTable.selectedRowIndexes==IndexSet(integer:1) && bareOwner.model.selectedLogHashes==Set([bareSelectedHash])}
         } catch {
             print("BARE HISTORY READINESS: rows=\(bareTable.numberOfRows)/\(bareCoordinator.numberOfRows(in:bareTable)) selectedRows=\(bareTable.selectedRowIndexes) selectedHashes=\(bareOwner.model.selectedLogHashes.sorted()) expected=\(bareSelectedHash) canFind=\(bareOwner.model.canFind) error=\(String((bareOwner.model.error ?? "none").prefix(1024)))")
             throw error
         }
         let target=bareOwner.model.historyTarget([bareOwner.model.historyEntries[1]])!;var ready=false
         bareOwner.model.prepareHistoryParents(target){_ in ready=true}
-        try await wait {ready && BlameWindowModel.activeHistoryOperations==0}
+        try await wait("bare prepared parent drain") {ready && BlameWindowModel.activeHistoryOperations==0}
         let cached=bareOwner.model.cachedHistoryParents(target)
         bareCoordinator.menuNeedsUpdate(bareMenu)
         let barePolicyMatches = !bareOwner.model.historyHasWorkingTree && bareMenu.items.contains{$0.title=="Compare with previous revision"} && !bareMenu.items.contains{$0.title=="Switch/Checkout to this…" || $0.title=="Show changes as unified diff"}
@@ -95,9 +122,16 @@ import TurtleGitCore
         }
         try require(!cached.isEmpty,"Bare prepared history comparison has no cached parent; see bounded diagnostic")
         try require(!bareOwner.model.historyHasWorkingTree && bareMenu.items.contains{$0.title=="Compare with previous revision"} && !bareMenu.items.contains{$0.title=="Switch/Checkout to this…" || $0.title=="Show changes as unified diff"},"Bare source action gating differs")
-        bareOwner.close();try await wait {BlameWindowModel.activeHistoryOperations==0}
+        bareOwner.close();try await wait("bare owner retirement drain") {BlameWindowModel.activeHistoryOperations==0}
         try require(try await repo.run(["rev-parse","HEAD"]).stdout==head,"History actions changed HEAD")
         try require(try Data(contentsOf:file)==bytes && Data(contentsOf:root.appendingPathComponent(".git/index"))==index,"History actions changed input/index")
         print("PASS: Blame source consumer mask, WC/HEAD menu gates, parent/default ordering, double-click preference, captured one-shot callbacks and retirement")
+        } catch {
+            owners.forEach{$0.close()}
+            try? await wait("failed owned-window/worker drain") {
+                BlameWindowModel.activeHistoryOperations==0 && BlameWindowModel.activeSyntaxRequests==0 && owners.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil && !$0.navigationWorkPending}
+            }
+            throw error
+        }
     }
 }

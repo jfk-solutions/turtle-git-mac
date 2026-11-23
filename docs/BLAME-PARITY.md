@@ -1599,3 +1599,31 @@ retired chrome are refused. The [connected checkpoint](qa/history-file-context-f
 passes the new context and retained customization/placement cases with both Git
 engines, with failed fixture assumptions and actual repairs retained.
 Physical, signed/platform and full-port acceptance remain separate.
+
+## Native pane-focus readiness — November 23, 2026
+
+The pinned Blame accelerator table binds F6/Shift-F6 to Next/Previous Pane in
+`src/Resources/TortoiseGitBlameENG.rc:324–325`. Native main, tabbed and floating
+Log panes now retain an accepted focus request until their actual table mounts
+and becomes usable. The previous single-yield retry could lose an immediate F6
+request while a floating Log was still creating its native view.
+
+Readiness comes from native mount/layout/update notifications. A one-use receipt
+checks its original document, source/history versions, reload/action identity, layout,
+initiating window/responder and exact destination. New focus requests, source
+focus, layout changes, document replacement and close retire prior intent.
+Hidden/auto-hidden panes, sheets, other owners and retired views cannot receive
+late focus. The actual table receives AppKit first-responder admission; no
+selection or keyboard event is substituted by a callback.
+
+The connected hosted-history checkpoint separates this product repair from
+stale fixture setup: native commands must start with a genuinely presented owner
+and an attached, admitted source view after modeless Find or pane-layout changes.
+Immediate post-floating-creation F6 remains an explicit case rather than waiting
+for the table in the fixture before issuing it. Signed/physical keyboard and
+complete dialog acceptance remain separate from hidden native checks.
+
+[The grouped checkpoint](qa/hosted-history-readiness-2026-11-23.json) records the
+failed assumptions and actual repairs, including the witness that distinguished
+an unadmitted source command from a completed native handoff. Six final command,
+source-menu and focus case/Git passes retain the separate history-policy passes.

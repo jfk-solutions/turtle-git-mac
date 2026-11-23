@@ -55,85 +55,12 @@ import Darwin
         // actual parent command admission guards are available again.
         let filterAdmission = NSMenuItem(title: "Filter", action: nil, keyEquivalent: "")
         filterAdmission.representedObject = "filter"
-        func settledGraph(after child: RevisionGraphFilterController? = nil, line: UInt = #line) async throws {
-            try await wait({
-                controller.filter == nil && child?.hasPendingWork != true &&
-                !controller.hasPendingWork && !model.hasPendingWork && !model.busy &&
-                window.attachedSheet == nil && controller.validateMenuItem(filterAdmission)
-            }, line: line)
-        }
         window.alphaValue = 0; window.orderFront(nil)
         defer { window.close() }
         model.load(); try await wait { !model.busy && !model.hasPendingWork }
         try require(model.error == nil && model.nodes.count == 3 && model.geometry?.nodes.count == 3)
-        let originalFont = model.font
-        try require(originalFont.pointSize == 12 && model.options.ordering == .topological)
-        for (zoom, points) in [(1.0,12.0),(0.5,40.0/3.0),(0.1,40.0/3.0),(2.0,12.0)] {
-            try require(abs(Double(model.drawingFont(zoom:zoom)!.pointSize)-points) < 0.001)
-        }
-        try require(model.drawingFont(zoom:0.01)==nil && model.drawingFont(zoom:0)==nil && model.drawingFont(zoom:.infinity)==nil)
-        let originalSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
-        prefs.set("Courier", forKey:"LogFontName"); prefs.set(88, forKey:"LogFontSize")
-        HistoryOrdering.authorDate.save(defaults:prefs)
-        try require(model.font.fontName==originalFont.fontName)
-        model.load();try await wait { !model.busy && !model.hasPendingWork }
-        try require(model.error==nil && model.font.familyName=="Courier" && model.font.pointSize==12 && model.options.ordering == .authorDate)
-        let customSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
-        let customDOT=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.graphviz,appearance:NSAppearance(named:.aqua)!)
-        let customScene=try RevisionGraphExport.snapshot(canvas:controller.canvas,viewport:CGSize(width:800,height:500),appearance:NSAppearance(named:.aqua)!).vector
-        let capturedFonts=customScene.commands.compactMap{command->String? in if case .text(let text)=command{return text.fontName};return nil}
-        try require(!capturedFonts.isEmpty && capturedFonts.allSatisfy{$0==model.drawingFont(zoom:1)!.fontName})
-        try require(XMLParser(data:customSVG).parse() && String(decoding:customSVG,as:UTF8.self).contains("<path") && customSVG != originalSVG)
-        try require(String(decoding:customDOT,as:UTF8.self).contains("fontname=\"Courier\", fontsize=12.000"))
-        let publishedFont=model.font,publishedGeometry=model.geometry!.nodes.map(\.rect)
-        prefs.set("Helvetica",forKey:"LogFontName");model.options.to="missing-graph-font-revision";model.load();try await wait { !model.busy && !model.hasPendingWork }
-        try require(model.error != nil && model.font.fontName==publishedFont.fontName && model.geometry!.nodes.map(\.rect)==publishedGeometry)
-        prefs.set("TurtleGit-no-such-font",forKey:"LogFontName");prefs.removeObject(forKey:"LogFontSize");HistoryOrdering.topological.save(defaults:prefs);model.options.to=""
-        model.load();try await wait { !model.busy && !model.hasPendingWork }
-        try require(model.error==nil && model.font.familyName==originalFont.familyName && model.font.pointSize==12)
-        prefs.removeObject(forKey:"LogFontName");prefs.removeObject(forKey:HistoryOrdering.preferenceKey)
-        window.contentView!.layoutSubtreeIfNeeded(); controller.update()
-        try require(controller.scroll.contentSize.width > 600 && controller.scroll.contentSize.height > 300)
-        NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
-            let green = RevisionGraphPalette.background(.localBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)!
-            assert(abs(green.greenComponent - 195.0/255) < 0.001 && green.redComponent == 0)
-            assert(RevisionGraphPalette.foreground(green) == NSColor.white)
-            prefs.set(true, forKey: "Graph.RevGraphUseLocalForCur")
-            assert(RevisionGraphPalette.background(.currentBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)! == green)
-            prefs.removeObject(forKey: "Graph.RevGraphUseLocalForCur")
-        }
-        try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
-        let keys = ["ShowRevGraphOverview", "ArrowPointToMerges", "ShowRevGraphBranchesMerges", "ShowRevGraphAllTags"]
-        try require(keys.allSatisfy { prefs.object(forKey: $0) == nil })
-        func displayItem(_ owner: RevisionGraphWindowController, _ command: String) -> NSMenuItem {
-            views(owner.window!.contentView!).compactMap { $0 as? NSPopUpButton }.flatMap { $0.itemArray }.first { ($0.representedObject as? String) == command }!
-        }
-        func toggle(_ command: String) async throws {
-            let item = displayItem(controller, command)
-            try require(NSApp.sendAction(item.action!, to: item.target, from: item))
-            try await wait { !model.busy && !model.hasPendingWork }
-        }
-        try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
-        try require(prefs.bool(forKey: keys[0]) && prefs.bool(forKey: keys[1]) && prefs.bool(forKey: keys[2]) && !prefs.bool(forKey: keys[3]))
-        model.options.from = "transient-filter"; model.options.onlyCurrentBranch = true; model.zoom = 0.5
-        let reopened = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
-        reopened.window!.alphaValue = 0
-        try require(reopened.model.showOverview && reopened.model.arrowsTowardMerges && reopened.model.options.showBranchingsAndMerges && !reopened.model.options.showAllTags)
-        try require(reopened.model.zoom == 1 && reopened.model.options.from.isEmpty && !reopened.model.options.onlyCurrentBranch && reopened.model.selection.isEmpty)
-        for (command, state) in [("overview", NSControl.StateValue.on), ("arrows", .on), ("branchings", .on), ("tags", .off)] {
-            let item = displayItem(reopened, command); try require(reopened.validateMenuItem(item) && item.state == state)
-        }
-        reopened.window!.close(); try await wait { !reopened.hasPendingWork }; try require(reopened.model.closed)
-        reopened.perform("arrows"); try require(prefs.bool(forKey: keys[1]))
-        model.options.from = ""; model.options.onlyCurrentBranch = false; model.zoom = 1
-        // Loading/sheet guards must reject actions before touching saved state.
-        model.load(); try require(model.busy)
-        controller.perform("overview"); try require(model.showOverview && prefs.bool(forKey: keys[0]))
-        try await wait { !model.busy && !model.hasPendingWork }
-        try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
-        try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
-        try require(!prefs.bool(forKey: keys[0]) && !prefs.bool(forKey: keys[1]) && !prefs.bool(forKey: keys[2]) && prefs.bool(forKey: keys[3]))
-        print("PASS: Revision Graph display preferences, source defaults, menu dispatch/checkmarks, reopen and busy/closed guards")
+        let context=FixtureContext(root:root,repo:repo,helper:helper,prefs:prefs,file:file,head:head,refs:refs,index:index,config:config,bytes:bytes,controller:controller,filterAdmission:filterAdmission)
+        try await verifyAppearance(context)
         let geometry = model.geometry!.nodes // Preference toggles reload layout; use current geometry.
         let pointerNode = model.nodes.first { $0.hash == geometry[0].hash }!
         let pointerRows = model.lines(pointerNode, pointers: [pointerNode.hash: ["super-project-rebase-head", "super-project-head"]])
@@ -260,6 +187,253 @@ import Darwin
         controller.perform("log"); try require(range == HistoryRevisionRange(from: geometry[0].hash, to: geometry[1].hash))
         try require(controller.nodeMenu().items.filter{!$0.isSeparatorItem}.map(\.title) == ["Show Log", "Compare revisions", "Unified diff"])
         try await graphCommandFamily(controller:controller,repository:repo,preferences:prefs,helper:helper)
+        let controls=try await verifyToolbarAndOverview(context)
+        let findState=try await verifyFind(context,controls:controls,main:main,feature:feature,rootNode:rootNode,geometry:geometry,click:{click($0)})
+        let regexHelper=findState.regexHelper
+        try await verifyFilters(context,controls:controls,findState:findState)
+        try await verifyExports(context)
+        // Destructive checks touch only this disposable repository, after the read-only invariants above.
+        func itemDeleting(_ name: String) throws -> NSMenuItem {
+            let menu = controller.nodeMenu()
+            for item in menu.items.flatMap({ [$0] + ($0.submenu?.items ?? []) }) {
+                if [name,name+"^{}","Delete "+name,"Delete "+name+"^{}"].contains(item.title) { return item }
+            }
+            throw Failure(line: #line)
+        }
+        func invoke(_ item: NSMenuItem) throws {
+            let valid = controller.validateMenuItem(item)
+            print("Invoking Graph menu: \(item.title); valid=\(valid); busy=\(model.busy); selection=\(model.selection); sheet=\(window.attachedSheet != nil)")
+            if !valid {
+                print("Graph menu rejection: command=\(String(describing: item.representedObject)); closed=\(model.closed); filter=\(controller.filter != nil); selected refs=\(model.selectedNode?.references.map(\.name) ?? [])")
+            }
+            try require(valid)
+            let delivered = NSApp.sendAction(item.action!, to: item.target, from: item)
+            if !delivered { print("Graph menu action delivery failed: \(item.title)") }
+            try require(delivered)
+        }
+        func sheetButton(_ title: String) async throws {
+            try await wait { window.attachedSheet != nil }
+            let sheet = window.attachedSheet!; try require(sheet.alphaValue == 0 && !controller.windowShouldClose(window))
+            guard let button = views(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == title }) else { throw Failure(line: #line) }
+            button.performClick(nil)
+            try await wait { window.attachedSheet !== sheet && sheet.sheetParent==nil }
+        }
+        model.select(rootNode.hash, extending: false)
+        let annotated = try itemDeleting("refs/tags/release-v1")
+        try require(annotated.title == "refs/tags/release-v1^{}")
+        controller.perform("copyRefs"); try require(copied.contains("refs/tags/release-v1^{}"))
+        try invoke(annotated); try await wait { window.attachedSheet != nil }
+        let abortSheet = window.attachedSheet!
+        try require(abortSheet.defaultButtonCell?.title == "Abort" && !controller.windowShouldClose(window))
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+        let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: abortSheet.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
+        if !abortSheet.performKeyEquivalent(with: enter) { abortSheet.sendEvent(enter) }
+        try await context.settledGraph()
+        let keptAnnotated = try await repo.run(["rev-parse", "refs/tags/release-v1"]).text
+        try require(!keptAnnotated.isEmpty)
+        try require(!controller.validateMenuItem(annotated))
+        try invoke(try itemDeleting("refs/tags/release-v1")); try await sheetButton("Delete"); try await context.settledGraph()
+        let removedAnnotated = try? await repo.run(["show-ref", "--verify", "refs/tags/release-v1"])
+        try require(removedAnnotated == nil)
+        model.select(main.hash, extending: false)
+        let all = controller.nodeMenu().items.first { $0.title == "Delete branch/tag" }!.submenu!.items.last!
+        try invoke(all)
+        try await sheetButton("Delete local remote-tracking branch")
+        // All confirms each reference in sequence; Abort stops at the next tag.
+        try await sheetButton("Abort"); try await context.settledGraph()
+        let removedRemote = try? await repo.run(["show-ref", "--verify", "refs/remotes/origin/main"])
+        let keptTag = try await repo.run(["show-ref", "--verify", "refs/tags/export<&\"'>"])
+        let currentHead = try await repo.run(["rev-parse", "HEAD"]).stdout
+        try require(removedRemote == nil && !keptTag.stdout.isEmpty && currentHead == head)
+        // A ref moved before menu activation must not be deleted under the old node.
+        model.select(rootNode.hash, extending: false)
+        let stale = try itemDeleting("refs/tags/v1.0")
+        _ = try await repo.run(["tag", "-f", "v1.0", "HEAD"])
+        try invoke(stale); try await sheetButton("OK"); try await context.settledGraph()
+        let moved = try await repo.run(["rev-parse", "v1.0"]).stdout
+        try require(moved == head)
+        _ = try await repo.run(["tag", "-f", "v1.0", rootNode.hash]); model.load(); try await wait { !model.busy && !model.hasPendingWork }
+        model.select(rootNode.hash, extending: false)
+        let raced = try itemDeleting("refs/tags/v1.0")
+        try invoke(raced); try await wait { window.attachedSheet != nil }
+        _ = try await repo.run(["tag", "-f", "v1.0", "HEAD"])
+        try await sheetButton("Delete"); try await sheetButton("OK"); try await context.settledGraph()
+        let afterRace = try await repo.run(["rev-parse", "v1.0"]).stdout
+        try require(afterRace == head)
+        model.load(); try await wait { !model.busy && !model.hasPendingWork }
+        let unlabelled = model.nodes.first { $0.references.isEmpty }!
+        model.select(unlabelled.hash, extending: false); controller.perform("copyRefs")
+        try require(copied == unlabelled.hash)
+        print("PASS: Revision Graph source node menus, branch/tag routing, range Log, copy refs, annotated deletion, Abort/All, moved-ref and confirmation-race guards")
+        let parentRoot = root.deletingLastPathComponent().appendingPathComponent(root.lastPathComponent + "-superproject")
+        try FileManager.default.createDirectory(at: parentRoot, withIntermediateDirectories: true)
+        let parentRepo = GitRepository(root: parentRoot, executable: URL(fileURLWithPath: CommandLine.arguments[2]), libgit2Configuration: .init(enabled: false))
+        _ = try await parentRepo.run(["init", "-b", "main"])
+        _ = try await parentRepo.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", root.path, "child"])
+        var pointerTrees: [String] = []
+        for hash in [rootNode.hash, main.hash, feature.hash] {
+            _ = try await parentRepo.run(["update-index", "--cacheinfo", "160000," + hash + ",child"])
+            pointerTrees.append(try await parentRepo.run(["write-tree"]).text.trimmingCharacters(in: .newlines))
+        }
+        _ = try await parentRepo.run(["read-tree", pointerTrees[1]])
+        _ = try await parentRepo.run(["read-tree", "-m"] + pointerTrees)
+        let parentIndex = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
+        let childRepo = GitRepository(root: parentRoot.appendingPathComponent("child"), executable: URL(fileURLWithPath: CommandLine.arguments[2]), libgit2Configuration: .init(enabled: false))
+        let childGraph = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
+        childGraph.window!.alphaValue = 0; childGraph.window!.orderFront(nil)
+        childGraph.model.load(); try await wait { !childGraph.model.busy && !childGraph.hasPendingWork }
+        try require(childGraph.model.error == nil)
+        try require(childGraph.model.pointers[main.hash] == ["super-project-head"] && childGraph.model.pointers[feature.hash] == ["super-project-merge-head"])
+        for (hash, label) in [(main.hash, "super-project-head"), (feature.hash, "super-project-merge-head")] {
+            let node = childGraph.model.nodes.first { $0.hash == hash }!
+            let rows = childGraph.model.lines(node)
+            try require(rows.first!.0 == label && rows.first!.2)
+            let geometry = childGraph.model.geometry!.nodes.first { $0.hash == hash }!
+            try require(geometry.rect.height >= CGFloat(rows.count) * (ceil(childGraph.model.font.ascender - childGraph.model.font.descender) + 10))
+        }
+        let pointerSVG = try RevisionGraphExport.data(canvas: childGraph.canvas, viewport: childGraph.scroll.contentSize, format: .svg, appearance: NSAppearance(named: .aqua)!)
+        let svgText = String(decoding: pointerSVG, as: UTF8.self)
+        try require(svgText.contains("super-project-head") && svgText.contains("super-project-merge-head") && svgText.contains("#f699fd"))
+        let parentAfter = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
+        try require(parentAfter == parentIndex)
+        childGraph.window!.close();try await wait{!childGraph.hasPendingWork};try require(childGraph.model.closed)
+        prefs.set(false, forKey: "LogShowSuperProjectSubmodulePointer")
+        let hiddenChild = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
+        hiddenChild.window!.alphaValue = 0
+        hiddenChild.model.load(); try await wait { !hiddenChild.model.busy && !hiddenChild.hasPendingWork }
+        try require(hiddenChild.model.error == nil && hiddenChild.model.pointers.isEmpty && !hiddenChild.model.options.showSuperprojectPointers)
+        hiddenChild.window!.close();try await wait{!hiddenChild.hasPendingWork}; prefs.removeObject(forKey: "LogShowSuperProjectSubmodulePointer")
+        let afterHidden = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
+        try require(afterHidden == parentIndex)
+        print("PASS: Native conflicted submodule graph pointer labels, measured rows, SVG pointer color Advanced setting and unchanged parent index")
+        controller.showFind(regexExecutable: regexHelper)
+        let finalFind = controller.find!
+        model.load(); try require(model.busy)
+        var closed = false; controller.onClosed = { closed = true }
+        window.performClose(nil); try await wait { closed && !controller.hasPendingWork && !finalFind.hasPendingWork }
+        try require(model.closed && !model.busy && finalFind.closed && controller.find == nil)
+        model.load(); try require(!model.busy)
+        try await wait { RevisionGraphWindowModel.activeOperations == 0 && RevisionGraphFilterController.activeOperations == 0 }
+        let retiredModel=RevisionGraphWindowModel(repository:repo,access:nil,preferences:prefs,layoutExecutable:helper)
+        let failedFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ _ in
+            throw NSError(domain:"GraphFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Fixture reference read failure"])
+        }) { _ in }
+        try await wait { failedFilter.window?.attachedSheet != nil && RevisionGraphFilterController.activeOperations == 0 }
+        try require(failedFilter.completionError == "Fixture reference read failure")
+        failedFilter.fromField.stringValue="typed-revision"
+        failedFilter.accept(); try require(failedFilter.window?.attachedSheet != nil)
+        failedFilter.close(); try await wait { failedFilter.window?.attachedSheet == nil && !failedFilter.hasPendingWork }
+        var read:CheckedContinuation<[String],Error>?, readToken:OperationCancellation?
+        let retiredFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ token in
+            readToken=token; return try await withCheckedThrowingContinuation { read=$0 }
+        }) { _ in }
+        try await wait { read != nil }
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
+        retiredFilter.close(); retiredModel.invalidate()
+        try require(readToken?.isCancelled == true && RevisionGraphFilterController.activeOperations == 1)
+        let finishRead=read;read=nil;finishRead?.resume(returning:["refs/heads/late"])
+        try await wait { RevisionGraphFilterController.activeOperations == 0 && !retiredFilter.hasPendingWork }
+        try require(retiredFilter.completionNames == ["HEAD"] && retiredFilter.completions(for:"HEAD").isEmpty)
+        print("PASS: Native Revision Graph captured menus, revision token completion, retired completion/Quit ownership, selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
+    }
+    @MainActor struct FixtureContext {
+        let root:URL,repo:GitRepository,helper:URL,prefs:UserDefaults,file:URL
+        let head:Data,refs:Data,index:Data,config:Data,bytes:Data
+        let controller:RevisionGraphWindowController,filterAdmission:NSMenuItem
+        var window:NSWindow {controller.window!}
+        var model:RevisionGraphWindowModel {controller.model}
+        func settledGraph(after child: RevisionGraphFilterController? = nil, line: UInt = #line) async throws {
+            try await RevisionGraphVerification.wait({
+                controller.filter == nil && child?.hasPendingWork != true &&
+                !controller.hasPendingWork && !model.hasPendingWork && !model.busy &&
+                window.attachedSheet == nil && controller.validateMenuItem(filterAdmission)
+            }, line: line)
+        }
+    }
+    @MainActor struct ControlsReceipt {
+        let selectedPair:[String]
+        let zoomBox:NSComboBox
+        let zoomText:@MainActor (String)throws->Void
+    }
+    @MainActor struct FindReceipt {
+        let regexHelper:URL
+        let reopenedFind:RevisionGraphFindController
+    }
+    @MainActor static func verifyAppearance(_ context:FixtureContext)async throws {
+        let controller=context.controller,model=context.model,window=context.window
+        let repo=context.repo,prefs=context.prefs,helper=context.helper
+        let originalFont = model.font
+        try require(originalFont.pointSize == 12 && model.options.ordering == .topological)
+        for (zoom, points) in [(1.0,12.0),(0.5,40.0/3.0),(0.1,40.0/3.0),(2.0,12.0)] {
+            try require(abs(Double(model.drawingFont(zoom:zoom)!.pointSize)-points) < 0.001)
+        }
+        try require(model.drawingFont(zoom:0.01)==nil && model.drawingFont(zoom:0)==nil && model.drawingFont(zoom:.infinity)==nil)
+        let originalSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
+        prefs.set("Courier", forKey:"LogFontName"); prefs.set(88, forKey:"LogFontSize")
+        HistoryOrdering.authorDate.save(defaults:prefs)
+        try require(model.font.fontName==originalFont.fontName)
+        model.load();try await wait { !model.busy && !model.hasPendingWork }
+        try require(model.error==nil && model.font.familyName=="Courier" && model.font.pointSize==12 && model.options.ordering == .authorDate)
+        let customSVG=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.svg,appearance:NSAppearance(named:.aqua)!)
+        let customDOT=try RevisionGraphExport.data(canvas:controller.canvas,viewport:CGSize(width:800,height:500),format:.graphviz,appearance:NSAppearance(named:.aqua)!)
+        let customScene=try RevisionGraphExport.snapshot(canvas:controller.canvas,viewport:CGSize(width:800,height:500),appearance:NSAppearance(named:.aqua)!).vector
+        let capturedFonts=customScene.commands.compactMap{command->String? in if case .text(let text)=command{return text.fontName};return nil}
+        try require(!capturedFonts.isEmpty && capturedFonts.allSatisfy{$0==model.drawingFont(zoom:1)!.fontName})
+        try require(XMLParser(data:customSVG).parse() && String(decoding:customSVG,as:UTF8.self).contains("<path") && customSVG != originalSVG)
+        try require(String(decoding:customDOT,as:UTF8.self).contains("fontname=\"Courier\", fontsize=12.000"))
+        let publishedFont=model.font,publishedGeometry=model.geometry!.nodes.map(\.rect)
+        prefs.set("Helvetica",forKey:"LogFontName");model.options.to="missing-graph-font-revision";model.load();try await wait { !model.busy && !model.hasPendingWork }
+        try require(model.error != nil && model.font.fontName==publishedFont.fontName && model.geometry!.nodes.map(\.rect)==publishedGeometry)
+        prefs.set("TurtleGit-no-such-font",forKey:"LogFontName");prefs.removeObject(forKey:"LogFontSize");HistoryOrdering.topological.save(defaults:prefs);model.options.to=""
+        model.load();try await wait { !model.busy && !model.hasPendingWork }
+        try require(model.error==nil && model.font.familyName==originalFont.familyName && model.font.pointSize==12)
+        prefs.removeObject(forKey:"LogFontName");prefs.removeObject(forKey:HistoryOrdering.preferenceKey)
+        window.contentView!.layoutSubtreeIfNeeded(); controller.update()
+        try require(controller.scroll.contentSize.width > 600 && controller.scroll.contentSize.height > 300)
+        NSAppearance(named: .aqua)!.performAsCurrentDrawingAppearance {
+            let green = RevisionGraphPalette.background(.localBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)!
+            assert(abs(green.greenComponent - 195.0/255) < 0.001 && green.redComponent == 0)
+            assert(RevisionGraphPalette.foreground(green) == NSColor.white)
+            prefs.set(true, forKey: "Graph.RevGraphUseLocalForCur")
+            assert(RevisionGraphPalette.background(.currentBranch, pointer: false, preferences: prefs).usingColorSpace(.sRGB)! == green)
+            prefs.removeObject(forKey: "Graph.RevGraphUseLocalForCur")
+        }
+        try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
+        let keys = ["ShowRevGraphOverview", "ArrowPointToMerges", "ShowRevGraphBranchesMerges", "ShowRevGraphAllTags"]
+        try require(keys.allSatisfy { prefs.object(forKey: $0) == nil })
+        func displayItem(_ owner: RevisionGraphWindowController, _ command: String) -> NSMenuItem {
+            views(owner.window!.contentView!).compactMap { $0 as? NSPopUpButton }.flatMap { $0.itemArray }.first { ($0.representedObject as? String) == command }!
+        }
+        func toggle(_ command: String) async throws {
+            let item = displayItem(controller, command)
+            try require(NSApp.sendAction(item.action!, to: item.target, from: item))
+            try await wait { !model.busy && !model.hasPendingWork }
+        }
+        try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
+        try require(prefs.bool(forKey: keys[0]) && prefs.bool(forKey: keys[1]) && prefs.bool(forKey: keys[2]) && !prefs.bool(forKey: keys[3]))
+        model.options.from = "transient-filter"; model.options.onlyCurrentBranch = true; model.zoom = 0.5
+        let reopened = RevisionGraphWindowController(repository: repo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
+        reopened.window!.alphaValue = 0
+        try require(reopened.model.showOverview && reopened.model.arrowsTowardMerges && reopened.model.options.showBranchingsAndMerges && !reopened.model.options.showAllTags)
+        try require(reopened.model.zoom == 1 && reopened.model.options.from.isEmpty && !reopened.model.options.onlyCurrentBranch && reopened.model.selection.isEmpty)
+        for (command, state) in [("overview", NSControl.StateValue.on), ("arrows", .on), ("branchings", .on), ("tags", .off)] {
+            let item = displayItem(reopened, command); try require(reopened.validateMenuItem(item) && item.state == state)
+        }
+        reopened.window!.close(); try await wait { !reopened.hasPendingWork }; try require(reopened.model.closed)
+        reopened.perform("arrows"); try require(prefs.bool(forKey: keys[1]))
+        model.options.from = ""; model.options.onlyCurrentBranch = false; model.zoom = 1
+        // Loading/sheet guards must reject actions before touching saved state.
+        model.load(); try require(model.busy)
+        controller.perform("overview"); try require(model.showOverview && prefs.bool(forKey: keys[0]))
+        try await wait { !model.busy && !model.hasPendingWork }
+        try await toggle("overview"); try await toggle("arrows"); try await toggle("branchings"); try await toggle("tags")
+        try require(!model.showOverview && !model.arrowsTowardMerges && !model.options.showBranchingsAndMerges && model.options.showAllTags)
+        try require(!prefs.bool(forKey: keys[0]) && !prefs.bool(forKey: keys[1]) && !prefs.bool(forKey: keys[2]) && prefs.bool(forKey: keys[3]))
+        print("PASS: Revision Graph display preferences, source defaults, menu dispatch/checkmarks, reopen and busy/closed guards")
+    }
+    @MainActor static func verifyToolbarAndOverview(_ context:FixtureContext)async throws->ControlsReceipt {
+        let controller=context.controller,model=context.model,window=context.window
+        let scroll=controller.canvas.enclosingScrollView!,clip=scroll.contentView
         controller.perform("zoomOut"); try require(abs(model.zoom - 0.9) < 0.0001)
         controller.perform("zoom100"); controller.perform("overview"); try require(model.zoom == 1 && model.showOverview)
         let toolbar = try XCToolbar(window)
@@ -360,26 +534,32 @@ import Darwin
         try require(!overview.hasPointerGesture && clip.bounds.origin == .zero && model.selection==selectedPair)
         try require(controller.canvas.setZoom(1));controller.update();clip.scroll(to:.zero);scroll.reflectScrolledClipView(clip)
         print("PASS: Revision Graph adaptive overview dimensions, bottom-right placement, resize, viewport and drag routing")
-        func capture(_ target: NSWindow, prefix: String) async throws {
-            guard CommandLine.arguments.count > 4 else { return }
-            let directory = URL(fileURLWithPath: CommandLine.arguments[4])
-            target.orderOut(nil); target.alphaValue = 1
-            defer { target.alphaValue = 0; target.orderFront(nil) }
-            for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
-                target.appearance = NSAppearance(named: appearance); target.makeFirstResponder(nil)
-                target.contentView!.layoutSubtreeIfNeeded(); target.contentView!.needsDisplay = true
-                if prefix == "revision-graph-find" {
-                    let findButton = views(target.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Find" }!
-                    let frame = findButton.convert(findButton.bounds, to: target.contentView!)
-                    try require(target.contentView!.bounds.maxX - frame.maxX < 30 && target.contentView!.bounds.contains(frame))
-                }
-                try await Task.sleep(nanoseconds: 200_000_000)
-                let view = target.contentView!, bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
-                target.effectiveAppearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: view.bounds, to: bitmap) }
-                try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent(prefix + "-" + name + ".png"))
+        return ControlsReceipt(selectedPair:selectedPair,zoomBox:zoomBox,zoomText:zoomText)
+    }
+    @MainActor static func capture(_ target: NSWindow, prefix: String) async throws {
+        guard CommandLine.arguments.count > 4 else { return }
+        let directory = URL(fileURLWithPath: CommandLine.arguments[4])
+        target.orderOut(nil); target.alphaValue = 1
+        defer { target.alphaValue = 0; target.orderFront(nil) }
+        for (name, appearance) in [("light", NSAppearance.Name.aqua), ("dark", NSAppearance.Name.darkAqua)] {
+            target.appearance = NSAppearance(named: appearance); target.makeFirstResponder(nil)
+            target.contentView!.layoutSubtreeIfNeeded(); target.contentView!.needsDisplay = true
+            if prefix == "revision-graph-find" {
+                let findButton = views(target.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Find" }!
+                let frame = findButton.convert(findButton.bounds, to: target.contentView!)
+                try require(target.contentView!.bounds.maxX - frame.maxX < 30 && target.contentView!.bounds.contains(frame))
             }
-            target.appearance = NSAppearance(named: .aqua)
+            try await Task.sleep(nanoseconds: 200_000_000)
+            let view = target.contentView!, bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)!
+            target.effectiveAppearance.performAsCurrentDrawingAppearance { view.cacheDisplay(in: view.bounds, to: bitmap) }
+            try bitmap.representation(using: .png, properties: [:])!.write(to: directory.appendingPathComponent(prefix + "-" + name + ".png"))
         }
+        target.appearance = NSAppearance(named: .aqua)
+    }
+    @MainActor static func verifyFind(_ context:FixtureContext,controls:ControlsReceipt,main:RevisionGraphNode,feature:RevisionGraphNode,rootNode:RevisionGraphNode,geometry:[RevisionGraphNodeGeometry],click:@MainActor (Int)->Void)async throws->FindReceipt {
+        let controller=context.controller,model=context.model,window=context.window
+        let repo=context.repo,prefs=context.prefs,root=context.root
+        let selectedPair=controls.selectedPair,zoomBox=controls.zoomBox
         try await capture(window, prefix: "revision-graph")
         let regexHelper = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
         let commandF = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: .command, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: "f", charactersIgnoringModifiers: "f", isARepeat: false, keyCode: 3)!
@@ -509,6 +689,13 @@ import Darwin
         print("PASS: Find original reference-type pixels, Command-F/Cancel and Shift-Return routes, error sheets, root/input locks and forced-owned cleanup")
         model.selection = selectedPair; controller.update()
         print("PASS: Revision Graph modeless Find ownership, text/case/ECMAScript/email/ref search, shift navigation, filter/history, busy locks and cancellation")
+        return FindReceipt(regexHelper:regexHelper,reopenedFind:reopenedFind)
+    }
+    @MainActor static func verifyFilters(_ context:FixtureContext,controls:ControlsReceipt,findState:FindReceipt)async throws {
+        let controller=context.controller,model=context.model,window=context.window
+        let repo=context.repo,prefs=context.prefs,root=context.root,file=context.file
+        let head=context.head,refs=context.refs,index=context.index,config=context.config,bytes=context.bytes
+        let zoomBox=controls.zoomBox,zoomText=controls.zoomText,reopenedFind=findState.reopenedFind
         controller.showFilter(); try await wait { window.attachedSheet != nil }
         let child = window.attachedSheet!; try require(child.alphaValue == 0 && !zoomBox.isEnabled)
         try require(!reopenedFind.findButton.isEnabled); reopenedFind.findNext(); try require(!reopenedFind.busy)
@@ -562,24 +749,28 @@ import Darwin
         local.performClick(nil); try require(current.isEnabled && to.isEnabled)
         print("PASS: Revision Graph Filter multi-reference picker, nested ownership, selection/cancel focus and source scope gates")
         try require(!controller.windowShouldClose(window))
-        buttons.first { $0.title == "Cancel" }!.performClick(nil);try await settledGraph(after:filter)
+        buttons.first { $0.title == "Cancel" }!.performClick(nil);try await context.settledGraph(after:filter)
         try require(!model.options.onlyCurrentBranch && !model.options.onlyLocalBranches)
         controller.showFilter(); try await wait { window.attachedSheet != nil }
         let appliedFilter=controller.filter!
         appliedFilter.window!.makeFirstResponder(nil)
         appliedFilter.fromField.stringValue = ""; appliedFilter.toField.stringValue = chosenRefs
-        appliedFilter.ok.performClick(nil);try await settledGraph(after:appliedFilter)
+        appliedFilter.ok.performClick(nil);try await context.settledGraph(after:appliedFilter)
         if model.error != nil || model.options.to != chosenRefs || model.nodes.isEmpty { print("Filter apply diagnostic:", model.options.from, model.options.to, chosenRefs, model.error ?? "no error", model.nodes.count) }
         try require(model.error == nil && model.options.to == chosenRefs && !model.nodes.isEmpty)
         model.options.from = "v1.0"; model.options.onlyCurrentBranch = true
         controller.showFilter(); try await wait { window.attachedSheet != nil }
         let resetFilter=controller.filter!,resetSheet=window.attachedSheet!;resetSheet.alphaValue=0
         views(resetSheet.contentView!).compactMap { $0 as? NSButton }.first { $0.title == "Reset filter" }!.performClick(nil)
-        try await settledGraph(after:resetFilter)
+        try await context.settledGraph(after:resetFilter)
         try require(model.options.from.isEmpty && !model.options.onlyCurrentBranch && model.nodes.count == 3)
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterRefs = try await repo.run(["show-ref"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterConfig = try Data(contentsOf: root.appendingPathComponent(".git/config")), afterBytes = try Data(contentsOf: file)
         try require(head == afterHead && refs == afterRefs && index == afterIndex && config == afterConfig && bytes == afterBytes)
+    }
+    @MainActor static func verifyExports(_ context:FixtureContext)async throws {
+        let controller=context.controller,model=context.model,window=context.window
+        let root=context.root,repo=context.repo,prefs=context.prefs,helper=context.helper
         // Export actual data in every encoding, with scroll-independent extent.
         let picker = RevisionGraphSavePanel()
         try require(picker.format == .svg && picker.panel.nameFieldStringValue.hasSuffix(".svg"))
@@ -645,149 +836,6 @@ import Darwin
         try await wait {!retiredExport.hasPendingWork && retiredExport.graphSavePanel==nil && !retiredExport.hasExportSheet}
         try require(retiredExport.model.closed && retiredExport.graphSavePanel == nil && !retiredExport.hasExportSheet)
         print("PASS: Revision Graph owned export, sheet lock/cancel/reopen and forced-owner stale reply refusal")
-        // Destructive checks touch only this disposable repository, after the read-only invariants above.
-        func itemDeleting(_ name: String) throws -> NSMenuItem {
-            let menu = controller.nodeMenu()
-            for item in menu.items.flatMap({ [$0] + ($0.submenu?.items ?? []) }) {
-                if [name,name+"^{}","Delete "+name,"Delete "+name+"^{}"].contains(item.title) { return item }
-            }
-            throw Failure(line: #line)
-        }
-        func invoke(_ item: NSMenuItem) throws {
-            let valid = controller.validateMenuItem(item)
-            print("Invoking Graph menu: \(item.title); valid=\(valid); busy=\(model.busy); selection=\(model.selection); sheet=\(window.attachedSheet != nil)")
-            if !valid {
-                print("Graph menu rejection: command=\(String(describing: item.representedObject)); closed=\(model.closed); filter=\(controller.filter != nil); selected refs=\(model.selectedNode?.references.map(\.name) ?? [])")
-            }
-            try require(valid)
-            let delivered = NSApp.sendAction(item.action!, to: item.target, from: item)
-            if !delivered { print("Graph menu action delivery failed: \(item.title)") }
-            try require(delivered)
-        }
-        func sheetButton(_ title: String) async throws {
-            try await wait { window.attachedSheet != nil }
-            let sheet = window.attachedSheet!; try require(sheet.alphaValue == 0 && !controller.windowShouldClose(window))
-            guard let button = views(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == title }) else { throw Failure(line: #line) }
-            button.performClick(nil)
-            try await wait { window.attachedSheet !== sheet && sheet.sheetParent==nil }
-        }
-        model.select(rootNode.hash, extending: false)
-        let annotated = try itemDeleting("refs/tags/release-v1")
-        try require(annotated.title == "refs/tags/release-v1^{}")
-        controller.perform("copyRefs"); try require(copied.contains("refs/tags/release-v1^{}"))
-        try invoke(annotated); try await wait { window.attachedSheet != nil }
-        let abortSheet = window.attachedSheet!
-        try require(abortSheet.defaultButtonCell?.title == "Abort" && !controller.windowShouldClose(window))
-        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
-        let enter = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0, windowNumber: abortSheet.windowNumber, context: nil, characters: "\r", charactersIgnoringModifiers: "\r", isARepeat: false, keyCode: 36)!
-        if !abortSheet.performKeyEquivalent(with: enter) { abortSheet.sendEvent(enter) }
-        try await settledGraph()
-        let keptAnnotated = try await repo.run(["rev-parse", "refs/tags/release-v1"]).text
-        try require(!keptAnnotated.isEmpty)
-        try require(!controller.validateMenuItem(annotated))
-        try invoke(try itemDeleting("refs/tags/release-v1")); try await sheetButton("Delete"); try await settledGraph()
-        let removedAnnotated = try? await repo.run(["show-ref", "--verify", "refs/tags/release-v1"])
-        try require(removedAnnotated == nil)
-        model.select(main.hash, extending: false)
-        let all = controller.nodeMenu().items.first { $0.title == "Delete branch/tag" }!.submenu!.items.last!
-        try invoke(all)
-        try await sheetButton("Delete local remote-tracking branch")
-        // All confirms each reference in sequence; Abort stops at the next tag.
-        try await sheetButton("Abort"); try await settledGraph()
-        let removedRemote = try? await repo.run(["show-ref", "--verify", "refs/remotes/origin/main"])
-        let keptTag = try await repo.run(["show-ref", "--verify", "refs/tags/export<&\"'>"])
-        let currentHead = try await repo.run(["rev-parse", "HEAD"]).stdout
-        try require(removedRemote == nil && !keptTag.stdout.isEmpty && currentHead == head)
-        // A ref moved before menu activation must not be deleted under the old node.
-        model.select(rootNode.hash, extending: false)
-        let stale = try itemDeleting("refs/tags/v1.0")
-        _ = try await repo.run(["tag", "-f", "v1.0", "HEAD"])
-        try invoke(stale); try await sheetButton("OK"); try await settledGraph()
-        let moved = try await repo.run(["rev-parse", "v1.0"]).stdout
-        try require(moved == head)
-        _ = try await repo.run(["tag", "-f", "v1.0", rootNode.hash]); model.load(); try await wait { !model.busy && !model.hasPendingWork }
-        model.select(rootNode.hash, extending: false)
-        let raced = try itemDeleting("refs/tags/v1.0")
-        try invoke(raced); try await wait { window.attachedSheet != nil }
-        _ = try await repo.run(["tag", "-f", "v1.0", "HEAD"])
-        try await sheetButton("Delete"); try await sheetButton("OK"); try await settledGraph()
-        let afterRace = try await repo.run(["rev-parse", "v1.0"]).stdout
-        try require(afterRace == head)
-        model.load(); try await wait { !model.busy && !model.hasPendingWork }
-        let unlabelled = model.nodes.first { $0.references.isEmpty }!
-        model.select(unlabelled.hash, extending: false); controller.perform("copyRefs")
-        try require(copied == unlabelled.hash)
-        print("PASS: Revision Graph source node menus, branch/tag routing, range Log, copy refs, annotated deletion, Abort/All, moved-ref and confirmation-race guards")
-        let parentRoot = root.deletingLastPathComponent().appendingPathComponent(root.lastPathComponent + "-superproject")
-        try FileManager.default.createDirectory(at: parentRoot, withIntermediateDirectories: true)
-        let parentRepo = GitRepository(root: parentRoot, executable: URL(fileURLWithPath: CommandLine.arguments[2]), libgit2Configuration: .init(enabled: false))
-        _ = try await parentRepo.run(["init", "-b", "main"])
-        _ = try await parentRepo.run(["-c", "protocol.file.allow=always", "submodule", "add", "--", root.path, "child"])
-        var pointerTrees: [String] = []
-        for hash in [rootNode.hash, main.hash, feature.hash] {
-            _ = try await parentRepo.run(["update-index", "--cacheinfo", "160000," + hash + ",child"])
-            pointerTrees.append(try await parentRepo.run(["write-tree"]).text.trimmingCharacters(in: .newlines))
-        }
-        _ = try await parentRepo.run(["read-tree", pointerTrees[1]])
-        _ = try await parentRepo.run(["read-tree", "-m"] + pointerTrees)
-        let parentIndex = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
-        let childRepo = GitRepository(root: parentRoot.appendingPathComponent("child"), executable: URL(fileURLWithPath: CommandLine.arguments[2]), libgit2Configuration: .init(enabled: false))
-        let childGraph = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
-        childGraph.window!.alphaValue = 0; childGraph.window!.orderFront(nil)
-        childGraph.model.load(); try await wait { !childGraph.model.busy && !childGraph.hasPendingWork }
-        try require(childGraph.model.error == nil)
-        try require(childGraph.model.pointers[main.hash] == ["super-project-head"] && childGraph.model.pointers[feature.hash] == ["super-project-merge-head"])
-        for (hash, label) in [(main.hash, "super-project-head"), (feature.hash, "super-project-merge-head")] {
-            let node = childGraph.model.nodes.first { $0.hash == hash }!
-            let rows = childGraph.model.lines(node)
-            try require(rows.first!.0 == label && rows.first!.2)
-            let geometry = childGraph.model.geometry!.nodes.first { $0.hash == hash }!
-            try require(geometry.rect.height >= CGFloat(rows.count) * (ceil(childGraph.model.font.ascender - childGraph.model.font.descender) + 10))
-        }
-        let pointerSVG = try RevisionGraphExport.data(canvas: childGraph.canvas, viewport: childGraph.scroll.contentSize, format: .svg, appearance: NSAppearance(named: .aqua)!)
-        let svgText = String(decoding: pointerSVG, as: UTF8.self)
-        try require(svgText.contains("super-project-head") && svgText.contains("super-project-merge-head") && svgText.contains("#f699fd"))
-        let parentAfter = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
-        try require(parentAfter == parentIndex)
-        childGraph.window!.close();try await wait{!childGraph.hasPendingWork};try require(childGraph.model.closed)
-        prefs.set(false, forKey: "LogShowSuperProjectSubmodulePointer")
-        let hiddenChild = RevisionGraphWindowController(repository: childRepo, access: nil, preferences: prefs, layoutExecutable: helper, automaticallyLoad: false)
-        hiddenChild.window!.alphaValue = 0
-        hiddenChild.model.load(); try await wait { !hiddenChild.model.busy && !hiddenChild.hasPendingWork }
-        try require(hiddenChild.model.error == nil && hiddenChild.model.pointers.isEmpty && !hiddenChild.model.options.showSuperprojectPointers)
-        hiddenChild.window!.close();try await wait{!hiddenChild.hasPendingWork}; prefs.removeObject(forKey: "LogShowSuperProjectSubmodulePointer")
-        let afterHidden = try Data(contentsOf: parentRoot.appendingPathComponent(".git/index"))
-        try require(afterHidden == parentIndex)
-        print("PASS: Native conflicted submodule graph pointer labels, measured rows, SVG pointer color Advanced setting and unchanged parent index")
-        controller.showFind(regexExecutable: regexHelper)
-        let finalFind = controller.find!
-        model.load(); try require(model.busy)
-        var closed = false; controller.onClosed = { closed = true }
-        window.performClose(nil); try await wait { closed && !controller.hasPendingWork && !finalFind.hasPendingWork }
-        try require(model.closed && !model.busy && finalFind.closed && controller.find == nil)
-        model.load(); try require(!model.busy)
-        try await wait { RevisionGraphWindowModel.activeOperations == 0 && RevisionGraphFilterController.activeOperations == 0 }
-        let retiredModel=RevisionGraphWindowModel(repository:repo,access:nil,preferences:prefs,layoutExecutable:helper)
-        let failedFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ _ in
-            throw NSError(domain:"GraphFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Fixture reference read failure"])
-        }) { _ in }
-        try await wait { failedFilter.window?.attachedSheet != nil && RevisionGraphFilterController.activeOperations == 0 }
-        try require(failedFilter.completionError == "Fixture reference read failure")
-        failedFilter.fromField.stringValue="typed-revision"
-        failedFilter.accept(); try require(failedFilter.window?.attachedSheet != nil)
-        failedFilter.close(); try await wait { failedFilter.window?.attachedSheet == nil && !failedFilter.hasPendingWork }
-        var read:CheckedContinuation<[String],Error>?, readToken:OperationCancellation?
-        let retiredFilter=RevisionGraphFilterController(model:retiredModel,referenceReader:{ token in
-            readToken=token; return try await withCheckedThrowingContinuation { read=$0 }
-        }) { _ in }
-        try await wait { read != nil }
-        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
-        retiredFilter.close(); retiredModel.invalidate()
-        try require(readToken?.isCancelled == true && RevisionGraphFilterController.activeOperations == 1)
-        let finishRead=read;read=nil;finishRead?.resume(returning:["refs/heads/late"])
-        try await wait { RevisionGraphFilterController.activeOperations == 0 && !retiredFilter.hasPendingWork }
-        try require(retiredFilter.completionNames == ["HEAD"] && retiredFilter.completions(for:"HEAD").isEmpty)
-        print("PASS: Native Revision Graph captured menus, revision token completion, retired completion/Quit ownership, selection, routing, zoom, tooltip, filter scopes, Reset, cancellation and repository invariants")
     }
     @MainActor static func graphCommandFamily(controller:RevisionGraphWindowController,repository:GitRepository,preferences:UserDefaults,helper:URL) async throws {
         let model=controller.model,canvas=controller.canvas,window=controller.window!,originalSelection=model.selection
