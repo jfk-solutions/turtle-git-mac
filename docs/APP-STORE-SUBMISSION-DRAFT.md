@@ -1,6 +1,6 @@
 # App Store submission dossier — draft
 
-Listing copy drafted 26 October 2026; local delivery status reviewed 5 November 2026.
+Listing copy drafted 26 October 2026; local delivery status reviewed 23 November 2026.
 
 This is a reviewable preparation artifact, **not an approved listing, signed export,
 license clearance or submission**. No App Store Connect fields were changed. The
@@ -78,7 +78,16 @@ The test app's signing, entitlements and Finder integration still need their own
 measured acceptance; an account answer is not evidence that a particular build
 has passed those checks.
 
-## Current local delivery checkpoint — 5 November 2026
+## Prepared local candidate55 — November 23, 2026
+
+[Build55](qa/signed-consolidation-build55-2026-11-23.json) is a separately packaged
+Apple Development signed local test candidate from exact `a5e53664`. Its universal
+build, strict static audit, two signed-helper phases and source/ZIP round trips
+passed. Installed52 remains unchanged. Shipping UI/Finder, full hosted CI and
+license/Store terms clearance remain open; this is not a distribution-signed
+Store export or submission. The owner tests locally before any later upload.
+
+## Historical installed52 checkpoint — 5 November 2026
 
 The installed app is [signed development build 52](qa/signed-consolidation-build52-2026-11-03.json),
 version **0.1.0 (52)**, from source `3702643e020511fc09687cda58f352ad5d12e459`.

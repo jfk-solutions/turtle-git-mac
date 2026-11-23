@@ -5,6 +5,16 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
+## Local candidate55 — November 23, 2026
+
+[Signed55](qa/signed-consolidation-build55-2026-11-23.json) is packaged from exact
+`a5e53664` with matching source, licenses and runtime reconstruction material.
+The universal build, static signature/resource audit, two signed-helper phases
+and ZIP/source round trips pass their recorded scopes. Installed52 and immutable54
+are unchanged. No shipping GUI/Finder acceptance or full hosted pass is implied.
+Older12fb CI has native failures with only step exit codes available; their actual
+assertions still require accessible diagnostics. No Store submission is authorized.
+
 ## Classic EMF path batch — November 23, 2026
 
 The [classic path family](METAFILE-CLASSIC-PATH-PARITY.md) implements typed

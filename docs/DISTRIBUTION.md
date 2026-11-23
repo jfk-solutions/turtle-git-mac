@@ -3,11 +3,43 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The installed candidate is signed build52;
-signed build54 is packaged separately for local testing, and the working source
-tree contains later changes that are a separate testing target.
+signed build55 is packaged separately for local testing from exact committed
+source. The earlier54 package remains preserved; experimental uncommitted work
+is excluded from55.
 There is no public App Store listing or submitted release. The App Store remains
 a future distribution channel, with full-port acceptance, distribution signing
 and the existing license/Store terms review still open.
+
+## Signed local testing build55
+
+[Build55's record](qa/signed-consolidation-build55-2026-11-23.json) identifies the
+packaged `0.1.0 (55)` local candidate. Installed52 and immutable54 are unchanged.
+
+| Item | Recorded identity |
+| --- | --- |
+| Exact clean source | `a5e536645181cb5062d2c762de328df7b3e8031a` |
+| Build-input SHA-256 | `9978cca4342cd261c53f81826abe7f4499fd8c12919c047c573018780a37c640` |
+| Local ZIP | `build/local-testing/TurtleGit-for-Mac-0.1.0-build55-signed/TurtleGit-for-Mac-0.1.0-build55-signed.zip` |
+| ZIP SHA-256 | `afb4b27c954ea12d7e0f26f26d5f48dfa2fb60650b2dd19157a44d30db830a6c` |
+| Matching source archive SHA-256 | `bd564bd260ecb51c819980b0a74c5cadda4faf2e5c49ca703e556a2e05fd130f` |
+| Signing channel | Apple Development, sandboxed AppStore configuration for local testing |
+
+This combines the completed report/history ownership, working-status actions,
+scoped Commit/Add/Revert and Working Tree workflows, and the already-started
+classic EMF path batch. Experimental HQ interpolation and unrelated reference
+work are excluded. Validated dependency/compiler caches were reused without
+changing the earlier signed package. The preparation record retains an identity
+guard failure and the focused repair of two copied absolute cache links.
+
+The universal build, strict signature/runtime audit, two signed-helper phases
+and extracted ZIP/source round trips passed. The source companion matches all
+14,854 tracked blobs, names, modes and commit metadata. All logged owned test
+processes were absent after cleanup. No user app was closed or installed.
+
+These checks do not certify55's shipping UI, physical Finder integration or all
+supported systems. The older hosted run has native step failures whose actual
+assertions are not yet available; no complete matching hosted pass is claimed.
+Local acceptance and licensing/Store terms review remain separate gates.
 
 ## Signed local testing build54
 
