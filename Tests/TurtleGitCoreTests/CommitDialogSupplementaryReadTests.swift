@@ -105,7 +105,8 @@ final class CommitDialogSupplementaryReadTests:XCTestCase {
             XCTAssertEqual(commands.filter{$0=="rev-parse"}.count,4,"Two layout paths plus HEAD and its parent; no per-marker probes",file:file,line:line)
             XCTAssertEqual(commands.filter{$0=="branch"}.count,1,file:file,line:line)
             XCTAssertEqual(commands.filter{$0=="status"}.count,1,file:file,line:line)
-            XCTAssertEqual(commands.filter{$0=="diff"}.count,3,file:file,line:line)
+            XCTAssertEqual(commands.filter{$0=="diff"}.count,1,file:file,line:line)
+            XCTAssertEqual(commands.filter{$0=="diff-index"}.count,2,file:file,line:line)
             XCTAssertEqual(commands.filter{$0=="ls-files"}.count,indexQueries,file:file,line:line)
             XCTAssertEqual(commands.count,9+indexQueries,file:file,line:line)
         }

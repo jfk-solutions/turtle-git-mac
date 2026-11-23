@@ -39,8 +39,7 @@ public struct WorkingTreeFile: Identifiable, Sendable {
     public var status: String {
         if skipWorktree { return "Skip-worktree" }
         if assumeUnchanged { return "Assume unchanged" }
-        if entry.index == "R" || entry.worktree == "R" { return "Renamed" }
-        return state.rawValue.capitalized
+        return state == .normal ? "Normal" : entry.actionCaption
     }
 }
 

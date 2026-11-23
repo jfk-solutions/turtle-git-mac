@@ -321,13 +321,31 @@ extension StatusEntry {
     /// The source combines index/worktree action bits, then chooses one role.
     /// Modification precedes add/copy, deletion and rename; conflicts precede all.
     var statusTextRole: StatusTextRole? {
-        if state == .conflicted { return .conflict }
-        let actions = [index,worktree]
-        if actions.contains("M") || actions.contains("T") { return .modified }
-        if actions.contains("A") || actions.contains("C") { return .added }
-        if actions.contains("D") || actions.contains("K") { return .deleted }
-        if actions.contains("R") { return .renamed }
+        if state == .conflicted || reportingActions.contains(.unmerged) { return .conflict }
+        let actions=reportingActions
+        if actions.contains(.modified) { return .modified }
+        if actions.contains(.added) || actions.contains(.copied) { return .added }
+        if actions.contains(.deleted) || actions.contains(.missing) { return .deleted }
+        if actions.contains(.renamed) { return .renamed }
+        if actions.contains(.merged) { return .merged }
         return nil
+    }
+    /// Source action icons follow the status role; Copy shares Added's role
+    /// while its caption and origin remain independent of staging membership.
+    var statusIcon:MenuIcon {
+        if state == .conflicted || reportingActions.contains(.unmerged) {return FileState.conflicted.icon}
+        switch statusTextRole {
+        case .added:return FileState.added.icon
+        case .deleted:return FileState.deleted.icon
+        case .modified,.renamed,.merged:return FileState.modified.icon
+        case .conflict:return FileState.conflicted.icon
+        case nil:return state.icon
+        }
+    }
+    func statusOriginDescription(displayPath:(String)->String = {$0})->String {
+        guard let origin=reportingOriginalPath else{return ""}
+        if isCopied && !isRenamed {return HistoryLabels.text("Copied from {path}",values:["path":displayPath(origin)])}
+        return HistoryLabels.text("Renamed from {path}",values:["path":displayPath(origin)])
     }
     func statusTextColor(selected: Bool = false, preferences: UserDefaults = .standard) -> Color {
         if selected { return .primary }
@@ -336,6 +354,11 @@ extension StatusEntry {
 }
 
 extension CommitFile {
+    func statusOriginDescription(displayPath:(String)->String = {$0})->String {
+        guard let origin=oldPath else{return ""}
+        if action.hasPrefix("C") {return HistoryLabels.text("Copied from {path}",values:["path":displayPath(origin)])}
+        return HistoryLabels.text("Renamed from {path}",values:["path":displayPath(origin)])
+    }
     /// CTGitPath::ParseStatus followed by GitStatusListCtrl's action colors.
     /// Rename/copy scores do not affect the action; type changes are Modified.
     var statusTextRole: StatusTextRole? {

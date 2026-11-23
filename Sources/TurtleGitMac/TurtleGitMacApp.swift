@@ -195,7 +195,7 @@ struct WorkspaceStatusRow:Identifiable {
     let entry:StatusEntry
     var id:String {GitPathRowIdentity.encode(entry.path)}
     var path:String {entry.path}
-    var originalPath:String? {entry.originalPath}
+    var originalPath:String? {entry.reportingOriginalPath}
     var state:FileState {entry.state}
     var staged:Bool {entry.staged}
 }
@@ -310,10 +310,10 @@ struct RepositoryWindow: View {
         VStack(spacing: 8) {
             Table(model.visibleEntries.map {WorkspaceStatusRow(entry:$0)}, selection: $model.nativeSelection) {
                 TableColumn("Status") { entry in
-                    CommandLabel(title: FileListLabels.caption(entry.state.rawValue.capitalized), icon: entry.state.icon, localized:false).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences))
+                    CommandLabel(title: FileListLabels.caption(entry.entry.actionCaption), icon: entry.entry.statusIcon, localized:false).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences))
                 }.width(min: 120, ideal: 145, max: 180)
                 TableColumn("Staged") { entry in Text(entry.staged ? "✓" : "").foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)) }.width(55)
-                TableColumn("File") { entry in Text(entry.path).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)).help(entry.originalPath.map { "Renamed from \($0)" } ?? entry.path) }
+                TableColumn("File") { entry in Text(entry.path).foregroundStyle(entry.entry.statusTextColor(selected:model.selection.contains(entry.path),preferences:model.fileComparisonPreferences)).help(entry.entry.statusOriginDescription().isEmpty ? entry.path:entry.entry.statusOriginDescription()) }
             }.fileListFont()
             .onCopyCommand {
                 let context = model.captureWorkspaceMenu()

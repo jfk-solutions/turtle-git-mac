@@ -15,7 +15,7 @@ public struct WorkingFileRevertPolicy: Equatable, Sendable {
         return .init(recycle: enabled("RevertWithRecycleBin"), recycleRenamedFiles: enabled("RevertRenamedFilesWithRecycleBin"))
     }
     public func shouldRecycle(_ entry: StatusEntry) -> Bool {
-        recycle && entry.state != .added && (recycleRenamedFiles || (entry.index != "R" && entry.worktree != "R"))
+        recycle && !entry.reportingActions.contains(.added) && (recycleRenamedFiles || !entry.isRenamed)
     }
 }
 
@@ -79,7 +79,7 @@ extension GitRepository {
     /// silently turn an ignored item in a mixed request into an omitted item.
     private func workingFileRevertStatus(_ requested: GitPathSet, explicitlySelected:GitPathSet, amendToParent: Bool, cancellation: OperationCancellation?) throws -> [StatusEntry] {
         var current = try commitDialogStatus(amendToParent: amendToParent, cancellation: cancellation)
-        let counterparts=GitPathSet(current.compactMap(\.originalPath))
+        let counterparts=GitPathSet(current.compactMap{$0.isRenamed ? $0.reportingOriginalPath:nil})
         let represented=GitPathSet(current.map(\.path)).union(counterparts.subtracting(explicitlySelected))
         let missing = GitPathOperationOrder.sorted(requested.subtracting(represented))
         for offset in stride(from: 0, to: missing.count, by: 64) {
@@ -247,7 +247,7 @@ extension GitRepository {
     /// Clean tracked paths remain eligible; any other lost identity fails closed.
     public func workingFileRevertSelection(_ selected: [StatusEntry], amend: Bool = false, againstHead: Bool = false, cancellation: OperationCancellation? = nil) throws -> [StatusEntry] {
         try cancellation?.check()
-        let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
+        let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.isRenamed ? $0.reportingOriginalPath.map { [$0] } ?? []:[]) })
         _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
         let explicitlySelected = GitPathSet(selected.map(\.path))
         let current = try workingFileRevertStatus(requested, explicitlySelected:explicitlySelected, amendToParent: amend && !againstHead, cancellation: cancellation)
@@ -255,10 +255,10 @@ extension GitRepository {
         // additional unknown-file selection. An old-name obstruction must keep
         // the rename's captured recycling policy unless explicitly selected too.
         var result = current.filter {
-            (requested.contains($0.path) || $0.originalPath.map { requested.contains($0) } == true) &&
+            (requested.contains($0.path) || $0.isRenamed && $0.reportingOriginalPath.map { requested.contains($0) } == true) &&
             (![FileState.untracked, .ignored].contains($0.state) || explicitlySelected.contains($0.path))
         }
-        let represented = GitPathSet(result.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
+        let represented = GitPathSet(result.flatMap { [$0.path] + ($0.isRenamed ? $0.reportingOriginalPath.map { [$0] } ?? []:[]) })
         let missing = requested.subtracting(represented)
         let tracked = try workingFileRevertTrackedPaths(missing, cancellation: cancellation)
         for path in GitPathOperationOrder.sorted(missing) {
@@ -279,7 +279,7 @@ extension GitRepository {
         guard !selected.isEmpty, GitPathSet(selected.map(\.path)).count == selected.count else {
             throw GitFailure(arguments: ["revert"], code: 1, message: "Select files to revert.")
         }
-        let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.originalPath.map { [$0] } ?? []) })
+        let requested = GitPathSet(selected.flatMap { [$0.path] + ($0.isRenamed ? $0.reportingOriginalPath.map { [$0] } ?? []:[]) })
         _ = try RemovalRequest(paths: Array(requested), keepLocal: true)
         var current = GitPathMap(try workingFileRevertStatus(requested, explicitlySelected:GitPathSet(selected.map(\.path)), amendToParent: amend && !amendDiffToLastCommit, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
         let clean = selected.filter { current[$0.path] == nil && $0.index == " " && $0.worktree == " " && $0.originalPath == nil && !$0.hasUnversionedCopy }
@@ -311,9 +311,9 @@ extension GitRepository {
             // an ordinary filename, or a gitlink below a directory pathspec,
             // must not turn the selected path itself into a submodule.
             let gitlink=try commitDisplayIndex(paths:[entry.path],cancellation:cancellation).submodules.contains(entry.path)
-            if gitlink { submodulePaths.insert((entry.index == "R" || entry.worktree == "R") ? entry.originalPath ?? entry.path : entry.path) }
+            if gitlink { submodulePaths.insert(entry.isRenamed ? entry.reportingOriginalPath ?? entry.path : entry.path) }
             if directory && !gitlink { throw WorkingFileRestoreFailure.unsupported }
-            if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
+            if let old = entry.reportingOriginalPath, entry.isRenamed {
                 let oldLocation = try restoreLocation(old)
                 if let oldAttributes = try? manager.attributesOfItem(atPath: oldLocation.path), oldAttributes[.type] as? FileAttributeType == .typeDirectory {
                     throw GitFailure(arguments: ["revert"], code: 1, message: "Cannot restore the old name because a directory already exists: " + old)
@@ -329,9 +329,9 @@ extension GitRepository {
                 }
                 if directory { submoduleRenames.append((entry.path, old)); restore.insert(old) }
                 else { restore.formUnion([entry.path, old]) }
-            } else if entry.state == .added { unstage.insert(entry.path) }
+            } else if entry.reportingActions.contains(.added) { unstage.insert(entry.path) }
             else { restore.insert(entry.path) }
-            if entry.state != .added, !directory, attributes != nil {
+            if !entry.reportingActions.contains(.added), !directory, attributes != nil {
                 guard [.typeRegular, .typeSymbolicLink].contains(attributes?[.type] as? FileAttributeType) else { throw WorkingFileRestoreFailure.unsupported }
                 if policy.shouldRecycle(entry) { recycle.append(location) }
             }

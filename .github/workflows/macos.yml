@@ -363,10 +363,25 @@ jobs:
           python3 scripts/test-dialog-coverage.py
           python3 scripts/reconcile-dialog-coverage.py --check
       - name: Application and embedded Finder extension
-        run: >-
-          xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac
-          -configuration Debug -destination 'platform=macOS'
-          -derivedDataPath build CODE_SIGNING_ALLOWED=NO build
+        id: app_build
+        run: |
+          mkdir -p build/qa
+          set -o pipefail
+          {
+            xcodebuild -version
+            xcrun swift --version
+          } > build/qa/app-build-toolchain.txt 2>&1
+          xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build 2>&1 | tee build/qa/app-build.log
+      - name: Upload app-build diagnostics
+        if: ${{ !cancelled() && steps.app_build.outcome == 'failure' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            build/qa/app-build.log
+            build/qa/app-build-toolchain.txt
+          if-no-files-found: warn
+          retention-days: 7
       # Native Commit/replay fixtures and some filtered Core tests use this
       # executable directly; the Core-only test build does not produce it.
       - name: Prepare SwiftPM editor for native and Core consumers
@@ -1089,6 +1104,9 @@ jobs:
       - name: Native accepted status comparison operands
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-status-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Native natural Copy and Rename working status projection
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
+        run: python3 scripts/test-working-status-projection.py --only commit --only status --only add --only log --only revert --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Commit report rows, fonts and geometry ownership
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-commit-report-rows.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

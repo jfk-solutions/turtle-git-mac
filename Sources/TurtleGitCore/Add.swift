@@ -42,7 +42,7 @@ extension GitRepository {
         let direct = GitPathSet(scope.filter { path in
             (try? FileManager.default.attributesOfItem(atPath: restoreLocation(path).path)[.type] as? FileAttributeType).map { $0 != .typeDirectory } ?? false
         })
-        let status = StatusEntry.parse(try run(["status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignored"], cancellation: cancellation).stdout)
+        let status = try self.status(readPolicy:.automatic,includeIgnored:true,cancellation:cancellation)
         var rows: GitPathMap<AddDialogEntry> = [:]
         var checked = GitPathSet()
         for row in status where scope.isEmpty || scope.contains(where: { GitReferenceName.equal(row.path,$0) || row.path.utf8.starts(with:($0 + "/").utf8) }) {

@@ -26,7 +26,7 @@ final class CommitDialogReadTests:XCTestCase {
             XCTAssertThrowsError(try CommitCombinedDiff.parse(Data(invalid.utf8)),invalid.debugDescription)
         }
     }
-    private func counted(_ repo:GitRepository)throws->(GitRepository,URL) {
+    private func counted(_ repo:GitRepository,detection:GitDiffDetection=GitDiffDetection())throws->(GitRepository,URL) {
         let wrapper=repo.root.appendingPathComponent(".git/commit-read-wrapper"),log=repo.root.appendingPathComponent(".git/commit-read-log")
         func quote(_ text:String)->String {"'"+text.replacingOccurrences(of:"'",with:"'\\''")+"'"}
         let script="""
@@ -41,11 +41,12 @@ final class CommitDialogReadTests:XCTestCase {
         exec \(quote(repo.executable.path)) "$@"
         """
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
-        return (GitRepository(root:repo.root,executable:wrapper,libgit2Configuration:.init(enabled:false)),log)
+        return (GitRepository(root:repo.root,executable:wrapper,diffDetection:detection,libgit2Configuration:.init(enabled:false)),log)
     }
-    private func assertCommands(_ log:URL,diffs:Int=3,file:StaticString = #filePath,line:UInt = #line)throws {
+    private func assertCommands(_ log:URL,diffs:Int=3,indexDiffs:Int=2,file:StaticString = #filePath,line:UInt = #line)throws {
         let commands=try String(contentsOf:log,encoding:.utf8).split(separator:"\n")
-        XCTAssertEqual(commands.filter{$0=="diff"}.count,diffs,file:file,line:line)
+        XCTAssertEqual(commands.filter{$0=="diff"}.count,diffs-indexDiffs,file:file,line:line)
+        XCTAssertEqual(commands.filter{$0=="diff-index"}.count,indexDiffs,file:file,line:line)
         XCTAssertEqual(commands.filter{$0=="status"}.count,1,file:file,line:line)
         XCTAssertEqual(commands.filter{$0=="ls-files"}.count,1,file:file,line:line)
     }
@@ -92,12 +93,30 @@ final class CommitDialogReadTests:XCTestCase {
         try Data("new\n".utf8).write(to:root.appendingPathComponent("new"));try await repo.stage(["new"])
         let before=try Data(contentsOf:root.appendingPathComponent(".git/index")),(reader,log)=try counted(repo)
         let snapshot=try await reader.commitDialogRead(amend:false,amendDiffToLastCommit:true)
-        try assertCommands(log,diffs:2);XCTAssertFalse(snapshot.hasHead);XCTAssertFalse(snapshot.hasParent)
+        try assertCommands(log,diffs:2,indexDiffs:0);XCTAssertFalse(snapshot.hasHead);XCTAssertFalse(snapshot.hasParent)
         XCTAssertEqual(snapshot.entries.map(\.path),["new"]);XCTAssertEqual(snapshot.staged.map(\.action),["A"])
         XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),before)
         try Data().write(to:log);let token=OperationCancellation();token.cancel()
         do {_=try await reader.commitDialogRead(amend:false,amendDiffToLastCommit:true,cancellation:token);XCTFail("Precancelled display read launched")}catch OperationCancellationFailure.cancelled {}
         XCTAssertEqual(try Data(contentsOf:log),Data())
+    }
+    func testCustomThresholdReusesThreeSourceInventoriesAndPreservesAddedXY()async throws {
+        let helper=CommitSelectionTests(),(root,repo)=try await fixture()
+        defer{try? FileManager.default.removeItem(at:root)}
+        let original=(0..<100).map{"source line \($0)\n"}.joined()
+        try helper.write(root,"source",original)
+        try await repo.stage(["source"]);_=try await repo.commit(message:"base")
+        try helper.write(root,"source",original+"changed source\n")
+        try helper.write(root,"copy",original)
+        try await repo.stage(["source","copy"])
+        let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+        let (reader,log)=try counted(repo,detection:.init(percentage:80))
+        let snapshot=try await reader.commitDialogRead(amend:false,amendDiffToLastCommit:true)
+        try assertCommands(log,diffs:3,indexDiffs:2)
+        let copied=try XCTUnwrap(snapshot.entries.first{$0.path=="copy"})
+        XCTAssertEqual(copied.index,"A");XCTAssertEqual(copied.worktree," ")
+        XCTAssertEqual(copied.actionCaption,"Added");XCTAssertNil(copied.reportingOriginalPath)
+        XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index)
     }
     func testOneDisplayIndexRetainsConflictStagesGitlinksAndLowercaseFlags()async throws {
         let helper=CommitSelectionTests(),(root,repo)=try await fixture();defer{try? FileManager.default.removeItem(at:root)}

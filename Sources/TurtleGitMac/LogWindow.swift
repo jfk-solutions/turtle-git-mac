@@ -1127,10 +1127,9 @@ struct LogCommandRequest: Identifiable {
     }
     func changedFileIcon(_ file:CommitFile)->NSImage? {
         if let entry=workingStatusEntry(file) {
-            let state:FileState=entry.state == .conflicted ? .conflicted:(entry.index=="A" || entry.worktree=="A") ? .added:entry.state
-            return state.icon.image()
+            return entry.statusIcon.image()
         }
-        let state:FileState=file.action == "?" ? .untracked:file.action == "!" ? .ignored:file.action == "U" ? .conflicted:file.action.hasPrefix("D") ? .deleted:file.action.hasPrefix("A") ? .added:.modified
+        let state:FileState=file.action == "?" ? .untracked:file.action == "!" ? .ignored:file.action == "U" ? .conflicted:file.action.hasPrefix("D") ? .deleted:file.action.hasPrefix("A") || file.action.hasPrefix("C") ? .added:.modified
         return state.icon.image()
     }
     func changedFileText(_ file:CommitFile,column:StatusListColumn)->String {
@@ -3338,7 +3337,7 @@ struct LogCommandRequest: Identifiable {
         let ids = GitPathSet(ids)
         guard canInspectHistory, onBlame != nil, ids.count == 1,
               let file = visibleFiles.first(where: { ids.contains($0.id) }), !file.isSubmodule, !file.action.hasPrefix("D") else { return false }
-        if selectedWorkingTree { return hasRepresentableFilePaths(ids) && !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && !file.action.hasPrefix("A") }
+        if selectedWorkingTree { return hasRepresentableFilePaths(ids) && !bare && workingTreeSnapshot?.entry.parents.first != nil && file.action != "?" && (workingStatusEntry(file).map{$0.reportingActions.intersection([.added,.deleted]).isEmpty} ?? (!file.action.hasPrefix("A") && !file.action.hasPrefix("D"))) }
         return revision != nil
     }
     func workingConflictPaths(_ ids: some Sequence<String>) -> [String] {
@@ -3943,13 +3942,7 @@ struct LogCommandRequest: Identifiable {
     func fileStatus(_ file: CommitFile) -> String {
         if selectedWorkingTree,let flags=workingIndexRows[file.path] {
             if flags.assumeUnchanged || flags.skipWorktree {return flags.status}
-            let entry=flags.entry
-            if entry.state != .conflicted {
-                // TGitPath::GetActionName gives Added precedence over Missing.
-                if entry.index=="A" || entry.worktree=="A" {return "Added"}
-                if entry.worktree=="D",!entry.hasUnversionedCopy {return "Missing"}
-                if entry.index=="D" {return "Deleted"}
-            }
+            return flags.entry.actionCaption
         }
         return file.status
     }
@@ -4627,7 +4620,7 @@ struct LogChangedFileReport:NSViewRepresentable {
             tooltips=rows.map {row in
                 guard let file=row.file else{return nil}
                 guard ((model.colorPreferences.object(forKey:"ShowListFullPathTooltip") as? NSNumber)?.intValue ?? 1) == 1 else{return nil}
-                let detail=file.oldPath.map{HistoryLabels.text("Renamed from {path}",values:["path":RepositoryBrowserGitPath.display(key:$0)])} ?? ""
+                let detail=model.workingStatusEntry(file)?.statusOriginDescription(displayPath:{RepositoryBrowserGitPath.display(key:$0)}) ?? file.statusOriginDescription(displayPath:{RepositoryBrowserGitPath.display(key:$0)})
                 return RepositoryFileHelpText.text(repository:model.repository.root,path:file.path,detail:detail)
             }
             if renderedColumns != settings {columnEpoch=UUID();renderedColumns=settings}

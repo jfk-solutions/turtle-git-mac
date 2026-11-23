@@ -27,6 +27,21 @@ final class WorkingFileRevertPolicyTests: XCTestCase {
         XCTAssertFalse(renamedOff.shouldRecycle(.init(path: "added", originalPath: nil, index: "A", worktree: " ")))
     }
 
+    func testRawSourceRecyclingPolicyKeepsCopyAndRenameSeparateFromPorcelainStaging() {
+        let copy=StatusEntry(path:"copy",index:"A",worktree:" ",sourceActions:.copied,sourceOriginalPath:"source")
+        let rename=StatusEntry(path:"rename",index:"A",worktree:" ",sourceActions:.renamed,sourceOriginalPath:"old")
+        let union=StatusEntry(path:"union",index:"M",worktree:" ",sourceActions:[.added,.copied],sourceOriginalPath:"source")
+        let renamedOff=WorkingFileRevertPolicy(recycle:true,recycleRenamedFiles:false)
+        // Controlled accepted metadata isolates the source policy; it does not
+        // assert that the pinned -C -M scan naturally discovers copied rows.
+        XCTAssertTrue(renamedOff.shouldRecycle(copy))
+        XCTAssertFalse(renamedOff.shouldRecycle(rename))
+        XCTAssertFalse(renamedOff.shouldRecycle(union))
+        XCTAssertTrue(WorkingFileRevertPolicy().shouldRecycle(rename))
+        XCTAssertFalse(WorkingFileRevertPolicy(recycle:false).shouldRecycle(copy))
+        XCTAssertEqual(copy.index,"A");XCTAssertNil(copy.originalPath)
+    }
+
     func testPolicyMatrixRestoresFilesAndNamesPreservingAdditionsAndUnselectedIndex() async throws {
         for recycle in [false, true] { for rename in [false, true] {
             let (root, repo, original) = try await GitPatchTests().fixture()

@@ -316,11 +316,11 @@ struct AddFileTable: NSViewRepresentable {
             case "size": field.stringValue = row.size.map { ByteCountFormatter.string(fromByteCount: $0, countStyle: .file) } ?? "–"
             case "date": field.stringValue = row.modified.map { $0.formatted(date: .numeric, time: .shortened) } ?? "–"
             default:
-                field.stringValue = row.path; field.textColor = NSColor(row.state.textColor)
-                let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn?.width ?? 440, height: table.rowHeight)); cell.imageView = NSImageView(); cell.imageView?.image = row.state.icon.image(); cell.textField = field
+                field.stringValue = row.path; field.textColor = NSColor(row.status.statusTextColor(preferences:model.presentationPreferences))
+                let cell = NSTableCellView(frame: NSRect(x: 0, y: 0, width: tableColumn?.width ?? 440, height: table.rowHeight)); cell.imageView = NSImageView(); cell.imageView?.image = row.status.statusIcon.image(); cell.textField = field
                 if let image = cell.imageView { image.frame = NSRect(x: 2, y: (table.rowHeight - 16) / 2, width: 16, height: 16); cell.addSubview(image) }
                 if model.restoreCopies[row.path] != nil { let overlay = NSImageView(frame: NSRect(x: 2, y: (table.rowHeight - 16) / 2, width: 16, height: 16)); overlay.identifier = NSUserInterfaceItemIdentifier("restore-overlay"); overlay.image = MenuIcon.restoreOverlay.image(); cell.addSubview(overlay) }
-                field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: table.rowHeight - 4); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = RepositoryPresentationSettings(defaults: model.presentationPreferences).fileTooltip(repository: model.repository.root, path: row.path); return cell
+                field.frame = NSRect(x: 23, y: 2, width: max(0, (tableColumn?.width ?? 440) - 26), height: table.rowHeight - 4); field.autoresizingMask = [.width]; cell.addSubview(field); cell.toolTip = RepositoryPresentationSettings(defaults: model.presentationPreferences).fileTooltip(repository: model.repository.root, path: row.path).map{_ in RepositoryFileHelpText.text(repository:model.repository.root,path:row.path,detail:row.status.actionCaption+(row.status.statusOriginDescription().isEmpty ? "":"\n"+row.status.statusOriginDescription()))}; return cell
             }
             return field
         }
@@ -426,10 +426,10 @@ struct AddFileTable: NSViewRepresentable {
         }
         var canLog: Bool { canAct && selectedRows.count == 1 && markedRow.map { ![FileState.untracked, .ignored].contains($0.state) && !$0.status.hasUnversionedCopy } == true }
         var oldLogPath: String? {
-            guard canLog, let row = markedRow, [row.status.index, row.status.worktree].contains(where: { $0 == "R" || $0 == "C" }), let path = row.status.originalPath, !path.isEmpty else { return nil }
+            guard canLog, let row = markedRow, row.status.isRenamed || row.status.isCopied, let path = row.status.reportingOriginalPath, !path.isEmpty else { return nil }
             return path
         }
-        var canBlame: Bool { canLog && selectedIsFile && markedRow.map { ![FileState.added, .deleted].contains($0.state) } == true }
+        var canBlame: Bool { canLog && selectedIsFile && markedRow.map { $0.status.reportingActions.intersection([.added,.deleted]).isEmpty } == true }
         @objc func compareBase() { guard canCompareBase else { return }; model.compareFileActions(selectedRows,alternate:ComparisonToolInvocation.capture) }
         @objc func compareTwo() { guard canCompareTwo else { return }; model.onCompareTwo(selectedRows.map(\.path)) }
         @objc func showLog() { guard canLog, let row = markedRow else { return }; model.onLog(row.path) }

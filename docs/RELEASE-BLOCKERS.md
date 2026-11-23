@@ -5,7 +5,29 @@ resource mappings and focused checks do not establish complete application parit
 This page identifies current gates; dated implementation detail is in
 [the port tracker](PORTING.md) and the linked family records.
 
-## Mixed Log activation and CI admission — November 23, 2026
+## Working-status actions and current gates — November 23, 2026
+
+The [working-status family](WORKING-STATUS-PROJECTION-PARITY.md) now carries the
+pinned cached/whole action rules through Commit, Changes, Add, Log, comparisons,
+Revert and related menus. Its [checkpoint](qa/working-status-projection-2026-11-23.json)
+records 71 focused Core passes, ten native cohort/Git passes and a Debug app build.
+It preserves actual staging facts, rename old-name merging, recreated local
+files and source checkbox-index semantics; copied bytes are not falsely labelled
+as a naturally detected working Copy under the pinned command order.
+
+The exact hosted baseline `1be5574a` passed workflow admission but several lanes
+failed during application compilation. Compiler details were unavailable through
+the connected API, so future failed builds now retain small compiler/toolchain
+text artifacts. The updated admission suite passes 45 checks locally; this does
+not establish hosted application success. Installed52 and signed54 are unchanged.
+
+Remaining end-user work includes scoped Add/Revert reads (currently filtered only
+after whole-repository queries), WMF/EMF path/rendering parity and the remaining
+source/layout acceptance. Full hosted, signed/platform, physical Finder and
+owner acceptance remain separate gates. No publication or App Store submission
+is authorized by these local passes.
+
+## Historical mixed Log activation and CI admission — November 23, 2026
 
 The [primary activation family](LOG-PRIMARY-ACTIVATION-PARITY.md) routes each
 selected row to its conflict editor or comparison under one owned warning and
@@ -22,7 +44,7 @@ only the owned context/primary consumers and bounded diagnostic artifacts;
 38 targeted contract checks pass. Matching hosted success, broader working-status
 semantics and physical/signed/platform/full-port acceptance remain open.
 
-## Current committed-source hosted results — November 22, 2026
+## Historical committed-source hosted results — November 22, 2026
 
 The [exact9741751 diagnostic](qa/hosted-ci-9741751-diagnostic-2026-11-22.json)
 records terminal Pages success and macOS failure. Its small Statistics artifact

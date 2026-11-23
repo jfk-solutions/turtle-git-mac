@@ -1,0 +1,212 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T05:21:46.898633+00:00",
+  "status": "Scoped working-status reporting, command-policy and mutation family passed; whole port remains incomplete",
+  "sourceBase": "1be5574af8bb553d96da9d0be68843922bc52417",
+  "sourceDirtyDuringValidation": true,
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceSHA256": {
+    "Sources/TurtleGitCore/Add.swift": "0413b6e90d6e5fccab39641f1b47fc1f0ab2af3d2e0c53b9e51d295e5923fcfa",
+    "Sources/TurtleGitCore/CommitAmend.swift": "db5452a7a23dc941ef4fffe5a22951559e28ce80f8f3dd0aa7d430980f8f0390",
+    "Sources/TurtleGitCore/CommitCheckboxIndex.swift": "ca6825088008040693c792456819b24c266eb3e27e1d02f8da14082ea7084731",
+    "Sources/TurtleGitCore/CommitDialogRead.swift": "a2f1dd35c1920cea64ac1fbfbf77869ba6223efe8aa0c4fb0d14e213eab1f9fb",
+    "Sources/TurtleGitCore/CommitSelection.swift": "2a3e5ad8d429dc9dd5c25890f0e5950fdc12cb9ea2cb5de9e92f493afce1407a",
+    "Sources/TurtleGitCore/GitModels.swift": "686865465ccfc57112d926b26168b479323b984e99c1ff767b9c5cd9e1538a7d",
+    "Sources/TurtleGitCore/GitRepository.swift": "c334e770cf32bd0df9a5da2f8e7a7090ef89afe195a98e43e30bc6e2151d7964",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "f1df4fbea410249969977b48ab94bd27a769052b2de6404b0bc0f63f77ccc1c2",
+    "Sources/TurtleGitCore/SourceWorkingStatus.swift": "a4f0150f25006da3c69d9169208cc23ff6b9517bd86b55ee1b9d9c7560df5320",
+    "Sources/TurtleGitCore/StatusListClipboard.swift": "c1ad00019185dc7781c552f86599f0ab05ab31f5df72ef7abf208fb6837f790a",
+    "Sources/TurtleGitCore/StatusListGroups.swift": "245d3b6e95ef45ccaaab6118228f86dc1e8255576257222fe183bf8976471c4a",
+    "Sources/TurtleGitCore/WorkingFileRevert.swift": "7045d92503616ff62bfb8fe92a82a5996d3c6a59086785de5e8b088ab53bc5f5",
+    "Sources/TurtleGitCore/WorkingTree.swift": "edb63c54168372fa7a8047a1733913c2911fa9ad489eea1849d276745e1c139e",
+    "Sources/TurtleGitCore/WorkingTreeHistory.swift": "6b567d7281adb6ac89c2709b9247745812a101f417b91709ddfe9abd8682367e",
+    "Sources/TurtleGitMac/AddFileTable.swift": "dbd8af0e41f21b18d3b682feaec442e1e07e9eb56d6614dc2f7479cc34a874ce",
+    "Sources/TurtleGitMac/Appearance.swift": "687b603186cc104453bf8c15d54e505f80b7be33f11651f7317f3af24bf7fa69",
+    "Sources/TurtleGitMac/CommitWindow.swift": "72a65d19cdc6b1e018e025f7636f410f8214ce0a96c5b9ecd26bfe0169784ed5",
+    "Sources/TurtleGitMac/LogWindow.swift": "73ecdffae7e4c52c3fa1be371f4d08b5e66f82dd6c6ff93ea7e5418c0c2a0fc0",
+    "Sources/TurtleGitMac/StatusWindow.swift": "7f69669b3394989420ff731fd9ea66a8de3f74fad39a786601f5f4fa32211907",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "7c297a74512f3e127a042c31c5b3cfbf1eeaabc6bf6e0e8c28f3bcab43b58c58",
+    "Tests/TurtleGitCoreTests/CommitDialogReadTests.swift": "56cb251a8429a38712eece6c883e4b2c7137267916e6870197e9f383466dcc4a",
+    "Tests/TurtleGitCoreTests/CommitDialogSupplementaryReadTests.swift": "6a2cc2a616f6e7c468e2477db5472943938a233d30b43b67b56975775a9ea8c5",
+    "Tests/TurtleGitCoreTests/SourceWorkingStatusTests.swift": "b41ce9a5f001c549d0ccf5ba3cfa82ba0a9aebcbd7c5984a4652258cc9f65c80",
+    "Tests/TurtleGitCoreTests/WorkingFileRevertPolicyTests.swift": "ccba7521f0962f61562ea2cb129d2b154f67ea64b8653b605ae7651b3e9beeab",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "bc48e549d57e7ca277370263f92fdc84aeb40a036ffa0e6c6e02e7cd5e7c2cfb",
+    "docs/qa/working-status-projection-native-2026-11-23.swift": "d3aa96e3dc48f69a5d2daf9bbc661c8a4c950b13d2b76de32340269edc783039",
+    "scripts/test-working-status-projection.py": "deaa9ffa6f2817338eb4870149da203a39e1a0a7b0ca0f9a3604ad8f4191a618",
+    ".github/workflows/macos.yml": "f96df8949de5d4c0831c6184b901c01b2b87868e1ce7146baddbe79fcd1acea7",
+    "scripts/check-macos-ci-lanes.py": "a807530b2463494635fe23ff813f9426f5cfa75fa36443122172bf5f17853cfd",
+    "scripts/test-macos-ci-lanes.py": "f31c71a054b240e87f4381ce81cb6e07a38eab6f2ec2a70a08c5dfd214ff2ba3",
+    "docs/qa/working-status-flag-order-2026-11-23.json": "7fbfb5575addf478b71a375fad7d896cf8281bc6e4d4cd48bd74b3cd673d88f0",
+    "docs/SOURCE-WORKING-STATUS-PARITY.md": "635179e4512b1fba7e7b7f95638f3427e47e4e2615de7696f7256199ce398c92",
+    "docs/WORKING-STATUS-PROJECTION-PARITY.md": "d582c8a1e2fb261dfa5751ba493e83a804889178d177494c84531b450850e97a",
+    "docs/RELEASE-BLOCKERS.md": "6c993f22ca7c2e149d1e02ea3c6d06363e8eadca54f3266b3b6ae52299a564d2"
+  },
+  "implementation": [
+    "Cached default-50 then configured whole raw actions; exact C-before-M order; old-name alias merge, exact-R Added/Deleted suppression, first origin retention",
+    "Separate actual porcelain XY/origin and accepted reporting actions/origin; byte-exact identity, including recreated untracked/ignored provenance",
+    "Shared captions, independent color masks/icons/origins and clipboard/sorting in Commit/Changes/Add/Log/workspace",
+    "Accepted status comparison actions use captured source operands, preserving historical/null semantics",
+    "Commit staging, selected preparation and amend use source rename predicates without treating Copy origins as rename removals",
+    "Revert recovery, counterpart/submodule planning and related Blame menus use source masks",
+    "Commit reuses three captured raw+numstat streams at default/custom thresholds; automatic observers enrich only pairing candidates",
+    "Small failed-build compiler/toolchain artifacts and exact five-cohort CI admission"
+  ],
+  "core": {
+    "initial": {
+      "exitCode": 1,
+      "tests": 66,
+      "assertionFailures": 21,
+      "failedCases": 5,
+      "log": "working-status-core-group.log"
+    },
+    "repair": {
+      "exitCode": 0,
+      "tests": 71,
+      "seconds": 44.281,
+      "session": 88689,
+      "filter": "SourceWorkingStatusTests|StatusListFileComparisonTests|CommitDialogReadTests|CommitWholeFileStagingTests|WorkingFileRevert",
+      "log": "working-status-core-repair.log"
+    },
+    "scope": "Focused Core family, not full Core/hosted suite; unaffected passing initial scopes retained"
+  },
+  "app": {
+    "attempts": [
+      {
+        "exitCode": 0,
+        "session": 48903,
+        "log": "working-status-app-build.log"
+      },
+      {
+        "exitCode": 0,
+        "session": 32656,
+        "log": "working-status-app-repair.log"
+      }
+    ],
+    "scope": "Local unsigned arm64 Debug; second build covers actual source repairs/Revert/menu additions; no builds for subsequent fixture-only fixes"
+  },
+  "native": {
+    "initial": [
+      {
+        "exitCode": 1,
+        "session": 56036,
+        "log": "working-status-native-group.log",
+        "cause": "Incorrect natural-C expectation; real pinned command reports Added"
+      },
+      {
+        "exitCode": 1,
+        "session": 94537,
+        "log": "working-status-native-repair.log",
+        "cause": "Fixture expected refreshed XY rather than retained report action plus independent staging state"
+      },
+      {
+        "exitCode": 1,
+        "session": 71558,
+        "log": "working-status-native-commit-repair.log",
+        "cause": "Actual successful Commit awaited normal progress completion choice; fixture did not answer it"
+      },
+      {
+        "exitCode": 1,
+        "session": 59474,
+        "log": "working-status-native-commit-completion-repair.log",
+        "cause": "Fixture wrongly required unchecked Modified index preservation; source intentionally resets that index row to HEAD"
+      }
+    ],
+    "passed": [
+      {
+        "cohorts": [
+          "status",
+          "add",
+          "log",
+          "revert"
+        ],
+        "engines": 2,
+        "passes": 8,
+        "exitCode": 0,
+        "session": 66976,
+        "log": "working-status-native-remaining.log",
+        "fixtureSHA256": "3bfb8632913ae9ed8f559dfb5a5fd81c1fe0f0bf0bce49e3a4a1e0cbb5637f40"
+      },
+      {
+        "cohorts": [
+          "commit"
+        ],
+        "engines": 2,
+        "passes": 2,
+        "exitCode": 0,
+        "session": 23229,
+        "log": "working-status-native-commit-policy-repair.log",
+        "fixtureSHA256": "d3aa96e3dc48f69a5d2daf9bbc661c8a4c950b13d2b76de32340269edc783039"
+      }
+    ],
+    "scope": "Actual private native reports, menus, Root comparison, staging/unstaging/Commit and Revert progress; no physical Finder or full visual audit",
+    "retainedPasses": "Only Commit-specific fixture waits/oracles changed after the other eight passes; app sources unchanged after successful build"
+  },
+  "wireEvidence": "docs/qa/working-status-flag-order-2026-11-23.json",
+  "ciAdmission": {
+    "initialTests": 43,
+    "finalTests": 45,
+    "exitCode": 0,
+    "session": 90422,
+    "log": "build/qa/working-status-ci-final.log",
+    "hosted": "1be5574 admission passed; application compilation failed in multiple lanes; exact compiler cause not yet available. New diagnostic capture does not establish a hosted pass."
+  },
+  "resources": {
+    "localizations": {
+      "exitCode": 0,
+      "session": 54373,
+      "log": "build/qa/working-status-localizations-final.log"
+    },
+    "help": "No Help-included guide changed; no Help rebuild required",
+    "coverage": "Reconciliation preserves 130 dialogs,120 partial-family audits,10 pending family reviews,85 pending controls,0 certified complete; not a completion percentage"
+  },
+  "cleanup": {
+    "ownedNativeCompilerReceiverPIDs": [
+      57818,
+      57851,
+      58006,
+      63869,
+      63871,
+      63881,
+      64199,
+      64423,
+      64767,
+      64772,
+      65296,
+      65301,
+      65803,
+      65811,
+      66035
+    ],
+    "liveAtFinalObservation": [],
+    "native": "Prohibited activation, invisible/offscreen owners and children; native cleanup/window/worker assertions passed; driver retired owned helpers",
+    "protectedFiles": {
+      "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+      "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+    }
+  },
+  "isolation": {
+    "checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "installed": "Build52 unchanged",
+    "signedCandidate": "Frozen54 unchanged",
+    "excluded": "Uncommitted HQ/classic metafile work and protected reference work are not in this app/Core checkpoint"
+  },
+  "logsSHA256": {
+    "working-status-core-group.log": "03c104190f9a150694c48e407436bf80a0b63101bb7887996d5a7dbc335eafb5",
+    "working-status-app-build.log": "972412ef4a74b585a87818025387a9afdeb079cda27b10f00f39ee62929d142f",
+    "working-status-native-group.log": "c59f57911703b972e96f0f1af9682a8f51b2d43e728b65f44705567b10af8ae6",
+    "working-status-core-repair.log": "cf1908796f8d209bf634fdc49cde6c05025c2103c3d373e2ca76d01550489517",
+    "working-status-app-repair.log": "e69dba6f6bcb74f84f40d31c0e4cd5e6c6cc711868229c513be73fd1621bafa6",
+    "working-status-native-repair.log": "08b2374e5ad01d12bfcd2545f0734e08816a65d9bd2055e0ec0521cd9ca4d8dc",
+    "working-status-native-remaining.log": "9ade2fd98cb5c8706ad85157ed2a8769d4c869367b60f039fe0598dce044fab0",
+    "working-status-native-commit-repair.log": "15eec9d1e7d4ba83e8e3136ffebd33b36e133a4c8639ee1a5d7cdd34de876e5b",
+    "working-status-native-commit-completion-repair.log": "8ad67a0b3301f286799e5c58cc5cf58f48fa5e2ee0c77dd639b232207b98e7ef",
+    "working-status-native-commit-policy-repair.log": "a072ec6e1b164d1baf254c29003f6f5b744c3cf7722a027de0ed1959035068d6"
+  },
+  "remaining": [
+    "Scoped Add/Revert reads: avoid unrelated repository scans before filtering",
+    "WMF/EMF path/raster semantics including unresolved HQ affine interpolation",
+    "Full hosted build/test success with accessible compiler evidence",
+    "Remaining source/layout, signed/platform/physical Finder and owner acceptance",
+    "Publication and App Store distribution gates; no upload or notarization performed"
+  ]
+}

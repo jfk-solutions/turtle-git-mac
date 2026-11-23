@@ -93,7 +93,7 @@ public enum StatusListSorting {
             a.compare(b, options: numeric ? [.caseInsensitive, .numeric] : [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))
         }
         func status(_ entry: StatusEntry, _ statistics: CommitFile?) -> String {
-            entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics?.status ?? entry.state.rawValue.capitalized
+            entry.actionCaption
         }
         func count(_ statistics: CommitFile?, added: Bool) -> Int {
             guard let statistics, statistics.hasStatistics else { return -2 }

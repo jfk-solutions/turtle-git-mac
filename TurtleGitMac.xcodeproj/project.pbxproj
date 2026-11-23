@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B9E041D59F8E4A899E47A801 /* SourceWorkingStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9E041D59F8E4A899E47A802 /* SourceWorkingStatus.swift */; };
 		001B1EBF54B372A9FFDE31DB /* GitSingleCommitDetails.swift in Sources */ = {isa = PBXBuildFile; fileRef = B44383F950F24C4B2CFFBD82 /* GitSingleCommitDetails.swift */; };
 		003A4001BFAED871A45BC255 /* HistoryReferenceDeletion.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFDFF34043A119AA7ED83853 /* HistoryReferenceDeletion.swift */; };
 		00475B7C3E3653BF83DB3E74 /* GitConfigurationPermissions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46261A3DA9CE7CED16FEC3AD /* GitConfigurationPermissions.swift */; };
@@ -652,6 +653,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B9E041D59F8E4A899E47A802 /* SourceWorkingStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SourceWorkingStatus.swift; sourceTree = "<group>"; };
 		001BF3B476FF7414E244B9A6 /* IssueProviderWindows.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IssueProviderWindows.swift; sourceTree = "<group>"; };
 		0116DCC8551A2AEF10D0BFB8 /* LogStatistics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogStatistics.swift; sourceTree = "<group>"; };
 		018E0B6FCDC123277FE2DB0C /* LFSLocks.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LFSLocks.swift; sourceTree = "<group>"; };
@@ -1662,6 +1664,7 @@
 				F551EF3478A65B697AC427F7 /* GitLibGit2.swift */,
 				CB2FFCE3F96744E4076184C2 /* GitLocalReferenceEngine.swift */,
 				D5BC4298E9DBF0AB06FA8087 /* GitModels.swift */,
+				B9E041D59F8E4A899E47A802 /* SourceWorkingStatus.swift */,
 				B0C75FDD6B777265B7661FA6 /* GitNotesEngine.swift */,
 				0657423D5C68D66703C2BB5C /* GitPatch.swift */,
 				46967B22CDDBD6B32FA46BCF /* GitProperties.swift */,
@@ -2339,6 +2342,7 @@
 				FFFC13889BFC170DAB41B92C /* GitLibGit2.swift in Sources */,
 				987D88DABF888F7C9D4E2EF2 /* GitLocalReferenceEngine.swift in Sources */,
 				A9FF0A885E44AF8F4261B5DA /* GitModels.swift in Sources */,
+				B9E041D59F8E4A899E47A801 /* SourceWorkingStatus.swift in Sources */,
 				CD9432DE46B5461E1ED8E78E /* GitNotesEngine.swift in Sources */,
 				4DF2969F6AE13B68357E46E5 /* GitPatch.swift in Sources */,
 				18258028C97AA8D019E54469 /* GitProperties.swift in Sources */,

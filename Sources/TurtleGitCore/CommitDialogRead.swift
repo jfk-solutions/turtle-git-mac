@@ -184,18 +184,32 @@ extension GitRepository {
         // One repository actor call owns this read. External processes may
         // still change Git/index/worktree state: this is display data, never a
         // substitute for fresh mutation preflight/index bytes at Commit time.
-        let current=try status(readPolicy:.automatic,includeIgnored:false,cancellation:cancellation)
-        func diff(_ arguments:[String])throws->[CommitFile] {
-            let args=["-c","diff.autoRefreshIndex=false","diff","--no-ext-diff","--no-color","--no-abbrev"]+diffDetection.comparisonArguments+arguments+["--raw","--numstat","-z","--"]
-            return try CommitCombinedDiff.parse(run(args,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout,cancellation:cancellation)
+        let current=try status(readPolicy:.automatic,includeIgnored:false,sourceReporting:false,cancellation:cancellation)
+        func diffData(_ arguments:[String],sourceIndexed:Bool=false,detection:[String]?=nil)throws->Data {
+            let command=sourceIndexed ? "diff-index":"diff"
+            let args=["-c","diff.autoRefreshIndex=false",command,"--no-ext-diff","--no-color","--no-abbrev"]+(detection ?? [diffDetection.copyArgument,diffDetection.renameArgument])+arguments+["--raw","--numstat","-z","--"]
+            return try run(args,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:cancellation).stdout
         }
-        let working=try diff(base.map{[$0]} ?? head.map{[$0]} ?? ["--cached"])
+        let workingData=try diffData(base.map{[$0]} ?? head.map{[$0]} ?? ["--cached"],sourceIndexed:head != nil)
+        let working=try CommitCombinedDiff.parse(workingData,cancellation:cancellation)
         // Before the first commit both comparisons are exactly --cached.
-        // Reuse this read's accepted bytes rather than walking the same index
-        // twice; later operations still perform their own fresh preflight.
-        let staged=head == nil ? working:try diff(["--cached"]+(base.map{[$0]} ?? head.map{[$0]} ?? []))
-        let unstaged=try diff([])
-        let entries=try commitDialogEntries(current:current,amendToParent:compareParent,indexed:staged,working:working,cancellation:cancellation)
+        // Reuse accepted bytes rather than walking the same index twice.
+        let stagedData=head == nil ? workingData:try diffData(["--cached"]+(base.map{[$0]} ?? head.map{[$0]} ?? []),sourceIndexed:true,detection:["-C","-M"])
+        let staged=try CommitCombinedDiff.parse(stagedData,cancellation:cancellation)
+        let unstaged=try CommitCombinedDiff.parse(diffData([],detection:["-C","-M"]),cancellation:cancellation)
+        let projected=try commitDialogEntries(current:current,amendToParent:compareParent,indexed:staged,working:working,cancellation:cancellation)
+        let entries:[StatusEntry]
+        let sourceProjectionNeeded=compareParent || current.contains {entry in
+            ![FileState.untracked,.ignored,.conflicted].contains(entry.state) &&
+            [entry.index,entry.worktree].contains { [Character("A"),"R","C"].contains($0) }
+        }
+        if (base ?? head) != nil,sourceProjectionNeeded {
+            // GetWorkingTreeChanges unions cached default-50 actions FIRST,
+            // then whole-tree actions at the user's threshold. Keep its exact
+            // C-before-M ordering: Git option order changes copy detection.
+            // Reuse both captured streams; reporting adds no repository walk.
+            entries=SourceWorkingStatus.applying(try SourceWorkingStatus.parse(stagedData)+SourceWorkingStatus.parse(workingData),to:projected)
+        } else {entries=projected}
         // Unversioned embedded repositories can be reported as "nested/".
         // They have no index flags or gitlink mode to query; keep their display
         // row unchanged and use the ordinary false defaults below.

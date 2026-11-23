@@ -109,7 +109,7 @@ extension GitRepository {
         var stagePaths = checked.filter { $0.state != .deleted || tracked.contains($0.path) }.map(\.path)
         var commitPaths = checked.map(\.path)
         for entry in checked {
-            if let source = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
+            if let source = entry.reportingOriginalPath, entry.isRenamed {
                 commitPaths.append(source)
                 if tracked.contains(source) { stagePaths.append(source) }
             }

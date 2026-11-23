@@ -808,7 +808,7 @@ import TurtleGitCore
         // A copied row may have no originalPath in porcelain status. Include
         // its diff source so the preview retains the copy header and whole-file gate.
         let paths = selected.flatMap { entry in
-            let source = entry.originalPath ?? statistics[entry.path]?.oldPath
+            let source = entry.reportingOriginalPath ?? statistics[entry.path]?.oldPath
             return [entry.path] + (source.map { [$0] } ?? [])
         }
         partial.model.reload(paths: Array(GitPathSet(paths)).sorted(), staged: partial.model.staged)
@@ -951,8 +951,7 @@ import TurtleGitCore
     }
     func guiFileStatus(_ entry: StatusEntry, staged: Bool) -> String {
         if stagingState(entry) == .mixed { return "Partially staged" }
-        let statistics = staged ? stagedStatistics : unstagedStatistics
-        return statistics[entry.path]?.status ?? entry.state.rawValue.capitalized
+        return entry.actionCaption
     }
     @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } } }
     @Published var viewingPatch = false
@@ -1882,8 +1881,8 @@ import TurtleGitCore
         if let entry = selected.first, selected.count == 1, ![FileState.untracked, .ignored].contains(entry.state) {
             commands.append(.log)
             if directory(entry) { commands.append(.submoduleLog) }
-            if entry.originalPath != nil { commands.append(.oldNameLog) }
-            if !directory(entry), entry.index != "A", entry.worktree != "A", entry.index != "D" { commands.append(.blame) }
+            if entry.reportingOriginalPath != nil { commands.append(.oldNameLog) }
+            if !directory(entry), entry.reportingActions.intersection([.added,.deleted]).isEmpty { commands.append(.blame) }
         }
         if !selected.isEmpty, let focused, focused.state != .deleted, focused.worktree != "D" { commands.append(.export) }
         if let entry = selected.first, selected.count == 1, entry.state != .deleted, entry.worktree != "D", !directory(entry) { commands += [.editor, .open, .openWith] }
@@ -1989,7 +1988,7 @@ import TurtleGitCore
             switch command {
             case .compareTwo: onCompareTwoFiles(paths)
             case .log: onFileLog(paths[0])
-            case .oldNameLog: if let old = snapshot.entries.first?.originalPath { onFileLog(old) }
+            case .oldNameLog: if let old = snapshot.entries.first?.reportingOriginalPath { onFileLog(old) }
             case .submoduleLog: showSubmoduleLog(paths[0])
             case .blame: onFileBlame(paths[0])
             case .reveal:
@@ -2232,7 +2231,7 @@ import TurtleGitCore
         RepositoryWindowTitles.set(comparisonWindow, repository: repository.root, location: location, dialog: "Commit", preferences: dialogDefaults)
     }
     func fileHelp(_ entry: StatusEntry) -> String {
-        let origin = entry.originalPath.map { "Renamed from " + $0 } ?? ""
+        let origin=entry.statusOriginDescription()
         return changelists.name(for: entry.path).map { origin + (origin.isEmpty ? "" : "\n") + "Changelist: " + $0 } ?? origin
     }
     var checkedPathsForCommit: GitPathSet { GitPathSet(visibleEntries.filter { checked.contains($0.id) }.map(\.path)) }
@@ -3895,7 +3894,7 @@ struct CommitDialog: View {
             Table(entries, selection: selection) {
                 TableColumn("Path") { entry in
                     HStack(spacing: 6) {
-                        Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16)
+                        Image(nsImage: entry.statusIcon.image() ?? NSImage()).resizable().frame(width: 16, height: 16)
                         Text(verbatim: model.fileListDisplayedPath(entry)).foregroundStyle(entry.statusTextColor(selected: selectedIDs.contains(entry.id), preferences: model.colorPreferences))
                             .background(NativeListSelectionLabelMarker())
                     }.lineLimit(1).truncationMode(.middle)
@@ -4103,7 +4102,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
             TableColumn("Path", sortUsing: CommitFileSort(column: .path)) { (row: CommitSortableRow) in
                 if let entry = row.entry {
                     HStack {
-                        Image(nsImage: entry.state.icon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
+                        Image(nsImage: entry.statusIcon.image() ?? NSImage()).resizable().frame(width: 16, height: 16).overlay {
                             if model.restoreCopies[entry.path] != nil { Image(nsImage: MenuIcon.restoreOverlay.image() ?? NSImage()).resizable().frame(width: 16, height: 16) }
                         }
                         Text(model.fileListDisplayedPath(entry)).truncationMode(.middle).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).background(NativeListSelectionLabelMarker())
@@ -4123,7 +4122,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 else { groupRule }
             }.width(min: 40, ideal: 75)
             TableColumn("Status", sortUsing: CommitFileSort(column: .status)) { (row: CommitSortableRow) in
-                if let entry = row.entry { Text(FileListLabels.caption(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized)).help(FileListLabels.caption(entry.index == "R" || entry.worktree == "R" ? "Renamed" : statistics[entry.path]?.status ?? entry.state.rawValue.capitalized)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) }
+                if let entry = row.entry { Text(FileListLabels.caption(entry.actionCaption)).help(FileListLabels.caption(entry.actionCaption)).foregroundStyle(entry.statusTextColor(selected: model.selection.contains(entry.id), preferences: model.colorPreferences)).frame(height:geometry.contentHeight) }
                 else { groupRule }
             }.width(min: 60, ideal: 90)
             TableColumn("Lines added", sortUsing: CommitFileSort(column: .added)) { (row: CommitSortableRow) in
@@ -4231,7 +4230,7 @@ GroupBox("Changes made (F5: refresh, double-click on file for diff):") {
                 if entry.state != .deleted {
                     Button { model.withFileMenu(menuSnapshot) { model.onRename(entry.path) } } label: { CommandLabel(title: "Rename…", icon: .rename) }
                 }
-                if entry.originalPath != nil {
+                if entry.reportingOriginalPath != nil {
                     Button { model.fileAction(.oldNameLog, snapshot: menuSnapshot) } label: { CommandLabel(title: "Show log of old name", icon: .log) }
                 }
                 if menuSnapshot.commands.contains(.blame) {

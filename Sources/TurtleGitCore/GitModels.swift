@@ -24,6 +24,16 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
     /// `git rm --cached` can emit D and ??/!! records for the same literal path.
     /// Keep one list identity while retaining the copy outside the index.
     public var hasUnversionedCopy = false
+    /// Preserve whether a folded local copy was ?? or !! without another read.
+    public var unversionedCopyState:FileState? = nil
+    /// Accepted GetWorkingTreeChanges-style raw projection, independent of XY.
+    /// Nil means no supplemental projection was accepted for this row.
+    public var sourceActions:SourceStatusActions? = nil
+    public var sourceOriginalPath:String? = nil
+    public init(path:String,originalPath:String?=nil,index:Character,worktree:Character,hasUnversionedCopy:Bool=false,sourceActions:SourceStatusActions?=nil,sourceOriginalPath:String?=nil,unversionedCopyState:FileState?=nil) {
+        self.path=path;self.originalPath=originalPath;self.index=index;self.worktree=worktree
+        self.hasUnversionedCopy=hasUnversionedCopy;self.unversionedCopyState=unversionedCopyState;self.sourceActions=sourceActions;self.sourceOriginalPath=sourceOriginalPath
+    }
     public var isDeleteModifyConflict: Bool { ["DU", "UD", "AU", "UA"].contains(String([index, worktree])) }
     public var staged: Bool { index != " " && index != "?" && index != "!" }
     public var state: FileState {
@@ -36,11 +46,12 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
         return .modified
     }
     public static func == (lhs:Self,rhs:Self) -> Bool {
-        GitReferenceName.equal(lhs.path,rhs.path) && lhs.originalPath.map { GitReferenceName($0) } == rhs.originalPath.map { GitReferenceName($0) } && lhs.index == rhs.index && lhs.worktree == rhs.worktree && lhs.hasUnversionedCopy == rhs.hasUnversionedCopy
+        GitReferenceName.equal(lhs.path,rhs.path) && lhs.originalPath.map { GitReferenceName($0) } == rhs.originalPath.map { GitReferenceName($0) } && lhs.index == rhs.index && lhs.worktree == rhs.worktree && lhs.hasUnversionedCopy == rhs.hasUnversionedCopy && lhs.unversionedCopyState == rhs.unversionedCopyState && lhs.sourceActions == rhs.sourceActions && lhs.sourceOriginalPath.map{GitReferenceName($0)} == rhs.sourceOriginalPath.map{GitReferenceName($0)}
     }
     public func hash(into hasher:inout Hasher) {
         hasher.combine(GitReferenceName(path)); hasher.combine(originalPath.map { GitReferenceName($0) })
-        hasher.combine(index); hasher.combine(worktree); hasher.combine(hasUnversionedCopy)
+        hasher.combine(index); hasher.combine(worktree); hasher.combine(hasUnversionedCopy);hasher.combine(unversionedCopyState)
+        hasher.combine(sourceActions);hasher.combine(sourceOriginalPath.map{GitReferenceName($0)})
     }
     /// The status-list menu gates base/unified comparisons by the marked row.
     /// Unversioned and ignored rows still support their double-click preview.
@@ -49,6 +60,7 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
         // Added/renamed/copied index entries that have disappeared from disk
         // carry an additional Missing action upstream. Plain Deleted|Missing
         // and Modified|Deleted|Missing remain valid base comparisons.
+        if sourceActions != nil {return !reportingActions.contains(.missing) || reportingActions.intersection([.added,.renamed,.copied]).isEmpty}
         return worktree != "D" || ![Character("A"),"R","C"].contains(index)
     }
     /// Porcelain v1 -z uses NUL-terminated raw paths and destination before source for renames.
@@ -74,7 +86,10 @@ public struct StatusEntry: Identifiable, Hashable, Sendable {
             let local = [FileState.untracked, .ignored].contains(entry.state)
             let previousLocal = [FileState.untracked, .ignored].contains(previous.state)
             var versioned = previousLocal && !local ? entry : previous
-            if (local || previousLocal) && versioned.index == "D" { versioned.hasUnversionedCopy = true }
+            if (local || previousLocal) && versioned.index == "D" {
+                versioned.hasUnversionedCopy = true
+                versioned.unversionedCopyState = local ? entry.state:previous.state
+            }
             combined[position] = versioned
         }
         return combined

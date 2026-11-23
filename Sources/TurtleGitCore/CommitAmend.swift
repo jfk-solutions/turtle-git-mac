@@ -40,12 +40,12 @@ extension GitRepository {
         for entry in checked {
             _ = try restoreLocation(entry.path)
             affected.insert(entry.path)
-            if entry.state == .deleted || entry.index == "D" && entry.hasUnversionedCopy || conflictActions[entry.path]?.deleted == true {
+            if (entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.reportingActions.contains(.deleted)) {
                 operations.append(("remove", entry.path, "-"))
             } else {
                 operations.append(("add", entry.path, fileModes[entry.path] ?? "normal"))
             }
-            if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
+            if let old = entry.reportingOriginalPath, entry.isRenamed {
                 _ = try restoreLocation(old); affected.insert(old); operations.append(("remove", old, "-"))
             }
         }
@@ -70,10 +70,10 @@ extension GitRepository {
             var reset = GitPathSet()
             for entry in unchecked {
                 reset.insert(entry.path)
-                let renamed = entry.index == "R" || entry.worktree == "R"
-                if renamed, let old = entry.originalPath { reset.insert(old); remove.insert(old) }
-                let added=entry.state == .conflicted ? conflictActions[entry.path]?.added == true : entry.index == "A" || entry.worktree == "A"
-                let deleted=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.index == "D"
+                let renamed = entry.isRenamed
+                if renamed, let old = entry.reportingOriginalPath { reset.insert(old); remove.insert(old) }
+                let added=entry.state == .conflicted ? conflictActions[entry.path]?.added == true : entry.reportingActions.contains(.added)
+                let deleted=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.reportingActions.contains(.deleted) && !entry.reportingActions.contains(.missing)
                 if added || renamed {readd.insert(entry.path)}
                 if deleted {remove.insert(entry.path)}
             }
@@ -168,14 +168,20 @@ extension GitRepository {
 
     public func commitDialogStatus(amendToParent: Bool, cancellation: OperationCancellation? = nil, refreshIndex: Bool = true) throws -> [StatusEntry] {
         try cancellation?.check()
-        let current=try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,cancellation:cancellation)
+        let current=try status(readPolicy:refreshIndex ? .refreshIndex:.automatic,includeIgnored:false,sourceReporting:!amendToParent,cancellation:cancellation)
         let indexed:[CommitFile],working:[CommitFile]
+        let sourceBase:String?
         if amendToParent {
             let base=try commitComparisonBase(amendToParent:true,cancellation:cancellation)
+            sourceBase=base
             indexed=try stagingFiles(staged:true,base:base,cancellation:cancellation)
             working=try workingTreeFiles(amendToParent:true,cancellation:cancellation)
-        } else {indexed=[];working=[]}
-        return try commitDialogEntries(current:current,amendToParent:amendToParent,indexed:indexed,working:working,cancellation:cancellation)
+        } else {indexed=[];working=[];sourceBase=nil}
+        let entries=try commitDialogEntries(current:current,amendToParent:amendToParent,indexed:indexed,working:working,cancellation:cancellation)
+        if let sourceBase {
+            return try sourceWorkingStatus(entries,base:.revision(sourceBase),readPolicy:refreshIndex ? .refreshIndex:.automatic,cancellation:cancellation)
+        }
+        return entries
     }
     /// Shared projection for legacy/preflight readers and a captured display read.
     func commitDialogEntries(current input:[StatusEntry],amendToParent:Bool,indexed:[CommitFile],working:[CommitFile],cancellation:OperationCancellation?)throws->[StatusEntry] {
@@ -206,6 +212,7 @@ extension GitRepository {
                                       index: staged?.action.first ?? " ",
                                       worktree: currentByPath[file.path]?.worktree ?? " ")
             entry.hasUnversionedCopy = currentByPath[file.path]?.hasUnversionedCopy ?? false
+            entry.unversionedCopyState = currentByPath[file.path]?.unversionedCopyState
             result.append(entry)
         }
         // Include an index-only change cancelled out by the working tree, so the
@@ -216,6 +223,7 @@ extension GitRepository {
                                       index: file.action.first ?? "M",
                                       worktree: currentByPath[file.path]?.worktree ?? " ")
             entry.hasUnversionedCopy = currentByPath[file.path]?.hasUnversionedCopy ?? false
+            entry.unversionedCopyState = currentByPath[file.path]?.unversionedCopyState
             result.append(entry)
         }
         return GitPathMap(result.map { ($0.path, $0) }, uniquingKeysWith: { _, last in last }).values.sorted { $0.path.utf8.lexicographicallyPrecedes($1.path.utf8) }
@@ -237,7 +245,7 @@ extension GitRepository {
         return GitPathMap(entries.map { entry in
             if conflicts.contains(entry.path) {return (entry.path,CommitStagingState.unstaged)}
             var targets = [Data(entry.path.utf8)]
-            if (entry.index == "R" || entry.worktree == "R"), let old = entry.originalPath { targets.append(Data(old.utf8)) }
+            if (entry.isRenamed), let old = entry.reportingOriginalPath { targets.append(Data(old.utf8)) }
             let staged = targets.contains { stagedPaths.contains($0) }
             let unstaged = targets.contains { workingPaths.contains($0) || unversioned.contains($0) }
             return (entry.path, staged ? (unstaged ? CommitStagingState.partial : .staged) : .unstaged)
@@ -260,7 +268,7 @@ extension GitRepository {
         for entry in entries {
             locations[entry.path]=try restoreLocation(entry.path)
             captured.insert(entry.path)
-            if entry.index == "R" || entry.worktree == "R",let old=entry.originalPath {
+            if entry.isRenamed,let old=entry.reportingOriginalPath {
                 locations[old]=try restoreLocation(old);captured.insert(old)
             }
         }
@@ -343,7 +351,7 @@ extension GitRepository {
                 try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:url.path)
             }else{_ = try run(["read-tree",base],environmentOverrides:environment,cancellation:cancellation)}
             var affected=GitPathSet(checked.map(\.path))
-            for entry in checked where entry.index == "R" || entry.worktree == "R" {if let old=entry.originalPath {affected.insert(old)}}
+            for entry in checked where entry.isRenamed {if let old=entry.reportingOriginalPath {affected.insert(old)}}
             let indexed=try run(["ls-files","--cached","-z"],environmentOverrides:environment,cancellation:cancellation).stdout
             let tree=try run(["ls-tree","-r","--name-only","-z",base],cancellation:cancellation).stdout
             let all=GitPathSet((indexed+tree).split(separator:0).map{String(decoding:$0,as:UTF8.self)})
@@ -356,7 +364,7 @@ extension GitRepository {
         var paths = checked.filter { !retainedDeletes.contains($0.path) }.map(\.path)
         var realStage = checked.filter { !retainedDeletes.contains($0.path) && ($0.state != .deleted || tracked.contains($0.path) || FileManager.default.fileExists(atPath: root.appendingPathComponent($0.path).path)) }.map(\.path)
         for entry in checked {
-            if let old = entry.originalPath, entry.index == "R" || entry.worktree == "R" {
+            if let old = entry.reportingOriginalPath, entry.isRenamed {
                 paths.append(old)
                 if tracked.contains(old) { realStage.append(old) }
             }

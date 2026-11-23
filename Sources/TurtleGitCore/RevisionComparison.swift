@@ -161,21 +161,12 @@ extension GitRepository {
         guard intent.base != .workingTree else{throw RevisionComparisonFailure.range}
         let entry=intent.entry
         try validateComparisonPath(entry.path,allowsRaw:false)
-        let action:String
-        if intent.base == .emptyTree {action="A"}
-        // Porcelain AA/AU/UA/DD/UD/DU describe stage occupancy. Upstream's
-        // raw diff-index + ls-files parser produces UNMERGED for these, not
-        // Added/Deleted from the letters in porcelain XY. Explicit Compare
-        // therefore uses the ordinary historical operand, never stage 1.
-        else if entry.state == .conflicted {action="M"}
-        else if entry.index=="A" || entry.worktree=="A" {action="A"}
-        else if entry.index=="D" || entry.worktree=="D" {action="D"}
-        else if entry.index=="R" || entry.worktree=="R" {action="R"}
-        else if entry.index=="C" || entry.worktree=="C" {action="C"}
-        else {action="M"}
+        // Reporting action bits come from the accepted cached/whole raw
+        // source projection; porcelain XY remains the actual staging state.
+        let action = intent.base == .emptyTree ? "A" : entry.comparisonAction
         let original:String
         if action=="R" || action=="C" {
-            guard let old=entry.originalPath else{throw RevisionComparisonFailure.selection}
+            guard let old=entry.reportingOriginalPath else{throw RevisionComparisonFailure.selection}
             try validateComparisonPath(old,allowsRaw:false);original=old
         } else {original=entry.path}
         let from:ComparisonRevision,details:ComparisonRevisionDetails?,oldMode:String?

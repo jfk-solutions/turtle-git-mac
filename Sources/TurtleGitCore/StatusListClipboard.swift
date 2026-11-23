@@ -21,7 +21,7 @@ public enum StatusListClipboard {
         return RepositoryBrowserGitPath.componentDisplay(Data(name[dot...]))
     }
     public static func displayedPath(_ entry: StatusEntry, abbreviate: Bool = UserDefaults.standard.bool(forKey: "AbbreviateRenamings")) -> String {
-        if let old = entry.originalPath, !old.isEmpty, [entry.index, entry.worktree].contains(where: { $0 == "R" || $0 == "C" }) {
+        if let old = entry.reportingOriginalPath, !old.isEmpty, entry.isRenamed || entry.isCopied {
             return abbreviate ? abbreviatedRename(from: old, to: entry.path) : entry.path + " (from " + old + ")"
         }
         return entry.path
@@ -100,7 +100,7 @@ public enum StatusListClipboard {
             case .fileSize: return metadata[entry.path]?.sizeText ?? "–"
             case .lfsOwner: return lfsOwners[entry.path] ?? ""
             case .fileExtension: return fileExtension(entry.path, isDirectory: stats?.isSubmodule == true || metadata[entry.path]?.isDirectory == true)
-            case .status: return entry.index == "R" || entry.worktree == "R" ? "Renamed" : stats?.status ?? entry.state.rawValue.capitalized
+            case .status: return entry.actionCaption
             case .added: return stats?.added.map(String.init) ?? "–"
             case .removed: return stats?.removed.map(String.init) ?? "–"
             }

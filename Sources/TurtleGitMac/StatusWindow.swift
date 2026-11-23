@@ -731,8 +731,8 @@ final class StatusNativeWindow: NSWindow {
             if ![FileState.untracked, .ignored].contains(entry.state) {
                 commands.append(.log)
                 if directory(row) { commands.append(.submoduleLog) }
-                if entry.originalPath != nil { commands.append(.oldNameLog) }
-                if !directory(row), entry.index != "A", entry.worktree != "A", entry.index != "D" { commands.append(.blame) }
+                if entry.reportingOriginalPath != nil { commands.append(.oldNameLog) }
+                if !directory(row), entry.reportingActions.intersection([.added,.deleted]).isEmpty { commands.append(.blame) }
             }
         }
         if !rows.isEmpty, let focused, focused.state != .deleted,
@@ -794,7 +794,7 @@ final class StatusNativeWindow: NSWindow {
                 let child = try await submoduleLog.load(paths[0], cancellation: token)
                 guard isLive(token), accepts(snapshot, duringOperation: true) else { return }; onSubmoduleLog(child)
             })
-        case .oldNameLog: if let old = snapshot.entries.first?.originalPath { onAction(.log, [old]) }
+        case .oldNameLog: if let old = snapshot.entries.first?.reportingOriginalPath { onAction(.log, [old]) }
         case .blame: onBlame(paths[0])
         case .reveal:
             var location = repository.root.appendingPathComponent(paths[0])
@@ -1003,8 +1003,8 @@ struct StatusDialog: View {
             Table(model.tableRows, selection: $model.nativeFileSelection, sortOrder: Binding(get: { model.sortOrder.map { StatusGroupedSort(column: $0.column, order: $0.order) } }, set: { model.setSortOrder($0.map { StatusFileSort(column: $0.column, order: $0.order) }) })) {
                 TableColumn("Path", sortUsing: StatusGroupedSort(column: .path)) { item in
                     if let row = item.contents {
-                        HStack(spacing: 6) { if let icon = row.file.state.icon.image() { Image(nsImage: icon).resizable().frame(width:16,height:16) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1).background(NativeListSelectionLabelMarker()) }
-                            .frame(height:geometry.contentHeight).repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.originalPath.map { "Renamed from " + $0 } ?? "", preferences: model.colorPreferences)
+                        HStack(spacing: 6) { if let icon = row.file.entry.statusIcon.image() { Image(nsImage: icon).resizable().frame(width:16,height:16) }; Text(StatusListClipboard.displayedPath(row.file.entry)).foregroundStyle(row.file.entry.statusTextColor(selected: model.selection.contains(row.id), preferences: model.colorPreferences)).lineLimit(1).background(NativeListSelectionLabelMarker()) }
+                            .frame(height:geometry.contentHeight).repositoryFileHelp(repository: model.repository.root, path: row.path, detail: row.file.entry.statusOriginDescription(), preferences: model.colorPreferences)
                     } else if let group = item.row.group { Text(verbatim:FileListLabels.groupTitle(group)).font(Font(geometry.groupFont)).foregroundStyle(Color.accentColor).frame(height:geometry.contentHeight).help(changelistGroupHelp(group, lists: model.changelists)).accessibilityLabel(changelistGroupHelp(group, lists: model.changelists)) }
                 }.width(min: 250, ideal: 380)
                 TableColumn("Filename", sortUsing: StatusGroupedSort(column: .fileName)) { item in groupCell(item, column: .fileName,geometry:geometry) }.width(min: 100, ideal: 180)

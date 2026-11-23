@@ -110,23 +110,23 @@ extension GitRepository {
         let conflictActions=try commitConflictIndexActions(changes,base:base,cancellation:cancellation)
         var add=GitPathSet(),forceRemove=GitPathSet(),update=GitPathSet(),renameRemove=GitPathSet(),uncheckedRemove=GitPathSet(),reset=GitPathSet(),restoration=CommitCheckboxRestoration()
         for entry in changes {
-            let renamed=entry.index == "R" || entry.worktree == "R"
-            let added=entry.state == .conflicted ? conflictActions[entry.path]?.added == true : entry.index == "A" || entry.worktree == "A"
-            let deleted=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.state == .deleted
+            let renamed=entry.isRenamed
+            let added=entry.state == .conflicted ? conflictActions[entry.path]?.added == true : entry.reportingActions.contains(.added)
+            let deleted=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.reportingActions.contains(.deleted)
             if checked.contains(entry.path) {
                 let location=try restoreLocation(entry.path);var info=stat()
                 let directory=lstat(location.path,&info)==0 && info.st_mode & S_IFMT == S_IFDIR
                 if entry.state == .untracked || directory && !deleted {add.insert(entry.path)}
                 else if deleted {forceRemove.insert(entry.path)}
                 else {update.insert(entry.path)}
-                if renamed,let old=entry.originalPath {renameRemove.insert(old)}
+                if renamed,let old=entry.reportingOriginalPath {renameRemove.insert(old)}
             }else if policy?.paths.contains(entry.path)==true {
                 if added || renamed {
                     uncheckedRemove.insert(entry.path);restoration.readd.insert(entry.path)
-                    if renamed,let old=entry.originalPath {reset.insert(old);restoration.remove.insert(old)}
+                    if renamed,let old=entry.reportingOriginalPath {reset.insert(old);restoration.remove.insert(old)}
                 }else if ![.untracked,.ignored].contains(entry.state) {
                     reset.insert(entry.path)
-                    let stagedDeletion=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.index == "D"
+                    let stagedDeletion=entry.state == .conflicted ? conflictActions[entry.path]?.deleted == true : entry.reportingActions.contains(.deleted) && !entry.reportingActions.contains(.missing)
                     if stagedDeletion {restoration.remove.insert(entry.path)}
                 }
             }

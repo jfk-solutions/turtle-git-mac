@@ -40,7 +40,7 @@ extension GitRepository {
         guard try read(["rev-parse", "--is-bare-repository"]).text.trimmingCharacters(in: .newlines) != "true" else { return nil }
         let head = try read(["rev-parse", "--verify", "--quiet", "HEAD"], successfulExitCodes: 0...1)
         let parents = head.exitCode == 0 ? [head.text.trimmingCharacters(in: .newlines)] : []
-        let status = StatusEntry.parse(try read(["status", "--porcelain=v1", "-z", "--untracked-files=all", diffDetection.statusArgument]).stdout)
+        let status = try self.status(readPolicy:.automatic,cancellation:cancellation)
         // Net HEAD diff can be empty even though the index has a different
         // gitlink. Keep that row typed as a submodule rather than a text file.
         let indexRecords = try read(["ls-files", "--stage", "-z"]).stdout.split(separator: 0)
@@ -63,13 +63,14 @@ extension GitRepository {
             let action: String
             if row.state == .conflicted { action = "U" }
             else if row.state == .untracked { action = "?" }
+            else if row.sourceActions != nil { action = row.comparisonAction }
             else if let diff { action = diff.action }
             else if row.state == .deleted { action = "D" }
             else if row.originalPath != nil { action = row.index == "C" || row.worktree == "C" ? "C" : "R" }
             else if row.state == .added { action = "A" }
             else if row.index == "T" || row.worktree == "T" { action = "T" }
             else { action = "M" }
-            let file = CommitFile(path: row.path, oldPath: row.originalPath ?? diff?.oldPath, action: action,
+            let file = CommitFile(path: row.path, oldPath: row.sourceActions != nil ? row.reportingOriginalPath : row.originalPath ?? diff?.oldPath, action: action,
                                   added: diff?.added, removed: diff?.removed, hasStatistics: diff?.hasStatistics ?? false,
                                   isSubmodule: diff?.isSubmodule == true || gitlinks.contains(GitReferenceName(row.path)))
             if row.state == .untracked { unversioned.append(file) } else { files.append(file) }

@@ -1,0 +1,294 @@
+[
+  {
+    "git": "/usr/bin/git",
+    "version": "git version 2.54.0 (Apple Git-157)",
+    "cases": [
+      {
+        "scope": [],
+        "flags": [
+          "-C",
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-M",
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-C50%",
+          "-M50%"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-M50%",
+          "-C50%"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "--find-copies",
+          "--find-renames"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "--find-renames",
+          "--find-copies"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-C",
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-M",
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-C50%",
+          "-M50%"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-M50%",
+          "-C50%"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "--find-copies",
+          "--find-renames"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "--find-renames",
+          "--find-copies"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      }
+    ]
+  },
+  {
+    "git": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/git-runtime/Git/bin/git",
+    "version": "git version 2.55.0",
+    "cases": [
+      {
+        "scope": [],
+        "flags": [
+          "-C",
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-M",
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-C50%",
+          "-M50%"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-M50%",
+          "-C50%"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "--find-copies",
+          "--find-renames"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [],
+        "flags": [
+          "--find-renames",
+          "--find-copies"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-C",
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-M",
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-C50%",
+          "-M50%"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-M50%",
+          "-C50%"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-C"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "-M"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "--find-copies",
+          "--find-renames"
+        ],
+        "wire": ":000000 100644 0000000000000000000000000000000000000000 b93feabc47a5d4142c17372c801e0f9c3c781aca A\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u0000100\t0\tcopy\u00001\t0\tsource\u0000"
+      },
+      {
+        "scope": [
+          "--cached"
+        ],
+        "flags": [
+          "--find-renames",
+          "--find-copies"
+        ],
+        "wire": ":100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca b93feabc47a5d4142c17372c801e0f9c3c781aca C100\u0000source\u0000copy\u0000:100644 100644 b93feabc47a5d4142c17372c801e0f9c3c781aca 785a84323d85dce9855eda1437d6b3378985e401 M\u0000source\u00000\t0\t\u0000source\u0000copy\u00001\t0\tsource\u0000"
+      }
+    ]
+  }
+]

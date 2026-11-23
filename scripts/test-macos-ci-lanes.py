@@ -233,7 +233,8 @@ class MacOSLaneTests(unittest.TestCase):
         steps = self.workflow['jobs']['validation']['steps']
         setup_index = next(i for i, step in enumerate(steps) if step.get('name') == ci.EDITOR_SETUP['name'])
         self.assertEqual(steps[setup_index], ci.EDITOR_SETUP)
-        self.assertEqual(steps[setup_index - 1]['name'], 'Application and embedded Finder extension')
+        self.assertEqual(steps[setup_index - 2]['name'], ci.APP_BUILD_NAME)
+        self.assertEqual(steps[setup_index - 1], ci.APP_BUILD_EVIDENCE)
         for name in ['Git integration tests', 'Native Commit and Rebase encoding receiver',
                      'Native Commit and Rebase message-file receiver', 'Native remembered Commit button actions',
                      'Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle',
@@ -245,6 +246,58 @@ class MacOSLaneTests(unittest.TestCase):
             if mutation == 'conditional': changed[setup_index]['if'] = "matrix.lane == 'distribution'"
             if mutation == 'late': changed.append(changed.pop(setup_index))
             with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testAppBuildEvidencePreservesOriginalCommandAndFailureExit(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==ci.APP_BUILD_NAME)
+        build=steps[index]
+        self.assertEqual(build,{'name':ci.APP_BUILD_NAME,'id':'app_build','run':ci.APP_BUILD_RUN})
+        self.assertEqual(build['run'].count(ci.APP_BUILD_ORIGINAL_RUN),1)
+        self.assertIn('set -o pipefail\n',build['run'])
+        self.assertIn('2>&1 | tee build/qa/app-build.log\n',build['run'])
+        self.assertIn('xcodebuild -version\n',build['run'])
+        self.assertIn('xcrun swift --version\n',build['run'])
+        self.assertEqual(steps[index+1],ci.APP_BUILD_EVIDENCE)
+        self.assertEqual(steps[index+2],ci.EDITOR_SETUP)
+        # The actual condition has no lane gate: every failed app producer owns
+        # its own small log; successful/skipped/cancelled producers upload none.
+        expression=ci.APP_BUILD_EVIDENCE['if'][4:-3]
+        for cancelled in [False,True]:
+            for outcome in ['success','failure','skipped','cancelled','']:
+                actual=expression.replace('!cancelled()',repr(not cancelled)).replace('steps.app_build.outcome',repr(outcome)).replace('&&',' and ')
+                self.assertEqual(eval(actual,{'__builtins__':{}}),not cancelled and outcome=='failure')
+        self.verify()
+
+    def testAppBuildDiagnosticCommandAndArtifactDriftFailClosed(self):
+        for mutation in ['no-id','conditional','no-pipefail','no-stderr','no-tee','no-version','swallow-exit','flags']:
+            value=copy.deepcopy(self.workflow)
+            step=next(s for s in value['jobs']['validation']['steps'] if s.get('name')==ci.APP_BUILD_NAME)
+            if mutation=='no-id':step.pop('id')
+            if mutation=='conditional':step['if']="matrix.lane == 'core'"
+            if mutation=='no-pipefail':step['run']=step['run'].replace('set -o pipefail\n','')
+            if mutation=='no-stderr':step['run']=step['run'].replace(' 2>&1 | tee',' | tee')
+            if mutation=='no-tee':step['run']=step['run'].replace(' | tee build/qa/app-build.log','')
+            if mutation=='no-version':step['run']=step['run'].replace('  xcrun swift --version\n','')
+            if mutation=='swallow-exit':step['run']+='true\n'
+            if mutation=='flags':step['run']=step['run'].replace('CODE_SIGNING_ALLOWED=NO','CODE_SIGNING_ALLOWED=YES')
+            with self.subTest(build=mutation),self.assertRaises(AssertionError):self.verify(value)
+        for mutation in ['missing','duplicate','moved','cancel','failure-owner','wrong-id','lane-only','artifact-name','broad-path','missing-file-policy','retention','action','continue']:
+            value=copy.deepcopy(self.workflow);steps=value['jobs']['validation']['steps']
+            index=next(i for i,step in enumerate(steps) if step.get('name')==ci.APP_BUILD_EVIDENCE['name']);step=steps[index]
+            if mutation=='missing':steps.pop(index)
+            if mutation=='duplicate':steps.insert(index+1,copy.deepcopy(step))
+            if mutation=='moved':steps.insert(index+1,steps.pop(index))
+            if mutation=='cancel':step['if']=step['if'].replace('!cancelled() && ','')
+            if mutation=='failure-owner':step['if']="${{ failure() }}"
+            if mutation=='wrong-id':step['if']=step['if'].replace('app_build','native_ready')
+            if mutation=='lane-only':step['if']="${{ !cancelled() && matrix.lane == 'core' }}"
+            if mutation=='artifact-name':step['with']['name']='app-build'
+            if mutation=='broad-path':step['with']['path']='build/**'
+            if mutation=='missing-file-policy':step['with']['if-no-files-found']='ignore'
+            if mutation=='retention':step['with']['retention-days']=90
+            if mutation=='action':step['uses']='actions/upload-artifact@v3'
+            if mutation=='continue':step['continue-on-error']=True
+            with self.subTest(artifact=mutation),self.assertRaises(AssertionError):self.verify(value)
+
     def testMetafileFailureEvidenceHasExactOwnerAndPlacement(self):
         steps = self.workflow['jobs']['validation']['steps']
         indexes = [i for i, step in enumerate(steps)
@@ -483,6 +536,27 @@ class MacOSLaneTests(unittest.TestCase):
                 step=next(step for step in value['jobs']['validation']['steps'] if step.get('name')==name)
                 step['run']='true'
                 with self.subTest(name=name),self.assertRaises(AssertionError):self.verify(value)
+
+    def testNaturalWorkingStatusProjectionRetainsAllFiveCohortsAndBothGitEngines(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        name=ci.WORKING_STATUS_PROJECTION['name']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==name)
+        self.assertEqual(steps[index],ci.WORKING_STATUS_PROJECTION)
+        self.assertEqual(steps[index-1]['name'],ci.STATUS_OPERANDS['name'])
+        self.assertEqual(steps[index+1]['name'],'Native Commit report rows, fonts and geometry ownership')
+        self.assertTrue(self.eligible(name,'commit-repository',{'earlier_native':'failure'}))
+        self.assertFalse(self.eligible(name,'commit-repository',cancelled=True))
+        for cohort in ['commit','status','add','log','revert']:
+            self.assertEqual(steps[index]['run'].count('--only '+cohort+' '),1)
+            value=copy.deepcopy(self.workflow)
+            value['jobs']['validation']['steps'][index]['run']=steps[index]['run'].replace('--only '+cohort+' ','')
+            with self.subTest(missing=cohort),self.assertRaises(AssertionError):self.verify(value)
+        for outcome in ['failure','skipped','cancelled','']:
+            self.assertFalse(self.eligible(name,'commit-repository',{'native_ready':outcome}))
+        for lane in ci.LANES:
+            if lane!='commit-repository':self.assertFalse(self.eligible(name,lane))
+        # The generic reviewed-status mutation matrix also covers this exact
+        # addition's guard, command, duplicate, missing and neighbor contracts.
 
     def testBlameFocusRetainsOriginalCasesReadyOwnerAndExactNeighbors(self):
         steps=self.workflow['jobs']['validation']['steps']

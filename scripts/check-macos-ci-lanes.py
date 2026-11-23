@@ -36,6 +36,22 @@ GUARD = {'name': 'Check workflow lane contracts', 'run': 'python3 scripts/test-m
 EDITOR_SETUP = {'name': 'Prepare SwiftPM editor for native and Core consumers',
                 'id': 'native_ready',
                 'run': 'swift build --product TurtleGitMac'}
+APP_BUILD_NAME = 'Application and embedded Finder extension'
+APP_BUILD_ORIGINAL_RUN = "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination 'platform=macOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build"
+APP_BUILD_RUN = ('mkdir -p build/qa\nset -o pipefail\n'
+                 '{\n  xcodebuild -version\n  xcrun swift --version\n} > build/qa/app-build-toolchain.txt 2>&1\n'
+                 + APP_BUILD_ORIGINAL_RUN + ' 2>&1 | tee build/qa/app-build.log\n')
+APP_BUILD_EVIDENCE = {
+    'name': 'Upload app-build diagnostics',
+    'if': "${{ !cancelled() && steps.app_build.outcome == 'failure' }}",
+    'uses': 'actions/upload-artifact@v4',
+    'with': {
+        'name': 'app-build-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}',
+        'path': 'build/qa/app-build.log\nbuild/qa/app-build-toolchain.txt\n',
+        'if-no-files-found': 'warn',
+        'retention-days': 7,
+    },
+}
 STORE_BUILD = 'Build and audit unsigned universal App Store candidate'
 REPLAY_BUILD = 'Build isolated older Git runtimes for replay tests'
 STORE_AUDIT = 'Preserve unsigned distribution audit'
@@ -195,6 +211,11 @@ STATUS_OPERANDS = {
     'if': collection_condition('Native accepted status comparison operands', 'commit-repository'),
     'run': 'python3 scripts/test-status-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
 }
+WORKING_STATUS_PROJECTION = {
+    'name': 'Native natural Copy and Rename working status projection',
+    'if': collection_condition('Native natural Copy and Rename working status projection', 'commit-repository'),
+    'run': 'python3 scripts/test-working-status-projection.py --only commit --only status --only add --only log --only revert --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
 BLAME_SOURCE_NAME = 'Native Blame captured source menus'
 BLAME_SOURCE_ORIGINAL_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
 BLAME_SOURCE_FOCUS_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --only focus --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
@@ -205,7 +226,7 @@ STATUS_CONSUMER_ADDITIONS = (
      'Native Blame retained-byte encoding recovery and cancellation'),
     ('Native Commit staging activation and preference lifetime', (ADD_OPERANDS,),
      'Native Commit source category checking'),
-    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS),
+    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS, WORKING_STATUS_PROJECTION),
      'Native Commit report rows, fonts and geometry ownership'),
 )
 
@@ -324,6 +345,12 @@ def verify(workflow, inventory, originals):
                 'Changed status-family following neighbor: ' + following)
         del actual[start:start + len(additions)]
     app_index = next(i for i, step in enumerate(originals) if step.get('name') == 'Application and embedded Finder extension')
+    evidence = [i for i, step in enumerate(actual) if step.get('name') == APP_BUILD_EVIDENCE['name']]
+    require(len(evidence) == 1 and evidence[0] == app_index + 1,
+            'Missing, duplicate or detached app-build evidence')
+    require(actual[evidence[0]] == APP_BUILD_EVIDENCE,
+            'Changed app-build artifact failure/cancellation guard, action, paths, name or retention')
+    actual.pop(evidence[0])
     require(actual[app_index + 1] == EDITOR_SETUP,
             'Every lane needs the unconditional SwiftPM executable before native/Core consumers')
     actual.pop(app_index + 1)
@@ -344,6 +371,16 @@ def verify(workflow, inventory, originals):
                 expected['if'] = collection_condition(name, lane)
         if name in COLLECTION_IDS:
             expected['id'] = COLLECTION_IDS[name]
+        if name == APP_BUILD_NAME:
+            require(before.get('run') == APP_BUILD_ORIGINAL_RUN,
+                    'Reviewed app-build baseline command changed')
+            expected['id'] = 'app_build'
+            expected['run'] = APP_BUILD_RUN
+        if name == APP_BUILD_NAME:
+            require(before.get('run') == APP_BUILD_ORIGINAL_RUN,
+                    'Reviewed app-build baseline command changed')
+            expected['id'] = 'app_build'
+            expected['run'] = APP_BUILD_RUN
         if name == BLAME_SOURCE_NAME:
             require(before.get('run') == BLAME_SOURCE_ORIGINAL_RUN,
                     'Reviewed Blame source-menu baseline command changed')
