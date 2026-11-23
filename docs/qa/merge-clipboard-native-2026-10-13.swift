@@ -3,7 +3,7 @@ import TurtleGitCore
 
 @main struct MergeClipboardVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
-    static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
+    static func require(_ value: Bool, _ message: @autoclosure () -> String) throws { if !value { throw Failure(description: message()) } }
     @MainActor static func wait(_ ready: () -> Bool) async throws {
         for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         throw Failure(description: "Clipboard native UI did not settle")
@@ -61,11 +61,39 @@ import TurtleGitCore
             try invoke(protocolView.mergeContextMenu(defaults: prefs, pasteboard: board).items.first { $0.title == "Copy" }!)
             try require(board.string(forType: .string) == needle, "Selected source Copy differs")
         }
-        let merged = views.first { $0.isEditable }!, mergedProtocol = merged as! MergeContextMenuProviding
+        func resultReadiness()->String {
+            let current=descendants(owner.window!.contentView!).compactMap{$0 as? NSTextView}.filter{$0 is MergeContextMenuProviding}
+            return "nativeReady=\(owner.model.nativeEditorReady) mutations=\(owner.model.sourceMutationsAllowed) busy=\(owner.model.busy) preparing=\(owner.model.preparing) quit=\(owner.model.confirmingQuit) sheet=\(owner.window?.attachedSheet != nil) views="+current.prefix(6).map {
+                "window=\($0.window === owner.window),hidden=\($0.isHiddenOrHasHiddenAncestor),documentView=\($0.enclosingScrollView?.documentView === $0),editable=\($0.isEditable),rowsReady=\(($0 as? MergeContextMenuProviding)?.mergeSourceRowsReady == true),history=\(($0 as? MergeResultHistoryProviding)?.historyAllowed == true),selection=\(NSStringFromRange($0.selectedRange())),utf16=\($0.string.utf16.count)"
+            }.joined(separator:"; ")
+        }
+        func currentResult()->NSTextView? {
+            guard owner.model.nativeEditorReady,owner.model.sourceMutationsAllowed else{return nil}
+            return descendants(owner.window!.contentView!).compactMap{$0 as? NSTextView}.first {
+                $0.window === owner.window && !$0.isHiddenOrHasHiddenAncestor && $0.enclosingScrollView?.documentView === $0 &&
+                    ($0 as? MergeContextMenuProviding)?.mergeSourceRowsReady == true && ($0 as? MergeResultHistoryProviding)?.historyAllowed == true
+            }
+        }
+        do {try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return currentResult() != nil}}
+        catch {throw Failure(description:"Current result editor was not ready for Cut: \(resultReadiness()); \(error)")}
+        // An unresolved result need not contain either source's conflict text.
+        // Use the real conflict choice before testing selection-based editing.
+        let unresolved=owner.model.result
+        try require(!owner.model.blocks.isEmpty,"Private merge omitted the conflict to prepare for Cut")
+        owner.model.continueResolving()
+        try await wait {owner.model.canChooseConflict}
+        owner.model.choose(.mine)
+        do {try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return currentResult()?.string.contains("mine 🦎") == true}}
+        catch {throw Failure(description:"Mine conflict choice did not prepare current result for Cut: \(resultReadiness()); \(error)")}
+        try require(owner.model.result != unresolved && Data(owner.model.result.utf8)==Data("head\nmine 🦎\ntail\n".utf8),"Mine conflict choice did not retain exact private source text")
+        guard let merged=currentResult(),let mergedProtocol=merged as? MergeContextMenuProviding else {throw Failure(description:"Current result editor disappeared before Cut: \(resultReadiness())")}
         let original = owner.model.result
         let range = (merged.string as NSString).range(of: "mine 🦎")
+        try require(range.location != NSNotFound,"Current result omitted Unicode Cut text: \(resultReadiness())")
         merged.setSelectedRange(range)
-        let cut = mergedProtocol.mergeContextMenu(defaults: prefs, pasteboard: board).items.first { $0.title == "Cut" }!
+        try require(merged.selectedRange()==range,"Current result changed requested Unicode Cut selection: requested=\(NSStringFromRange(range)); \(resultReadiness())")
+        guard let cut = mergedProtocol.mergeContextMenu(defaults: prefs, pasteboard: board).items.first(where: { $0.title == "Cut" }) else {throw Failure(description:"Current result Cut missing: \(resultReadiness())")}
+        try require(cut.isEnabled,"Current result Cut disabled: \(resultReadiness())")
         try invoke(cut); try await wait { owner.model.result != original }
         try require(board.string(forType: .string) == "mine 🦎", "Cut used a different pasteboard")
         merged.undoManager!.undo(); try await wait { owner.model.result == original }

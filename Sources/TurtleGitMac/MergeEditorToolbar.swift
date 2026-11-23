@@ -145,7 +145,12 @@ struct MergeToolbarState {
             context.duration = 0;context.allowsImplicitAnimation = false
             if show && window.toolbar !== toolbar {
                 toolbar.isVisible = toolbarShown();window.toolbar = toolbar;installed(true)
-            } else if !show && window.toolbar === toolbar { window.toolbar = nil;installed(false) }
+            } else if !show {
+                // Another presentation may already have replaced this toolbar.
+                // Its installed receipt still belongs to this text owner.
+                if window.toolbar === toolbar { window.toolbar = nil }
+                installed(false)
+            }
             if show,window.toolbar === toolbar,toolbar.isVisible != toolbarShown() { toolbar.isVisible = toolbarShown() }
         }
         applyingVisibility = false

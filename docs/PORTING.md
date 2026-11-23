@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+## Native editor command ownership — November 23, 2026
+
+The [editor command checkpoint](qa/editor-command-family-2026-11-23.json) fixes a
+text toolbar's stale installed receipt after IDiff takes over its window. Six
+native cohort/Git passes cover toolbar replacement, clipboard editing and Merge
+pickers cumulatively. Outdated fixture assumptions and a diagnostic compile
+repair remain recorded separately. The [targeted comparison/replay receipt](qa/accepted-comparison-diagnostics-2026-11-23.json)
+also records two local passes without inferring a new product defect from old
+hosted compound assertions. Full hosted, signed/physical and owner acceptance
+remain open; signed55 and installed52 are unchanged.
+
+
 ## Status report fixture alignment — November 23, 2026
 
 The [source-aligned checkpoint](qa/status-report-fixture-alignment-2026-11-23.json)

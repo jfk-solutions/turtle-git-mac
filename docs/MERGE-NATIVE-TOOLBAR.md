@@ -97,3 +97,22 @@ restore the observed colors. These experiments are diagnostic-only; they add no
 product rendering workaround. The reproducible runner is
 `scripts/diagnose-merge-toolbar-rendering.py`; collection success does not certify
 appearance parity. See [the batch record](qa/merge-menu-lifecycle-2026-10-16.json).
+
+## Text/image ownership continuation — November 23, 2026
+
+Text toolbar state now clears its installed receipt whenever that presentation
+is absent, even when IDiff has already replaced the window's toolbar. It detaches
+only its own toolbar. An intentionally hidden but attached text toolbar remains
+installed, preserving the saved visibility choice. Retired owners cannot detach
+a successor or dispatch their old items. This mirrors the existing IDiff owner.
+
+The [editor command checkpoint](qa/editor-command-family-2026-11-23.json) records
+one incremental Debug build and six distinct native cohort/Git passes cumulatively
+across toolbar, clipboard and picker workflows. The actual ownership defect is
+separate from obsolete fixture expectations: IDiff owns a native toolbar, and
+pinned Mark as resolved remains available with unresolved conflicts before its
+owned Save Anyway warning. Original order/artwork, command/toggle, real Save,
+conflict Undo, replacement and stale-item assertions remain. Failed attempts,
+one diagnostic compile repair and affected-only rechecks are explicit. Physical
+rendering, full hosted and signed acceptance remain open; no new screenshot
+or toolbar appearance correction is claimed.

@@ -101,19 +101,22 @@ import TurtleGitCore
         try require(!oldOpen.isEnabled && !replacement.editorToolbar!.toolbar.items.contains { $0 === oldOpen })
         try require(replacement.editorToolbar!.toolbar.items.last?.itemIdentifier == MergeToolbarCommand.whitespace.identifier)
         toolbar.perform(.help); try require(helpCalls == 1)
-        // Real image-to-text transition removes then recreates the text toolbar.
+        // Real image-to-text transition replaces the owned IDiff toolbar with text commands.
         let png = root.appendingPathComponent("image.png")
         let pixels = NSBitmapImageRep(data: MenuIcon.modified.image()!.tiffRepresentation!)!
         try pixels.representation(using: .png, properties: [:])!.write(to: png)
         let image = FileComparisonWindowController(images: try ImageFileComparison(base: png, destination: png), permissions: [], preferences: prefs)
         defer { image.window?.close() }; image.model.load()
-        try await wait { !image.model.busy && image.model.imageComparison != nil && image.window?.toolbar == nil && !image.model.nativeToolbarInstalled }
+        do {try await wait { !image.model.busy && image.model.imageComparison != nil && image.window?.toolbar === image.imageToolbar?.toolbar && image.model.imageViewerModel.nativeToolbarInstalled && !image.model.nativeToolbarInstalled }}
+        catch {throw NSError(domain:"MergeToolbar.ImageTransition",code:110,userInfo:[NSLocalizedDescriptionKey:"Image toolbar transition: busy=\(image.model.busy) images=\(image.model.imageComparison != nil) error=\(image.model.error ?? "none") installedImage=\(image.model.imageViewerModel.nativeToolbarInstalled) installedText=\(image.model.nativeToolbarInstalled) actual=\(image.window?.toolbar?.identifier ?? "none") expected=\(image.imageToolbar?.toolbar.identifier ?? "none"); \(error)"])}
+        let oldImageToolbar=image.imageToolbar!
         let imageHost = image.window!
         try image.replaceEditor(.compare(base: base, mine: mine, single: true), permissions: [])
         let textOwner = imageHost.delegate as! FileComparisonWindowController
         try require(textOwner !== image)
         try await wait { !textOwner.model.busy && !textOwner.model.filtering && textOwner.model.alignment != nil }
         try require(imageHost.toolbar === textOwner.editorToolbar?.toolbar && textOwner.model.nativeToolbarInstalled)
+        try require(imageHost.toolbar !== oldImageToolbar.toolbar && oldImageToolbar.toolbar.items.allSatisfy{!$0.isEnabled},detail:"Retired image toolbar retained commands after text replacement")
         imageHost.close()
         print("Toolbar: text/image replacement reached"); fflush(stdout)
         // Three-pane conflict actions use the selected block and native Undo.
@@ -125,7 +128,10 @@ import TurtleGitCore
         merge.window?.contentView?.layoutSubtreeIfNeeded()
         let conflictBar = merge.editorToolbar!, original = merge.model.result
         try await wait { conflictBar.toolbar.items.count >= 10 }
-        conflictBar.refresh(); try require(!item(.resolved, in: conflictBar).isEnabled)
+        try await wait { merge.model.nativeEditorReady && merge.model.sourceMutationsAllowed }
+        // Pinned Mark as resolved remains available with conflicts; its actual
+        // Save Anyway warning is covered by the save/resolve workflow receiver.
+        conflictBar.refresh(); try require(merge.model.hasUnresolvedConflicts && item(.resolved, in: conflictBar).isEnabled)
         merge.model.continueResolving()
         try await wait { merge.model.canChooseConflict }
         conflictBar.refresh()

@@ -1,0 +1,228 @@
+{
+  "date": "2026-11-23",
+  "baseline": "5693a3d1",
+  "status": "focused-native-scopes-passed-cumulatively",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_fix": "Text toolbar always clears its own installed receipt when its presentation is no longer shown, even if IDiff already replaced the window toolbar. It detaches only its identity-equal toolbar. User-hidden attached text toolbars retain their installed receipt; replacement/retirement guards remain.",
+  "source_sha256": {
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "ba6a72e465dfd9b931a2e3348728a5d5e585ae2f9d60e6cba94f47fce4d6a34c",
+    "docs/qa/merge-clipboard-native-2026-10-13.swift": "e9aac28c3edcc556277e14212875a382525a3c20d8a3636c5e2de0ae0b069c5e",
+    "docs/qa/merge-pickers-native-2026-10-09.swift": "b65d29b04a30902a24b451ab0c23a84cd450d7352185fcd6ece36a4f6c39cfe8",
+    "docs/qa/merge-toolbar-native-2026-10-15.swift": "c4120a1093604207db299e2ae031c12409e78848e5b11f2b4bf28aff338deb0c"
+  },
+  "build": {
+    "configuration": "Debug",
+    "exit_code": 0,
+    "log": "build/qa/editor-command-toolbar-ownership-build-2026-11-23.log"
+  },
+  "fixture_repairs": [
+    "Clipboard waits/reacquires current owned result editor using actual readiness, chooses Mine through real conflict commands, verifies exact Unicode source text, then tests Cut/Undo/Paste. No direct result assignment. Failure-only diagnostics are lazy.",
+    "Picker process-group cancellation witness explicitly selects CLI for its held wrapper; metadata helper intentionally bypasses that executable. Main picker catalog/F5/Log/ownership assertions remain.",
+    "Image transition expects the implemented IDiff toolbar, verifies text installed receipt cleared and retired image items disabled when text replaces it.",
+    "Pinned MainFrm2230 enables Mark as resolved with unresolved conflicts; fixture checks that source rule after native readiness. Existing Save Anyway warning workflow remains separately covered."
+  ],
+  "failed_attempts": [
+    {
+      "group": "initial native group",
+      "result": [
+        {
+          "name": "clipboard-pickers",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-native-reference-batch.py",
+            "--only",
+            "merge-clipboard",
+            "--only",
+            "merge-pickers",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 1,
+          "seconds": 11.461,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-family-clipboard-pickers-2026-11-23.log"
+        },
+        {
+          "name": "toolbar",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-merge-toolbar.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 1,
+          "seconds": 16.163,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-family-toolbar-2026-11-23.log"
+        }
+      ],
+      "causes": [
+        "Clipboard unresolved result contained no mine text, so old range selection was invalid.",
+        "Toolbar expected no toolbar for IDiff despite native image-toolbar implementation."
+      ]
+    },
+    {
+      "group": "first fixture repairs",
+      "result": [
+        {
+          "name": "clipboard-pickers",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-native-reference-batch.py",
+            "--only",
+            "merge-clipboard",
+            "--only",
+            "merge-pickers",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 1,
+          "seconds": 52.672,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-family-repair-clipboard-pickers-2026-11-23.log"
+        },
+        {
+          "name": "toolbar",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-merge-toolbar.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 1,
+          "seconds": 17.869,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-family-repair-toolbar-2026-11-23.log"
+        }
+      ],
+      "causes": [
+        "Clipboard system passed and retained. Picker process hold never reached because metadata helper bypassed CLI wrapper.",
+        "Image toolbar present, but text installed receipt remained true."
+      ]
+    },
+    {
+      "group": "diagnostic and remaining groups",
+      "result": [
+        {
+          "name": "clipboard-bundled",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-native-reference-batch.py",
+            "--only",
+            "merge-clipboard",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 0,
+          "seconds": 7.01,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-final-clipboard-bundled-2026-11-23.log"
+        },
+        {
+          "name": "pickers",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-native-reference-batch.py",
+            "--only",
+            "merge-pickers",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 0,
+          "seconds": 18.745,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-final-pickers-2026-11-23.log"
+        },
+        {
+          "name": "toolbar",
+          "command": [
+            "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+            "scripts/test-merge-toolbar.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+          ],
+          "exit": 1,
+          "seconds": 1.363,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/editor-command-final-toolbar-2026-11-23.log"
+        }
+      ],
+      "causes": [
+        "Bundled clipboard and both picker configurations passed and retained.",
+        "Toolbar diagnostic incorrectly used rawValue on NSToolbar.Identifier, a String; compile error corrected."
+      ]
+    },
+    {
+      "group": "exact toolbar diagnostic",
+      "exit_code": 1,
+      "log": "build/qa/editor-command-toolbar-diagnostic-2026-11-23.log",
+      "finding": "busy=false, images=true, no error, actual toolbar equals image toolbar, image installed=true, text installed=true."
+    },
+    {
+      "group": "after product fix",
+      "exit_code": 1,
+      "log": "build/qa/editor-command-toolbar-ownership-final-2026-11-23.log",
+      "finding": "Image/text ownership and stale image items passed; subsequent stale fixture expected unresolved Mark as resolved disabled, contrary to pinned source and October29 Save Anyway implementation."
+    }
+  ],
+  "final_passes": [
+    {
+      "case": "clipboard/system Git",
+      "log": "build/qa/editor-command-family-repair-clipboard-pickers-2026-11-23.log"
+    },
+    {
+      "case": "clipboard/bundled Git",
+      "log": "build/qa/editor-command-final-clipboard-bundled-2026-11-23.log"
+    },
+    {
+      "case": "pickers/system and bundled Git",
+      "log": "build/qa/editor-command-final-pickers-2026-11-23.log"
+    },
+    {
+      "case": "toolbar/system and bundled Git",
+      "exit_code": 0,
+      "log": "build/qa/editor-command-toolbar-source-contract-2026-11-23.log"
+    }
+  ],
+  "distinct_native_cohort_engine_passes": 6,
+  "retained_scope_rationale": "Toolbar ownership fix affects absent text presentation/image replacement/P4 receipt. Clipboard uses mounted text presentation; picker uses separate reference/Log owners. Read-only ownership review confirmed no repeat of those passing scopes required.",
+  "cleanup": {
+    "logged_owned_pids": [
+      23613,
+      23624,
+      23686,
+      23690,
+      23953,
+      23964,
+      24023,
+      24388,
+      24392,
+      24677,
+      24684,
+      24749,
+      24757,
+      25070,
+      25381,
+      25423,
+      25427,
+      25669,
+      25671,
+      25678,
+      25789,
+      25793,
+      25802
+    ],
+    "all_absent": true,
+    "picker_held_process_and_child_absence": "asserted by both completed picker receivers"
+  },
+  "not_run": [
+    "No Core code changed; no Core rerun.",
+    "Complete corrected-source hosted CI, shipping signed/physical Finder, accessibility, Intel/minimum macOS and owner acceptance."
+  ],
+  "delivery": "Signed55 and installed52 unchanged. No new WMF/EMF work, install, notarization or publication."
+}

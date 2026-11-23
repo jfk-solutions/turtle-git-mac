@@ -66,3 +66,16 @@ seven earlier failed native receivers were reaped. Earlier compile, target-lifet
 and fixture layout/filtering failures are retained in the [QA record](qa/merge-clipboard-2026-10-13.json).
 Two site documentation checks passed; the full suite and signed deployment were
 not repeated for this batch.
+
+## Native command admission continuation — November 23, 2026
+
+The clipboard receiver now reacquires the current owned result editor through its
+actual presentation/history readiness contract. An unresolved result need not
+contain Mine text. The receiver first chooses Mine through Continue Resolving and
+the production block-choice command, verifies exact Unicode source bytes, then
+exercises the original real Cut/Undo/Paste and private-board assertions. No result
+text is assigned directly. Busy/retired refusal and exact repository preservation
+remain. The [grouped evidence](qa/editor-command-family-2026-11-23.json) separates
+this fixture preparation from the text/image toolbar product fix and retains the
+passing clipboard configurations without repeating them after that unrelated
+ownership correction. Full hosted, physical and signed acceptance remain open.

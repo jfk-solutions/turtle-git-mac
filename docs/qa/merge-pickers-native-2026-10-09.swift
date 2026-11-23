@@ -139,7 +139,9 @@ import TurtleGitCore
         exec \(quoted) "$@"
         """
         try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-        let pending=MergeWindowController(repository:GitRepository(root:root,executable:helper),access:nil,preferences:prefs)
+        // This process-group cancellation witness must exercise the held CLI
+        // wrapper; the metadata helper deliberately bypasses that executable.
+        let pending=MergeWindowController(repository:GitRepository(root:root,executable:helper,libgit2Configuration:.init(enabled:false)),access:nil,preferences:prefs)
         var ownedPids:[Int32]=[]
         defer { pending.close(); for pid in ownedPids where kill(pid,0)==0 { _ = kill(pid,SIGTERM) } }
         pending.model.load(revision:"refs/heads/nested/topic"); try await wait([pending.window!]) { !pending.model.busy && !pending.model.references.isEmpty }
