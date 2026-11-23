@@ -27,6 +27,7 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
     var refreshAction:()->Void = {}
     var keyOwnerQuery:(NSWindow)->Bool = {$0.isKeyWindow}
     override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if let table=firstResponder as? AddNativeTable,table.performSelectedReturn(event) {return true}
         if event.keyCode==96,event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty,
            event.window === self,keyOwnerQuery(self),attachedSheet==nil,NSApp.modalWindow==nil {
             refreshAction();return true
@@ -61,6 +62,86 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
     private func finishHistoryAlert(_ id: UUID, response: NSApplication.ModalResponse) {
         guard let pending = historyAlert, pending.0 == id else { return }; historyAlert = nil
         pending.2.resume(returning: response)
+    }
+    private(set) var conflictResolutionController:ResolveWindowController?
+    var configureConflictResolution:(ResolveWindowController)->Void = {_ in}
+    private(set) var conflictResetController:ResetWindowController?
+    var configureConflictReset:(ResetWindowController,GitRepository)->Void = {_,_ in}
+    private var conflictResolutionEpoch=UUID()
+    private func presentOwnedConflictResolution(_ menu:RebaseWindowModel.ConflictFileMenu,choice:ResolveChoice,intent:StatusListPrimaryActivationSession.Intent,cancellation:OperationCancellation,ownerIsCurrent:@escaping()->Bool) async throws {
+        guard !model.retired,ownerIsCurrent(),conflictResolutionController==nil,let parent=window,parent === intent.window,parent.attachedSheet==nil else{throw OperationCancellationFailure.cancelled}
+        let child=ResolveWindowController(repository:intent.repository,access:model.repositoryAccess,paths:menu.conflicts.map(\.path),quick:choice,preferences:intent.preferences)
+        let id=UUID(),acceptedOrientation=model.conflictRebase;conflictResolutionEpoch=id;conflictResolutionController=child
+        configureConflictResolution(child)
+        let configured=child.externalAvailability
+        let current:()->Bool = {[weak self,weak child] in
+            guard let self,let child else{return false}
+            return self.conflictResolutionController === child && self.conflictResolutionEpoch==id && !self.model.retired && self.model.conflictRebase==acceptedOrientation && ownerIsCurrent() && intent.settingsCurrent && !cancellation.isCancelled && configured()
+        }
+        child.externalAvailability=current
+        child.model.onSubmoduleReset={ [weak self,weak child] repository,revision,completed in
+            guard let self,let child,current(),self.conflictResetController==nil,let parent=child.window,parent.attachedSheet==nil else{return}
+            let accepted=repository.capturingBackend(intent.repository.libgit2Configuration ?? .load(from:intent.preferences))
+            let reset=ResetWindowController(repository:accepted,access:self.model.repositoryAccess,revision:revision,preferences:intent.preferences)
+            self.conflictResetController=reset;self.configureConflictReset(reset,accepted)
+            let didReset=reset.model.onReset
+            var succeeded=false
+            reset.model.onReset={succeeded=true;didReset($0)}
+            reset.onClosed={ [weak self,weak reset,weak child] in
+                guard let self,let reset,self.conflictResetController === reset else{return}
+                self.conflictResetController=nil
+                if let child,!child.retired,current() {
+                    if succeeded {completed()} else {child.model.dismissSubmoduleReset()}
+                }
+                reset.onClosed={}
+            }
+            guard let sheet=reset.window else{reset.close();return}
+            sheet.alphaValue=parent.alphaValue;sheet.appearance=parent.effectiveAppearance
+            parent.beginSheet(sheet);reset.model.load()
+        }
+        child.model.readConflicts={repositoryToken in
+            try await self.model.validateOwnedConflictResolution(menu,repository:intent.repository,token:repositoryToken)
+            guard current() else{throw OperationCancellationFailure.cancelled}
+            return (menu.conflicts,self.model.conflictRebase)
+        }
+        child.model.executeResolution={entries,selectedChoice,token,output,progress in
+            let expected=GitPathMap(uniqueKeysWithValues:menu.conflicts.map{($0.path,$0)})
+            guard current(),entries.count==menu.conflicts.count,GitPathSet(entries.map(\.path)).count==entries.count,
+                  entries.allSatisfy({expected[$0.path]==$0}),selectedChoice==choice else{throw ResolveFailure.stale}
+            try await self.model.validateOwnedConflictResolution(menu,repository:intent.repository,token:token)
+            guard current() else{throw OperationCancellationFailure.cancelled}
+            return try await intent.repository.resolveConflicts(menu.conflicts,using:selectedChoice,confirmSubmoduleDeletion:child.model.confirmSubmoduleDeletion,cancellation:token,onOutput:output,onProgress:progress,backend:intent.repository.libgit2Configuration)
+        }
+        let changed=child.onChanged
+        var result:String?
+        child.onChanged={result=$0}
+        let watcher=Task { @MainActor [weak child] in
+            while !Task.isCancelled {
+                if !current() {self.conflictResetController?.close();child?.close();return}
+                do {try await Task.sleep(nanoseconds:10_000_000)} catch{return}
+            }
+        }
+        defer {watcher.cancel();child.model.readConflicts=nil;child.model.executeResolution=nil;child.externalAvailability={false};child.onClosed={}}
+        await withCheckedContinuation { (reply:CheckedContinuation<Void,Never>) in
+            child.onClosed={ [self,child] in
+                // Resolve's onClosed follows its actual worker/owned child and
+                // original parent+sheet detachment, including forced closure.
+                child.onClosed={}
+                Task { @MainActor [self,child] in
+                    conflictResetController?.close()
+                    while conflictResetController != nil {try? await Task.sleep(nanoseconds:5_000_000)}
+                    if conflictResolutionController === child,conflictResolutionEpoch==id {conflictResolutionController=nil}
+                    reply.resume()
+                }
+            }
+            guard let sheet=child.window else{child.close();return}
+            sheet.alphaValue=parent.alphaValue;sheet.appearance=parent.effectiveAppearance
+            parent.beginSheet(sheet);child.model.loadInitial()
+        }
+        if !model.retired,let result {
+            changed(result)
+            ConflictListRefreshPolicy.perform(preferences:intent.preferences){model.refreshState()}
+        }
     }
     var configureContainingReferences: (CommitContainingReferencesWindowController) -> Void = { _ in }
     private func refreshContainingReferenceBlocking() {
@@ -266,6 +347,10 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         }
         model.confirmConflictMutation={ [weak self] message,flags in
             await self?.askReplay(message,buttons:["Yes","No"],defaultIndex:flags ? 1:0) == 0
+        }
+        model.presentOwnedConflictResolution={ [weak self] menu,choice,intent,token,current in
+            guard let self else{throw OperationCancellationFailure.cancelled}
+            try await self.presentOwnedConflictResolution(menu,choice:choice,intent:intent,cancellation:token,ownerIsCurrent:current)
         }
         model.cancelConflictRevert={ [weak self] in self?.conflictRevertWindow?.model.cancel() }
         model.presentConflictRevert=CommandProgressContext.capture(commandProgressScope) { [weak self] entries,validate in
@@ -542,14 +627,14 @@ private final class RebaseProgressDelivery: @unchecked Sendable {
         return true
     }
     func windowWillClose(_ notification: Notification) {
-        (window as? RebaseNativeWindow)?.refreshAction = {}
+        (window as? RebaseNativeWindow)?.refreshAction = {};conflictResetController?.close();conflictResolutionController?.close()
         if let child=logPicker {retiredBatchChildren.append{child.model.pendingHistoryLoads>0 || child.window?.sheetParent != nil}}
         if let child=referencePicker {retiredBatchChildren.append{child.model.pendingReferenceReads>0 || child.window?.sheetParent != nil}}
         if let child=splitCommitPicker {retiredBatchChildren.append{child.model.attemptWorkPending || child.window?.sheetParent != nil}}
         if let child=stashRestore {retiredBatchChildren.append{child.transportBatchWorkPending || child.window?.sheetParent != nil}}
         if let pending = historyAlert { finishHistoryAlert(pending.0, response: .abort); window?.endSheet(pending.1.window, returnCode: .abort); pending.1.window.close() }; revisionFind?.close(); revisionFind = nil; Array(containingWindows.values).forEach { $0.close() }; containingWindows = [:]; retireReferencePicker(); model.retire(); identitySettings?.retire(); retireCommitPicker();conflictAddWindow?.close();conflictAddWindow=nil;conflictIgnoreWindow?.close();conflictIgnoreWindow=nil;Array(conflictUnifiedWindows.values).forEach {$0.close()};conflictUnifiedWindows=[:]; if let pending = replayQuestion { finishReplayQuestion(pending.0, answer: Int.max) }; if let pending = conflictPanel { finishConflictPanel(pending.0, accepted: false) }; conflictRevertWindow?.close();conflictRevertWindow=nil; conflictBaseViewer?.close(); conflictBaseViewer = nil; notePresenter?.close(); if let alert = stashAlert { window?.endSheet(alert.window, returnCode: .abort); alert.window.orderOut(nil) }; stashAlert = nil; stashRestore?.close(); stashRestore = nil; logPicker?.close(); logPicker = nil; splitCommitPicker?.close(); splitCommitPicker = nil
-        if model.revisionMenuLog.noteWorkPending {
-            Task{@MainActor [self] in while model.revisionMenuLog.noteWorkPending{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
+        if model.revisionMenuLog.noteWorkPending || model.pendingBatchWorkers>0 {
+            Task{@MainActor [self] in while model.revisionMenuLog.noteWorkPending || model.pendingBatchWorkers>0{try? await Task.sleep(nanoseconds:5_000_000)};onClosed()}
         }else{onClosed()}
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
@@ -624,6 +709,7 @@ struct RebaseReferenceRequest {
     private var revisionBusyObservation: AnyCancellable?
     var revisionFilesAvailable:Bool { !revisionHistoryBlocked && !retired && !busy && !selectingSplit && !pickingCommits && pickingReference == nil && !revisionFiles.busy && revisionFiles.window?.attachedSheet == nil }
 
+    let conflictReportRefresh=FileListRefreshCoordinator()
     @Published var conflictRows: [StatusEntry] = []
     @Published var conflictStatistics: GitPathMap<CommitFile> = [:]
     @Published private(set) var conflictIndexFlags:GitPathMap<FinderIndexFlags>=[:]
@@ -695,9 +781,16 @@ struct RebaseReferenceRequest {
     private func conflictStatus(_ entry:StatusEntry,flags:GitPathMap<FinderIndexFlags>)->String {
         if flags[entry.path]?.skipWorktree == true {return "Skip-worktree"}
         if flags[entry.path]?.assumeUnchanged == true {return "Assume unchanged"}
+        if entry.state != .conflicted {
+            if entry.index=="A" || entry.worktree=="A" {return "Added"}
+            if entry.worktree=="D",!entry.hasUnversionedCopy {return "Missing"}
+            if entry.index=="D" {return "Deleted"}
+        }
         return entry.state.rawValue.capitalized
     }
     @Published var conflicts: [ConflictEntry] = []
+    @Published private(set) var conflictRebase=false
+    private var conflictOrientations:[(RebaseConflictIdentity?,String,Bool)]=[]
     private var highlightedConflictPaths = GitPathSet()
     @Published var nativeConflictSelection = Set<String>() {
         didSet { highlightedConflictPaths = GitPathRowIdentity.paths(nativeConflictSelection) }
@@ -742,6 +835,7 @@ struct RebaseReferenceRequest {
     private var conflictMenuGeneration = UUID()
     private var conflictComparisonEpoch=UUID()
     var onConflictAction: (RepositoryAction, [String]) -> Void = { _, _ in }
+    var presentOwnedConflictResolution:((ConflictFileMenu,ResolveChoice,StatusListPrimaryActivationSession.Intent,OperationCancellation,@escaping()->Bool) async throws ->Void)?
     @Published var conflictPatch: String?
     @Published var selectedFiles = Set<String>()
     @Published var message = ""
@@ -828,7 +922,7 @@ struct RebaseReferenceRequest {
     var hasCancellablePreparation: Bool { referenceRefreshCancellation != nil || messageSelectionCancellation != nil || actionEditCancellation != nil || insertionCancellation != nil || revisionFiles.hasOwnedPreparation || conflictFileCancellation != nil || sessionCancellation != nil || conflictDiffCancellation != nil || planCancellation != nil || referenceCancellation != nil || initialCancellation != nil || detailCancellation != nil }
     @discardableResult func cancelPreparation() -> Bool {
         if revertingConflictFiles {cancelConflictRevert();return true}
-        if presentingConflictFileDialog {cancelConflictFileDialog();return true}
+        if presentingConflictFileDialog {conflictFileCancellation?.cancel();cancelConflictFileDialog();return true}
         guard hasCancellablePreparation else { return false }
         revisionFiles.cancelEmbeddedPreparation()
         messageSelectionCancellation?.cancel()
@@ -1001,7 +1095,7 @@ struct RebaseReferenceRequest {
     var chooseRestoreReplayStash: () async -> Bool = { false }
     var chooseUnresolvedReplayStash: () async -> Int = { 2 }
     var restoreReplayStash: (Int) async -> Void = { _ in }
-    func retire() { retired = true;replayProgressEpoch=UUID();replayProgressCallback=nil;pendingLoad=nil;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
+    func retire() { retired = true;conflictReportRefresh.retire();onPrimaryConflictFileActivation=nil;presentOwnedConflictResolution=nil;replayProgressEpoch=UUID();replayProgressCallback=nil;pendingLoad=nil;referenceRefreshGeneration=UUID();referenceRefreshCancellation?.cancel(); replayResultInspection?.cancel(); replayResultInspection=nil; messageSelectionCancellation?.cancel(); actionEditCancellation?.cancel(); pendingConfirmation=nil;confirmation=nil; insertionCancellation?.cancel(); cancelMainlineQuestion(); additionalSelection = nil; pickingCommits = false;revisionFiles.invalidate();revisionFiles.closeOwnedViewers();conflictSubmoduleLog.retire();conflictComparisonMark=nil;pendingSessionRefresh=false;sessionGeneration=UUID();conflictDiffGeneration=UUID();sessionCancellation?.cancel();conflictDiffCancellation?.cancel();conflictFileCancellation?.cancel(); planCancellation?.cancel(); referenceCancellation?.cancel(); initialCancellation?.cancel(); detailCancellation?.cancel(); planGeneration += 1; detailGeneration += 1; referenceRequest = nil; pickingReference = nil; loadingPlan = false; columnGeneration = UUID(); columnToken?.cancel(); columnToken = nil; loadingColumnMetadata = false; revisionMenuLog.invalidate(); replayPreparationCancellation?.cancel(); clientHooks.retire() }
     func finishReplay(after: (() -> Void)? = nil) { CommandProgressContext.perform(commandProgressScope) { finishReplayWithCommandProgressContext(after:after.map {CommandProgressContext.capture(commandProgressScope,$0)}) } }
     private func finishReplayWithCommandProgressContext(after: (() -> Void)?) {
         guard !retired, pendingConfirmation == nil, !busy, !revisionFiles.busy, !active, !selectingSplit, !pickingCommits else { return }
@@ -1087,6 +1181,7 @@ struct RebaseReferenceRequest {
         conflictMenuGeneration = UUID()
         let previousPaths=conflictIdentity == snapshot.identity ? GitPathSet(conflictRows.map(\.path)):[]
         if conflictIdentity != snapshot.identity || !snapshot.fileRecovery {checkedConflicts=[]}
+        conflictRebase=conflictOrientations.last(where:{$0.0==snapshot.identity && GitReferenceName.equal($0.1,snapshot.head)})?.2 ?? false
         state=snapshot.state;fileRecovery=snapshot.fileRecovery;conflictIdentity=snapshot.identity
         conflicts=snapshot.conflicts;conflictRows=snapshot.rows;conflictStatistics=snapshot.statistics;conflictIndexFlags=snapshot.indexFlags;conflictHead=snapshot.head
         let paths=GitPathSet(snapshot.rows.map(\.path))
@@ -1113,9 +1208,19 @@ struct RebaseReferenceRequest {
         return try await repository.rebasePlan(options,cancellation:cancellation)
     }
     private func readSessionValue(_ identity:RebaseConflictIdentity?,_ cancellation:OperationCancellation,repository captured:GitRepository?=nil) async throws -> RebaseSessionSnapshot {
-        if let readSession {return try await readSession(identity,cancellation)}
         let repository=captured ?? self.operationRepository()
-        return try await repository.rebaseSessionSnapshot(retaining:identity,cancellation:cancellation)
+        let value:RebaseSessionSnapshot
+        if let readSession {value=try await readSession(identity,cancellation)}
+        else {value=try await repository.rebaseSessionSnapshot(retaining:identity,cancellation:cancellation)}
+        try await recordConflictOrientation(value,repository:repository,cancellation:cancellation)
+        return value
+    }
+    private func recordConflictOrientation(_ snapshot:RebaseSessionSnapshot,repository:GitRepository,cancellation:OperationCancellation) async throws {
+        let rebasing=try await repository.conflictIsRebase(cancellation:cancellation)
+        try cancellation.check();guard !retired else{throw OperationCancellationFailure.cancelled}
+        conflictOrientations.removeAll{$0.0==snapshot.identity && GitReferenceName.equal($0.1,snapshot.head)}
+        conflictOrientations.append((snapshot.identity,snapshot.head,rebasing))
+        if conflictOrientations.count>16 {conflictOrientations.removeFirst(conflictOrientations.count-16)}
     }
     private func loadConflictFiles(cancellation:OperationCancellation?=nil,repository captured:GitRepository?=nil,preservingReplayEditorAt acceptedHead:String?=nil) async throws {
         try cancellation?.check();guard !retired else {return}
@@ -1123,11 +1228,15 @@ struct RebaseReferenceRequest {
         let token=cancellation ?? OperationCancellation()
         if cancellation == nil {replayResultInspection=token}
         defer {if replayResultInspection === token {replayResultInspection=nil}}
+        let position=conflictReportRefresh.begin(preferences:messageDefaults,selectedIDs:selectedConflicts)
+        defer {conflictReportRefresh.finish(position)}
         let snapshot=try await repository.rebaseSessionSnapshot(retaining:conflictIdentity,includeReplay:false,cancellation:token)
+        try await recordConflictOrientation(snapshot,repository:repository,cancellation:token)
         try token.check();guard !retired else {return}
         let preserve = acceptedHead == snapshot.head && acceptedHead != nil &&
             snapshot.state.stoppedEntryID == state?.stoppedEntryID && snapshot.state.originalHead == state?.originalHead
         applyConflictSnapshot(snapshot,preservingReplayEditor:preserve)
+        await conflictReportRefresh.restore(position,ids:conflictTableRows.map(\.entry.path))
     }
     struct ConflictFileMenu {
         let generation: UUID
@@ -1166,7 +1275,8 @@ struct RebaseReferenceRequest {
     func conflictFileMenu(_ values: some Sequence<String>,markedPath:String?=nil) -> ConflictFileMenu {
         let ids = GitPathSet(values)
         let rows = conflictTableRows.map(\.entry).filter { ids.contains($0.id) }
-        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: conflicts.filter { ids.contains($0.id) }, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{GitReferenceName.equal($0.id,id)}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
+        let conflictLookup=GitPathMap(uniqueKeysWithValues:conflicts.map{($0.path,$0)})
+        return ConflictFileMenu(generation: conflictMenuGeneration, identity: conflictIdentity, head: conflictHead, rows: rows, conflicts: rows.compactMap{conflictLookup[$0.path]}, statistics: conflictStatistics,columns:visibleConflictColumns,indexFlags:conflictIndexFlags,mark:(markedPath ?? focusedConflictPath).flatMap {id in rows.contains(where:{GitReferenceName.equal($0.id,id)}) ? id:nil} ?? rows.first?.id ?? "",comparisonMark:conflictComparisonMark,amendToParent:state?.stoppedAction == .squash)
     }
     func captureComparisonOwner(paths:[String])->()->Bool {
         let requested=GitPathSet(paths),menu=conflictFileMenu(paths),selection=selectedConflicts
@@ -1199,22 +1309,29 @@ struct RebaseReferenceRequest {
         case .log: return menu.rows.count == 1
         case .oldNameLog: return menu.rows.count == 1 && menu.rows[0].originalPath != nil
         case .blame: return menu.rows.count == 1 && ordinary && menu.rows[0].state != .deleted && menu.rows[0].state != .added
-        case .editor, .open, .openWith: return menu.rows.count == 1 && ordinary && menu.rows[0].state != .deleted
-        case .export: return ordinary && menu.rows.allSatisfy { $0.state != .deleted }
-        case .reveal: return menu.rows.count == 1 && menu.rows[0].state != .deleted
-        case .compareTwo: return menu.rows.count == 2 && ordinary && menu.rows.allSatisfy { $0.state != .deleted }
+        case .editor, .open, .openWith: return menu.rows.count == 1 && ordinary && canReadConflictWorkingFile(menu.rows[0])
+        case .export: return ordinary && menu.rows.allSatisfy(canReadConflictWorkingFile)
+        case .reveal: return menu.rows.count == 1 && canReadConflictWorkingFile(menu.rows[0])
+        case .compareTwo: return menu.rows.count == 2 && ordinary && menu.rows.allSatisfy(canReadConflictWorkingFile)
         case .submoduleLog:return menu.rows.count == 1 && !ordinary
         case .delete: return menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canDeleteFromStatusList == true
         }
     }
-    private func validateConflictFileMenu(_ menu: ConflictFileMenu, token: OperationCancellation,validateRows:Bool=true) async throws {
+    private func canReadConflictWorkingFile(_ row:StatusEntry)->Bool {
+        row.hasUnversionedCopy || row.state != .deleted && row.worktree != "D"
+    }
+    private func validateConflictFileMenu(_ menu: ConflictFileMenu, token: OperationCancellation,validateRows:Bool=true,repository captured:GitRepository?=nil) async throws {
         try requireAccess(); try token.check()
         guard acceptsConflictFileMenu(menu, duringRequest: true) else { throw RebaseFailure.changed }
-        let fresh = try await readSessionValue(menu.identity, token)
+        let fresh = try await readSessionValue(menu.identity, token,repository:captured)
         guard fresh.identity == menu.identity, fresh.head == menu.head, fresh.fileRecovery,
               !validateRows || menu.rows.allSatisfy({ fresh.rows.contains($0) && fresh.indexFlags[$0.path] == menu.indexFlags[$0.path] }),
               !validateRows || menu.conflicts.allSatisfy({ fresh.conflicts.contains($0) }) else { throw RebaseFailure.changed }
         try token.check(); guard acceptsConflictFileMenu(menu, duringRequest: true) else { throw RebaseFailure.changed }
+    }
+    func validateOwnedConflictResolution(_ menu:ConflictFileMenu,repository:GitRepository,token:OperationCancellation) async throws {
+        try await validateConflictFileMenu(menu,token:token,repository:repository)
+        guard try await repository.conflictIsRebase(cancellation:token)==conflictRebase else{throw ResolveFailure.stale}
     }
     private func conflictLocation(_ path: String) throws -> URL {
         _ = try RemovalRequest(paths: [path], keepLocal: true)
@@ -1279,7 +1396,7 @@ struct RebaseReferenceRequest {
     }
     func canMarkConflictComparison(_ menu:ConflictFileMenu)->Bool {
         guard acceptsConflictFileMenu(menu),let mark=menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)}) else {return false}
-        return mark.state != .deleted && menu.statistics[mark.path]?.isSubmodule != true && !menu.conflicts.contains {GitReferenceName.equal($0.path,mark.path) && $0.isSubmodule}
+        return canReadConflictWorkingFile(mark) && menu.statistics[mark.path]?.isSubmodule != true && !menu.conflicts.contains {GitReferenceName.equal($0.path,mark.path) && $0.isSubmodule}
     }
     func markConflictForComparison(_ menu:ConflictFileMenu) {
         guard canMarkConflictComparison(menu) else {return}
@@ -1424,16 +1541,80 @@ struct RebaseReferenceRequest {
         let shouldCheck = !(mark.map { checkedConflicts.contains($0) } ?? selected.allSatisfy { checkedConflicts.contains($0) })
         if shouldCheck { checkedConflicts.formUnion(selected) } else { checkedConflicts.subtract(selected) }
     }
+    var onPrimaryConflictFileActivation:StatusListPrimaryActivationSession.Launch?
+    var confirmPrimaryConflictFileActivation:((Int) async -> Bool)?
+    @Published private(set) var primaryConflictActivationPending=false
+    func activatePrimaryConflictFiles(_ paths:[String],alternate:Bool) {activateConflictFiles(paths,alternate:alternate,mode:.primary)}
+    private func activateConflictFiles(_ paths:[String],alternate:Bool,mode:StatusListPrimaryActivationMode) {
+        let menu=conflictFileMenu(paths),ids=GitPathSet(paths)
+        guard recoveryReportAvailable,!primaryConflictActivationPending,!paths.isEmpty,
+              ids.count==paths.count,menu.rows.count==paths.count,acceptsConflictFileMenu(menu),
+              let window=revisionMenuLog.window,window.attachedSheet==nil,NSApp.modalWindow==nil,
+              let launch=onPrimaryConflictFileActivation else{return}
+        let intent=StatusListPrimaryActivationSession.Intent(repository:operationRepository(),preferences:messageDefaults,window:window,amendToParent:menu.amendToParent,alternateTool:alternate)
+        let selected=selectedConflicts,sourceTab=tab,sourceSort=conflictSortOrder,orientation=conflictRebase
+        let submodules=GitPathSet(menu.conflicts.filter(\.isSubmodule).map(\.path))
+        let rows=menu.rows.map{entry in StatusListPrimaryFile(entry:entry,isDirectory:menu.statistics[entry.path]?.isSubmodule == true,isSubmodule:menu.statistics[entry.path]?.isSubmodule == true || submodules.contains(entry.path))}
+        let token=OperationCancellation();conflictComparisonEpoch=UUID();conflictFileCancellation=token
+        preparingConflictFiles=true;primaryConflictActivationPending=true;cancellingPreparation=false;busy=true;error=nil
+        let owner=captureComparisonOwner(paths:paths)
+        let current:()->Bool = {[weak self,weak window] in
+            guard let self,let window else{return false}
+            return owner() && self.revisionMenuLog.window === window && self.conflictFileCancellation === token &&
+                !token.isCancelled && !self.revisionMenuLog.confirmingQuit && self.tab==sourceTab &&
+                self.selectedConflicts==selected && self.conflictSortOrder==sourceSort && self.conflictRebase==orientation &&
+                intent.settingsCurrent
+        }
+        Self.activePreparationReads += 1;pendingBatchWorkers += 1
+        Task { @MainActor [self] in
+            let watcher=Task { @MainActor in
+                while !Task.isCancelled {
+                    if !current() {token.cancel();return}
+                    do {try await Task.sleep(nanoseconds:10_000_000)} catch{return}
+                }
+            }
+            defer {
+                watcher.cancel();Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access){}
+                primaryConflictActivationPending=false
+                if conflictFileCancellation === token {conflictFileCancellation=nil;preparingConflictFiles=false;cancellingPreparation=false;if !retired {busy=false;loadPendingHandoff()}}
+            }
+            do {
+                try await validateConflictFileMenu(menu,token:token)
+                guard current(),try await intent.repository.conflictIsRebase(cancellation:token)==orientation else{throw OperationCancellationFailure.cancelled}
+                try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryConflictFileActivation,expectedConflicts:menu.conflicts,expectedRebase:orientation,mode:mode,launch:launch)
+            } catch {if current() {self.error=error.localizedDescription}}
+        }
+    }
+    var recoveryReportAvailable:Bool {
+        conflictColumnsAvailable && tab==0 && !revisionMenuLog.confirmingQuit && !primaryConflictActivationPending &&
+        pendingConfirmation==nil && confirmation==nil && !hasReplayQuestion && !confirmingReplayCancellation &&
+        !containingReferenceBlocked && !revisionFindBlocked && !revisionHistoryBlocked &&
+        !viewingConflictBase && !preparingConflictDiff && !refreshingSession && !revisionFiles.busy && NSApp.modalWindow==nil
+    }
     func conflictAction(_ action: RepositoryAction, ids: some Sequence<String>) { conflictAction(action, menu: conflictFileMenu(ids)) }
     func conflictAction(_ action: RepositoryAction, menu: ConflictFileMenu) {
         let paths = menu.conflicts.map(\.path)
         guard acceptsConflictFileMenu(menu), !paths.isEmpty, action != .editConflict || paths.count == 1 && menu.rows.count == 1 else { return }
+        if action == .editConflict,onPrimaryConflictFileActivation != nil {
+            activatePrimaryConflictFiles(paths,alternate:ComparisonToolInvocation.capture);return
+        }
+        if let choice=action.resolveChoice,let presentOwnedConflictResolution,let window=revisionMenuLog.window {
+            let intent=StatusListPrimaryActivationSession.Intent(repository:operationRepository(),preferences:messageDefaults,window:window,amendToParent:menu.amendToParent,alternateTool:ComparisonToolInvocation.capture)
+            runConflictFileMenu(menu) { [self] token in
+                let owner=captureComparisonOwner(paths:menu.paths)
+                presentingConflictFileDialog=true
+                defer {presentingConflictFileDialog=false}
+                try await presentOwnedConflictResolution(menu,choice,intent,token,{owner() && intent.settingsCurrent})
+            }
+            return
+        }
         runConflictFileMenu(menu) { [self] token in
             try token.check(); guard !retired else { return }; onConflictAction(action, paths)
         }
     }
     func compareConflictMenu(_ menu: ConflictFileMenu) {
         guard acceptsConflictFileMenu(menu),menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canCompareWithBaseFromStatusList == true else { return }
+        if onPrimaryConflictFileActivation != nil {activateConflictFiles(menu.paths,alternate:ComparisonToolInvocation.capture,mode:.compareWithBase);return}
         if menu.rows.count==1,menu.conflicts.count==1 {compareConflicts(GitPathSet(menu.conflicts.map(\.id)))}
         else {runConflictFileMenu(menu) { [self] token in try token.check();onConflictWorkingComparison(menu.paths,menu.amendToParent)}}
     }
@@ -2279,10 +2460,12 @@ struct RebaseReferenceRequest {
         guard !retired,pickingReference == nil,!selectingSplit,!pickingCommits else {return}
         if busy || revisionFiles.busy || pendingConfirmation != nil {pendingSessionRefresh=true;return}
         let request=UUID(),token=OperationCancellation(),previous=conflictIdentity,wasActive=active
+        let position=conflictReportRefresh.begin(preferences:messageDefaults,selectedIDs:selectedConflicts)
         sessionGeneration=request;sessionCancellation=token;refreshingSession=true;cancellingPreparation=false;busy=true
         Self.activePreparationReads += 1;pendingBatchWorkers += 1
         Task {
             defer {
+                conflictReportRefresh.finish(position)
                 Self.activePreparationReads -= 1;pendingBatchWorkers -= 1;withExtendedLifetime(access) {}
                 if sessionCancellation === token {sessionCancellation=nil;refreshingSession=false;cancellingPreparation=false;if !retired {busy=false;loadPendingHandoff()}}
             }
@@ -2290,6 +2473,8 @@ struct RebaseReferenceRequest {
                 try requireAccess();let snapshot=try await readSessionValue(previous,token)
                 guard !retired,!token.isCancelled,sessionGeneration == request else {return}
                 applyConflictSnapshot(snapshot);conflictPatch=nil;onModeChanged()
+                await conflictReportRefresh.restore(position,ids:conflictTableRows.map(\.entry.path))
+                guard !retired,!token.isCancelled,sessionGeneration==request else{return}
                 if active {
                     restoreSessionContext();recovered=snapshot.remaining;replayRows=snapshot.replay
                     if state?.mainlineDecision != nil {tab=2} else if state?.squashMessage != nil || state?.isEditPause == true {tab=1}
@@ -3147,87 +3332,98 @@ struct RebaseConflictSort:SortComparator {
         return order == .forward ? result : (result == .orderedAscending ? .orderedDescending:result == .orderedDescending ? .orderedAscending:.orderedSame)
     }
 }
-struct RebaseConflictFiles: View {
-    @ObservedObject private var statusColorUpdates = StatusColorUpdates.shared
-    @ObservedObject var model: RebaseWindowModel
-    var body: some View {
-        Table(model.conflictTableRows, selection: $model.nativeConflictSelection, sortOrder:Binding(get:{model.conflictSortOrder},set:{model.setConflictSort($0)})) {
-            TableColumn("✓") { row in FileSelectionCheckbox(path: row.entry.path, verb: model.supportsConflictSelection ? "Commit" : "Check", checked: model.checkedConflicts.contains(row.entry.path), enabled: model.canCheckConflictFiles && !model.busy) { model.setConflictChecked(row.entry.path, checked: $0) }.frame(width: 20, height: 20) }.width(28)
-            TableColumn("Path",sortUsing:RebaseConflictSort(column:.path)) { row in HStack(spacing:5) { Image(nsImage:row.entry.state.icon.image() ?? NSImage());cell(row,.path) }.repositoryFileHelp(repository: model.repository.root, path: row.entry.path, preferences: model.columnPreferences) }
-            TableColumn("Extension",sortUsing:RebaseConflictSort(column:.fileExtension)) { cell($0,.fileExtension) }.width(min:45,ideal:70)
-            TableColumn("Status",sortUsing:RebaseConflictSort(column:.status)) { cell($0,.status) }.width(min:80,ideal:110)
-            TableColumn("Lines added",sortUsing:RebaseConflictSort(column:.added)) { cell($0,.added) }.width(min:55,ideal:85)
-            TableColumn("Lines removed",sortUsing:RebaseConflictSort(column:.removed)) { cell($0,.removed) }.width(min:55,ideal:95)
-        }.fileListFont().contextMenu(forSelectionType: String.self) { ids in
-            let paths = GitPathRowIdentity.paths(ids)
-            let menu = model.conflictFileMenu(paths)
-            TurtleGitContextMenu {
-                if model.canAddConflictFiles(menu) {
-                    Button {model.addConflictFiles(menu,mode:.normal)} label:{CommandLabel(title:WorkingFileAddMode.normal.rawValue,icon:.add)}
-                    if NSEvent.modifierFlags.contains(.shift),menu.statistics[menu.mark]?.isSubmodule != true {
-                        ForEach([WorkingFileAddMode.executable,.symlink],id:\.self) {mode in
-                            if model.canAddConflictFiles(menu,mode:mode) {Button {model.addConflictFiles(menu,mode:mode)} label:{CommandLabel(title:mode.rawValue,icon:.add)}}
-                        }
-                    }
-                    Divider()
-                }
-                Button {model.compareConflictMenu(menu)} label:{CommandLabel(title:"Compare with base",icon:.compare)}
-                    .disabled(model.busy || menu.rows.first(where:{GitReferenceName.equal($0.id,menu.mark)})?.canCompareWithBaseFromStatusList != true)
-                if model.canShowConflictUnified(menu) {Button {model.showConflictUnified(menu)} label:{CommandLabel(title:"Show changes as unified diff",icon:.unifiedDiff)}}
-                Divider()
-                ResolveSelectionMenu(paths: menu.conflicts.map(\.path), rebase: true, canEdit: menu.rows.count == 1 && menu.conflicts.count == 1) { action, _ in model.conflictAction(action, menu: menu) }
-                Divider()
-                ForEach([StatusFileCommand.compareTwo, .log, .submoduleLog, .oldNameLog, .blame], id: \.self) { command in
-                    if model.canConflictFileCommand(command, menu: menu) { Button { model.conflictFileCommand(command, menu: menu) } label: { CommandLabel(title: command.rawValue, icon: command.icon) } }
-                }
-                Divider()
-                if model.canRevertConflictFiles(menu) {
-                    Button {model.revertConflictFiles(menu)} label:{CommandLabel(title:"Revert",icon:.revert)}
-                }
-                ForEach(IndexFlagAction.allCases,id:\.self) { action in
-                    if model.canSetConflictFlags(action,menu:menu) {Button {model.setConflictFlags(action,menu:menu)} label:{CommandLabel(title:action.rawValue,icon:.settings)}}
-                }
-                Divider()
-                ForEach([StatusFileCommand.open, .openWith, .editor, .reveal, .export], id: \.self) { command in
-                    if model.canConflictFileCommand(command, menu: menu) { Button { model.conflictFileCommand(command, menu: menu) } label: { CommandLabel(title: command.rawValue, icon: command.icon) } }
-                }
-                if model.canMarkConflictComparison(menu) {
-                    Button {model.markConflictForComparison(menu)} label:{CommandLabel(title:"Mark for comparison",icon:.compare)}
-                    if let mark=menu.comparisonMark,model.onConflictPreparedComparison != nil {
-                        Button {model.compareConflictWithMarked(menu)} label:{CommandLabel(title:"Compare with “"+mark.label(for:menu.mark)+"”",icon:.compare)}
-                    }
-                }
-                if model.canConflictFileCommand(.delete,menu:menu) {
-                    Button {model.deleteConflictFiles(menu,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:"Delete",icon:.remove)}
-                }
-                if model.canIgnoreConflictFiles(menu) {
-                    IgnoreSelectionMenu(paths:menu.paths) {action,paths in model.ignoreConflictFiles(menu,action:action,paths:paths)}
-                }
-                Menu {
-                    Button { model.copyConflictFiles(menu, copy: .all) } label: { CommandLabel(title: "Copy all information to clipboard", icon: .copy) }
-                    Button { model.copyConflictFiles(menu, copy: .fullPaths) } label: { CommandLabel(title: "Full paths", icon: .copy) }
-                    Button { model.copyConflictFiles(menu, copy: .relativePaths) } label: { CommandLabel(title: "Relative paths", icon: .copy) }
-                    Button { model.copyConflictFiles(menu, copy: .names) } label: { CommandLabel(title: "File/folder names", icon: .copy) }
-                    ForEach(model.visibleConflictColumns, id: \.self) { column in Button { model.copyConflictFiles(menu, copy: .column(column)) } label: { CommandLabel(title: "column '\(column.rawValue)'", icon: .copy) } }
-                } label: { CommandLabel(title: "Copy to Clipboard", icon: .copy) }.disabled(menu.rows.isEmpty || model.busy)
-            }
-        } primaryAction: { ids in
-            let paths = GitPathRowIdentity.paths(ids)
-            if paths.count == 1 && model.conflicts.contains(where: { paths.contains($0.id) }) { model.conflictAction(.editConflict, ids: paths) }
-            else { model.compareConflictWorkingFiles(model.conflictFileMenu(paths)) }
-        }
-        .background(CommitFileInteraction(rows:model.conflictTableRows.map { .file($0.entry) },keyboardDeleteEnabled:false,captureWorkingDrag:{model.captureWorkingDrag($0)},workingDragOrigin:model.workingDragOrigin,nativeColumns:RebaseWindowModel.conflictColumns,preferences:model.columnPreferences,
-            visibleColumns:Set(model.visibleConflictColumns),availableColumns:Set(RebaseWindowModel.conflictColumns),columnText:{model.conflictColumnText($0,$1)},
-            savedOrder:model.conflictFileColumns.order,savedWidths:model.conflictFileColumns.widths,
-            saveLayout:{model.saveConflictColumnLayout(order:$0,widths:$1)},setColumnVisible:{model.setConflictColumn($0,visible:$1)},
-            resetColumns:{model.resetConflictColumns(choose:$0,onAccepted:$1)},focusedPath:$model.focusedConflictPath,enabled:model.conflictColumnsAvailable,
-            delete:{entries,mark,permanently in model.deleteConflictFiles(model.conflictFileMenu(GitPathSet(entries.map(\.id)),markedPath:mark.id),permanently:permanently)},copy:{entries,status in model.copyConflictFiles(model.conflictFileMenu(GitPathSet(entries.map(\.id))),copy:status ? .pathsAndStatus:.relativePaths)},
-            copyColumn:{entries,column in model.copyConflictFiles(model.conflictFileMenu(GitPathSet(entries.map(\.id))),copy:.column(column))},
-            toggleCheck:{entries,mark in model.toggleConflictChecks(GitPathSet(entries.map(\.id)),mark:mark.id)}))
-        .background(RebaseConflictFileKeys(model: model))
+struct RebaseConflictFiles:View {
+    @ObservedObject private var statusColorUpdates=StatusColorUpdates.shared
+    @ObservedObject var model:RebaseWindowModel
+    var body:some View {
+        let rows=model.conflictTableRows
+        ConflictReportTable(rows:rows.map{row in ConflictReportRow(path:row.entry.path,text:Dictionary(uniqueKeysWithValues:RebaseWindowModel.conflictColumns.map{($0,model.conflictColumnText(row.entry,$0))}),checked:model.checkedConflicts.contains(row.entry.path),color:NSColor(row.entry.statusTextColor(selected:model.selectedConflicts.contains(row.entry.path),preferences:model.columnPreferences)),tooltip:RepositoryPresentationSettings(defaults:model.columnPreferences).fileTooltip(repository:model.repository.root,path:row.entry.path),icon:row.entry.state.icon)},selection:model.selectedConflicts,settings:model.conflictFileColumns,available:Set(RebaseWindowModel.conflictColumns),sort:model.conflictSortOrder.first?.column ?? .path,ascending:model.conflictSortOrder.first?.order != .reverse,enabled:model.recoveryReportAvailable,preferences:model.columnPreferences,hasCheckboxes:true,checksEnabled:model.canCheckConflictFiles,checkVerb:model.supportsConflictSelection ? "Commit":"Check",ownerRetired:model.retired,focusedPath:model.focusedConflictPath,selectionChanged:{paths,mark in model.selectedConflicts=paths;model.focusedConflictPath=mark},sortChanged:{column,ascending in model.setConflictSort([RebaseConflictSort(column:column,order:ascending ? .forward:.reverse)])},layoutChanged:{order,widths in _ = model.saveConflictColumnLayout(order:order,widths:widths)},columnChanged:model.setConflictColumn,resetColumns:{choose in model.resetConflictColumns(choose:choose,onAccepted:{})},makeMenu:model.conflictReportMenu,copySelection:{paths,status in model.copyConflictFiles(model.conflictFileMenu(paths),copy:status ? .pathsAndStatus:.relativePaths)},activate:{path,alternate in model.activatePrimaryConflictFiles([path],alternate:alternate)},activateSelection:model.activatePrimaryConflictFiles,checkChanged:model.setConflictChecked,captureDrag:model.captureWorkingDrag,configureRefresh:{model.conflictReportRefresh.attach($0)})
     }
-    private func cell(_ row:RebaseConflictSortableRow,_ column:StatusListColumn)->some View {
-        Text(model.conflictColumnText(row.entry,column)).foregroundStyle(row.entry.statusTextColor(selected:model.selectedConflicts.contains(row.entry.path),preferences:model.columnPreferences))
+}
+
+extension RebaseWindowModel {
+    /// Native pointed/keyboard/AX menus share one captured report receipt; every
+    /// command keeps its existing Git and replay-session validation boundary.
+    func conflictReportMenu(_ paths:[String],mark:String?,column:StatusListColumn?)->NSMenu {
+        let receipt=conflictFileMenu(paths,markedPath:mark),menu=NSMenu();menu.autoenablesItems=false
+        let selected=selectedConflicts,sort=conflictSortOrder,layout=conflictFileColumns,sourceMark=focusedConflictPath
+        let alternate=ComparisonToolInvocation.capture,orientation=conflictRebase
+        var used=false
+        let current:()->Bool = {[weak self] in
+            guard let self else{return false}
+            return !used && self.recoveryReportAvailable && self.acceptsConflictFileMenu(receipt) &&
+                self.selectedConflicts==selected && self.conflictSortOrder==sort && self.conflictFileColumns==layout &&
+                self.focusedConflictPath.map{GitReferenceName($0)}==sourceMark.map{GitReferenceName($0)} && self.conflictRebase==orientation
+        }
+        @discardableResult func item(_ title:String,_ id:String,_ icon:MenuIcon,enabled:Bool=true,localized:Bool=true,in target:NSMenu?=nil,_ action:@escaping()->Void)->NSMenuItem {
+            let value=ConflictReportMenuItem(title,localized:localized,icon:icon,preferences:columnPreferences,enabled:enabled && recoveryReportAvailable && !receipt.rows.isEmpty){
+                guard current() else{return};used=true
+                ComparisonToolInvocation.$alternate.withValue(alternate){action()}
+            }
+            value.identifier = .init("Rebase.Files."+id);value.validate=current;(target ?? menu).addItem(value);return value
+        }
+        if canAddConflictFiles(receipt) {
+            item(WorkingFileAddMode.normal.rawValue,"add",.add){[weak self] in self?.addConflictFiles(receipt,mode:.normal)}
+            if alternate,receipt.statistics[receipt.mark]?.isSubmodule != true {
+                for mode in [WorkingFileAddMode.executable,.symlink] where canAddConflictFiles(receipt,mode:mode) {
+                    item(mode.rawValue,"add."+mode.rawValue,.add){[weak self] in self?.addConflictFiles(receipt,mode:mode)}
+                }
+            }
+            menu.addItem(.separator())
+        }
+        let canCompare=receipt.rows.first(where:{GitReferenceName.equal($0.id,receipt.mark)})?.canCompareWithBaseFromStatusList == true
+        let compare=item("Compare with base","compare",.compare,enabled:canCompare){[weak self] in self?.compareConflictMenu(receipt)}
+        if canShowConflictUnified(receipt) {item("Show changes as unified diff","unified",.unifiedDiff){[weak self] in self?.showConflictUnified(receipt,alternate:alternate)}}
+        menu.addItem(.separator())
+        var defaultItem:NSMenuItem?=compare
+        if receipt.rows.count==1,receipt.conflicts.count==1 {
+            defaultItem=item("Edit conflict…","conflict.edit",.editConflict){[weak self] in self?.conflictAction(.editConflict,menu:receipt)}
+        }
+        if !receipt.conflicts.isEmpty {
+            for (title,id,action) in [("Resolved","resolve.current",RepositoryAction.resolveCurrent),(orientation ? "Resolve using commit being replayed":"Resolve conflict using ‘theirs’","resolve.theirs",.resolveTheirs),(orientation ? "Resolve using branch being rebased onto":"Resolve conflict using ‘mine’","resolve.mine",.resolveMine)] {
+                item(title,id,.resolve){[weak self] in self?.conflictAction(action,menu:receipt)}
+            }
+        }
+        if let defaultItem,defaultItem.isEnabled {defaultItem.attributedTitle=NSAttributedString(string:defaultItem.title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)])}
+        menu.addItem(.separator())
+        for command in [StatusFileCommand.compareTwo,.log,.submoduleLog,.oldNameLog,.blame] where canConflictFileCommand(command,menu:receipt) {
+            item(command.rawValue,"file."+command.rawValue,command.icon){[weak self] in self?.conflictFileCommand(command,menu:receipt)}
+        }
+        menu.addItem(.separator())
+        if canRevertConflictFiles(receipt) {item("Revert","revert",.revert){[weak self] in self?.revertConflictFiles(receipt)}}
+        for action in IndexFlagAction.allCases where canSetConflictFlags(action,menu:receipt) {item(action.rawValue,"flag."+action.rawValue,.settings){[weak self] in self?.setConflictFlags(action,menu:receipt)}}
+        menu.addItem(.separator())
+        for command in [StatusFileCommand.export,.editor,.open,.openWith,.reveal] where canConflictFileCommand(command,menu:receipt) {
+            item(command.rawValue,"file."+command.rawValue,command.icon){[weak self] in self?.conflictFileCommand(command,menu:receipt)}
+        }
+        if canMarkConflictComparison(receipt) {
+            item("Mark for comparison","mark",.compare){[weak self] in self?.markConflictForComparison(receipt)}
+            if let marked=receipt.comparisonMark,onConflictPreparedComparison != nil {
+                let title=String(format:NSLocalizedString("Compare with %@",comment:""),marked.label(for:receipt.mark))
+                item(title,"marked.compare",.compare,localized:false){[weak self] in self?.compareConflictWithMarked(receipt,alternate:alternate)}
+            }
+        }
+        if canConflictFileCommand(.delete,menu:receipt) {item("Delete","delete",.remove){[weak self] in self?.deleteConflictFiles(receipt,permanently:alternate)}}
+        if canIgnoreConflictFiles(receipt) {
+            let ignore=NSMenuItem(title:NSLocalizedString("Add to ignore list",comment:""),action:nil,keyEquivalent:""),children=NSMenu();children.autoenablesItems=false;ignore.submenu=children;ignore.image=MenuIcon.ignore.contextImage(defaults:columnPreferences);menu.addItem(ignore)
+            item(receipt.paths.count==1 ? (receipt.paths[0] as NSString).lastPathComponent:String(format:NSLocalizedString("Ignore %d items by name",comment:""),receipt.paths.count),"ignore.names",.ignore,localized:false,in:children){[weak self] in self?.ignoreConflictFiles(receipt,action:.ignore,paths:receipt.paths)}
+            let suffixes=receipt.paths.map{IgnoreOptions.extensionSuffix(for:$0) ?? ""}
+            if let suffix=suffixes.first,!suffix.isEmpty {
+                item(receipt.paths.count==1 ? "*"+suffix:String(format:NSLocalizedString("Ignore %d items by extension",comment:""),receipt.paths.count),"ignore.extensions",.ignore,localized:false,in:children){[weak self] in self?.ignoreConflictFiles(receipt,action:.ignoreMask,paths:receipt.paths)}
+            }
+            if receipt.paths.count==1 {
+                let folder=(receipt.paths[0] as NSString).deletingLastPathComponent
+                if !folder.isEmpty {item(folder,"ignore.folder",.ignore,localized:false,in:children){[weak self] in self?.ignoreConflictFiles(receipt,action:.ignore,paths:[folder])}}
+            }
+        }
+        let copy=NSMenuItem(title:NSLocalizedString("Copy to Clipboard",comment:""),action:nil,keyEquivalent:""),copies=NSMenu();copies.autoenablesItems=false;copy.submenu=copies;copy.image=MenuIcon.copy.contextImage(defaults:columnPreferences);menu.addItem(copy)
+        for (title,id,information) in [("Copy all information to clipboard","all",StatusListCopy.all),("Full paths","full",.fullPaths),("Relative paths","relative",.relativePaths),("File/folder names","names",.names),("Extensions","extensions",.column(.fileExtension))] {
+            item(title,"copy."+id,.copy,in:copies){[weak self] in self?.copyConflictFiles(receipt,copy:information)}
+        }
+        var copiedColumns=visibleConflictColumns
+        if let column,!copiedColumns.contains(column) {copiedColumns.append(column)}
+        for column in copiedColumns {item(column.rawValue,"copy.column."+column.rawValue,.copy,in:copies){[weak self] in self?.copyConflictFiles(receipt,copy:.column(column))}}
+        return menu
     }
 }
 /// Scope upstream's unmodified action keys to the AppKit table hosted by this

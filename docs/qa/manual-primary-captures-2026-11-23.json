@@ -1,0 +1,460 @@
+{
+  "source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+  "validation_date": "2026-11-23",
+  "scope": "Twelve primary screenshots assembled from explicitly recorded capture attempts; current attempt: log, resolve, sync-conflicts, each light/dark",
+  "build": "Existing isolated unsigned Debug objects with matching recorded working-tree sources; independent of the installed user app. Newer Replay/Blame views are not pictured.",
+  "debug_checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+  "embedded_bundle_metadata": [
+    {
+      "path": "build/Build/Products/Debug/TurtleGitCache.app/Contents/Info.plist",
+      "sha256": "2d897689308f2afdefd5838171bccc080c6fd4a2efa1c6637a8bdb52a4d8f132",
+      "values": {
+        "CFBundleIdentifier": "org.turtlegit.macos.cache",
+        "CFBundleName": "TurtleGit Cache",
+        "CFBundleShortVersionString": "0.1.0",
+        "CFBundleVersion": "2"
+      }
+    },
+    {
+      "path": "build/Build/Products/Debug/TurtleGitMac.app/Contents/Info.plist",
+      "sha256": "8bffe7934ba2bfcf4e3f8b97c0b364f4f71d2ba674fdf16f4811796020177964",
+      "values": {
+        "CFBundleIdentifier": "org.turtlegit.macos",
+        "CFBundleName": "TurtleGit",
+        "CFBundleShortVersionString": "0.1.0",
+        "CFBundleVersion": "2"
+      }
+    }
+  ],
+  "source_state": {
+    "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+    "tracked_dirty": true,
+    "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+  },
+  "app_object_fingerprint": {
+    "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+    "architecture": "arm64",
+    "object_count": 243,
+    "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+  },
+  "app_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+  "provenance_note": "HEAD identifies the committed base, not dirty implementation changes. Production hashes, tracked status, object bytes and the native-receiver link fingerprint identify this attempt. Embedded bundle metadata is recorded separately and may predate those sources. This is an isolated linked receiver, not the installed app.",
+  "scope_limit": "Only the selected primary windows are pictured; newer paused-Replay and Blame views are not pictured. Retained images preserve their earlier attempt provenance.",
+  "status": "captured-and-scoped-visually-reviewed",
+  "prior_capture_attempts": [],
+  "prior_attempt_receipt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json",
+  "prior_attempt_receipt_sha256": "f558db4e05fb2e6f477da817e717f6977335f9423c1854072af830716dbaa572",
+  "current_attempt_scenes": [
+    "log",
+    "resolve",
+    "sync-conflicts"
+  ],
+  "prior_failed_fixture_sha256": null,
+  "prior_failed_runner_sha256": null,
+  "capture_presentation": "Deliberate brief visual acceptance using normal native window class/geometry. Exactly one owned window contained on screen; orderFront without activation or makeKey; compositor capture then immediately orderOut/close. No runtime overrides.",
+  "method": "ScreenCaptureKit SCScreenshotManager desktopIndependentWindow for actual screen-contained alpha-one native window; original PNG bytes, no view.cacheDisplay or postprocessing",
+  "repository": "Private offline Harbor demo plus separate paused merge; staged/unstaged/deleted/unversioned files, changelists and real local outgoing references; synthetic author, issue catalog/ID and draft",
+  "native_presentation": "Production compact DialogTitles preference, actual Compact Commit layout dropdown and colored source icons; Per-dialog native content sizes; compositor retains actual native frame aspect ratio",
+  "preserved": "HEAD, index tree, raw index/config and porcelain working status after setup; no Commit/stage/apply/save action during capture",
+  "preferences": "Private suite removed; private CFFIXED_USER_HOME/TMPDIR/XDG and explicit global Git config; no user pasteboard or Keychain",
+  "session_preflight": "CGSessionCopyCurrentDictionary refuses a locked desktop before demo Git repository/window creation; an unlocked desktop is required for ScreenCaptureKit.",
+  "network": false,
+  "desktop": "Deliberate visible visual capture, 6 own windows one at a time; each screen-contained and sole visible receiver window, then immediately hidden/closed. No app activation, no user-owned app close/Quit/install",
+  "owned_receiver_pids": [
+    11628
+  ],
+  "owned_receiver_reaped_independently": true,
+  "window_ids": [
+    9036,
+    9037,
+    9038,
+    9039,
+    9040,
+    9041
+  ],
+  "fixture_sha256": "863937070c124799b3be742181399ef12451d331f8e3f092161e5853e1fab3a3",
+  "runner_sha256": "a4fe4531265c4af6ea83a86a80cc9c0d2c234e742782673e42b86a3ee551395c",
+  "receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+  "stdout_sha256": "5947d38289dcba96dbc0bc6ec0e23b7f492a7e1a694ac111f0743ff3aca260ee",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "production_sources_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+    "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+    "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+    "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+  },
+  "review": "All twelve original compositor PNGs were viewed. The initial six Log/Resolve/Sync-conflict images were rejected for missing headers, collapsed Path columns and a clipped first conflict row; that full attempt is preserved unchanged. Only those six were recaptured after production geometry repair. Root reviewed corrected Log light, Resolve dark and Sync-conflicts dark; current_ci_status reviewed corrected Log dark, Resolve light and Sync-conflicts light. Repaired headers and full literal paths are legible, all three conflicts are visible, and native geometry records Path width420, rows3/3 and full first-row intersection in both themes. Original Classic/staging Commit and Sync-history images remain byte-identical and were already visually reviewed. This accepts only the twelve documented native appearances; it does not establish complete source parity, interaction acceptance, hosted CI, signed installation, Finder integration or newer Replay/Blame views.",
+  "assets": [
+    {
+      "path": "docs/site/assets/mac-commit-classic-light-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-commit-classic-light-2026-11-23.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 459163,
+      "sha256": "669b9200821595558c59a855674c1363a253748b05bfe6307a5aab42662d2fdc",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "b9b1f23b48ff370e3ba6da371e3081b4eafcd3ba563f386e376b76d1f34282c8",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": false,
+        "basis": "Original isolated c8 checkout was source-verified clean before capture; explicit object fingerprint was not retained by that earlier runner."
+      },
+      "capture_app_object_fingerprint": null,
+      "capture_link_fingerprint": null,
+      "retained_from_prior_attempt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-classic-dark-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-commit-classic-dark-2026-11-23.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 443158,
+      "sha256": "f3f67f887b8004a15a2eccf4054b40af08ca3a420547ebdfd0cb0b939a322cb0",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "b9b1f23b48ff370e3ba6da371e3081b4eafcd3ba563f386e376b76d1f34282c8",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": false,
+        "basis": "Original isolated c8 checkout was source-verified clean before capture; explicit object fingerprint was not retained by that earlier runner."
+      },
+      "capture_app_object_fingerprint": null,
+      "capture_link_fingerprint": null,
+      "retained_from_prior_attempt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-light-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-commit-staging-light-2026-11-23.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 511403,
+      "sha256": "8136ad015eb75294f7a2ba9851af44f41ab5afce2ce98fb1fc5e7c6757236145",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "b9b1f23b48ff370e3ba6da371e3081b4eafcd3ba563f386e376b76d1f34282c8",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": false,
+        "basis": "Original isolated c8 checkout was source-verified clean before capture; explicit object fingerprint was not retained by that earlier runner."
+      },
+      "capture_app_object_fingerprint": null,
+      "capture_link_fingerprint": null,
+      "retained_from_prior_attempt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json"
+    },
+    {
+      "path": "docs/site/assets/mac-commit-staging-dark-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-commit-staging-dark-2026-11-23.png",
+      "width": 2320,
+      "height": 1744,
+      "bytes": 522219,
+      "sha256": "b58fa2d28fdfa670cb4ba8a31bd86488d392dc33a7cb79a9cf68ddff1cbdd954",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "b9b1f23b48ff370e3ba6da371e3081b4eafcd3ba563f386e376b76d1f34282c8",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": false,
+        "basis": "Original isolated c8 checkout was source-verified clean before capture; explicit object fingerprint was not retained by that earlier runner."
+      },
+      "capture_app_object_fingerprint": null,
+      "capture_link_fingerprint": null,
+      "retained_from_prior_attempt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json"
+    },
+    {
+      "path": "docs/site/assets/mac-log-light-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-log-light-2026-11-23.png",
+      "width": 2240,
+      "height": 1644,
+      "bytes": 408272,
+      "sha256": "8e55b7936ea6471a10baf90f812b49f3e334285f692c42d5449425c3a6031932",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": true,
+        "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+      },
+      "capture_app_object_fingerprint": {
+        "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+        "architecture": "arm64",
+        "object_count": 243,
+        "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+      },
+      "capture_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+      "capture_link_generation": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae"
+    },
+    {
+      "path": "docs/site/assets/mac-log-dark-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-log-dark-2026-11-23.png",
+      "width": 2240,
+      "height": 1644,
+      "bytes": 414764,
+      "sha256": "5fed808b783f24f1ce6e666e1ea4578a45f3edd3edafcd75d13e69e32d1a4a05",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": true,
+        "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+      },
+      "capture_app_object_fingerprint": {
+        "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+        "architecture": "arm64",
+        "object_count": 243,
+        "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+      },
+      "capture_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+      "capture_link_generation": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae"
+    },
+    {
+      "path": "docs/site/assets/mac-resolve-light-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-resolve-light-2026-11-23.png",
+      "width": 1800,
+      "height": 1084,
+      "bytes": 299028,
+      "sha256": "77685001e22105ebc59eb097493c757bc1ea5b65da21c6b8d241460f551b8fc8",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": true,
+        "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+      },
+      "capture_app_object_fingerprint": {
+        "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+        "architecture": "arm64",
+        "object_count": 243,
+        "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+      },
+      "capture_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+      "capture_link_generation": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae"
+    },
+    {
+      "path": "docs/site/assets/mac-resolve-dark-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-resolve-dark-2026-11-23.png",
+      "width": 1800,
+      "height": 1084,
+      "bytes": 217116,
+      "sha256": "5d02f058cb47defdb00f479cd2fd6e3eb5d15ae3aa921665998bf15d11a16ec1",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": true,
+        "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+      },
+      "capture_app_object_fingerprint": {
+        "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+        "architecture": "arm64",
+        "object_count": 243,
+        "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+      },
+      "capture_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+      "capture_link_generation": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae"
+    },
+    {
+      "path": "docs/site/assets/mac-sync-history-light-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-sync-history-light-2026-11-23.png",
+      "width": 2100,
+      "height": 1384,
+      "bytes": 204157,
+      "sha256": "76a50f268355b676d32f0d43abe2329830252d3fed81e20b1c54d19e03824f7c",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "b9b1f23b48ff370e3ba6da371e3081b4eafcd3ba563f386e376b76d1f34282c8",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": false,
+        "basis": "Original isolated c8 checkout was source-verified clean before capture; explicit object fingerprint was not retained by that earlier runner."
+      },
+      "capture_app_object_fingerprint": null,
+      "capture_link_fingerprint": null,
+      "retained_from_prior_attempt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json"
+    },
+    {
+      "path": "docs/site/assets/mac-sync-history-dark-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-sync-history-dark-2026-11-23.png",
+      "width": 2100,
+      "height": 1384,
+      "bytes": 249883,
+      "sha256": "e665caf9e6beab0a5fed6f17c68ec4f6af34e2f975bf97ac52e1c6731144c533",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "3a73da1dee135647033fed7f66acae773c0d1c97041309c8c8e4e660d2de15d2",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "b9b1f23b48ff370e3ba6da371e3081b4eafcd3ba563f386e376b76d1f34282c8",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": false,
+        "basis": "Original isolated c8 checkout was source-verified clean before capture; explicit object fingerprint was not retained by that earlier runner."
+      },
+      "capture_app_object_fingerprint": null,
+      "capture_link_fingerprint": null,
+      "retained_from_prior_attempt": "build/qa/manual-primary-captures-2026-11-23/prior-attempt-20261123T022607568447Z/receipt.json"
+    },
+    {
+      "path": "docs/site/assets/mac-sync-conflicts-light-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-sync-conflicts-light-2026-11-23.png",
+      "width": 2100,
+      "height": 1384,
+      "bytes": 392503,
+      "sha256": "fa23db0d3f8e5ae0fbbd17a6bd0f370b129175cd750421e54aa48fc8c5e501f7",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": true,
+        "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+      },
+      "capture_app_object_fingerprint": {
+        "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+        "architecture": "arm64",
+        "object_count": 243,
+        "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+      },
+      "capture_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+      "capture_link_generation": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae"
+    },
+    {
+      "path": "docs/site/assets/mac-sync-conflicts-dark-2026-11-23.png",
+      "raw_path": "build/qa/manual-primary-captures-2026-11-23/mac-sync-conflicts-dark-2026-11-23.png",
+      "width": 2100,
+      "height": 1384,
+      "bytes": 316109,
+      "sha256": "57b594d175d4c07dc7cbb547f3c81592e2d252f6ecfe30eb83e287241e5bb41b",
+      "capture_source_commit": "c8c89189378e9bed20d284b50878543cc2d27674",
+      "capture_app_sources_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "25ed27b501325e076999fb407188ef2f57cbc9c6746017b85fd84581f8992af1",
+        "Sources/TurtleGitMac/CommitFileInteraction.swift": "2f8987c1ee5803e49d17022d6aaeda1d0498de356fe34d83df8f2f8143eee5af",
+        "Sources/TurtleGitMac/PatchWindow.swift": "86cadcc23d47dcca25903979b7c944bb91ecea1bb23aea24f1ac6dbeacd17076",
+        "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+        "Sources/TurtleGitMac/ResolveWindow.swift": "8b896f7254a234500a039291bb555b8cbf088b7434283475ed6b4cb97afc750f",
+        "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566"
+      },
+      "capture_receiver_sha256": "a9e998cf5d69d1336a2f01cf8c38d40f817f4bd2fd4b767e3cda129e32524616",
+      "capture_source_state": {
+        "base_head": "c8c89189378e9bed20d284b50878543cc2d27674",
+        "tracked_dirty": true,
+        "tracked_porcelain": " M Sources/TurtleGitMac/AddFileTable.swift\n M Sources/TurtleGitMac/BlameWindow.swift\n M Sources/TurtleGitMac/LogWindow.swift\n M Sources/TurtleGitMac/RebaseWindow.swift\n M Sources/TurtleGitMac/RepositoryModel.swift\n M Sources/TurtleGitMac/ResolveWindow.swift\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png\n D Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png\n M Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json\n M Sources/TurtleGitMac/StatusListPrimaryActivation.swift\n M docs/BLAME-MENUS.md\n M docs/DIALOG-GUIDE.md\n M docs/GETTING-STARTED.md\n M docs/REBASE-PARITY.md\n M docs/qa/blame-source-menu-native-2026-10-16.swift\n M docs/qa/log-working-row-affordances-native-2026-11-23.swift\n M docs/qa/rebase-conflict-menus-native-2026-10-14.swift\n M docs/qa/status-primary-activation-native-2026-10-30.swift\n M docs/site/index.html\n M scripts/test-blame-source-menu.py\n M scripts/test-status-primary-activation.py\n"
+      },
+      "capture_app_object_fingerprint": {
+        "sha256": "79128b328b0bffc4e36e234d53a3d2f0935f7c80092414c8114fe91364ebf961",
+        "architecture": "arm64",
+        "object_count": 243,
+        "algorithm": "SHA256 of sorted relative object paths, NUL separators and complete object bytes"
+      },
+      "capture_link_fingerprint": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae",
+      "capture_link_generation": "ca608014fa5a21e53f93c94c254becfa8559d4c389ae8f18413278e4379534ae"
+    }
+  ],
+  "visual_review": {
+    "retained_original_scenes": [
+      "commit-classic",
+      "commit-staging",
+      "sync-history"
+    ],
+    "repaired_scenes": [
+      "log",
+      "resolve",
+      "sync-conflicts"
+    ],
+    "repaired_images_reviewed_by_root": [
+      "log-light",
+      "resolve-dark",
+      "sync-conflicts-dark"
+    ],
+    "repaired_images_reviewed_by_current_ci_status": [
+      "log-dark",
+      "resolve-light",
+      "sync-conflicts-light"
+    ],
+    "image_hashes_match_receipt": true,
+    "original_attempt_pngs_preserved": 12,
+    "first_attempt_status": "captured-visual-review-failed",
+    "current_attempt_geometry": "Conflict reports rows3/3, Path420, native header inset y=-28 and complete row0 intersection; Log changed-file column captions visibly present",
+    "remaining_observations": "Inactive native title bars and truncated Choose issues caption are original native presentation; no pixels were edited."
+  }
+}

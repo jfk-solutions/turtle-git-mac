@@ -6,14 +6,20 @@ from native_receiver import build_receiver,run_receiver
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append')
 parser.add_argument('--captures',type=Path)
-parser.add_argument('--only',choices=['commands','source-menu','menus','editor'],action='append')
+parser.add_argument('--only',choices=['commands','source-menu','menus','editor','focus'],action='append')
 args=parser.parse_args();root=Path(__file__).resolve().parent.parent
 cases=[('commands','blame-command-family-native-2026-10-16.swift','PASS: Blame command family','blame-commands'),('source-menu','blame-source-menu-native-2026-10-16.swift','PASS: native Blame source captured','blame-source-menu'),('menus','blame-menu-native-2026-10-13.swift','Blame menus:','blame-menus'),('editor','blame-source-editor-native-2026-10-13.swift','Blame native source:','blame-source')]
+cases.append(('focus','blame-source-menu-native-2026-10-16.swift','PASS: Blame native focused multi-revision','blame-focus'))
 with tempfile.TemporaryDirectory(prefix='tg-blame-source-menu-') as temporary:
     directory=Path(temporary);env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     for case,source,marker,legacy in cases:
         if args.only and case not in args.only:continue
-        receiver=build_receiver(root,[root/'docs/qa'/source],directory)
+        sources=[root/'docs/qa'/source]
+        if case=='focus':
+            helper=directory/'BlameSourceMenuHelpers.swift'
+            helper.write_text((root/'docs/qa/blame-source-menu-native-2026-10-16.swift').read_text().replace('@main ', '', 1))
+            sources=[helper,root/'docs/qa/blame-revision-focus-native-2026-11-23.swift']
+        receiver=build_receiver(root,sources,directory)
         for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
             fixture=directory/(case+str(index));fixture.mkdir()
             env.pop('TURTLEGIT_BLAME_COMMAND_CAPTURE',None)

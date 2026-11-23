@@ -1,5 +1,14 @@
 # Native Blame menu context and panes
 
+The Log keeps a focused revision separately from all highlighted revisions.
+Command-click adds or removes highlights; Shift navigation extends the selected
+range. A newly focused selected revision reveals its first source line without
+moving keyboard focus out of the Log. Changing Log selection collapses the
+source text selection. Clicking a source annotation reveals that clicked
+revision in the Log, including when other revisions remain highlighted.
+Shift-F10 and the accessibility menu use the focused selected row as their
+anchor and retain the complete highlighted set for available commands.
+
 The pinned File/Edit/View resource and `MainFrm.cpp` provide shared menu commands,
 output/Properties panes, toolbar/status visibility and source option check states.
 TurtleGit's macOS menu bar now supplies active Blame Find/Next/Previous/Go To,

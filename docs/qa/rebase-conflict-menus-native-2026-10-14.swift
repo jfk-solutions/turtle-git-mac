@@ -356,6 +356,7 @@ import TurtleGitCore
         let suite="TurtleGit.ReplayFileMenus."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         prefs.set(false,forKey:"EnableLogCache");prefs.set(false,forKey:"EnableGravatar");defer { prefs.removePersistentDomain(forName:suite) }
         let owner=RebaseWindowController(repository:repo,access:nil,preferences:prefs),model=owner.model
+        owner.window?.alphaValue=0;owner.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));owner.showWindow(nil)
         defer { owner.close() }
         let pasteboard=NSPasteboard.withUniqueName();model.conflictPasteboard=pasteboard
         defer { pasteboard.releaseGlobally() }
@@ -397,27 +398,30 @@ import TurtleGitCore
         try require(model.busy && model.viewingConflictBase && !owner.windowShouldClose(owner.window!),"Replay remains actionable while base child owns review")
         viewer.close();try await wait { !model.busy && !model.viewingConflictBase }
         owner.window?.contentView?.layoutSubtreeIfNeeded();model.tab=0
-        try await wait { descendants(owner.window!.contentView!).contains { $0 is RebaseConflictFileKeys.Probe } }
-        let probes=descendants(owner.window!.contentView!).compactMap { $0 as? RebaseConflictFileKeys.Probe }
-        try await wait { probes.first?.table()?.numberOfRows == model.conflictRows.count }
-        let probe=probes[0],table=probe.table()!,row=model.conflictRows.firstIndex(where:{$0.path == path})!
+        try await wait { descendants(owner.window!.contentView!).contains { $0 is ConflictReportNativeTable } }
+        let table=descendants(owner.window!.contentView!).compactMap { $0 as? ConflictReportNativeTable }.first!
+        try await wait {table.numberOfRows == model.conflictTableRows.count && table.isEnabled}
+        let row=model.conflictTableRows.firstIndex(where:{$0.entry.path == path})!
+        table.commandKeyWindow={[weak window=owner.window] in window}
         table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false);owner.window?.makeFirstResponder(table)
         let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.command,timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"c",charactersIgnoringModifiers:"c",isARepeat:false,keyCode:8)!
-        try require(probe.handle(event) == nil && pasteboard.string(forType:.string) == path+"\n","Scoped native Command-C failed")
+        try require(table.performKeyEquivalent(with:event) && pasteboard.string(forType:.string) == path+"\n","Scoped native Command-C failed")
         let checked=model.checkedConflicts;let space=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:" ",charactersIgnoringModifiers:" ",isARepeat:false,keyCode:49)!
-        try require(probe.handle(space) == nil && model.checkedConflicts.contains(path) != checked.contains(path) && model.checkedConflicts.contains(clean) == checked.contains(clean),"Space changed highlight/unchecked other paths")
-        // The lower replay list shares native column visibility/order/width,
-        // numeric metadata sorting, reset ownership and keyboard coordinates.
+        table.keyDown(with:space)
+        try require(model.checkedConflicts.contains(path) != checked.contains(path) && model.checkedConflicts.contains(clean) == checked.contains(clean),"Space changed highlight/unchecked other paths")
+        // Inspect the actual native header/cells after the report migration;
+        // removed SwiftUI probes no longer mirror column state.
         try await wait { table.tableColumns.count==6 && table.headerView?.menu != nil }
-        let fileProbe=descendants(owner.window!.contentView!).compactMap { $0 as? CommitFileInteraction.Probe }.first!
-        try await wait {fileProbe.enabled && model.conflictColumnsAvailable && table.headerView?.menu?.items.first(where:{$0.title=="Lines added"})?.isEnabled == true}
         let header=table.headerView!.menu!;header.delegate?.menuNeedsUpdate?(header)
+        try await wait {table.isEnabled && model.conflictColumnsAvailable && header.items.first(where:{$0.title=="Lines added"})?.isEnabled == true}
         let addedColumn=header.items.first { $0.title=="Lines added" }!
-        try require(addedColumn.isEnabled && !header.items.contains { $0.title=="File size" || $0.title=="Last modified" || $0.title=="Filename" || $0.title=="LFS Lock" },"Header does not honor source allowed-column mask; enabled=\(fileProbe.enabled), busy=\(model.busy), items=\(header.items.map { $0.title })")
+        try require(addedColumn.isEnabled && !header.items.contains { $0.title=="File size" || $0.title=="Last modified" || $0.title=="Filename" || $0.title=="LFS Lock" },"Header does not honor source allowed-column mask; enabled=\(table.isEnabled), busy=\(model.busy), items=\(header.items.map { $0.title })")
         _ = NSApp.sendAction(addedColumn.action!,to:addedColumn.target,from:addedColumn)
-        try await wait { !model.conflictFileColumns.visible.contains(.added) && !fileProbe.visibleColumns.contains(.added) }
-        _ = NSApp.sendAction(addedColumn.action!,to:addedColumn.target,from:addedColumn)
-        try await wait { model.conflictFileColumns.visible.contains(.added) && fileProbe.visibleColumns.contains(.added) }
+        try await wait { !model.conflictFileColumns.visible.contains(.added) && table.tableColumns.first(where:{$0.identifier.rawValue==StatusListColumn.added.rawValue})?.isHidden==true }
+        header.delegate?.menuNeedsUpdate?(header)
+        let showAdded=header.items.first { $0.title=="Lines added" }!
+        _ = NSApp.sendAction(showAdded.action!,to:showAdded.target,from:showAdded)
+        try await wait { model.conflictFileColumns.visible.contains(.added) && table.tableColumns.first(where:{$0.identifier.rawValue==StatusListColumn.added.rawValue})?.isHidden==false }
         var layout=model.conflictFileColumns.order;layout.removeAll { $0 == .added };layout.insert(.added,at:0)
         try require(model.saveConflictColumnLayout(order:layout,widths:[.path:310,.added:143]),"Replay layout rejected")
         // Use distinct multi-digit counts to distinguish numeric sorting from
@@ -453,11 +457,16 @@ import TurtleGitCore
         try require(model.conflictFileColumns==StatusListColumnSettings() && accepted==1,"Accepted Reset did not restore source defaults")
         // A sorted native row routes Copy and Space to its stable path identity.
         model.setConflictSort([RebaseConflictSort(column:.path,order:.reverse)])
-        owner.window!.contentView!.layoutSubtreeIfNeeded();try await wait { fileProbe.rows.compactMap(\.entry).map(\.id)==model.conflictTableRows.map(\.entry.path) }
+        owner.window!.contentView!.layoutSubtreeIfNeeded();try await wait {
+            guard let column=table.tableColumns.firstIndex(where:{$0.identifier.rawValue==StatusListColumn.path.rawValue}),table.numberOfRows==model.conflictTableRows.count else{return false}
+            return model.conflictTableRows.enumerated().allSatisfy{index,row in
+                (table.view(atColumn:column,row:index,makeIfNecessary:true) as? NSTableCellView)?.textField?.toolTip==model.conflictColumnText(row.entry,.path)
+            }
+        }
         table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);owner.window!.makeFirstResponder(table)
         let sortedFirst=model.conflictTableRows[0].entry.path,checks=model.checkedConflicts
-        try require(probe.handle(event)==nil && pasteboard.string(forType:.string)==sortedFirst+"\n","Sorted Copy targeted old index")
-        try require(probe.handle(space)==nil && model.checkedConflicts.contains(sortedFirst) != checks.contains(sortedFirst),"Sorted Space targeted old index")
+        try require(table.performKeyEquivalent(with:event) && pasteboard.string(forType:.string)==sortedFirst+"\n","Sorted Copy targeted old index")
+        table.keyDown(with:space);try require(model.checkedConflicts.contains(sortedFirst) != checks.contains(sortedFirst),"Sorted Space targeted old index")
         try await verifyComparisons(owner:owner,repo:repo,root:root,path:path,clean:clean,prefs:prefs)
         let after=try await repo.run(["rev-parse","HEAD"]).stdout;try require(after == head && Data(contentsOf:root.appendingPathComponent(".git/index")) == index && Data(contentsOf:file) == working,"Review/menu actions changed repository baseline")
         owner.close()

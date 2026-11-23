@@ -180,6 +180,9 @@ import UniformTypeIdentifiers
             presentationParent=nil
             while model.busy || model.primaryActivationPending || model.confirmingCancellation || model.reportResetActive || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
             window?.contentViewController=nil
+            // AppKit can reorder a dismissed sheet while the final worker or
+            // child links drain. Release ownership only after hiding it again.
+            window?.orderOut(nil)
             onClosed()
             if finishing,!model.confirmingQuit,model.externalAvailability(){callback?()}
         }
@@ -1101,6 +1104,7 @@ struct ConflictReportRow {
     var checked:Bool?=nil
     var color:NSColor = .labelColor
     var tooltip:String?=nil
+    var icon:MenuIcon = FileState.conflicted.icon
 }
 
 @MainActor final class ConflictReportNativeTable:AddNativeTable {
@@ -1118,6 +1122,11 @@ struct ConflictReportRow {
 
 /// Owned AppKit report avoids rebuilding headers as SwiftUI observes selection,
 /// check state or text changes. The data model owns sorting and action validity.
+@MainActor final class ConflictReportScrollView:NSScrollView {
+    var didLayout:()->Void = {}
+    override func layout() {super.layout();didLayout()}
+}
+
 struct ConflictReportTable:NSViewRepresentable {
     @AppStorage("LogFontForFileListCtrl") private var usesLogFont=false
     @AppStorage("LogFontName") private var fontName=MessageEditorFont.defaultName
@@ -1134,6 +1143,8 @@ struct ConflictReportTable:NSViewRepresentable {
     let enabled:Bool
     let preferences:UserDefaults
     var hasCheckboxes=false
+    var checksEnabled=true
+    var checkVerb="Resolve"
     var ownerRetired=false
     var focusedPath:String?
     let selectionChanged:(GitPathSet,String?)->Void
@@ -1163,13 +1174,15 @@ struct ConflictReportTable:NSViewRepresentable {
         private var storedPosition:(path:String?,offset:CGFloat,point:NSPoint,selection:GitPathSet)?
         private var restoreRequest:(ids:[Data],remember:Bool,reply:()->Void)?
         private var drag:WorkingFileListDrag?
-        private var resetQuestion:(id:UUID,alert:NSAlert,reply:(Bool)->Void)?
+        private var resetQuestion:(id:UUID,alert:NSAlert,parent:NSWindow,reply:(Bool)->Void)?
         private static var dragOwners:[ObjectIdentifier:Coordinator]=[:]
         private let fileMenu=NSMenu(),headerMenu=NSMenu()
         init(_ owner:ConflictReportTable){self.owner=owner;table=ConflictReportNativeTable(icon:.resolveBackdrop,defaults:owner.preferences)}
         func make()->NSScrollView {
-            let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
+            let scroll=ConflictReportScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
+            scroll.didLayout={[weak self] in self?.finishPositionIfReady()}
             table.dataSource=self;table.delegate=self;table.allowsMultipleSelection=true;table.allowsColumnReordering=true;table.usesAlternatingRowBackgroundColors=true
+            table.columnAutoresizingStyle = .noColumnAutoresizing
             table.target=self;table.doubleAction=#selector(openSelected)
             fileMenu.delegate=self;fileMenu.autoenablesItems=false;headerMenu.delegate=self;headerMenu.autoenablesItems=false
             table.menu=fileMenu;table.headerView?.menu=headerMenu
@@ -1190,6 +1203,7 @@ struct ConflictReportTable:NSViewRepresentable {
             guard !retired else{return}
             if value.ownerRetired {retire();return}
             updating=true;defer{updating=false}
+            let checksChanged=owner.enabled != value.enabled || owner.checksEnabled != value.checksEnabled || owner.checkVerb != value.checkVerb
             let contextChanged=owner.settings != value.settings || owner.available != value.available || owner.enabled != value.enabled || owner.sort != value.sort || owner.ascending != value.ascending || renderedRows.count != value.rows.count || zip(renderedRows,value.rows).contains{a,b in !a.path.utf8.elementsEqual(b.path.utf8) || a.text != b.text}
             owner=value;if contextChanged {contextEpoch=UUID()}
             table.activateSelectedReturn = value.activateSelection == nil ? nil : {[weak self] alternate in
@@ -1202,7 +1216,7 @@ struct ConflictReportTable:NSViewRepresentable {
             for (index,id) in desired.enumerated() {
                 let native=table.tableColumns.first{$0.identifier.rawValue==id} ?? {
                     let next=NSTableColumn(identifier:.init(id));next.minWidth=id=="check" ? 26:40;next.width=id=="check" ? 26:id==StatusListColumn.path.rawValue ? 420:110
-                    if id=="check" {next.maxWidth=26;next.resizingMask=[]} else {next.title=FileListLabels.caption(id);next.sortDescriptorPrototype=NSSortDescriptor(key:id,ascending:true)}
+                    if id=="check" {next.title="";next.maxWidth=26;next.resizingMask=[]} else {next.title=FileListLabels.caption(id);next.sortDescriptorPrototype=NSSortDescriptor(key:id,ascending:true)}
                     table.addTableColumn(next);return next
                 }()
                 if let column=column(native) {native.isHidden = !visible.contains(column);if let width=value.settings.widths[column] {native.width=width}}
@@ -1211,9 +1225,19 @@ struct ConflictReportTable:NSViewRepresentable {
             let descriptor=NSSortDescriptor(key:value.sort.rawValue,ascending:value.ascending)
             if table.sortDescriptors != [descriptor] {table.sortDescriptors=[descriptor]}
             let geometry=value.geometry
-            let changed=renderedRows.count != value.rows.count || zip(renderedRows,value.rows).contains{a,b in !a.path.utf8.elementsEqual(b.path.utf8) || a.text != b.text || a.checked != b.checked || a.color != b.color || a.tooltip != b.tooltip} || table.rowHeight != geometry.rowHeight || renderedFont != geometry.font
+            let changed=renderedRows.count != value.rows.count || zip(renderedRows,value.rows).contains{a,b in !a.path.utf8.elementsEqual(b.path.utf8) || a.text != b.text || a.checked != b.checked || a.color != b.color || a.tooltip != b.tooltip || a.icon != b.icon} || table.rowHeight != geometry.rowHeight || renderedFont != geometry.font
             renderedRows=value.rows;renderedFont=geometry.font;table.rowHeight=geometry.rowHeight;table.isEnabled=value.enabled
             if changed {table.reloadData()}
+            else if checksChanged,let checkColumn=table.tableColumns.firstIndex(where:{$0.identifier.rawValue=="check"}) {
+                // Update existing controls without rebuilding the report header.
+                // Newly materialized views read the same current owner below.
+                table.enumerateAvailableRowViews {rowView,row in
+                    guard self.renderedRows.indices.contains(row) else{return}
+                    let button=rowView.view(atColumn:checkColumn) as? NSButton
+                    button?.isEnabled=value.enabled && value.checksEnabled
+                    button?.setAccessibilityLabel(NSLocalizedString(value.checkVerb,comment:"")+" "+self.renderedRows[row].path)
+                }
+            }
             let indexes=IndexSet(renderedRows.indices.filter{value.selection.contains(renderedRows[$0].path)})
             if table.selectedRowIndexes != indexes {table.selectRowIndexes(indexes,byExtendingSelection:false)}
             NativeListSelection.install(on:table,preferences:value.preferences,primaryColumn:table.tableColumns.first{column($0) == .path},labelText:{[weak self] row in self?.renderedRows.indices.contains(row)==true ? self?.renderedRows[row].path:nil},font:geometry.font,leadingInset:24)
@@ -1223,8 +1247,8 @@ struct ConflictReportTable:NSViewRepresentable {
         func tableView(_ tableView:NSTableView,viewFor tableColumn:NSTableColumn?,row:Int)->NSView? {
             guard renderedRows.indices.contains(row),let tableColumn else{return nil};let value=renderedRows[row]
             if tableColumn.identifier.rawValue=="check" {
-                let button=NSButton(checkboxWithTitle:"",target:self,action:#selector(checkClicked(_:)));button.tag=row;button.state=value.checked == true ? .on:.off;button.isEnabled=owner.enabled
-                button.setAccessibilityLabel(NSLocalizedString("Resolve",comment:"")+" "+value.path);return button
+                let button=NSButton(checkboxWithTitle:"",target:self,action:#selector(checkClicked(_:)));button.tag=row;button.state=value.checked == true ? .on:.off;button.isEnabled=owner.enabled && owner.checksEnabled
+                button.setAccessibilityLabel(NSLocalizedString(owner.checkVerb,comment:"")+" "+value.path);return button
             }
             guard let column=column(tableColumn) else{return nil}
             let field=NSTextField(labelWithString:singleLine(value.text[column] ?? ""));field.lineBreakMode = .byTruncatingTail;field.maximumNumberOfLines=1
@@ -1232,7 +1256,7 @@ struct ConflictReportTable:NSViewRepresentable {
             field.textColor=column == .path || column == .status ? value.color:.labelColor;field.toolTip=value.text[column]
             if [.added,.removed,.fileSize].contains(column) {field.alignment = .right}
             guard column == .path else{return field}
-            let cell=NSTableCellView();let image=NSImageView(frame:NSRect(x:2,y:2,width:16,height:16));image.image=FileState.conflicted.icon.image()
+            let cell=NSTableCellView();let image=NSImageView(frame:NSRect(x:2,y:2,width:16,height:16));image.image=value.icon.image()
             field.frame=NSRect(x:23,y:2,width:max(0,tableColumn.width-26),height:table.rowHeight-4);field.autoresizingMask=[.width];cell.addSubview(image);cell.addSubview(field);cell.imageView=image;cell.textField=field;cell.toolTip=value.tooltip;return cell
         }
         private func singleLine(_ text:String)->String {
@@ -1263,11 +1287,11 @@ struct ConflictReportTable:NSViewRepresentable {
             owner.layoutChanged(table.tableColumns.compactMap(column),Dictionary(uniqueKeysWithValues:table.tableColumns.compactMap{native in column(native).map{($0,Double(native.width))}}))
         }
         @objc private func checkClicked(_ sender:NSButton) {
-            guard isAvailable,renderedRows.indices.contains(sender.tag),let checked=renderedRows[sender.tag].checked else{return}
+            guard isAvailable,owner.hasCheckboxes,owner.checksEnabled,renderedRows.indices.contains(sender.tag),let checked=renderedRows[sender.tag].checked else{return}
             owner.checkChanged?(renderedRows[sender.tag].path,!checked)
         }
         private func toggleChecks() {
-            guard isAvailable,owner.hasCheckboxes,let mark=selectedPaths.first(where:{GitReferenceName.equal($0,owner.focusedPath)}) ?? selectedPaths.first,let row=renderedRows.first(where:{GitReferenceName.equal($0.path,mark)}),let checked=row.checked else{return}
+            guard isAvailable,owner.hasCheckboxes,owner.checksEnabled,let mark=selectedPaths.first(where:{GitReferenceName.equal($0,owner.focusedPath)}) ?? selectedPaths.first,let row=renderedRows.first(where:{GitReferenceName.equal($0.path,mark)}),let checked=row.checked else{return}
             owner.checkChanged?(mark,!checked)
         }
         @objc private func openSelected() {
@@ -1316,16 +1340,23 @@ struct ConflictReportTable:NSViewRepresentable {
             DispatchQueue.main.async{[weak self] in self?.finishPositionIfReady()}
         }
         private func finishPositionIfReady() {
-            guard let request=restoreRequest,request.ids == renderedRows.map({Data($0.path.utf8)}) else{return}
+            guard let request=restoreRequest,request.ids == renderedRows.map({Data($0.path.utf8)}),
+                  let scroll=table.enclosingScrollView,scroll.contentView.bounds.width>0,scroll.contentView.bounds.height>0 else{return}
             restoreRequest=nil
+            let point:NSPoint
             if request.remember,let position=storedPosition {
                 let row=position.path.flatMap{path in renderedRows.firstIndex{GitReferenceName.equal($0.path,path)}}
-                table.enclosingScrollView?.contentView.scroll(to:NSPoint(x:position.point.x,y:row.map{table.rect(ofRow:$0).minY+position.offset} ?? position.point.y))
+                point=NSPoint(x:position.point.x,y:row.map{table.rect(ofRow:$0).minY+position.offset} ?? position.point.y)
             } else {
                 table.deselectAll(nil);owner.selectionChanged([],nil)
-                table.enclosingScrollView?.contentView.scroll(to:.zero)
+                point = .zero
             }
-            if let scroll=table.enclosingScrollView {scroll.reflectScrolledClipView(scroll.contentView)}
+            // Empty-table construction and later column/viewport changes can
+            // leave a saved offset outside the newly laid out document. Honor
+            // the requested content position within AppKit's actual bounds.
+            var bounds=scroll.contentView.bounds;bounds.origin=point
+            scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(bounds).origin)
+            scroll.reflectScrolledClipView(scroll.contentView)
             request.reply()
         }
         func cancelListPosition(){storedPosition=nil;if let request=restoreRequest {restoreRequest=nil;request.reply()}}
@@ -1342,14 +1373,13 @@ struct ConflictReportTable:NSViewRepresentable {
             alert.addButton(withTitle:NSLocalizedString("Yes",comment:""));alert.addButton(withTitle:NSLocalizedString("No",comment:""));alert.window.alphaValue=window.alphaValue;alert.window.appearance=window.appearance
             let id=UUID()
             return await withCheckedContinuation{reply in
-                resetQuestion=(id,alert,{reply.resume(returning:$0)})
+                resetQuestion=(id,alert,window,{reply.resume(returning:$0)})
                 alert.beginSheetModal(for:window){[weak self] response in self?.finishColumnReset(id,accepted:response == .alertFirstButtonReturn)}
             }
         }
         private func finishColumnReset(_ id:UUID,accepted:Bool) {
             guard let request=resetQuestion,request.id==id else{return};resetQuestion=nil
-            let parent=table.window
-            Task{[self] in await FileOperationWindowDrain.detach(request.alert.window,parent:parent);request.reply(accepted && !retired)}
+            Task{[self] in await FileOperationWindowDrain.detach(request.alert.window,parent:request.parent);request.reply(accepted && !retired)}
         }
         func retireListPresentation(){retire()}
         func retire(){guard !retired else{return};retired=true;if let question=resetQuestion {finishColumnReset(question.id,accepted:false)};cancelListPosition();contextEpoch=UUID();table.activateSelectedReturn=nil;table.selectionMenuAvailable={false};table.contextSelection={_,_ in};table.focusedRow={nil};table.focusMoved={_ in};table.toggleChecks={};table.copySelection={_ in};table.menu=nil;table.headerView?.menu=nil;table.target=nil;if drag==nil {table.delegate=nil;table.dataSource=nil};NativeListSelection.remove(from:table)}

@@ -10,7 +10,7 @@ class AddNativeTable: NativeWatermarkTable {
     private var presentingSelectionMenu = false
     @discardableResult func showSelectedContextMenu() -> Bool {
         guard !presentingSelectionMenu, selectionMenuAvailable(), let window,
-              window.attachedSheet == nil, NSApp.modalWindow == nil, isEnabled,
+              window.isVisible, window.attachedSheet == nil, NSApp.modalWindow == nil, isEnabled,
               !isHiddenOrHasHiddenAncestor, let menu else { return false }
         let row = selectionMenuRow().flatMap { selectedRowIndexes.contains($0) ? $0 : nil } ?? selectedRowIndexes.first
         guard let row, row >= 0, row < numberOfRows else { return false }
@@ -37,6 +37,12 @@ class AddNativeTable: NativeWatermarkTable {
     /// Opt-in status-list default action; unrelated native tables retain their
     /// own Return/default-button contract.
     var activateSelectedReturn: ((Bool) -> Void)?
+    private func ownsKeyboardEvent(_ event:NSEvent)->Bool {
+        guard event.type == .keyDown,let window else{return false}
+        return event.window === window && commandKeyWindow() === window &&
+            window.firstResponder === self && window.isVisible && !isHiddenOrHasHiddenAncestor &&
+            isEnabled && window.attachedSheet==nil && NSApp.modalWindow==nil
+    }
     @discardableResult func performSelectedReturn(_ event:NSEvent)->Bool {
         guard event.type == .keyDown,[36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty,
               let activateSelectedReturn,let window,event.window === window,commandKeyWindow() === window,
@@ -60,7 +66,8 @@ class AddNativeTable: NativeWatermarkTable {
         return acceptFileDrop(sender.draggingPasteboard)
     }
     override func menu(for event: NSEvent) -> NSMenu? {
-        guard selectionMenuAvailable() else { return nil }
+        guard let window,event.window === window,window.isVisible,!isHiddenOrHasHiddenAncestor,
+              isEnabled,window.attachedSheet==nil,NSApp.modalWindow==nil,selectionMenuAvailable() else { return nil }
         let point = convert(event.locationInWindow, from: nil)
         let index = row(at: point)
         guard index >= 0 else { return nil }
@@ -71,16 +78,16 @@ class AddNativeTable: NativeWatermarkTable {
     override func keyDown(with event: NSEvent) {
         if handleSelectionMenuKey(event) { return }
         if performSelectedReturn(event) {return}
-        if event.keyCode == 51 || event.keyCode == 117 {
+        if (event.keyCode == 51 || event.keyCode == 117),ownsKeyboardEvent(event) {
             deleteSelection(event.modifierFlags.contains(.shift)); return
         }
-        if event.charactersIgnoringModifiers == " ", event.modifierFlags.intersection([.command, .control, .option]).isEmpty { toggleChecks(); return }
+        if event.charactersIgnoringModifiers == " ", event.modifierFlags.intersection([.command, .control, .option]).isEmpty,ownsKeyboardEvent(event) { toggleChecks(); return }
         super.keyDown(with: event)
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if performSelectedReturn(event) {return true}
         if handleSelectionMenuKey(event) { return true }
-        if event.charactersIgnoringModifiers?.lowercased() == "c", event.modifierFlags.contains(.command) { copySelection(event.modifierFlags.contains(.shift)); return true }
+        if event.charactersIgnoringModifiers?.lowercased() == "c", event.modifierFlags.contains(.command),ownsKeyboardEvent(event) { copySelection(event.modifierFlags.contains(.shift)); return true }
         return super.performKeyEquivalent(with: event)
     }
 }

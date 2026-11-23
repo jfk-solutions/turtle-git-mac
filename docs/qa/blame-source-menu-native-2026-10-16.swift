@@ -67,9 +67,19 @@ import TurtleGitCore
         try require(!presented.contains{$0.title=="Blame previous revision"} && presented.allSatisfy{$0.image==nil},"Root exclusion/private icon preference differs")
         prefs.set(true,forKey:"ShowAppContextMenuIcons")
         gutter.selectRowIndexes(IndexSet(integer:2),byExtendingSelection:false)
+        // A prohibited private receiver cannot become the desktop key window.
+        // Inject only this controller's key-owner seam for actual keyboard
+        // entry; the earlier AX checks retain their background-pane boundary.
+        let originalKeyOwner=owner.commandKeyWindow
+        owner.commandKeyWindow={ [weak owner] in owner?.window }
+        defer{owner.commandKeyWindow=originalKeyOwner}
+        try require(owner.window?.isVisible==true && !gutter.isHiddenOrHasHiddenAncestor && gutter.isEnabled && owner.commandsAvailable,"Gutter keyboard owner unavailable")
+        try require(owner.window?.makeFirstResponder(gutter)==true && owner.window?.firstResponder === gutter,"Gutter did not own keyboard focus")
         let key=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.shift,timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"",charactersIgnoringModifiers:"",isARepeat:false,keyCode:109)!
         let beforeKey=presentations;gutter.keyDown(with:key);try await wait {presentations==beforeKey+1};let thirdLog=try item("Show log");try invoke(thirdLog)
         try require(logs.last?.1==third.hash,"Gutter keyboard context used pointer/source selection")
+        try require(!editor.isHiddenOrHasHiddenAncestor && editor.isSelectable && owner.commandsAvailable,"Editor keyboard owner unavailable")
+        try require(owner.window?.makeFirstResponder(editor)==true && owner.window?.firstResponder === editor,"Editor did not own keyboard focus")
         let beforeEditor=presentations;editor.keyDown(with:key);try await wait {presentations==beforeEditor+1}
         model.busy=true;try require(!editor.accessibilityPerformShowMenu() && !gutter.accessibilityPerformShowMenu(),"Busy annotation accepted keyboard/AX menu");model.busy=false
         try await openSource();let stale=try item("Show log"),target=model.sourceTarget(number:2)!

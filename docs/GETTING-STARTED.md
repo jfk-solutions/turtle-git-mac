@@ -150,11 +150,11 @@ source comparisons, verification and remaining work.
 
 The Classic Commit window in light appearance:
 
-![Commit in light mode: message, author options and checked files](site/assets/mac-commit-classic-light-2026-10-31.png)
+![Commit in light mode: message, author options and checked files](site/assets/mac-commit-classic-light-2026-11-23.png)
 
 The same window in dark appearance:
 
-![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-classic-dark-2026-10-31.png)
+![Commit in dark mode with colored status rows and changelists](site/assets/mac-commit-classic-dark-2026-11-23.png)
 
 ## Edit commit and other messages
 
@@ -209,9 +209,9 @@ working contents equal the base. Normally that base is HEAD. While amending,
 first parent, or an empty base for a root commit. This changes what you review;
 it does not stage files or create a commit.
 
-![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-10-31.png)
+![Git Gui-style Commit with unstaged and staged lists and an embedded patch](site/assets/mac-commit-staging-light-2026-11-23.png)
 
-![Git Gui-style Commit in dark appearance](site/assets/mac-commit-staging-dark-2026-10-31.png)
+![Git Gui-style Commit in dark appearance](site/assets/mac-commit-staging-dark-2026-11-23.png)
 
 ## Use the staging area
 
@@ -252,9 +252,9 @@ load those details; selecting a commit does not change your checkout. Select a
 changed path below and use its context menu to compare or open that version.
 This example selects a merge so you can inspect its differences against each parent.
 
-![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-10-27.png)
+![Log in light mode showing a branch and merge graph, message and changed files](site/assets/mac-log-light-2026-11-23.png)
 
-![The same Log window in dark mode](site/assets/mac-log-dark-2026-10-27.png)
+![The same Log window in dark mode](site/assets/mac-log-dark-2026-11-23.png)
 
 These examples show the native controls using the offline Harbor sample
 repository. Available actions depend on the repository and selection. The
@@ -390,10 +390,34 @@ completed progress result to return to Sync; Cancel dismisses the options. See
 the [light Export sheet](site/assets/sync-export-light.png) and
 [dark Export sheet](site/assets/sync-export-dark.png).
 
-The existing [light Sync screenshot](site/assets/git-synchronization-light.png)
-and [dark Sync screenshot](site/assets/git-synchronization-dark.png) show native
-windows with incoming and outgoing history. See [Synchronization](SYNCHRONIZATION-PARITY.md)
-for command details and platform limitations.
+The native Sync window keeps branch and transport choices above its history and
+file tabs. Its conflict tab provides inspection and resolution actions for
+highlighted files. Resolve separately keeps a checked set for its OK button.
+
+![Synchronization outgoing history in light appearance](site/assets/mac-sync-history-light-2026-11-23.png)
+
+![Synchronization outgoing history in dark appearance](site/assets/mac-sync-history-dark-2026-11-23.png)
+
+![Synchronization conflict file table in light appearance](site/assets/mac-sync-conflicts-light-2026-11-23.png)
+
+![Synchronization conflict file table in dark appearance](site/assets/mac-sync-conflicts-dark-2026-11-23.png)
+
+See [Synchronization](SYNCHRONIZATION-PARITY.md) for command details and platform limitations.
+
+## Review and resolve conflicts
+
+Choose **Resolve…** for the repository or selected paths. The file list shows
+Path and Extension by default; use its header menu for optional columns. Highlight
+rows to inspect conflicts, and check the files whose current contents you want
+**OK** to mark resolved. Return opens highlighted conflict editors in displayed
+order. Resolving does not automatically commit or continue a paused replay.
+
+![Resolve checked conflict list in light appearance](site/assets/mac-resolve-light-2026-11-23.png)
+
+![Resolve checked conflict list in dark appearance](site/assets/mac-resolve-dark-2026-11-23.png)
+
+See [Resolve in the dialog guide](DIALOG-GUIDE.md) for file actions
+and resolution choices.
 
 ## Standalone comparison and merging
 

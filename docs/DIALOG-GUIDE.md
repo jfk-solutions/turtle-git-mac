@@ -137,9 +137,9 @@ Use the compact selector at the upper right to choose **Classic** or
 
 Classic Commit keeps the message above its checked-file list:
 
-![Commit message, options and checked files in light appearance](site/assets/mac-commit-classic-light-2026-10-31.png)
+![Commit message, options and checked files in light appearance](site/assets/mac-commit-classic-light-2026-11-23.png)
 
-![Commit controls and file status colors in dark appearance](site/assets/mac-commit-classic-dark-2026-10-31.png)
+![Commit controls and file status colors in dark appearance](site/assets/mac-commit-classic-dark-2026-11-23.png)
 
 The alternative staging workspace separates the index and working tree. Both
 panes retain bordered **Path** and **Status** tables, including when there are no
@@ -175,9 +175,9 @@ selection instructions rather than a blank patch. During a refresh, the visible
 phase and Cancel control explain ongoing work; a failed or cancelled read keeps
 its own result instead of pretending the repository is empty.
 
-![Git Gui-style staging with separate index and working-tree lists](site/assets/mac-commit-staging-light-2026-10-31.png)
+![Git Gui-style staging with separate index and working-tree lists](site/assets/mac-commit-staging-light-2026-11-23.png)
 
-![The staging workspace in dark appearance](site/assets/mac-commit-staging-dark-2026-10-31.png)
+![The staging workspace in dark appearance](site/assets/mac-commit-staging-dark-2026-11-23.png)
 
 The Check links follow the source action categories: **Added** includes copies,
 while **Modified** selects modification/type-change actions rather than every row
@@ -323,9 +323,9 @@ request. Closing Log cancels remaining preparation and waits for its cleanup;
 viewers already opened retain their independent windows. Resolving a conflict
 refreshes the affected repository views.
 
-![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-10-27.png)
+![Log revision graph, selected message and changed files in light appearance](site/assets/mac-log-light-2026-11-23.png)
 
-![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-10-27.png)
+![Log history and changed files in dark appearance](site/assets/mac-log-dark-2026-11-23.png)
 
 Drag a file from the changed-file list to another application to copy the
 selected revision's contents. Working-tree rows offer the actual working file.
@@ -524,6 +524,14 @@ Launch Rebase After Fetch opens the native Rebase flow after the fetch. A branch
 configured to require rebase can select that behavior automatically. Read the
 progress and conflict result before starting another integration operation.
 
+![Synchronization outgoing history with its compact graph, light appearance](site/assets/mac-sync-history-light-2026-11-23.png)
+
+![Synchronization outgoing history in dark appearance](site/assets/mac-sync-history-dark-2026-11-23.png)
+
+![Synchronization conflict table, light appearance](site/assets/mac-sync-conflicts-light-2026-11-23.png)
+
+![Synchronization conflict table in dark appearance](site/assets/mac-sync-conflicts-dark-2026-11-23.png)
+
 ## Synchronization progress
 
 Quick Resolve from Sync's conflict list opens an owned confirmation/progress
@@ -631,6 +639,10 @@ intended result and mark it resolved. Continue the parent operation only after
 reviewing the remaining conflicts. [Conflict identities](CONFLICT-IDENTITIES.md)
 explains the side captions, and [Save As targets](SAVE-AS-TARGETS.md) explains
 how an exported copy differs from the actual merge result.
+
+![Resolve with checked conflicts and native Path and Extension columns, light appearance](site/assets/mac-resolve-light-2026-11-23.png)
+
+![Resolve checked conflict list in dark appearance](site/assets/mac-resolve-dark-2026-11-23.png)
 
 Resolve's operation progress uses a separate Action/Path notification list with
 a timed Finished row. Its file rows offer Log, Open, Open With and Explore to.
@@ -811,6 +823,16 @@ Rebase prepares commits relative to the selected branch/upstream and optional
 onto target. Review the plan and each row action before starting. Edit, squash,
 skip and conflict handling can change the resulting history. Cherry Pick uses a
 related replay plan over the selected commits.
+
+In recovery **Changed Files**, Return opens each highlighted file in displayed
+order, including multiple conflicts and mixed ordinary changes. Double-click
+opens the pointed row; checked boxes independently choose files for the replay
+commit. **Compare with base** compares against the applied commit, including for
+a conflict, while **Edit conflict** opens its conflict editor. Resolve choices
+open an owned confirmation/progress sheet and refresh after it closes when that
+option is enabled. Cancel waits for the selected operation to settle. Shift-F10
+and accessibility **Show Menu** retain the highlighted files. See
+[recovery file actions](REPLAY-RECOVERY-REPORT-PARITY.md) for scope and source notes.
 
 Before replay, **Refresh** or unmodified **F5** reloads the current HEAD branch,
 reference choices and a fresh plan. Successful refresh resets added commits,

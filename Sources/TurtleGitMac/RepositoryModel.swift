@@ -4756,6 +4756,24 @@ private enum TransportBatchPresentationContext {
             }
         } catch OperationCancellationFailure.cancelled {return}
     }
+    /// Keep quick Resolve and nested submodule Reset in the replay owner's
+    /// actual child hierarchy, with the same originating access and settings.
+    func configureReplayRecoveryInteractions(_ controller:RebaseWindowController,access:RepositoryAccessLease?) {
+        configureReplayPrimaryFileNavigation(controller.model,access:access)
+        controller.configureConflictResolution=CommandProgressContext.capture { [weak self] child in
+            self?.configureResolveInteractions(child,repository:child.model.repository,access:access,preferences:child.model.preferences)
+        }
+        controller.configureConflictReset=CommandProgressContext.capture { [weak self] child,repository in
+            self?.configureResetInteractions(child,repository:repository,access:access)
+        }
+    }
+    /// All replay entry points share the same model and originating access.
+    func configureReplayPrimaryFileNavigation(_ model:RebaseWindowModel,access:RepositoryAccessLease?) {
+        model.onPrimaryConflictFileActivation=CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else{throw OperationCancellationFailure.cancelled}
+            try await self.showStatusListPrimaryFiles(plan,access:access,cancellation:token)
+        }
+    }
     /// Classic Commit, Working Tree and Revert accept a single ordered request.
     /// Its source dialog has already owned the one multi-file question; each
     /// resulting child preparation keeps that source's token and settings.
@@ -4771,17 +4789,29 @@ private enum TransportBatchPresentationContext {
             if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(plan.repository.root) != true) {
                 throw RepositoryAccessFailure.securityScopeUnavailable
             }
+            let expectedConflicts:GitPathMap<ConflictEntry>?
+            if let entries=plan.expectedConflicts {
+                guard GitPathSet(entries.map(\.path)).count==entries.count else{throw ResolveFailure.stale}
+                expectedConflicts=GitPathMap(uniqueKeysWithValues:entries.map{($0.path,$0)})
+            } else {expectedConflicts=nil}
             for action in plan.actions {
                 try session.check()
                 switch action {
                 case .conflict(let row):
                     guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else {throw ResolveFailure.stale}
                     try session.check()
+                    if let expectedConflicts,expectedConflicts[row.entry.path]==nil {throw ResolveFailure.stale}
                     let result = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:row.entry.path,owner:plan.window,
                         preferences:plan.preferences,alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,
-                        mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity,expectedRebase:plan.isRebase)
+                        mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity,expectedEntry:expectedConflicts?[row.entry.path],expectedRebase:plan.isRebase)
                     guard result != .notAdmitted else{throw OperationCancellationFailure.cancelled}
                 case .comparison(let row):
+                    if row.entry.state == .conflicted,let expectedConflicts {
+                        guard let entry=expectedConflicts[row.entry.path] else{throw ResolveFailure.stale}
+                        try await validateConflictEditorEntry(entry,repository:plan.repository,token:token)
+                        guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
+                        try session.check()
+                    }
                     let snapshot=try await plan.repository.revisionFileComparison(from:plan.base,to:.workingTree,paths:[row.entry.path],cancellation:token)
                     try session.check()
                     guard snapshot.root==plan.repository.root else {throw RevisionComparisonFailure.selection}
@@ -5221,6 +5251,7 @@ private enum TransportBatchPresentationContext {
         if let existing, existing.window?.sheetParent != nil { guard prepareFinderServiceWorkflow(existing,repository:repository,access:access) else{existing.close();return}; existing.window?.makeKeyAndOrderFront(nil); return }
         let controller = existing ?? RebaseWindowController(repository: repository, access: access, preferences: preferences ?? fileComparisonPreferences)
         let inherited = controller.model.columnPreferences
+        configureReplayRecoveryInteractions(controller,access:access)
         controller.configureReferencePicker = CommandProgressContext.capture { [weak self] picker in self?.configureReferenceBrowser(picker, repository: repository, access: access) }
         var dismissed = false
         controller.onClosed = CommandProgressContext.capture { [weak self, weak controller] in

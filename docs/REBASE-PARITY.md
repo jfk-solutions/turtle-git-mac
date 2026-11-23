@@ -39,9 +39,11 @@ native amend loop. The native checked path now separates the original-message
 commit and optional edited-message amendment; see the
 [conflict-message family](REBASE-CONFLICT-MESSAGE-PARITY.md) for source command
 order, durable recovery adaptations and its validation boundary.
-Squash checkbox interaction, advanced group/reference recovery, full
-row menus, completed-row display and post-operation controls still need porting
-and comparison.
+The connected [replay recovery report](REPLAY-RECOVERY-REPORT-PARITY.md) now uses
+native checked rows and complete captured menus, ordered mixed primary actions,
+explicit conflict comparisons and owned Resolve/Reset children. Exceptional
+replay combinations and full physical/visual acceptance remain separate from
+these implemented controls.
 
 When the commit list has focus, P/S/Q/E choose Pick/Skip/Squash/Edit. Space cycles
 each selected row Pick → Skip → Edit → Squash → Pick, bypassing Squash for the

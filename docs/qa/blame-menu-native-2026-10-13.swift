@@ -1,5 +1,14 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func quietBlameMenuOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        // Preserve actual frame/docking geometry while keeping every private
+        // receiver child invisible. Deliberate captures do not install this.
+        alphaValue=0;quietBlameMenuOrder(mode,relativeTo:number)
+    }
+}
 
 @main struct BlameMenuVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
@@ -13,6 +22,10 @@ import TurtleGitCore
         for _ in 0..<500 { if BlameWindowModel.activeHistoryOperations==0 { break };try? await Task.sleep(nanoseconds:10_000_000) }
         fputs("Blame menus failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
+        let capturing=ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_PANE_CAPTURES"] != nil
+        let order=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,quiet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietBlameMenuOrder(_:relativeTo:)))!
+        if !capturing {NSApplication.shared.setActivationPolicy(.prohibited);method_exchangeImplementations(order,quiet)}
+        defer{if !capturing {method_exchangeImplementations(order,quiet)}}
         let regexExecutable=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
@@ -31,6 +44,10 @@ import TurtleGitCore
         let owner=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable)
         defer { owner.close() }
         let window=owner.window!,model=owner.model
+        if ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_PANE_CAPTURES"]==nil {
+            window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000))
+        }
+        window.orderFront(nil)
         window.contentView?.layoutSubtreeIfNeeded()
         func source()->NSTextView? { descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel()=="Blame source text" } }
         try await wait { !model.busy && !model.syntaxWorking && source()?.string==text }
@@ -175,6 +192,10 @@ import TurtleGitCore
         model.showToolbar=false;model.showLog=false;model.showProperties=false;model.showStatusBar=false
         let reopened=BlameWindowController(repository:repo,access:nil,path:"menus.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs,regexExecutable:regexExecutable)
         defer { reopened.close() }
+        if ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_PANE_CAPTURES"]==nil {
+            reopened.window?.alphaValue=0;reopened.window?.setFrameOrigin(.init(x:-24000,y:-24000))
+        }
+        reopened.window?.orderFront(nil)
         try await wait { !reopened.model.busy && !reopened.model.syntaxWorking }
         try require(!reopened.model.showToolbar && !reopened.model.showLog && !reopened.model.showProperties && !reopened.model.showStatusBar,"New viewer did not restore pane layout")
         focus=reopened.window;context.refresh();context.perform(.toolbar)
@@ -186,7 +207,9 @@ import TurtleGitCore
         print("Blame menus: current/Find/unrelated/second/retired window routing, busy/detection gates, persistent pane restoration, source selection retention, window/panel appearance/reset, private option defaults and exact HEAD/index/file preservation passed. Owned windows closed; full physical menu/VoiceOver acceptance remains open.")
     }
     @MainActor static func paneWorkflows(owner:BlameWindowController,prefs:UserDefaults,regexExecutable:URL) async throws {
-        NSApp.setActivationPolicy(.accessory);NSApp.activate(ignoringOtherApps:true)
+        if ProcessInfo.processInfo.environment["TURTLEGIT_BLAME_PANE_CAPTURES"] != nil {
+            NSApp.setActivationPolicy(.accessory);NSApp.activate(ignoringOtherApps:true)
+        } else {NSApp.setActivationPolicy(.prohibited)}
         let model=owner.model,annotations=model.lines.map{($0.hash,$0.originalLine)},selection=model.selection
         let root=owner.window!;owner.showWindow(nil);root.makeKeyAndOrderFront(nil)
         model.restorePaneLayout()

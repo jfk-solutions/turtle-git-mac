@@ -917,13 +917,31 @@ LFS receiver to use Commit’s existing owned column transaction. Focused Core a
 both affected native engines pass. These are local repairs; complete matching-source
 hosted CI remains required. Installed build48 includes the repair.
 
+## Replay, Blame and current manual screenshots — November 23, 2026
+
+The connected recovery report and bidirectional Blame revision/source selection
+are implemented with native report menus, source icons, exact conflict stages,
+settings/backend capture, cancellation and owned child cleanup. The bounded
+[Replay report](REPLAY-RECOVERY-REPORT-PARITY.md),
+[Blame focus](BLAME-REVISION-FOCUS-PARITY.md) and
+[grouped checkpoint](qa/replay-blame-family-2026-11-23.json) separate passed
+workflow scopes, failed attempts and remaining acceptance.
+
+The homepage, Getting Started, dialog guide and bundled Help now use current
+light/dark Commit, Log, Resolve and Sync captures. The
+[capture receipt](qa/manual-primary-captures-2026-11-23.json) retains the initial
+rejected geometry and corrected originals, including the different source
+provenance of retained and recaptured images. Neither documentation screenshots
+nor local native checks certify every upstream dialog. Installed build52 and the
+immutable signed54 artifact have not been replaced by this source batch.
+
 ## Remaining gates
 
 | Gate | Evidence and remaining work |
 | --- | --- |
 | Source behavior and layout | [Family records](PORTING.md#current-component-and-workflow-state--october-25-2026) describe connected implementations. The [resource ledger](DIALOG-COVERAGE.md) keeps partial controls and unmapped platform/example resources explicit. Complete dialog states, command eligibility, layout, keyboard and accessibility acceptance must be established from their actual consumers, rather than counting screens. |
 | Connected workflow defects | Commit cross-presentation workflows have a [grouped checkpoint](qa/commit-presentation-workflows-2026-10-29.json). Explicit working-file Compare/conflict intent, captured requesting-repository routing, and Browser read-to-panel/launch ownership now pass their [connected native checkpoint](qa/file-comparison-browser-ownership-2026-10-29.json) with both Git engines and affected regressions. Explicit unchanged-file, copy/rename, Amend first-parent and added/deleted gitlink comparisons pass their [content checkpoint](qa/working-file-content-selection-2026-10-29.json), including read-only index preservation. The later [Log file inspection checkpoint](qa/log-streamed-file-navigation-2026-10-29.json) covers historical navigation and delivery during streamed history; its shared list-control regression is recorded separately. Current Commit screenshots cover both layouts and appearances; signed workflow acceptance remains separate. |
-| Current hosted integration | Current `f7a0a97f` [run41927023904](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/41927023904) has seven completed validation lanes failed at the app build; SVN passes, distribution was still active at observation. This batch explicitly discards the workspace Revert cancellation function to repair that older-compiler error. Earlier `839406e5` consumer diagnostics retain their separate scopes. Installed [build52](qa/signed-consolidation-build52-2026-11-03.json) binds source `3702643e`; complete corrected-source hosted success remains open. |
+| Current hosted integration | At the November 23 observation, committed `c8c89189` [macOS run45096230454](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45096230454) is pending with no jobs or artifacts; its [Pages run45096230526](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45096230526) succeeded. Older `617a0f80` run45081783589 has failed validation lanes and was still running distribution. Its bounded Statistics artifact records an error-sheet OK activation timeout; it does not establish a defect in the newer source. Full corrected-source hosted success remains open. Installed [build52](qa/signed-consolidation-build52-2026-11-03.json) remains a separate source checkpoint. |
 | Installed workflow acceptance | [Build52](qa/signed-consolidation-build52-2026-11-03.json) is installed and left closed after strict package/runtime checks and a bounded physical workspace/Commit startup observation on a private 34,304-path repository. Earlier [build41 acceptance](qa/signed-consolidation-build41-2026-10-30.json) retains Commit headers/staging, Log, Remote and Settings observations. Current-version wider recovery, Finder/grants and representative cold repositories remain separate. |
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
 | Startup and large repositories | The [connected readiness batch](qa/finder-readiness-publication-2026-11-03.json) separates usable workspace facts from optional Finder publication. Installed52 first shows usable commands at1.225s while publication continues, and correct Commit rows at the first successful5.569s observation. These include automation overhead and warm filesystem/cache state; cold Finder delivery and every-repository latency remain unproven. |

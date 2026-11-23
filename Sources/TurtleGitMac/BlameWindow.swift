@@ -702,7 +702,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     func acceptsHistory(_ target:HistoryTarget)->Bool { canFind && target.owner==ObjectIdentifier(self) && target.generation==generation && target.menuGeneration==historyMenuGeneration && target.entries.allSatisfy { item in target.sourceOrigin ? lines.contains { $0.hash==item.hash } : historyEntries.contains { $0.hash==item.hash } } }
 
     @Published var copyingLog = false
-    @Published var snapshot: GitBlameSnapshot? { didSet { sourceVersion += 1 } }
+    @Published var snapshot: GitBlameSnapshot? { didSet { sourceVersion += 1;historySourceFocus=nil;historyReveal=nil } }
     // A codec projection can change the source row count without changing the
     // retained history. Native attribution and locator caches follow this epoch.
     private(set) var sourceVersion=0
@@ -720,10 +720,27 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     private var tooltipOtherFilenames = false
     private(set) var historyVersion=0
     @Published var selectedLogHashes: Set<String> = [] { didSet {
+        if let focusedHistoryHash,!selectedLogHashes.contains(focusedHistoryHash) {self.focusedHistoryHash=nil}
         if let added = historyEntries.first(where: { selectedLogHashes.contains($0.hash) && !oldValue.contains($0.hash) }) { avatarHash = added.hash }
         else if selectedLogHashes.count == 1 { avatarHash = selectedLogHashes.first }
         refreshRevisionDetails()
     } }
+    @Published private(set) var focusedHistoryHash:String?
+    @Published private(set) var historyRevealSerial=0
+    private var historyReveal:(hash:String,version:Int,serial:Int)?
+    func requestHistoryReveal(_ hash:String) {
+        guard canFind else{return}
+        historyRevealSerial += 1
+        historyReveal=(hash,sourceVersion,historyRevealSerial)
+    }
+    func consumeHistoryReveal(_ hash:String,serial:Int) {
+        guard historyReveal?.hash==hash,historyReveal?.serial==serial else{return}
+        historyReveal=nil
+    }
+    var pendingHistoryReveal:(hash:String,serial:Int)? {
+        guard canFind,let value=historyReveal,value.version==sourceVersion else{return nil}
+        return (value.hash,value.serial)
+    }
     @Published var showProperties=true { didSet { guard !retired else { return };labelDefaults.set(showProperties,forKey:"Blame.ShowProperties");onPaneLayoutChanged() } }
     @Published var showToolbar=true { didSet { labelDefaults.set(showToolbar,forKey:"Blame.ShowToolbar") } }
     @Published var showLog=true { didSet { guard !retired else { return };labelDefaults.set(showLog,forKey:"Blame.ShowLog");refreshAuthorImage();onPaneLayoutChanged() } }
@@ -891,11 +908,20 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     /// selection and of the focused modeless Find field editor.
     var sourceSearchCaretRow: (() -> Int?)?
     fileprivate var sourceNavigationHandler: ((Int, Bool, Bool) -> Bool)?
+    fileprivate var historySourceFocusHandler:((Int?)->Bool)?
+    @Published private(set) var historySourceFocusSerial=0
+    private var historySourceFocus:(line:Int?,version:Int,serial:Int)?
+    fileprivate func applyHistorySourceFocus() {
+        guard let request=historySourceFocus else{return}
+        guard canFind,request.version==sourceVersion else{historySourceFocus=nil;return}
+        if historySourceFocusHandler?(request.line)==true,historySourceFocus?.serial==request.serial {historySourceFocus=nil}
+    }
     var retireSourceView: (() -> Void)?
     @Published private(set) var sourceNavigationSerial = 0
     private(set) var sourceNavigation: (line: Int, wholeLine: Bool, includeBreak: Bool)?
     private var sourceNavigationVersion = 0
     func requestSourceNavigation(line: Int, wholeLine: Bool, includeBreak: Bool = false) {
+        historySourceFocus=nil
         sourceNavigation = (line, wholeLine, includeBreak)
         sourceNavigationVersion = sourceVersion; sourceNavigationSerial += 1
         applyPendingSourceNavigation()
@@ -913,6 +939,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     }
     fileprivate func cancelPendingSourceNavigation() {
         sourceNavigation = nil
+        historySourceFocus=nil
     }
     private(set) var appliedOptions = GitBlameOptions()
     var lines: [GitBlameLine] { snapshot?.lines ?? [] }
@@ -924,14 +951,24 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
     var hoverLine: GitBlameLine? { line(hoveredLine) }
     func highlight(_ row: Int, additive: Bool) {
         guard canFind, lines.indices.contains(row) else { return }
+        cancelPendingSourceNavigation()
         selection = lines[row].number
         selectedLogHashes = GitBlameSelection.selecting(lines[row].hash, in: selectedLogHashes, additive: additive)
         highlightedHash = selectedLogHashes.count == 1 ? selectedLogHashes.first : nil
+        focusedHistoryHash=selectedLogHashes.contains(lines[row].hash) ? lines[row].hash:nil
+        requestHistoryReveal(lines[row].hash)
     }
     func focusHistory(_ hashes: Set<String>, focus: String?) {
         guard canFind else { return }
         let old = selectedLogHashes; selectedLogHashes = hashes; highlightedHash = nil
-        if let focus, hashes.contains(focus), !old.contains(focus) { avatarHash=focus;refreshAuthorImage();if let line = lines.first(where: { $0.hash == focus }) { selection = line.number } }
+        focusedHistoryHash=focus.flatMap{hashes.contains($0) ? $0:nil}
+        let target=focusedHistoryHash.flatMap{hash in !old.contains(hash) ? lines.first(where:{$0.hash==hash})?.number:nil}
+        if let focus=focusedHistoryHash {avatarHash=focus;refreshAuthorImage()}
+        if let target {selection=target}
+        cancelPendingSourceNavigation()
+        historySourceFocusSerial += 1
+        historySourceFocus=(target,sourceVersion,historySourceFocusSerial)
+        applyHistorySourceFocus()
     }
     func highlightKind(_ line: GitBlameLine) -> Int {
         if selectedLogHashes.contains(line.hash) { return 1 }
@@ -1058,7 +1095,7 @@ enum BlameFindFeedback { case wrapped(line:Int),notFound(text:String) }
         retainedDocument=nil;documentNeedsLoadedNotification=false
         retired=true;gravatar.clear();avatarIdentity=nil;avatarHash=nil;revisionDetails.update(nil,history:[]);hoveredLine=nil;tooltipEntries=[:];presentationCommandsAvailable={false};presentSourceMenu=nil;presentHistoryMenu=nil;onPaneLayoutChanged={};onPaneFloatRequested={_,_ in};paneDropPreview=nil;onFind=nil;onFindFeedback=nil;onGoTo=nil;onOpenDocument=nil;onCancelDocumentOpen=nil;onOpenRecent=nil;onLoaded=nil;onLog=nil;onChanges=nil;onOwnedChanges=nil;onPrevious=nil;recentDocuments=nil;invalidate()
     }
-    func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceSearchCaretRow = nil; sourceNavigation = nil }
+    func invalidate() { historyControlEpoch=UUID();loadCancellation?.cancel();loadCancellation=nil;cancellingReload=false;busy=false;cancelHistoryParentReads();historyClipboardCancellation?.cancel();historyClipboardCancellation=nil;generation += 1; parentGeneration += 1; clipboardGeneration += 1; copyingLog = false; firstVisibleSourceRow = nil; scrollSourceRowToTop = nil; selectedSourceText = nil; sourceSearchCaretRow = nil; sourceNavigation = nil;historySourceFocus=nil;historySourceFocusHandler=nil;historyReveal=nil }
     func prepareParentMenu(number: Int, completion: @escaping () -> Void) {
         guard canFind,lines.contains(where:{$0.number==number}) else {return}
         selection=number;loadParents(completion:completion)
@@ -1718,6 +1755,7 @@ struct BlameHistoryTable:NSViewRepresentable {
         var updating=false,retired=false
         private var entries:[LogEntry]=[],graph:[CommitGraphRow]=[]
         private var historyVersion = -1
+        private var inputSourceVersion = -1
         private var layout:BlameHistoryColumns?
         private var showGraph=false
         private var lifetime=UUID(),headerEpoch=UUID()
@@ -1727,10 +1765,15 @@ struct BlameHistoryTable:NSViewRepresentable {
         private var styleKey:String {
             ["FullCommitMessageOnLogLine","SymbolizeRefNames","DrawTagsBranchesOnRightSide","LogDateFormat","RelativeTimes","UseSystemLocaleForDates","DateFormat","LogFontForLogCtrl","LogFontName","LogFontSize"].map {String(describing:model.labelDefaults.object(forKey:$0))}.joined(separator:"\0")
         }
-        var available:Bool { !retired && model.canFind && NSApp.modalWindow==nil && table?.window?.attachedSheet==nil }
+        var available:Bool {
+            guard !retired,model.canFind,NSApp.modalWindow==nil,let window=table?.window,window.isVisible,
+                  window.attachedSheet==nil,BlameWindowController.focusedOwner(window)?.model === model else{return false}
+            return true
+        }
         func bind(_ next:BlameWindowModel) {
             guard model !== next else{return}
             table?.menu?.cancelTracking();contextRequest=UUID();contextTarget=nil;headerEpoch=UUID();lifetime=UUID()
+            (table as? BlameHistoryNativeTable)?.inputEpoch=UUID()
             model=next;entries=[];graph=[];historyVersion = -1;layout=nil;lastFont=nil
         }
         func retire() {
@@ -1738,7 +1781,7 @@ struct BlameHistoryTable:NSViewRepresentable {
             sheetObservers.forEach {NotificationCenter.default.removeObserver($0)};sheetObservers=[]
             table?.menu?.cancelTracking();table?.menu?.delegate=nil;table?.menu=nil
             (table?.headerView as? BlameHistoryColumnHeader)?.buildMenu={nil}
-            if let table=table as? BlameHistoryNativeTable {table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in};table.contextAvailable={false}}
+            if let table=table as? BlameHistoryNativeTable {table.inputEpoch=UUID();table.copySelection={};table.copyAvailable={false};table.openSelection={false};table.showContext={_ in};table.contextAvailable={false};table.focusedRevisionRow={nil};table.focusRevision={_ in};table.selectionEventRow=nil}
             table?.isEnabled=false;table?.target=nil;table?.doubleAction=nil;table?.action=nil;table?.delegate=nil;table?.dataSource=nil;table=nil
         }
         init(_ model:BlameWindowModel) { self.model=model }
@@ -1753,6 +1796,15 @@ struct BlameHistoryTable:NSViewRepresentable {
             let header=BlameHistoryColumnHeader(frame:NSRect(x:0,y:0,width:1000,height:24));header.buildMenu={ [weak self] in self?.columnMenu() };table.headerView=header
             table.copySelection={ [weak self] in self?.copyHistory() };table.copyAvailable={ [weak self] in guard let self else { return false };return self.available && self.model.copyWindowAvailable(self.table?.window) };table.openSelection={ [weak self] in self?.activateHistory() ?? false };table.showContext={ [weak self] event in self?.showContext(event) };table.contextAvailable={ [weak self] in self?.available == true }
             self.table=table
+            table.focusedRevisionRow={ [weak self] in
+                guard let self,let hash=self.model.focusedHistoryHash else{return nil}
+                return self.entries.firstIndex{$0.hash==hash && self.model.selectedLogHashes.contains(hash)}
+            }
+            table.focusRevision={ [weak self] row in
+                guard let self,self.available,self.entries.indices.contains(row),let table=self.table else{return}
+                let hashes=Set(table.selectedRowIndexes.compactMap{self.entries.indices.contains($0) ? self.entries[$0].hash:nil})
+                self.model.focusHistory(hashes,focus:hashes.contains(self.entries[row].hash) ? self.entries[row].hash:nil)
+            }
             for name in [NSWindow.willBeginSheetNotification,NSWindow.didEndSheetNotification] {
                 sheetObservers.append(NotificationCenter.default.addObserver(forName:name,object:nil,queue:.main) { [weak self] notification in
                     MainActor.assumeIsolated {guard let self,let owner=notification.object as? NSWindow,owner === self.table?.window else{return};self.headerEpoch=UUID()}
@@ -1763,6 +1815,10 @@ struct BlameHistoryTable:NSViewRepresentable {
         }
         func update() {
             guard !retired,let table else { return };updating=true;defer { updating=false }
+            if inputSourceVersion != model.sourceVersion {
+                inputSourceVersion=model.sourceVersion
+                (table as? BlameHistoryNativeTable)?.inputEpoch=UUID()
+            }
             let font=BlameHistoryPresentation.font(preferences:model.labelDefaults)
             let colors=LogColorPreferences.load(model.labelDefaults),dates=HistoryDateSettings.load(defaults:model.labelDefaults)
             let appearanceChanged=lastFont != font || lastContext != model.historyReferenceContext || lastStyle != styleKey || lastColors != colors || lastDates != dates
@@ -1785,13 +1841,25 @@ struct BlameHistoryTable:NSViewRepresentable {
                 };layout=value
             }
             let selected=IndexSet(entries.enumerated().compactMap { model.selectedLogHashes.contains($0.element.hash) ? $0.offset : nil })
+            var revealed=false
             if selected != table.selectedRowIndexes {
                 let horizontal=table.enclosingScrollView?.contentView.bounds.minX ?? 0
                 table.selectRowIndexes(selected,byExtendingSelection:false);if let first=selected.first { table.scrollRowToVisible(first) }
                 if let scroll=table.enclosingScrollView { var origin=scroll.contentView.bounds.origin;origin.x=horizontal;scroll.contentView.scroll(to:origin);scroll.reflectScrolledClipView(scroll.contentView) }
             }
+            if available,let receipt=model.pendingHistoryReveal {
+                if let row=entries.firstIndex(where:{$0.hash==receipt.hash}) {
+                    let horizontal=table.enclosingScrollView?.contentView.bounds.minX ?? 0
+                    table.scrollRowToVisible(row)
+                    if let scroll=table.enclosingScrollView {var point=scroll.contentView.bounds.origin;point.x=horizontal;scroll.contentView.scroll(to:point);scroll.reflectScrolledClipView(scroll.contentView)}
+                    revealed=true
+                }
+                // Copied origins can be absent from the current file history;
+                // the source maps them to no Log row, not a future reveal.
+                model.consumeHistoryReveal(receipt.hash,serial:receipt.serial)
+            }
             table.isEnabled = !retired && model.canFind;table.allowsColumnReordering=available;table.allowsColumnResizing=available
-            if preserveViewport,let oldOrigin,let scroll=table.enclosingScrollView {scroll.contentView.scroll(to:oldOrigin);scroll.reflectScrolledClipView(scroll.contentView)}
+            if preserveViewport,!revealed,let oldOrigin,let scroll=table.enclosingScrollView {scroll.contentView.scroll(to:oldOrigin);scroll.reflectScrolledClipView(scroll.contentView)}
         }
         func numberOfRows(in tableView:NSTableView)->Int { entries.count }
         func text(_ id:String,_ row:Int)->String {
@@ -1827,7 +1895,12 @@ struct BlameHistoryTable:NSViewRepresentable {
 
         func tableViewSelectionDidChange(_ notification:Notification) {
             guard !updating,available,let table else { return }
-            let hashes=Set(table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0].hash : nil }),row=table.selectedRow
+            let hashes=Set(table.selectedRowIndexes.compactMap { entries.indices.contains($0) ? entries[$0].hash : nil })
+            let native=table as? BlameHistoryNativeTable
+            if let eventEpoch=native?.selectionEventEpoch,eventEpoch != native?.inputEpoch {return}
+            native?.selectionEventDelivered=true
+            let added=table.selectedRowIndexes.first{entries.indices.contains($0) && !model.selectedLogHashes.contains(entries[$0].hash)}
+            let row=native?.selectionEventRow ?? added ?? table.selectedRow
             model.focusHistory(hashes,focus:entries.indices.contains(row) ? entries[row].hash : nil)
         }
         func tableView(_ tableView:NSTableView,shouldReorderColumn column:Int,toColumn newColumn:Int)->Bool {available && column != 0 && newColumn != 0}
@@ -1888,7 +1961,8 @@ struct BlameHistoryTable:NSViewRepresentable {
         func showContext(_ event:NSEvent) {
             contextRequest=UUID();let request=contextRequest
             guard available,let table,let window=table.window else { return }
-            let row=event.type == .keyDown ? table.selectedRow : table.row(at:table.convert(event.locationInWindow,from:nil))
+            let focused=model.focusedHistoryHash.flatMap{hash in entries.firstIndex{$0.hash==hash && model.selectedLogHashes.contains(hash)}}
+            let row=event.type == .keyDown ? (focused ?? table.selectedRow):table.row(at:table.convert(event.locationInWindow,from:nil))
             guard row>=0 else { return }
             if !table.selectedRowIndexes.contains(row) { table.selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) }
             guard let target=model.historyTarget(selected) else { return }
@@ -1901,7 +1975,7 @@ struct BlameHistoryTable:NSViewRepresentable {
                 guard !menu.items.isEmpty else {return}
                 if event.type == .keyDown {
                     // A keyboard event has no meaningful pointer position. Keep
-                    // every selected revision and anchor at its first visible row.
+                    // every selected revision and anchor at the focused selected row.
                     table.scrollRowToVisible(row);table.layoutSubtreeIfNeeded()
                     let viewport=table.visibleRect,rectangle=table.rect(ofRow:row).intersection(viewport)
                     guard !rectangle.isNull,rectangle.width>0,rectangle.height>0 else {return}
@@ -2018,6 +2092,13 @@ struct BlameHistoryTable:NSViewRepresentable {
     }
 }
 @MainActor final class BlameHistoryNativeTable:NSTableView,NSMenuItemValidation {
+    var inputEpoch=UUID() {didSet{nativeFocusRow=nil}}
+    private var nativeFocusRow:Int?
+    var selectionEventEpoch:UUID?
+    var focusedRevisionRow:()->Int?={nil}
+    var focusRevision:(Int)->Void={_ in}
+    var selectionEventRow:Int?
+    var selectionEventDelivered=false
     var copySelection:()->Void = {}
     var openSelection:()->Bool = {false}
     var copyAvailable:()->Bool = {false}
@@ -2027,27 +2108,47 @@ struct BlameHistoryTable:NSViewRepresentable {
     var contextAvailable:()->Bool = {false}
     @discardableResult private func showKeyboardContext()->Bool {
         guard isEnabled,contextAvailable(),window?.isVisible==true,
+              !isHiddenOrHasHiddenAncestor,
               selectedRow>=0,selectedRow<numberOfRows,
-              let event=blameKeyboardContextEvent(self) else {return false}
+              let event=blameKeyboardContextEvent(self),blameOwnsKeyboardEvent(event,self) else {return false}
         showContext(event);return true
     }
     override func accessibilityPerformShowMenu()->Bool {showKeyboardContext()}
     override func rightMouseDown(with event:NSEvent) { if isEnabled,contextAvailable() { showContext(event) } }
     override func mouseDown(with event:NSEvent) {
-        guard isEnabled,contextAvailable() else {return}
+        guard isEnabled,contextAvailable(),event.window === window,window?.isVisible==true else {return}
         if event.modifierFlags.contains(.control) {showContext(event);return}
+        let row=row(at:convert(event.locationInWindow,from:nil))
+        if row>=0 {nativeFocusRow=row}
+        let epoch=inputEpoch;selectionEventEpoch=epoch;selectionEventRow=row>=0 ? row:nil;selectionEventDelivered=false
+        defer {if selectionEventEpoch==epoch {selectionEventEpoch=nil;selectionEventRow=nil}}
         super.mouseDown(with:event)
+        guard inputEpoch==epoch,isEnabled,contextAvailable() else{return}
+        if !selectionEventDelivered,row>=0 {focusRevision(row)}
     }
     override func menu(for event:NSEvent)->NSMenu? {
-        guard isEnabled,contextAvailable() else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
+        guard isEnabled,contextAvailable(),event.window === window,window?.isVisible==true else { return nil };let row=row(at:convert(event.locationInWindow,from:nil));guard row>=0 else { return nil }
         if !selectedRowIndexes.contains(row) { selectRowIndexes(IndexSet(integer:row),byExtendingSelection:false) };menu?.update();return menu
     }
     override func keyDown(with event:NSEvent) {
         if BlameWindowController.routeCommandKey(event,from:window) {return}
-        guard isEnabled,contextAvailable(),blameOwnsKeyboardEvent(event,self) else {return}
+        guard isEnabled,contextAvailable(),window?.isVisible==true,!isHiddenOrHasHiddenAncestor,
+              window?.firstResponder === self,blameOwnsKeyboardEvent(event,self) else {return}
         let flags=event.modifierFlags.intersection([.shift,.command,.control,.option])
         if event.keyCode==109,flags == .shift {_ = showKeyboardContext();return}
         if (event.keyCode==36 || event.keyCode==76),!flags.contains(.control),ComparisonToolInvocation.$alternate.withValue(flags.contains(.shift),operation:{openSelection()}) {return}
+        let navigation=[125,126,115,119].contains(event.keyCode) && !flags.contains(.control) && !flags.contains(.option)
+        if navigation,numberOfRows>0 {
+            let anchor=focusedRevisionRow() ?? nativeFocusRow.flatMap{(0..<numberOfRows).contains($0) ? $0:nil} ?? selectedRowIndexes.first ?? 0
+            let target=event.keyCode==115 || event.keyCode==126 && flags.contains(.command) ? 0:event.keyCode==119 || event.keyCode==125 && flags.contains(.command) ? numberOfRows-1:min(numberOfRows-1,max(0,anchor+(event.keyCode==125 ? 1:-1)))
+            let epoch=inputEpoch;selectionEventEpoch=epoch;selectionEventRow=target;selectionEventDelivered=false
+            nativeFocusRow=target
+            defer{if selectionEventEpoch==epoch {selectionEventEpoch=nil;selectionEventRow=nil}}
+            super.keyDown(with:event)
+            guard inputEpoch==epoch,isEnabled,contextAvailable() else{return}
+            if !selectionEventDelivered,selectedRowIndexes.contains(target) {focusRevision(target)}
+            return
+        }
         super.keyDown(with:event)
     }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
@@ -2172,6 +2273,7 @@ private struct BlameTable: NSViewRepresentable {
             if table.selectedRow != row { table.selectRowIndexes(IndexSet(integer: row), byExtendingSelection: false); table.scrollRowToVisible(row) }
         } else { table.deselectAll(nil) }
         model.applyPendingSourceNavigation()
+        model.applyHistorySourceFocus()
         container.locator.presentation = model.presentation
         if coordinator.locatorHistoryVersion != model.sourceVersion {
             coordinator.locatorHistoryVersion=model.sourceVersion
@@ -2460,6 +2562,11 @@ struct BlameRenderWork: Equatable {
 }
 
 private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
+    private weak var navigationWindow:NSWindow?
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if navigationWindow==nil {navigationWindow=window}
+    }
     let scroll = BlameSourceScrollView()
     let locator = BlameLocatorView()
     let sourceScroll = BlameSourceScrollView()
@@ -2581,6 +2688,18 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
             self.selectSourceLine(line, wholeLine: wholeLine, includeBreak: includeBreak)
             return true
         }
+        model.historySourceFocusHandler={ [weak self,weak model] line in
+            guard let self,let model,!self.retired,model.canFind,self.projectedSourceVersion==model.sourceVersion,
+                  let window=self.window,self.navigationWindow === window,window.isVisible,window.attachedSheet==nil,
+                  NSApp.modalWindow==nil,BlameWindowController.focusedOwner(window)?.model === model else{return false}
+            let selected=self.editor.selectedRange(),length=(self.editor.string as NSString).length
+            guard selected.location != NSNotFound,selected.location<=length,selected.length<=length-selected.location else{return false}
+            let caret=self.findSelectionCaret==selected ? NSMaxRange(selected):self.editor.activeCaretOffset
+            self.settingSelection=true;self.editor.setSelectedRange(NSRange(location:min(length,caret),length:0));self.settingSelection=false
+            self.findSelectionCaret=nil
+            if let line {self.selectSourceLine(line,wholeLine:true,focusEditor:false)}
+            return true
+        }
         editor.keyboardContextRow={ [weak self] in guard let self,!self.retired else {return nil};return self.sourceRow(at:self.editor.selectedRange().location) }
         model.retireSourceView = { [weak self] in self?.retire() }
         editor.onOpen = { [weak model] in model?.onOpenDocument?() }
@@ -2625,13 +2744,14 @@ private final class BlameSourceContainer: NSView, BlameRenderWorkProviding {
         }
         return sourceRow(at:selected.location)
     }
-    func selectSourceLine(_ number: Int, wholeLine: Bool, includeBreak: Bool = false) {
+    func selectSourceLine(_ number: Int, wholeLine: Bool, includeBreak: Bool = false,focusEditor:Bool=true) {
         let row = number - 1
         guard !retired, ranges.indices.contains(row) else { return }
         let range = NSRange(location: ranges[row].location, length: wholeLine ? (includeBreak ? ranges[row].length : lineLengths[row]) : 0)
         findSelectionCaret=wholeLine && includeBreak ? range:nil
         settingSelection = true; editor.setSelectedRange(range); settingSelection = false
-        editor.window?.makeFirstResponder(editor)
+        editor.rememberCaret(range.location)
+        if focusEditor {editor.window?.makeFirstResponder(editor)}
         editor.scrollRangeToVisible(range)
     }
     @discardableResult func updateSource(_ model: BlameWindowModel) -> IndexSet {
@@ -2931,6 +3051,26 @@ private func blameSyntaxColor(_ rgb: [UInt8], dark: Bool) -> NSColor? {
 }
 private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding, NSViewToolTipOwner {
     var retired = false
+    private var rememberedSelection:NSRange?
+    private var rememberedCaret=0
+    var activeCaretOffset:Int {
+        let range=selectedRange()
+        return rememberedSelection==range ? rememberedCaret:NSMaxRange(range)
+    }
+    func rememberCaret(_ offset:Int) {
+        let range=selectedRange()
+        guard range.location != NSNotFound,offset>=range.location,offset<=NSMaxRange(range) else{return}
+        rememberedSelection=range;rememberedCaret=offset
+    }
+    override func setSelectedRange(_ charRange:NSRange,affinity:NSSelectionAffinity,stillSelecting:Bool) {
+        let old=selectedRange()
+        let existingCaret=rememberedSelection==old ? rememberedCaret:nil
+        super.setSelectedRange(charRange,affinity:affinity,stillSelecting:stillSelecting)
+        guard charRange.location != NSNotFound else{rememberedSelection=nil;return}
+        if charRange==old,let existingCaret {rememberCaret(existingCaret);return}
+        let startMoves=old.location != NSNotFound && charRange.location != old.location && NSMaxRange(charRange)==NSMaxRange(old)
+        rememberCaret(charRange.length==0 || startMoves ? charRange.location:NSMaxRange(charRange))
+    }
     var copyAvailable:()->Bool={false}
     var publishCopy:(String)->Void={_ in}
     var tooltipForRow: (Int)->String? = { _ in nil }
@@ -3033,6 +3173,11 @@ private final class BlameSourceTextView: NSTextView, BlameSourceTooltipProviding
             }
         }
         super.keyDown(with:event)
+        if event.modifierFlags.contains(.shift) {
+            let range=selectedRange()
+            if [123,126,115,116].contains(event.keyCode) {rememberCaret(range.location)}
+            else if [124,125,119,121].contains(event.keyCode) {rememberCaret(NSMaxRange(range))}
+        }
     }
     override func drawBackground(in rect: NSRect) {
         super.drawBackground(in:rect)

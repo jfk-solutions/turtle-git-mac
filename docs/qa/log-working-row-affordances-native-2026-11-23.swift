@@ -57,6 +57,12 @@ import TurtleGitCore
             let paths=GitPathSet([missing,removed,retained,modified,added,renamed,unknown])
             try await wait("accepted working metadata",window:window){!model.busy && paths.isSubset(of:GitPathSet(model.visibleFiles.map(\.path))) && views(window.contentView).contains{$0 is LogChangedFileNativeTable}}
             let table=try unwrap(views(window.contentView).compactMap{$0 as? LogChangedFileNativeTable}.first,"Native report missing")
+            try await wait("visible changed-file column captions",window:window) {
+                guard let header=table.headerView,let scroll=table.enclosingScrollView else{return false}
+                return header.bounds.height>0 && !header.isHiddenOrHasHiddenAncestor &&
+                    !header.convert(header.bounds,to:scroll).intersection(scroll.bounds).isEmpty &&
+                    table.tableColumns.filter{!$0.isHidden}.allSatisfy{!$0.headerCell.stringValue.isEmpty}
+            }
             let accepted=Dictionary(uniqueKeysWithValues:model.workingIndexFiles.map{($0.id,$0.entry)})
             try require(accepted[added]?.index=="A" && accepted[added]?.worktree=="D" && accepted[renamed]?.index=="R" && accepted[renamed]?.worktree=="D","Private Git fixture did not produce real AD/RD missing states")
             try require(accepted[retained]?.index=="D" && accepted[retained]?.hasUnversionedCopy==true,"Private Git fixture lost retained-copy metadata")

@@ -1,0 +1,705 @@
+{
+  "schema": 1,
+  "status": "Scoped Replay/Blame workflow and documentation checkpoint passed; whole port incomplete",
+  "sourceBase": "c8c89189378e9bed20d284b50878543cc2d27674",
+  "sourceDirtyDuringValidation": true,
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": [
+    "Native Rebase/Cherry Pick recovery report and selected file commands",
+    "Blame focused revision, source caret and reverse reveal",
+    "Shared report geometry and finished Resolve child visibility",
+    "Homepage/manual/Help current light and dark screenshots"
+  ],
+  "isolation": {
+    "checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "metafileWorkExcluded": true,
+    "protectedUnrelatedWorkUnchanged": true,
+    "installedApplication": "Build52 unchanged",
+    "frozenSigned54": "Not modified or replaced",
+    "native": "Private repositories/preferences/pasteboards; invisible/offscreen windows; owned receiver/helper reaping",
+    "installedVersionRead": "52"
+  },
+  "app": {
+    "initialBuild": {
+      "exitCode": 0,
+      "log": "build/replay-blame-app-build.log"
+    },
+    "repair": {
+      "reason": "Actual replay check left retired Resolve visible after workers and paired links drained",
+      "files": [
+        "Sources/TurtleGitMac/ResolveWindow.swift"
+      ],
+      "status": "Implemented; focused rebuild pending",
+      "validationPlan": [
+        "Replay only system Git: repaired Reset target, strict index preservation and actual Resolve invisibility",
+        "Bundled full status cohorts: not yet run for this batch",
+        "System Add/Resolve and Sync only: shared final-hide change",
+        "Retained replay menu family both engines",
+        "Blame focus only both engines; older Blame passes retained"
+      ],
+      "appBuild": {
+        "exitCode": 0,
+        "observedSession": 26353,
+        "log": "build/replay-blame-resolve-hide-build.log"
+      },
+      "receiverAdmission": {
+        "exitCode": 1,
+        "log": "build/replay-blame-native-replay-system-final-hide.log",
+        "cause": "Xcode skipped recompiling BlameWindow for a comment-only source update; strict native receiver rejected older object mtime before running assertions.",
+        "repair": "Preserved then removed only BlameWindow.o; rebuilding that missing output. No receiver assertions relaxed."
+      },
+      "commentObjectBuild": {
+        "exitCode": 0,
+        "observedSession": 29873,
+        "log": "build/replay-blame-comment-object-build.log"
+      },
+      "commentObjectCompile": {
+        "exitCode": 0,
+        "observedSession": 29873,
+        "log": "build/replay-blame-comment-object-build.log",
+        "invalidatedObjects": [
+          "BlameWindow.o"
+        ],
+        "allOtherCompilationCachesRetained": true
+      }
+    },
+    "scope": "Unsigned local arm64 Debug; no new signed delivery acceptance",
+    "buildInvocations": 3,
+    "commentObjectCompile": {
+      "exitCode": 0,
+      "observedSession": 29873,
+      "log": "build/replay-blame-comment-object-build.log",
+      "invalidatedObjects": [
+        "BlameWindow.o"
+      ],
+      "allOtherCompilationCachesRetained": true
+    },
+    "sourceHashesMatchIsolatedBuildCheckout": true,
+    "fullAppSourceFingerprint": "d087455cc946941bd10d4c7e4370378d84493b363453ec8d9256581ac79ef475"
+  },
+  "core": {
+    "run": false,
+    "reason": "No Core source change in this isolated app/UI batch; independent uncommitted renderer work excluded"
+  },
+  "native": {
+    "attempts": [
+      {
+        "case": "status-replay",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 2.329,
+        "log": "build/replay-blame-native-status-replay.log"
+      },
+      {
+        "case": "blame",
+        "command": [
+          "python3",
+          "scripts/test-blame-source-menu.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 52.719,
+        "log": "build/replay-blame-native-blame.log"
+      },
+      {
+        "case": "status-replay-repaired",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 104.501,
+        "log": "build/replay-blame-native-status-replay-repaired.log"
+      },
+      {
+        "case": "blame-repaired",
+        "command": [
+          "python3",
+          "scripts/test-blame-source-menu.py",
+          "--only",
+          "source-menu",
+          "--only",
+          "menus",
+          "--only",
+          "editor",
+          "--only",
+          "focus",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 34.098,
+        "log": "build/replay-blame-native-blame-repaired.log"
+      },
+      {
+        "case": "replay-system-projection",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 33.899,
+        "log": "build/replay-blame-native-replay-system-projection.log"
+      },
+      {
+        "case": "add-context",
+        "command": [
+          "python3",
+          "scripts/test-history-context-entry.py",
+          "--only",
+          "add",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 6.687,
+        "log": "build/replay-blame-native-add-context.log"
+      },
+      {
+        "case": "blame-menus-editor-focus",
+        "command": [
+          "python3",
+          "scripts/test-blame-source-menu.py",
+          "--only",
+          "menus",
+          "--only",
+          "editor",
+          "--only",
+          "focus",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 33.014,
+        "log": "build/replay-blame-native-blame-menus-editor-focus.log"
+      },
+      {
+        "case": "replay-system-index",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 75.205,
+        "log": "build/replay-blame-native-replay-system-index.log"
+      },
+      {
+        "case": "blame-focus",
+        "command": [
+          "python3",
+          "scripts/test-blame-source-menu.py",
+          "--only",
+          "focus",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 4.352,
+        "log": "build/replay-blame-native-blame-focus.log"
+      },
+      {
+        "case": "replay-system-index-phases",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 69.277,
+        "log": "build/replay-blame-native-replay-system-index-phases.log"
+      },
+      {
+        "case": "blame-focus-anchor",
+        "command": [
+          "python3",
+          "scripts/test-blame-source-menu.py",
+          "--only",
+          "focus",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "log": "build/replay-blame-native-blame-focus-anchor.log",
+        "observedSession": 50782,
+        "scope": "System Git failed before bundled execution; full selection preserved, focused row equals lowest selected row; adversarial setup requires repair."
+      },
+      {
+        "case": "replay-system-final-hide",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 0.054,
+        "log": "build/replay-blame-native-replay-system-final-hide.log"
+      },
+      {
+        "case": "replay-system-final-hide-admitted",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 63.126,
+        "log": "build/replay-blame-native-replay-system-final-hide-admitted.log"
+      },
+      {
+        "case": "blame-focus-minimum",
+        "command": [
+          "python3",
+          "scripts/test-blame-source-menu.py",
+          "--only",
+          "focus",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 6.877,
+        "log": "build/replay-blame-native-blame-focus-minimum.log"
+      },
+      {
+        "case": "status-replay-bundled",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 111.874,
+        "log": "build/replay-blame-native-status-replay-bundled.log"
+      },
+      {
+        "case": "resolve-sync-final-hide",
+        "command": [
+          "python3",
+          "scripts/test-status-primary-activation.py",
+          "--only",
+          "add-resolve",
+          "--only",
+          "sync",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 32.38,
+        "log": "build/replay-blame-native-resolve-sync-final-hide.log"
+      },
+      {
+        "case": "replay-retained",
+        "command": [
+          "python3",
+          "scripts/test-conflict-identity-family.py",
+          "--only",
+          "rebase-files",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 190.952,
+        "log": "build/replay-blame-native-replay-retained.log"
+      }
+    ],
+    "assertionsRemoved": false,
+    "scopeLimit": "No physical Finder/VoiceOver/full-dialog acceptance or complete hosted CI claim",
+    "repairs": [
+      {
+        "failure": "Initial Replay receiver duplicated helper declarations",
+        "repair": "Merged the duplicate fixture helpers; kept behavioral assertions"
+      },
+      {
+        "failure": "Replay native selection did not settle",
+        "repair": "Wait for exact native row/order/selection/position projection before activation"
+      },
+      {
+        "failure": "Replay read-only raw index changed during fixture setup",
+        "repair": "Keep original raw baseline; avoid rewriting unchanged files, restore changed metadata and record phase evidence; strict byte comparisons retained"
+      },
+      {
+        "failure": "Blame background fixture keys refused or pointer target clipped",
+        "repair": "Use actual visible private owner/focus and a displayed attribution column; no production guard bypass"
+      },
+      {
+        "failure": "Blame AX anchor classified next row; later minimum-row comparison was wrong",
+        "repair": "Verify callback view and exact focused-row bottom edge; use selectedRowIndexes.first and exact native [0,1] projection, preserving focused1 versus lowest0 distinction"
+      },
+      {
+        "failure": "Replay Reset menu fixture searched question caption",
+        "repair": "Target actual Reset columns command; retain native question/force-close/link assertions"
+      },
+      {
+        "failure": "Completed Resolve child remained visible after worker and paired sheet drainage",
+        "repair": "Production Resolve close path hides final window before releasing ownership; fixture retains actual children and asserts invisibility"
+      },
+      {
+        "failure": "Strict receiver rejected older Blame object after comment-only Xcode skip",
+        "repair": "Preserved and invalidated only missing-current BlameWindow.o, compiled it again; no cache or assertion weakening"
+      }
+    ],
+    "passed": {
+      "system": [
+        "legacy",
+        "status",
+        "log",
+        "add-resolve",
+        "sync",
+        "replay"
+      ],
+      "bundled": [
+        "legacy",
+        "status",
+        "log",
+        "add-resolve",
+        "sync",
+        "replay"
+      ],
+      "blameBothEngines": [
+        "commands",
+        "source-menu",
+        "menus",
+        "editor",
+        "focus"
+      ],
+      "retainedReplayMenusBothEngines": true,
+      "addContextBothEngines": true,
+      "afterFinalResolveHideSystem": [
+        "add-resolve",
+        "sync",
+        "replay"
+      ]
+    },
+    "retainedSystemPasses": "The first five system status cohorts passed before the initial Replay fixture failure. Only Replay and the shared final-hide affected Add/Resolve/Sync scopes were repeated; the bundled full group passed once."
+  },
+  "resources": {
+    "help": {
+      "exitCode": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 104
+    },
+    "localizations": {
+      "exitCode": 0,
+      "languages": 38,
+      "keys": 1392
+    },
+    "coverage": {
+      "exitCode": 0,
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certifiedComplete": 0
+    },
+    "bundledHelpMatchesGeneratedSources": true
+  },
+  "captures": {
+    "receipt": "docs/qa/manual-primary-captures-2026-11-23.json",
+    "acceptedOriginalImages": 12,
+    "rejectedFirstAttemptImages": 6,
+    "repair": "Shared report zero-frame column collapse, Log zero-height header and clipped first row corrected; original rejected bytes retained privately",
+    "provenance": "Six clean c8 captures retained and six dirty repaired captures explicitly distinguished in per-asset receipt"
+  },
+  "remaining": [
+    "Complete hosted macOS CI success",
+    "Full upstream workflow/layout/keyboard/accessibility review",
+    "Signed and physical acceptance of current source",
+    "Independent metafile HQ rendering work",
+    "Distribution/store terms and later publication after owner testing"
+  ],
+  "recordedUTC": "2026-11-23T03:24:05.102111+00:00",
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddFileTable.swift": "fe87d05c8fc3080649ce7a988e52da1b606ffad5818eb93a2be4c091802eac6b",
+    "Sources/TurtleGitMac/BlameWindow.swift": "33c429f7765ed75cacbc5d7b3182c61032cebb641ffbfaa04e7a98d3aeef06da",
+    "Sources/TurtleGitMac/LogWindow.swift": "663e23a8c1414aa30d66bf4629c211ffc8a7eae8b8d6d2674cb1527cc9a5bc6e",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "f8c7170001473c479fed3f7c33ebfff106f54fe19721cdb58609fd275f5b2dd6",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "56c5b97840eb8fb534f232862fc90957871f8c8d7c6e2674bd5e81a17319e031",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "e442b1557e9a471a46b99bc989c451424c05641ea127413f2287d0a9a1023f44",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist": "10cdf544d7087cf12e39aa5870a03003281bea4c76cc2f4f3e4d14f5c541ba60",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/BLAME-MENUS.html": "b3b54a4d9df3352ef18aa3517708254966b155f0c4132e8c81d81010d33974a5",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html": "10515bc1a8f040eeaec3e09fe1691e4591466510b5d6ef3dc4c60bf77cfac43b",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html": "e0676184293911e1b7dd9e41a029ce4dc837b0b0aca7eeea4ffa0e259843209c",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/1047251709a6-mac-commit-classic-dark-2026-11-23.png": "f3f67f887b8004a15a2eccf4054b40af08ca3a420547ebdfd0cb0b939a322cb0",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/1b2073dcb84d-mac-commit-staging-dark-2026-11-23.png": "b58fa2d28fdfa670cb4ba8a31bd86488d392dc33a7cb79a9cf68ddff1cbdd954",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/339a6d548269-mac-sync-conflicts-light-2026-11-23.png": "fa23db0d3f8e5ae0fbbd17a6bd0f370b129175cd750421e54aa48fc8c5e501f7",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/473e6e916613-mac-log-dark-2026-11-23.png": "5fed808b783f24f1ce6e666e1ea4578a45f3edd3edafcd75d13e69e32d1a4a05",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/7326e26a7872-mac-resolve-light-2026-11-23.png": "77685001e22105ebc59eb097493c757bc1ea5b65da21c6b8d241460f551b8fc8",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1940327b0fc-mac-commit-classic-light-2026-11-23.png": "669b9200821595558c59a855674c1363a253748b05bfe6307a5aab42662d2fdc",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/c2b3e35188f3-mac-commit-staging-light-2026-11-23.png": "8136ad015eb75294f7a2ba9851af44f41ab5afce2ce98fb1fc5e7c6757236145",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/cb65a82dd4e3-mac-sync-history-dark-2026-11-23.png": "e665caf9e6beab0a5fed6f17c68ec4f6af34e2f975bf97ac52e1c6731144c533",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/d32888c4f569-mac-log-light-2026-11-23.png": "8e55b7936ea6471a10baf90f812b49f3e334285f692c42d5449425c3a6031932",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/dda06e84c9ff-mac-sync-conflicts-dark-2026-11-23.png": "57b594d175d4c07dc7cbb547f3c81592e2d252f6ecfe30eb83e287241e5bb41b",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/e80120afb7f6-mac-sync-history-light-2026-11-23.png": "76a50f268355b676d32f0d43abe2329830252d3fed81e20b1c54d19e03824f7c",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/e8f78473333a-mac-resolve-dark-2026-11-23.png": "5d02f058cb47defdb00f479cd2fd6e3eb5d15ae3aa921665998bf15d11a16ec1",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json": "924e4c30691780688115ce2cdf1e13719ade0f3fc7710eb65285d8c224aedb09",
+    "Sources/TurtleGitMac/StatusListPrimaryActivation.swift": "f1fce4a83e8b6f05c01961fa52225b76f247d6edb8ff8d5c8148fbabb8933479",
+    "docs/BLAME-MENUS.md": "142eb00b370770dc5768a420fb3be644d0cfa3b85bd58c96541b872ee681aaf8",
+    "docs/BLAME-REVISION-FOCUS-PARITY.md": "a1ae7bf653a49698d70ca2ab4cd1f42a1cb11631df58535f465130459aed1f70",
+    "docs/DIALOG-GUIDE.md": "2f8652ac979269693f67efa1eefc41f9b5e188a020a251c8166615fda97af438",
+    "docs/GETTING-STARTED.md": "a084fa316d91b80d831bfd3cfd397d517d4a005b7e37d6566f005bd8c4af9fda",
+    "docs/REBASE-PARITY.md": "3ba4c555227cca08e2da732d636c413f39475b3dcdac8af807d4aed38bbded17",
+    "docs/REPLAY-RECOVERY-REPORT-PARITY.md": "151d7d16784299a36fe6fabaea00c204312448fa785924df941e6866f6913a75",
+    "docs/qa/blame-menu-native-2026-10-13.swift": "ccd7429cf479657ab31c32a8d88fb427e6132602353bf8adcea0adf7a6f1ecda",
+    "docs/qa/blame-revision-focus-native-2026-11-23.swift": "99c990e7b0b9d3a132933858532c74745a35787e0743a60ed587d575eefc8699",
+    "docs/qa/blame-source-editor-native-2026-10-13.swift": "7bf9ff88e1149c8304a65d1ee98977f29878e6e7e8b81a4b42838678cbc4706c",
+    "docs/qa/blame-source-menu-native-2026-10-16.swift": "4ff16f37f459c3e137fb878ae9deaa9d3590a49c6e9c5545015b9ac2764983ec",
+    "docs/qa/log-working-row-affordances-native-2026-11-23.swift": "29429ef6a19a4212a7cb91edfeec7dc6ad09d5bc33488d1d42f2bb84e5298775",
+    "docs/qa/manual-primary-captures-2026-11-23.json": "42ede7bc15afb1df6e64c5dc2699166d04df4b62e39e785c23e72c277af7b6d5",
+    "docs/qa/manual-primary-captures-2026-11-23.md": "36b5aef33a191f1ef16737b74cb679074e706b8e948d3d526d295f83d67eceb1",
+    "docs/qa/manual-primary-captures-2026-11-23.swift": "863937070c124799b3be742181399ef12451d331f8e3f092161e5853e1fab3a3",
+    "docs/qa/rebase-conflict-menus-native-2026-10-14.swift": "18a19b22f663e85a10dfe52bf742bcd98b5c74ab4cf57fee72f063ae0d090c67",
+    "docs/qa/replay-recovery-primary-native-2026-11-23.swift": "bb56d90141db3e189d74767aec8bc33fb7e8ef84f9ceb319ba5a5370a3256c30",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "66618aee09c04005b189bd6d33d3eb3106e67c83e5916092563d4f1095eb4d60",
+    "docs/site/assets/mac-commit-classic-dark-2026-11-23.png": "f3f67f887b8004a15a2eccf4054b40af08ca3a420547ebdfd0cb0b939a322cb0",
+    "docs/site/assets/mac-commit-classic-light-2026-11-23.png": "669b9200821595558c59a855674c1363a253748b05bfe6307a5aab42662d2fdc",
+    "docs/site/assets/mac-commit-staging-dark-2026-11-23.png": "b58fa2d28fdfa670cb4ba8a31bd86488d392dc33a7cb79a9cf68ddff1cbdd954",
+    "docs/site/assets/mac-commit-staging-light-2026-11-23.png": "8136ad015eb75294f7a2ba9851af44f41ab5afce2ce98fb1fc5e7c6757236145",
+    "docs/site/assets/mac-log-dark-2026-11-23.png": "5fed808b783f24f1ce6e666e1ea4578a45f3edd3edafcd75d13e69e32d1a4a05",
+    "docs/site/assets/mac-log-light-2026-11-23.png": "8e55b7936ea6471a10baf90f812b49f3e334285f692c42d5449425c3a6031932",
+    "docs/site/assets/mac-resolve-dark-2026-11-23.png": "5d02f058cb47defdb00f479cd2fd6e3eb5d15ae3aa921665998bf15d11a16ec1",
+    "docs/site/assets/mac-resolve-light-2026-11-23.png": "77685001e22105ebc59eb097493c757bc1ea5b65da21c6b8d241460f551b8fc8",
+    "docs/site/assets/mac-sync-conflicts-dark-2026-11-23.png": "57b594d175d4c07dc7cbb547f3c81592e2d252f6ecfe30eb83e287241e5bb41b",
+    "docs/site/assets/mac-sync-conflicts-light-2026-11-23.png": "fa23db0d3f8e5ae0fbbd17a6bd0f370b129175cd750421e54aa48fc8c5e501f7",
+    "docs/site/assets/mac-sync-history-dark-2026-11-23.png": "e665caf9e6beab0a5fed6f17c68ec4f6af34e2f975bf97ac52e1c6731144c533",
+    "docs/site/assets/mac-sync-history-light-2026-11-23.png": "76a50f268355b676d32f0d43abe2329830252d3fed81e20b1c54d19e03824f7c",
+    "docs/site/index.html": "36712284f4fd28a867d0c9726e243f760fe7355fb0c33f562bfe75222143b8c6",
+    "scripts/capture-manual-primary-2026-11-23.py": "a4fe4531265c4af6ea83a86a80cc9c0d2c234e742782673e42b86a3ee551395c",
+    "scripts/test-blame-source-menu.py": "b2491404c5d4bb0ffe0e7d4abd8b7ffbfffda8e124439748787678d6b235299e",
+    "scripts/test-status-primary-activation.py": "09d94d8f8e5739eccff5bf2bcc6480c62e66fdbeeabd55dc1c38af3d2973d51d",
+    "docs/RELEASE-BLOCKERS.md": "8414409cef83eea140ad174b24b031aa21d47ad2f1eea0a5508bf04c13f36910"
+  },
+  "deletedResources": [
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/3d106a75087c-mac-log-dark-2026-10-27.png",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/61bb4ff85220-mac-log-light-2026-10-27.png",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png"
+  ],
+  "evidence": [
+    {
+      "path": "build/replay-blame-app-build.log",
+      "sha256": "2a9ff2804d5d30189365e3c9084a54db127f506f4397c146e10902db468a1e04",
+      "bytes": 120772
+    },
+    {
+      "path": "build/replay-blame-comment-object-build.log",
+      "sha256": "7f8d1cd621ee86a1f1f5a6f787990527781327779f5fc76948c9984b1c33745a",
+      "bytes": 47038
+    },
+    {
+      "path": "build/replay-blame-native-add-context.log",
+      "sha256": "71e3965d298a3b4d502b577133fbb44c01c1ff4fdf0cdb1a1fee4c19a280aed1",
+      "bytes": 835
+    },
+    {
+      "path": "build/replay-blame-native-blame-focus-anchor.log",
+      "sha256": "db343aaa6b30871d197e07235e2df4b43a88f11673cfb8296262d6e9ca6e7522",
+      "bytes": 2595
+    },
+    {
+      "path": "build/replay-blame-native-blame-focus-minimum.log",
+      "sha256": "b5980d47675c250c5ba4db60e3e21cdba51e8784979298c9f3d227d91886a492",
+      "bytes": 2068
+    },
+    {
+      "path": "build/replay-blame-native-blame-focus.log",
+      "sha256": "b34e120d7e5b1c5693f2cef5af60eed879eddde123825f2dd2aafab029a8e1c0",
+      "bytes": 1260
+    },
+    {
+      "path": "build/replay-blame-native-blame-initial.log",
+      "sha256": "f8356b5158a62014576086506219a7f8dfe958234bc8404e81dd1b49cb1b5448",
+      "bytes": 2025
+    },
+    {
+      "path": "build/replay-blame-native-blame-menus-editor-focus.log",
+      "sha256": "43d77232a083f756be5dec00986c9d6812ad66e5c9b5caf077501b96240990ce",
+      "bytes": 3469
+    },
+    {
+      "path": "build/replay-blame-native-blame-repaired.log",
+      "sha256": "5003353b163f0e67ebd8c627eca0c7e5c4ad8765706f918aa6fd7188b74937af",
+      "bytes": 1959
+    },
+    {
+      "path": "build/replay-blame-native-blame.log",
+      "sha256": "f8356b5158a62014576086506219a7f8dfe958234bc8404e81dd1b49cb1b5448",
+      "bytes": 2025
+    },
+    {
+      "path": "build/replay-blame-native-replay-retained.log",
+      "sha256": "cbac075c76497352c15f6349d354155cd92c348aeb242baa4c6db905d1dc3ae9",
+      "bytes": 1344
+    },
+    {
+      "path": "build/replay-blame-native-replay-system-final-hide-admitted.log",
+      "sha256": "aa355a9b97441af5b5456733494f247689c018c6fb48738a40ddc3481ba0ee56",
+      "bytes": 1942
+    },
+    {
+      "path": "build/replay-blame-native-replay-system-final-hide.log",
+      "sha256": "8faf18f953fe15fd74e6644e14da89448ede850beceb3bb3167c37f4279b8cb3",
+      "bytes": 966
+    },
+    {
+      "path": "build/replay-blame-native-replay-system-index-phases.log",
+      "sha256": "291cd9119e41f252b0e5f70b4a7a24385670ec3ea8d16eeeae3d688354b3b091",
+      "bytes": 2198
+    },
+    {
+      "path": "build/replay-blame-native-replay-system-index.log",
+      "sha256": "fd654524e1b1aaf6ee999ad63fdb8f3945f08ab9e8320609e8a03b0fa1dfbbab",
+      "bytes": 3102
+    },
+    {
+      "path": "build/replay-blame-native-replay-system-projection.log",
+      "sha256": "cb16c9beef0776ce5e8aec3caa690160491578280ab1112c4b1fcb652a743956",
+      "bytes": 4638
+    },
+    {
+      "path": "build/replay-blame-native-resolve-sync-final-hide.log",
+      "sha256": "2dd048ed1e5f820244a8364c069827f11d2fc592a88798cf972a0d9dfe395bc8",
+      "bytes": 1183
+    },
+    {
+      "path": "build/replay-blame-native-status-replay-bundled.log",
+      "sha256": "bb06f989ac388a8af654c56f716fd184496a984e0dec3855c88cab1cd3ee93a6",
+      "bytes": 2053
+    },
+    {
+      "path": "build/replay-blame-native-status-replay-initial-compile.log",
+      "sha256": "3e8ee8fc5f666267c3c1a0cf1c507d4e99c4f5632ad4369c560fe10c9bc2239a",
+      "bytes": 17169
+    },
+    {
+      "path": "build/replay-blame-native-status-replay-repaired.log",
+      "sha256": "cee2b3795409cd66edadea476a17a71214038d649bf86e5abebb2b1b4a447732",
+      "bytes": 5612
+    },
+    {
+      "path": "build/replay-blame-native-status-replay.log",
+      "sha256": "3e8ee8fc5f666267c3c1a0cf1c507d4e99c4f5632ad4369c560fe10c9bc2239a",
+      "bytes": 17169
+    },
+    {
+      "path": "build/replay-blame-resolve-hide-build.log",
+      "sha256": "ee1166e53d70a6d4368189614700263d9c4afa40aea2ceb9cef9196d10a51393",
+      "bytes": 43587
+    },
+    {
+      "path": "build/replay-blame-resource-bundle.log",
+      "sha256": "fb99b302fdde52f1a4d1ed265a18139b16d268160439a8e33a2bc61cf7bf6b97",
+      "bytes": 1331
+    }
+  ],
+  "cleanup": {
+    "loggedReapedPIDs": [
+      12367,
+      12374,
+      12533,
+      12537,
+      12574,
+      12615,
+      12622,
+      12879,
+      12892,
+      15327,
+      15338,
+      15469,
+      15603,
+      15610,
+      15897,
+      15906,
+      17559,
+      17566,
+      17619,
+      17676,
+      17684,
+      18005,
+      18327,
+      18331,
+      18367,
+      18406,
+      18410,
+      18836,
+      18844,
+      20108,
+      20115,
+      20472,
+      21934,
+      21947,
+      22917,
+      22922,
+      22930,
+      25113,
+      25120,
+      25214,
+      25310,
+      28832,
+      29464,
+      29476,
+      33590
+    ],
+    "allAbsentAtFinalCheck": true,
+    "nativeWorkerAndOwnedWindowAssertionsPassed": true
+  },
+  "hostedObservation": {
+    "source": "c8c89189378e9bed20d284b50878543cc2d27674",
+    "pages": {
+      "run": 45096230526,
+      "conclusion": "success"
+    },
+    "macOS": {
+      "run": 45096230454,
+      "status": "pending",
+      "jobs": 0
+    },
+    "note": "Last supported metadata observation; not this uncommitted batch and not a full hosted pass"
+  }
+}

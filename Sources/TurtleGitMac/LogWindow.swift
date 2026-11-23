@@ -4583,7 +4583,7 @@ struct LogChangedFileReport:NSViewRepresentable {
             let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
             table.dataSource=self;table.delegate=self;table.allowsMultipleSelection=true;table.allowsColumnReordering=true;table.usesAlternatingRowBackgroundColors=false
             table.target=self;table.doubleAction=#selector(activateFile)
-            let header=LogChangedFileHeader(frame:.zero);header.fitColumn={[weak self] column,useDefault in self?.fitColumn(column,useDefault:useDefault)==true};table.headerView=header
+            let header=LogChangedFileHeader(frame:NSRect(x:0,y:0,width:0,height:24));header.fitColumn={[weak self] column,useDefault in self?.fitColumn(column,useDefault:useDefault)==true};table.headerView=header
             table.floatsGroupRows=false
             table.ownerAvailable={[weak self] in self?.available==true}
             table.commandKeyWindow={[weak self] in (self?.table.window as? LogHistoryWindow)?.commandKeyWindow() ?? NSApp.keyWindow}

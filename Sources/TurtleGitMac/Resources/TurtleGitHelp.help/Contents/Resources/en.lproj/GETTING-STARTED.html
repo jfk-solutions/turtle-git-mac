@@ -125,9 +125,9 @@ and <strong>Message only</strong>. The commit choice offers <strong>Commit</stro
 and result before continuing. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/COMMIT-PARITY.html">Commit parity</a> records their
 source comparisons, verification and remaining work.</p>
 <p>The Classic Commit window in light appearance:</p>
-<p><img src="images/5d53611fbe2a-mac-commit-classic-light-2026-10-31.png" alt="Commit in light mode: message, author options and checked files" /></p>
+<p><img src="images/a1940327b0fc-mac-commit-classic-light-2026-11-23.png" alt="Commit in light mode: message, author options and checked files" /></p>
 <p>The same window in dark appearance:</p>
-<p><img src="images/a1efd637c8ee-mac-commit-classic-dark-2026-10-31.png" alt="Commit in dark mode with colored status rows and changelists" /></p>
+<p><img src="images/1047251709a6-mac-commit-classic-dark-2026-11-23.png" alt="Commit in dark mode with colored status rows and changelists" /></p>
 <h2 id="edit-commit-and-other-messages">Edit commit and other messages</h2>
 <p>Commit, Merge, Rebase, Notes and branch-description editors offer <strong>Message
 Lines</strong> in the Edit menu and matching commands in the text context menu. Use
@@ -172,8 +172,8 @@ working contents equal the base. Normally that base is HEAD. While amending,
 <strong>Show diff to last commit</strong> chooses HEAD; turning it off compares against HEAD's
 first parent, or an empty base for a root commit. This changes what you review;
 it does not stage files or create a commit.</p>
-<p><img src="images/4bdeef1e2490-mac-commit-staging-light-2026-10-31.png" alt="Git Gui-style Commit with unstaged and staged lists and an embedded patch" /></p>
-<p><img src="images/8ff8a5a59954-mac-commit-staging-dark-2026-10-31.png" alt="Git Gui-style Commit in dark appearance" /></p>
+<p><img src="images/c2b3e35188f3-mac-commit-staging-light-2026-11-23.png" alt="Git Gui-style Commit with unstaged and staged lists and an embedded patch" /></p>
+<p><img src="images/1b2073dcb84d-mac-commit-staging-dark-2026-11-23.png" alt="Git Gui-style Commit in dark appearance" /></p>
 <h2 id="use-the-staging-area">Use the staging area</h2>
 <p>In Classic, enable <strong>Staging support (EXPERIMENTAL)</strong> to use the Git index. The same file list
 shows unstaged, staged and mixed checkbox states. Mixed means that a file has
@@ -206,8 +206,8 @@ commit's message and changed paths below. Click a revision row to select it and
 load those details; selecting a commit does not change your checkout. Select a
 changed path below and use its context menu to compare or open that version.
 This example selects a merge so you can inspect its differences against each parent.</p>
-<p><img src="images/61bb4ff85220-mac-log-light-2026-10-27.png" alt="Log in light mode showing a branch and merge graph, message and changed files" /></p>
-<p><img src="images/3d106a75087c-mac-log-dark-2026-10-27.png" alt="The same Log window in dark mode" /></p>
+<p><img src="images/d32888c4f569-mac-log-light-2026-11-23.png" alt="Log in light mode showing a branch and merge graph, message and changed files" /></p>
+<p><img src="images/473e6e916613-mac-log-dark-2026-11-23.png" alt="The same Log window in dark mode" /></p>
 <p>These examples show the native controls using the offline Harbor sample
 repository. Available actions depend on the repository and selection. The
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/partial-staging.png">partial-staging example</a> shows the patch controls.</p>
@@ -333,10 +333,24 @@ one commit. Cancel keeps the current choice. Close the
 completed progress result to return to Sync; Cancel dismisses the options. See
 the <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-export-light.png">light Export sheet</a> and
 <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/sync-export-dark.png">dark Export sheet</a>.</p>
-<p>The existing <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/git-synchronization-light.png">light Sync screenshot</a>
-and <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/docs/site/assets/git-synchronization-dark.png">dark Sync screenshot</a> show native
-windows with incoming and outgoing history. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYNCHRONIZATION-PARITY.html">Synchronization</a>
-for command details and platform limitations.</p>
+<p>The native Sync window keeps branch and transport choices above its history and
+file tabs. Its conflict tab provides inspection and resolution actions for
+highlighted files. Resolve separately keeps a checked set for its OK button.</p>
+<p><img src="images/e80120afb7f6-mac-sync-history-light-2026-11-23.png" alt="Synchronization outgoing history in light appearance" /></p>
+<p><img src="images/cb65a82dd4e3-mac-sync-history-dark-2026-11-23.png" alt="Synchronization outgoing history in dark appearance" /></p>
+<p><img src="images/339a6d548269-mac-sync-conflicts-light-2026-11-23.png" alt="Synchronization conflict file table in light appearance" /></p>
+<p><img src="images/dda06e84c9ff-mac-sync-conflicts-dark-2026-11-23.png" alt="Synchronization conflict file table in dark appearance" /></p>
+<p>See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SYNCHRONIZATION-PARITY.html">Synchronization</a> for command details and platform limitations.</p>
+<h2 id="review-and-resolve-conflicts">Review and resolve conflicts</h2>
+<p>Choose <strong>Resolve…</strong> for the repository or selected paths. The file list shows
+Path and Extension by default; use its header menu for optional columns. Highlight
+rows to inspect conflicts, and check the files whose current contents you want
+<strong>OK</strong> to mark resolved. Return opens highlighted conflict editors in displayed
+order. Resolving does not automatically commit or continue a paused replay.</p>
+<p><img src="images/7326e26a7872-mac-resolve-light-2026-11-23.png" alt="Resolve checked conflict list in light appearance" /></p>
+<p><img src="images/e8f78473333a-mac-resolve-dark-2026-11-23.png" alt="Resolve checked conflict list in dark appearance" /></p>
+<p>See <a href="DIALOG-GUIDE.html">Resolve in the dialog guide</a> for file actions
+and resolution choices.</p>
 <a name="topic-compare"></a><h2 id="standalone-comparison-and-merging">Standalone comparison and merging</h2>
 <p>Choose <strong>Tools → Open in TurtleGitMerge…</strong> without needing a repository.
 Use <strong>Merging</strong> and select Base, Their and My files. Two selected files open a

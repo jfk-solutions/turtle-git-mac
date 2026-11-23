@@ -37,11 +37,20 @@ import TurtleGitCore
         let controller = BlameWindowController(repository:repo,access:nil,path:path,revision:"HEAD",options:GitBlameOptions(),preferences:prefs)
         defer { controller.close() }
         let model = controller.model, window = controller.window!
+        let originalKeyOwner=controller.commandKeyWindow
+        controller.commandKeyWindow={ [weak controller] in controller?.window }
+        defer{controller.commandKeyWindow=originalKeyOwner}
+        if !cpp {
+            NSApplication.shared.setActivationPolicy(.prohibited)
+            window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000));window.orderFront(nil)
+        }
         window.setContentSize(NSSize(width:1250,height:850)); model.presentation = GitBlamePresentation()
         window.contentView?.layoutSubtreeIfNeeded()
         func editor() -> NSTextView? { descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel() == "Blame source text" } }
         try await wait { !model.busy && !model.syntaxWorking && model.syntaxError == nil && model.error == nil && editor()?.string == lines.joined(separator:"\n") }
         let text = editor()!, string = text.string as NSString
+        precondition((cpp || window.isVisible) && !text.isHiddenOrHasHiddenAncestor && text.isSelectable && controller.commandsAvailable)
+        precondition(window.makeFirstResponder(text) && window.firstResponder === text)
         precondition(!text.isEditable && text.isSelectable && text.string.hasSuffix("without LF") && !text.string.hasSuffix("\n"))
         precondition(model.marginFields == [.author])
         let unicode = string.range(of:"雪🦎"); text.setSelectedRange(unicode)
@@ -91,6 +100,7 @@ import TurtleGitCore
         func key(_ character:String,_ code:UInt16,_ modifiers:NSEvent.ModifierFlags) -> NSEvent {
             NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:modifiers,timestamp:0,windowNumber:window.windowNumber,context:nil,characters:character,charactersIgnoringModifiers:character,isARepeat:false,keyCode:code)!
         }
+        precondition(window.makeFirstResponder(text) && window.firstResponder === text && controller.commandsAvailable)
         text.keyDown(with:key("f",3,.command)); text.keyDown(with:key("l",37,.command))
         precondition(finds == 1 && gotos == 1)
         text.selectAll(nil)

@@ -9,6 +9,7 @@ struct StatusListPrimaryFile {
     let isDirectory:Bool
     let isSubmodule:Bool
 }
+enum StatusListPrimaryActivationMode:Equatable {case primary,compareWithBase}
 enum StatusListPrimaryFileAction {
     case conflict(StatusListPrimaryFile)
     case comparison(StatusListPrimaryFile)
@@ -33,13 +34,17 @@ enum StatusListPrimaryFileAction {
     let alternateTool:Bool
     let mergeTools:MergeToolPreferences
     let conflictIdentity:ConflictIdentityOptions
+    let expectedConflicts:[ConflictEntry]?
     let ownerIsCurrent:()->Bool
 }
 
 @MainActor enum StatusListPrimaryActivationSession {
     typealias Launch=(StatusListPrimaryActivation,OperationCancellation) async throws -> Void
 
-    static func action(_ row:StatusListPrimaryFile)->StatusListPrimaryFileAction {
+    static func action(_ row:StatusListPrimaryFile,mode:StatusListPrimaryActivationMode = .primary)->StatusListPrimaryFileAction {
+        // Explicit Compare invokes StartDiff for every selected row. Default
+        // Return instead chooses ConflictEdit/current-file/missing handling.
+        if mode == .compareWithBase {return .comparison(row)}
         let entry=row.entry
         if entry.state == .conflicted {return .conflict(row)}
         if entry.state == .untracked || entry.state == .ignored || entry.hasUnversionedCopy {return .workingFile(row)}
@@ -73,7 +78,7 @@ enum StatusListPrimaryFileAction {
     }
 
     static func run(rows:[StatusListPrimaryFile],intent:Intent,cancellation:OperationCancellation,
-                    ownerIsCurrent:@escaping()->Bool,confirmation:((Int) async -> Bool)?,launch:@escaping Launch) async throws {
+                    ownerIsCurrent:@escaping()->Bool,confirmation:((Int) async -> Bool)?,expectedConflicts:[ConflictEntry]?=nil,expectedRebase:Bool?=nil,mode:StatusListPrimaryActivationMode = .primary,launch:@escaping Launch) async throws {
         guard !rows.isEmpty else{return}
         let current:()->Bool = {ownerIsCurrent() && !cancellation.isCancelled && intent.settingsCurrent}
         let session=FileListComparisonSession(window:intent.window,preferences:intent.preferences,cancellation:OperationCancellation(parent:cancellation),alternateTool:intent.alternateTool)
@@ -91,15 +96,23 @@ enum StatusListPrimaryFileAction {
             try session.check()
             // Root commits use .emptyTree without writing a mktree object.
             let base=try await comparisonBase(repository:intent.repository,amend:intent.amendToParent,token:session.cancellation)
-            let actions=rows.map(action)
+            let actions=rows.map{action($0,mode:mode)}
+            let conflictPaths=rows.filter{$0.entry.state == .conflicted}.map{ $0.entry.path }
+            if let expectedConflicts {
+                let expectedPaths=GitPathSet(expectedConflicts.map(\.path))
+                guard expectedPaths.count==expectedConflicts.count,
+                      expectedPaths==GitPathSet(conflictPaths),conflictPaths.count==expectedConflicts.count else{throw ResolveFailure.stale}
+            }
             let rebase:Bool
-            if actions.contains(where:{if case .conflict = $0{return true};return false}) {
+            let hasConflicts = !conflictPaths.isEmpty
+            if hasConflicts {
                 rebase=try await intent.repository.conflictIsRebase(cancellation:session.cancellation)
             } else {rebase=false}
+            if hasConflicts,let expectedRebase,expectedRebase != rebase {throw ResolveFailure.stale}
             try session.check()
             let plan=StatusListPrimaryActivation(actions:actions,selectedCount:rows.count,repository:intent.repository,preferences:intent.preferences,window:intent.window,
                 base:base,amendToParent:intent.amendToParent,isRebase:rebase,alternateTool:intent.alternateTool,
-                mergeTools:intent.tools,conflictIdentity:intent.identity,ownerIsCurrent:current)
+                mergeTools:intent.tools,conflictIdentity:intent.identity,expectedConflicts:expectedConflicts,ownerIsCurrent:current)
             try await session.run(selectedCount:rows.count) {token in
                 try session.check();try await launch(plan,token)
             }
