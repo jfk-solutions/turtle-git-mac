@@ -56,6 +56,7 @@ private extension NSWindow {
             try require(try await repo.run(["rev-parse","HEAD"]).stdout==head,"Read-only status/action changed HEAD")
             try require(try Data(contentsOf:folder.appendingPathComponent(".git/index"))==index,"Read-only status/action changed exact index")
             for(path,bytes)in working {try require(try Data(contentsOf:folder.appendingPathComponent(path))==bytes,"Copy reporting changed source/destination bytes")}
+            if working[renamed] != nil {try require(!FileManager.default.fileExists(atPath:folder.appendingPathComponent(old).path),"Read-only status/action recreated rename source")}
         }
         func cleanup()async throws {
             owners.forEach{$0.close()};roots.forEach{$0.stopMonitoringForTermination()}
@@ -71,13 +72,16 @@ private extension NSWindow {
             throw error
         }
     }
-    static func snapshot(_ values:[(RevisionComparisonSnapshot,CommitFile)],_ c:Context)async throws {
+    static func snapshot(_ values:[(RevisionComparisonSnapshot,CommitFile)],_ c:Context,scopedAdd:Bool=false)async throws {
         try require(values.count==2 && GitPathSet(values.map{$0.1.path})==GitPathSet([c.copy,c.renamed]),"Actual Added/Rename comparison omitted/repeated child")
         for (snapshot,file) in values {
             let document=try await c.repo.comparisonFile(snapshot,path:file.path)
             if file.path==c.copy {
                 try require(file.action=="A" && file.oldPath==nil && snapshot.from == .emptyTree,"Pinned Added copy acquired a historical Copy/Rename operand")
                 try require(document.base.bytes.isEmpty && document.base.mode==nil && document.destination.bytes==c.original,"Added copied destination lost its empty old side")
+            } else if scopedAdd {
+                try require(file.action=="A" && file.oldPath==nil && snapshot.from == .emptyTree,"Independent direct Add scopes invented Rename history")
+                try require(document.base.bytes.isEmpty && document.base.mode==nil && snapshot.to == .workingTree && document.destination.bytes==c.working[c.renamed],"Scoped Add rename destination lost null old side or exact working bytes")
             } else {
                 try require(file.action.hasPrefix("R") && file.oldPath==c.old && document.base.path==c.old,"Actual Rename lost accepted historical old path")
                 try require(document.base.bytes==c.working[c.renamed] && document.destination.bytes==c.working[c.renamed],"Rename changed historical source/destination bytes")
@@ -171,7 +175,9 @@ private extension NSWindow {
                 try await snapshot(values,c)
             case "add":
                 let owner=AddWindowController(repository:c.repo,access:nil,defaults:c.prefs),model=owner.model
-                model.setScope([c.copy,c.source,c.renamed]);c.own(owner);model.reload()
+                // Each literal scope is queried independently; including the
+                // absent old name must not pair this destination as Rename.
+                model.setScope([c.copy,c.source,c.old,c.renamed]);c.own(owner);model.reload()
                 try await wait("Actual Add direct-file report unavailable"){owner.window?.contentView?.layoutSubtreeIfNeeded();return !model.busy && model.entries.count==3}
                 let row=try Prior.unwrap(model.entries.first{$0.path==c.copy},"Add omitted copied destination");try c.check(row.status)
                 let table=try Prior.unwrap(Prior.views(owner.window?.contentView).compactMap{$0 as? AddNativeTable}.first,"Actual Add native report missing")
@@ -184,7 +190,7 @@ private extension NSWindow {
                 model.onPrimaryFileActivation={plan,token in try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)}
                 let renameRow=try Prior.unwrap(model.entries.first{$0.path==c.renamed},"Add rename absent")
                 model.compareFileActions([row,renameRow],alternate:false);try await wait("Add Copy comparison did not drain"){!model.primaryActivationPending && !model.busy && !root.hasPendingRepositoryWork}
-                try await snapshot(values,c)
+                try await snapshot(values,c,scopedAdd:true)
             default:throw NSError(domain:"SourceStatusFixture",code:1)
             }
             try await c.preserved();try await c.cleanup();print("PASS STATUS PROJECTION COHORT: "+kind)

@@ -67,10 +67,14 @@ final class StatusListClipboardTests: XCTestCase {
         XCTAssertNil(StatusListColumn.nativeColumn(0)); XCTAssertNil(StatusListColumn.nativeColumn(6))
         XCTAssertEqual(StatusListColumn.nativeColumn(3), .status)
     }
-    func testAllVisibleColumnsAndStagedStatisticsUseCorrectHeadingsAndOrder() {
+    func testAllVisibleColumnsKeepRowActionsIndependentOfStatistics() {
         let stats: GitPathMap<CommitFile> = ["raw.bin": CommitFile(path: "raw.bin", oldPath: nil, action: "A", added: 2, removed: 0, hasStatistics: true, isSubmodule: false)]
-        XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all), "Path\tExtension\tStatus\tLines added\tLines removed\n雪/new.txt (from old.txt)\t.txt\tRenamed\t–\t–\nraw.bin\t.bin\tAdded\t2\t0\n")
-        XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all, visibleColumns: [.status, .path]), "Status\tPath\nRenamed\t雪/new.txt (from old.txt)\nAdded\traw.bin\n")
+        XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all), "Path\tExtension\tStatus\tLines added\tLines removed\n雪/new.txt (from old.txt)\t.txt\tRenamed\t–\t–\nraw.bin\t.bin\tUntracked\t2\t0\n")
+        XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all, visibleColumns: [.status, .path]), "Status\tPath\nRenamed\t雪/new.txt (from old.txt)\nUntracked\traw.bin\n")
+        // Source GetActionName uses the accepted row, separately from StatAdd/Del.
+        // The same statistics must also retain an actual staged-add row's action.
+        let added = StatusEntry(path: "raw.bin", originalPath: nil, index: "A", worktree: " ")
+        XCTAssertEqual(StatusListClipboard.text([added], root: root, statistics: stats, copy: .all), "Path\tExtension\tStatus\tLines added\tLines removed\nraw.bin\t.bin\tAdded\t2\t0\n")
         XCTAssertEqual(StatusListClipboard.text(entries, root: root, statistics: stats, copy: .all, visibleColumns: []), "")
         XCTAssertEqual(StatusListClipboard.text([], root: root, statistics: stats, copy: .all), "")
     }

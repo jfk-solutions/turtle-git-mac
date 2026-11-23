@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+## Status report fixture alignment — November 23, 2026
+
+The [source-aligned checkpoint](qa/status-report-fixture-alignment-2026-11-23.json)
+records eleven clipboard Core methods and sixteen native cohort/engine passes.
+Contradictory statistics no longer determine expected row actions; independent
+Add file queries retain Added/null-side behavior rather than an impossible paired
+Rename. Strict whole-repository Rename, selected action/Shift and byte/index/HEAD
+assertions remain. Initial failures and affected rechecks are explicit. No product
+query was broadened, and no installed or signed candidate was changed.
+
+
 ## Compare document history — November 23, 2026
 
 [Compare history](EDITOR-SAVE-HISTORY-READINESS-PARITY.md#compare-pane-replacement-continuation--november-23-2026)

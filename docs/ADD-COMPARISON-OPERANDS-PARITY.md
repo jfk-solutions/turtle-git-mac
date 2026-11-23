@@ -35,6 +35,17 @@ or silently choose stage1. Porcelain conflict letters describe stages rather
 than an Added/Deleted union, as explained in
 [the shared operands contract](STATUS-COMPARISON-OPERANDS-PARITY.md).
 
+## Direct-file scope and rename acquisition
+
+Pinned `src/Git/Git.cpp:3493–3512` queries each selected path independently.
+Add requests `includedStaged: false`, retaining that bounded behavior. Selecting
+both a rename destination and its absent old name as separate file scopes does
+not pair those records into Rename; the destination is Added with no accepted
+historical origin and compares against an empty old side. Whole-repository
+Commit/Status/Log readers can accept a real Rename and retain its old path.
+The generic accepted Rename/Copy operand contract above is unchanged; it does
+not imply natural rename detection for every Add invocation.
+
 ## Native implementation
 
 `AddFileTable.Coordinator` routes the actual captured **Compare with base** menu
@@ -115,3 +126,9 @@ retains failed attempts, focused fixture/compile repairs, passed scopes and
 cleanup evidence. Core source did not change, so its previous focused pass was
 not repeated. Local native checks do not establish complete hosted, signed,
 physical or whole-dialog parity.
+
+The [scoped alignment](qa/status-report-fixture-alignment-2026-11-23.json) corrects
+the older fixture's impossible natural Rename expectation for independent direct
+file scopes. All six Add cohorts pass on both Git engines with strict empty-base,
+current destination, selected order/Shift, native header/check and ownership
+assertions. The original failed source assumption is retained in the receipt.

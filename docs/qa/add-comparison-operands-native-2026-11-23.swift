@@ -29,7 +29,10 @@ private extension NSWindow {
             prefs.set(false,forKey:"UseLibgit2");prefs.set(false,forKey:"EnableGravatar");prefs.set(3,forKey:"NumDiffWarning")
         }
         var explicitPaths:[String] {[added,deleted,renamed,conflict,modified]}
-        var scope:[String] {explicitPaths+[untracked,ignored,"selected-folder"]}
+        // Upstream queries literal scopes independently: the separate old name
+        // must not pair this direct-file destination as Rename. The absent
+        // old leaf is an acquisition operand, never a selected UI row.
+        var scope:[String] {explicitPaths+[old,untracked,ignored,"selected-folder"]}
         func setup()async throws {
             _=try await repo.run(["init","--template=","-b","main"])
             for(key,value)in[("user.name","Add Operand QA"),("user.email","add-operands@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("core.precomposeunicode","false")] {_=try await repo.run(["config",key,value])}
@@ -60,17 +63,19 @@ private extension NSWindow {
             let owner=AddWindowController(repository:repo,access:nil,defaults:prefs);owners.append(owner)
             owner.model.setScope(scope);owner.model.includeIgnored=true
             owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil);owner.model.reload()
-            let surface=Surface(owner);try await surface.ready(expected:scope.filter{$0 != "selected-folder"})
+            let surface=Surface(owner);try await surface.ready(expected:scope.filter{$0 != "selected-folder" && $0 != old})
             return surface
         }
         func checkpoint()async throws {
             expectedHead=try await repo.run(["rev-parse","HEAD"]).stdout
             expectedIndex=try Data(contentsOf:folder.appendingPathComponent(".git/index"));working=[:]
-            for path in scope where path != "selected-folder" {working[path]=try Data(contentsOf:folder.appendingPathComponent(path))}
+            for path in scope where path != "selected-folder" && path != old {working[path]=try Data(contentsOf:folder.appendingPathComponent(path))}
+            try require(!FileManager.default.fileExists(atPath:folder.appendingPathComponent(old).path),"Rename acquisition source unexpectedly exists")
         }
         func preserved()async throws {
             try require(try await repo.run(["rev-parse","HEAD"]).stdout==expectedHead,"Read-only Add comparison changed HEAD")
             try require(try Data(contentsOf:folder.appendingPathComponent(".git/index"))==expectedIndex,"Read-only Add comparison changed exact index")
+            try require(!FileManager.default.fileExists(atPath:folder.appendingPathComponent(old).path),"Read-only Add comparison recreated rename source")
             for(path,bytes)in working {try require(try Data(contentsOf:folder.appendingPathComponent(path))==bytes,"Read-only Add comparison changed "+path)}
         }
         func cleanup()async throws {
@@ -136,8 +141,8 @@ private extension NSWindow {
         let acceptedRows=try s.report().selectedRows
         let retained=try unwrap(acceptedRows.first{$0.path==c.deleted},"Actual retained deletion absent")
         try require(retained.status.hasUnversionedCopy && retained.status.index=="D","Expected natural removed-and-present D metadata absent")
-        let rename=try unwrap(acceptedRows.first{$0.path==c.renamed},"Actual direct Rename absent")
-        try require(rename.status.originalPath==c.old && rename.status.index=="R","Natural Rename lost exact old path")
+        let rename=try unwrap(acceptedRows.first{$0.path==c.renamed},"Actual direct rename destination absent")
+        try require(rename.status.reportingActions == .added && rename.status.comparisonAction=="A" && rename.status.reportingOriginalPath==nil,"Independent direct-file scope invented paired Rename operands")
         let oldHeader=table.headerView,columns=table.tableColumns
         var plan:StatusListPrimaryActivation?,deliveries:[(RevisionComparisonSnapshot,CommitFile)]=[],warnings:[Int]=[],answer:CheckedContinuation<Bool,Never>?
         c.unblock.append{answer?.resume(returning:false);answer=nil}
@@ -163,12 +168,12 @@ private extension NSWindow {
         try require(deliveries.map{$0.1.path}==ordered,"Root explicit Compare lost native selected order")
         for (snapshot,file) in deliveries {
             let document=try await c.repo.comparisonFile(snapshot,path:file.path)
-            let expected=file.path==c.added ? "A":file.path==c.deleted ? "D":file.path==c.renamed ? "R":"M"
+            let expected=file.path==c.added || file.path==c.renamed ? "A":file.path==c.deleted ? "D":"M"
             try require(file.action==expected,"Accepted Add action reclassified: "+file.path)
-            if file.path==c.added {try require(snapshot.from == .emptyTree && document.base.bytes.isEmpty && document.base.mode==nil,"Added operand was not null")}
+            if file.path==c.added || file.path==c.renamed {try require(snapshot.from == .emptyTree && document.base.bytes.isEmpty && document.base.mode==nil,"Added operand was not null")}
             else {try require(snapshot.from == .revision(c.head),"Required old base followed moved HEAD")}
             if file.path==c.deleted {try require(snapshot.to == .emptyTree && document.destination.bytes.isEmpty && document.destination.mode==nil && document.base.bytes==Data("deleted historical\n".utf8),"Retained Deleted explicit comparison inspected replacement disk")}
-            if file.path==c.renamed {try require(file.oldPath==c.old && document.base.path==c.old && document.base.bytes==Data("exact historical rename\n".utf8) && document.destination.bytes==Data("rename disk after admission\n".utf8),"Rename lost exact accepted origin/current destination")}
+            if file.path==c.renamed {try require(file.oldPath==nil && snapshot.to == .workingTree && document.destination.bytes==Data("rename disk after admission\n".utf8),"Scoped Added destination acquired old origin or lost exact post-admission disk bytes")}
             if file.path==c.conflict {try require(document.base.bytes==Data("historical conflict base\n".utf8),"Explicit conflict Compare used stage-1 or ConflictEdit")}
         }
         try require(s.model.checked==checked && s.model.highlighted==selection && s.model.selectionMark==c.added,"Comparison changed checks/highlights/mark")

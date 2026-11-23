@@ -96,8 +96,11 @@ selectors are `commit`, `status`, `add`, `log`, and `revert`; default runs all w
 engines through the cached receiver. The fixture authors copied bytes alongside a real modified source plus an
 independent rename and uses actual status reads; it never injects C. It asserts
 the copied destination is Added/no origin on both engines, has no invented Copy
-old-name menu, and compares with an empty old side. The real Rename retains its
-accepted old path and old-name action. Mounted reports check shared captions,
+old-name menu, and compares with an empty old side. Whole-repository Commit, Status and Log reads retain the real Rename
+accepted old path and old-name action. Direct-file Add reads query each literal
+scope independently, so that same destination is Added with a null old side;
+including the old path as a separate scope does not pair it. The Add fixture
+checks that bounded behavior explicitly. Mounted reports check shared captions,
 color/icon roles, clipboard preparation/private pasteboards and actual Root
 comparison operands. The Commit cohort also stages/unstages the
 copy destination and commits only that checked destination while asserting the
@@ -122,6 +125,21 @@ The [recorded checkpoint](qa/working-status-projection-2026-11-23.json) separate
 the initial source-assumption failures from the focused repairs. It records 71
 passing Core checks, ten native cohort/Git passes, the app build and 45 CI
 admission checks. No full hosted pass, signed deployment, physical Finder check
-or complete visual/source parity is claimed. Scoped Add/Revert query breadth
-remains the next implementation family; current post-read filtering still does
-not prevent unrelated repository scans.
+or complete visual/source parity is claimed. The later [scoped status checkpoint](qa/scoped-working-reads-2026-11-23.json)
+records bounded Add/Revert reads. Its read scope is retained by the current
+implementation; the older whole-repository Add Rename expectation was obsolete.
+
+## Scoped fixture alignment — November 23, 2026
+
+The [alignment checkpoint](qa/status-report-fixture-alignment-2026-11-23.json)
+records eleven focused clipboard Core methods and sixteen native cohort/engine
+passes cumulatively. The clipboard action follows its accepted row independently
+of statistics. Add uses per-file Added/null-side semantics; whole-repository
+Rename oracles remain intact. Working Tree pointer routing assertions now report
+the exact action, path, Shift and selection component. Initial failed assumptions
+and the source-based correction remain in the receipt. Only affected Add groups
+were repeated; the passing Core and legacy primary checks were retained.
+
+No production code changed in this alignment. Cached app/Core source equality
+was checked; no app rebuild or broader validation was substituted for that scope.
+Full hosted, physical/signed and owner acceptance remain separate.

@@ -208,7 +208,14 @@ private extension NSWindow {
         let statusSelection=status.model.selection
         c.index=try Data(contentsOf:c.root.appendingPathComponent(".git/index"))
         try await click(status,path:c.conflict,shift:true);try await click(status,path:c.normal)
-        try require(statusActions.count==2 && statusActions[0].0 == .editConflict && statusActions[0].1==[c.conflict] && statusActions[0].2 && statusActions[1].0 == .diff && statusActions[1].1==[c.normal] && status.model.selection==statusSelection,"Working Tree primary routing changed selection or selected-set intent")
+        let statusDiagnostic="actions=\(String(reflecting:statusActions)),selection=\(String(reflecting:status.model.selection)),acceptedSelection=\(String(reflecting:statusSelection)),busy=\(status.model.busy),pending=\(status.model.primaryActivationPending),error=\(status.model.error ?? "none")"
+        try require(statusActions.count==2,"Working Tree primary action count; "+statusDiagnostic)
+        try require(statusActions[0].0 == .editConflict,"Working Tree conflict route; "+statusDiagnostic)
+        try require(statusActions[0].1==[c.conflict],"Working Tree conflict path; "+statusDiagnostic)
+        try require(statusActions[0].2,"Working Tree conflict Shift intent; "+statusDiagnostic)
+        try require(statusActions[1].0 == .diff,"Working Tree ordinary route; "+statusDiagnostic)
+        try require(statusActions[1].1==[c.normal],"Working Tree ordinary clicked path; "+statusDiagnostic)
+        try require(status.model.selection==statusSelection,"Working Tree highlighted selection changed; "+statusDiagnostic)
         try await c.preserved()
         let oldStatus=StatusListPrimaryActionReceipt(path:c.normal,revision:status.model.primaryActionRevision,alternate:false)
         status.model.reload();try await wait("Working Tree reload not ready"){!status.model.busy && status.model.hasStatusSnapshot}

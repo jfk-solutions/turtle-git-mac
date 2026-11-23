@@ -1,0 +1,176 @@
+{
+  "date": "2026-11-23",
+  "baseline": "6706c2c9",
+  "status": "focused-scopes-passed-cumulatively",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "production_changes": false,
+  "source_semantics": [
+    "GitStatusListCtrl.cpp1055 and1058: accepted row action label is independent of line-add/remove statistics.",
+    "Git.cpp3493\u20133512 and AddDlg.cpp148: query each selected path independently; Add does not combine separate old/new file scopes into Rename. Whole-repository Commit/Status/Log Rename contract remains."
+  ],
+  "fixture_changes": [
+    "Clipboard contradictory raw.bin stats A no longer replace actual Untracked row action; separate actual staged-A row retains Added with exact2/0 statistics.",
+    "Add exact empty old side/no accepted origin/current bytes for independently scoped renamed destination; strict real R/origin oracles retained for whole-repository consumers.",
+    "Absent old leaf, all extant bytes, exact HEAD/index, selected actions/order/Shift, checks/header identity and Close/Quit/warning ownership retained.",
+    "Working Tree compound primary assertion split into exact component diagnostics without changing conditions."
+  ],
+  "source_sha256": {
+    "Tests/TurtleGitCoreTests/StatusListClipboardTests.swift": "6a683864d7045c93e3b76c52c1ea530eed39ca7c99fa3e88686b9a7d0ab59233",
+    "docs/qa/add-comparison-operands-native-2026-11-23.swift": "c7feb46dbd0943cf947ced3d66680f844820ace5fe64e1f7232db08df1822b84",
+    "docs/qa/working-status-projection-native-2026-11-23.swift": "b4e0d0538fa8eb4b196ba70856760e7fc56420c274c805f0b51a8e5af036b69a",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "f8f4d17105392f9d4656c4f1ac1536942fd6f79e64c0229c05c83c18d7dcd1f3"
+  },
+  "initial_frozen_sha256": {
+    "Tests/TurtleGitCoreTests/StatusListClipboardTests.swift": "6a683864d7045c93e3b76c52c1ea530eed39ca7c99fa3e88686b9a7d0ab59233",
+    "docs/qa/add-comparison-operands-native-2026-11-23.swift": "3ebe75b2d529384ae09935a5016e846a8503225b8cd13a4464aef0de3ec2f6cd",
+    "docs/qa/working-status-projection-native-2026-11-23.swift": "390598810214cc01bb21057884f62407fd0ecc802c5e50520cc0924a7ff43d81",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "f8f4d17105392f9d4656c4f1ac1536942fd6f79e64c0229c05c83c18d7dcd1f3"
+  },
+  "core": {
+    "command": "TURTLEGIT_CORE_ONLY=1 swift test --jobs 4 --filter StatusListClipboardTests",
+    "exit_code": 0,
+    "methods": 11,
+    "log": "build/qa/status-report-clipboard-core-2026-11-23.log"
+  },
+  "initial_native_group": [
+    {
+      "name": "add-operands",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-add-comparison-operands.py",
+        "--results",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-add-operands-results-2026-11-23.json",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 1,
+      "seconds": 7.139,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-add-operands-2026-11-23.log"
+    },
+    {
+      "name": "add-projection",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-working-status-projection.py",
+        "--only",
+        "add",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 1,
+      "seconds": 4.989,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-add-projection-2026-11-23.log"
+    },
+    {
+      "name": "primary-legacy",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-status-primary-activation.py",
+        "--only",
+        "legacy",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 13.814,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-primary-legacy-2026-11-23.log"
+    }
+  ],
+  "repair_native_group": [
+    {
+      "name": "add-operands",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-add-comparison-operands.py",
+        "--results",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-add-operands-results-2026-11-23.json",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 28.87,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-repair-add-operands-2026-11-23.log"
+    },
+    {
+      "name": "add-projection",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-working-status-projection.py",
+        "--only",
+        "add",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 5.537,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/status-report-repair-add-projection-2026-11-23.log"
+    }
+  ],
+  "initial_failures": [
+    "Both Add groups retained impossible natural Rename expectations after merely adding the old path to the scope. Source review confirmed independent path queries; adding a second file cannot pair them. No production query broadened."
+  ],
+  "retained_passes": [
+    "11 clipboard Core methods",
+    "Legacy primary activation on both Git engines"
+  ],
+  "distinct_native_cohort_engine_passes": 16,
+  "native_cohorts": {
+    "add_operands": {
+      "cohorts": [
+        "operands",
+        "primary",
+        "stale",
+        "ownership",
+        "native-warning",
+        "legacy"
+      ],
+      "engines": 2
+    },
+    "working_projection": {
+      "cohorts": [
+        "add"
+      ],
+      "engines": 2
+    },
+    "primary_activation": {
+      "cohorts": [
+        "legacy"
+      ],
+      "engines": 2
+    }
+  },
+  "cleanup": {
+    "logged_owned_pids": [
+      19238,
+      19278,
+      19349,
+      19374,
+      19429,
+      19445,
+      19580,
+      20086,
+      20094,
+      20638,
+      21175,
+      21180,
+      21232
+    ],
+    "all_absent": true
+  },
+  "not_run": [
+    "No app rebuild: production source unchanged; cached Debug app/Core bytes match.",
+    "No repeated passing Core/legacy scopes.",
+    "No full hosted, signed/physical Finder, accessibility, Intel/minimum macOS or owner acceptance."
+  ],
+  "delivery": "Signed55 and installed52 unchanged; no WMF/EMF expansion, install or publication."
+}
