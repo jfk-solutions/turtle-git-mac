@@ -1106,8 +1106,14 @@ Parent captions now include available parent subjects, shortened after twenty
 UTF-16 units with the source ellipsis, and eight hash digits. Source inspection
 corrects the earlier assumption about configurable short-hash lengths: the pinned
 `CGit::GetShortHASHLength()` returns eight. The fixture sets `core.abbrev=12` and
-checks that parent captions still use eight. A parent outside the loaded list
-currently uses the source's hash-only fallback; fetching its subject remains open.
+checks that parent captions still use eight. At that parent-menu checkpoint,
+parents outside the loaded list had only hash captions. The off-list metadata
+continuation below supersedes that implementation gap: current
+`SynchronizationWindowModel.loadHistoryParentSubjects` fetches and caches their
+subjects, and the retained Compare, Unified Diff and Revert submenus update their
+labels without changing captured targets. The existing
+[October 11 metadata record](qa/synchronization-parent-metadata-2026-10-11.json)
+records its bounded native checks; unavailable parents retain hash-only captions.
 These assertions cover native menu state/dispatch, not complete visual, keyboard,
 accessibility, signed sandbox or Synchronization acceptance.
 

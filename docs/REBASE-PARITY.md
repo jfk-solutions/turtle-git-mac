@@ -110,7 +110,15 @@ not current visual, behavior or accessibility parity.
   and old-upstream checks are now adapted; see FETCH-PARITY.md.
 - Remaining advanced Cherry Pick options, displayed patch-becomes-empty interaction and custom structural merge plans.
 - Remaining reword/author editing and complete conflict/resolution menus and tabs.
-- Remaining row targeting/shortcuts and commit drag reordering and physical column-layout acceptance. Customizable metadata columns and persisted layout are implemented in the October 13 batch below. Action and move shortcuts now have headless native coverage; displayed acceptance remains pending.
+- Broader physical row-targeting/shortcut and column-layout acceptance. Commit
+  drag ordering is implemented for ordinary Rebase/Cherry Pick and Pick-only
+  structural plans in the October 13 sections below; current `beginRowDrag`,
+  `dropRows` and the native pointer dispatcher retain that behavior. Existing
+  [ordinary drag](qa/rebase-row-drag-2026-10-13.json) and
+  [structural ordering](qa/structural-order-2026-10-13.json) records distinguish
+  handler/Core checks from unverified physical drag, edge-autoscroll and signed
+  acceptance. Customizable metadata columns, persisted layout, and action/move
+  shortcuts are implemented; this does not certify their full displayed behavior.
 - Broader hook, signing/editor/authentication, reopened-session stash restoration, streaming progress,
   cancellation, failures and signed sandbox/editor validation.
 - Broader native light/dark/contrast, keyboard, resizing and accessibility QA.
