@@ -134,7 +134,7 @@ private extension NSWindow {
             let tables=Prior.views(owner.window?.contentView).compactMap{$0 as? NSTableView}.map{
                 "count=\($0.numberOfRows),selection=\(Array($0.selectedRowIndexes)),owner=\($0.window === owner.window),hidden=\($0.isHiddenOrHasHiddenAncestor)"
             }
-            let states=entries.prefix(24).map{"\(String(reflecting:$0.path)):\($0.index)\($0.worktree),old=\(String(reflecting:$0.originalPath)),copy=\($0.hasUnversionedCopy)"}
+            let states=entries.prefix(24).map{"\(String(reflecting:$0.path)):\($0.index)\($0.worktree),old=\(String(reflecting:$0.originalPath)),hasUnversionedCopy=\($0.hasUnversionedCopy)"}
             return "OPERAND SOURCE phase=\(phase),kind=\(kind),visible=\(owner.window?.isVisible == true),busy=\(busy),pending=\(pending),amend=\(commit?.model.amend == true),againstHEAD=\(commit?.model.amendDiffToLastCommit == true),hasHead=\(commit?.model.hasHead == true),hasParent=\(commit?.model.hasParent == true),entries=\(states),probes=\(rows),tables=\(tables)"
         }
         func select(_ paths:[String])async throws->[String] {
@@ -221,10 +221,30 @@ private extension NSWindow {
             let explicit=try Prior.unwrap(accepted,"Explicit menu did not use typed accepted rows")
             try await verifyDeliveries(deliveries,plan:explicit,repository:c.repo,expectedBase:explicit.base,symlinkTarget:initial ? "initial-target":"target-new.txt")
             if kind == .commit,!amend,!initial,let commit=view.commit {
-                deliveries=[];c.copySourceOverride="absent accepted copy source.txt"
-                commit.model.reload(paths:["."]);try await view.ready();_ = try await view.select([c.copied]);try await view.enter()
-                try await wait("Required absent accepted origin did not refuse") {!view.pending && !view.busy && commit.model.error != nil}
-                try require(deliveries.isEmpty && commit.window?.isVisible==true,"Missing accepted origin was silently reclassified Added")
+                deliveries=[];accepted=nil;c.copySourceOverride="absent accepted copy source.txt"
+                commit.model.reload(paths:["."]);try await view.ready();_ = try await view.select([c.copied])
+                let reloadedRow=commit.model.entries.first{$0.path==c.copied}
+                let describeRow:(StatusEntry)->String={row in
+                    "path=\(String(reflecting:row.path)),XY=\(row.index)\(row.worktree),originalPath=\(String(reflecting:row.originalPath)),reportingActions=\(row.reportingActions.rawValue),comparisonAction=\(row.comparisonAction),reportingOriginalPath=\(String(reflecting:row.reportingOriginalPath)),hasUnversionedCopy=\(row.hasUnversionedCopy)"
+                }
+                do {
+                    try await view.enter()
+                    try await wait("Required absent accepted origin did not refuse") {!view.pending && !view.busy && commit.model.error != nil}
+                    try require(deliveries.isEmpty && commit.window?.isVisible==true,"Missing accepted origin was silently reclassified Added")
+                } catch {
+                    let planDescription=accepted.map{plan in
+                        let actions=plan.actions.prefix(24).map{action in
+                            let kind:String
+                            switch action {case .conflict:kind="conflict";case .comparison:kind="comparison";case .workingFile:kind="workingFile";case .skipMissing:kind="skipMissing"}
+                            return kind+"["+describeRow(action.file.entry)+"]"
+                        }
+                        return "base=\(plan.base),count=\(plan.selectedCount),ownerCurrent=\(plan.ownerIsCurrent()),sameWindow=\(plan.window === commit.window),actions=\(actions)"
+                    } ?? "none"
+                    let delivered=deliveries.prefix(24).map{"path=\(String(reflecting:$0.file.path)),action=\($0.file.action),old=\(String(reflecting:$0.file.oldPath)),from=\($0.snapshot.from),to=\($0.snapshot.to)"}
+                    print("MISSING ORIGIN: reloadedRow=\(reloadedRow.map(describeRow) ?? "absent"),acceptedPlan=\(planDescription),error=\(String(reflecting:commit.model.error)),pending=\(view.pending),busy=\(view.busy),sheet=\(commit.window?.attachedSheet != nil),visible=\(commit.window?.isVisible == true),sourceClosed=\(!commit.model.messageFocusAvailable),deliveries=\(delivered)")
+                    print(view.diagnostic("missing-origin-failure"));fflush(stdout)
+                    throw error
+                }
                 commit.model.error=nil
                 try await wait("Missing-origin error did not detach"){commit.window?.attachedSheet==nil}
             }

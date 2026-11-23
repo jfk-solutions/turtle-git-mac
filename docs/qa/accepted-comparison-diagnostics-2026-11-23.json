@@ -1,0 +1,69 @@
+{
+  "date": "2026-11-23",
+  "baseline": "5693a3d1",
+  "status": "targeted-current-local-cohorts-passed; hosted causes unresolved",
+  "source_change": "None. No product defect inferred from old compound reports.",
+  "diagnostics": "Missing-origin fixture records accepted post-reload metadata and Return plan plus current source/native/child ownership only on failure. Existing strict refusal checks and wait budget retained. Replay attribution failure components were added at a8122e05.",
+  "scope": [
+    {
+      "cohort": "commit accepted comparison operands, including absent controlled Copy source",
+      "engine": "system Git"
+    },
+    {
+      "cohort": "Advanced Cherry Pick Edit attribution, author/date, refresh/reopen drafts, dirty amend cancel/accept, stale binding and final cleanup",
+      "engine": "bundled Git"
+    }
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitCore/RevisionComparison.swift": "f1df4fbea410249969977b48ab94bd27a769052b2de6404b0bc0f63f77ccc1c2",
+    "Sources/TurtleGitMac/CommitWindow.swift": "a6e092a0b3f1c57cbe71bb27cd29dfc98ca3affe65362c9c480479acb3b55947",
+    "Sources/TurtleGitMac/RebaseWindow.swift": "f8c7170001473c479fed3f7c33ebfff106f54fe19721cdb58609fd275f5b2dd6",
+    "docs/qa/status-comparison-operands-native-2026-11-23.swift": "39d1966121af53e67239da1b2767e76e64f9ca3fc75c639f2a93fcfa36e98740",
+    "docs/qa/rebase-message-edit-native-2026-10-18.swift": "3a9102cbe7695b04932a9dd890cd5d001f63d6987e70d249ac41faeae8ee83ef"
+  },
+  "results": [
+    {
+      "name": "missing-origin",
+      "exit": 0,
+      "seconds": 12.359,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/accepted-comparison-diagnostic-missing-origin-2026-11-23.log",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-status-comparison-operands.py",
+        "--only",
+        "commit",
+        "--git",
+        "/usr/bin/git"
+      ]
+    },
+    {
+      "name": "replay-attribution",
+      "exit": 0,
+      "seconds": 21.743,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/accepted-comparison-diagnostic-replay-attribution-2026-11-23.log",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-operation-workflows.py",
+        "--only",
+        "rebase",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ]
+    }
+  ],
+  "cleanup": {
+    "logged_owned_pids": [
+      21785,
+      21797,
+      22042,
+      22046
+    ],
+    "all_absent": true
+  },
+  "not_run": [
+    "No app rebuild or Core rerun: product source unchanged, cached current Debug app reused.",
+    "No repetition of passing system replay or unrelated comparison cohorts.",
+    "This does not reproduce the hosted SDK/x86_64 failures, certify full hosted CI, shipping signed Finder, physical UI or whole-port parity."
+  ],
+  "delivery": "Signed55/installed52 untouched; no WMF/EMF work, install or publication."
+}
