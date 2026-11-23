@@ -1,0 +1,249 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T03:59:59.166569+00:00",
+  "status": "Scoped accepted comparison operand checkpoint passed; whole port incomplete",
+  "sourceBase": "452d376a8f830c94cd5bd2e67711b4cef03160c3",
+  "sourceDirtyDuringValidation": true,
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceSHA256": {
+    ".github/workflows/macos.yml": "48372ea4efff555a0abf4212f67428a43c9c84ed3e7b259e982d906c15a55448",
+    "Sources/TurtleGitCore/RevisionComparison.swift": "523659327f614daaf1676c7bd93ecb4b0e423e7d67ad057a8c77efd40b1cfd0e",
+    "Sources/TurtleGitMac/CommitWindow.swift": "c4b81e30927c318a09c3d59e454fe97d9437419583c962d45a4150cb806b28d2",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "14102c60537f9b7cb1aaba9d9a3a1084e5d75d2fef4bc21d2031594182d74e5e",
+    "Sources/TurtleGitMac/RevertWindow.swift": "b2f4072fa9c138a16cd9375f760335f6a2426f348428970312135a90b3802279",
+    "Sources/TurtleGitMac/StatusWindow.swift": "d66510852fc22f118788158c52196dd5241400d562726365e58f65f7539f4a27",
+    "Tests/TurtleGitCoreTests/StatusListFileComparisonTests.swift": "987ebc76a0756254f35cb95152ff2e211f90c50fb98c914a2860b3e3be4c4fff",
+    "docs/STATUS-COMPARISON-OPERANDS-PARITY.md": "b0d53d9476a25abe195093e202fa4e6097b7d55904cbc8d8507901fc663ef697",
+    "docs/qa/status-comparison-operands-native-2026-11-23.swift": "bf693ce925457c57972724ecaf869f930c34272f37288f12e677456ee3a6902f",
+    "scripts/test-status-comparison-operands.py": "b5214535c320b610f97089f078b261c9221f22640dd17f407e0fcbc5144763ae"
+  },
+  "implementation": [
+    "Dedicated Core intent/snapshot builder preserves accepted A/D/R/C action, explicit null sides and exact required original path without whole-tree diff detection",
+    "Root consumes accepted row/base/classification under existing source token and ordered launch ownership; independent generic revision comparison remains unchanged",
+    "Actual Commit.compare, Status.diff, Revert.diff and existing Replay Compare use accepted typed plans; primary conflict/current-file/missing dispatch remains distinct",
+    "Commit preserves original GUI pane/menu/order/mark and raw staging state; accepts its own busy transition once then cancels stale pane/form/selection generations",
+    "Existing symlink target-text and gitlink null/index adapters retained; missing required historical operands refuse rather than reclassify"
+  ],
+  "app": {
+    "exitCode": 0,
+    "observedSession": 86685,
+    "log": "build/status-operands-app-build.log",
+    "buildInvocations": 1,
+    "scope": "Unsigned local arm64 Debug; no new signed, Intel or minimum macOS execution acceptance",
+    "appSourcesUnchangedAfterBuild": true
+  },
+  "core": {
+    "exitCode": 0,
+    "observedSession": 25302,
+    "command": "swift test --jobs 2 --filter StatusListFileComparisonTests",
+    "log": "build/status-operands-core.log",
+    "executed": 8,
+    "failures": 0,
+    "testSeconds": 5.095
+  },
+  "native": {
+    "attempts": [
+      {
+        "exitCode": 1,
+        "observedSession": 93128,
+        "command": "python3 scripts/test-status-comparison-operands.py --git /usr/bin/git --git build/git-runtime/Git/bin/git",
+        "log": "build/status-operands-native.log",
+        "failed": "Actual report omitted accepted A/D/R/C/M/link projection",
+        "passedCohorts": [],
+        "systemOnlyBeforeFailure": true,
+        "evidence": "build/qa/status-operands-failed-0-y0ox96qu",
+        "ownedReapedPIDs": [
+          40996,
+          41002,
+          41013
+        ],
+        "diagnosis": "Failure reached root-amend after earlier sequential cases returned: fixture expected empty-parent UI, but pinned CommitDlg1508-1513 and native CommitWindow normalize root Amend to Show diff to last commit/HEAD. No production defect established; actual required-row set legitimately included Deleted.",
+        "inferredCompletedSystemCases": [
+          "ordinary Commit",
+          "Working Tree",
+          "Revert",
+          "amend parent",
+          "amend HEAD"
+        ],
+        "inferenceLimit": "Initial fixture had no completed-case stdout markers; retained phase directories and its sequential throwing source identify progression. Repair adds explicit phase receipts."
+      },
+      {
+        "case": "system-resume",
+        "command": [
+          "python3",
+          "scripts/test-status-comparison-operands.py",
+          "--only",
+          "root-amend",
+          "--only",
+          "unborn",
+          "--only",
+          "gui",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 17.447,
+        "log": "build/status-operands-native-system-resume.log",
+        "passedCohorts": [
+          "root-amend",
+          "unborn",
+          "gui"
+        ],
+        "failed": "Replay selection missing required row; reused fixture has identical historical rename and deletion blobs, permitting different Git pairing",
+        "secondaryFailure": "Failed evidence copy followed an intentional broken symlink; driver repair preserves symlinks rather than masking original failure",
+        "incompleteEvidence": "build/qa/status-operands-failed-0-4h4t9wuw"
+      },
+      {
+        "case": "system-replay",
+        "command": [
+          "python3",
+          "scripts/test-status-comparison-operands.py",
+          "--only",
+          "replay",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 12.327,
+        "log": "build/status-operands-native-system-replay.log"
+      },
+      {
+        "case": "bundled",
+        "command": [
+          "python3",
+          "scripts/test-status-comparison-operands.py",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 30.859,
+        "log": "build/status-operands-native-bundled.log"
+      }
+    ],
+    "systemPassed": [
+      "commit",
+      "status",
+      "revert",
+      "amend-parent",
+      "amend-HEAD",
+      "root-amend",
+      "unborn",
+      "gui",
+      "replay"
+    ],
+    "bundledPassed": [
+      "commit",
+      "status",
+      "revert",
+      "amend-parent",
+      "amend-HEAD",
+      "root-amend",
+      "unborn",
+      "gui",
+      "replay"
+    ],
+    "retainedSystemEvidence": "Initial throwing sequential receiver reached root-amend after ordinary Commit/Status/Revert and both parent/HEAD amend cases returned. Those initial cases lacked per-case stdout markers; retained fixture phase directories plus the exact sequential fixture identify reached scope. Later scopes have explicit PASS OPERAND COHORT markers and were resumed without rerunning those earlier scopes. Bundled default group emitted all nine explicit markers.",
+    "assertionsRemoved": false,
+    "productionChangedAfterBuild": false,
+    "copyScope": "C is controlled accepted query metadata backed by actual historical/index/disk bytes. CLI copy discovery is not established.",
+    "priorFailures": [
+      {
+        "cause": "Root-Amend source normalizes comparison against HEAD; fixture incorrectly assumed empty parent and omitted Deleted. Authored root content expectation also corrected.",
+        "pin": "CommitDlg.cpp1508-1513",
+        "productionChanged": false,
+        "assertionsRemoved": false,
+        "focusedSystemResume": [
+          "root-amend",
+          "unborn",
+          "gui",
+          "replay"
+        ],
+        "bundled": "Default complete group, not previously run"
+      },
+      {
+        "productionChanged": false,
+        "scope": "Author distinct historical rename/deleted source bodies and a genuine Modified path; retain exact A/D/R/M and original-body assertions; snapshot raw/native projection before selection",
+        "evidenceCopy": "Preserve symlinks in failure copy so an intentional broken target cannot mask primary assertion",
+        "priorFixtureBackup": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/qa/status-operands-prior-fixtures-before-replay-repair"
+      }
+    ]
+  },
+  "isolation": {
+    "checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "independentMetafileWIPExcluded": true,
+    "protectedUnrelatedWorkUnchanged": true,
+    "native": "Private repositories/preferences; alpha-zero offscreen windows/sheets; injected external launches; cleanup and worker assertions",
+    "installedApp": "Build52 read confirmed; not replaced or quit",
+    "frozenSigned54": "Not modified or installed"
+  },
+  "cleanup": {
+    "loggedReapedPIDs": [
+      40996,
+      41002,
+      41013,
+      42506,
+      42518,
+      43300,
+      43308,
+      43639
+    ],
+    "allAbsentAtFinalCheck": true
+  },
+  "resources": {
+    "localizations": "No new literal app UI labels; reused existing preparation caption; no regeneration required",
+    "help": "No included guide changed; no Help regeneration required",
+    "coverage": {
+      "exitCode": 0,
+      "dialogs": 130,
+      "partial": 120,
+      "pending": 10,
+      "certifiedComplete": 0
+    },
+    "workflowYAMLSyntax": {
+      "exitCode": 0,
+      "scope": "Ruby YAML parser syntax only; no hosted run claim"
+    }
+  },
+  "hosted": "Workflow now includes the relevant selected-file cohorts and new operand receiver in their existing matrix lanes. A complete corrected-source hosted CI pass remains open.",
+  "evidence": [
+    {
+      "path": "build/status-operands-app-build.log",
+      "bytes": 301083,
+      "sha256": "6a76889c475a502e2d91b0a90f27dc9ac66723f511ff4b2786e13e499de52e59"
+    },
+    {
+      "path": "build/status-operands-core.log",
+      "bytes": 509257,
+      "sha256": "76fa7a874139adb2627d76323ef42900affeeb5583efe0b773e2ebd36d747b7f"
+    },
+    {
+      "path": "build/status-operands-native-bundled.log",
+      "bytes": 7923,
+      "sha256": "2d887fb02ec749b1774be1438244bdb65dc5ec9f05ce56a52f214b11830c4ce0"
+    },
+    {
+      "path": "build/status-operands-native-system-replay.log",
+      "bytes": 2162,
+      "sha256": "0cd2cf7f5f91cc4b71977ce2ec19be7677b912504d4d20aab16af0dcc838f751"
+    },
+    {
+      "path": "build/status-operands-native-system-resume.log",
+      "bytes": 4130,
+      "sha256": "e0db8507d8a2ccb74cc7b26d856762e8f2d5ba6d14c06e4866dbdc7afd004dd1"
+    },
+    {
+      "path": "build/status-operands-native.log",
+      "bytes": 1709,
+      "sha256": "e457e5abaa48c66354be1a9781401e285feb743b299b61f0ee3b6317c88eb59c"
+    }
+  ],
+  "remaining": [
+    "Add independent explicit Compare still uses generic paths; other independent Resolve/Sync/Log comparison consumers require actual-source-branch audit",
+    "Natural copied-row discovery is not established by injected C operand tests",
+    "Historical merge-parent and exact renamed-submodule equivalence remain separate",
+    "Full physical/VoiceOver/signed/hosted and whole-port acceptance remains open",
+    "Independent HQ metafile renderer work and distribution/store terms remain open"
+  ]
+}

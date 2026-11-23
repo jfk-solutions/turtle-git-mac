@@ -35,6 +35,16 @@ public enum ComparisonRevision: Hashable, Sendable {
         switch self { case .revision(let value): return value; case .workingTree: return "Working tree"; case .emptyTree: return "Empty tree" }
     }
 }
+/// StartDiff consumes the accepted status row, including its null-side and
+/// rename/copy source intent. A later whole-tree diff must not replace it.
+public struct StatusListFileComparisonIntent:Sendable {
+    public let entry:StatusEntry
+    public let base:ComparisonRevision
+    public let isSubmodule:Bool
+    public init(entry:StatusEntry,base:ComparisonRevision,isSubmodule:Bool) {
+        self.entry=entry;self.base=base;self.isSubmodule=isSubmodule
+    }
+}
 public struct RevisionDiffOptions: Equatable, Sendable {
     public var ignoreSpaceAtEnd = false, ignoreSpaceChange = false, ignoreAllSpace = false, ignoreBlankLines = false, commonAncestor = false
     public var detectCopies = true
@@ -140,6 +150,75 @@ extension GitRepository {
         guard !paths.isEmpty else { throw RevisionComparisonFailure.selection }
         for path in paths { try validateComparisonPath(path,allowsRaw:from != .workingTree && to != .workingTree) }
         return try selectedFileComparison(revisionComparison(from: from, to: to, cancellation: cancellation), paths: paths, cancellation: cancellation)
+    }
+    /// Source GitStatusListCtrl::StartDiff: Added precedes Deleted and forces
+    /// DiffNull; ordinary/R/C reads the captured historical operand. In
+    /// particular neither a recreated Deleted destination nor newly detected
+    /// rename pairing can change the chosen sides. Explicit conflict Compare
+    /// follows the ordinary path; default ConflictEdit is a caller decision.
+    public func statusListFileComparison(_ intent:StatusListFileComparisonIntent,cancellation:OperationCancellation?=nil) throws -> RevisionComparisonSnapshot {
+        let token=cancellation ?? OperationCancellation();try token.check()
+        guard intent.base != .workingTree else{throw RevisionComparisonFailure.range}
+        let entry=intent.entry
+        try validateComparisonPath(entry.path,allowsRaw:false)
+        let action:String
+        if intent.base == .emptyTree {action="A"}
+        // Porcelain AA/AU/UA/DD/UD/DU describe stage occupancy. Upstream's
+        // raw diff-index + ls-files parser produces UNMERGED for these, not
+        // Added/Deleted from the letters in porcelain XY. Explicit Compare
+        // therefore uses the ordinary historical operand, never stage 1.
+        else if entry.state == .conflicted {action="M"}
+        else if entry.index=="A" || entry.worktree=="A" {action="A"}
+        else if entry.index=="D" || entry.worktree=="D" {action="D"}
+        else if entry.index=="R" || entry.worktree=="R" {action="R"}
+        else if entry.index=="C" || entry.worktree=="C" {action="C"}
+        else {action="M"}
+        let original:String
+        if action=="R" || action=="C" {
+            guard let old=entry.originalPath else{throw RevisionComparisonFailure.selection}
+            try validateComparisonPath(old,allowsRaw:false);original=old
+        } else {original=entry.path}
+        let from:ComparisonRevision,details:ComparisonRevisionDetails?,oldMode:String?
+        if action=="A" {from = .emptyTree;details=nil;oldMode=nil}
+        else {
+            guard case .revision(let name)=intent.base else{throw RevisionComparisonFailure.range}
+            let value=try singleCommitDetails(revision:name,allowTree:true,useMailmap:GitIdentityDisplay().useMailmap,cancellation:token)
+            let oid:String
+            switch value {
+            case .commit(let commit):oid=commit.objectID
+            case .tree(let hash):oid=hash
+            case .workingTree:throw RevisionComparisonFailure.range
+            }
+            from = .revision(oid);details=try comparisonDetails(value,cancellation:token)
+            guard let record=try historicalTreeRecord(revision:oid,path:original,cancellation:token),
+                  ["100644","100755","120000","160000"].contains(record.mode) else{throw RevisionComparisonFailure.selection}
+            oldMode=record.mode
+        }
+        let submodule=intent.isSubmodule || oldMode=="160000"
+        if action != "D" {
+            guard try !isBare(cancellation:token) else{throw RevisionComparisonFailure.selection}
+            if submodule {
+                if action=="A" {
+                    // DiffNull for a new gitlink reads its stage-0 index pointer,
+                    // even when no child checkout exists. The existing native
+                    // submodule adapter materializes that pointer on handoff.
+                    let records=try run(["--literal-pathspecs","ls-files","--stage","-z","--",entry.path],environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:token).stdout.split(separator:0)
+                    let valid=records.contains {record in
+                        guard let tab=record.firstIndex(of:9),Data(record[record.index(after:tab)...])==Data(entry.path.utf8) else{return false}
+                        let fields=record[..<tab].split(separator:32)
+                        return fields.count==3 && fields[0].elementsEqual("160000".utf8) && fields[2].elementsEqual("0".utf8) &&
+                            [40,64].contains(fields[1].count) && fields[1].allSatisfy{(48...57).contains($0) || (97...102).contains($0)}
+                    }
+                    guard valid else{throw RevisionComparisonFailure.selection}
+                }
+            } else {
+                let attributes=try FileManager.default.attributesOfItem(atPath:restoreLocation(entry.path).path)
+                guard let type=attributes[.type] as? FileAttributeType,[.typeRegular,.typeSymbolicLink].contains(type) else{throw RevisionComparisonFailure.selection}
+            }
+        }
+        try token.check()
+        let file=CommitFile(path:entry.path,oldPath:action=="R" || action=="C" ? original:nil,action:action,added:nil,removed:nil,hasStatistics:false,isSubmodule:submodule)
+        return RevisionComparisonSnapshot(root:root,from:from,to:action=="D" ? .emptyTree:.workingTree,fromDetails:details,toDetails:nil,files:[file],options:RevisionDiffOptions(),scopePaths:[entry.path],diffDetection:diffDetection)
     }
     private func selectedFileComparison(_ snapshot: RevisionComparisonSnapshot, paths: [String], cancellation: OperationCancellation? = nil) throws -> RevisionComparisonSnapshot {
         try cancellation?.check()

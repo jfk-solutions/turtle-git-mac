@@ -1870,6 +1870,7 @@ import TurtleGitCore
     }
     private var activeFileMenu: FileMenuSnapshot?
     private var fileOperationToken: OperationCancellation?
+    private var primaryActivationGuiGeneration:UUID?
     @Published private(set) var fileOperationTitle = ""
     @Published private(set) var fileOperationCancelling = false
     func fileMenu(_ ids: some Sequence<String>, mark: String? = nil, orderedEntries: [StatusEntry]? = nil, gui: GuiFileListSnapshot? = nil) -> FileMenuSnapshot { let ids = GitPathSet(ids);
@@ -1944,11 +1945,16 @@ import TurtleGitCore
         let token = OperationCancellation(); fileOperationToken = token
         if primaryActivation {primaryActivationPending=true}
         busy = true; fileOperationCancelling = false; fileOperationTitle = title; Self.activeFileOperations += 1;pendingFileOperations += 1
-        if primaryActivation {primaryActivationForm=formRevision}
+        if primaryActivation {
+            primaryActivationForm=formRevision
+            // Publishing this operation's busy state retires GUI input
+            // receipts once. Subsequent pane changes must still cancel it.
+            primaryActivationGuiGeneration=guiFileListGeneration
+        }
         Task {
             defer {
                 Self.activeFileOperations -= 1;pendingFileOperations -= 1
-                if primaryActivation {primaryActivationPending=false;primaryActivationForm=nil}
+                if primaryActivation {primaryActivationPending=false;primaryActivationForm=nil;primaryActivationGuiGeneration=nil}
                 if fileOperationToken === token { fileOperationToken = nil; busy = false; fileOperationCancelling = false; fileOperationTitle = "" }
                 if primaryActivation,primaryActivationRefreshRequested {
                     primaryActivationRefreshRequested=false
@@ -2960,40 +2966,60 @@ import TurtleGitCore
     }
     func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
         guard !gitGuiInterface,fileListAvailable,receipt.revision==fileReportRevision else{return}
-        let ids=GitPathSet(receipt.paths),ordered=displayedFileEntries.filter{ids.contains($0.id)}
+        activateStatusFiles(receipt.paths,mark:receipt.path,alternate:receipt.alternate,mode:.primary)
+    }
+    private func activateStatusFiles(_ paths:some Sequence<String>,mark:String? = nil,alternate:Bool,mode:StatusListPrimaryActivationMode) {
+        guard fileListAvailable else{return}
+        let ids=GitPathSet(paths)
+        let ordered:[StatusEntry],snapshot:FileMenuSnapshot
+        if let menu=activeFileMenu,GitPathSet(menu.entries.map(\.id))==ids {
+            // Keep the originating staging pane's order, generation and mark.
+            // A generic menu would discard that pane's accepted receipt.
+            guard acceptsFileMenu(menu) else{return}
+            ordered=menu.entries;snapshot=menu
+        } else {
+            ordered=displayedFileEntries.filter{ids.contains($0.id)}
+            snapshot=fileMenu(ordered.map(\.id),mark:mark,orderedEntries:ordered)
+        }
         guard !ordered.isEmpty,ordered.count==ids.count else{return}
-        let snapshot=fileMenu(ordered.map(\.id),mark:receipt.path)
+        let presentation=gitGuiInterface
         if let launch=onPrimaryFileActivation,let parent=comparisonWindow {
-            let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:dialogDefaults,window:parent,amendToParent:amendToParent,alternateTool:receipt.alternate)
+            let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:dialogDefaults,window:parent,amendToParent:amendToParent,alternateTool:alternate)
             let rows=ordered.map {entry in StatusListPrimaryFile(entry:entry,isDirectory:fileMetadata[entry.id]?.isDirectory==true || submodules.contains(entry.id),isSubmodule:submodules.contains(entry.id) || statistics[entry.id]?.isSubmodule==true)}
+            let acceptedSelection=selection,acceptedGuiStaged=guiStaged
+            let records=entries.enumerated().compactMap{ids.contains($0.element.id) ? ($0.offset,$0.element,stagingState($0.element).rawValue):nil}
             withFileMenu(snapshot) {
                 runFileOperation("Preparing file comparison…",primaryActivation:true,operation:{[self] token,captured in
-                    guard let captured,let form=primaryActivationForm else{return}
-                    let selection=self.selection
-                    let records=entries.enumerated().compactMap{ids.contains($0.element.id) ? ($0.offset,$0.element):nil}
+                    guard let captured,let form=primaryActivationForm,let guiGeneration=primaryActivationGuiGeneration else{return}
                     let current:()->Bool = {[weak self,weak parent] in
-                        guard let self,let parent,self.comparisonWindow === parent,!self.gitGuiInterface,self.formRevision==form,self.selection==selection,
+                        guard let self,let parent,self.comparisonWindow === parent,self.gitGuiInterface==presentation,self.formRevision==form,self.selection==acceptedSelection,
+                              self.guiStaged==acceptedGuiStaged,
                               self.isFileOperationLive(token),!self.confirmingQuit,self.fileMenuGeneration==captured.generation,
+                              captured.guiList==nil || guiGeneration==self.guiFileListGeneration,
                               records.count==ordered.count else{return false}
                         // Poll only accepted rows, never rebuild an all-files
                         // dictionary on each cancellation-watcher tick.
-                        return records.allSatisfy{self.entries.indices.contains($0.0) && self.entries[$0.0]==$0.1}
+                        return records.allSatisfy{self.entries.indices.contains($0.0) && self.entries[$0.0]==$0.1 && self.stagingState($0.1).rawValue==$0.2}
                     }
-                    try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+                    try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,mode:mode,launch:launch)
                 })
             }
         } else {
             // Standalone consumers retain their configured legacy callbacks.
-            ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {
+            ComparisonToolInvocation.$alternate.withValue(alternate) {
                 withFileMenu(snapshot) {
-                    if ordered.count==1,let entry=ordered.first,entry.state == .conflicted {onResolve(.editConflict,[entry.path])}
-                    else {compare(paths:ordered.map(\.id))}
+                    if mode == .primary,ordered.count==1,let entry=ordered.first,entry.state == .conflicted {onResolve(.editConflict,[entry.path])}
+                    else {onCompare(ordered.map(\.path),amendToParent)}
                 }
             }
         }
     }
     func compare(paths selected: some Sequence<String>) { let selected = GitPathSet(selected);
         guard fileListAvailable else { return }
+        if onPrimaryFileActivation != nil,comparisonWindow != nil {
+            activateStatusFiles(selected,alternate:ComparisonToolInvocation.capture,mode:.compareWithBase)
+            return
+        }
         let paths = entries.filter { selected.contains($0.id) }.map(\.path)
         guard !paths.isEmpty else { return }; onCompare(paths, amendToParent)
     }

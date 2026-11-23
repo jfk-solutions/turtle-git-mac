@@ -4812,7 +4812,11 @@ private enum TransportBatchPresentationContext {
                         guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
                         try session.check()
                     }
-                    let snapshot=try await plan.repository.revisionFileComparison(from:plan.base,to:.workingTree,paths:[row.entry.path],cancellation:token)
+                    // The accepted status row owns its action and old operand.
+                    // A later whole-tree diff must not turn Added into Rename,
+                    // or a Deleted row into a recreated working-file preview.
+                    let intent=StatusListFileComparisonIntent(entry:row.entry,base:plan.base,isSubmodule:row.isSubmodule)
+                    let snapshot=try await plan.repository.statusListFileComparison(intent,cancellation:token)
                     try session.check()
                     guard snapshot.root==plan.repository.root else {throw RevisionComparisonFailure.selection}
                     presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,

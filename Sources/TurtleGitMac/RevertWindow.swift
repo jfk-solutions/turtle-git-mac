@@ -339,6 +339,10 @@ private final class RevertNativeWindow:NSWindow {
         guard canInteract,!ids.isEmpty else {return}
         let snapshot = commands.fileMenu(ids)
         guard snapshot.entries.count==ids.count else {return}
+        if onPrimaryFileActivation != nil {
+            commands.primaryFileAction(ids,mode:.compareWithBase)
+            return
+        }
         commands.withFileMenu(snapshot) {
             if let onCompare {onCompare(snapshot.entries.map(\.path))} else {commands.unifiedDiff(ids,alternate:ComparisonToolInvocation.capture)}
         }

@@ -647,7 +647,7 @@ final class StatusNativeWindow: NSWindow {
         guard receipt.revision==primaryActionRevision else{return}
         ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction(receipt.paths)}
     }
-    func primaryFileAction(_ ids:some Sequence<String>) {
+    func primaryFileAction(_ ids:some Sequence<String>,mode:StatusListPrimaryActivationMode = .primary) {
         let ids=GitPathSet(ids),snapshot=fileMenu(ids)
         guard !ids.isEmpty,snapshot.entries.count==ids.count else{return}
         if let launch=onPrimaryFileActivation,let parent=comparisonWindow {
@@ -666,12 +666,12 @@ final class StatusNativeWindow: NSWindow {
                               records.count==rows.count else{return false}
                         return records.allSatisfy{self.files.indices.contains($0.0) && self.files[$0.0].entry==$0.1}
                     }
-                    try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+                    try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,mode:mode,launch:launch)
                 })
             }
         } else {
             withFileMenu(snapshot) {
-                if snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {onAction(.editConflict,[entry.path])}
+                if mode == .primary,snapshot.entries.count==1,let entry=snapshot.entries.first,entry.state == .conflicted {onAction(.editConflict,[entry.path])}
                 else {onAction(.diff,snapshot.entries.map(\.path))}
             }
         }
@@ -680,6 +680,10 @@ final class StatusNativeWindow: NSWindow {
         let repository=self.repository.capturingDiffBackend(preferences:defaults)
         guard !retired, !busy, !confirmingQuit,actionOwnerAvailable() else { return }
         if !saving {
+            if onPrimaryFileActivation != nil,comparisonWindow != nil {
+                primaryFileAction(ids,mode:.compareWithBase)
+                return
+            }
             let snapshot=fileMenu(ids)
             guard !ids.isEmpty,snapshot.entries.count==ids.count else{return}
             withFileMenu(snapshot) {onAction(.diff,snapshot.entries.map(\.path))}
