@@ -7,6 +7,7 @@ private final class AddNativeWindow: NSWindow {
     var refresh: () -> Void = {}
     var accept: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let table=firstResponder as? AddNativeTable,table.performSelectedReturn(event) {return true}
         if event.specialKey == .f5 { refresh(); return true }
         if event.charactersIgnoringModifiers == "\r", !event.modifierFlags.intersection([.command, .control]).isEmpty { accept(); return true }
         return super.performKeyEquivalent(with: event)
@@ -34,6 +35,7 @@ private final class AddNativeWindow: NSWindow {
         window.contentViewController = NSHostingController(rootView: AddDialogView(model: model))
         window.setContentSize(NSSize(width: 760, height: 480))
         super.init(window: window); window.delegate = self; window.center()
+        model.primaryWindow=window
         model.close = { [weak window] in window?.close() }
         model.onOpen = { [weak model] path,action in _ = model?.requestOpen(path,action:action) }
         model.chooseSaveFile = { [weak self] path in await self?.chooseSave(path) }
@@ -156,12 +158,19 @@ private final class AddNativeWindow: NSWindow {
         alert.addButton(withTitle: "Abort"); alert.addButton(withTitle: "Restore")
         alert.beginSheetModal(for: window) { [weak model] response in _ = model?.finishRestoreConfirmation(accepted: response == .alertSecondButtonReturn) }
     }
-    func windowShouldClose(_ sender: NSWindow) -> Bool { if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
+    func windowShouldClose(_ sender: NSWindow) -> Bool { if model.primaryActivationPending {model.cancel();return false};if sender.attachedSheet != nil { return false }; if model.busy { model.cancel(); return false }; return !model.confirmingQuit }
     func windowWillClose(_ notification: Notification) {
         closing = true;cancelRevertQuestion?();filePanels.retire();model.invalidate();columnAlert = nil
         lfsOperation?.model.retire(); lfsOperation?.close(); lfsOperation = nil
         if let window, let sheet = window.attachedSheet { window.endSheet(sheet, returnCode: .abort); sheet.close() }
-        ignoreController?.close();ignoreController = nil;window?.contentViewController = nil;onClosed()
+        ignoreController?.close();ignoreController = nil;window?.contentViewController = nil
+        let closed=onClosed;onClosed={}
+        if model.primaryActivationPending {
+            Task { @MainActor [self] in
+                while model.primaryActivationPending {try? await Task.sleep(nanoseconds:5_000_000)}
+                closed()
+            }
+        } else {closed()}
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
 }
@@ -342,12 +351,56 @@ private final class AddNativeWindow: NSWindow {
     private var accepted = false
     var onPreview: (String) -> Void = { _ in }
     var onEditConflict: (String) -> Void = { _ in }
+    var onPrimaryFileActivation:StatusListPrimaryActivationSession.Launch?
+    var confirmPrimaryFileActivation:((Int) async -> Bool)?
+    weak var primaryWindow:NSWindow?
+    @Published private(set) var primaryActivationPending=false
+    private var primaryRefreshRequested=false
+    private var primaryCloseRequested=false
     func primaryFileAction(_ row:AddDialogEntry) {
+        if onPrimaryFileActivation != nil {primaryFileActions([row],alternate:ComparisonToolInvocation.capture);return}
         guard captureComparisonOwner(paths:[row.path])(),NSApp.modalWindow==nil,
             let current=entries.first(where:{$0.path.utf8.elementsEqual(row.path.utf8)}),
             current.state==row.state,current.status==row.status,current.isDirectory==row.isDirectory,
             current.size==row.size,current.modified==row.modified else{return}
         if current.state == .conflicted {onEditConflict(current.path)} else {onPreview(current.path)}
+    }
+    func primaryFileActions(_ rows:[AddDialogEntry],alternate:Bool) {
+        guard !retired,!accepted,!busy,!confirmingQuit,!unifiedViewerBusy(),!rows.isEmpty,
+              GitPathSet(rows.map(\.path)).count==rows.count,let parent=primaryWindow,parent.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+        guard let launch=onPrimaryFileActivation else {
+            if rows.count==1,let row=rows.first {primaryFileAction(row)}
+            return
+        }
+        let requested=GitPathSet(rows.map(\.path)),records=entries.enumerated().compactMap{requested.contains($0.element.path) ? ($0.offset,$0.element):nil}
+        func equal(_ a:AddDialogEntry,_ b:AddDialogEntry)->Bool {
+            a.path.utf8.elementsEqual(b.path.utf8) && a.status==b.status && a.state==b.state && a.isDirectory==b.isDirectory && a.size==b.size && a.modified==b.modified
+        }
+        guard records.count==rows.count,rows.allSatisfy({row in records.contains{equal($0.1,row)}}) else{return}
+        let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:defaults,window:parent,amendToParent:false,alternateTool:alternate)
+        let token=OperationCancellation();cancellation=token;primaryCloseRequested=false;primaryActivationPending=true;busy=true;Self.activeOperations += 1
+        let generation=fileMenuGeneration,selection=highlighted
+        let planRows=rows.map{StatusListPrimaryFile(entry:$0.status,isDirectory:$0.isDirectory,isSubmodule:false)}
+        Task { @MainActor [self] in
+            defer {
+                Self.activeOperations -= 1;primaryActivationPending=false
+                if cancellation === token {busy=false;cancellation=OperationCancellation()}
+                let requestedClose=primaryCloseRequested;primaryCloseRequested=false
+                if !retired,requestedClose {close()}
+                else if !retired,primaryRefreshRequested {primaryRefreshRequested=false;reload()}
+                withExtendedLifetime(access){}
+            }
+            let current:()->Bool = {[weak self,weak parent] in
+                guard let self,let parent,self.primaryWindow === parent,!self.retired,!self.accepted,!self.confirmingQuit,
+                      self.cancellation === token,!token.isCancelled,self.fileMenuGeneration==generation,self.highlighted==selection,
+                      !self.unifiedViewerBusy() else{return false}
+                return records.allSatisfy{self.entries.indices.contains($0.0) && equal(self.entries[$0.0],$0.1)}
+            }
+            do {
+                try validateAccess()
+                try await StatusListPrimaryActivationSession.run(rows:planRows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+            } catch {if current() {self.error=error.localizedDescription}}
+        }
     }
     var onCompare: ([String]) -> Void = { _ in }
     var onCompareTwo: ([String]) -> Void = { _ in }
@@ -626,6 +679,7 @@ private final class AddNativeWindow: NSWindow {
         highlighted.formIntersection(GitPathSet(entries.map(\.path)))
     }
     func reload() {
+        if primaryActivationPending,!retired {primaryRefreshRequested=true;return}
         guard !retired, !busy, !confirmingQuit else { return }; busy = true; cancellation = OperationCancellation()
         let token = cancellation
         readTask = performOperation { [self] in
@@ -635,6 +689,7 @@ private final class AddNativeWindow: NSWindow {
         }
     }
     func cancel() {
+        if !retired,primaryActivationPending {primaryCloseRequested=true;cancellation.cancel();return}
         if !retired,!confirmingQuit,pendingRevert != nil {cancelRevertConfirmation();return}
         guard !retired, !confirmingQuit, !ignoring, !lockingFiles, !resettingColumns, pendingDelete == nil, pendingRestore == nil, pendingRevert == nil, pendingFlags == nil else { return }
         if fileIOActive {cancellation.cancel();cancelFileChoice()}

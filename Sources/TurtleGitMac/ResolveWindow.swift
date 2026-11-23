@@ -38,6 +38,7 @@ import UniformTypeIdentifiers
         window.contentMinSize = quick == nil ? NSSize(width: 660, height: 340) : size
         window.isReleasedWhenClosed = false
         super.init(window: window); window.delegate = self
+        model.primaryWindow=window
         window.contentViewController = NSHostingController(rootView: ResolveDialog(model: model, commit: { [weak self] in self?.commit() }).defaultAppStorage(preferences))
         window.setContentSize(size); window.center()
         model.close = { [weak self] in self?.requestClose() }
@@ -177,7 +178,7 @@ import UniformTypeIdentifiers
             for sheet in sheets{await FileOperationWindowDrain.detach(sheet,parent:window)}
             if let window{await FileOperationWindowDrain.detach(window,parent:presentationParent)}
             presentationParent=nil
-            while model.busy || model.confirmingCancellation || model.reportResetActive || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
+            while model.busy || model.primaryActivationPending || model.confirmingCancellation || model.reportResetActive || progressFiles.busy{try? await Task.sleep(nanoseconds:5_000_000)}
             window?.contentViewController=nil
             onClosed()
             if finishing,!model.confirmingQuit,model.externalAvailability(){callback?()}
@@ -538,12 +539,49 @@ struct ResolveConflictRow: Identifiable {
     }
     func dismissSubmoduleReset() { guard active, hasChild, !busy else { return }; hasChild = false; showingProgress = false; load() }
     var primaryActionRevision:UUID {fileMenuEpoch}
+    var onPrimaryFileActivation:ConflictListPrimaryActivationSession.Launch?
+    var confirmPrimaryFileActivation:((Int) async -> Bool)?
+    weak var primaryWindow:NSWindow?
+    @Published private(set) var primaryActivationPending=false
     func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
         guard receipt.revision==primaryActionRevision,canInteract else{return}
+        if onPrimaryFileActivation != nil {activatePrimaryFiles(receipt.paths,alternate:receipt.alternate);return}
         let snapshot=fileMenu([receipt.path],markedPath:receipt.path)
         guard snapshot.entries.count==1 else{return}
         ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {
             withFileMenu(snapshot) {editOrCompare([receipt.path])}
+        }
+    }
+    func activatePrimaryFiles(_ paths:[String],alternate:Bool,expectedEntries:[ConflictEntry]?=nil) {
+        guard canInteract,!paths.isEmpty,let parent=primaryWindow,parent.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+        let ids=GitPathSet(paths),ordered=sortedReportEntries.filter{ids.contains($0.path)}
+        guard ids.count==paths.count,ordered.count==paths.count else{return}
+        if let expectedEntries {
+            let accepted=expectedEntries.filter{ids.contains($0.path)}
+            guard accepted==ordered else{return}
+        }
+        guard let launch=onPrimaryFileActivation else {
+            if ordered.count==1,let entry=ordered.first {ComparisonToolInvocation.$alternate.withValue(alternate){onEdit(entry.path)}}
+            return
+        }
+        let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:preferences,window:parent,amendToParent:false,alternateTool:alternate)
+        let acceptedRebase=rebase,selection=self.selection
+        let token=begin(),epoch=fileMenuEpoch,ownerGeneration=generation
+        let records=entries.enumerated().compactMap{ids.contains($0.element.path) ? ($0.offset,$0.element):nil}
+        primaryActivationPending=true
+        Task { @MainActor [self] in
+            defer {primaryActivationPending=false;finish(token);withExtendedLifetime(access){}}
+            let current:()->Bool = {[weak self,weak parent] in
+                guard let self,let parent,self.primaryWindow === parent,self.active,!self.confirmingQuit,!self.handoffPending,
+                      self.live(token),!token.isCancelled,self.generation==ownerGeneration,self.fileMenuEpoch==epoch,
+                      self.selection==selection,self.rebase==acceptedRebase,!self.hasQuestion,!self.hasChild,
+                      !self.showingProgress,self.externalAvailability() else{return false}
+                return records.count==ordered.count && records.allSatisfy{self.entries.indices.contains($0.0) && self.entries[$0.0]==$0.1}
+            }
+            do {
+                try checkAccess()
+                try await ConflictListPrimaryActivationSession.run(entries:ordered,intent:intent,isRebase:acceptedRebase,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+            } catch {if current() {self.error=error.localizedDescription}}
         }
     }
     func editOrCompare(_ values: some Sequence<String>) {
@@ -707,6 +745,7 @@ extension ResolveWindowModel {
 
 @MainActor private final class ResolveCommandWindow:NSWindow {
     override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if let table=firstResponder as? AddNativeTable,table.performSelectedReturn(event) {return true}
         guard let owner = delegate as? ResolveWindowController else {return super.performKeyEquivalent(with:event)}
         if owner.performCommandKey(event) {return true};return super.performKeyEquivalent(with:event)
     }
@@ -1105,6 +1144,7 @@ struct ConflictReportTable:NSViewRepresentable {
     let makeMenu:([String],String?,StatusListColumn?)->NSMenu
     let copySelection:([String],Bool)->Void
     let activate:(String,Bool)->Void
+    var activateSelection:(([String],Bool)->Void)?=nil
     var checkChanged:((String,Bool)->Void)?=nil
     var captureDrag:(([String])->WorkingFileListDrag?)?=nil
     var configureRefresh:((any FileListRefreshClient)->Void)?=nil
@@ -1152,6 +1192,10 @@ struct ConflictReportTable:NSViewRepresentable {
             updating=true;defer{updating=false}
             let contextChanged=owner.settings != value.settings || owner.available != value.available || owner.enabled != value.enabled || owner.sort != value.sort || owner.ascending != value.ascending || renderedRows.count != value.rows.count || zip(renderedRows,value.rows).contains{a,b in !a.path.utf8.elementsEqual(b.path.utf8) || a.text != b.text}
             owner=value;if contextChanged {contextEpoch=UUID()}
+            table.activateSelectedReturn = value.activateSelection == nil ? nil : {[weak self] alternate in
+                guard let self,self.isAvailable,self.table.numberOfRows==self.renderedRows.count else{return}
+                self.owner.activateSelection?(self.selectedPaths,alternate)
+            }
             let visible=value.settings.order.filter{value.settings.visible.contains($0) && value.available.contains($0)}
             let desired=(value.hasCheckboxes ? ["check"]:[])+value.settings.order.filter{value.available.contains($0)}.map(\.rawValue)
             for existing in table.tableColumns where !desired.contains(existing.identifier.rawValue) {table.removeTableColumn(existing)}
@@ -1308,13 +1352,20 @@ struct ConflictReportTable:NSViewRepresentable {
             Task{[self] in await FileOperationWindowDrain.detach(request.alert.window,parent:parent);request.reply(accepted && !retired)}
         }
         func retireListPresentation(){retire()}
-        func retire(){guard !retired else{return};retired=true;if let question=resetQuestion {finishColumnReset(question.id,accepted:false)};cancelListPosition();contextEpoch=UUID();table.selectionMenuAvailable={false};table.contextSelection={_,_ in};table.focusedRow={nil};table.focusMoved={_ in};table.toggleChecks={};table.copySelection={_ in};table.menu=nil;table.headerView?.menu=nil;table.target=nil;if drag==nil {table.delegate=nil;table.dataSource=nil};NativeListSelection.remove(from:table)}
+        func retire(){guard !retired else{return};retired=true;if let question=resetQuestion {finishColumnReset(question.id,accepted:false)};cancelListPosition();contextEpoch=UUID();table.activateSelectedReturn=nil;table.selectionMenuAvailable={false};table.contextSelection={_,_ in};table.focusedRow={nil};table.focusMoved={_ in};table.toggleChecks={};table.copySelection={_ in};table.menu=nil;table.headerView?.menu=nil;table.target=nil;if drag==nil {table.delegate=nil;table.dataSource=nil};NativeListSelection.remove(from:table)}
     }
 }
 
 private struct ResolveConflictReport:View {
     @ObservedObject var model:ResolveWindowModel
     var body:some View {
-        ConflictReportTable(rows:model.sortedReportEntries.map{entry in ConflictReportRow(path:entry.path,text:Dictionary(uniqueKeysWithValues:StatusListColumn.allCases.map{($0,model.reportText(entry,column:$0))}),checked:model.checked.contains(entry.path),color:NSColor(FileState.conflicted.textColor),tooltip:RepositoryPresentationSettings(defaults:model.preferences).fileTooltip(repository:model.repository.root,path:entry.path))},selection:model.selection,settings:model.reportColumns,available:model.availableReportColumns,sort:model.reportSort,ascending:model.reportAscending,enabled:model.canInteract,preferences:model.preferences,hasCheckboxes:true,ownerRetired:!model.active,focusedPath:model.focusedFilePath,selectionChanged:{model.selection=$0;model.focusedFilePath=$1},sortChanged:model.sortReport,layoutChanged:model.saveReportLayout,columnChanged:model.setReportColumn,resetColumns:model.resetReportColumns,makeMenu:model.reportMenu,copySelection:{paths,status in model.copyFileMenu(model.fileMenu(paths),copy:status ? .pathsAndStatus:.relativePaths)},activate:{path,alternate in model.activatePrimaryFile(StatusListPrimaryActionReceipt(path:path,revision:model.primaryActionRevision,alternate:alternate))},checkChanged:model.setFileChecked,configureRefresh:{model.reportRefresh.attach($0)})
+        let primaryRevision=model.primaryActionRevision,primaryEntries=model.sortedReportEntries
+        ConflictReportTable(rows:model.sortedReportEntries.map{entry in ConflictReportRow(path:entry.path,text:Dictionary(uniqueKeysWithValues:StatusListColumn.allCases.map{($0,model.reportText(entry,column:$0))}),checked:model.checked.contains(entry.path),color:NSColor(FileState.conflicted.textColor),tooltip:RepositoryPresentationSettings(defaults:model.preferences).fileTooltip(repository:model.repository.root,path:entry.path))},selection:model.selection,settings:model.reportColumns,available:model.availableReportColumns,sort:model.reportSort,ascending:model.reportAscending,enabled:model.canInteract,preferences:model.preferences,hasCheckboxes:true,ownerRetired:!model.active,focusedPath:model.focusedFilePath,selectionChanged:{model.selection=$0;model.focusedFilePath=$1},sortChanged:model.sortReport,layoutChanged:model.saveReportLayout,columnChanged:model.setReportColumn,resetColumns:model.resetReportColumns,makeMenu:model.reportMenu,copySelection:{paths,status in model.copyFileMenu(model.fileMenu(paths),copy:status ? .pathsAndStatus:.relativePaths)},activate:{path,alternate in
+            guard model.primaryActionRevision==primaryRevision,primaryEntries.filter({GitReferenceName.equal($0.path,path)})==model.sortedReportEntries.filter({GitReferenceName.equal($0.path,path)}) else{return}
+            model.activatePrimaryFile(StatusListPrimaryActionReceipt(path:path,revision:primaryRevision,alternate:alternate))
+        },activateSelection:{paths,alternate in
+            guard model.primaryActionRevision==primaryRevision else{return}
+            model.activatePrimaryFiles(paths,alternate:alternate,expectedEntries:primaryEntries)
+        },checkChanged:model.setFileChecked,configureRefresh:{model.reportRefresh.attach($0)})
     }
 }

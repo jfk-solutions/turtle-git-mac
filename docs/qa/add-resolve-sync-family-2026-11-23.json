@@ -1,0 +1,174 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T01:43:50.298159+00:00",
+  "status": "Scoped Add/Resolve/Sync workflow checkpoint passed; whole port incomplete",
+  "sourceBase": "114eb8080060e8f769a47afc3d92b4fbb68a13ea",
+  "sourceDirtyDuringValidation": true,
+  "sourceSHA256": {
+    "Sources/TurtleGitMac/AddFileTable.swift": "31eab309c741128ac2bcffe309f863372e1355359abdc410f88e9b9d99899fc0",
+    "Sources/TurtleGitMac/AddWindow.swift": "bb196d823b9db5d2d7339670cd4f70f56fc66996020a0cdd52f6a67e1c5dda6d",
+    "Sources/TurtleGitMac/ConflictListPrimaryActivation.swift": "9a646f9719f9763558d02be18928d9064db1c73ec275ffea95f6bf0fe7c92b42",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "fe87ddbf06ead567366b88695af4e263367879c43ecc21c5a63607fb4feee227",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "569d20bc6ae8e3233a1e886616622ad583534f9a52d5e5ba91d42afb3cd5fb47",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist": "5448759c81ca965dcc8b0421cc090f5345bb4fbb8a8e523787d42d666ab3aa06",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html": "73f86696b2f004a0e7e6c74f30acef647ea0dffcce044027e4794a8caf7da4a4",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html": "373d63efcd80762a6285484e67b24be624ddb57a580b8c400c3787ef56155959",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json": "e5ed96caa57dc6e42fc0551153b49ada4020145d3104df4149e4d0a626b7e29f",
+    "Sources/TurtleGitMac/RevisionComparisonWindow.swift": "dc3bfc80123007533cec0aa565a6b15cac032d290e673a97d0d7ab73d38472fb",
+    "Sources/TurtleGitMac/SynchronizationFileList.swift": "99d7267987620dee8197239d210cd85149ea65b29b28f05cdcff3c0aff4aaf36",
+    "Sources/TurtleGitMac/SynchronizationWindow.swift": "5909784a9e558f2d92fa6ba48bf5ec859c34764ad3b0d13cd4144e85f9114566",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "ffca521badc2050bc1e11d841a07b25c72f4c3c8a53e6e4c1fa4d046cd3c8dc3",
+    "docs/ADD-RESOLVE-PRIMARY-PARITY.md": "3b8f5584bf1ebfbed532558a600cea69fbfa47bd69365882398db716163fe797",
+    "docs/DIALOG-GUIDE.md": "9ee5fce8ff97748bba615753d17fe599f292c5ad0e18c11f2cdcb926c505bad0",
+    "docs/GETTING-STARTED.md": "3e297775dd31d14c49cb492df14c927ddd673a7c50d01c27a03703faedb34b4b",
+    "docs/SYNC-PRIMARY-ACTIVATION-PARITY.md": "c79ea8eefe866ec953c87c6e89208457b105b85869982097e41444e7095b110c",
+    "docs/qa/add-resolve-primary-native-2026-11-23.swift": "9b711f0a5d3fbaf2becc78c5f03785e6430afe8d56481e7783535c59ae3b15e1",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "126d72a66ddff5cffd86d50f3739acdc2017766739199b83fa42cd781ff41ce1",
+    "docs/qa/sync-primary-activation-native-2026-11-23.swift": "2d3c8a1dfda426c1677a1ef1006300bbe1aea9eea4dbec0c2fa5ca61c22eae92",
+    "scripts/test-status-primary-activation.py": "91f4a1d44ee7124b638e6a360248f73006e3bf2a3a668a50153ed8399b080212"
+  },
+  "isolation": {
+    "checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "metafileWorkExcluded": true,
+    "protectedUnrelatedWorkUnchanged": true,
+    "installedApplication": "Build52 unchanged (Info.plist read confirmed)",
+    "frozenSigned54": "Not modified or replaced",
+    "nativePresentation": "Private repositories/preferences/pasteboards; invisible/offscreen windows and injected child viewers"
+  },
+  "implementation": [
+    "Add and Resolve selected Return/keypad Enter preserve display order; clicked double-action uses pointed row; checkbox and default acceptance remain separate",
+    "Add ordered mixed status/current-file/conflict intent and actual Root handoff; explicit menu Compare retains separate selection contract",
+    "Resolve/Sync use actual ConflictEntry stages, captured rebase orientation/backend/settings, one warning, exact-stage and post-read orientation checks before Root editor handoff",
+    "Source workers retain operation counters through warning, reads and paired sheet drainage; forced close and Quit await actual acknowledgement",
+    "Source cancellation stops later selected viewers; stale intent and child progress Cancel leave Add source open; source Cancel requests close; refresh is deferred",
+    "Sync incoming/outgoing warning and launch ownership captures tab/form/snapshot/selection/order/settings while admitting its own busy and newly launched viewer hierarchy",
+    "Exact native event/window/focus/visibility guards and bold/icon default Compare menu; included guides and bundled Help updated"
+  ],
+  "app": {
+    "exitCode": 0,
+    "command": "xcodebuild -quiet -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build CODE_SIGNING_ALLOWED=NO build",
+    "log": "build/add-resolve-sync-app-build.log",
+    "scope": "Unsigned native arm64 Debug build; no Intel/signed sandbox/Store execution claim",
+    "builds": 1
+  },
+  "core": {
+    "run": false,
+    "reason": "No Core source change in this app workflow family; previous passing Core check not repeated"
+  },
+  "native": {
+    "system": {
+      "passedCohorts": [
+        "legacy",
+        "status",
+        "log",
+        "add-resolve",
+        "sync"
+      ],
+      "initialPassingCohortsLog": "build/add-resolve-sync-native-initial.log",
+      "focusedSyncCommand": "python3 scripts/test-status-primary-activation.py --only sync --git /usr/bin/git",
+      "focusedSyncLog": "build/add-resolve-sync-native-system-ready.log",
+      "focusedSyncExitCode": 0,
+      "note": "First four scopes passed before initial Sync failure; they were not repeated on system Git"
+    },
+    "bundled": {
+      "command": "python3 scripts/test-status-primary-activation.py --git build/git-runtime/Git/bin/git",
+      "log": "build/add-resolve-sync-native-bundled.log",
+      "exitCode": 0,
+      "passedCohorts": [
+        "legacy",
+        "status",
+        "log",
+        "add-resolve",
+        "sync"
+      ]
+    },
+    "priorFailures": [
+      {
+        "log": "build/add-resolve-sync-native-initial.log",
+        "exitCode": 1,
+        "assertion": "Native Sync revision table absent",
+        "finding": "Fixture had no tracking remote for real Out Changelist tab admission",
+        "repair": "Create private bare origin at base; fetch and set upstream before changed commit; retain real projection/native table assertions"
+      },
+      {
+        "log": "build/add-resolve-sync-native-system-repair.log",
+        "exitCode": 1,
+        "assertion": "Actual outgoing projection did not admit four-row Out Changelist",
+        "finding": "Idle predicate admitted initial model before SwiftUI onAppear started initial reload; retained failed repository confirmed tracking and four-path Git diff",
+        "repair": "Await actual outgoing/error publication plus idle/drained; retain exact four-row/native checks; add detailed model diagnostics"
+      }
+    ],
+    "productionChangedAfterBuild": false,
+    "assertionsRemoved": false
+  },
+  "resources": {
+    "localizations": {
+      "write": 0,
+      "check": 0,
+      "languages": 38,
+      "keys": 1392
+    },
+    "help": {
+      "write": 0,
+      "check": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 98
+    },
+    "coverage": {
+      "exitCode": 0,
+      "partialAudits": 120,
+      "pendingDialogReviews": 10,
+      "certifiedComplete": 0
+    }
+  },
+  "evidence": [
+    {
+      "path": "build/add-resolve-sync-app-build.log",
+      "sha256": "d6fbc6a6f6d2cddff66e784ac62e74827cf67be12441da80c32b5866954622d2",
+      "bytes": 116018
+    },
+    {
+      "path": "build/add-resolve-sync-native-initial.log",
+      "sha256": "faeacd9c24586c5cfd575ae7c3d1017fcde54425597c8277016d463115e3a822",
+      "bytes": 3464
+    },
+    {
+      "path": "build/add-resolve-sync-native-system-repair.log",
+      "sha256": "a8d1eb3e336d0816a433a2e14f8e27c4518c32e843bc2d0cd9797f309f70e8dc",
+      "bytes": 2606
+    },
+    {
+      "path": "build/add-resolve-sync-native-system-ready.log",
+      "sha256": "d1bb7566651bac5e58323ccf557955929781d188f9412b887237f93319c9218f",
+      "bytes": 1818
+    },
+    {
+      "path": "build/add-resolve-sync-native-bundled.log",
+      "sha256": "2056485dea89db2a0e251b3f0d0c75fc9ec2ee33de8a316cc1640acd345de653",
+      "bytes": 1845
+    }
+  ],
+  "cleanup": {
+    "loggedOwnedPIDs": [
+      2819,
+      2824,
+      2832,
+      4274,
+      4282,
+      4665,
+      4673,
+      4987
+    ],
+    "liveLoggedOwnedPIDs": [],
+    "nativeWindowsAndCounters": "Final receiver assertions passed; actual Root warning/progress sheets paired and drained; runner helper cleanup verified"
+  },
+  "remaining": [
+    "Full TortoiseGit dialog/control and physical visual parity audit",
+    "Hosted CI for final committed source and unresolved older assertion failures",
+    "Physical Finder integration and external tools beyond previously confirmed build38 behavior",
+    "Fresh signed deployment/testing and eventual App Store distribution",
+    "Unfinished EMF+ high-quality affine rendering; separate WIP and failed numerical checkpoint retained",
+    "Every mixed conflict/tree/submodule combination and every Sync tab outside this file-activation family"
+  ]
+}

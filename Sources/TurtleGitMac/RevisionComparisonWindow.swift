@@ -231,7 +231,8 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
     private var inputTask: Task<Void, Never>?
     private var inputGeneration = UUID()
     var pickHistory: (ComparisonSide, Bool) -> Void = { _, _ in }
-    @Published var snapshot: RevisionComparisonSnapshot? { didSet { invalidateFileMenus() } }
+    private(set) var snapshotRevision=UUID()
+    @Published var snapshot: RevisionComparisonSnapshot? { didSet { snapshotRevision=UUID();invalidateFileMenus() } }
     private var selectedPaths = GitPathSet()
     @Published var nativeSelection = Set<String>() {
         didSet {
@@ -474,10 +475,10 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         let revision: String? = { if case .revision(let value) = snapshot.to { return value }; return nil }()
         for file in visibleFiles where ids.contains(file.path) { onFileLog(file.path, revision) }
     }
-    private func runFiles(_ files: [CommitFile], operation: @escaping (OperationCancellation) async -> Void) {
-        guard !closed, !busy, !confirmingQuit, !files.isEmpty else { return }
+    private func runFiles(_ files: [CommitFile], ownerIsCurrent: @escaping () -> Bool = { true }, operation: @escaping (OperationCancellation) async -> Void) {
+        guard !closed, !busy, !confirmingQuit, !files.isEmpty, ownerIsCurrent() else { return }
         let request = UUID(), session = FileListComparisonSession(window: window, preferences: preferences, alternateTool: alternateTool)
-        session.confirmation = confirmManyDiffs; comparisonSessions[request] = session
+        session.confirmation = confirmManyDiffs; session.isOwnerCurrent = ownerIsCurrent; comparisonSessions[request] = session
         patchTokens[request] = session.cancellation; busy = true; Self.activeFileOperations += 1
         Task {
             defer { Self.activeFileOperations -= 1; comparisonSessions.removeValue(forKey: request); patchTokens.removeValue(forKey: request); if !closed { busy = false }; withExtendedLifetime(access) {} }
@@ -499,25 +500,28 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         result.append(contentsOf:files.filter {!seen.contains($0.path)})
         return result
     }
-    func compare(_ ids: some Sequence<String>, orderedPaths:[String]?=nil) {
+    func compare(_ ids: some Sequence<String>, orderedPaths:[String]?=nil, ownerIsCurrent:@escaping()->Bool = {true}) {
+        let repository=self.repository.capturingDiffBackend(preferences:preferences)
+        let backend=repository.libgit2Configuration
+        let backendKey="backend:\(backend?.enabled ?? true):\(backend?.mask ?? GitLibGit2Configuration.defaultMask):\(backend?.helperURL?.path ?? "")"
         let ids = GitPathSet(ids)
         guard !closed, !busy, !confirmingQuit, let snapshot else { return }
         let files = orderedComparisonFiles(visibleFiles.filter { ids.contains($0.path) },paths:orderedPaths)
-        runFiles(files) { [self] token in
+        runFiles(files,ownerIsCurrent:ownerIsCurrent) { [self] token in
         for file in files {
-            guard !closed, !token.isCancelled else { return }
+            guard !closed, !token.isCancelled, ownerIsCurrent() else { token.cancel(); return }
             if let openComparedFile { openComparedFile(snapshot, file); continue }
             if file.isSubmodule { onSubmoduleCompare(file.path, file.oldPath, snapshot.from, snapshot.to); continue }
             // GitPathMap already preserves exact UTF-8 key bytes. Include the
             // rename source and absence role too: the same destination/endpoints
             // can acquire a different preimage in a refreshed embedded list.
-            let key = file.path + "\0" + (file.oldPath.map { "old-path:present:"+$0 } ?? "old-path:absent") + "\0" + file.action + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey
+            let key = file.path + "\0" + (file.oldPath.map { "old-path:present:"+$0 } ?? "old-path:absent") + "\0" + file.action + "\0" + snapshot.from.label + "\0" + snapshot.to.label + "\0" + ComparisonToolInvocation.cacheKey + "\0" + backendKey
             let existing=comparisonWindows[key]
             if let existing,existing.model.inputEncodingOwnerRetired {
                 retiringComparisonWindows[ObjectIdentifier(existing)]=existing
             }
             let reusable=existing.flatMap{$0.model.inputEncodingOwnerRetired ? nil:$0}
-            let controller = reusable ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path)
+            let controller = reusable ?? FileComparisonWindowController(repository: repository, access: access, snapshot: snapshot, path: file.path,preferences:preferences)
             controller.onClosed = { [weak self,weak controller] in
                 guard let self,let controller else{return}
                 self.retiringComparisonWindows.removeValue(forKey:ObjectIdentifier(controller))
@@ -570,21 +574,21 @@ enum ComparisonSide: String, Identifiable { case base, destination; var id: Stri
         }
         controller.showWindow(nil); controller.window?.makeKeyAndOrderFront(nil); updatePatch()
     }
-    func showPatch(_ ids: some Sequence<String>, alternate: Bool, orderedPaths:[String]?=nil) {
+    func showPatch(_ ids: some Sequence<String>, alternate: Bool, orderedPaths:[String]?=nil, ownerIsCurrent:@escaping()->Bool = {true}) {
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
         let ids = GitPathSet(ids)
         guard !closed, !busy, !confirmingQuit, let snapshot, !unifiedWindows.values.contains(where: { $0.model.busy }) else { return }
         let files = orderedComparisonFiles(visibleFiles.filter { ids.contains($0.path) },paths:orderedPaths)
         guard !files.isEmpty else { return }
-        runFiles(files) { [self] token in
+        runFiles(files,ownerIsCurrent:ownerIsCurrent) { [self] token in
             var failures: [String] = []
             for file in files {
-                guard !closed, !token.isCancelled else { return }
+                guard !closed, !token.isCancelled, ownerIsCurrent() else { token.cancel(); return }
                 do {
                     try checkPatchAccess()
                     let bytes = try await repository.revisionComparisonPatchData(snapshot, paths: [file.path], cancellation: token)
-                    guard !closed, !token.isCancelled else { return }
-                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))", permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled {
+                    guard !closed, !token.isCancelled, ownerIsCurrent() else { token.cancel(); return }
+                    if try await !UnifiedDiffApplication.openExternal(bytes, alternate: alternate, preferences: preferences, title: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))", permissions: access.map { [$0] } ?? [], cancellation: token), !closed, !token.isCancelled, ownerIsCurrent() {
                         let controller = unifiedWindows[file.path] ?? PatchWindowController(repository: repository, access: access, preferences:preferences)
                         controller.presentDocument(bytes, title: "\(file.displayPath) – Unified Diff – TurtleGit",
                             comparison: "\(snapshot.from.label.prefix(12)) → \(snapshot.to.label.prefix(12))",

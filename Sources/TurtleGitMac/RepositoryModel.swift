@@ -2575,12 +2575,12 @@ private enum TransportBatchPresentationContext {
     }
     /// Acknowledges preparation and accepted launch after the progress sheet has
     /// drained. Native editors retain their own lifetime; launch is not resolution.
-    func showOwnedConflictEditor(repository:GitRepository,access:RepositoryAccessLease?,path:String,owner:NSWindow,preferences:UserDefaults,alternateTool:Bool,cancellation:OperationCancellation,ownerIsCurrent:@escaping ()->Bool,mergeTools:MergeToolPreferences?=nil,identityOptions:ConflictIdentityOptions?=nil) async throws -> ConflictEditorLaunchResult {
+    func showOwnedConflictEditor(repository:GitRepository,access:RepositoryAccessLease?,path:String,owner:NSWindow,preferences:UserDefaults,alternateTool:Bool,cancellation:OperationCancellation,ownerIsCurrent:@escaping ()->Bool,mergeTools:MergeToolPreferences?=nil,identityOptions:ConflictIdentityOptions?=nil,expectedEntry:ConflictEntry?=nil,expectedRebase:Bool?=nil) async throws -> ConflictEditorLaunchResult {
         try cancellation.check()
         guard let request=beginConflictEditorLaunch(repository:repository,path:path,owner:owner,preferences:preferences,alternate:alternateTool,cancellation:cancellation,ownerIsCurrent:ownerIsCurrent,mergeTools:mergeTools,identityOptions:identityOptions) else{return .notAdmitted}
-        return try await runConflictEditor(repository:repository,access:access,path:path,owner:owner,request:request)
+        return try await runConflictEditor(repository:repository,access:access,path:path,owner:owner,request:request,expectedEntry:expectedEntry,expectedRebase:expectedRebase)
     }
-    private func runConflictEditor(repository:GitRepository,access:RepositoryAccessLease?,path:String,owner:NSWindow?,request:ConflictEditorLaunch) async throws -> ConflictEditorLaunchResult {
+    private func runConflictEditor(repository:GitRepository,access:RepositoryAccessLease?,path:String,owner:NSWindow?,request:ConflictEditorLaunch,expectedEntry:ConflictEntry?=nil,expectedRebase:Bool?=nil) async throws -> ConflictEditorLaunchResult {
         let key=repository.root.path+"\0"+path,defaults=request.preferences,tools=request.tools,identities=request.identityOptions
         let alternate=request.session.alternateTool,external=openExternalConflict,readEntry=readConflictEditorEntry
         var result=ConflictEditorLaunchResult.notAdmitted
@@ -2596,6 +2596,14 @@ private enum TransportBatchPresentationContext {
                     if let readEntry { entry = try await readEntry(repository, path, token) }
                     else { entry = try await repository.conflictEditorEntry(path: path, cancellation: token) }
                     guard GitReferenceName.equal(entry.path,path) else { throw ResolveFailure.stale }; try token.check()
+                    if let expectedEntry,entry != expectedEntry {throw ResolveFailure.stale}
+                    // Stage reads can suspend while the repository changes
+                    // operation. Retain the accepted ours/theirs orientation
+                    // as well as object identities before editor handoff.
+                    if let expectedRebase {
+                        guard try await repository.conflictIsRebase(cancellation:token)==expectedRebase else{throw ResolveFailure.stale}
+                        try request.session.check()
+                    }
                 if entry.isDeleteModify {
                     try await validateConflictEditorEntry(entry, repository: repository, token: token)
                     await request.dismissProgressAndWait(); try request.session.check()
@@ -2746,6 +2754,10 @@ private enum TransportBatchPresentationContext {
         rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() };refreshRepositoryLogs(root)
     }
     private func configureResolveInteractions(_ controller:ResolveWindowController,repository:GitRepository,access:RepositoryAccessLease?,preferences defaults:UserDefaults) {
+        controller.model.onPrimaryFileActivation = CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else{throw OperationCancellationFailure.cancelled}
+            try await self.showConflictListPrimaryFiles(plan,access:access,cancellation:token)
+        }
         let root=repository.root
         controller.onChanged = CommandProgressContext.capture { [weak self] output in
             self?.refreshAfterConflictChange(root,preferences:defaults)
@@ -2907,6 +2919,10 @@ private enum TransportBatchPresentationContext {
                 controller.model.onLFSChanged = CommandProgressContext.capture { [weak self] in
                     self?.refreshStatusWindows(repository.root); self?.commitWindows.allValues(forKey: key).forEach { $0.model.reload() }
                     if let self, self.root == repository.root { Task { await self.refresh() } }
+                }
+                controller.model.onPrimaryFileActivation = CommandProgressContext.capture { [weak self] plan,token in
+                    guard let self else{throw OperationCancellationFailure.cancelled}
+                    try await self.showStatusListPrimaryFiles(plan,access:access,cancellation:token)
                 }
                 controller.model.onEditConflict = CommandProgressContext.capture { [weak self, weak controller] path in
                     guard let controller, !controller.model.retired, !controller.model.busy, !controller.model.confirmingQuit, let owner = controller.window else { return }
@@ -3331,6 +3347,10 @@ private enum TransportBatchPresentationContext {
             }
         }
         controller.model.onResolve = CommandProgressContext.capture { [weak self] paths in self?.showResolve(repository: repository, access: access, paths: paths, quick: nil) }
+        controller.model.onPrimaryConflictActivation = CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else{throw OperationCancellationFailure.cancelled}
+            try await self.showConflictListPrimaryFiles(plan,access:access,cancellation:token)
+        }
         controller.configureConflictResolution = CommandProgressContext.capture { [weak self] child in
             self?.configureResolveInteractions(child,repository:child.model.repository,access:access,preferences:child.model.preferences)
         }
@@ -4703,8 +4723,9 @@ private enum TransportBatchPresentationContext {
                     case .conflict(let file):
                         guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
                         try session.check()
-                        _ = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:file.path,owner:plan.window,preferences:plan.preferences,
-                            alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity)
+                        let result = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:file.path,owner:plan.window,preferences:plan.preferences,
+                            alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity,expectedRebase:plan.isRebase)
+                        guard result != .notAdmitted else{throw OperationCancellationFailure.cancelled}
                     case .comparison(let file,let from,let to):
                         let snapshot=try await plan.repository.revisionFileComparison(from:from,to:to,paths:[file.path],cancellation:token)
                         try session.check()
@@ -4756,9 +4777,10 @@ private enum TransportBatchPresentationContext {
                 case .conflict(let row):
                     guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else {throw ResolveFailure.stale}
                     try session.check()
-                    _ = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:row.entry.path,owner:plan.window,
+                    let result = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:row.entry.path,owner:plan.window,
                         preferences:plan.preferences,alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,
-                        mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity)
+                        mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity,expectedRebase:plan.isRebase)
+                    guard result != .notAdmitted else{throw OperationCancellationFailure.cancelled}
                 case .comparison(let row):
                     let snapshot=try await plan.repository.revisionFileComparison(from:plan.base,to:.workingTree,paths:[row.entry.path],cancellation:token)
                     try session.check()
@@ -4785,6 +4807,28 @@ private enum TransportBatchPresentationContext {
                     }
                 case .skipMissing:continue
                 }
+            }
+        }
+    }
+    /// Resolve and Sync supply the actual stage records accepted before their
+    /// warning. Cancelling a single preparation retires the remaining batch.
+    func showConflictListPrimaryFiles(_ plan:ConflictListPrimaryActivation,access:RepositoryAccessLease?,cancellation:OperationCancellation) async throws {
+        guard !retired,!confirmingQuit,plan.ownerIsCurrent() else{throw OperationCancellationFailure.cancelled}
+        let id=UUID(),token=OperationCancellation(parent:cancellation)
+        let session=FileListComparisonSession(window:plan.window,preferences:plan.preferences,cancellation:token,alternateTool:plan.alternateTool)
+        session.isOwnerCurrent={[weak self] in self?.retired==false && self?.confirmingQuit==false && plan.ownerIsCurrent()}
+        fileComparisonSessions[id]=session
+        defer{fileComparisonSessions.removeValue(forKey:id);withExtendedLifetime(access){}}
+        try await session.run(selectedCount:0) { [self] token in
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(plan.repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+            for entry in plan.entries {
+                try session.check()
+                guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
+                try session.check()
+                let result=try await showOwnedConflictEditor(repository:plan.repository,access:access,path:entry.path,owner:plan.window,
+                    preferences:plan.preferences,alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,
+                    mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity,expectedEntry:entry,expectedRebase:plan.isRebase)
+                guard result != .notAdmitted else{throw OperationCancellationFailure.cancelled}
             }
         }
     }

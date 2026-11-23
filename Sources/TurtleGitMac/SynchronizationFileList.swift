@@ -18,7 +18,7 @@ import TurtleGitCore
     let preferences:UserDefaults
     let columnsKey:String
     static let availableColumns=StatusListColumn.defaultColumns
-    @Published var selection=GitPathSet() {didSet {if selection != oldValue {epoch=UUID();owner?.objectWillChange.send()}}}
+    @Published var selection=GitPathSet() {didSet {if selection != oldValue {epoch=UUID();selectionRevision=UUID();owner?.objectWillChange.send()}}}
     @Published private(set) var columns:StatusListColumnSettings
     @Published private(set) var sortColumn:StatusListColumn?
     @Published private(set) var ascending=true
@@ -26,6 +26,7 @@ import TurtleGitCore
     @Published private(set) var autoFitGeneration=UUID()
     private(set) var hasPendingQuestion=false
     var menuEpoch:UUID {epoch}
+    private var selectionRevision=UUID()
     private var epoch=UUID(),observation:AnyCancellable?,childObservation:AnyCancellable?
     private var resetRequest:UUID?,resetAlert:NSAlert?,resetReply:((NSApplication.ModalResponse)->Void)?
     private var retired=false
@@ -119,12 +120,23 @@ import TurtleGitCore
         return FileListDrag.itemWriter(repository:child.repository,access:child.access,plan:plan,itemAt:0)
     }
     func compare(_ receipt:Receipt,unified:Bool,alternate:Bool) {
-        guard claim(receipt),let child=comparison else{return}
+        guard claim(receipt),let owner,let child=comparison,let window=owner.window else{return}
+        let sourceIsCurrent=owner.comparisonActivationOwner(child,tab:tab)
+        let sourceSelection=selectionRevision
+        let snapshot=child.snapshot,sourceRevision=child.snapshotRevision,sourceSort=sortColumn,sourceAscending=ascending
+        let intent=StatusListPrimaryActivationSession.Intent(repository:child.repository,preferences:preferences,window:window,amendToParent:false,alternateTool:alternate)
+        let isCurrent:()->Bool = {[weak self,weak child] in
+            guard let self,let child else{return false}
+            return !self.retired && sourceIsCurrent() && intent.settingsCurrent && self.selectionRevision==sourceSelection &&
+                self.sortColumn==sourceSort && self.ascending==sourceAscending &&
+                child.snapshotRevision==sourceRevision && child.snapshot?.from==snapshot?.from && child.snapshot?.to==snapshot?.to &&
+                !child.closed && !child.confirmingQuit
+        }
         child.error=nil
         let paths=receipt.files.map(\.path)
         ComparisonToolInvocation.$alternate.withValue(alternate) {
-            if unified {child.showPatch(paths,alternate:alternate,orderedPaths:paths)}
-            else {child.compare(paths,orderedPaths:paths)}
+            if unified {child.showPatch(paths,alternate:alternate,orderedPaths:paths,ownerIsCurrent:isCurrent)}
+            else {child.compare(paths,orderedPaths:paths,ownerIsCurrent:isCurrent)}
         }
     }
     func copy(_ receipt:Receipt,information:StatusListCopy) {
@@ -185,7 +197,7 @@ import TurtleGitCore
     var presentSelectionMenu:(NSMenu,NSPoint,NSView)->Void = {menu,point,view in menu.popUp(positioning:nil,at:point,in:view)}
     private(set) var retired=false
     var keyOwnerQuery:(NSWindow)->Bool = {$0.isKeyWindow}
-    private var keyboardOwnerAvailable:Bool {guard !retired,let window else{return false};return window.firstResponder === self && keyOwnerQuery(window) && window.attachedSheet==nil && NSApp.modalWindow==nil}
+    private var keyboardOwnerAvailable:Bool {guard !retired,let window else{return false};return window.isVisible && !isHiddenOrHasHiddenAncestor && contextMenuAvailable() && window.firstResponder === self && keyOwnerQuery(window) && window.attachedSheet==nil && NSApp.modalWindow==nil}
     override func menu(for event:NSEvent)->NSMenu? {
         guard !retired,contextMenuAvailable(),event.window === window else{return nil}
         let point=convert(event.locationInWindow,from:nil),row=row(at:point),column=column(at:point)
@@ -197,7 +209,7 @@ import TurtleGitCore
     /// rather than synthesizing a pointer click and losing the other rows.
     @discardableResult func showSelectedContextMenu()->Bool {presentSelectedMenu(keyboard:true)}
     private func presentSelectedMenu(keyboard:Bool)->Bool {
-        guard !retired,let window,keyOwnerQuery(window),window.attachedSheet==nil,NSApp.modalWindow==nil,
+        guard !retired,let window,window.isVisible,!isHiddenOrHasHiddenAncestor,keyOwnerQuery(window),window.attachedSheet==nil,NSApp.modalWindow==nil,
               !keyboard || window.firstResponder === self,
               contextMenuAvailable(),!selectedRowIndexes.isEmpty else{return false}
         let row=selectedRowIndexes.contains(selectedRow) ? selectedRow:selectedRowIndexes.first!
@@ -213,13 +225,20 @@ import TurtleGitCore
     override func keyDown(with event:NSEvent) {
         let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
         if event.keyCode==109,flags == .shift {if event.window === window {_=showSelectedContextMenu()};return}
-        if [36,76].contains(event.keyCode),flags.isEmpty || flags == .shift {if keyboardOwnerAvailable {onCompare(false,flags.contains(.shift))};return}
+        if performSelectedReturn(event) {return}
         super.keyDown(with:event)
     }
+    @discardableResult func performSelectedReturn(_ event:NSEvent)->Bool {
+        let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
+        guard [36,76].contains(event.keyCode),flags.isEmpty || flags == .shift else{return false}
+        guard event.window === window,keyboardOwnerAvailable else{return false}
+        onCompare(false,flags.contains(.shift));return true
+    }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
+        if performSelectedReturn(event) {return true}
         let flags=event.modifierFlags.intersection([.command,.control,.option,.shift])
         if event.keyCode==109,flags == .shift {return event.window === window && showSelectedContextMenu()}
-        if keyboardOwnerAvailable,event.charactersIgnoringModifiers?.lowercased()=="c",flags == .command || flags == [.command,.shift] {onCopy(flags.contains(.shift));return true}
+        if event.window === window,keyboardOwnerAvailable,event.charactersIgnoringModifiers?.lowercased()=="c",flags == .command || flags == [.command,.shift] {onCopy(flags.contains(.shift));return true}
         return super.performKeyEquivalent(with:event)
     }
     func retire(){retired=true;onCompare={_,_ in};onCopy={_ in};makeRowMenu={_,_ in nil};contextMenuAvailable={false};presentSelectionMenu={_,_,_ in};keyOwnerQuery={_ in false};target=nil;action=nil;doubleAction=nil;menu=nil}
@@ -442,6 +461,7 @@ struct SynchronizationFiles:NSViewRepresentable {
                 target.addItem(SynchronizationFileMenuItem(title,id:id,icon:icon,preferences:model.preferences,enabled:receipt != nil){[weak self] in guard self?.nativeMenuAvailable==true,let receipt else{return};operation(receipt)})
             }
             add("Compare two revisions","compare",.compare,{[weak state] in state?.compare($0,unified:false,alternate:ComparisonToolInvocation.capture)},in:menu)
+            if let item=menu.items.first,item.isEnabled {item.attributedTitle=NSAttributedString(string:item.title,attributes:[.font:NSFont.boldSystemFont(ofSize:NSFont.systemFontSize)])}
             add("Show unified diff","unified",.compare,{[weak state] in state?.compare($0,unified:true,alternate:ComparisonToolInvocation.capture)},in:menu)
             menu.addItem(.separator());let copy=NSMenuItem(title:NSLocalizedString("Copy to clipboard",comment:""),action:nil,keyEquivalent:""),sub=NSMenu();copy.submenu=sub;copy.image=MenuIcon.copy.contextImage(defaults:model.preferences);sub.autoenablesItems=false;menu.addItem(copy)
             for (title,id,information) in [("Full paths","fullPaths",StatusListCopy.fullPaths),("Relative paths","relativePaths",.relativePaths),("File names","names",.names),("Copy all information to clipboard","all",.all)] {add(title,"copy."+id,.copy,{[weak state] in state?.copy($0,information:information)},in:sub)}

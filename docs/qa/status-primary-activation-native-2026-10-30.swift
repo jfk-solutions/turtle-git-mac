@@ -254,9 +254,14 @@ private extension NSWindow {
         defer{method_exchangeImplementations(sheet,quietSheet);method_exchangeImplementations(order,quiet)}
         let c=try Context()
         do {
-            try await c.setup();try await verify(c);await c.clean()
-            try await StatusPrimarySelectionVerification.verify(base:c.root,git:c.git)
-            try await LogWorkingRowAffordanceVerification.verify(base:c.root.appendingPathComponent("log-working-row-family",isDirectory:true),git:c.git)
+            let requested=ProcessInfo.processInfo.environment["TURTLEGIT_STATUS_PRIMARY_ONLY",default:""]
+            let cohorts=Set(requested.isEmpty ? ["legacy","status","log","add-resolve","sync"]:requested.split(separator:",").map(String.init))
+            if cohorts.contains("legacy") {try await c.setup();try await verify(c)}
+            await c.clean()
+            if cohorts.contains("status") {try await StatusPrimarySelectionVerification.verify(base:c.root,git:c.git)}
+            if cohorts.contains("log") {try await LogWorkingRowAffordanceVerification.verify(base:c.root.appendingPathComponent("log-working-row-family",isDirectory:true),git:c.git)}
+            if cohorts.contains("add-resolve") {try await AddResolvePrimaryVerification.verify(base:c.root.appendingPathComponent("add-resolve-family",isDirectory:true),git:c.git)}
+            if cohorts.contains("sync") {try await SyncPrimaryActivationVerification.verify(base:c.root.appendingPathComponent("sync-primary-family",isDirectory:true),git:c.git)}
         }catch{await c.clean();throw error}
         try require(drained() && c.owners.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil},"Primary activation left owned windows/workers")
         print("PASS: Source status primary activation, SwiftUI row bridge and native Resolve AppKit mouse tracker, multi-selection conflict intent, Shift capture, checkbox native-action roundtrip, group exclusion, stale/sorted/closed ownership and drain")

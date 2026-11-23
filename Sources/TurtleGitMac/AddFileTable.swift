@@ -34,6 +34,16 @@ class AddNativeTable: NativeWatermarkTable {
         return showSelectedContextMenu()
     }
     var toggleChecks: () -> Void = {}
+    /// Opt-in status-list default action; unrelated native tables retain their
+    /// own Return/default-button contract.
+    var activateSelectedReturn: ((Bool) -> Void)?
+    @discardableResult func performSelectedReturn(_ event:NSEvent)->Bool {
+        guard event.type == .keyDown,[36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty,
+              let activateSelectedReturn,let window,event.window === window,commandKeyWindow() === window,
+              window.firstResponder === self,window.isVisible,!isHiddenOrHasHiddenAncestor,isEnabled,
+              window.attachedSheet==nil,NSApp.modalWindow==nil else{return false}
+        activateSelectedReturn(event.modifierFlags.contains(.shift));return true
+    }
     var copySelection: (Bool) -> Void = { _ in }
     var deleteSelection: (Bool) -> Void = { _ in }
     var contextSelection: (Int, Int) -> Void = { _, _ in }
@@ -60,6 +70,7 @@ class AddNativeTable: NativeWatermarkTable {
     }
     override func keyDown(with event: NSEvent) {
         if handleSelectionMenuKey(event) { return }
+        if performSelectedReturn(event) {return}
         if event.keyCode == 51 || event.keyCode == 117 {
             deleteSelection(event.modifierFlags.contains(.shift)); return
         }
@@ -67,6 +78,7 @@ class AddNativeTable: NativeWatermarkTable {
         super.keyDown(with: event)
     }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if performSelectedReturn(event) {return true}
         if handleSelectionMenuKey(event) { return true }
         if event.charactersIgnoringModifiers?.lowercased() == "c", event.modifierFlags.contains(.command) { copySelection(event.modifierFlags.contains(.shift)); return true }
         return super.performKeyEquivalent(with: event)
@@ -103,6 +115,13 @@ struct AddFileTable: NSViewRepresentable {
         private static var draggingOwners:[ObjectIdentifier:Coordinator]=[:]
         private var applyingColumns = false
         private var resetGeneration = -1
+        private var primaryRenderedRows:[AddDialogEntry]=[]
+        private var primaryProjectionCurrent:Bool {
+            let current=rows
+            return current.count==primaryRenderedRows.count && zip(current,primaryRenderedRows).allSatisfy {a,b in
+                a.path.utf8.elementsEqual(b.path.utf8) && a.status==b.status && a.state==b.state && a.isDirectory==b.isDirectory && a.size==b.size && a.modified==b.modified
+            }
+        }
         private var defaultWidths: [String: CGFloat] = [:]
         private let columnDefinitions: [String: StatusListColumn] = ["path":.path,"ext":.fileExtension,"date":.lastModified,"size":.fileSize]
         private(set) var contextColumnID: String?
@@ -130,7 +149,12 @@ struct AddFileTable: NSViewRepresentable {
             nativeTable.acceptFileDrop = { [weak self] in self?.acceptDrop($0) == true }
             table.setDraggingSourceOperationMask(.copy,forLocal:true);table.setDraggingSourceOperationMask(.copy,forLocal:false)
             table.dataSource = self; table.delegate = self; table.allowsMultipleSelection = true; table.rowHeight = 22
-            table.target = self; table.doubleAction = #selector(preview)
+            table.target = self; table.doubleAction = #selector(openClickedRow)
+            nativeTable.activateSelectedReturn = {[weak self] alternate in
+                guard let self,self.canAct,self.table.numberOfRows==self.primaryRenderedRows.count,self.primaryProjectionCurrent else{return}
+                let selected=self.table.selectedRowIndexes.compactMap{self.primaryRenderedRows.indices.contains($0) ? self.primaryRenderedRows[$0]:nil}
+                self.model.primaryFileActions(selected,alternate:alternate)
+            }
             nativeTable.contextSelection = { [weak self] row, column in self?.prepareContext(row: row, column: column) }
             nativeTable.selectionMenuAvailable = { [weak self] in self?.canPresentFileMenu == true }
             nativeTable.selectionMenuRow = { [weak self] in
@@ -188,7 +212,7 @@ struct AddFileTable: NSViewRepresentable {
             table.allowsColumnResizing = model.columnCommandsAvailable
             table.allowsColumnReordering = model.columnCommandsAvailable
             table.rowHeight = fileListFont.map { max(22, ceil($0.ascender - $0.descender + $0.leading) + 4) } ?? 22
-            updating = true; table.reloadData()
+            updating = true; table.reloadData();primaryRenderedRows=rows
             table.selectRowIndexes(IndexSet(rows.enumerated().compactMap { model.highlighted.contains($0.element.path) ? $0.offset : nil }), byExtendingSelection: false)
             updating = false
         }
@@ -233,7 +257,7 @@ struct AddFileTable: NSViewRepresentable {
         }
         func validateDrop(_ pasteboard: NSPasteboard) -> Bool { !retired && model.canReceiveFileDrop && table.window != nil && table.window?.attachedSheet == nil && NSApp.modalWindow==nil && !FileListDrag.isOwnWorkingDrop(pasteboard:pasteboard,origin:model.workingDragOrigin) && !droppedURLs(pasteboard).isEmpty }
         func retire(){
-            retired=true;nativeTable.validateFileDrop={_ in false};nativeTable.acceptFileDrop={_ in false}
+            retired=true;nativeTable.activateSelectedReturn=nil;nativeTable.validateFileDrop={_ in false};nativeTable.acceptFileDrop={_ in false}
             nativeTable.selectionMenuAvailable={false};nativeTable.selectionMenuRow={nil};nativeTable.presentSelectionMenu=nil
             nativeTable.contextSelection={_,_ in}
             if workingDragSession==nil {workingDrag=nil}
@@ -319,7 +343,11 @@ struct AddFileTable: NSViewRepresentable {
             guard canAct else { return }
             if let mark = markedRow, model.checked.contains(mark.path) { uncheck() } else { check() }
         }
-        @objc func preview() { guard canAct, selectedRows.count == 1, let row = selectedRows.first else { return }; model.primaryFileAction(row) }
+        @objc func openClickedRow() {
+            guard canAct,table.numberOfRows==primaryRenderedRows.count,primaryProjectionCurrent,primaryRenderedRows.indices.contains(table.clickedRow),table.clickedColumn>0 else{return}
+            model.primaryFileAction(primaryRenderedRows[table.clickedRow])
+        }
+        @objc func preview() {guard canAct,selectedRows.count==1,let row=selectedRows.first else{return};model.primaryFileAction(row)}
         func openSelected(_ action: AddFileOpenAction) { guard canAct, selectedIsFile, let row = selectedRows.first else { return }; model.onOpen(row.path, action) }
         @objc func open() { openSelected(.open) }
         @objc func openWith() { openSelected(.openWith) }

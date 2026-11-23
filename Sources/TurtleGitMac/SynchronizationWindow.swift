@@ -385,6 +385,8 @@ enum SynchronizationHistoryOperation: Equatable {
 final class SynchronizationNativeWindow: NSWindow {
     var refreshAction: () -> Void = {}
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if let table=firstResponder as? AddNativeTable,table.performSelectedReturn(event) {return true}
+        if let table=firstResponder as? SynchronizationFileNativeTable,table.performSelectedReturn(event) {return true}
         if event.keyCode == 96, event.modifierFlags.intersection([.command,.control,.option,.shift]).isEmpty, event.window === self, isKeyWindow, attachedSheet==nil, NSApp.modalWindow==nil { refreshAction(); return true }
         return super.performKeyEquivalent(with:event)
     }
@@ -981,7 +983,9 @@ final class SynchronizationNativeWindow: NSWindow {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
-        guard !model.transportRunning, !model.confirmingCancellation, !model.hasBlockingChild, sender.attachedSheet == nil else { return false }
+        model.cancelPrimaryConflictActivation()
+        _ = model.comparison.cancelEmbeddedPreparation();_ = model.incomingComparison.cancelEmbeddedPreparation()
+        guard !model.transportRunning, !model.confirmingCancellation, !model.hasBlockingChildExceptPrimary, sender.attachedSheet == nil else { return false }
         if let child = [model.comparison, model.incomingComparison].flatMap({ Array($0.comparisonWindows.values) }).first(where: { $0.model.dirty }) {
             child.window?.makeKeyAndOrderFront(nil); child.window?.performClose(nil); return false
         }
@@ -1285,7 +1289,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         }
     }
 
-    var hasPendingInlineWork: Bool { conflictResolutionActive || fileActionBusy || !inlineAttempts.isEmpty || historyQuestionCount > 0 || !historyParentRequests.isEmpty || !combineSelectionReads.isEmpty || historyActionWorkers > 0 || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
+    var hasPendingInlineWork: Bool { primaryConflictActivationPending || conflictResolutionActive || fileActionBusy || !inlineAttempts.isEmpty || historyQuestionCount > 0 || !historyParentRequests.isEmpty || !combineSelectionReads.isEmpty || historyActionWorkers > 0 || outgoingFileList.hasPendingQuestion || incomingFileList.hasPendingQuestion || comparison.hasOwnedPreparation || incomingComparison.hasOwnedPreparation }
 
     private(set) static var activePushWorkflows=0
     lazy var clientHooks=ClientHookSession(preferences:preferences)
@@ -1461,11 +1465,65 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         conflictFileActionsStorage = value; return value
     }
     var onConflictAction: (RepositoryAction,[String]) -> Void = { _,_ in }
+    var onPrimaryConflictActivation:ConflictListPrimaryActivationSession.Launch?
+    var confirmPrimaryConflictActivation:((Int) async -> Bool)?
+    @Published private(set) var primaryConflictActivationPending=false
+    private var primaryConflictToken:OperationCancellation?
+    func cancelPrimaryConflictActivation() {primaryConflictToken?.cancel()}
+    /// Return uses all selected displayed conflicts; the explicit context-menu
+    /// Edit action retains the upstream singleton mask.
+    func activatePrimaryConflictFiles(_ paths:[String],alternate:Bool) {
+        guard canUseConflictFiles,!primaryConflictActivationPending,!paths.isEmpty,
+              let parent=window,parent.attachedSheet==nil,NSApp.modalWindow==nil,
+              let launch=onPrimaryConflictActivation else{return}
+        let actions=conflictFileActions,ids=GitPathSet(paths)
+        let ordered=actions.sortedRows.filter{ids.contains($0.path)}.map(\.file.entry)
+        guard ids.count==paths.count,ordered.count==paths.count else{return}
+        let selection=actions.selection,sort=actions.sortOrder,sourceGeneration=fileListGeneration
+        let form=formRevision,sourceForm=[localBranch,remoteBranch,remote].map{GitReferenceName($0)}
+        let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:preferences,window:parent,amendToParent:false,alternateTool:alternate)
+        let token=OperationCancellation();primaryConflictToken=token
+        primaryConflictActivationPending=true;Self.activeInlineOperations += 1
+        let current:()->Bool = {[weak self,weak parent,weak actions] in
+            guard let self,let parent,let actions else{return false}
+            return !self.closed && !self.busy && !self.confirmingQuit && !self.confirmingCancellation &&
+                self.tab==6 && self.window === parent && self.primaryConflictToken === token && !token.isCancelled &&
+                self.fileListGeneration==sourceGeneration && self.formRevision==form &&
+                [self.localBranch,self.remoteBranch,self.remote].map{GitReferenceName($0)}==sourceForm &&
+                actions.selection==selection && actions.sortOrder==sort &&
+                actions.sortedRows.filter{ids.contains($0.path)}.map(\.file.entry)==ordered &&
+                !actions.busy && !self.hasOtherBlockingChild && intent.settingsCurrent
+        }
+        Task { @MainActor [self] in
+            let watcher=Task { @MainActor in
+                while !Task.isCancelled {
+                    if !current() {token.cancel();return}
+                    do {try await Task.sleep(nanoseconds:10_000_000)} catch{return}
+                }
+            }
+            defer {
+                watcher.cancel();Self.activeInlineOperations -= 1
+                if primaryConflictToken === token {primaryConflictToken=nil;primaryConflictActivationPending=false}
+                withExtendedLifetime(access){}
+            }
+            do {
+                guard current() else{return}
+                if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) {throw RepositoryAccessFailure.securityScopeUnavailable}
+                let fresh=try await intent.repository.conflicts(paths:ordered.map(\.path),cancellation:token)
+                let lookup=GitPathMap(uniqueKeysWithValues:fresh.map{($0.path,$0)})
+                let entries=ordered.compactMap{lookup[$0.path]}
+                guard entries.count==ordered.count else{throw ResolveFailure.stale}
+                let rebase=try await intent.repository.conflictIsRebase(cancellation:token)
+                guard current() else{return}
+                try await ConflictListPrimaryActivationSession.run(entries:entries,intent:intent,isRebase:rebase,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryConflictActivation,launch:launch)
+            } catch {if current() {self.error=error.localizedDescription}}
+        }
+    }
     var presentConflictResolution:(([String],ResolveChoice)->Void)?
     var retireConflictResolution:()->Void = {}
     var conflictResolutionQuitChanged:(Bool)->Void = {_ in}
     @Published var conflictResolutionActive=false
-    var canUseConflictFiles: Bool { !closed && !busy && !confirmingQuit && !confirmingCancellation && tab == 6 && !hasOtherBlockingChild }
+    var canUseConflictFiles: Bool { !primaryConflictActivationPending && !closed && !busy && !confirmingQuit && !confirmingCancellation && tab == 6 && !hasOtherBlockingChild }
     func refreshConflictFiles() { guard canUseConflictFiles else { return }; conflictFileActions.requestReload() }
     func conflictMenu(_ ids:some Sequence<String>,mark:String? = nil) -> StatusFileMenuSnapshot {
         let snapshot = conflictFileActions.fileMenu(ids,mark:mark)
@@ -1996,10 +2054,28 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
     @Published var historyHighlights: [Int: String] = [:]
     var onHistoryCreateReference: ((Bool, String) -> Void)?
     @Published var creatingHistoryReference = false
-    var hasBlockingChild: Bool { fileActionBusy || historyQuestionCount > 0 || conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
-    private var hasOtherBlockingChild: Bool {
+    var hasBlockingChild: Bool { primaryConflictActivationPending || hasBlockingChildExceptPrimary }
+    var hasBlockingChildExceptPrimary: Bool { fileActionBusy || historyQuestionCount > 0 || conflictFileActionsStorage?.busy == true || conflictFileActionsStorage?.unifiedViewerBusy == true || hasOtherBlockingChild }
+    private var hasOtherBlockingChild: Bool {hasOtherBlockingChild(excluding:nil)}
+    private func hasOtherBlockingChild(excluding accepted:RevisionComparisonWindowModel?)->Bool {
         conflictResolutionActive || outgoingFileList.resettingColumns || incomingFileList.resettingColumns || historyReferencesBlocking() || operatingHistory || exportingHistory || creatingHistoryReference || emailingPatches || importingPatches || choosingBranch || managingRemotes || NSApp.modalWindow != nil || [comparison, incomingComparison].contains { child in
-            child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil }
+            child !== accepted && (child.busy || child.comparisonWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil } || child.unifiedWindows.values.contains { $0.model.busy || $0.window?.attachedSheet != nil })
+        }
+    }
+    /// The accepted child's busy publication and its own warning sheet do not
+    /// replace the Sync source. Form/tab/endpoint replacement and other work do.
+    func comparisonActivationOwner(_ child:RevisionComparisonWindowModel,tab expectedTab:Int)->()->Bool {
+        let revision=formRevision,generation=fileListGeneration,sourceWindow=window
+        let form=[localBranch,remoteBranch,remote].map{GitReferenceName($0)},forced=force
+        return { [weak self,weak child,weak sourceWindow] in
+            guard let self,let child,let sourceWindow else{return false}
+            return !self.closed && !self.busy && !self.confirmingQuit && !self.confirmingCancellation &&
+                self.window === sourceWindow && self.tab==expectedTab && self.formRevision==revision &&
+                self.fileListGeneration==generation && self.force==forced &&
+                [self.localBranch,self.remoteBranch,self.remote].map{GitReferenceName($0)}==form &&
+                !self.fileActionBusy && self.historyQuestionCount==0 &&
+                self.conflictFileActionsStorage?.busy != true && self.conflictFileActionsStorage?.unifiedViewerBusy != true &&
+                !self.hasOtherBlockingChild(excluding:child)
         }
     }
     var remoteChoices: [String] {
@@ -2052,7 +2128,7 @@ private final class SynchronizationInlinePresentation:@unchecked Sendable {
         case nil: return ""
         }
     }
-    func invalidate() { retireConflictResolution();presentConflictResolution=nil;conflictResolutionQuitChanged={_ in};optionsSSHContext?.retire();optionsSSHContext=nil;notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
+    func invalidate() { cancelPrimaryConflictActivation();onPrimaryConflictActivation=nil;retireConflictResolution();presentConflictResolution=nil;conflictResolutionQuitChanged={_ in};optionsSSHContext?.retire();optionsSSHContext=nil;notifications.retire();notificationAttemptID=nil;formRevision=UUID();fileListGeneration=UUID();resultGeneration=UUID();outgoingFileList.retire();incomingFileList.retire(); inlineAttempts.values.forEach { $0.cancellation.cancel() }; combineSelectionReads.values.forEach {$0.cancel()};historySVNRequest?.cancel();Array(historyListRetirements.values).forEach {$0()};closed = true; conflictFilesSubscription?.cancel();conflictFilesSubscription=nil;conflictFileActionsStorage?.invalidate(); clientHooks.retire(); historyDeletionCoordinator?.close(); historyDeletionCoordinator = nil; cancelHistoryActions(); token?.cancel(); token = nil; comparison.invalidate(); incomingComparison.invalidate(); busy = false; transportRunning = false; cancelling = false; confirmingCancellation = false; cancellationQuestion = nil; transportID = nil }
     func reload(selectTracking: Bool = false, initial: Bool = false, preserveError: Bool = false, refreshRemoteSelection: Bool = false) {
         guard !closed, !confirmingQuit, !confirmingCancellation, !transportRunning, !hasBlockingChild, window?.attachedSheet==nil else { return }
         formRevision=UUID()
@@ -2901,7 +2977,7 @@ struct SynchronizationConflictFiles: View {
             ConflictReportTable(rows:rows.map{row in ConflictReportRow(path:row.path,text:Dictionary(uniqueKeysWithValues:StatusListColumn.allCases.map{($0,actions.columnText(row,$0))}),color:NSColor(row.file.entry.statusTextColor(selected:actions.selection.contains(row.path),preferences:actions.colorPreferences)),tooltip:RepositoryPresentationSettings(defaults:model.preferences).fileTooltip(repository:model.repository.root,path:row.path))},selection:actions.selection,settings:actions.fileColumns,available:actions.availableColumns,sort:actions.sortOrder.first?.column ?? .path,ascending:actions.sortOrder.first?.order != .reverse,enabled:model.canUseConflictFiles && !actions.busy,preferences:model.preferences,ownerRetired:model.closed,focusedPath:focusedPath,selectionChanged:{ids,mark in actions.selection=ids;focusedIdentity=mark.map{GitReferenceName($0)}},sortChanged:{column,ascending in actions.setSortOrder([StatusFileSort(column:column,order:ascending ? .forward:.reverse)])},layoutChanged:{order,widths in guard model.canUseConflictFiles else{return};_ = actions.saveColumnLayout(order:order,widths:widths)},columnChanged:{column,visible in if model.canUseConflictFiles {actions.setColumn(column,visible:visible)}},resetColumns:{choose in
                 guard model.canUseConflictFiles else{return}
                 actions.requestResetColumns(choose:choose,onAccepted:{})
-            },makeMenu:{paths,mark,column in model.conflictReportMenu(paths,mark:mark,column:column)},copySelection:{paths,status in model.copyConflictFiles(status ? .pathsAndStatus:.relativePaths,menu:model.conflictMenu(paths,mark:focusedPath))},activate:{path,_ in model.performConflict(.editConflict,menu:model.conflictMenu([path],mark:path))},captureDrag:{actions.captureWorkingDrag($0)},configureRefresh:{actions.fileListRefresh.attach($0)})
+            },makeMenu:{paths,mark,column in model.conflictReportMenu(paths,mark:mark,column:column)},copySelection:{paths,status in model.copyConflictFiles(status ? .pathsAndStatus:.relativePaths,menu:model.conflictMenu(paths,mark:focusedPath))},activate:{path,alternate in model.activatePrimaryConflictFiles([path],alternate:alternate)},activateSelection:{paths,alternate in model.activatePrimaryConflictFiles(paths,alternate:alternate)},captureDrag:{actions.captureWorkingDrag($0)},configureRefresh:{actions.fileListRefresh.attach($0)})
             HStack {
                 ProgressView().controlSize(.small).opacity(actions.busy ? 1:0)
                 Text(actions.busy ? actions.currentOperation:actions.error ?? "").font(.caption).foregroundStyle(actions.error == nil ? Color.secondary:Color.red).lineLimit(1).truncationMode(.tail).help(actions.busy ? actions.currentOperation:actions.error ?? "").textSelection(.enabled)

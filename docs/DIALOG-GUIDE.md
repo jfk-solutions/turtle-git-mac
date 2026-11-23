@@ -532,6 +532,14 @@ repository, selected files and settings remain those of the originating Sync
 window. The conflict list refreshes after the result closes when the saved
 refresh-after-resolving option is enabled. Clipboard includes Extensions.
 
+Return in the conflict list opens all highlighted conflicts in list order;
+double-click opens the pointed conflict. Large selections ask once before
+opening their editors. The explicit **Edit conflicts** context-menu command
+retains its single-file scope. Return in incoming/outgoing file lists compares
+all highlighted files using that list's captured revisions. Shift selects the
+alternate comparison or merge tool. Changing the tab, selection, revisions or
+tool settings while a launch is waiting cancels that pending request.
+
 In the incoming/outgoing file and revision lists, Shift-F10 opens the selected
 rows' context menu. Accessibility **Show Menu** uses the same commands and
 retains the selected group. Reference/tag result menus also anchor at the
