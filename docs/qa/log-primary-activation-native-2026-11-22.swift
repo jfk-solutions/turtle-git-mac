@@ -184,7 +184,7 @@ import TurtleGitCore
             try require(c.preparingPanel != nil && model.fileNavigationReadPending && c.lease != nil && FileListComparisonSession.activeOperations>0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Conflict preparation lost owner/lease/Quit lifetime")
             let plan=try unwrap(c.plans.last,"Mixed plan missing")
             try require(plan.selectedCount==4 && plan.preferences === c.preferences && plan.window === window && plan.ownerIsCurrent() && plan.alternateTool && plan.repository.libgit2Configuration?.enabled==false && Data(plan.repository.executable.path.utf8)==Data(c.repo.executable.path.utf8) && Data(plan.repository.root.path.utf8)==Data(c.repo.root.path.utf8) && plan.mergeTools==savedTools && plan.conflictIdentity==savedIdentity,"Accepted plan recaptured root/backend/settings/Shift")
-            let kinds=plan.actions.map{action->String in switch action {case .conflict:return "conflict";case .comparison:return "comparison";case .workingFile:return "working"}}
+            let kinds=plan.actions.map{action->String in switch action {case .conflict:return "conflict";case .comparison,.statusComparison:return "comparison";case .workingFile:return "working"}}
             try require(kinds==["conflict","comparison","comparison","working"] && plan.actions.map{$0.file.id}==model.fileTableRows.compactMap(\.file).map(\.id),"Mixed primary replaced row kinds or list order")
             c.workspace.fileComparisonPreferences=c.foreign;c.finishRead()
             try await wait("mixed actual launch acknowledgement",window:window){!model.fileNavigationReadPending && !model.busy && c.workspace.conflictEditorPreparationCount==0 && c.children.count==1 && c.comparisons.count==3}

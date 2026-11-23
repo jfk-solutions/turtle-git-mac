@@ -33,10 +33,11 @@ enum HistoricalOpenAction { case open, openWith, alternativeEditor }
 enum LogFilePrimaryAction {
     case conflict(CommitFile)
     case comparison(CommitFile, from:ComparisonRevision, to:ComparisonRevision)
+    case statusComparison(CommitFile, intent:StatusListFileComparisonIntent)
     case workingFile(CommitFile, currentVersion:ComparisonRevision)
 
     var file:CommitFile {
-        switch self {case .conflict(let file),.comparison(let file,_,_),.workingFile(let file,_):return file}
+        switch self {case .conflict(let file),.comparison(let file,_,_),.statusComparison(let file,_),.workingFile(let file,_):return file}
     }
 }
 
@@ -3385,11 +3386,11 @@ struct LogCommandRequest: Identifiable {
             } catch {if current(),!session.cancellation.isCancelled {self.error=error.localizedDescription}}
         }
     }
-    func primaryFileAction(_ ids: some Sequence<String>) {
+    func primaryFileAction(_ ids: some Sequence<String>,mode:StatusListPrimaryActivationMode = .primary) {
         let ids=GitPathSet(ids)
         guard let launch=onPrimaryFileActivation else {
             // Unconfigured standalone consumers retain the older callbacks.
-            if canWorkingConflict(.editConflict,ids:ids) {requestWorkingConflict(.editConflict,ids:ids)}
+            if mode == .primary,canWorkingConflict(.editConflict,ids:ids) {requestWorkingConflict(.editConflict,ids:ids)}
             else {compareFiles(ids)}
             return
         }
@@ -3400,17 +3401,22 @@ struct LogCommandRequest: Identifiable {
         let chosen=fileTableRows.compactMap(\.file).filter{ids.contains($0.id)}
         guard !chosen.isEmpty else{return}
         let base=workingTreeSnapshot?.entry.parents.first.map{ComparisonRevision.revision($0)} ?? .emptyTree
+        let working=selectedWorkingTree
+        let acceptedStatuses=working ? chosen.compactMap{file in workingStatusEntry(file).map{(file.id,$0)}}:[]
+        guard !working || acceptedStatuses.count==chosen.count else{error=RevisionComparisonFailure.selection.localizedDescription;return}
+        let statusByID=GitPathMap(uniqueKeysWithValues:acceptedStatuses)
         let actions:[LogFilePrimaryAction]
-        if selectedWorkingTree {
+        if working {
             actions=chosen.compactMap { file in
-                if file.action.hasPrefix("U") {return .conflict(file)}
-                if file.action=="?" || file.action=="!" || workingStatusEntry(file)?.hasUnversionedCopy==true {
+                guard let entry=statusByID[file.id] else{return nil}
+                if mode == .primary,entry.state == .conflicted {return .conflict(file)}
+                if mode == .primary,(entry.state == .untracked || entry.state == .ignored || entry.hasUnversionedCopy) {
                     // StartDiffWC captures m_CurrentVersion (empty for the
                     // working Log row), rather than substituting its HEAD base.
                     return .workingFile(file,currentVersion:.workingTree)
                 }
-                guard canCompareFileWithBase(file) else{return nil}
-                return .comparison(file,from:base,to:.workingTree)
+                if mode == .primary,!canCompareFileWithBase(file) {return nil}
+                return .statusComparison(file,intent:StatusListFileComparisonIntent(entry:entry,base:base,isSubmodule:file.isSubmodule))
             }
         } else {
             guard let revision else{return}
@@ -3431,6 +3437,11 @@ struct LogCommandRequest: Identifiable {
                   self.labelDefaults.data(forKey:"TurtleGit.MergeTools")==mergeData,
                   ConflictIdentityOptions(defaults:self.labelDefaults)==identity,
                   NativeDiffBackendIdentity(self.repository.capturingDiffBackend(preferences:self.labelDefaults).libgit2Configuration)==NativeDiffBackendIdentity(capturedRepository.libgit2Configuration) else{return false}
+            if working {
+                guard self.selectedWorkingTree,
+                      (self.workingTreeSnapshot?.entry.parents.first.map({ComparisonRevision.revision($0)}) ?? .emptyTree) == base,
+                      acceptedStatuses.allSatisfy({_,entry in self.workingIndexRows[entry.path]?.entry==entry}) else{return false}
+            }
             return true
         }
         let plan=LogFilePrimaryActivation(actions:actions,selectedCount:chosen.count,repository:capturedRepository,preferences:labelDefaults,window:parent,workingBase:base,isRebase:conflictRebase,alternateTool:alternate,mergeTools:mergeTools,conflictIdentity:identity,ownerIsCurrent:current)
@@ -4108,6 +4119,10 @@ struct LogCommandRequest: Identifiable {
     }
     func compareFiles(_ ids: some Sequence<String>, workingTree: Bool = false, parentWorkingTree: Bool = false) {
         let ids = GitPathSet(ids)
+        if selectedWorkingTree,!workingTree,!parentWorkingTree,onPrimaryFileActivation != nil {
+            guard canInspectHistory,canCompareChangedFileSelection(ids) else{return}
+            primaryFileAction(ids,mode:.compareWithBase);return
+        }
         guard requireHistoricalFilePaths(ids) else { return }
         if workingTree || parentWorkingTree {guard requireNativeFilePaths(ids) else{return}}
         guard canInspectHistory, onFileCompare != nil || onFileComparisons != nil, canCompareChangedFileSelection(ids) else { return }
@@ -4823,7 +4838,7 @@ struct LogChangedFileReport:NSViewRepresentable {
             separator()
         }
         if model.canCompareChangedFileSelection(ids) {
-            item("Compare with base",.compare,enabled:(model.onFileCompare != nil || model.onFileComparisons != nil) && model.canInspectHistory,inspection:true){$0.compareFiles(ids)}
+            item("Compare with base",.compare,enabled:(model.onFileCompare != nil || model.onFileComparisons != nil || model.selectedWorkingTree && model.onPrimaryFileActivation != nil) && model.canInspectHistory,inspection:true){$0.compareFiles(ids)}
             item("Show changes as unified diff",.unifiedDiff,enabled:model.canInspectHistory && (model.selectedWorkingTree ? model.workingTreeSnapshot?.entry.parents.first != nil && !model.visibleFiles.contains{ids.contains($0.id) && $0.action=="?"}:model.revision != nil),inspection:true){$0.selectedFileDiff(ids,alternate:shift)}
         }
         item("Compare with working tree",.compare,enabled:!ids.isEmpty && !model.selectedWorkingTree && !model.bare && model.onFileCompare != nil && model.canInspectHistory,inspection:true){$0.compareFiles(ids,workingTree:true)}

@@ -1,0 +1,384 @@
+{
+  "schema": 1,
+  "recordedUTC": "2026-11-23T04:40:07.433283+00:00",
+  "status": "Scoped independent comparison consumer checkpoint passed; whole port incomplete",
+  "sourceBase": "bf00edd5f5084a40f093e6df62426d8a6fc9534a",
+  "sourceDirtyDuringValidation": true,
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "sourceSHA256": {
+    ".github/workflows/macos.yml": "3ee99222e6b8c5b6ccfde83765f4facf9ce03dfede23b7cb4c2a03f2f5697a00",
+    "Sources/TurtleGitMac/AddFileTable.swift": "5a44cb3cf31c2a704a4738498f0ee7c212920b13cef3b3f40c47d29b91a03f6a",
+    "Sources/TurtleGitMac/AddWindow.swift": "77ce3c3e77ba726630e279fa6d983008c93434156c6d539291e195f790a180b7",
+    "Sources/TurtleGitMac/LogWindow.swift": "355978495629990591b776a94cbc420d0e4cdfb960dcedcf674c8197f81f2260",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "8ad00798f6857eeabf4ff810b1806adec20676beef9b30625e23892f2ff94604",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "fb51594a83d490b33e5bc8ee9ed8e0e7f473835050cb089325c5f39f70dca33d",
+    "docs/ADD-PARITY.md": "7c92e45d22933f59cb3c0adefaaacbb5069364378204b139bf999473126e60b8",
+    "docs/DIALOG-GUIDE.md": "6261996435b3d70a9b5a708d3c16e4e660a9b78b25640d4d9635fc46e243b57e",
+    "docs/LOG-PARITY.md": "3910bdc41ac3ffda30c8a2713a3033873fa4c3b40fb1b0ea5f0709d41292c28e",
+    "docs/RESOLVE-PARITY.md": "410f035a907aa5fd161c7fcccc9f91495f28172e1c5f3313f0e95c8d376276a3",
+    "docs/ADD-COMPARISON-OPERANDS-PARITY.md": "e5d2442a1ce5e22a51246f993f3702f9f6b4267d07a3f743e7dfdbc1bee339d5",
+    "docs/CONFLICT-COMPARISON-OPERANDS-PARITY.md": "4eff034e8119350685ab308de9b01675c1b13afb1eab372b979272fb2159724c",
+    "docs/LOG-WORKING-COMPARISON-OPERANDS-PARITY.md": "e1eb1c679cad8ea5547d1d6794d77a76492fc77868b7936a3cc8053756f9080f",
+    "docs/qa/log-primary-activation-native-2026-11-22.swift": "56ab9071a18af87a362b8716ff4c39047cb07e3a4e5ecf75e241af38132a5f94",
+    "docs/qa/add-comparison-operands-native-2026-11-23.swift": "48991186a9d1f3d9377500013b9192f2569ef47878161a53e540b4ad392a7e34",
+    "docs/qa/conflict-comparison-operands-native-2026-11-23.swift": "e222b77e7fa9a5a344adf58773d6b7b9498daa2abfc4688551691b641e8bfc71",
+    "docs/qa/log-working-comparison-operands-native-2026-11-23.swift": "f5ee545e53411291f26cd58bb3612e915575b1236990b31e995ab32c39a13b4d",
+    "scripts/test-add-comparison-operands.py": "129ed7600f2249eba918f4b876e65a5b69b574d33a55a12d7627d6ebc15fd918",
+    "scripts/test-conflict-comparison-operands.py": "a9861b644e604bf8ee37ecdb10ac203fc407888bf7a42c99f5d98486ff19591b",
+    "scripts/test-log-working-comparison-operands.py": "18d110e3b880a62aefc28d591fbd466b056c499f4460fc9e38187efb4457ebbc",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist": "8febfdd69371cada3d7527a9f5873e1cd16f73f50ef0d3cbf17b902e5ebe6cea",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/DIALOG-GUIDE.html": "1bcfa49b686f69ca6c67029f51b45e99c61c79750582123f5569ee8104b3db19",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json": "687fe09dc986ebe7dc019d21b52d12c81795196191b2b9d5f285d793d44bc26b",
+    "scripts/check-macos-ci-lanes.py": "803edc0e2f17984b5aed4c37befaf853ffdec0b8957e109231d07050942ef149",
+    "scripts/test-macos-ci-lanes.py": "aed4e2e6e0e7b6108a750ffc2b616a41b7591f07c4e43d6b719d0972154ff307",
+    "docs/STATUS-COMPARISON-OPERANDS-PARITY.md": "562ec56f4a2f16de1b50181bc1b39a67b04cbc6fcc95c01196113d09f9c472d6",
+    "docs/RELEASE-BLOCKERS.md": "15cd3778633f34515554303d015e5afedbc11a41785f10858fefe4a00736527e",
+    "docs/qa/ci-lane-admission-repair-2026-11-23.json": "e052167be0ad4e2e861bde312f589233a13e5cd8e88c981267cd508760179015"
+  },
+  "implementation": [
+    "Add explicit menu retains accepted raw rows/native order/Shift and uses typed Compare mode; primary/current-file/conflict and legacy routes remain distinct",
+    "Resolve configured Compare uses HEAD/working or explicit null sides, not ancestor stage1; actual scoped raw rows and exact stages/orientation/settings/owner survive one warning",
+    "Resolve Unified separately concatenates captured HEAD-to-live-working patches in report order using selected diff backend; no many-comparison prompt or A/D null-side substitution",
+    "Root verifies accepted conflict stages/orientation again after comparison preparation and before unified delivery; stage1/two-file/historical APIs remain separate",
+    "Log working sentinel carries accepted status/origin intent; historical/current-version/parent-working routes retain their independent operands",
+    "Sync source masks/endpoints audited and retained without a forced working-list substitution",
+    "Bundled Help/manual updated; new CI consumers mapped exactly into fail-closed lane contracts"
+  ],
+  "app": {
+    "attempts": [
+      {
+        "exitCode": 65,
+        "observedSession": 94192,
+        "log": "build/remaining-comparisons-app-build.log",
+        "cause": "Nested async Resolve stage reader lacked explicit MainActor isolation; fixed annotation. Root nested validation annotated consistently before recheck."
+      },
+      {
+        "exitCode": 0,
+        "observedSession": 72009,
+        "log": "build/remaining-comparisons-app-actor-repair.log"
+      }
+    ],
+    "buildInvocations": 2,
+    "appSourcesUnchangedAfterSuccessfulBuild": true,
+    "scope": "Local unsigned arm64 Debug; no signed/Intel/minimum-macOS execution claim"
+  },
+  "core": {
+    "run": false,
+    "reason": "Core source unchanged; previous eight focused Core tests retained, isolated checkout excludes independent metafile work"
+  },
+  "native": {
+    "attempts": [
+      {
+        "case": "add",
+        "command": [
+          "python3",
+          "scripts/test-add-comparison-operands.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 4.962,
+        "log": "build/remaining-comparisons-native-add.log"
+      },
+      {
+        "case": "add-setup-repair",
+        "command": [
+          "python3",
+          "scripts/test-add-comparison-operands.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 21.54,
+        "log": "build/remaining-comparisons-native-add-setup-repair.log"
+      },
+      {
+        "case": "resolve",
+        "command": [
+          "python3",
+          "scripts/test-conflict-comparison-operands.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 3.604,
+        "log": "build/remaining-comparisons-native-resolve.log"
+      },
+      {
+        "case": "log",
+        "command": [
+          "python3",
+          "scripts/test-log-working-comparison-operands.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 1,
+        "seconds": 54.943,
+        "log": "build/remaining-comparisons-native-log.log"
+      },
+      {
+        "case": "resolve-menu-repair",
+        "command": [
+          "python3",
+          "scripts/test-conflict-comparison-operands.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 37.042,
+        "log": "build/remaining-comparisons-native-resolve-menu-repair.log"
+      },
+      {
+        "case": "retained-resolve-files",
+        "command": [
+          "python3",
+          "scripts/test-conflict-identity-family.py",
+          "--only",
+          "resolve-files",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 14.777,
+        "log": "build/remaining-comparisons-native-retained-resolve-files.log"
+      },
+      {
+        "case": "retained-log-primary",
+        "command": [
+          "python3",
+          "scripts/test-log-primary-activation-batch.py",
+          "--only",
+          "primary",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 31.39,
+        "log": "build/remaining-comparisons-native-retained-log-primary.log"
+      },
+      {
+        "case": "log-warning-repair",
+        "command": [
+          "python3",
+          "scripts/test-log-working-comparison-operands.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exitCode": 0,
+        "seconds": 35.317,
+        "log": "build/remaining-comparisons-native-log-warning-repair.log"
+      }
+    ],
+    "passedBothEngines": {
+      "add": [
+        "operands",
+        "primary",
+        "stale",
+        "ownership",
+        "native-warning",
+        "legacy"
+      ],
+      "resolve": [
+        "working",
+        "unborn",
+        "retirement",
+        "sync"
+      ],
+      "log": [
+        "operands",
+        "rename",
+        "historical",
+        "ownership"
+      ],
+      "retained": [
+        "log-primary",
+        "resolve-files"
+      ]
+    },
+    "repairs": [
+      {
+        "scope": "Add fixture setup only",
+        "cause": "git init --template= intentionally does not create .git/info; ignored-file fixture tried writing exclude before its parent existed",
+        "repair": "Create private .git/info directory before writing original exclude bytes",
+        "productionChanged": false,
+        "assertionsRemoved": false,
+        "initialLog": "build/remaining-comparisons-native-add.log"
+      },
+      {
+        "scope": "Resolve fixture menu lifecycle only",
+        "cause": "menu(for:) returns lazily populated menu; normal AppKit tracking calls menuNeedsUpdate before presenting, fixture skipped it",
+        "repair": "Invoke actual menu update delegate inside same captured Shift context before item inspection; bounded owner/projection/menu tree diagnostics retained",
+        "productionChanged": false,
+        "assertionsRemoved": false,
+        "initialLog": "build/remaining-comparisons-native-resolve.log"
+      },
+      {
+        "scope": "Log fixture warning threshold only",
+        "cause": "Many-diff warning clamps threshold to at least3; two marked rows could not enter held warning",
+        "repair": "Use four actual rows for held-warning cases, retain exact count/order/operand assertions and add bounded admission/projection diagnostics",
+        "productionChanged": false,
+        "assertionsRemoved": false,
+        "initialLog": "build/remaining-comparisons-native-log.log"
+      }
+    ],
+    "assertionsRemoved": false,
+    "copyScope": "Log controlled C metadata uses real historical/index/disk bytes; natural copied-row discovery remains unproven",
+    "postReadRaceLimit": "Root low-level post-Core-read stage/orientation fences are source-reviewed. Native fixture holds the warning/raw-status read but does not claim a physically suspended internal Core snapshot/patch read.",
+    "formattingOnlyAfterValidation": {
+      "file": "docs/qa/log-working-comparison-operands-native-2026-11-23.swift",
+      "validatedSHA256": "c0542cc4f44c65f6d197a66d78b5ed7e43206b38bb5636207b01cbb04c81e141",
+      "committedSHA256": "f5ee545e53411291f26cd58bb3612e915575b1236990b31e995ab32c39a13b4d",
+      "change": "Removed trailing space after empty cancellation catch; no source behavior or assertions changed",
+      "testsRepeated": false
+    }
+  },
+  "ciAdmission": {
+    "priorHostedSHA": "bf00edd5f5084a40f093e6df62426d8a6fc9534a",
+    "macOSRun": 45109221267,
+    "status": "failed before application validation at Check workflow lane contracts in all eight lanes",
+    "PagesRun": 45109221273,
+    "PagesConclusion": "success",
+    "repairEvidence": "docs/qa/ci-lane-admission-repair-2026-11-23.json",
+    "localExitCode": 0,
+    "focusedTests": 42,
+    "immutableInventoryUnchanged": true,
+    "originalAssertionsPreserved": true,
+    "hostedCorrectedSourcePass": false
+  },
+  "resources": {
+    "help": {
+      "write": 0,
+      "check": 0,
+      "documents": 64,
+      "topics": 53,
+      "files": 104,
+      "bytes": 11119723,
+      "actualBuiltBundleMatchesSource": true
+    },
+    "localizations": "No new literal native UI labels; existing captions retained",
+    "coverage": {
+      "exitCode": 0,
+      "partial": 120,
+      "pending": 10,
+      "certifiedComplete": 0
+    }
+  },
+  "isolation": {
+    "checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "independentMetafileWorkExcluded": true,
+    "protectedUnrelatedWorkUnchanged": true,
+    "privateReposPreferencesPasteboards": true,
+    "nativeWindows": "Invisible/offscreen with actual sheets/menus; final external presentation injected",
+    "installedApp": "Build52 read confirmed; not quit/replaced",
+    "frozenSigned54": "Not modified or installed"
+  },
+  "cleanup": {
+    "loggedReapedPIDs": [
+      48314,
+      48325,
+      48330,
+      48571,
+      48580,
+      48922,
+      49266,
+      49273,
+      49609,
+      49617,
+      49996,
+      50004,
+      50591,
+      51179,
+      51192,
+      51328,
+      51465,
+      51475,
+      51869,
+      52377,
+      52386,
+      52598,
+      52808,
+      52959,
+      53109,
+      53204,
+      53298,
+      53385
+    ],
+    "allAbsentAtFinalCheck": true,
+    "nativeOwnedWindowAndWorkerDrainAssertionsPassed": true
+  },
+  "evidence": [
+    {
+      "path": "build/remaining-comparisons-app-actor-repair.log",
+      "sha256": "807e66a8033f24a05f51f23cddc3f711b68b953a71efaa3edfc9321482fb2caa",
+      "bytes": 141310
+    },
+    {
+      "path": "build/remaining-comparisons-app-build.log",
+      "sha256": "8586f6b804bc44283ca7eb059f1ed08870a595a9a93dc692f9c89c11e933d8d2",
+      "bytes": 18274
+    },
+    {
+      "path": "build/remaining-comparisons-native-add-setup-repair.log",
+      "sha256": "c3377693431f1206fb10faf8916b842dbb249c3552ae6cadd08c0d26d4774fe9",
+      "bytes": 1565
+    },
+    {
+      "path": "build/remaining-comparisons-native-add.log",
+      "sha256": "a23c2d19ba65c76585fd614a0cfa3527c9df04d72e6e441df7ad74814cf6d194",
+      "bytes": 1913
+    },
+    {
+      "path": "build/remaining-comparisons-native-log-warning-repair.log",
+      "sha256": "d91b7ef943dc9fd29bd49d6b880514daa058155c9fc93df8234e33fe351fb501",
+      "bytes": 1689
+    },
+    {
+      "path": "build/remaining-comparisons-native-log.log",
+      "sha256": "d5e7661ff1d95d1cbf2af1c6c02a61e10bff287a535a56a699a4c3a789e83710",
+      "bytes": 1461
+    },
+    {
+      "path": "build/remaining-comparisons-native-resolve-menu-repair.log",
+      "sha256": "df295bca14f99f50e9776cc200a571ae514b1d050df164b509a53295efbc32d8",
+      "bytes": 70315
+    },
+    {
+      "path": "build/remaining-comparisons-native-resolve.log",
+      "sha256": "ea5092ca6dc009f48fd1c7f4ecbf7fa287e94c59245b481f1caaa7a02e81dc0c",
+      "bytes": 1455
+    },
+    {
+      "path": "build/remaining-comparisons-native-retained-log-primary.log",
+      "sha256": "19ffd0c3d702c95332a0c337ca9efeb90817aaea7f76bb8cc3ed5e323e42c899",
+      "bytes": 3805
+    },
+    {
+      "path": "build/remaining-comparisons-native-retained-resolve-files.log",
+      "sha256": "ab874dc73194fe73e3c40d308b01bc94260636f52fe5a4b4dbbc7fd25db49b24",
+      "bytes": 1356
+    }
+  ],
+  "remaining": [
+    "Complete corrected-source hosted CI pass",
+    "All physical/VoiceOver/signed and full dialog states remain separate",
+    "Natural copied-row discovery and complete directory/gitlink/combined-merge variants not certified",
+    "Independent HQ WMF/EMF rendering work remains uncommitted and incomplete",
+    "Distribution/store terms and publication after owner testing remain open"
+  ]
+}

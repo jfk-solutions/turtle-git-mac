@@ -5,6 +5,15 @@ This is a native first pass, not complete Add/status-list/progress parity.
 The [official Add manual](https://tortoisegit.org/docs/tortoisegit/tgit-dug-add.html)
 and pinned AddDlg/AddCommand/AddProgressCommand/resource sources were compared.
 
+## Current explicit comparison routing — November 23, 2026
+
+The [accepted-operand family](ADD-COMPARISON-OPERANDS-PARITY.md) routes the actual
+Add Compare command through its captured native rows and the shared owned plan.
+Primary current-file/conflict activation remains distinct; direct tracked entries
+and removed-but-present copies are not treated as an untracked-only list. Source
+checks and the new grouped execution record bound this correction separately from
+older Add checkpoints and complete dialog certification.
+
 ## Implemented behavior
 
 File-only selections go directly to Add progress, following AddCommand; folder

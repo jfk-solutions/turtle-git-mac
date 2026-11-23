@@ -365,11 +365,21 @@ private final class AddNativeWindow: NSWindow {
             current.size==row.size,current.modified==row.modified else{return}
         if current.state == .conflicted {onEditConflict(current.path)} else {onPreview(current.path)}
     }
-    func primaryFileActions(_ rows:[AddDialogEntry],alternate:Bool) {
+    /// Explicit StartDiff differs from default activation: even a conflict or
+    /// retained working copy compares its accepted historical/null operands.
+    func compareFileActions(_ rows:[AddDialogEntry],alternate:Bool) {
+        let marked=rows.first{GitReferenceName.equal($0.path,selectionMark)} ?? rows.first
+        guard marked?.status.canCompareWithBaseFromStatusList == true else{return}
+        primaryFileActions(rows,alternate:alternate,mode:.compareWithBase)
+    }
+    func primaryFileActions(_ rows:[AddDialogEntry],alternate:Bool,mode:StatusListPrimaryActivationMode = .primary) {
         guard !retired,!accepted,!busy,!confirmingQuit,!unifiedViewerBusy(),!rows.isEmpty,
               GitPathSet(rows.map(\.path)).count==rows.count,let parent=primaryWindow,parent.attachedSheet==nil,NSApp.modalWindow==nil else{return}
         guard let launch=onPrimaryFileActivation else {
-            if rows.count==1,let row=rows.first {primaryFileAction(row)}
+            if mode == .compareWithBase {
+                guard captureComparisonOwner(paths:rows.map(\.path))(),rows.allSatisfy({row in entries.contains{$0.status==row.status && $0.isDirectory==row.isDirectory && $0.size==row.size && $0.modified==row.modified}}) else{return}
+                onCompare(rows.map(\.path))
+            } else if rows.count==1,let row=rows.first {primaryFileAction(row)}
             return
         }
         let requested=GitPathSet(rows.map(\.path)),records=entries.enumerated().compactMap{requested.contains($0.element.path) ? ($0.offset,$0.element):nil}
@@ -398,7 +408,7 @@ private final class AddNativeWindow: NSWindow {
             }
             do {
                 try validateAccess()
-                try await StatusListPrimaryActivationSession.run(rows:planRows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,launch:launch)
+                try await StatusListPrimaryActivationSession.run(rows:planRows,intent:intent,cancellation:token,ownerIsCurrent:current,confirmation:confirmPrimaryFileActivation,mode:mode,launch:launch)
             } catch {if current() {self.error=error.localizedDescription}}
         }
     }

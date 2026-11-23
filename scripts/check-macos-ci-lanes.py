@@ -158,6 +158,57 @@ LOG_PRIMARY_EVIDENCE = {
     },
 }
 
+# Reviewed connected status-list consumers. Exact commands, guards and local
+# neighbors are required before removing these from the immutable baseline walk.
+SYNC_REPLAY_SELECTED = {
+    'name': 'Native Sync and replay selected file activation',
+    'if': collection_condition('Native Sync and replay selected file activation', 'replay-transport'),
+    'run': 'python3 scripts/test-status-primary-activation.py --only sync --only replay --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+RESOLVE_OPERANDS = {
+    'name': 'Native Resolve HEAD and unified comparison operands',
+    'if': collection_condition('Native Resolve HEAD and unified comparison operands', 'replay-transport'),
+    'run': 'python3 scripts/test-conflict-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+LOG_SELECTED = {
+    'name': 'Native Log selected file activation',
+    'if': collection_condition('Native Log selected file activation', 'history-references'),
+    'run': 'python3 scripts/test-status-primary-activation.py --only log --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+LOG_OPERANDS = {
+    'name': 'Native Log working-list comparison operands',
+    'if': collection_condition('Native Log working-list comparison operands', 'history-references'),
+    'run': 'python3 scripts/test-log-working-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+ADD_OPERANDS = {
+    'name': 'Native Add accepted comparison operands',
+    'if': collection_condition('Native Add accepted comparison operands', 'commit-repository'),
+    'run': 'python3 scripts/test-add-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+COMMIT_WORKING_SELECTED = {
+    'name': 'Native Commit Working Tree and Resolve selected file activation',
+    'if': collection_condition('Native Commit Working Tree and Resolve selected file activation', 'commit-repository'),
+    'run': 'python3 scripts/test-status-primary-activation.py --only legacy --only status --only add-resolve --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+STATUS_OPERANDS = {
+    'name': 'Native accepted status comparison operands',
+    'if': collection_condition('Native accepted status comparison operands', 'commit-repository'),
+    'run': 'python3 scripts/test-status-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"',
+}
+BLAME_SOURCE_NAME = 'Native Blame captured source menus'
+BLAME_SOURCE_ORIGINAL_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
+BLAME_SOURCE_FOCUS_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --only focus --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
+STATUS_CONSUMER_ADDITIONS = (
+    ('Native primary command launch family', (SYNC_REPLAY_SELECTED, RESOLVE_OPERANDS),
+     'Native invocation-owned progress completion and deferred handoffs'),
+    (BLAME_SOURCE_NAME, (LOG_SELECTED, LOG_OPERANDS),
+     'Native Blame retained-byte encoding recovery and cancellation'),
+    ('Native Commit staging activation and preference lifetime', (ADD_OPERANDS,),
+     'Native Commit source category checking'),
+    ('Native Commit source category checking', (COMMIT_WORKING_SELECTED, STATUS_OPERANDS),
+     'Native Commit report rows, fonts and geometry ownership'),
+)
+
 def yaml_document(text):
     result = subprocess.run(['ruby', '-rjson', '-ryaml', '-e',
         'print JSON.generate(YAML.load(STDIN.read))'], input=text, text=True,
@@ -260,6 +311,18 @@ def verify(workflow, inventory, originals):
         require(actual[history_start + offset] == expected,
                 'Changed history command, lane/readiness/cancellation, placement or diagnostic contract: ' + expected['name'])
     del actual[history_start:history_start + len(history_additions)]
+    for anchor, additions, following in STATUS_CONSUMER_ADDITIONS:
+        anchors = [i for i, step in enumerate(actual) if step.get('name') == anchor]
+        require(len(anchors) == 1, 'Missing or duplicate status-family anchor: ' + anchor)
+        start = anchors[0] + 1
+        for offset, expected in enumerate(additions):
+            require(sum(step.get('name') == expected['name'] for step in actual) == 1,
+                    'Missing or duplicate reviewed status consumer: ' + expected['name'])
+            require(start + offset < len(actual) and actual[start + offset] == expected,
+                    'Changed status command, lane/readiness/cancellation or placement: ' + expected['name'])
+        require(start + len(additions) < len(actual) and actual[start + len(additions)].get('name') == following,
+                'Changed status-family following neighbor: ' + following)
+        del actual[start:start + len(additions)]
     app_index = next(i for i, step in enumerate(originals) if step.get('name') == 'Application and embedded Finder extension')
     require(actual[app_index + 1] == EDITOR_SETUP,
             'Every lane needs the unconditional SwiftPM executable before native/Core consumers')
@@ -281,6 +344,10 @@ def verify(workflow, inventory, originals):
                 expected['if'] = collection_condition(name, lane)
         if name in COLLECTION_IDS:
             expected['id'] = COLLECTION_IDS[name]
+        if name == BLAME_SOURCE_NAME:
+            require(before.get('run') == BLAME_SOURCE_ORIGINAL_RUN,
+                    'Reviewed Blame source-menu baseline command changed')
+            expected['run'] = BLAME_SOURCE_FOCUS_RUN
         if expected.get('uses') == 'actions/upload-artifact@v4':
             prior = expected['with']['name']
             require(prior in ARTIFACT_NAMES, 'Unmapped artifact ownership')

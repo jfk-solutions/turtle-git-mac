@@ -1,0 +1,30 @@
+{
+  "schema": 1,
+  "date": "2026-11-23",
+  "scope": "Focused macOS CI lane-admission repair only; original execution retained without rerun.",
+  "execution": {
+    "command": "python3 scripts/test-macos-ci-lanes.py",
+    "cwd": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac",
+    "exit_code": 0,
+    "test_count": 42,
+    "unittest_reported_seconds": 0.957,
+    "tool_reported_wall_time_seconds": 0.889655542,
+    "tool_chunk_id": "64d06e",
+    "combined_output": "..........................................\n----------------------------------------------------------------------\nRan 42 tests in 0.957s\n\nOK\n",
+    "stdout": null,
+    "stderr": null,
+    "stream_limitation": "exec_command returned one combined output field; stdout and stderr were not separately retained. No rerun was performed to recreate them."
+  },
+  "changed_sources": [
+    "scripts/check-macos-ci-lanes.py",
+    "scripts/test-macos-ci-lanes.py"
+  ],
+  "hashes_observed_after_execution": {
+    "scripts/check-macos-ci-lanes.py": "803edc0e2f17984b5aed4c37befaf853ffdec0b8957e109231d07050942ef149",
+    "scripts/test-macos-ci-lanes.py": "aed4e2e6e0e7b6108a750ffc2b616a41b7591f07c4e43d6b719d0972154ff307",
+    ".github/workflows/macos.yml": "3ee99222e6b8c5b6ccfde83765f4facf9ce03dfede23b7cb4c2a03f2f5697a00",
+    "Configuration/CI/MacOSValidationInventory.json": "70c580920b926905717169ac29fb57af257dfee5149fcd2d89f0064b28da7775"
+  },
+  "contracts": "Exact selected-status/operand step names, commands, lane/readiness/cancellation, unique presence and neighbor placement; exact Blame commands/source-menu/focus scope and both Git engines. Original inventory and fail-closed assertions retained.",
+  "limitations": "This preflight does not prove application/Core/native tests, builds, hosted CI success or deployment. No local tests beyond the authorized checker command, no remote workflow actions and no rerun for this evidence record."
+}

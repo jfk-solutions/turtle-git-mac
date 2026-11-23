@@ -3,6 +3,17 @@
 Baseline: upstream `7338078f8ddd924b8cddee35f512f2286072136d`, ResolveDlg,
 ResolveCommand, IDD_RESOLVE and shared status-list resolution actions.
 
+## Current comparison operand correction — November 23, 2026
+
+The [connected comparison family](CONFLICT-COMPARISON-OPERANDS-PARITY.md)
+corrects the configured Resolve menu to the pinned shared status-list contract:
+Compare uses HEAD/working, and Unified concatenates per-path HEAD/working patches.
+Earlier stage-1 Compare descriptions below record older checkpoints; stage-1
+viewing remains the separate explicit API and standalone compatibility fallback,
+not the configured Compare menu's operand. Sync's historical lists and conflict
+menu mask retain their separate source meanings. Current execution results are
+recorded with the new family; old receipts do not certify the correction.
+
 ## Native dialog and operations
 
 The checked conflict list includes Path, Extension and Status, followed by the

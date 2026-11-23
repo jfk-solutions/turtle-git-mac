@@ -78,8 +78,11 @@ context-menu actions. Checking files and selecting rows are separate operations.
 An explicit comparison retains unchanged files in the selection, including a
 file whose staged contents differ while its working contents equal HEAD. Added
 files compare against an empty base; deleted files compare against an empty
-destination. An index-only removal does not hide working contents still on disk.
-Reviewing these comparisons preserves the staged contents and working files.
+destination, even if their disk path has since been recreated. Renamed and copied
+rows retain their accepted original path. For an index-only removal with a retained
+working copy, the default file preview opens that copy; explicit Compare keeps
+the deletion's empty destination. Reviewing comparisons preserves the staged
+contents and working files.
 
 Context **Commit…** passes the selected rows; the footer Commit follows the
 invoked scope and Whole Project. For an unversioned or ignored focused row,
@@ -656,6 +659,14 @@ while unrelated manual unchecks remain. Drops do not stage or resolve anything.
 Other repositories and Git administrative files are ignored. Cancel stops pending
 drop reads. Use **F5** to refresh, or **Control-Return / Command-Return** to resolve
 only the checked files through the normal progress flow.
+
+Resolve's **Compare with base** opens HEAD against the current working file;
+Return or double-click instead opens its conflict editor. Multiple highlighted
+files open in displayed order after the configured many-comparisons question.
+**Show changes as unified diff** produces one combined viewer with each selected
+path's HEAD-to-working patch in displayed order. It does not substitute the
+conflict ancestor for HEAD. Changed conflict stages or a cancelled request prevent
+a late comparison from opening.
 
 Resolve's file menu also provides path Log, Blame, Open/Open With, the alternative
 editor, Reveal in Finder, two-file comparison and unified changes where the

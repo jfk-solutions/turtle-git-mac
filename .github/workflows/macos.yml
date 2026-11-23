@@ -1036,6 +1036,9 @@ jobs:
       - name: Native Sync and replay selected file activation
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'replay-transport' }}
         run: python3 scripts/test-status-primary-activation.py --only sync --only replay --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Native Resolve HEAD and unified comparison operands
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'replay-transport' }}
+        run: python3 scripts/test-conflict-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native invocation-owned progress completion and deferred handoffs
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'replay-transport' }}
         run: python3 scripts/test-command-progress.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
@@ -1056,6 +1059,9 @@ jobs:
       - name: Native Log selected file activation
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
         run: python3 scripts/test-status-primary-activation.py --only log --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
+      - name: Native Log working-list comparison operands
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
+        run: python3 scripts/test-log-working-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Blame retained-byte encoding recovery and cancellation
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' }}
         run: python3 scripts/test-blame-encoding-projection.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
@@ -1071,6 +1077,9 @@ jobs:
       - name: Native Commit staging activation and preference lifetime
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-commit-staging-mode.py --only list --only mode --only checkbox --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+      - name: Native Add accepted comparison operands
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
+        run: python3 scripts/test-add-comparison-operands.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
       - name: Native Commit source category checking
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-commit-check-categories.py --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"

@@ -426,6 +426,96 @@ class MacOSLaneTests(unittest.TestCase):
         self.assertNotIn('--only conflict-commands', ci.LOG_PRIMARY['run'])
         self.assertNotIn('--only image-conflict', ci.LOG_PRIMARY['run'])
         self.verify()
+
+    def testReviewedStatusConsumersHaveExactPlacementAndReadyOwners(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        for anchor,additions,following in ci.STATUS_CONSUMER_ADDITIONS:
+            index=next(i for i,step in enumerate(steps) if step.get('name')==anchor)
+            self.assertEqual(steps[index+1:index+1+len(additions)],list(additions))
+            self.assertEqual(steps[index+1+len(additions)]['name'],following)
+            for expected in additions:
+                lane=next(value for value in ci.LANES if "matrix.lane == '"+value+"'" in expected['if'])
+                with self.subTest(name=expected['name']):
+                    self.assertTrue(self.eligible(expected['name'],lane,{'earlier_native':'failure'}))
+                    self.assertFalse(self.eligible(expected['name'],lane,cancelled=True))
+                    for other in ci.LANES:
+                        if other!=lane:self.assertFalse(self.eligible(expected['name'],other))
+                    for outcome in ['failure','skipped','cancelled','']:
+                        self.assertFalse(self.eligible(expected['name'],lane,{'native_ready':outcome}))
+        self.verify()
+
+    def testReviewedStatusConsumersRejectUnknownMissingDuplicateMovedAndCommandDrift(self):
+        names=[step['name'] for _,steps,_ in ci.STATUS_CONSUMER_ADDITIONS for step in steps]
+        mutations=['missing','duplicate','moved','renamed','wrong-lane','drop-ready','drop-cancel',
+                   'implicit-success','always','command','omit-system','omit-bundled','scope',
+                   'extra-command','extra-env','extra-id','continue-on-error','extra-action']
+        for name in names:
+            for mutation in mutations:
+                value=copy.deepcopy(self.workflow);steps=value['jobs']['validation']['steps']
+                index=next(i for i,step in enumerate(steps) if step.get('name')==name);step=steps[index]
+                if mutation=='missing':steps.pop(index)
+                if mutation=='duplicate':steps.insert(index+1,copy.deepcopy(step))
+                if mutation=='moved':steps.insert(index-1,steps.pop(index))
+                if mutation=='renamed':step['name']+=' changed'
+                if mutation=='wrong-lane':step['if']=step['if'].replace("matrix.lane == '","matrix.lane == 'unreviewed-")
+                if mutation=='drop-ready':step['if']=step['if'].replace("steps.native_ready.outcome == 'success' && ",'')
+                if mutation=='drop-cancel':step['if']=step['if'].replace('!cancelled() && ','')
+                if mutation=='implicit-success':step['if']="matrix.lane == 'core'"
+                if mutation=='always':step['if']=step['if'].replace('!cancelled()','always()')
+                if mutation=='command':step['run']='true'
+                if mutation=='omit-system':step['run']=step['run'].replace('--git /usr/bin/git ','')
+                if mutation=='omit-bundled':step['run']=step['run'].replace(' --git "$PWD/build/git-runtime/Git/bin/git"','')
+                if mutation=='scope':step['run']+=' --only unrelated'
+                if mutation=='extra-command':step['run']+='\ntrue'
+                if mutation=='extra-env':step['env']={'UNREVIEWED':'value'}
+                if mutation=='extra-id':step['id']='unreviewed'
+                if mutation=='continue-on-error':step['continue-on-error']=True
+                if mutation=='extra-action':step['uses']='actions/checkout@v4'
+                with self.subTest(name=name,mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+        value=copy.deepcopy(self.workflow)
+        value['jobs']['validation']['steps'].insert(100,{'name':'Unknown new status consumer','run':'true'})
+        with self.assertRaises(AssertionError):self.verify(value)
+
+    def testReviewedStatusConsumerAnchorsAndOriginalNeighborsRemainImmutable(self):
+        for anchor,_,following in ci.STATUS_CONSUMER_ADDITIONS:
+            for name in [anchor,following]:
+                value=copy.deepcopy(self.workflow)
+                step=next(step for step in value['jobs']['validation']['steps'] if step.get('name')==name)
+                step['run']='true'
+                with self.subTest(name=name),self.assertRaises(AssertionError):self.verify(value)
+
+    def testBlameFocusRetainsOriginalCasesReadyOwnerAndExactNeighbors(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==ci.BLAME_SOURCE_NAME)
+        self.assertEqual(steps[index]['run'],ci.BLAME_SOURCE_FOCUS_RUN)
+        self.assertEqual(steps[index-1]['name'],'Native symbolic-link Blame documents and incoming commands')
+        self.assertEqual([step['name'] for step in steps[index+1:index+4]],
+                         [ci.LOG_SELECTED['name'],ci.LOG_OPERANDS['name'],'Native Blame retained-byte encoding recovery and cancellation'])
+        for case in ['commands','source-menu','focus']:self.assertIn('--only '+case+' ',steps[index]['run'])
+        self.assertTrue(self.eligible(ci.BLAME_SOURCE_NAME,'history-references',{'earlier_native':'failure'}))
+        self.assertFalse(self.eligible(ci.BLAME_SOURCE_NAME,'history-references',cancelled=True))
+        for lane in ci.LANES:
+            if lane!='history-references':self.assertFalse(self.eligible(ci.BLAME_SOURCE_NAME,lane))
+        for outcome in ['failure','skipped','cancelled','']:
+            self.assertFalse(self.eligible(ci.BLAME_SOURCE_NAME,'history-references',{'native_ready':outcome}))
+        for mutation in ['drop-focus','drop-commands','drop-source-menu','scope','system','bundled','guard','lane','cancel','extra-env','duplicate','moved']:
+            value=copy.deepcopy(self.workflow);changed=value['jobs']['validation']['steps'];step=changed[index]
+            if mutation.startswith('drop-'):step['run']=step['run'].replace('--only '+mutation[5:]+' ','')
+            if mutation=='scope':step['run']+=' --only unrelated'
+            if mutation=='system':step['run']=step['run'].replace('--git /usr/bin/git ','')
+            if mutation=='bundled':step['run']=step['run'].replace(' --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git','')
+            if mutation=='guard':step['if']=step['if'].replace("steps.native_ready.outcome == 'success' && ",'')
+            if mutation=='lane':step['if']=step['if'].replace('history-references','editors')
+            if mutation=='cancel':step['if']=step['if'].replace('!cancelled() && ','')
+            if mutation=='extra-env':step['env']={'UNREVIEWED':'value'}
+            if mutation=='duplicate':changed.insert(index+1,copy.deepcopy(step))
+            if mutation=='moved':changed.insert(index-1,changed.pop(index))
+            with self.subTest(mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+        for name in ['Native symbolic-link Blame documents and incoming commands','Native Blame retained-byte encoding recovery and cancellation']:
+            value=copy.deepcopy(self.workflow)
+            step=next(step for step in value['jobs']['validation']['steps'] if step.get('name')==name);step['run']='true'
+            with self.subTest(neighbor=name),self.assertRaises(AssertionError):self.verify(value)
+        self.verify()
     def testReviewedHistoryAdditionsCannotDriftOrExemptOriginalNeighbors(self):
         names = [ci.HISTORY_CONTEXT['name'], ci.HISTORY_CONTEXT_EVIDENCE['name'],
                  ci.LOG_PRIMARY['name'], ci.LOG_PRIMARY_EVIDENCE['name']]

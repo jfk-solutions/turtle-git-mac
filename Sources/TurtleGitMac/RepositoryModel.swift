@@ -2753,7 +2753,15 @@ private enum TransportBatchPresentationContext {
         }
         rebaseWindows.allValues(forKey: root.path).forEach { $0.model.refreshState() };refreshRepositoryLogs(root)
     }
-    private func configureResolveInteractions(_ controller:ResolveWindowController,repository:GitRepository,access:RepositoryAccessLease?,preferences defaults:UserDefaults) {
+    func configureResolveInteractions(_ controller:ResolveWindowController,repository:GitRepository,access:RepositoryAccessLease?,preferences defaults:UserDefaults) {
+        controller.model.onWorkingFileComparison = CommandProgressContext.capture { [weak self] plan,token in
+            guard let self else{throw OperationCancellationFailure.cancelled}
+            try await self.showStatusListPrimaryFiles(plan,access:access,cancellation:token)
+        }
+        controller.model.onWorkingFileUnifiedComparison = CommandProgressContext.capture { [weak self,weak controller] plan,token in
+            guard let self,let controller,let prepared=controller.model.onFileUnified else{throw OperationCancellationFailure.cancelled}
+            try await self.showStatusListUnifiedFiles(plan,access:access,cancellation:token,prepared:prepared)
+        }
         controller.model.onPrimaryFileActivation = CommandProgressContext.capture { [weak self] plan,token in
             guard let self else{throw OperationCancellationFailure.cancelled}
             try await self.showConflictListPrimaryFiles(plan,access:access,cancellation:token)
@@ -4706,7 +4714,7 @@ private enum TransportBatchPresentationContext {
     /// One warning is owned by Log before this handoff. Every status-specific
     /// preparation below shares that accepted selection, token and settings.
     /// Native viewers own their independent lifetime after presentation.
-    private func showLogPrimaryFiles(_ plan:LogFilePrimaryActivation,access:RepositoryAccessLease?,cancellation:OperationCancellation) async throws {
+    func showLogPrimaryFiles(_ plan:LogFilePrimaryActivation,access:RepositoryAccessLease?,cancellation:OperationCancellation) async throws {
         guard !retired,!confirmingQuit,plan.ownerIsCurrent() else{throw OperationCancellationFailure.cancelled}
         let id=UUID(),token=OperationCancellation(parent:cancellation)
         let session=FileListComparisonSession(window:plan.window,preferences:plan.preferences,cancellation:token,alternateTool:plan.alternateTool)
@@ -4726,6 +4734,13 @@ private enum TransportBatchPresentationContext {
                         let result = try await showOwnedConflictEditor(repository:plan.repository,access:access,path:file.path,owner:plan.window,preferences:plan.preferences,
                             alternateTool:plan.alternateTool,cancellation:token,ownerIsCurrent:plan.ownerIsCurrent,mergeTools:plan.mergeTools,identityOptions:plan.conflictIdentity,expectedRebase:plan.isRebase)
                         guard result != .notAdmitted else{throw OperationCancellationFailure.cancelled}
+                    case .statusComparison(let file,let intent):
+                        guard GitReferenceName.equal(file.path,intent.entry.path) else{throw RevisionComparisonFailure.selection}
+                        let snapshot=try await plan.repository.statusListFileComparison(intent,cancellation:token)
+                        try session.check()
+                        guard snapshot.root==plan.repository.root else{throw RevisionComparisonFailure.selection}
+                        presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,
+                            preferences:plan.preferences,appearance:appearance,alpha:alpha)
                     case .comparison(let file,let from,let to):
                         let snapshot=try await plan.repository.revisionFileComparison(from:from,to:to,paths:[file.path],cancellation:token)
                         try session.check()
@@ -4818,6 +4833,12 @@ private enum TransportBatchPresentationContext {
                     let intent=StatusListFileComparisonIntent(entry:row.entry,base:plan.base,isSubmodule:row.isSubmodule)
                     let snapshot=try await plan.repository.statusListFileComparison(intent,cancellation:token)
                     try session.check()
+                    if row.entry.state == .conflicted,let expectedConflicts {
+                        guard let entry=expectedConflicts[row.entry.path] else{throw ResolveFailure.stale}
+                        try await validateConflictEditorEntry(entry,repository:plan.repository,token:token)
+                        guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
+                        try session.check()
+                    }
                     guard snapshot.root==plan.repository.root else {throw RevisionComparisonFailure.selection}
                     presentFileComparisons(repository:plan.repository,access:access,snapshot:snapshot,cancellation:token,
                         preferences:plan.preferences,appearance:appearance,alpha:alpha)
@@ -4842,6 +4863,56 @@ private enum TransportBatchPresentationContext {
                 case .skipMissing:continue
                 }
             }
+        }
+    }
+    /// The shared GNU diff command concatenates HEAD-to-working patches in
+    /// report order. Unlike StartDiff, its operands do not use row A/D null
+    /// sides: a recreated working file belongs in this patch.
+    func showStatusListUnifiedFiles(_ plan:StatusListPrimaryActivation,access:RepositoryAccessLease?,cancellation:OperationCancellation,
+                                    prepared:@escaping (Data,Bool,OperationCancellation) async throws -> Void) async throws {
+        guard !retired,!confirmingQuit,plan.ownerIsCurrent() else{throw OperationCancellationFailure.cancelled}
+        guard case .revision(let base)=plan.base else{throw RevisionComparisonFailure.range}
+        let rows=try plan.actions.map {action->StatusListPrimaryFile in
+            guard case .comparison(let row)=action else{throw RevisionComparisonFailure.selection}
+            return row
+        }
+        guard !rows.isEmpty,GitPathSet(rows.map{$0.entry.path}).count==rows.count else{throw RevisionComparisonFailure.selection}
+        let expected:GitPathMap<ConflictEntry>?
+        if let entries=plan.expectedConflicts {
+            guard GitPathSet(entries.map(\.path)).count==entries.count else{throw ResolveFailure.stale}
+            expected=GitPathMap(uniqueKeysWithValues:entries.map{($0.path,$0)})
+        } else {expected=nil}
+        let id=UUID(),token=OperationCancellation(parent:cancellation)
+        let session=FileListComparisonSession(window:plan.window,preferences:plan.preferences,cancellation:token,alternateTool:plan.alternateTool)
+        session.isOwnerCurrent={[weak self] in self?.retired==false && self?.confirmingQuit==false && plan.ownerIsCurrent()}
+        fileComparisonSessions[id]=session
+        defer{fileComparisonSessions.removeValue(forKey:id);withExtendedLifetime(access){}}
+        @MainActor func validate(_ row:StatusListPrimaryFile)async throws {
+            try session.check()
+            if row.entry.state == .conflicted,let expected {
+                guard let entry=expected[row.entry.path] else{throw ResolveFailure.stale}
+                try await validateConflictEditorEntry(entry,repository:plan.repository,token:token)
+                guard try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
+                try session.check()
+            }
+        }
+        try await session.run(selectedCount:0) {token in
+            if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(plan.repository.root) != true) {
+                throw RepositoryAccessFailure.securityScopeUnavailable
+            }
+            var patch=Data()
+            for row in rows {
+                try await validate(row)
+                let bytes=try await plan.repository.unifiedDiffData(arguments:["diff","--stat","-p","--no-ext-diff","--no-textconv","--no-color","--end-of-options",base,"--",row.entry.path],
+                    cancellation:token,backend:plan.repository.libgit2Configuration)
+                try await validate(row)
+                patch.append(bytes)
+            }
+            // An earlier selected conflict can change while a later patch is
+            // being read. Recheck the complete accepted set before handoff.
+            for row in rows{try await validate(row)}
+            try session.check()
+            try await prepared(patch,plan.alternateTool,token)
         }
     }
     /// Resolve and Sync supply the actual stage records accepted before their

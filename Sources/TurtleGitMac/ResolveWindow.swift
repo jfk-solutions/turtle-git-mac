@@ -543,6 +543,10 @@ struct ResolveConflictRow: Identifiable {
     func dismissSubmoduleReset() { guard active, hasChild, !busy else { return }; hasChild = false; showingProgress = false; load() }
     var primaryActionRevision:UUID {fileMenuEpoch}
     var onPrimaryFileActivation:ConflictListPrimaryActivationSession.Launch?
+    /// Shared working-list StartDiff; distinct from the stage-1 ancestor viewer.
+    var onWorkingFileComparison:StatusListPrimaryActivationSession.Launch?
+    var onWorkingFileUnifiedComparison:StatusListPrimaryActivationSession.Launch?
+    var readWorkingComparisonStatus:(([String],OperationCancellation) async throws -> [StatusEntry])?
     var confirmPrimaryFileActivation:((Int) async -> Bool)?
     weak var primaryWindow:NSWindow?
     @Published private(set) var primaryActivationPending=false
@@ -587,6 +591,90 @@ struct ResolveConflictRow: Identifiable {
             } catch {if current() {self.error=error.localizedDescription}}
         }
     }
+    private func validateWorkingComparison(_ plan:StatusListPrimaryActivation,cancellation token:OperationCancellation)async throws {
+        try token.check();guard plan.ownerIsCurrent(),let expected=plan.expectedConflicts else{throw ResolveFailure.stale}
+        let fresh=try await plan.repository.conflicts(paths:expected.map(\.path),cancellation:token)
+        let lookup=GitPathMap(uniqueKeysWithValues:fresh.map{($0.path,$0)})
+        guard fresh.count==expected.count,expected.allSatisfy({lookup[$0.path]==$0}),
+              try await plan.repository.conflictIsRebase(cancellation:token)==plan.isRebase else{throw ResolveFailure.stale}
+        try token.check();guard plan.ownerIsCurrent() else{throw ResolveFailure.stale}
+    }
+    private func activateWorkingComparison(_ paths:[String],alternate:Bool,expectedEntries:[ConflictEntry]?=nil,unified:Bool=false) {
+        guard canInteract,!primaryActivationPending,!paths.isEmpty,let parent=primaryWindow,
+              parent.attachedSheet==nil,NSApp.modalWindow==nil else{return}
+        let launch:StatusListPrimaryActivationSession.Launch
+        if let configured=unified ? onWorkingFileUnifiedComparison:onWorkingFileComparison {launch=configured}
+        else if unified,let present=onFileUnified {
+            launch={plan,token in
+                var bytes=Data()
+                for action in plan.actions {
+                    try await self.validateWorkingComparison(plan,cancellation:token)
+                    let base:String
+                    switch plan.base {
+                    case .revision(let oid):base=oid
+                    case .emptyTree,.workingTree:throw RevisionComparisonFailure.range
+                    }
+                    let part=try await plan.repository.unifiedDiffData(arguments:["diff","--stat","-p","--no-ext-diff","--no-textconv","--no-color","--end-of-options",base,"--",action.file.entry.path],cancellation:token,backend:plan.repository.libgit2Configuration)
+                    try await self.validateWorkingComparison(plan,cancellation:token);bytes.append(part)
+                }
+                try await self.validateWorkingComparison(plan,cancellation:token)
+                try await present(bytes,plan.alternateTool,token)
+            }
+        } else{return}
+        let ids=GitPathSet(paths),ordered=sortedReportEntries.filter{ids.contains($0.path)}
+        guard ids.count==paths.count,ordered.count==paths.count,expectedEntries.map({$0==ordered}) ?? true else{return}
+        let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:preferences,window:parent,amendToParent:false,alternateTool:alternate)
+        let acceptedRebase=rebase,acceptedSelection=selection,sort=reportSort,ascending=reportAscending
+        let records=entries.enumerated().compactMap{ids.contains($0.element.path) ? ($0.offset,$0.element):nil}
+        let token=begin(),epoch=fileMenuEpoch,ownerGeneration=generation
+        primaryActivationPending=true
+        let current:()->Bool = {[weak self,weak parent] in
+            guard let self,let parent,self.primaryWindow === parent,self.active,!self.confirmingQuit,!self.handoffPending,
+                  self.live(token),!token.isCancelled,self.generation==ownerGeneration,self.fileMenuEpoch==epoch,
+                  self.selection==acceptedSelection,self.rebase==acceptedRebase,self.reportSort==sort,self.reportAscending==ascending,
+                  !self.hasQuestion,!self.hasChild,!self.showingProgress,self.externalAvailability(),intent.settingsCurrent else{return false}
+            return records.count==ordered.count && records.allSatisfy{self.entries.indices.contains($0.0) && self.entries[$0.0]==$0.1}
+        }
+        Task { @MainActor [self] in
+            let watcher=Task { @MainActor in
+                while !Task.isCancelled {
+                    if !current(){token.cancel();return}
+                    do {try await Task.sleep(nanoseconds:10_000_000)} catch{return}
+                }
+            }
+            defer{watcher.cancel();primaryActivationPending=false;finish(token);withExtendedLifetime(access){}}
+            do {
+                try checkAccess();try token.check()
+                let paths=ordered.map(\.path)
+                @MainActor func stages()async throws->[ConflictEntry] {
+                    if let readFileMenuConflicts {return try await readFileMenuConflicts(paths,token)}
+                    return try await intent.repository.conflicts(paths:paths,cancellation:token)
+                }
+                func exact(_ fresh:[ConflictEntry])->Bool {
+                    let lookup=GitPathMap(uniqueKeysWithValues:fresh.map{($0.path,$0)})
+                    return fresh.count==ordered.count && ordered.allSatisfy{lookup[$0.path]==$0}
+                }
+                guard exact(try await stages()),current() else{throw ResolveFailure.stale}
+                let raw:[StatusEntry]
+                if let readWorkingComparisonStatus {raw=try await readWorkingComparisonStatus(paths,token)}
+                else {
+                    let result=try await intent.repository.run(["status","--porcelain=v1","-z","--untracked-files=no",intent.repository.diffDetection.statusArgument,"--"]+paths,environmentOverrides:["GIT_OPTIONAL_LOCKS":"0"],cancellation:token)
+                    raw=StatusEntry.parse(result.stdout)
+                }
+                try token.check()
+                guard current(),exact(try await stages()),try await intent.repository.conflictIsRebase(cancellation:token)==acceptedRebase else{throw ResolveFailure.stale}
+                let lookup=GitPathMap(uniqueKeysWithValues:raw.map{($0.path,$0)})
+                let rows=ordered.compactMap {entry->StatusListPrimaryFile? in
+                    guard let status=lookup[entry.path],status.state == .conflicted else{return nil}
+                    return StatusListPrimaryFile(entry:status,isDirectory:entry.isSubmodule,isSubmodule:entry.isSubmodule)
+                }
+                guard rows.count==ordered.count,current() else{throw ResolveFailure.stale}
+                let confirmation:((Int) async -> Bool)?=unified ? {_ in true}:confirmPrimaryFileActivation
+                try await StatusListPrimaryActivationSession.run(rows:rows,intent:intent,cancellation:token,ownerIsCurrent:current,
+                    confirmation:confirmation,expectedConflicts:ordered,expectedRebase:acceptedRebase,mode:.compareWithBase,launch:launch)
+            } catch {if current(){self.error=error.localizedDescription}}
+        }
+    }
     func editOrCompare(_ values: some Sequence<String>) {
         let ids = GitPathSet(values)
         guard canInteract else { return }
@@ -594,6 +682,13 @@ struct ResolveConflictRow: Identifiable {
         else { compare(ids) }
     }
     func compare(_ values: some Sequence<String>) {
+        if onWorkingFileComparison != nil {
+            activateWorkingComparison(Array(values),alternate:ComparisonToolInvocation.capture)
+        } else {viewConflictBase(values)}
+    }
+    /// Preserve explicit access to the ancestor/stage-1 document. A shared
+    /// status-list "Compare with base" command instead means HEAD → working.
+    func viewConflictBase(_ values: some Sequence<String>) {
         let ids = GitPathSet(values)
         guard canInteract, !ids.isEmpty else { return }
         let selected = entries.filter { ids.contains($0.path) }; guard !selected.isEmpty else { return }
@@ -904,7 +999,15 @@ extension ResolveWindowModel {
         guard canFileCommand(command,menu:menu) else {return}
         if command == .revert || command == .delete {mutateFileMenu(command,menu:menu);return}
         usedFileMenus.insert(menu.id)
-        if command == .compareBase {ComparisonToolInvocation.$alternate.withValue(menu.alternate) {compare(GitPathSet(menu.paths))};return}
+        if command == .compareBase {
+            if onWorkingFileComparison != nil {activateWorkingComparison(menu.paths,alternate:menu.alternate,expectedEntries:menu.entries)}
+            else {ComparisonToolInvocation.$alternate.withValue(menu.alternate){viewConflictBase(menu.paths)}}
+            return
+        }
+        if command == .unified {
+            activateWorkingComparison(menu.paths,alternate:menu.alternate,expectedEntries:menu.entries,unified:true)
+            return
+        }
         let alternate = menu.alternate,token = begin()
         Task {
             defer {finish(token);withExtendedLifetime(access) {}}
@@ -934,9 +1037,7 @@ extension ResolveWindowModel {
                         let grant = application.map{RepositoryAccessLease(url:$0)};defer {withExtendedLifetime(grant) {}}
                         if GitRuntime.isAppStoreBuild,application != nil,grant?.hasSecurityScope != true {throw RepositoryAccessFailure.securityScopeUnavailable}
                         if command == .editor {try await openFileEditor(value)} else {try await openFile(value,application)}
-                    case .unified:
-                        let bytes = try await repository.run(["diff","--no-ext-diff","--no-textconv","--no-color","--base","--"]+menu.paths,cancellation:token).stdout
-                        try await validateFileMenu(menu,token:token);try await onFileUnified?(bytes,alternate,token)
+                    case .unified:break
                     }
                 }
             } catch {if active,!token.isCancelled {self.error = error.localizedDescription}}

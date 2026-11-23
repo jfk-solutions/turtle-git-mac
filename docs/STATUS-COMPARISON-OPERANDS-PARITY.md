@@ -182,14 +182,15 @@ query seam while using real historical/tree/working-file bytes. Its pass verifie
 operand fidelity and native ownership for an accepted copy; it does not establish
 complete copied-row discovery in normal status collection.
 
-## Independent consumers still to audit
+## Follow-up independent consumers — November 23, 2026
 
-This batch covers the four working-list source models named above. Add's primary
-activation also consumes the shared Root plan, but its separate explicit Compare
-callback still passes generic working paths. Pinned Add includes direct files
-and removed-but-present rows (`AddDlg.cpp:148–153`), so untracked-only assumptions
-do not close that review. Resolve, Sync and Log have independent conflict,
-working-row and historical comparison routes; their accepted operands must be
-checked against their actual source branch before substituting this builder.
-These consumer audits remain open; this record does not certify every use of the
-shared upstream status control.
+The [Add family](ADD-COMPARISON-OPERANDS-PARITY.md) now routes its independent
+explicit Compare through accepted rows, including direct files and
+removed-but-present copies. The [Resolve/Sync review](CONFLICT-COMPARISON-OPERANDS-PARITY.md)
+separates HEAD/working Compare from the stage-1 viewer and from Unified's live
+HEAD/working patches; Sync's source mask and historical endpoints are retained.
+The [Log family](LOG-WORKING-COMPARISON-OPERANDS-PARITY.md) applies the accepted-row
+builder only to its working sentinel, preserving historical/current-version and
+parent-working meanings. Their grouped evidence is separate from the original
+four-consumer checkpoint. These corrections do not certify every shared status
+control state, copied-row discovery, external tool or physical acceptance case.

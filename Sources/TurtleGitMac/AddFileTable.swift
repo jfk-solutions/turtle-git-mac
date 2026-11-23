@@ -418,7 +418,7 @@ struct AddFileTable: NSViewRepresentable {
             model.setLFSLocked(selectedRows, marked: model.selectionMark, locked: action == .lock)
         }
         var markedRow: AddDialogEntry? { selectedRows.first { GitReferenceName.equal($0.path,model.selectionMark) } ?? selectedRows.first }
-        var canCompareBase: Bool { canAct && markedRow?.status.canCompareWithBaseFromStatusList == true }
+        var canCompareBase: Bool { canAct && table.numberOfRows==primaryRenderedRows.count && primaryProjectionCurrent && markedRow?.status.canCompareWithBaseFromStatusList == true }
         var canUnifiedDiff: Bool { canCompareBase && model.hasHead && !model.unifiedViewerBusy() }
         @objc func unifiedDiff() { guard canUnifiedDiff else { return }; _ = model.startUnifiedDiff(paths: selectedRows.map(\.path), alternate: NSApp.currentEvent?.modifierFlags.contains(.shift) == true) }
         var canCompareTwo: Bool {
@@ -430,7 +430,7 @@ struct AddFileTable: NSViewRepresentable {
             return path
         }
         var canBlame: Bool { canLog && selectedIsFile && markedRow.map { ![FileState.added, .deleted].contains($0.state) } == true }
-        @objc func compareBase() { guard canCompareBase else { return }; model.onCompare(selectedRows.map(\.path)) }
+        @objc func compareBase() { guard canCompareBase else { return }; model.compareFileActions(selectedRows,alternate:ComparisonToolInvocation.capture) }
         @objc func compareTwo() { guard canCompareTwo else { return }; model.onCompareTwo(selectedRows.map(\.path)) }
         @objc func showLog() { guard canLog, let row = markedRow else { return }; model.onLog(row.path) }
         @objc func showOldLog() { guard let path = oldLogPath else { return }; model.onLog(path) }

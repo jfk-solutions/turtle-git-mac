@@ -68,8 +68,11 @@ context-menu actions. Checking files and selecting rows are separate operations.
 An explicit comparison retains unchanged files in the selection, including a
 file whose staged contents differ while its working contents equal HEAD. Added
 files compare against an empty base; deleted files compare against an empty
-destination. An index-only removal does not hide working contents still on disk.
-Reviewing these comparisons preserves the staged contents and working files.</p>
+destination, even if their disk path has since been recreated. Renamed and copied
+rows retain their accepted original path. For an index-only removal with a retained
+working copy, the default file preview opens that copy; explicit Compare keeps
+the deletion's empty destination. Reviewing comparisons preserves the staged
+contents and working files.</p>
 <p>Context <strong>Commit…</strong> passes the selected rows; the footer Commit follows the
 invoked scope and Whole Project. For an unversioned or ignored focused row,
 choose <strong>Add</strong>, or hold Shift for <strong>Add as Executable (+x)</strong> / <strong>Add as Symlink</strong>
@@ -546,6 +549,13 @@ while unrelated manual unchecks remain. Drops do not stage or resolve anything.
 Other repositories and Git administrative files are ignored. Cancel stops pending
 drop reads. Use <strong>F5</strong> to refresh, or <strong>Control-Return / Command-Return</strong> to resolve
 only the checked files through the normal progress flow.</p>
+<p>Resolve's <strong>Compare with base</strong> opens HEAD against the current working file;
+Return or double-click instead opens its conflict editor. Multiple highlighted
+files open in displayed order after the configured many-comparisons question.
+<strong>Show changes as unified diff</strong> produces one combined viewer with each selected
+path's HEAD-to-working patch in displayed order. It does not substitute the
+conflict ancestor for HEAD. Changed conflict stages or a cancelled request prevent
+a late comparison from opening.</p>
 <p>Resolve's file menu also provides path Log, Blame, Open/Open With, the alternative
 editor, Reveal in Finder, two-file comparison and unified changes where the
 selected conflict types permit them. Submodules have separate containing-file and

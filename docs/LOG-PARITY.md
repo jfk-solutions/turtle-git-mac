@@ -14,6 +14,16 @@ The implementation target is the actual TortoiseGit Log Messages dialog and its
 selection-dependent context menus. Native macOS controls retain the three-pane
 arrangement and familiar command order. The initial sidebar log table was removed.
 
+## Current working-list comparison operands — November 23, 2026
+
+The [working-comparison family](LOG-WORKING-COMPARISON-OPERANDS-PARITY.md) preserves
+the accepted raw status action and original path only for the working sentinel.
+Added/Deleted null sides and exact Rename/Copy origins no longer depend on a
+fresh generic diff. Primary retained-copy preview and conflict editing remain
+separate. Historical/current-version, parent-to-working and two-revision routes
+retain their own operands. Earlier generic working-comparison descriptions below
+are historical evidence; they do not override this working-list distinction.
+
 ## Revision metadata columns
 
 The native revision table now includes the source labels Email, Commit Name,
