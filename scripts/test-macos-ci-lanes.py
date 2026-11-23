@@ -714,6 +714,102 @@ class MacOSLaneTests(unittest.TestCase):
                 results = {name: {'result': 'success'} for name in ['svn-runtime', 'validation']}; results[job]['result'] = status
                 result = subprocess.run(['bash', '-e', '-c', shell], env=dict(os.environ, NEEDS_JSON=json.dumps(results)), capture_output=True, text=True)
                 with self.subTest(job=job, status=status): self.assertEqual(result.returncode == 0, status == 'success', result.stderr)
+    def testFailureDiagnosticsHaveExactValidationEnvironmentAndCheckpointOwners(self):
+        worker=self.workflow['jobs']['validation']
+        self.assertEqual(worker['env'],ci.CI_STEP_LOG_ENV)
+        for name in ['svn-runtime','build-and-test']:
+            self.assertNotIn('BASH_ENV',self.workflow['jobs'][name].get('env',{}))
+        steps=worker['steps']
+        for checkpoint,anchor,following in ci.CI_FAILURE_CHECKPOINTS:
+            expected=ci.failure_checkpoint_steps(checkpoint)
+            index=next(i for i,step in enumerate(steps) if step.get('name')==anchor)+1
+            self.assertEqual(steps[index:index+2],list(expected))
+            if following is None:self.assertEqual(index+2,len(steps))
+            else:self.assertEqual(steps[index+2]['name'],following)
+            for ready in ['success','failure','skipped','cancelled','']:
+                for cancelled in [False,True]:
+                    for present in ['true','false','']:
+                        for offset,step in enumerate(expected):
+                            expression=step['if'][4:-3]
+                            expression=expression.replace('!cancelled()',repr(not cancelled)).replace('steps.native_ready.outcome',repr(ready)).replace('steps.ci_failures_'+checkpoint+'.outputs.present',repr(present)).replace('&&',' and ')
+                            permitted=not cancelled and (offset==0 or present=='true')
+                            self.assertEqual(eval(expression,{'__builtins__':{}}),permitted)
+            self.assertNotIn('build/ci-step-logs',expected[1]['with']['path'])
+            self.assertEqual(expected[1]['with']['if-no-files-found'],'ignore')
+        self.verify()
+
+    def testFailureDiagnosticsRejectEnvironmentControlArtifactAndPlacementDrift(self):
+        for mutation in ['missing','other-path','extra-env','root-env']:
+            value=copy.deepcopy(self.workflow)
+            worker=value['jobs']['validation']
+            if mutation=='missing':worker.pop('env')
+            if mutation=='other-path':worker['env']['BASH_ENV']='scripts/unreviewed-hook.sh'
+            if mutation=='extra-env':worker['env']['UNREVIEWED']='value'
+            if mutation=='root-env':value['env']=worker.pop('env')
+            with self.subTest(environment=mutation),self.assertRaises(AssertionError):self.verify(value)
+        for checkpoint,anchor,following in ci.CI_FAILURE_CHECKPOINTS:
+            expected=ci.failure_checkpoint_steps(checkpoint)
+            for offset in [0,1]:
+                for mutation in ['missing','duplicate','moved','guard-ready','guard-cancel','implicit-success','always','extra-env','continue','identity','command-or-action','publish-raw','scope','retention-or-id','present-owner']:
+                    value=copy.deepcopy(self.workflow)
+                    steps=value['jobs']['validation']['steps']
+                    index=next(i for i,step in enumerate(steps) if step.get('name')==expected[offset]['name'])
+                    step=steps[index]
+                    if mutation=='missing':steps.pop(index)
+                    if mutation=='duplicate':steps.insert(index+1,copy.deepcopy(step))
+                    if mutation=='moved':steps.insert(index-1,steps.pop(index))
+                    if mutation=='guard-ready':step['if']=step['if'][:-3]+" && steps.native_ready.outcome == 'success' }}"
+                    if mutation=='guard-cancel':step['if']=step['if'].replace('!cancelled()','true')
+                    if mutation=='implicit-success':step['if']="steps.native_ready.outcome == 'success'"
+                    if mutation=='always':step['if']=step['if'].replace('!cancelled()','always()')
+                    if mutation=='extra-env':step['env']={'UNREVIEWED':'value'}
+                    if mutation=='continue':step['continue-on-error']=True
+                    if mutation=='identity':step['name']+=' changed'
+                    if offset==0:
+                        if mutation=='command-or-action':step['run']='true'
+                        if mutation=='publish-raw':step['run']=step['run'].replace('build/qa/ci-step-failures/'+checkpoint,'build/ci-step-logs')
+                        if mutation=='scope':step['run']=step['run'].replace('--checkpoint '+checkpoint,'--checkpoint unrelated')
+                        if mutation=='retention-or-id':step['id']='unreviewed'
+                        if mutation=='present-owner':step['run']+=' --logs unrelated'
+                    else:
+                        if mutation=='command-or-action':step['uses']='actions/upload-artifact@v3'
+                        if mutation=='publish-raw':step['with']['path']='build/ci-step-logs/**'
+                        if mutation=='scope':step['with']['name']='ci-failures'
+                        if mutation=='retention-or-id':step['with']['retention-days']=90
+                        if mutation=='present-owner':step['if']=step['if'].replace('ci_failures_'+checkpoint,'ci_failures_unrelated')
+                    with self.subTest(checkpoint=checkpoint,offset=offset,mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+            for name in [anchor]+([following] if following else []):
+                value=copy.deepcopy(self.workflow)
+                step=next(step for step in value['jobs']['validation']['steps'] if step.get('name')==name)
+                step['run']='true'
+                with self.subTest(checkpoint=checkpoint,neighbor=name),self.assertRaises(AssertionError):self.verify(value)
+
+    def testEarlyCoreCILogContractHasExactCommandCancellationAndNeighbors(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==ci.CI_STEP_LOG_CONTRACT['name'])
+        self.assertEqual(steps[index],ci.CI_STEP_LOG_CONTRACT)
+        self.assertEqual(steps[index-1]['name'],ci.CI_STEP_LOG_CONTRACT_ANCHOR)
+        self.assertEqual(steps[index+1]['name'],ci.CI_STEP_LOG_CONTRACT_FOLLOWING)
+        self.assertNotIn('native_ready',steps[index]['if'])
+        self.assertTrue(self.eligible(ci.CI_STEP_LOG_CONTRACT['name'],'core',{'native_ready':'failure'}))
+        self.assertFalse(self.eligible(ci.CI_STEP_LOG_CONTRACT['name'],'core',cancelled=True))
+        for lane in ci.LANES:
+            if lane!='core':self.assertFalse(self.eligible(ci.CI_STEP_LOG_CONTRACT['name'],lane))
+        for mutation in ['missing','duplicate','moved','command','ready-gate','wrong-lane','no-cancel','always','continue','extra-env']:
+            value=copy.deepcopy(self.workflow);changed=value['jobs']['validation']['steps'];step=changed[index]
+            if mutation=='missing':changed.pop(index)
+            if mutation=='duplicate':changed.insert(index+1,copy.deepcopy(step))
+            if mutation=='moved':changed.insert(index-1,changed.pop(index))
+            if mutation=='command':step['run']='true'
+            if mutation=='ready-gate':step['if']=step['if'].replace("matrix.lane == 'core'","steps.native_ready.outcome == 'success'")
+            if mutation=='wrong-lane':step['if']=step['if'].replace("'core'","'editors'")
+            if mutation=='no-cancel':step['if']=step['if'].replace('!cancelled()','true')
+            if mutation=='always':step['if']=step['if'].replace('!cancelled()','always()')
+            if mutation=='continue':step['continue-on-error']=True
+            if mutation=='extra-env':step['env']={'UNREVIEWED':'value'}
+            with self.subTest(mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+        self.verify()
+
     def testOriginalSVNProducerUnchangedExceptExplicitTimeout(self):
         # Its complete source is pinned in the baseline verification; here guard
         # the producer artifact required by every matrix worker as well.

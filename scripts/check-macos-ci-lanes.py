@@ -52,6 +52,40 @@ APP_BUILD_EVIDENCE = {
         'retention-days': 7,
     },
 }
+CI_STEP_LOG_ENV = {'BASH_ENV': '${{ github.workspace }}/scripts/ci-step-log.sh'}
+CI_STEP_LOG_CONTRACT = {
+    'name':'CI step log capture and bounded failure contracts',
+    'if':"${{ !cancelled() && matrix.lane == 'core' }}",
+    'run':'python3 scripts/test-ci-step-failures.py',
+}
+CI_STEP_LOG_CONTRACT_ANCHOR = 'Runtime cache invalidation contracts'
+CI_STEP_LOG_CONTRACT_FOLLOWING = 'Capture libgit2 runtime cache key'
+CI_FAILURE_CHECKPOINTS = (
+    ('early','Repository titles and native file tooltips','SVN source forms and captured workflow actions'),
+    ('middle','Native Blame retained-byte encoding recovery and cancellation','Native Blame toolbar customization and document ownership'),
+    ('final','Native Cherry Pick and Rebase recovery across Git versions',None),
+)
+def failure_checkpoint_steps(checkpoint):
+    require(checkpoint in {'early','middle','final'}, 'Unknown CI diagnostic checkpoint')
+    owner='ci_failures_'+checkpoint
+    # Diagnostic controls intentionally do not require native_ready: they
+    # report failures of that producer too. This exception is exact and never
+    # applies to baseline application/native consumers.
+    guard="${{ !cancelled() }}"
+    return (
+        {'name':'Collect redacted CI failures '+checkpoint,
+         'id':owner,
+         'if':guard,
+         'run':'python3 scripts/collect-ci-step-failures.py --checkpoint '+checkpoint+' --output build/qa/ci-step-failures/'+checkpoint},
+        {'name':'Upload redacted CI failures '+checkpoint,
+         'if':"${{ !cancelled() && steps."+owner+".outputs.present == 'true' }}",
+         'uses':'actions/upload-artifact@v4',
+         'with':{'name':'ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-'+checkpoint,
+                 'path':'build/qa/ci-step-failures/'+checkpoint+'/',
+                 'if-no-files-found':'ignore',
+                 'retention-days':7}},
+    )
+
 STORE_BUILD = 'Build and audit unsigned universal App Store candidate'
 REPLAY_BUILD = 'Build isolated older Git runtimes for replay tests'
 STORE_AUDIT = 'Preserve unsigned distribution audit'
@@ -281,7 +315,8 @@ def verify(workflow, inventory, originals):
     expected_svn['timeout-minutes'] = 300
     require(jobs['svn-runtime'] == expected_svn, 'Original SVN producer command/env/action changed')
     worker = jobs['validation']
-    require(set(worker) == {'name', 'needs', 'runs-on', 'timeout-minutes', 'strategy', 'steps'}, 'Unknown worker configuration/inherited env')
+    require(set(worker) == {'name', 'needs', 'runs-on', 'timeout-minutes', 'strategy', 'steps', 'env'}, 'Unknown worker configuration/inherited env')
+    require(worker['env'] == CI_STEP_LOG_ENV, 'Changed validation-only top-level CI diagnostic environment')
     require(worker['name'] == 'validation (${{ matrix.lane }})', 'Worker status label changed')
     require(worker['needs'] == 'svn-runtime' and worker['runs-on'] == 'macos-15-intel', 'Worker dependency/host changed')
     require(worker['strategy'] == {'fail-fast': False, 'max-parallel': 4, 'matrix': {'lane': LANES}}, 'Matrix coverage/failure policy changed')
@@ -289,6 +324,33 @@ def verify(workflow, inventory, originals):
     actual = list(worker['steps'])
     require(actual[1] == GUARD, 'Missing initial fail-closed coverage check')
     actual.pop(1)
+    contracts=[i for i,step in enumerate(actual) if step.get('name')==CI_STEP_LOG_CONTRACT['name']]
+    anchors=[i for i,step in enumerate(actual) if step.get('name')==CI_STEP_LOG_CONTRACT_ANCHOR]
+    require(len(contracts)==1 and len(anchors)==1 and contracts[0]==anchors[0]+1,
+            'Missing, duplicate or moved early core CI log contract')
+    require(actual[contracts[0]]==CI_STEP_LOG_CONTRACT,
+            'Changed early core CI log contract command/cancellation/lane/side effects')
+    require(contracts[0]+1<len(actual) and actual[contracts[0]+1].get('name')==CI_STEP_LOG_CONTRACT_FOLLOWING,
+            'Changed early core CI log contract following neighbor')
+    actual.pop(contracts[0])
+    # Verify every diagnostic control before removing only these reviewed
+    # additions. Every original run command/guard still faces baseline equality.
+    for checkpoint,anchor,following in CI_FAILURE_CHECKPOINTS:
+        expected=failure_checkpoint_steps(checkpoint)
+        anchors=[i for i,step in enumerate(actual) if step.get('name')==anchor]
+        require(len(anchors)==1,'Missing or duplicate CI failure checkpoint anchor: '+checkpoint)
+        start=anchors[0]+1
+        for offset,step in enumerate(expected):
+            require(sum(value.get('name')==step['name'] for value in actual)==1,
+                    'Missing or duplicate CI failure diagnostic control: '+step['name'])
+            require(start+offset<len(actual) and actual[start+offset]==step,
+                    'Changed CI diagnostic owner/command/guard/artifact/placement: '+step['name'])
+        if following is None:
+            require(start+len(expected)==len(actual),'Final CI failure diagnostics must end the validation job')
+        else:
+            require(start+len(expected)<len(actual) and actual[start+len(expected)].get('name')==following,
+                    'Changed CI diagnostic checkpoint following neighbor: '+checkpoint)
+        del actual[start:start+len(expected)]
     utility = [i for i, step in enumerate(actual) if step.get('name') == UTILITY_STARTUP['name']]
     anchors = [i for i, step in enumerate(actual) if step.get('name') == UTILITY_STARTUP_ANCHOR]
     require(len(utility) == 1 and len(anchors) == 1, 'Missing or duplicate utility startup check/anchor')

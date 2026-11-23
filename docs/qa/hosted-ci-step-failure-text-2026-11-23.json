@@ -1,0 +1,64 @@
+{
+  "date": "2026-11-23",
+  "baseline": "87490db3",
+  "scope": "Hosted per-step diagnostic capture, bounded redaction and failure-only checkpoint artifacts; no application/runtime behavior changes.",
+  "sources": {
+    ".github/workflows/macos.yml": "05ae95782905ac90b7acd43b8f10cfb1b933e9889d0044f495da6a53c01183f5",
+    "scripts/ci-step-log.sh": "3af510a8aa4993928dd013691ec8e4345cb682aa848f059e633bb4614b5b370b",
+    "scripts/collect-ci-step-failures.py": "96c95f7fcdad4bc7f1ef5d570566e978da45f480b543e356258babc557177a19",
+    "scripts/test-ci-step-failures.py": "cd300d21661e2d695f912eb390f6ff97034d6bb6cb3c36cc424ae6893d3bbeb8",
+    "scripts/check-macos-ci-lanes.py": "cb640111799e1e51203ccd875693fd28a162c0a55823ea2561dfc8bb2e96d80c",
+    "scripts/test-macos-ci-lanes.py": "f0861c7e63da66be666d6f498924a2cac9ba33c73a79cd84a141891ba87dbcab"
+  },
+  "checks": [
+    {
+      "command": "python3 scripts/test-ci-step-failures.py",
+      "log": "build/qa/ci-step-failure-contracts-2026-11-23.log",
+      "exit": 1,
+      "methods": 14,
+      "failures": 1,
+      "errors": 3,
+      "finding": "Bash 3.2 exposes interpreter $0 during BASH_ENV; capture rejected legitimate scripts. Output-budget fixture did not fill its declared bound."
+    },
+    {
+      "command": "python3 scripts/test-macos-ci-lanes.py",
+      "log": "build/qa/ci-step-workflow-contracts-2026-11-23.log",
+      "exit": 0,
+      "methods": 50
+    },
+    {
+      "command": "python3 scripts/test-ci-step-failures.py",
+      "log": "build/qa/ci-step-failure-contracts-repair-2026-11-23.log",
+      "exit": 1,
+      "methods": 14,
+      "errors": 3,
+      "finding": "Authored repeated diagnostic contexts exercise output budget; all collector checks pass. Capture still rejects Bash 3.2 startup $0. Clean launch fixture changes alone did not fix production hook."
+    },
+    {
+      "command": "python3 scripts/test-ci-step-failures.py StepCaptureTests",
+      "log": "build/qa/ci-step-capture-bash32-repair-2026-11-23.log",
+      "exit": 0,
+      "methods": 4,
+      "finding": "One-shot DEBUG initialization removes itself before first script command; exact streams, nested-shell inertness, exit status, umask and occupied descriptors pass."
+    },
+    {
+      "command": "python3 scripts/reconcile-dialog-coverage.py",
+      "exit": 0,
+      "finding": "Ledger unchanged; counts are not completion percentages."
+    }
+  ],
+  "accepted_scope": {
+    "helper_distinct_methods_passed_cumulatively": 14,
+    "workflow_methods_passed": 50,
+    "full_core_or_native_runs": false,
+    "app_instances_launched": 0,
+    "installation_or_submission": false
+  },
+  "limits": [
+    "Not evidence of a hosted green run.",
+    "Existing native failures require exact diagnostics; no production fixes inferred from step names.",
+    "Raw step logs stay local to runners; only bounded redacted checkpoint directories are uploaded, with seven-day retention.",
+    "A replaced EXIT trap leaves incomplete evidence rather than being intercepted.",
+    "Latest a5e53664 native run remains queued behind older12fb at recorded snapshot."
+  ]
+}

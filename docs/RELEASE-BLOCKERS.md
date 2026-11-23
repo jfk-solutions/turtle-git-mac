@@ -15,6 +15,14 @@ are unchanged. No shipping GUI/Finder acceptance or full hosted pass is implied.
 Older12fb CI has native failures with only step exit codes available; their actual
 assertions still require accessible diagnostics. No Store submission is authorized.
 
+The [hosted diagnostic batch](qa/hosted-ci-step-failure-text-2026-11-23.json)
+adds per-step exit/stream capture and bounded redacted reports without changing
+existing validation commands or consumer guards. Fourteen distinct helper checks
+pass cumulatively after the recorded Bash 3.2 startup and fixture repairs;
+50 workflow checks pass. This improves failure evidence, not application parity
+or hosted acceptance. The available Statistics ownership artifact identifies a
+native error-sheet acknowledgement stall; its cause is still under diagnosis.
+
 ## Classic EMF path batch — November 23, 2026
 
 The [classic path family](METAFILE-CLASSIC-PATH-PARITY.md) implements typed
@@ -61,8 +69,10 @@ An explicit model-array type preserves the existing ownership checks and builds
 locally. Complete hosted success against the repaired commit is still pending.
 No installed-app update, signing, notarization or store submission was performed.
 
-Remaining gates include WMF/EMF rendering/path acceptance and HQ affine arithmetic,
-remaining source/layout acceptance, full hosted CI, signed/platform/physical Finder
+At this earlier checkpoint, WMF/EMF path work and HQ affine arithmetic were still
+open. The newer classic path checkpoint above finishes the agreed path batch;
+separate HQ WIP is deferred under the owner's direction. Remaining release gates
+include source/layout acceptance, full hosted CI, signed/platform/physical Finder
 checks and owner acceptance before publication.
 
 ## Working-status action checkpoint — November 23, 2026

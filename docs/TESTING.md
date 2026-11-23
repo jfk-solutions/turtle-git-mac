@@ -66,6 +66,16 @@ TortoiseGit visually, or that the app is ready for distribution.
 
 ## Bounded macOS CI lanes
 
+Hosted validation steps capture separate stdout/stderr and numeric exit statuses
+through `scripts/ci-step-log.sh`. Nested shells keep their normal streams and do
+not start another capture. Early, middle and final collectors publish only bounded,
+redacted failure reports (seven-day retention), including incomplete capture
+records. Raw logs, environments and repository fixtures are not uploaded by these
+collectors. These reports help diagnose failures; recorded successes or missing
+records do not establish that a job passed. The capture/collector contracts run
+with `python3 scripts/test-ci-step-failures.py`; workflow placement and guard
+contracts remain in `scripts/test-macos-ci-lanes.py`.
+
 The macOS workflow separates the former serial job into eight Intel lanes:
 Core; Commit/repository; history/references; replay/transport; text editors;
 Settings/Finder; images/documents; and distribution. At most four lanes run

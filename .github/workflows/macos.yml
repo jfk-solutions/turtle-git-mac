@@ -74,6 +74,8 @@ jobs:
           path: build/git-svn-runtime/GitSVN.tar.gz
   validation:
     name: validation (${{ matrix.lane }})
+    env:
+      BASH_ENV: ${{ github.workspace }}/scripts/ci-step-log.sh
     needs: svn-runtime
     runs-on: macos-15-intel
     timeout-minutes: 300
@@ -121,6 +123,9 @@ jobs:
       - name: Runtime cache invalidation contracts
         if: matrix.lane == 'core'
         run: python3 scripts/test-ci-runtime-caches.py
+      - name: CI step log capture and bounded failure contracts
+        if: ${{ !cancelled() && matrix.lane == 'core' }}
+        run: python3 scripts/test-ci-step-failures.py
       - name: Capture libgit2 runtime cache key
         id: libgit2-key
         run: python3 scripts/ci-runtime-cache-key.py libgit2 --toolchain '${{ steps.toolchain.outputs.fingerprint }}' --runner '${{ runner.os }}-${{ runner.arch }}' >> "$GITHUB_OUTPUT"
@@ -527,6 +532,18 @@ jobs:
       - name: Repository titles and native file tooltips
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'commit-repository' }}
         run: python3 scripts/test-repository-presentation.py --git /usr/bin/git
+      - name: Collect redacted CI failures early
+        id: ci_failures_early
+        if: ${{ !cancelled() }}
+        run: python3 scripts/collect-ci-step-failures.py --checkpoint early --output build/qa/ci-step-failures/early
+      - name: Upload redacted CI failures early
+        if: ${{ !cancelled() && steps.ci_failures_early.outputs.present == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-early
+          path: build/qa/ci-step-failures/early/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: SVN source forms and captured workflow actions
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'replay-transport' }}
         run: python3 scripts/test-svn-source-family.py --source-only --git /usr/bin/git --git "$PWD/build/git-runtime/Git/bin/git"
@@ -1083,6 +1100,18 @@ jobs:
       - name: Native Blame retained-byte encoding recovery and cancellation
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' }}
         run: python3 scripts/test-blame-encoding-projection.py --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
+      - name: Collect redacted CI failures middle
+        id: ci_failures_middle
+        if: ${{ !cancelled() }}
+        run: python3 scripts/collect-ci-step-failures.py --checkpoint middle --output build/qa/ci-step-failures/middle
+      - name: Upload redacted CI failures middle
+        if: ${{ !cancelled() && steps.ci_failures_middle.outputs.present == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-middle
+          path: build/qa/ci-step-failures/middle/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Native Blame toolbar customization and document ownership
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'history-references' }}
         run: python3 scripts/test-blame-toolbar.py --only composition --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git
@@ -1637,6 +1666,18 @@ jobs:
           --git build/replay-test-git/2.37.1/bin/git
           --git build/replay-test-git/2.39.5/bin/git
           --git build-store/Build/Products/AppStore/TurtleGitMac.app/Contents/Helpers/Git/bin/git
+      - name: Collect redacted CI failures final
+        id: ci_failures_final
+        if: ${{ !cancelled() }}
+        run: python3 scripts/collect-ci-step-failures.py --checkpoint final --output build/qa/ci-step-failures/final
+      - name: Upload redacted CI failures final
+        if: ${{ !cancelled() && steps.ci_failures_final.outputs.present == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-final
+          path: build/qa/ci-step-failures/final/
+          if-no-files-found: ignore
+          retention-days: 7
   build-and-test:
     name: build-and-test
     if: always()
