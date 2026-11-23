@@ -71,3 +71,22 @@ focused Core methods, the app build and fourteen native case/engine pairs after
 recorded fixture repairs. Previously passing Core, build and native groups were
 retained. The built Help manifest matches the current generated guides; resource
 checks and all 22 logged owned-process absence checks are recorded separately.
+
+## Compare pane replacement continuation — November 23, 2026
+
+Document Undo/Redo now restores history while native panes are detached during
+replacement. Text, row annotations, codec and serialized caret remain owned by
+the document; a replacement viewport consumes the deferred caret. Native Undo/Redo
+selectors, context menus and toolbar buttons still require the current mounted
+presentation. Busy, read-only, pending choices, Quit, attached sheets and retired
+documents refuse history restoration.
+
+The [focused checkpoint](qa/compare-document-history-2026-11-23.json) records one
+Debug build and eight distinct native case/Git passes cumulatively: history and
+ownership on both engines, plus Classic/P4 Compare Save readiness on both engines.
+The existing detached-history fixture also exercises Redo and stale native Undo
+refusal. One ownership receiver crashed at a temporary sheet's release boundary;
+explicit Swift sheet lifetime and deferred cleanup repair that fixture, with only
+the failed bundled ownership case repeated. No Core code or new UI labels changed.
+Full hosted, signed/physical, accessibility and owner acceptance remain open;
+signed55 and installed52 do not contain this source repair.

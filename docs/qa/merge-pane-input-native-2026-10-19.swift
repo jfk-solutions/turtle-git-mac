@@ -315,6 +315,8 @@ import TurtleGitCore
         pair.window?.makeFirstResponder(view);view.setSelectedRange(NSRange(location:8,length:0));let original=pair.model.draftText(base:false),caret=view.selectedRange()
         pair.model.busy=true;view.moveRight(nil);view.deleteBackward(nil);try require(view.selectedRange()==caret && pair.model.draftText(base:false)==original,"Busy pane accepted movement/deletion");pair.model.busy=false
         let sheet=NSWindow(contentRect:.init(x:0,y:0,width:100,height:80),styleMask:[.titled],backing:.buffered,defer:false)
+        sheet.isReleasedWhenClosed=false;sheet.alphaValue=0
+        defer {if let parent=sheet.sheetParent{parent.endSheet(sheet,returnCode:.cancel)};sheet.close()}
         pair.window!.beginSheet(sheet,completionHandler:{_ in});view.moveRight(nil);view.deleteBackward(nil);try require(view.selectedRange()==caret && pair.model.draftText(base:false)==original,"Sheet-owned pane accepted movement/deletion")
         pair.window!.endSheet(sheet);sheet.close();try await wait {pair.window?.attachedSheet==nil}
         pair.model.configureMergeToolReadOnly(true);try await wait {!view.isEditable};view.moveRight(nil);try require(view.selectedRange().location==caret.location+1,"Read-only pane lost navigation");let readOnlyCaret=view.selectedRange();view.deleteBackward(nil);try require(pair.model.draftText(base:false)==original && view.selectedRange()==readOnlyCaret,"Read-only pane deleted source")

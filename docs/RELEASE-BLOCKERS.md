@@ -1,5 +1,15 @@
 # Local testing and release gates
 
+## Compare document history — November 23, 2026
+
+[Compare history](EDITOR-SAVE-HISTORY-READINESS-PARITY.md#compare-pane-replacement-continuation--november-23-2026)
+now survives temporary pane detachment while native commands retain current
+presentation ownership. The [checkpoint](qa/compare-document-history-2026-11-23.json)
+records eight cumulative native case/engine passes and the repaired temporary
+sheet lifetime crash. No Core change required a Core rerun. Full hosted and
+signed/physical acceptance remain open; signed55 and installed52 are unchanged.
+
+
 The goal remains the full native macOS port of TortoiseGit. Implemented screens,
 resource mappings and focused checks do not establish complete application parity.
 This page identifies current gates; dated implementation detail is in

@@ -1,5 +1,15 @@
 # TurtleGit for Mac — full port tracking
 
+## Compare document history — November 23, 2026
+
+[Compare history](EDITOR-SAVE-HISTORY-READINESS-PARITY.md#compare-pane-replacement-continuation--november-23-2026)
+now survives temporary pane detachment while native commands retain current
+presentation ownership. The [checkpoint](qa/compare-document-history-2026-11-23.json)
+records eight cumulative native case/engine passes and the repaired temporary
+sheet lifetime crash. No Core change required a Core rerun. Full hosted and
+signed/physical acceptance remain open; signed55 and installed52 are unchanged.
+
+
 ## Clone acceptance and native history readiness — November 23, 2026
 
 Successful Clone now keeps its bounded repository verification when cancellation

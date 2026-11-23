@@ -1200,18 +1200,24 @@ private extension FileComparisonDocument {
     weak var window: NSWindow?
     func undo() {
         synchronizeNativeEditors(installPresentation:true)
-        guard historyActionsAllowed, comparisonHistory.canUndo else { return }
+        guard documentHistoryActionsAllowed, comparisonHistory.canUndo else { return }
         comparisonHistory.undo(); updateHistoryState()
     }
     func redo() {
         synchronizeNativeEditors(installPresentation:true)
-        guard historyActionsAllowed, comparisonHistory.canRedo else { return }
+        guard documentHistoryActionsAllowed, comparisonHistory.canRedo else { return }
         comparisonHistory.redo(); updateHistoryState()
     }
     // Undo can supersede an edit's pending comparison request. Restoring its
     // presentation cancels that request and fences any late engine result.
+    var documentHistoryActionsAllowed: Bool {
+        !mergeToolReadOnly && !retired && !busy && !hasPendingEditorChoice && !confirmingQuit && window?.attachedSheet==nil
+    }
+    // Native commands still require the current mounted presentation. Document
+    // history also runs between pane teardown and replacement; its saved caret
+    // remains pending until a new owned viewport can consume it.
     var historyActionsAllowed: Bool {
-        guard !mergeToolReadOnly,!retired,!busy,!hasPendingEditorChoice,!confirmingQuit,window?.attachedSheet==nil else{return false}
+        guard documentHistoryActionsAllowed else{return false}
         return !requiresNativeEditors || scrolls.values.contains{scroll in
             guard let view=scroll.documentView as? FileComparisonTextView else{return false}
             return ownsNativeEditor(view) && view.nativePresentationEpoch==nativePresentationEpoch
@@ -1598,7 +1604,7 @@ private extension FileComparisonDocument {
         comparisonHistory.registerUndo(withTarget: self) { $0.restoreEditingHistory(state) }
     }
     private func restoreEditingHistory(_ state: EditingHistoryState) {
-        guard historyActionsAllowed, canEdit(base: state.base) else { return }
+        guard documentHistoryActionsAllowed, canEdit(base: state.base) else { return }
         comparisonHistory.beginUndoGrouping()
         defer { comparisonHistory.endUndoGrouping(); updateHistoryState() }
         registerEditingHistory(base: state.base, fallbackCaret: state.caret.sourceOffset)
@@ -2633,8 +2639,8 @@ private struct FileComparisonDialog: View {
             HStack {
                 Button { model.save() } label: { CommandLabel(title: "Save", icon: .mergeSave) }.disabled(!model.activeDirty)
                 Menu { if !model.onePaneActive { Button("Save left pane as…") { model.saveAs(base: true) } }; Button("Save right pane as…") { model.saveAs(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(!model.canSavePaneAs)
-                Button { model.undo() } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.canUndo)
-                Button { model.redo() } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.canRedo)
+                Button { if model.historyActionsAllowed { model.undo() } } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.historyActionsAllowed || !model.canUndo)
+                Button { if model.historyActionsAllowed { model.redo() } } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.historyActionsAllowed || !model.canRedo)
                 Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
                 Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(!model.canNavigateDifference(-1))
                 Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(!model.canNavigateDifference(1))
@@ -3265,8 +3271,14 @@ fileprivate final class FileComparisonTextView: MergePaneInputTextView, MergeEdi
         if model?.contextCommandsAllowed == true, foldLayout.expand(at: event, in: self) { return }
         super.mouseDown(with: event)
     }
-    @objc(undo:) func undoComparison(_ sender: Any?) { guard currentNativeOwner else{return};model?.undo() }
-    @objc(redo:) func redoComparison(_ sender: Any?) { guard currentNativeOwner else{return};model?.redo() }
+    @objc(undo:) func undoComparison(_ sender: Any?) {
+        guard currentNativeOwner else{return};model?.synchronizeNativeEditors(installPresentation:true)
+        guard model?.historyActionsAllowed==true else{return};model?.undo()
+    }
+    @objc(redo:) func redoComparison(_ sender: Any?) {
+        guard currentNativeOwner else{return};model?.synchronizeNativeEditors(installPresentation:true)
+        guard model?.historyActionsAllowed==true else{return};model?.redo()
+    }
     override func validateMenuItem(_ item: NSMenuItem) -> Bool {
         if item.action == NSSelectorFromString("undo:") { return currentNativeOwner && model?.canUndo == true && model?.historyActionsAllowed == true }
         if item.action == NSSelectorFromString("redo:") { return currentNativeOwner && model?.canRedo == true && model?.historyActionsAllowed == true }
@@ -3473,8 +3485,8 @@ fileprivate final class FileComparisonTextView: MergePaneInputTextView, MergeEdi
     @objc private func unmarkBlock() { guard ownedPresentationReady else{return};model?.markBlock(false, targetBase: false) }
     @objc private func leaveOnlyMarked() { guard ownedPresentationReady else{return};model?.leaveOnlyMarked(targetBase: false) }
     @objc private func exportPane() { guard ownedPresentationReady else{return};model?.saveAs(base: baseSide) }
-    @objc private func undoEdit() { guard ownedPresentationReady else{return};model?.undo() }
-    @objc private func redoEdit() { guard ownedPresentationReady else{return};model?.redo() }
+    @objc private func undoEdit() { guard ownedPresentationReady,model?.historyActionsAllowed==true else{return};model?.undo() }
+    @objc private func redoEdit() { guard ownedPresentationReady,model?.historyActionsAllowed==true else{return};model?.redo() }
 
 }
 

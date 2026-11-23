@@ -1,0 +1,129 @@
+{
+  "date": "2026-11-23",
+  "baseline": "6cf95fd4",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused-native-scopes-passed-cumulatively",
+  "production": [
+    "Document-owned Compare Undo/Redo and history restoration survive temporary native pane detachment, keeping text, annotations, codec and deferred caret.",
+    "Native selectors, context menus and toolbar controls still require current mounted presentation ownership. Read-only, busy, pending choice, Quit, sheet and retired-document guards remain."
+  ],
+  "source_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "58b6cd1aec71bf86e6f7cd57e2ecd0648049569ce1cf3b283690fab60d6609e3",
+    "docs/qa/merge-edit-history-native-2026-10-18.swift": "6fa35603d83bf366d3f5941f01cbbe4931001697055aa1aeffef75e4579f1016",
+    "docs/qa/merge-pane-input-native-2026-10-19.swift": "e3c8a839314e854b077e8bdb78b24aefb3761153395ca2fbf0ba1406190b2d0d"
+  },
+  "build": {
+    "configuration": "Debug",
+    "exit_code": 0,
+    "log": "build/qa/compare-document-history-build-2026-11-23.log",
+    "isolated_checkout": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac"
+  },
+  "initial_group": [
+    {
+      "name": "compare-history-ownership",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-merge-pane-input.py",
+        "--only",
+        "history",
+        "--only",
+        "ownership",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 1,
+      "seconds": 17.025,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/compare-document-compare-history-ownership-2026-11-23.log"
+    },
+    {
+      "name": "compare-save-readiness",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-editor-save-history-readiness.py",
+        "--only",
+        "compare",
+        "--results",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/compare-document-save-readiness-results-2026-11-23.json",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 15.543,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/compare-document-compare-save-readiness-2026-11-23.log"
+    }
+  ],
+  "failure_and_repair": {
+    "case": "ownership/bundled Git",
+    "initial": "SIGSEGV in objc_release from MergePaneInputVerification.ownership; temporary raw NSWindow sheet closed with default release-on-close while held by Swift.",
+    "repair": "Set sheet.isReleasedWhenClosed=false, hide it and defer parent detachment/close. No assertion removed.",
+    "recheck": {
+      "case": "ownership/bundled Git",
+      "exit_code": 0,
+      "log": "build/qa/compare-document-ownership-repair-2026-11-23.log"
+    }
+  },
+  "cumulative_distinct_native_case_engine_passes": 8,
+  "save_readiness": {
+    "cases": [
+      {
+        "case": "compare",
+        "layout": "classic",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "compare",
+        "layout": "classic",
+        "git": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "compare",
+        "layout": "p4",
+        "git": "/usr/bin/git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      },
+      {
+        "case": "compare",
+        "layout": "p4",
+        "git": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git",
+        "status": "passed",
+        "exit_code": 0,
+        "fallback_helper_cleanup": false
+      }
+    ]
+  },
+  "cleanup": {
+    "logged_owned_pids": [
+      17736,
+      17743,
+      17750,
+      17769,
+      17816,
+      17831,
+      17865,
+      17874,
+      17910,
+      17928,
+      17946,
+      18093,
+      18107
+    ],
+    "all_absent": true
+  },
+  "not_run": [
+    "Core suite: no Core code changed.",
+    "Full hosted integration, shipping signed GUI/Finder, physical layout/accessibility, Intel/minimum macOS and owner acceptance."
+  ],
+  "delivery": "Signed55 and installed52 unchanged; no install, notarization or Store submission."
+}

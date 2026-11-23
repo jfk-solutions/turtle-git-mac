@@ -84,8 +84,19 @@ struct MergeEditHistoryVerification {
         // Detach the native editor while document history remains live.
         window.makeFirstResponder(nil);window.contentViewController=NSViewController()
         try await TwoPaneEngineVerification.wait {reused.window==nil}
+        try require(model.documentHistoryActionsAllowed && !model.historyActionsAllowed,"Detached document/native history admission did not separate")
+        let undoSelector=NSSelectorFromString("undo:")
+        try require(reused.responds(to:undoSelector),"Retired editor lost the native Undo selector under test")
+        _=reused.perform(undoSelector,with:nil)
+        try require(Data(model.draftText(base:false).utf8)==typed,"Retired native Undo callback changed the live document")
+        model.busy=true;model.undo();try require(Data(model.draftText(base:false).utf8)==typed,"Detached busy document accepted Undo");model.busy=false
+        model.confirmingQuit=true;model.undo();try require(Data(model.draftText(base:false).utf8)==typed,"Detached Quit question accepted Undo");model.confirmingQuit=false
         model.undo()
         try require(Data(model.draftText(base:false).utf8)==Data(before.utf8),"Document Undo required a retired native view")
+        model.redo()
+        try require(Data(model.draftText(base:false).utf8)==typed && model.displayCells(base:false).map(\.state)==states,"Detached document Redo lost exact text or row metadata")
+        model.undo()
+        try require(Data(model.draftText(base:false).utf8)==Data(before.utf8) && model.hasHistoryCaret(base:false),"Detached second Undo lost bytes or deferred caret")
         let replacement=NSHostingController(rootView:FileComparisonEditor(model:model,cells:model.displayCells(base:false),base:false))
         replacement.sizingOptions=[];replacement.view.setFrameSize(editorSize);window.contentViewController=replacement;window.setContentSize(editorSize)
         var attachmentPolls=0
