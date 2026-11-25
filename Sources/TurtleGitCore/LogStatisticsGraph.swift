@@ -30,6 +30,64 @@ public enum LogStatisticsMetric: Int, CaseIterable, Sendable {
     public var needsChanges: Bool { [.authorship, .linesIncluding, .linesExcluding].contains(self) }
     public var byAuthor: Bool { self == .commitsByAuthor || self == .authorship }
 }
+/// Only the ordering of date captions follows the application/system locale.
+/// Interval membership continues to use the calculation's original calendar,
+/// time zone and week rules, including its existing native week-year behavior.
+public struct LogStatisticsDateSettings: Equatable, Sendable {
+    public enum Order: String, Sendable {case monthDayYear,dayMonthYear,yearMonthDay}
+    public let localeIdentifier:String
+    public let order:Order
+    public init(useSystemLocale:Bool = true,applicationLanguage:String = AppLanguageChoice.system,
+                systemLocale:Locale = .current,preferredLanguages:[String] = Locale.preferredLanguages) {
+        let selected=AppLanguageChoice.isAvailable(applicationLanguage) ? applicationLanguage:AppLanguageChoice.system
+        let language=selected == AppLanguageChoice.system
+            ? Bundle.preferredLocalizations(from:AppLanguageChoice.bundledIDs,forPreferences:preferredLanguages).first ?? "en"
+            : selected
+        // Use the same Serbian script distinction as the existing language
+        // chooser. Foundation supplies regional defaults for each language ID.
+        let locale=useSystemLocale ? systemLocale:Locale(identifier:language == "sr" ? "sr-Cyrl":language)
+        localeIdentifier=locale.identifier
+        let pattern=DateFormatter.dateFormat(fromTemplate:"yMd",options:0,locale:locale) ?? "M/d/y"
+        var quoted=false,first:Character?
+        for character in pattern {
+            if character == "'" {quoted.toggle();continue}
+            guard !quoted else {continue}
+            if "yYu".contains(character) {first="y";break}
+            if "ML".contains(character) {first="M";break}
+            if character == "d" {first="d";break}
+        }
+        order=first == "y" ? .yearMonthDay:first == "M" ? .monthDayYear:.dayMonthYear
+    }
+    public static func load(defaults:UserDefaults = .standard,systemLocale:Locale = .current,
+                            preferredLanguages:[String] = Locale.preferredLanguages) -> Self {
+        Self(useSystemLocale:(defaults.object(forKey:"UseSystemLocaleForDates") as? NSNumber)?.boolValue ?? true,
+             applicationLanguage:AppLanguageChoice.selected(in:defaults),systemLocale:systemLocale,preferredLanguages:preferredLanguages)
+    }
+    public func label(for date:Date,unit:LogStatisticsUnit,calendar:Calendar = .current) -> String {
+        let year=calendar.component(unit == .week ? .yearForWeekOfYear:.year,from:date)
+        let suffix=String(abs(year % 100)),shortYear=suffix.count < 2 ? "0"+suffix:suffix
+        switch unit {
+        case .day:
+            let month=calendar.component(.month,from:date),day=calendar.component(.day,from:date)
+            switch order {
+            case .monthDayYear:return "\(month)/\(day)/\(shortYear)"
+            case .dayMonthYear:return "\(day)/\(month)/\(shortYear)"
+            case .yearMonthDay:return "\(shortYear)/\(month)/\(day)"
+            }
+        case .week:
+            let week=calendar.component(.weekOfYear,from:date)
+            return order == .yearMonthDay ? "\(shortYear)/\(week)":"\(week)/\(shortYear)"
+        case .month:
+            let month=calendar.component(.month,from:date)
+            return order == .yearMonthDay ? "\(shortYear)/\(month)":"\(month)/\(shortYear)"
+        case .quarter:
+            let quarter=(calendar.component(.month,from:date)-1)/3+1
+            return order == .yearMonthDay ? "\(shortYear)/\(quarter)":"\(quarter)/\(shortYear)"
+        case .year:return String(year)
+        }
+    }
+}
+
 public enum LogStatisticsStyle: Int, CaseIterable, Sendable { case stackedBar = 1, bar = 2, stackedLine = 3, line = 4, pie = 5 }
 public struct LogStatisticsColor: Equatable, Sendable {
     public let red: UInt8
@@ -200,7 +258,7 @@ public struct LogStatisticsGraph: Sendable {
         for point in wedges { running += Double(point.value); if target < running { return point } }
         return wedges.last
     }
-    public static func make(_ summary: LogStatisticsSummary, metric: LogStatisticsMetric, authorsShown: Int, alphabetical: Bool = false, calendar: Calendar = .current) throws -> Self {
+    public static func make(_ summary: LogStatisticsSummary, metric: LogStatisticsMetric, authorsShown: Int, alphabetical: Bool = false, calendar: Calendar = .current, dateSettings: LogStatisticsDateSettings? = nil) throws -> Self {
         if metric == .statistics { return Self(metric: metric, unit: summary.unit, categoryLabels: [], seriesLabels: [], points: [], includedAuthors: [], skippedAuthors: []) }
         if metric.needsChanges && !summary.changesCalculated { throw LogStatisticsFailure.incompleteChanges }
         let round: (Double) -> Int = { Int($0.rounded(.toNearestOrAwayFromZero)) }
@@ -238,6 +296,6 @@ public struct LogStatisticsGraph: Sendable {
             for (series, author) in included.enumerated() { points.append(Point(category: category, series: series, value: values[author] ?? 0)) }
             if !skipped.isEmpty { points.append(Point(category: category, series: included.count, value: skipped.reduce(0) { $0 + (values[$1] ?? 0) })) }
         }
-        return Self(metric: metric, unit: summary.unit, categoryLabels: intervals.map { formatter.string(from: $0.date) }, seriesLabels: labels, points: points, includedAuthors: included, skippedAuthors: skipped)
+        return Self(metric: metric, unit: summary.unit, categoryLabels: intervals.map { dateSettings?.label(for:$0.date,unit:summary.unit,calendar:calendar) ?? formatter.string(from: $0.date) }, seriesLabels: labels, points: points, includedAuthors: included, skippedAuthors: skipped)
     }
 }

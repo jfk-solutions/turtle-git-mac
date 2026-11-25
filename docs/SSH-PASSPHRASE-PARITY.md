@@ -48,3 +48,27 @@ load encrypted fixture keys; wrong/missing responses preserve earlier identities
 Pre-cancellation, live loader closure and injected failures remove private files
 and reap owned processes. This verifies the packaged response chain, not the
 physical secure field, signed access, Keychain or server authentication.
+
+
+## Login resource review — November 25, 2026
+
+The pinned `src/TortoisePlink/Windows/TortoisePlink.rc` / `IDD_LOGIN` contains
+OK, Cancel, a runtime prompt label and a masked response field.
+`LoginDialog.cpp` supplies the prompt, focuses the response, bounds the reply
+and clears the field after acceptance or cancellation. Its native replacement
+is the existing `GitAskpassWindowController` and `GitAskpassPrompt`: the exact
+prompt is selectable, secret replies use NSSecureTextField, Return accepts and
+Cancel/Escape/window close settles once and clears the control. Invalid,
+multiline, NUL-containing or oversized responses are refused; SSH responses
+retain the 1023-byte bound. The native helper supplies replies through the
+client's existing pipe, not command arguments or a credential-bearing URL.
+
+These four controls now have explicit partial native mappings. Existing
+[SSH askpass evidence](qa/ssh-askpass-2026-10-13.json),
+[Git askpass evidence](qa/git-askpass-2026-10-13.json) and
+[prompt display evidence](qa/git-askpass-display-2026-10-13.json) retain their
+original scopes; this source review did not repeat them. It does not certify
+every client/server exchange, physical keyboard/VoiceOver behavior or signed
+folder permission, reproduce Windows PuTTY process/window identity, or promise
+secure-memory erasure. The other remaining work described above retains its
+individual dated scope and subsequent transport/identity reviews.

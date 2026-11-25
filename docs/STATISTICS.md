@@ -18,7 +18,9 @@ Choose a graph type at the top:
   files.
 
 The initial summary avoids reading every commit's diff. Choose **Calculate** to
-load file/line totals. Authorship and line graphs start this calculation when
+load file/line totals. Line summaries show the total followed by added (+) and
+removed (-) components, both excluding and including whole added/deleted files.
+Long values wrap or scroll so every component remains selectable. Authorship and line graphs start this calculation when
 selected. Progress appears at the bottom; **Cancel** stops the calculation. Closing
 or pressing Escape while it is running requests cancellation first.
 
@@ -29,19 +31,27 @@ composed and decomposed spellings remain distinct even when they look the same.
 Disabling case sensitivity folds case without normalizing those spellings.
 The author slider limits individual series; remaining authors
 are grouped as **Others**. If only one author would remain, that author keeps their
-name. These settings and the last graph page are remembered when the window closes.
+name. During a drag, the cutoff value changes while the chart stays in place;
+release the slider to redraw. Keyboard and accessibility changes apply directly.
+These settings and the last graph page are remembered when the window closes.
 
 The five original graph icons select pie, stacked line, line, stacked bar and bar.
 Hover bars, pie wedges or line points in smaller graphs for the author, value,
 unit and percentage. Hovering the average region shows its value. Stacked-area
 polygons do not provide individual value tooltips. Zero-value intervals are omitted
 from bar graphs; ordinary bars share widths across the populated intervals.
-Line styles are unavailable for the author comparison graphs. Stacked bar for
+Selecting a graph style resets the author cutoff to the available maximum,
+matching TortoiseGit. Line styles are unavailable for the author comparison graphs. Stacked bar for
 author comparisons shows one colored stack of authors. Ordinary bar and line
 graphs include the source average guide. Integer tick labels reflect commit/line
 counts. Graph titles and axis units follow the chosen metric and time interval;
 the original TortoiseGit palette is shared by all graph styles in light and dark
 appearance. Very high author counts retain the source palette's repeated colors.
+
+Date captions follow **Use system locale for date/time**. When it is off, the
+selected application language supplies the date order. Statistics captures these
+preferences when its window opens; reopen it after changing them. Calendar and
+week-year boundaries remain tied to the same calendar used to group commits.
 
 With a graph selected, choose **File → Save Graph As…**. The save sheet has
 **Pictures** and **All Files** filters. The filename selects the encoder: `.wmf`,
@@ -58,11 +68,6 @@ horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
 All graph styles have a boxed legend on the right. Crowded legends keep the last
 group and show dots for omitted middle rows; narrow graphs hide the legend. The text summary cannot be exported
 through this command.
-
-This dialog is still being compared with TortoiseGit. Exact displayed label geometry, outlines/shading,
-dense history layouts, displayed save-sheet behavior and signed sandbox checks
-remain pending; see [the parity record](LOG-STATISTICS-PARITY.md).
-
 
 Cancel stops gathering file changes and keeps the previous complete summary.
 Use Calculate to retry. Closing during calculation first cancels the read, then
@@ -101,4 +106,4 @@ itself remains vector geometry.
 
 Export sizes and drawing complexity are bounded; oversized output fails
 explicitly. See the [Statistics export parity record](STATISTICS-EXPORT-PARITY.md)
-for the supported formats, adaptations and remaining acceptance work.
+for technical details about the supported formats and macOS adaptations.

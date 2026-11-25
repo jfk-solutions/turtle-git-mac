@@ -1,0 +1,451 @@
+{
+  "kind": "TurtleGitSignedSupplementalSSHPermissionAcceptance",
+  "date": "2026-11-25",
+  "build": "57",
+  "status": "Three fresh-process phases passed; exact private probe, registrations, container and synthetic external fixture removed",
+  "candidate": {
+    "source_commit": "ce9223db2f37ddefde7e74daf3853f5a74624ce7",
+    "source_input_sha256": "4d53d95ef4588c6475a70c248a77e828e0866de975993760f3d9e6fa3bc6ddd5",
+    "main_sha256": "372f2d2628b4f3b7a156dcc08ffddd4044995c4cf74c2ea2ea7c3fc34442ced4",
+    "packaged_core_sha256": "90c5be47bccaa75e3d04f3c10f56bf59144adb94e8201e007dde53077c00d7b9",
+    "team": "A49SCA5S8K"
+  },
+  "scope": "Host-architecture separately signed disposable sandbox app reusing byte-identical candidate TurtleGitCore and packaged Git/OpenSSH. This is supplemental permission acceptance, not execution of the unchanged shipping main application.",
+  "host_architecture": "arm64",
+  "sources": {
+    "signed57-ssh-probe.swift": {
+      "path": "build/qa/signed57-ssh-probe.swift",
+      "sha256": "7321a6a8e22172162bb8b1f2ca0c9096a4b5217de31f88b84271e2874330a545"
+    },
+    "signed57-ssh-command.swift": {
+      "path": "build/qa/signed57-ssh-command.swift",
+      "sha256": "9896c02649e3baed094d4d6f32be277a11a14f4b2892579cdcef8f554870f307"
+    },
+    "signed57-ssh-acceptance.py": {
+      "path": "build/qa/signed57-ssh-acceptance.py",
+      "sha256": "3c16cb4c668f9e2111bf601e18395a9f5a7e4ebd8760e156a1d5b4d6657778bf"
+    },
+    "signed57-ssh-launchservices.py": {
+      "path": "build/qa/signed57-ssh-launchservices.py",
+      "sha256": "4f44f12e3ab62b3e2f5e4ff6a7f6cb387689ee1f77ce51ed6c77f0ec442ccd37"
+    }
+  },
+  "observer_source_sha256": "116ab6730de178057378d3ccaf54516f7fd978620f002fb3af01bc3e3d6afb3b",
+  "parent_entitlements": {
+    "com.apple.security.app-sandbox": true,
+    "com.apple.security.files.user-selected.read-write": true,
+    "com.apple.security.files.bookmarks.app-scope": true
+  },
+  "child_entitlements": {
+    "com.apple.security.app-sandbox": true,
+    "com.apple.security.inherit": true
+  },
+  "physical_acceptance": {
+    "observer": "Root agent through CUA; this record transcribes its observed interaction and preserved native receipts",
+    "application_lookup": "Unique private bundle identifier resolved through CUA after LaunchServices launch",
+    "selected_folder": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+    "observations": [
+      "Actual native permission panel showed the exact generated disposable folder.",
+      "Root clicked Allow Test Folder (native control66).",
+      "Native window displayed Real SSH folder access saved.",
+      "Root clicked Close (native control71); subsequent process-not-found was expected successful exit."
+    ],
+    "main_pid": 98161,
+    "no_native_response_injection": true
+  },
+  "phases": {
+    "grant": {
+      "receipt": {
+        "bundleIdentifier": "org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+        "containerHome": "/Users/jkuehner/Library/Containers/org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/Data",
+        "passed": true,
+        "phase": "grant",
+        "pid": 98161,
+        "realPowerboxSelection": true,
+        "securityScopedBookmarkSaved": true
+      },
+      "helpers": {
+        "observed_helper_processes": 0,
+        "owned_helper_pids": [],
+        "owned_helper_groups": [],
+        "observed_helper_roles": {
+          "git": 0,
+          "ssh-command": 0,
+          "ssh": 0,
+          "ssh-keygen": 0
+        },
+        "own_process_group_required_roles": [],
+        "observed_processes": [],
+        "kernel_executable_identity_required": true,
+        "helper_processes_and_groups_drained": true,
+        "forced_cleanup_needed": false,
+        "observer_errors": []
+      },
+      "launchservices": {
+        "source_sha256": "4f44f12e3ab62b3e2f5e4ff6a7f6cb387689ee1f77ce51ed6c77f0ec442ccd37",
+        "argv": [
+          "/usr/bin/open",
+          "-n",
+          "-W",
+          "-a",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app",
+          "--stdout",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/grant-ls.stdout",
+          "--stderr",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/grant-ls.stderr",
+          "--args",
+          "grant",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-bc9bf7b7d4204bf4b65a2a0f9a55ff4e"
+        ],
+        "main_processes": [
+          {
+            "pid": 98161,
+            "ppid": 1,
+            "pgid": 98161,
+            "kernel_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/MacOS/TurtleGitMac"
+          }
+        ],
+        "open_pid": 98155,
+        "open_returncode": 0,
+        "main_pids_drained": true,
+        "forced_main_cleanup": false,
+        "observer_errors": [],
+        "unregister": {
+          "exact_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app",
+          "returncode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "receipt_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-ls-bc9bf7b7d4204bf4b65a2a0f9a55ff4e-grant.json",
+        "receipt_sha256": "0485abe9ec7b06505e349f94e046508872c88c68ceb76f0b5b2618b8dcf49ce2"
+      },
+      "finished_utc": "2026-11-25T16:48:27.470765+00:00"
+    },
+    "authorized": {
+      "receipt": {
+        "adjacentRewriteVerified": true,
+        "agentOrPrivateKeysUsed": false,
+        "automaticPublicCoreTransport": true,
+        "bundleIdentifier": "org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+        "childReadMarker": true,
+        "childRewriteMarker": true,
+        "connectionExecuted": false,
+        "containerHome": "/Users/jkuehner/Library/Containers/org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/Data",
+        "externalReadDeniedBeforeResolution": true,
+        "passed": true,
+        "phase": "authorized",
+        "pid": 99352,
+        "savedGrantsEmptyAfterPhase": true
+      },
+      "helpers": {
+        "observed_helper_processes": 3,
+        "owned_helper_pids": [
+          99370,
+          99371,
+          99377
+        ],
+        "owned_helper_groups": [
+          99370,
+          99370,
+          99377
+        ],
+        "observed_helper_roles": {
+          "git": 1,
+          "ssh-command": 1,
+          "ssh": 1,
+          "ssh-keygen": 0
+        },
+        "own_process_group_required_roles": [],
+        "observed_processes": [
+          {
+            "pid": 99370,
+            "ppid": 99352,
+            "pgid": 99370,
+            "roles": [
+              "git"
+            ],
+            "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+          },
+          {
+            "pid": 99371,
+            "ppid": 99370,
+            "pgid": 99370,
+            "roles": [
+              "ssh-command"
+            ],
+            "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/Helpers/SSHConfigurationCommand"
+          },
+          {
+            "pid": 99377,
+            "ppid": 99371,
+            "pgid": 99377,
+            "roles": [
+              "ssh"
+            ],
+            "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/MacOS/TurtleGitRuntime-OpenSSH-24bef1f913e2-ssh"
+          }
+        ],
+        "kernel_executable_identity_required": true,
+        "helper_processes_and_groups_drained": true,
+        "forced_cleanup_needed": false,
+        "observer_errors": []
+      },
+      "launchservices": {
+        "source_sha256": "4f44f12e3ab62b3e2f5e4ff6a7f6cb387689ee1f77ce51ed6c77f0ec442ccd37",
+        "argv": [
+          "/usr/bin/open",
+          "-n",
+          "-W",
+          "-g",
+          "-a",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app",
+          "--stdout",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/authorized-ls.stdout",
+          "--stderr",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/authorized-ls.stderr",
+          "--args",
+          "authorized",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-bc9bf7b7d4204bf4b65a2a0f9a55ff4e"
+        ],
+        "main_processes": [
+          {
+            "pid": 99352,
+            "ppid": 1,
+            "pgid": 99352,
+            "kernel_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/MacOS/TurtleGitMac"
+          }
+        ],
+        "open_pid": 99348,
+        "open_returncode": 0,
+        "main_pids_drained": true,
+        "forced_main_cleanup": false,
+        "observer_errors": [],
+        "unregister": {
+          "exact_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app",
+          "returncode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "receipt_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-ls-bc9bf7b7d4204bf4b65a2a0f9a55ff4e-authorized.json",
+        "receipt_sha256": "1de1fac725e5ae1a9b47d4297cb860b2c1e726c5447ac1d41d9cb180702aa204"
+      },
+      "finished_utc": "2026-11-25T16:49:00.245118+00:00"
+    },
+    "forgotten": {
+      "receipt": {
+        "adjacentRewriteVerified": false,
+        "agentOrPrivateKeysUsed": false,
+        "automaticPublicCoreTransport": true,
+        "bundleIdentifier": "org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+        "childReadMarker": false,
+        "childRewriteMarker": false,
+        "connectionExecuted": false,
+        "containerHome": "/Users/jkuehner/Library/Containers/org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/Data",
+        "externalReadDeniedBeforeResolution": true,
+        "passed": true,
+        "phase": "forgotten",
+        "pid": 99814,
+        "savedGrantsEmptyAfterPhase": true
+      },
+      "helpers": {
+        "observed_helper_processes": 2,
+        "owned_helper_pids": [
+          99827,
+          99828
+        ],
+        "owned_helper_groups": [
+          99827,
+          99827
+        ],
+        "observed_helper_roles": {
+          "git": 1,
+          "ssh-command": 1,
+          "ssh": 0,
+          "ssh-keygen": 0
+        },
+        "own_process_group_required_roles": [],
+        "observed_processes": [
+          {
+            "pid": 99827,
+            "ppid": 99814,
+            "pgid": 99827,
+            "roles": [
+              "git"
+            ],
+            "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+          },
+          {
+            "pid": 99828,
+            "ppid": 99827,
+            "pgid": 99827,
+            "roles": [
+              "ssh-command"
+            ],
+            "actual_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/Helpers/SSHConfigurationCommand"
+          }
+        ],
+        "kernel_executable_identity_required": true,
+        "helper_processes_and_groups_drained": true,
+        "forced_cleanup_needed": false,
+        "observer_errors": []
+      },
+      "launchservices": {
+        "source_sha256": "4f44f12e3ab62b3e2f5e4ff6a7f6cb387689ee1f77ce51ed6c77f0ec442ccd37",
+        "argv": [
+          "/usr/bin/open",
+          "-n",
+          "-W",
+          "-g",
+          "-a",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app",
+          "--stdout",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/forgotten-ls.stdout",
+          "--stderr",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/forgotten-ls.stderr",
+          "--args",
+          "forgotten",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-bc9bf7b7d4204bf4b65a2a0f9a55ff4e"
+        ],
+        "main_processes": [
+          {
+            "pid": 99814,
+            "ppid": 1,
+            "pgid": 99814,
+            "kernel_executable": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app/Contents/MacOS/TurtleGitMac"
+          }
+        ],
+        "open_pid": 99810,
+        "open_returncode": 0,
+        "main_pids_drained": true,
+        "forced_main_cleanup": false,
+        "observer_errors": [],
+        "unregister": {
+          "exact_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e/SSHProbe.app",
+          "returncode": 0,
+          "stdout": "",
+          "stderr": ""
+        },
+        "receipt_path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-ls-bc9bf7b7d4204bf4b65a2a0f9a55ff4e-forgotten.json",
+        "receipt_sha256": "406de078d5e64ef5d70575b3b798c88b3c0b4b5bb40bec8b3a77a1099864190b"
+      },
+      "finished_utc": "2026-11-25T16:49:22.196316+00:00"
+    }
+  },
+  "proof": [
+    "Grant phase stored a real app-scoped security bookmark from actual Powerbox selection, then exited.",
+    "Fresh authorized process initially could not read synthetic config/known_hosts before resolution; actual public GitRepository ls-remote execution acquired the saved folder grant at the central command boundary.",
+    "Kernel executable identity observed actual private packaged Git, SSHConfigurationCommand and OpenSSH ssh processes. The controlled command used ssh -G -F only, then bundled ssh-keygen -R against synthetic public known_hosts; it never implements transport or opens an SSH connection.",
+    "Authorized read/rewrite markers were true; known_hosts exact remaining bytes and adjacent .old backup matched independent prepared fixtures. The command intentionally returned nonzero after local operations, so Git transport success was never fabricated.",
+    "The current acquired grant was forgotten after possible stale-bookmark renewal. Fresh forgotten process again had pre-resolution denial, no read/rewrite markers and unchanged external inventory.",
+    "LaunchServices actual main PIDs matched phase JSON and kernel image paths independently of open launcher PID. All main/helpers drained without forced cleanup; open process group was never asserted to own the LaunchServices app.",
+    "Each exact private .app path was unregistered after all owned main/helpers drained; unregister exit0 for all three phases."
+  ],
+  "known_hosts_receipts": {
+    "before_sha256": "df17099ba5ef3d4fc0434bfb5e86b1e193c1f482855211916f9f7ddb62b9b209",
+    "after_sha256": "2ede73ff7d9a9f0d04b574bc424ba77750f174579461d2dedcbe81fe28415682",
+    "backup_sha256": "df17099ba5ef3d4fc0434bfb5e86b1e193c1f482855211916f9f7ddb62b9b209",
+    "forgotten_inventory_unchanged": true
+  },
+  "observation_limit": "ssh-keygen execution has synchronous helper exit/marker plus exact rewrite/backup evidence, but the periodic kernel observer did not separately sample its short-lived PID (observed ssh-keygen count0). Do not claim that specific process was kernel-sampled.",
+  "cleanup": {
+    "private_container_removed": true,
+    "external_fixture_removed": true,
+    "private_probe_removed": true,
+    "finished_utc": "2026-11-25T16:50:04.107731+00:00"
+  },
+  "read_only_absence_query": {
+    "observed_utc": "2026-11-25T16:57:11.844102+00:00",
+    "method": "os.kill(pid,0) existence query only; no termination or application launch",
+    "pids": {
+      "98155": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "98161": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99348": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99352": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99370": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99371": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99377": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99810": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99814": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99827": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      },
+      "99828": {
+        "absent": true,
+        "result": "kill(pid,0) returned ESRCH"
+      }
+    },
+    "all_recorded_main_helper_open_pids_absent": true,
+    "roots": {
+      "container": {
+        "path": "/Users/jkuehner/Library/Containers/org.turtlegit.macos.signed57-ssh-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+        "absent": true
+      },
+      "external": {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+        "absent": true
+      },
+      "work": {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-bc9bf7b7d4204bf4b65a2a0f9a55ff4e",
+        "absent": true
+      }
+    }
+  },
+  "evidence": {
+    "build/qa/signed57-ssh-ls-state-2026-11-25.json": "0116c06268a4de7b7d929c5e5d4cfc207ed8c073c1bfda19077df5aa1ef4e983",
+    "build/qa/signed57-ssh-acceptance-2026-11-25.json": "f5643e93f3b960e79d7716e8afe89b4a4d0f2dfa8c89ff034af18c06ba25ba74",
+    "build/qa/signed57-ssh-ls-authorized-2026-11-25.log": "2fbc1b335ee2726142101285e161a8d7048a48c7587f535c6931f5ec8d154a6d",
+    "build/qa/signed57-ssh-ls-finalize-2026-11-25.log": "7237b4114aff7bdac2e18b470ba29d3f8226188312998ac7caa6d256aefa6b60",
+    "build/qa/signed57-ssh-ls-forgotten-2026-11-25.log": "19f6810d7e46b2d7923a56a1d6468f6f9bd9862ead77375c909c87b5e9e78032",
+    "build/qa/signed57-ssh-ls-grant-2026-11-25.log": "a1fd44dc3b75544d7192d916edce148a965e8730ce396c2f66af8c58cb1f7edb",
+    "build/qa/signed57-ssh-ls-prepare-2026-11-25.log": "93ce92252e40edb851d4256e268cb224c016ac2037ef61b10123d1154bae5002"
+  },
+  "historical_attempts": {
+    "preserved": [
+      "docs/qa/signed57-ssh-permission-incomplete-2026-11-25.json",
+      "build/qa/signed57-ssh-state-2026-11-25.json",
+      "build/qa/signed57-ssh-recovery-state-2026-11-25.json"
+    ],
+    "assessment": "Earlier direct-launch permission Cancel despite preselected exact folder remains unexplained. LaunchServices success does not establish the cause of those cancellations; historical incomplete evidence is not overwritten."
+  },
+  "original_candidate_unchanged": true,
+  "installation_performed": false,
+  "public_upload_performed": false,
+  "not_claimed": [
+    "shipping application or Finder physical acceptance",
+    "actual private keys, user SSH config, ssh-agent or network transport",
+    "general SSH authentication/server trust behavior",
+    "full Mac App Store acceptance or complete port parity",
+    "all architectures executed",
+    "complete hosted macOS CI pass",
+    "newer Statistics fixes included in source57"
+  ],
+  "record_preparation": "Documentation only. No new app copy/sign/build/UI/test/transport execution; only evidence reads, file hashes and read-only process/root absence queries."
+}

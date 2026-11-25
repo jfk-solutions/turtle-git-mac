@@ -1,0 +1,480 @@
+{
+  "schema": 1,
+  "date": "2026-11-25",
+  "recorded_at_utc": "2026-11-25T17:02:23.413217+00:00",
+  "scope": "Statistics source-backed summary components, date-caption preferences, deferred author cutoff and style reset, followed by grouped focused validation. This receipt is QA evidence, not whole-port acceptance.",
+  "source_baseline": "0c0dd3446f36bde618bc9c3edd8076fa9cf61892",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "cache_worktree": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+  "implementation": {
+    "summary": "Modified-line total and including-new/deleted total now each expose total (added (+) removed (-)). Selectable wrapping numeric values, adaptive source rows and scrollable summary preserve complete components at minimum window size.",
+    "dates": "LogStatisticsDateSettings captures UseSystemLocaleForDates and existing app-language choice. Explicit source numeric day/week/month/quarter order uses selected locale; captured calendar/time zone and week-year retain interval membership. Trailing optional API preserves existing callers.",
+    "cutoff": "SwiftUI slider drafts during tracking, commits once on release; keyboard/accessibility immediate action commits without draft. Context tokens refuse duplicate/stale callbacks after metric/style/options/snapshot/sheet/retirement.",
+    "styles": "Clicking same or new chart style resets individual-author cutoff to source maximum. Analyze, graph and export share captured date/calendar preferences.",
+    "source_anchors": [
+      "src/TortoiseProc/StatGraphDlg.cpp:297-307 date order selection",
+      "src/TortoiseProc/StatGraphDlg.cpp:1107-1115 line components",
+      "src/TortoiseProc/StatGraphDlg.cpp:1224-1287 unit labels",
+      "src/TortoiseProc/StatGraphDlg.cpp:1298 OnHScroll ignores TB_THUMBTRACK",
+      "src/TortoiseProc/StatGraphDlg.cpp:1365-1399 RedrawGraph resets skipper via author loading"
+    ],
+    "intentional_adaptations": [
+      "Retain correct yearForWeekOfYear around January/December rather than reproduce pinned January week52/53 year-label quirk.",
+      "Use native locale resolution and existing bundled language mapping rather than Windows LCID assumptions."
+    ],
+    "dormant_controls": "Pinned FileChangesEachWeek label display and AVG/MIN/MAX assignments are commented out; these were not introduced as missing live features.",
+    "unchanged": [
+      "Author identity/case grouping semantics",
+      "Calendar/week/year interval bucketing",
+      "WMF/EMF renderer and export implementation",
+      "Bundled Git runtime"
+    ]
+  },
+  "validation": {
+    "unique_core_methods_passed_cumulatively": 23,
+    "unique_native_case_engine_passes": 3,
+    "debug_app_builds": 1,
+    "core": {
+      "initial_log": "build/qa/statistics-source-family-core-2026-11-25.log",
+      "initial_exit": 1,
+      "initial_passed": 22,
+      "initial_failed": 1,
+      "filter": "LogStatisticsTests|LogStatisticsGraphTests",
+      "failed_method": "LogStatisticsGraphTests.testSystemApplicationLanguageResolutionIsBoundedAndDoesNotRewritePreferences",
+      "failure": "XCTAssertNil on suite AppleLanguages observed inherited OS [de-DE]. This was an invalid fixture assumption, not a production write.",
+      "repair": "Compare the exact supplied-suite persistent domain before/after load, including absence of an AppleLanguages override; retain app-language/system resolver assertions.",
+      "repair_log": "build/qa/statistics-source-family-core-language-repair-2026-11-25.log",
+      "repair_exit": 0,
+      "repair_methods": 1,
+      "rerun_scope": "Only the previously failed method; retain initial 22 passes. Four new meaningful methods cover line directions, date order without regrouping, calendar/timezone boundaries and bounded language resolution."
+    },
+    "build": {
+      "log": "build/qa/statistics-source-family-build-2026-11-25.log",
+      "exit": 0,
+      "marker": "** BUILD SUCCEEDED **",
+      "command": "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project TurtleGitMac.xcodeproj -scheme TurtleGitMac -configuration Debug -destination platform=macOS -derivedDataPath build -jobs 4 CODE_SIGNING_ALLOWED=NO build",
+      "note": "Mac Debug compilation succeeded despite unrelated iOS CoreSimulator version warning. No app rebuild after fixture-only repairs."
+    },
+    "help": {
+      "generated_help_files": 104,
+      "embedded_all_match": true,
+      "mismatches": [],
+      "generation_order": "Regenerated during build checkpoint, after compile was launched; actual embedded104 files checked against tracked generatedbook before native validation.",
+      "build_help_check": "Parent reports scripts/build-help.py --check passed.",
+      "receipt": "build/qa/statistics-source-family-help-2026-11-25.json",
+      "claim": "The actual embedded 104 files matched the tracked generated book; regeneration occurred during checkpoint after compilation launched."
+    },
+    "native_workflow": {
+      "initial_log": "build/qa/statistics-source-family-native-2026-11-25.log",
+      "initial_exit": 1,
+      "initial_failure": "Statistics source wait Code=203: fixture searched for an NSSlider descendant, but current SwiftUI exposes its slider through accessibility.",
+      "diagnosis": "Bounded private-process diagnostics established AXEnhancedUserInterface gating of the rendered SwiftUI accessibility tree. Fixture saves/restores this per-process attribute; no global accessibility preferences changed.",
+      "diagnostic_failure_retained": "Visible diagnostic refused its own placement: Private diagnostic window not offscreen Code=1; receiver reaped. It is not an acceptance pass.",
+      "repair_log": "build/qa/statistics-source-family-native-ax-repair-2026-11-25.log",
+      "repair_exit": 0,
+      "terminal_session_reported_by_parent": 18303,
+      "engines": [
+        "/usr/bin/git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "passed_cases": 2,
+      "case": "workflow",
+      "actual_native_action": "Find actual AXSlider named Authors shown individually and call accessibilityPerformIncrement; assert immediate committed graph and no draft.",
+      "retained_assertions": [
+        "draft/release/duplicate cutoff",
+        "same/new style maximum",
+        "stale metric/style/options/snapshot/sheet/retired gesture refusal",
+        "captured date preference and PDF receipt",
+        "fresh preference reopening",
+        "source controls/style dependencies/activity geometry",
+        "owned picker cancellation/duplicate/late replies",
+        "actual held Git cancellation",
+        "automatic and forced close/Quit lifetime",
+        "lazy totals/preference restoration/unchanged repository"
+      ]
+    },
+    "summary_visual": {
+      "log": "build/qa/statistics-source-family-summary-2026-11-25.log",
+      "exit": 0,
+      "case": "summary",
+      "engine": "/usr/bin/git",
+      "passed_cases": 1,
+      "expected_including_lines": "772839504 (422222220 (+) 350617284 (-))",
+      "content_size": [
+        780,
+        550
+      ],
+      "captures": [
+        {
+          "path": "build/qa/statistics-summary-source-2026-11-25/statistics-summary-source-dark.png",
+          "sha256": "592f1764610a46d2c0836c4e057a4fc341d32fb391edc311a815e7ff9b023b3f",
+          "bytes": 170994,
+          "dimensions": [
+            1560,
+            1164
+          ]
+        },
+        {
+          "path": "build/qa/statistics-summary-source-2026-11-25/statistics-summary-source-light.png",
+          "sha256": "1231a2c3b567649089b1d16023f7a1e2fd82ae34ad190660c7b51627a19c9a1e",
+          "bytes": 168035,
+          "dimensions": [
+            1560,
+            1164
+          ]
+        }
+      ],
+      "observation_by_parent": "Parent viewed both 1560x1164 raw captures: complete large numeric components readable with inactive chrome. Private owned windows only; no user keyboard events.",
+      "capture_ownership": "Exact owned SCWindowID, cursor/child-window exclusion, alpha restored and owned windows closed. Reused receiver, no further app build."
+    },
+    "limitations": [
+      "No complete hosted CI pass claimed.",
+      "No physical Finder, physical slider drag or complete VoiceOver acceptance claimed.",
+      "No new WMF/EMF renderer validation or runtime rebuild claimed.",
+      "No signed deployment or candidate58 runtime acceptance claimed.",
+      "No whole-app visual parity or whole-port completion claim."
+    ]
+  },
+  "current_inputs": [
+    {
+      "path": "Sources/TurtleGitCore/LogStatistics.swift",
+      "sha256": "1b137c9070df29b773e02396e550ba57022dd9306fbf96f674ffbe9cf6d454f8",
+      "bytes": 14207,
+      "cache_sha256": "1b137c9070df29b773e02396e550ba57022dd9306fbf96f674ffbe9cf6d454f8",
+      "cache_matches": true
+    },
+    {
+      "path": "Sources/TurtleGitCore/LogStatisticsGraph.swift",
+      "sha256": "10be672de2c1e1b35e75dfb8b5882cc29506b00ec2a0a955d416387f9edf21a3",
+      "bytes": 17633,
+      "cache_sha256": "10be672de2c1e1b35e75dfb8b5882cc29506b00ec2a0a955d416387f9edf21a3",
+      "cache_matches": true
+    },
+    {
+      "path": "Sources/TurtleGitMac/StatisticsWindow.swift",
+      "sha256": "3431f4de6bf8a21e54eceab4f0c695d81c41dc4264433e954989045b8825a24a",
+      "bytes": 33404,
+      "cache_sha256": "3431f4de6bf8a21e54eceab4f0c695d81c41dc4264433e954989045b8825a24a",
+      "cache_matches": true
+    },
+    {
+      "path": "Tests/TurtleGitCoreTests/LogStatisticsTests.swift",
+      "sha256": "e457f57c12bbe4460494aaff5b9b5df92df16e4702d76049bacdf0dfe14173f2",
+      "bytes": 16936,
+      "cache_sha256": "e457f57c12bbe4460494aaff5b9b5df92df16e4702d76049bacdf0dfe14173f2",
+      "cache_matches": true
+    },
+    {
+      "path": "Tests/TurtleGitCoreTests/LogStatisticsGraphTests.swift",
+      "sha256": "5a8111921fd89b170dae693bf58e269954e5552464e6121f5763d30591039901",
+      "bytes": 20617,
+      "cache_sha256": "5a8111921fd89b170dae693bf58e269954e5552464e6121f5763d30591039901",
+      "cache_matches": true
+    },
+    {
+      "path": "docs/qa/statistics-native-receiver-2026-10-07.swift",
+      "sha256": "68885b082ef1268b31386f808629f03b451db6aa634fa9cea68a66b585bd01ec",
+      "bytes": 31653,
+      "cache_sha256": "68885b082ef1268b31386f808629f03b451db6aa634fa9cea68a66b585bd01ec",
+      "cache_matches": true
+    },
+    {
+      "path": "docs/qa/statistics-source-native-2026-10-17.swift",
+      "sha256": "0bbb499de7a2e3e40d563b92dd45cb4c84418dbf3a5610546b4dba4ff52f85fc",
+      "bytes": 23950,
+      "cache_sha256": "0bbb499de7a2e3e40d563b92dd45cb4c84418dbf3a5610546b4dba4ff52f85fc",
+      "cache_matches": true
+    },
+    {
+      "path": "scripts/test-statistics-dialog.py",
+      "sha256": "7a7ae9894a85d5170ed2e0dde5d6e0bd401a432d7f4dd90f8ed0fefff8d4d142",
+      "bytes": 2187,
+      "cache_sha256": "7a7ae9894a85d5170ed2e0dde5d6e0bd401a432d7f4dd90f8ed0fefff8d4d142",
+      "cache_matches": true
+    },
+    {
+      "path": "docs/STATISTICS.md",
+      "sha256": "9edc4435e6ca62f8b5531485aec56d0b2a2934ca425bc2d51c7c9960df830ded",
+      "bytes": 6828,
+      "cache_sha256": "9edc4435e6ca62f8b5531485aec56d0b2a2934ca425bc2d51c7c9960df830ded",
+      "cache_matches": true
+    },
+    {
+      "path": "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist",
+      "sha256": "82e3890bdd1f250366fbe2901081296c2752c4701b370a4dbf023d08bdfa0771",
+      "bytes": 910,
+      "cache_sha256": "82e3890bdd1f250366fbe2901081296c2752c4701b370a4dbf023d08bdfa0771",
+      "cache_matches": true
+    },
+    {
+      "path": "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/STATISTICS.html",
+      "sha256": "e4c373571fd94bc9625fd407549f7d5ea8918b29c006b498264ffa3ea5c98538",
+      "bytes": 8232,
+      "cache_sha256": "e4c373571fd94bc9625fd407549f7d5ea8918b29c006b498264ffa3ea5c98538",
+      "cache_matches": true
+    },
+    {
+      "path": "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json",
+      "sha256": "2b14e629e0a6f6d8d5d14d2e8861e6f2d85a15897eb2d4642754903219144325",
+      "bytes": 25118,
+      "cache_sha256": "2b14e629e0a6f6d8d5d14d2e8861e6f2d85a15897eb2d4642754903219144325",
+      "cache_matches": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "build/qa/statistics-cutoff-diagnostic-2026-11-25.log",
+      "sha256": "5d94942d9a69a32b096dfde17f6984e9cf888d4c9bee8e4f4c702937353fb066",
+      "bytes": 2426
+    },
+    {
+      "path": "build/qa/statistics-cutoff-diagnostic-ax-2026-11-25.log",
+      "sha256": "8a4d74e9ef8d6e69ccff319df079dbbdb31cd897104a70512ca403a043d96dce",
+      "bytes": 17201
+    },
+    {
+      "path": "build/qa/statistics-cutoff-diagnostic-keyboard-2026-11-25.log",
+      "sha256": "e7c4ee8d21eabdfa56361eccdca75b97bc1410a56f212047ef854d96b564cefd",
+      "bytes": 5223
+    },
+    {
+      "path": "build/qa/statistics-cutoff-diagnostic-offscreen-2026-11-25.log",
+      "sha256": "627a0846ddae0ca9f1af7971ec7b7d032f60e5937a2dabef90970997dbfc34f3",
+      "bytes": 2471
+    },
+    {
+      "path": "build/qa/statistics-cutoff-diagnostic-visible-2026-11-25.log",
+      "sha256": "7a2e8d8ee83785152369484fcf01d30ce5ef5160f19e97b344aa4fa2284ba400",
+      "bytes": 1118
+    },
+    {
+      "path": "build/qa/statistics-source-family-build-2026-11-25.log",
+      "sha256": "8281fa627bbf1c60c2ea6f53024495ebf4750ad162504e21c5c96d66913718b4",
+      "bytes": 958140
+    },
+    {
+      "path": "build/qa/statistics-source-family-core-2026-11-25.log",
+      "sha256": "50004666209045b45923ee976584d394a833a46ee8909ed12983399274f7f1d6",
+      "bytes": 513701
+    },
+    {
+      "path": "build/qa/statistics-source-family-core-language-repair-2026-11-25.log",
+      "sha256": "db78d3588a2cf1a4a865b67e1358b3f671c35ad30b404d5e60d65105912e02d4",
+      "bytes": 1359
+    },
+    {
+      "path": "build/qa/statistics-source-family-native-2026-11-25.log",
+      "sha256": "2e173c2aa1089f2a53fbf4c120d1c67014a83769e36a5b7232656e27d2272b96",
+      "bytes": 2620
+    },
+    {
+      "path": "build/qa/statistics-source-family-native-ax-repair-2026-11-25.log",
+      "sha256": "97b4f6fd9811422da6f5006be5bf1580cb4e210df1afb584a0d113c495633d8a",
+      "bytes": 7223
+    },
+    {
+      "path": "build/qa/statistics-source-family-summary-2026-11-25.log",
+      "sha256": "4061ccd5037065f692e24e6b55c5ad56dac4f37dad952c95a75575711ecb5666",
+      "bytes": 273
+    },
+    {
+      "path": "build/qa/statistics-source-family-freeze-2026-11-25.json",
+      "sha256": "8836268366326008be6c87309ca1f71e7c0b9a305f2b36eb5e0e5ddd4446cd62",
+      "bytes": 1749
+    },
+    {
+      "path": "build/qa/statistics-source-family-native-ax-repair-freeze-2026-11-25.json",
+      "sha256": "9f5e1520f714d30370640b93f566761b8aa91126527c601fb9a0fe0008d1ee76",
+      "bytes": 291
+    },
+    {
+      "path": "build/qa/statistics-source-family-help-2026-11-25.json",
+      "sha256": "7f0d50c7730e54ebd4ef3fc9bc1777e0d9a23bb9bcf2c0f8276feeaf29892e4e",
+      "bytes": 263
+    },
+    {
+      "path": "build/qa/statistics-cutoff-diagnostic-2026-11-25/main.swift",
+      "sha256": "476bea9a453900952676a257b7ff6bd3075aa0cbdaea44e2b9b3d7649d5f1070",
+      "bytes": 6496
+    }
+  ],
+  "cleanup": {
+    "method": "Logged owned compiler/receiver reap evidence plus read-only os.kill(pid, 0) absence probe. No signals sent to terminate processes and no unrelated user app touched.",
+    "probed_at_utc": "2026-11-25T17:02:23.424368+00:00",
+    "logged_owned_pid_count": 17,
+    "all_absent": true,
+    "owned_helpers": [
+      {
+        "pid": 2515,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-summary-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 2641,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 2664,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 3628,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-visible-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 3647,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-visible-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 4140,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-offscreen-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 4160,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-offscreen-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 5053,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-keyboard-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 5073,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-keyboard-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 6532,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-ax-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 6553,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-cutoff-diagnostic-ax-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 8644,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-native-ax-repair-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 8706,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-native-ax-repair-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 8843,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-native-ax-repair-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 99766,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-native-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 99777,
+        "roles": [
+          "compiler"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-native-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      },
+      {
+        "pid": 99849,
+        "roles": [
+          "receiver"
+        ],
+        "reaped_in": [
+          "build/qa/statistics-source-family-native-2026-11-25.log"
+        ],
+        "absent_at_readonly_probe": true
+      }
+    ]
+  },
+  "record_boundaries": "QA JSON only. No additional build/test was run to prepare this record. Root owns coverage/status/help final checks and commit."
+}

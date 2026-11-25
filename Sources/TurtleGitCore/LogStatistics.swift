@@ -83,6 +83,21 @@ public struct LogStatisticsChanges: Equatable, Sendable {
     }
     public var linesWithoutNewDeletedFiles: Int { added + removed }
     public var linesIncludingNewDeletedFiles: Int { added + removed + newFileLines + deletedFileLines }
+    /// StatGraphDlg's summary distinguishes changed existing-file lines from
+    /// additions/deletions contributed by entire new/deleted files.
+    public func lineSummary(includingNewDeletedFiles: Bool) -> LogStatisticsLineSummary {
+        LogStatisticsLineSummary(added:added + (includingNewDeletedFiles ? newFileLines:0),
+                                 removed:removed + (includingNewDeletedFiles ? deletedFileLines:0))
+    }
+}
+public struct LogStatisticsLineSummary: Equatable, Sendable, CustomStringConvertible {
+    public let added:Int
+    public let removed:Int
+    public var total:Int {added + removed}
+    public init(added:Int,removed:Int) {self.added=added;self.removed=removed}
+    /// The pinned summary uses numeric components, not a translated printf
+    /// template or a collapsed total that loses the direction of changes.
+    public var description:String {"\(total) (\(added) (+) \(removed) (-))"}
 }
 public struct LogStatisticsInterval: Sendable {
     /// Last (oldest) revision in this occupied interval, as in StatGraphDlg.

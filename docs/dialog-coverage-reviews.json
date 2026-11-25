@@ -1065,6 +1065,22 @@
       ],
       "parity_document": "docs/REPOSITORY-BROWSER-NAMESPACE-PARITY.md",
       "status": "partial-native-replacement"
+    },
+    {
+      "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
+      "id": "IDD_LOGIN",
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/PromptWindow.swift",
+          "anchor": "final class GitAskpassWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitAskpassPrompt.swift",
+          "anchor": "public struct GitAskpassPrompt"
+        }
+      ],
+      "parity_document": "docs/SSH-PASSPHRASE-PARITY.md",
+      "status": "partial-native-replacement"
     }
   ]
 }

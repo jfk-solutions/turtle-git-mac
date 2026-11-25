@@ -13,6 +13,8 @@ import TurtleGitCore
     let entries: [LogEntry]
     private let access: RepositoryAccessLease?
     private let defaults: UserDefaults
+    let dateSettings:LogStatisticsDateSettings
+    private let statisticsCalendar:Calendar
     private var changes: [String: LogStatisticsChanges]?
     private var cancellation: OperationCancellation?
     private var worker: Task<Void, Never>?
@@ -20,14 +22,14 @@ import TurtleGitCore
     private(set) var retired = false
     @Published var hasSheet = false {didSet {if oldValue != hasSheet {formRevision=UUID()}}}
     @Published var exporting = false {didSet {if oldValue != exporting {formRevision=UUID()}}}
-    @Published private(set) var formRevision = UUID()
+    @Published private(set) var formRevision = UUID() {didSet {clearAuthorLimitGesture()}}
     var becameIdle: () -> Void = {}
-    @Published var options = LogStatisticsOptions()
-    @Published var metric = LogStatisticsMetric.statistics
-    @Published var style = LogStatisticsStyle.line
+    @Published var options = LogStatisticsOptions() {didSet {clearAuthorLimitGesture()}}
+    @Published var metric = LogStatisticsMetric.statistics {didSet {clearAuthorLimitGesture()}}
+    @Published var style = LogStatisticsStyle.line {didSet {clearAuthorLimitGesture()}}
     @Published var authorsShown = 1.0
-    @Published var summary: LogStatisticsSummary?
-    @Published var graph: LogStatisticsGraph?
+    @Published var summary: LogStatisticsSummary? {didSet {clearAuthorLimitGesture()}}
+    @Published var graph: LogStatisticsGraph? {didSet {clearAuthorLimitGesture()}}
     @Published var busy = false {didSet {if oldValue != busy {formRevision=UUID()}}}
     @Published var completed = 0
     @Published var error: String?
@@ -40,16 +42,47 @@ import TurtleGitCore
     var showsGraphControls: Bool { metric != .statistics }
     var canExportGraph: Bool { canInteract && metric != .statistics && graph != nil }
     func supports(_ style: LogStatisticsStyle) -> Bool { !metric.byAuthor || ![.line, .stackedLine].contains(style) }
-    func selectStyle(_ style: LogStatisticsStyle, context: UUID? = nil) { guard accepts(context), supports(style) else { return }; self.style = style; formRevision = UUID() }
+    func selectStyle(_ style: LogStatisticsStyle, context: UUID? = nil) {
+        guard accepts(context), supports(style) else { return }
+        self.style = style
+        // Source RedrawGraph calls ShowSelectStat(..., true), even when the
+        // selected style button was already active. Reset its author skipper.
+        rebuild(resetAuthors:true)
+    }
     func setOptions(_ options: LogStatisticsOptions, context: UUID? = nil) { guard accepts(context) else { return }; self.options = options; rebuild(resetAuthors: true) }
+    struct AuthorLimitGesture:Equatable {let id:UUID,revision:UUID}
+    private var authorLimitGesture:AuthorLimitGesture?
+    @Published private(set) var authorLimitDraft:Double?
+    var displayedAuthorLimit:Double {authorLimitDraft ?? authorsShown}
+    private func boundedAuthorLimit(_ value:Double)->Double {
+        min(Double(max(1,min(250,availableAuthorCount))),max(1,value.rounded(.towardZero)))
+    }
+    private func clearAuthorLimitGesture() {authorLimitGesture=nil;if authorLimitDraft != nil {authorLimitDraft=nil}}
+    func beginAuthorLimitGesture(context:UUID)->AuthorLimitGesture? {
+        guard accepts(context),availableAuthorCount>1,authorLimitGesture==nil else{return nil}
+        let gesture=AuthorLimitGesture(id:UUID(),revision:context)
+        authorLimitGesture=gesture;authorLimitDraft=authorsShown;return gesture
+    }
+    func updateAuthorLimitGesture(_ value:Double,gesture:AuthorLimitGesture) {
+        guard authorLimitGesture==gesture,accepts(gesture.revision),value.isFinite else{return}
+        authorLimitDraft=boundedAuthorLimit(value)
+    }
+    func finishAuthorLimitGesture(_ gesture:AuthorLimitGesture,commit:Bool=true) {
+        guard authorLimitGesture==gesture else{return}
+        let value=authorLimitDraft,accepted=accepts(gesture.revision)
+        clearAuthorLimitGesture()
+        guard commit,accepted,let value else{return}
+        setAuthorLimit(value,context:gesture.revision)
+    }
     func setAuthorLimit(_ value: Double, context: UUID? = nil) {
         guard accepts(context), value.isFinite else { return }
-        authorsShown = min(Double(max(1, min(250, availableAuthorCount))), max(1, value.rounded(.towardZero))); rebuild()
+        clearAuthorLimitGesture();authorsShown=boundedAuthorLimit(value);rebuild()
     }
     func accepts(_ context: UUID?) -> Bool { canInteract && (context == nil || context == formRevision) }
-    var authorSliderHint: String { summary?.authorSliderHint(limit: Int(authorsShown), metric: metric) ?? "" }
-    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard) {
+    var authorSliderHint: String { summary?.authorSliderHint(limit: Int(displayedAuthorLimit), metric: metric) ?? "" }
+    init(repository: GitRepository, access: RepositoryAccessLease?, entries: [LogEntry], defaults: UserDefaults = .standard, calendar:Calendar = .current) {
         self.repository = repository; self.access = access; self.entries = entries; self.defaults = defaults
+        dateSettings=LogStatisticsDateSettings.load(defaults:defaults);statisticsCalendar=calendar
         options.caseSensitive = defaults.object(forKey: "StatAuthorsCaseSensitive") == nil || defaults.bool(forKey: "StatAuthorsCaseSensitive")
         options.sortByCommitCount = defaults.object(forKey: "StatSortByCommitCount") == nil || defaults.bool(forKey: "StatSortByCommitCount")
         options.useCommitterNames = defaults.bool(forKey: "StatCommiterNames")
@@ -74,11 +107,11 @@ import TurtleGitCore
         guard !retired else { return }
         formRevision = UUID()
         do {
-            summary = try LogStatistics.analyze(entries, options: options, changes: changes)
+            summary = try LogStatistics.analyze(entries, options: options, changes: changes,calendar:statisticsCalendar)
             if resetAuthors { authorsShown = Double(min(250, max(1, availableAuthorCount))) }
             authorsShown = min(authorsShown, Double(min(250, max(1, availableAuthorCount))))
             if metric == .statistics || metric.needsChanges && changes == nil { graph = nil }
-            else { graph = try LogStatisticsGraph.make(summary!, metric: metric, authorsShown: Int(authorsShown), alphabetical: !options.sortByCommitCount) }
+            else { graph = try LogStatisticsGraph.make(summary!, metric: metric, authorsShown: Int(authorsShown), alphabetical: !options.sortByCommitCount,calendar:statisticsCalendar,dateSettings:dateSettings) }
             error = nil
         } catch { self.error = error.localizedDescription; graph = nil }
     }
@@ -312,6 +345,30 @@ private final class StatisticsNativeWindow: NSWindow {
 
 }
 
+/// SwiftUI starts an editing session for mouse dragging. Its binding can also
+/// change without a session (keyboard/accessibility), which commits immediately.
+/// Keep thumb feedback separate from the graph until the captured drag ends.
+private struct StatisticsAuthorSlider:View {
+    @ObservedObject var model:StatisticsWindowModel
+    let context:UUID
+    @State private var gesture:StatisticsWindowModel.AuthorLimitGesture?
+    var body:some View {
+        Slider(value:Binding(get:{model.displayedAuthorLimit},set:{value in
+            if let gesture {model.updateAuthorLimitGesture(value,gesture:gesture)}
+            else {model.setAuthorLimit(value,context:context)}
+        }),in:1...Double(max(2,min(250,model.availableAuthorCount))),step:1,onEditingChanged:{editing in
+            guard model.accepts(context) else{return}
+            if editing {gesture=model.beginAuthorLimitGesture(context:context)}
+            else if let accepted=gesture,accepted.revision==context {gesture=nil;model.finishAuthorLimitGesture(accepted)}
+        })
+        .disabled(!model.canInteract || model.availableAuthorCount<2)
+        .accessibilityLabel("Authors shown individually").accessibilityValue(model.authorSliderHint).help(model.authorSliderHint)
+        .onChange(of:context){_ in cancelGesture()}
+        .onDisappear{cancelGesture()}
+    }
+    private func cancelGesture(){if let gesture {self.gesture=nil;model.finishAuthorLimitGesture(gesture,commit:false)}}
+}
+
 private struct StatisticsDialog: View {
     @ObservedObject var model: StatisticsWindowModel
     var body: some View {
@@ -344,9 +401,8 @@ private struct StatisticsDialog: View {
             }
             HStack {
                 if model.showsGraphControls { Text("# authors shown individually:")
-                Slider(value: Binding(get: { model.authorsShown }, set: { model.setAuthorLimit($0, context: context) }), in: 1...Double(max(2, min(250, model.availableAuthorCount))), step: 1).frame(maxWidth: 220).disabled(!model.canInteract || model.availableAuthorCount < 2)
-                    .accessibilityLabel("Authors shown individually").accessibilityValue(model.authorSliderHint).help(model.authorSliderHint)
-                Text("\(Int(model.authorsShown))").monospacedDigit() }
+                StatisticsAuthorSlider(model:model,context:context).frame(maxWidth:220)
+                Text("\(Int(model.displayedAuthorLimit))").monospacedDigit() }
                 if model.exporting { ProgressView().controlSize(.small); Text("Saving graph…") }
                 if model.busy { ProgressView(value: Double(model.completed), total: Double(max(1, model.entries.count))).frame(width: 100); Button("Cancel") {model.cancel(context:context)}.disabled(!model.canCancelCalculation) }
                 Spacer(); Button("OK") {model.close(context:context)}.keyboardShortcut(.defaultAction).disabled(model.confirmingQuit || model.hasSheet || model.exporting)
@@ -372,6 +428,7 @@ private struct StatisticsSummary: View {
     let summary: LogStatisticsSummary
     var calculate: () -> Void
     var body: some View {
+        ScrollView(.vertical) {
         VStack(alignment: .leading, spacing: 14) {
             VStack(spacing: 9) {
                 value("Number of \(summary.unit.rawValue)s:", summary.displayedIntervalCount)
@@ -383,24 +440,41 @@ private struct StatisticsSummary: View {
                     else { Button("Calculate", action: calculate) }
                 }
                 if summary.changesCalculated {
-                    value("Total changed lines not including added/deleted files:", summary.totalChanges.linesWithoutNewDeletedFiles)
-                    value("Total changed lines including added/deleted files:", summary.totalChanges.linesIncludingNewDeletedFiles)
+                    value("Total changed lines not including added/deleted files:", summary.totalChanges.lineSummary(includingNewDeletedFiles:false).description)
+                    value("Total changed lines including added/deleted files:", summary.totalChanges.lineSummary(includingNewDeletedFiles:true).description)
                 }
             }
+            // Retain the source activity columns. Very large counts can be
+            // read in full without squeezing or ellipsizing their digits.
+            ScrollView(.horizontal) {
             Grid(alignment: .trailing, horizontalSpacing: 18, verticalSpacing: 10) {
                 GridRow { Color.clear.frame(height: 1).gridCellUnsizedAxes(.vertical); Text("").frame(width: 160); Text("Average"); Text("Min"); Text("Max") }
-                GridRow { Text("Commits each \(summary.unit.rawValue):").frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(""); Text("\(summary.averageCommits)"); Text("\(summary.minimumCommits)"); Text("\(summary.maximumCommits)") }
+                GridRow { Text("Commits each \(summary.unit.rawValue):").frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(""); number(summary.averageCommits);number(summary.minimumCommits);number(summary.maximumCommits) }
                 activity("Most active author:", summary.authorsByActivity.first)
                 activity("Least active author:", summary.authorsByActivity.last)
-            }.frame(maxWidth: .infinity).monospacedDigit().textSelection(.enabled)
+            }.fixedSize(horizontal:true,vertical:false).monospacedDigit().textSelection(.enabled)
+            }.fixedSize(horizontal:false,vertical:true)
         }.padding(10).frame(maxWidth: .infinity, alignment: .topLeading)
+        }.frame(maxWidth:.infinity,maxHeight:.infinity,alignment:.topLeading)
     }
-    private func value(_ label: String, _ count: Int) -> some View {
-        HStack { Text(label); Spacer(); Text("\(count)").monospacedDigit().textSelection(.enabled) }
+    private func value(_ label: String, _ count: Int) -> some View {value(label,String(count))}
+    private func value(_ label: String, _ text: String) -> some View {
+        ViewThatFits(in:.horizontal) {
+            HStack(alignment:.firstTextBaseline,spacing:12) {
+                Text(label).fixedSize();Spacer(minLength:8)
+                Text(text).monospacedDigit().fixedSize().textSelection(.enabled)
+            }
+            VStack(alignment:.leading,spacing:3) {
+                Text(label).fixedSize(horizontal:false,vertical:true)
+                Text(text).monospacedDigit().multilineTextAlignment(.trailing)
+                    .fixedSize(horizontal:false,vertical:true).frame(maxWidth:.infinity,alignment:.trailing).textSelection(.enabled)
+            }
+        }.frame(maxWidth:.infinity,alignment:.leading)
     }
+    private func number(_ value:Int)->some View {Text("\(value)").fixedSize()}
     private func activity(_ label: String, _ author: LogStatisticsAuthor?) -> some View {
         let values = author.map { summary.activity(for: $0) } ?? (average: 0, minimum: 0, maximum: 0)
-        return GridRow { Text(label).frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(author?.name ?? "").lineLimit(1).truncationMode(.middle).frame(width: 160, alignment: .leading).help(author?.name ?? ""); Text("\(values.average)"); Text("\(values.minimum)"); Text("\(values.maximum)") }
+        return GridRow { Text(label).frame(maxWidth: .infinity, alignment: .leading).gridColumnAlignment(.leading); Text(author?.name ?? "").lineLimit(1).truncationMode(.middle).frame(width: 160, alignment: .leading).help(author?.name ?? ""); number(values.average);number(values.minimum);number(values.maximum) }
     }
 }
 

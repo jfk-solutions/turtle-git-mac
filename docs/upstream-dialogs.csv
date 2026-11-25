@@ -125,7 +125,7 @@ src/Resources/TortoiseProcENG.rc,IDD_WORKTREE_LIST,Worktree List,partial
 src/SshAskPass/SshAskPass.rc,IDD_ASK_PASSWORD,TortoiseGit -  git CLI stdin wrapper,partial-native-replacement
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_OPEN,Load Images,partial-native-replacement
 src/TortoiseIDiff/TortoiseIDiff.rc,IDD_ABOUT,TortoiseGitIDiff,partial-native-replacement
-src/TortoisePlink/Windows/TortoisePlink.rc,IDD_LOGIN,TortoiseGitPlink,pending-review
+src/TortoisePlink/Windows/TortoisePlink.rc,IDD_LOGIN,TortoiseGitPlink,partial-native-replacement
 src/TortoiseShell/resourceshell.rc,IDD_PROPPAGE,Property Page,partial-native-replacement
 src/TortoiseUDiff/TortoiseUDiff.rc,IDD_FINDBAR,,partial-native-replacement
 test/Cache/Cache.rc,IDD_CACHE_DIALOG,Cache,pending-review

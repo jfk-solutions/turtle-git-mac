@@ -168,3 +168,28 @@ extension LogStatisticsTests {
         XCTAssertEqual(try metadata.map { try Data(contentsOf: root.appendingPathComponent($0)) }, before)
     }
 }
+
+extension LogStatisticsTests {
+    func testSummaryLineComponentsKeepModifiedAndNewDeletedDirectionsSeparate() throws {
+        let measured = LogStatisticsChanges(files: [
+            CommitFile(path:"new",oldPath:nil,action:"A",added:12,removed:0,hasStatistics:true,isSubmodule:false),
+            CommitFile(path:"gone",oldPath:nil,action:"D",added:0,removed:4,hasStatistics:true,isSubmodule:false),
+            CommitFile(path:"changed",oldPath:nil,action:"M",added:3,removed:2,hasStatistics:true,isSubmodule:false),
+            CommitFile(path:"renamed",oldPath:"before",action:"R100",added:1,removed:5,hasStatistics:true,isSubmodule:false),
+            CommitFile(path:"binary",oldPath:nil,action:"M",added:nil,removed:nil,hasStatistics:true,isSubmodule:false)
+        ])
+        let later = LogStatisticsChanges(files:[CommitFile(path:"changed",oldPath:nil,action:"M",added:0,removed:6,hasStatistics:true,isSubmodule:false)])
+        var ignoredMerge=LogStatisticsChanges();ignoredMerge.added=999;ignoredMerge.deletedFileLines=999
+        let entries=[entry("ordinary","Author","2024-02-03T12:00:00Z"),entry("later","Author","2024-02-04T12:00:00Z"),entry("merge","Author","2024-02-05T12:00:00Z",parents:["left","right"])]
+        let summary=try LogStatistics.analyze(entries,changes:["ordinary":measured,"later":later,"merge":ignoredMerge],calendar:calendar)
+        let modified=summary.totalChanges.lineSummary(includingNewDeletedFiles:false)
+        let all=summary.totalChanges.lineSummary(includingNewDeletedFiles:true)
+        XCTAssertEqual(modified.added,4);XCTAssertEqual(modified.removed,13);XCTAssertEqual(modified.total,17)
+        XCTAssertEqual(all.added,16);XCTAssertEqual(all.removed,17);XCTAssertEqual(all.total,33)
+        XCTAssertEqual(modified.total,summary.totalChanges.linesWithoutNewDeletedFiles)
+        XCTAssertEqual(all.total,summary.totalChanges.linesIncludingNewDeletedFiles)
+        XCTAssertEqual(modified.description,"17 (4 (+) 13 (-))")
+        XCTAssertEqual(all.description,"33 (16 (+) 17 (-))")
+        XCTAssertEqual(LogStatisticsChanges().lineSummary(includingNewDeletedFiles:true).description,"0 (0 (+) 0 (-))")
+    }
+}

@@ -1,5 +1,36 @@
 # Local testing and release gates
 
+## Statistics and signed SSH acceptance — November 25, 2026
+
+The [Statistics family checkpoint](qa/statistics-source-family-2026-11-25.json)
+passes 23 unique Core methods cumulatively, three native case/engine runs and
+one Debug build. It adds source-style total/added/removed summaries, captured
+system/application-language date captions, release-only author-cutoff redraw and
+source style-button maximum reset. Large selectable summary values were reviewed
+in light/dark appearance. The actual SwiftUI AX slider action is exercised after
+enabling supported per-process accessibility; physical mouse dragging and full
+VoiceOver acceptance remain separate. Initial preference/receiver assumptions
+and only their affected rechecks remain recorded. The updated guide and all 104
+embedded Help files match; no new renderer feature or quality matrix was added.
+
+[Signed57 SSH permission acceptance](qa/signed57-ssh-permission-acceptance-2026-11-25.json)
+now passes the real Powerbox grant, saved bookmark across fresh processes, actual
+Core/bundled-Git inherited config read and adjacent known-host rewrite, then
+Forget/new-process denial. LaunchServices made the private application available
+to desktop control; the cause of the earlier canceled direct-launch attempt is
+not retrospectively established. All observed owned processes and the three
+disposable roots are absent. This uses synthetic local SSH files, not a server,
+real SSH key/agent or installed application. It is exact signed57/component
+evidence, not a signed58/physical Finder/full-Store acceptance claim.
+
+The [platform resource review](DIALOG-PLATFORM-REVIEW.md) distinguishes existing
+native replacements, Windows infrastructure and dormant/test resources from
+actual missing Git workflows. Login now has explicit partial native mappings;
+no control count is a completion percentage. Exact `0c0dd344` Pages deployment
+passed; current-source full macOS CI and a consolidated local candidate including
+these Statistics/progress changes remain open. The installed app has not been
+changed and no binary has been published or submitted.
+
 ## Native progress and command-entry recovery — November 25, 2026
 
 The [progress and command-entry checkpoint](qa/native-progress-entry-recovery-2026-11-25.json)

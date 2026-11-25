@@ -3,15 +3,15 @@
   "scope": "Family/control audit coverage; not a feature-completion percentage or signed acceptance.",
   "summary": {
     "dialogs": 130,
-    "partial_family_audits": 120,
-    "pending_family_reviews": 10,
+    "partial_family_audits": 121,
+    "pending_family_reviews": 9,
     "certified_complete": 0,
     "static_controls": 1659,
-    "pending_control_reviews": 85,
-    "mapped_controls": 1574,
+    "pending_control_reviews": 81,
+    "mapped_controls": 1578,
     "statuses": {
-      "pending-review": 10,
-      "partial-native-replacement": 89,
+      "pending-review": 9,
+      "partial-native-replacement": 90,
       "partial": 24,
       "native-partial": 1,
       "partial-workflow-replacement": 3,
@@ -31,7 +31,9 @@
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
-      "parity_documents": [],
+      "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md"
+      ],
       "qa_records": []
     },
     {
@@ -1331,6 +1333,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/ADD-INDEX-FILTERS-PARITY.md",
+        "docs/DIALOG-PLATFORM-REVIEW.md",
         "docs/REMOTE-PROGRESS-NOTIFICATIONS-PARITY.md",
         "docs/RESET-REVERT-BACKEND-PARITY.md",
         "docs/REVERT-PARITY.md",
@@ -1380,6 +1383,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md",
         "docs/SVN-AUTHENTICATION-PARITY.md"
       ],
       "qa_records": [
@@ -1479,7 +1483,9 @@
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
-      "parity_documents": [],
+      "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md"
+      ],
       "qa_records": []
     },
     {
@@ -1653,6 +1659,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md",
         "docs/LOG-STATISTICS-PARITY.md",
         "docs/STATISTICS-EXPORT-PARITY.md"
       ],
@@ -1670,7 +1677,8 @@
         "docs/qa/statistics-native-2026-10-07.json",
         "docs/qa/statistics-palette-2026-10-07.json",
         "docs/qa/statistics-palette-reference-2026-10-07.json",
-        "docs/qa/statistics-source-family-2026-10-17.json"
+        "docs/qa/statistics-source-family-2026-10-17.json",
+        "docs/qa/statistics-source-family-2026-11-25.json"
       ]
     },
     {
@@ -2561,6 +2569,7 @@
       "missing_native_references": [],
       "parity_documents": [
         "docs/BISECT-OPERATION-PARITY.md",
+        "docs/DIALOG-PLATFORM-REVIEW.md",
         "docs/MERGE-PARITY.md",
         "docs/PROGRESS-PARITY.md",
         "docs/PUSH-PARITY.md",
@@ -3600,6 +3609,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md",
         "docs/PRIMARY-COMMAND-BANDS.md",
         "docs/REMOTE-REFERENCE-ENGINE-PARITY.md",
         "docs/SOURCE-FORM-CONTROLS-PARITY.md",
@@ -3722,7 +3732,8 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
-        "docs/COMMIT-PARITY.md"
+        "docs/COMMIT-PARITY.md",
+        "docs/DIALOG-PLATFORM-REVIEW.md"
       ],
       "qa_records": [
         "docs/qa/changelist-identities-2026-10-17.json",
@@ -4724,6 +4735,7 @@
       ],
       "missing_native_references": [],
       "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md",
         "docs/FIRST-START-WIZARD-PARITY.md"
       ],
       "qa_records": [
@@ -4775,7 +4787,9 @@
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
-      "parity_documents": [],
+      "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md"
+      ],
       "qa_records": []
     },
     {
@@ -4935,16 +4949,33 @@
       "resource": "src/TortoisePlink/Windows/TortoisePlink.rc",
       "id": "IDD_LOGIN",
       "caption": "TortoiseGitPlink",
-      "status": "pending-review",
+      "status": "partial-native-replacement",
       "source_blob": "257c117448f7783e84bcf9bba122bf994ce5f0b5",
       "static_controls": 4,
-      "mapped_controls": 0,
-      "pending_control_reviews": 4,
+      "mapped_controls": 4,
+      "pending_control_reviews": 0,
       "certified_complete": false,
-      "native_sources": [],
+      "native_sources": [
+        {
+          "path": "Sources/TurtleGitGitAskpass/PromptWindow.swift",
+          "anchor": "final class GitAskpassWindowController"
+        },
+        {
+          "path": "Sources/TurtleGitCore/GitAskpassPrompt.swift",
+          "anchor": "public struct GitAskpassPrompt"
+        }
+      ],
       "missing_native_references": [],
-      "parity_documents": [],
-      "qa_records": []
+      "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md",
+        "docs/SSH-PASSPHRASE-PARITY.md"
+      ],
+      "qa_records": [
+        "docs/qa/bundled-ssh-agent-2026-10-10.json",
+        "docs/qa/git-askpass-2026-10-13.json",
+        "docs/qa/git-askpass-display-2026-10-13.json",
+        "docs/qa/ssh-askpass-2026-10-13.json"
+      ]
     },
     {
       "resource": "src/TortoiseShell/resourceshell.rc",
@@ -5030,7 +5061,9 @@
       "certified_complete": false,
       "native_sources": [],
       "missing_native_references": [],
-      "parity_documents": [],
+      "parity_documents": [
+        "docs/DIALOG-PLATFORM-REVIEW.md"
+      ],
       "qa_records": []
     }
   ]

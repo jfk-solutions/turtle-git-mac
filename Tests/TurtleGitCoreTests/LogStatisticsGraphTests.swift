@@ -184,3 +184,73 @@ extension LogStatisticsGraphTests {
         XCTAssertEqual(collisions.includedAuthors.map { Data($0.name.utf8) }, names.prefix(2).map { Data($0.utf8) })
     }
 }
+
+extension LogStatisticsGraphTests {
+    private var dateLabelCalendar:Calendar {
+        var calendar=Calendar(identifier:.gregorian);calendar.timeZone=TimeZone(secondsFromGMT:0)!
+        calendar.firstWeekday=2;calendar.minimumDaysInFirstWeek=4;return calendar
+    }
+    func testDateCaptionPreferenceSelectsApplicationOrderWithoutRegroupingHistory() throws {
+        let suite="TurtleGit.StatisticsDates."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer {prefs.removePersistentDomain(forName:suite)}
+        try AppLanguageChoice.save("ja",to:prefs)
+        prefs.set(false,forKey:"UseSystemLocaleForDates")
+        let application=LogStatisticsDateSettings.load(defaults:prefs,systemLocale:Locale(identifier:"en_US"),preferredLanguages:["de"])
+        XCTAssertEqual(application.localeIdentifier,Locale(identifier:"ja").identifier);XCTAssertEqual(application.order,.yearMonthDay)
+        let names=["\u{00E9}va","e\u{0301}va"]
+        let entries=names.enumerated().map {index,name in LogEntry(hash:"caption-\(index)",author:name,date:"2024-02-0\(index+3)T12:00:00Z",subject:"",committerDate:"2024-02-0\(index+3)T12:00:00Z")}
+        let summary=try LogStatistics.analyze(entries,calendar:dateLabelCalendar)
+        let appGraph=try LogStatisticsGraph.make(summary,metric:.commitsByDate,authorsShown:2,calendar:dateLabelCalendar,dateSettings:application)
+        XCTAssertEqual(appGraph.categoryLabels,["24/2/3","24/2/4"])
+        prefs.set(true,forKey:"UseSystemLocaleForDates")
+        let system=LogStatisticsDateSettings.load(defaults:prefs,systemLocale:Locale(identifier:"en_US"),preferredLanguages:["de"])
+        let systemGraph=try LogStatisticsGraph.make(summary,metric:.commitsByDate,authorsShown:2,calendar:dateLabelCalendar,dateSettings:system)
+        XCTAssertEqual(system.order,.monthDayYear);XCTAssertEqual(systemGraph.categoryLabels,["2/3/24","2/4/24"])
+        XCTAssertEqual(appGraph.points.map {[$0.category,$0.series,$0.value]},systemGraph.points.map {[$0.category,$0.series,$0.value]})
+        XCTAssertEqual(appGraph.includedAuthors.map(\.id),systemGraph.includedAuthors.map(\.id));XCTAssertEqual(Set(appGraph.seriesLabels.map {Data($0.utf8)}).count,2)
+        XCTAssertEqual(summary.intervals.count,2);XCTAssertEqual(summary.totalCommits,2)
+        XCTAssertEqual(prefs.string(forKey:"TurtleGit.AppLanguage"),"ja");XCTAssertEqual(prefs.stringArray(forKey:"AppleLanguages"),["ja"])
+    }
+    func testExplicitDateLabelsPreserveCalendarWeekYearsAndTimeZoneBoundaries() throws {
+        let formatter=ISO8601DateFormatter()
+        let december=try XCTUnwrap(formatter.date(from:"2018-12-31T12:00:00Z")),january=try XCTUnwrap(formatter.date(from:"2021-01-01T12:00:00Z"))
+        let dayFirst=LogStatisticsDateSettings(useSystemLocale:true,systemLocale:Locale(identifier:"de_DE"))
+        let monthFirst=LogStatisticsDateSettings(useSystemLocale:true,systemLocale:Locale(identifier:"en_US"))
+        let yearFirst=LogStatisticsDateSettings(useSystemLocale:false,applicationLanguage:"ja",systemLocale:Locale(identifier:"de_DE"))
+        XCTAssertEqual(dayFirst.order,.dayMonthYear);XCTAssertEqual(monthFirst.order,.monthDayYear);XCTAssertEqual(yearFirst.order,.yearMonthDay)
+        XCTAssertEqual(dayFirst.label(for:december,unit:.week,calendar:dateLabelCalendar),"1/19")
+        XCTAssertEqual(yearFirst.label(for:december,unit:.week,calendar:dateLabelCalendar),"19/1")
+        XCTAssertEqual(monthFirst.label(for:january,unit:.week,calendar:dateLabelCalendar),"53/20")
+        XCTAssertEqual(yearFirst.label(for:january,unit:.week,calendar:dateLabelCalendar),"20/53")
+        let leapBoundary=try XCTUnwrap(formatter.date(from:"2024-03-01T00:30:00Z"))
+        var western=dateLabelCalendar;western.timeZone=try XCTUnwrap(TimeZone(identifier:"America/Los_Angeles"))
+        XCTAssertEqual(dayFirst.label(for:leapBoundary,unit:.day,calendar:dateLabelCalendar),"1/3/24")
+        XCTAssertEqual(dayFirst.label(for:leapBoundary,unit:.day,calendar:western),"29/2/24")
+        XCTAssertEqual(monthFirst.label(for:leapBoundary,unit:.day,calendar:western),"2/29/24")
+        XCTAssertEqual(yearFirst.label(for:leapBoundary,unit:.day,calendar:western),"24/2/29")
+        XCTAssertEqual(yearFirst.label(for:leapBoundary,unit:.month,calendar:western),"24/2")
+        XCTAssertEqual(dayFirst.label(for:leapBoundary,unit:.month,calendar:dateLabelCalendar),"3/24")
+        let quarter=try XCTUnwrap(formatter.date(from:"2024-11-05T12:00:00Z"))
+        XCTAssertEqual(yearFirst.label(for:quarter,unit:.quarter,calendar:dateLabelCalendar),"24/4")
+        XCTAssertEqual(monthFirst.label(for:quarter,unit:.quarter,calendar:dateLabelCalendar),"4/24")
+        XCTAssertEqual(yearFirst.label(for:quarter,unit:.year,calendar:dateLabelCalendar),"2024")
+    }
+    func testSystemApplicationLanguageResolutionIsBoundedAndDoesNotRewritePreferences() throws {
+        let suite="TurtleGit.StatisticsDateLanguage."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
+        defer {prefs.removePersistentDomain(forName:suite)}
+        prefs.set(false,forKey:"UseSystemLocaleForDates");prefs.set("unavailable-test-language",forKey:"TurtleGit.AppLanguage")
+        let originalDomain=prefs.persistentDomain(forName:suite) ?? [:]
+        XCTAssertNil(originalDomain["AppleLanguages"],"Fixture must not install an application language override")
+        let japanese=LogStatisticsDateSettings.load(defaults:prefs,systemLocale:Locale(identifier:"en_US"),preferredLanguages:["ja-JP","de-DE"])
+        XCTAssertEqual(japanese.order,.yearMonthDay)
+        let german=LogStatisticsDateSettings.load(defaults:prefs,systemLocale:Locale(identifier:"en_US"),preferredLanguages:["de-DE"])
+        XCTAssertEqual(german.order,.dayMonthYear)
+        XCTAssertEqual(prefs.string(forKey:"TurtleGit.AppLanguage"),"unavailable-test-language")
+        // A suite can inherit the user's OS language order. Verify only its
+        // supplied persistent domain, including the absent override, unchanged.
+        let retainedDomain=prefs.persistentDomain(forName:suite) ?? [:]
+        XCTAssertEqual(retainedDomain as NSDictionary,originalDomain as NSDictionary)
+        XCTAssertNil(retainedDomain["AppleLanguages"])
+        XCTAssertFalse(prefs.bool(forKey:"UseSystemLocaleForDates"))
+    }
+}

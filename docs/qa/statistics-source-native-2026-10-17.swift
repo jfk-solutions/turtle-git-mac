@@ -57,6 +57,7 @@ extension StatisticsNativeVerification {
         } else { throw NSError(domain: "Statistics capture requires macOS 14.4", code: 1) }
     }
     @MainActor static func verifySourceFamily(_ owner: StatisticsWindowController, root: URL, defaults: UserDefaults) async throws {
+        try await verifyCutoffFamily(repository:owner.model.repository,root:root)
         let model = owner.model
         model.selectMetric(.commitsByDate)
         let old = model.formRevision
@@ -184,6 +185,123 @@ extension StatisticsNativeVerification {
         try await sourceWait { released == nil }
         precondition(!FileManager.default.fileExists(atPath:root.appendingPathComponent("automatic-close.pdf").path),"Normal close failed to cancel unpublished output")
         print("Statistics source family: stale form and picker callbacks, style dependencies, bounded slider, activity hint, source summary/bar geometry, captured export, actual owned picker Cancel, duplicate reply, cancel-before-publication force-close/Quit ownership passed")
+    }
+    @MainActor static func sourceAX(_ object:Any,_ name:String)->Any? {
+        guard let value=object as? NSObject else{return nil}
+        let selector=NSSelectorFromString(name)
+        return value.responds(to:selector) ? value.perform(selector)?.takeUnretainedValue():nil
+    }
+    @MainActor static func sourceAXTree(_ root:Any)->[NSObject] {
+        var seen=Set<ObjectIdentifier>(),result:[NSObject]=[]
+        func visit(_ object:Any,_ depth:Int) {
+            guard depth<24,result.count<2000,let value=object as? NSObject,seen.insert(ObjectIdentifier(value)).inserted else{return}
+            result.append(value)
+            for child in NSAccessibility.unignoredChildren(from:sourceAX(value,"accessibilityChildren") as? [Any] ?? []) {visit(child,depth+1)}
+        }
+        for child in NSAccessibility.unignoredChildrenForOnlyChild(from:root) {visit(child,0)}
+        return result
+    }
+    @MainActor static func sourceAXAction(_ element:NSObject,_ action:String)->Bool {
+        let selector=NSSelectorFromString(action)
+        guard element.responds(to:selector) else{return false}
+        typealias Callback = @convention(c)(AnyObject,Selector)->Bool
+        return unsafeBitCast(element.method(for:selector),to:Callback.self)(element,selector)
+    }
+    @MainActor static func verifyCutoffFamily(repository:GitRepository,root:URL)async throws {
+        func require(_ value:Bool,_ message:String)throws {if !value {throw NSError(domain:"Statistics cutoff: "+message,code:1)}}
+        // SwiftUI materializes lightweight AX nodes only when a client requests
+        // its enhanced tree. This changes this private process, not system prefs.
+        let enhancedUI=NSAccessibility.Attribute(rawValue:"AXEnhancedUserInterface")
+        try require(NSApp.accessibilityIsAttributeSettable(enhancedUI),"Private AX client mode unavailable")
+        let originalAX=NSApp.accessibilityAttributeValue(enhancedUI)
+        NSApp.accessibilitySetValue(NSNumber(value:true),forAttribute:enhancedUI)
+        defer{NSApp.accessibilitySetValue(originalAX,forAttribute:enhancedUI)}
+        let suite="TurtleGit.Statistics.Cutoff."+UUID().uuidString,preferences=UserDefaults(suiteName:suite)!
+        defer{preferences.removePersistentDomain(forName:suite)}
+        preferences.set(false,forKey:"UseSystemLocaleForDates");try AppLanguageChoice.save("ja",to:preferences)
+        var entries:[LogEntry]=[]
+        for author in 0..<4 {for copy in 0...author {
+            entries.append(LogEntry(hash:"cutoff-\(author)-\(copy)",author:"Author\(author)",date:"2024-01-02T12:00:00Z",subject:"",committerDate:"2024-01-02T12:00:00Z"))
+        }}
+        let owner=StatisticsWindowController(repository:repository,access:nil,entries:entries,defaults:preferences),model=owner.model
+        let gate=StatisticsWriteGate()
+        do {
+            owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil)
+            model.selectMetric(.commitsByAuthor)
+            func slider()->NSObject? {
+                sourceAXTree(owner.window!).first{sourceAX($0,"accessibilityRole") as? String == "AXSlider" && sourceAX($0,"accessibilityLabel") as? String == "Authors shown individually"}
+            }
+            do {try await sourceWait {slider() != nil}} catch {
+                let state="metric=\(model.metric) authors=\(model.authorsShown) available=\(model.availableAuthorCount) interact=\(model.canInteract) busy=\(model.busy) visible=\(owner.window?.isVisible == true)"
+                let native=sourceViews(owner.window?.contentView).map{String(describing:type(of:$0))}
+                let roles=sourceAXTree(owner.window!).map{String(describing:type(of:$0))+":"+String(reflecting:sourceAX($0,"accessibilityRole"))+":"+String(reflecting:sourceAX($0,"accessibilityLabel"))}
+                throw NSError(domain:"Statistics actual AX slider missing: "+state+" native=\(native) AX=\(roles)",code:1)
+            }
+            try require(model.availableAuthorCount==4 && model.authorsShown==4,"Source author maximum not restored")
+            let original=model.graph!.includedAuthors
+            let token=model.beginAuthorLimitGesture(context:model.formRevision)!
+            model.updateAuthorLimitGesture(1,gesture:token)
+            try require(model.displayedAuthorLimit==1 && model.authorsShown==4 && model.graph!.includedAuthors==original,"Thumb tracking redrew committed graph")
+            model.finishAuthorLimitGesture(token)
+            try require(model.authorLimitDraft==nil && model.authorsShown==1 && model.graph!.includedAuthors.count==1 && model.graph!.skippedAuthors.count==3,"Release did not publish cutoff once")
+            let released=model.formRevision;model.finishAuthorLimitGesture(token)
+            try require(model.formRevision==released,"Duplicate slider release redrew graph")
+            // Invoke the actual rendered SwiftUI AX slider, rather than assuming
+            // that this SDK implements it as an NSSlider subclass. Thumb tracking
+            // uses the captured production begin/update/end contract above.
+            try await sourceWait {(slider().flatMap{sourceAX($0,"accessibilityValue") as? NSNumber})?.intValue==1}
+            guard let actual=slider() else{throw NSError(domain:"Statistics AX slider retired before action",code:1)}
+            try require(sourceAXAction(actual,"accessibilityPerformIncrement"),"Actual AX slider increment was not delivered")
+            try await sourceWait {model.authorsShown==2 && model.authorLimitDraft==nil && (slider().flatMap{sourceAX($0,"accessibilityValue") as? NSNumber})?.intValue==2}
+            model.selectStyle(.pie)
+            try require(model.authorsShown==4 && model.graph!.includedAuthors.count==4,"Style redraw retained reduced author cutoff")
+            model.setAuthorLimit(1);model.selectStyle(.pie)
+            try require(model.authorsShown==4,"Selecting current style failed source reset")
+            for transition in 0..<5 {
+                let stale=model.beginAuthorLimitGesture(context:model.formRevision)!
+                model.updateAuthorLimitGesture(1,gesture:stale)
+                if transition==0 {model.selectMetric(.commitsByDate)}
+                else if transition==1 {model.selectStyle(.stackedLine)}
+                else if transition==2 {var options=model.options;options.sortByCommitCount.toggle();model.setOptions(options)}
+                else if transition==3 {model.rebuild(resetAuthors:true)}
+                else {model.hasSheet=true;model.hasSheet=false}
+                let revision=model.formRevision,authors=model.authorsShown
+                model.updateAuthorLimitGesture(2,gesture:stale);model.finishAuthorLimitGesture(stale)
+                try require(model.authorLimitDraft==nil && model.formRevision==revision && model.authorsShown==authors,"Old gesture affected replacement chart/owner: \(transition)")
+            }
+            try require(model.style == .stackedLine && model.authorsShown==4,"Date line style did not restore maximum")
+            try require(model.dateSettings.order == .yearMonthDay && model.graph!.categoryLabels.allSatisfy{$0.hasPrefix("24/")},"Owning app-language date preference did not reach graph")
+            let labels=model.graph!.categoryLabels,dateSettings=model.dateSettings
+            try AppLanguageChoice.save("de",to:preferences);model.rebuild()
+            try require(model.dateSettings==dateSettings && model.graph!.categoryLabels==labels,"External preference change replaced captured graph date context")
+            model.setAuthorLimit(1);model.graphSize=CGSize(width:480,height:280)
+            let captured=model.graph!,destination=root.appendingPathComponent("captured-cutoff-preferences.pdf")
+            var answer:((NSApplication.ModalResponse)->Void)?
+            owner.presentSavePanel={_,_,reply in answer=reply};owner.selectedSaveURL={_ in destination}
+            owner.writeGraph={data,url,token in try await gate.write(data,to:url,cancellation:token)}
+            let stale=model.beginAuthorLimitGesture(context:model.formRevision)!
+            model.updateAuthorLimitGesture(2,gesture:stale);owner.saveGraphAs()
+            model.finishAuthorLimitGesture(stale);model.selectStyle(.bar)
+            try require(model.authorLimitDraft==nil && model.authorsShown==1 && model.style == .stackedLine,"Save ownership committed a pending thumb or changed style")
+            answer?(.OK)
+            for _ in 0..<2500 {if await gate.started {break};try await Task.sleep(nanoseconds:10_000_000)}
+            guard let data=await gate.bytes,let pdf=PDFDocument(data:data) else{throw NSError(domain:"Statistics captured cutoff export not received",code:1)}
+            let text=pdf.string ?? ""
+            try require(captured.skippedAuthors.count==3 && captured.categoryLabels.allSatisfy{text.contains($0)} && text.contains("Others (3)"),"Export lost committed author cutoff/date captions")
+            await gate.finish();try await sourceWait{!owner.hasPendingWork && !model.exporting}
+            try require(try Data(contentsOf:destination)==data,"Captured export bytes changed during publication")
+            model.savePreferences()
+            let reopened=StatisticsWindowModel(repository:repository,access:nil,entries:entries,defaults:preferences)
+            try require(reopened.style == .stackedLine && reopened.metric == .commitsByDate && reopened.options==model.options && reopened.dateSettings.order == .dayMonthYear,"Persisted style/options or newly opened language preference lost")
+            reopened.retire()
+            let retired=model.beginAuthorLimitGesture(context:model.formRevision)!
+            model.updateAuthorLimitGesture(2,gesture:retired);owner.close();model.finishAuthorLimitGesture(retired)
+            try await sourceWait{!owner.hasPendingWork}
+            try require(model.retired && model.authorLimitDraft==nil && model.authorsShown==1,"Retired slider callback changed chart")
+            print("PASS: Statistics cutoff draft/release/duplicate, actual SwiftUI AX immediate action, same/new style maximum, stale metric/style/options/snapshot/sheet/retired gesture refusal, captured date preference and PDF receipt, fresh preference reopening")
+        } catch {
+            await gate.finish();owner.close();try? await sourceWait{!owner.hasPendingWork};throw error
+        }
     }
     static func XCTlessPDF(_ url: URL) throws -> PDFDocument {
         guard let pdf = PDFDocument(url: url), pdf.pageCount == 1 else { throw NSError(domain: "Statistics PDF", code: 1) }

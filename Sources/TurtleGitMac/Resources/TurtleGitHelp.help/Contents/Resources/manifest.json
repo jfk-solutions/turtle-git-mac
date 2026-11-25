@@ -1,6 +1,6 @@
 {
   "files": {
-    "Contents/Info.plist": "c9528b21e80bb16f1a257bceabfb0af4f9f2467fcb4423e507af69465bd02975",
+    "Contents/Info.plist": "82e3890bdd1f250366fbe2901081296c2752c4701b370a4dbf023d08bdfa0771",
     "Contents/Resources/en.lproj/ACTION-LOG.html": "0e241ba6cddcb22c6b1010894a65189c10b9b37f003474f4c11fec7296d5b5f5",
     "Contents/Resources/en.lproj/BISECT.html": "9ac18c6c2f3040b6c027330d6c69e4d11030e8c0f8ebf006ac7ed9afd318fb89",
     "Contents/Resources/en.lproj/BLAME-FILE-OPEN.html": "25d04d51dec9a0e28cf188aef74042ab05e86f586b11216e9de757a1ed6f2ac2",
@@ -59,7 +59,7 @@
     "Contents/Resources/en.lproj/SMTP-CERTIFICATE-REVIEW.html": "8a0fe2d851eca48bbdc2c98306d7829372d4249851106eb95888fac71996d9d4",
     "Contents/Resources/en.lproj/SOURCE-TEXT-PATCH-PARITY.html": "451a4e1437a331553813c72d063a3276ec997533945490e8d8031207fe65fe6d",
     "Contents/Resources/en.lproj/SSH-AUTHENTICATION.html": "bc00e7fcb0084d51b6414ce921f419f3080749fde1456cb828a47331cfe3da38",
-    "Contents/Resources/en.lproj/STATISTICS.html": "f8614fac7841ea622608032c69548bbe857405e9a8fdf6468f03181ba6ab8253",
+    "Contents/Resources/en.lproj/STATISTICS.html": "e4c373571fd94bc9625fd407549f7d5ea8918b29c006b498264ffa3ea5c98538",
     "Contents/Resources/en.lproj/SVN-AUTHENTICATION.html": "c23a08d9e26eaf85bbb9910fdd4c5bca9d4f3596d8c5e19a6411a895a7526378",
     "Contents/Resources/en.lproj/SYNC-TRANSFER-NOTIFICATIONS-PARITY.html": "dfb7abbb006328b501b6913be6e9307b7c9d44dfe3dfb7cfde0c59b0d5275ad1",
     "Contents/Resources/en.lproj/VIEWPORT-NAVIGATION-PARITY.html": "140191ee23711d9b9a1befea46541b9cf8bc027358f0179db6905218fd9d6c0d",
@@ -162,7 +162,7 @@
     "docs/SMTP-CERTIFICATE-REVIEW.md": "58c9d73f8f5f7b319cd50bd5d2206d463a744456c110229e814c7c3ef8cc04ef",
     "docs/SOURCE-TEXT-PATCH-PARITY.md": "fec4c9ad1037de972be3dea31768fe589d5c54addc8fd349927bd8fc9b01fa91",
     "docs/SSH-AUTHENTICATION.md": "b12fee023e418b911923adfef9359321629b0e123bce4effbcf668f96ddf3f62",
-    "docs/STATISTICS.md": "67d0a3a499963af07bf8706acb8119e2778cfd0e5a3d1fa05cf59000cab6749c",
+    "docs/STATISTICS.md": "9edc4435e6ca62f8b5531485aec56d0b2a2934ca425bc2d51c7c9960df830ded",
     "docs/SVN-AUTHENTICATION.md": "f5cdd353c17d55ff2d7f5cc37e93d96205c0b6a53737cc4226049769ad830b16",
     "docs/SYNC-TRANSFER-NOTIFICATIONS-PARITY.md": "0e0d4e313061a58d2405b507c9a16c751a0bfbbb8afdd67a8f4e20bd0d334844",
     "docs/VIEWPORT-NAVIGATION-PARITY.md": "73ee9056b008a80e2ef9f85e859609522a101ccfca128217fd76e1c2746e5311",

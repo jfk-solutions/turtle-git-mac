@@ -299,6 +299,13 @@ import PDFKit
         precondition(model.graph?.points.reduce(0) { $0 + $1.value } == 4)
         if ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_CASE"] == "summary" {
             model.selectMetric(.statistics)
+            // A deliberate large-number visual fixture exercises all added/
+            // removed components without creating a huge repository or changing
+            // its real index/files. The same production summary reducer is used.
+            var large=LogStatisticsChanges();large.files=24;large.added=123_456_789;large.removed=98_765_432
+            large.newFileLines=87_654_321;large.deletedFileLines=76_543_210
+            model.summary=try LogStatistics.analyze(entries,options:model.options,changes:Dictionary(uniqueKeysWithValues:entries.map{($0.hash,large)}))
+            precondition(model.summary?.totalChanges.lineSummary(includingNewDeletedFiles:true).description == "772839504 (422222220 (+) 350617284 (-))")
             controller.window?.setContentSize(NSSize(width: 780, height: 550))
             controller.window?.alphaValue = 0; controller.window?.orderFront(nil)
             try await sourceCapture(controller, page: "summary")

@@ -17,7 +17,9 @@ line totals.</li>
 files.</li>
 </ul>
 <p>The initial summary avoids reading every commit's diff. Choose <strong>Calculate</strong> to
-load file/line totals. Authorship and line graphs start this calculation when
+load file/line totals. Line summaries show the total followed by added (+) and
+removed (-) components, both excluding and including whole added/deleted files.
+Long values wrap or scroll so every component remains selectable. Authorship and line graphs start this calculation when
 selected. Progress appears at the bottom; <strong>Cancel</strong> stops the calculation. Closing
 or pressing Escape while it is running requests cancellation first.</p>
 <p>The four checkboxes control case-sensitive author grouping, author versus
@@ -27,18 +29,25 @@ composed and decomposed spellings remain distinct even when they look the same.
 Disabling case sensitivity folds case without normalizing those spellings.
 The author slider limits individual series; remaining authors
 are grouped as <strong>Others</strong>. If only one author would remain, that author keeps their
-name. These settings and the last graph page are remembered when the window closes.</p>
+name. During a drag, the cutoff value changes while the chart stays in place;
+release the slider to redraw. Keyboard and accessibility changes apply directly.
+These settings and the last graph page are remembered when the window closes.</p>
 <p>The five original graph icons select pie, stacked line, line, stacked bar and bar.
 Hover bars, pie wedges or line points in smaller graphs for the author, value,
 unit and percentage. Hovering the average region shows its value. Stacked-area
 polygons do not provide individual value tooltips. Zero-value intervals are omitted
 from bar graphs; ordinary bars share widths across the populated intervals.
-Line styles are unavailable for the author comparison graphs. Stacked bar for
+Selecting a graph style resets the author cutoff to the available maximum,
+matching TortoiseGit. Line styles are unavailable for the author comparison graphs. Stacked bar for
 author comparisons shows one colored stack of authors. Ordinary bar and line
 graphs include the source average guide. Integer tick labels reflect commit/line
 counts. Graph titles and axis units follow the chosen metric and time interval;
 the original TortoiseGit palette is shared by all graph styles in light and dark
 appearance. Very high author counts retain the source palette's repeated colors.</p>
+<p>Date captions follow <strong>Use system locale for date/time</strong>. When it is off, the
+selected application language supplies the date order. Statistics captures these
+preferences when its window opens; reopen it after changing them. Calendar and
+week-year boundaries remain tied to the same calendar used to group commits.</p>
 <p>With a graph selected, choose <strong>File → Save Graph As…</strong>. The save sheet has
 <strong>Pictures</strong> and <strong>All Files</strong> filters. The filename selects the encoder: <code>.wmf</code>,
 <code>.emf</code>, <code>.pdf</code>, <code>.png</code>, <code>.jpg</code>/<code>.jpeg</code>, <code>.bmp</code> or <code>.gif</code>. Changing the filter preserves
@@ -53,9 +62,6 @@ horizontal row and shrink to fit; zero-valued intervals leave no empty slot.
 All graph styles have a boxed legend on the right. Crowded legends keep the last
 group and show dots for omitted middle rows; narrow graphs hide the legend. The text summary cannot be exported
 through this command.</p>
-<p>This dialog is still being compared with TortoiseGit. Exact displayed label geometry, outlines/shading,
-dense history layouts, displayed save-sheet behavior and signed sandbox checks
-remain pending; see <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/LOG-STATISTICS-PARITY.html">the parity record</a>.</p>
 <p>Cancel stops gathering file changes and keeps the previous complete summary.
 Use Calculate to retry. Closing during calculation first cancels the read, then
 closes after Git finishes. The summary page hides graph style and author-limit
@@ -85,5 +91,5 @@ or editable as text. Color-font labels may use a small label image; the graph
 itself remains vector geometry.</p>
 <p>Export sizes and drawing complexity are bounded; oversized output fails
 explicitly. See the <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/STATISTICS-EXPORT-PARITY.html">Statistics export parity record</a>
-for the supported formats, adaptations and remaining acceptance work.</p>
+for technical details about the supported formats and macOS adaptations.</p>
 </main><footer>TurtleGit for Mac · A macOS fork of TortoiseGit. <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/">Online manual</a> · <a href="https://github.com/jfk-solutions/turtle-git-mac/blob/main/NOTICE">Attribution</a> · <a href="https://github.com/jfk-solutions/.github/blob/main/profile/imprint.md">Impressum</a></footer></body></html>

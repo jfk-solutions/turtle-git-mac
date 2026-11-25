@@ -383,3 +383,40 @@ The [dated grouped checkpoint](qa/statistics-interaction-family-2026-10-23.json)
 records scene and actual controller ownership coverage, failures and repairs.
 Physical hover timing, keyboard/VoiceOver sessions, complete source layout,
 installed signed execution and full hosted integration remain separate gates.
+
+## Directional totals, date captions and author cutoff — November 25, 2026
+
+Pinned `StatGraphDlg.cpp` lines 1107–1115 display each changed-line total with its
+separate added and removed components. The native Summary now retains both
+source breakdowns: ordinary modified-file lines, and the total including added
+and deleted files. Long values remain selectable and readable at the minimum
+window size through adaptive rows and a vertical summary viewport; oversized
+activity counts retain their intrinsic widths in a horizontal viewport. The
+current light and dark native captures were visually reviewed.
+
+The source reads `UseSystemLocaleForDates` and the application language at
+initialization (lines 297–307), then applies numeric date ordering in
+`GetUnitLabel`. Native Statistics now captures the corresponding explicit
+application-versus-system preference through Foundation locale ordering, together
+with one calendar for analysis and graph construction. Date captions belong to
+the graph snapshot used by both the displayed diagram and export. Native calendar
+week-year correctness is intentionally retained across January boundaries rather
+than reproducing the source's January week-label quirk.
+
+`OnHScroll` ignores `TB_THUMBTRACK` (lines 1298–1306). The native SwiftUI slider
+therefore updates a draft thumb position and hint during a drag, publishing the
+new author cutoff to the graph on release. Metric, style, option, snapshot,
+modal/export and retirement changes invalidate the captured gesture. Keyboard
+and accessibility adjustments without a drag remain immediate. `RedrawGraph`
+calls `ShowSelectStat(..., true)` and resets the author skipper to its maximum;
+the native style buttons now do the same, including selection of the current
+style and permitted line-style transitions.
+
+The [dated source-family checkpoint](qa/statistics-source-family-2026-11-25.json)
+records the Core and grouped native evidence, including both Git engines passing
+the affected workflow. The native receiver exercises production gesture tokens,
+an actual rendered SwiftUI AX slider action, stale callbacks, persisted options
+and captured PDF receipts. It does not prove a physical mouse drag or VoiceOver
+across every layout, full hosted CI, or these changes in installed signed build58.
+This continuation adds no WMF/metafile rendering work and does not certify the
+whole Statistics dialog family complete.
