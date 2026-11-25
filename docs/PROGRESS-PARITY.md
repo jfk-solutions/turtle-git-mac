@@ -258,3 +258,21 @@ shared Send Mail handoff. [Source comparison](FORMAT-PATCH-PARITY.md#progress-re
 and [batch evidence](qa/format-patch-workflow-2026-10-19.json) retain the exact
 implementation and validation scope; installed/live transport acceptance remains
 separate.
+
+## Live native progress presentation — November 25, 2026
+
+The shared native progress text view now resolves the current Log font when it
+renders unchanged output, and observes its supplied preference store while its
+owner is alive. Font or styling changes preserve the selected text and current
+viewport; new command output retains the existing tail-follow behavior. Warning
+prefixes, links and completion colors use the refreshed font without changing
+output bytes. Closing the owner or dismantling its native view removes observers
+and rejects late rendering, link and Copy actions.
+
+This corrects the live Rebase progress-font failure exposed by the hosted native
+receiver. It does not change command execution, auto-close policy, saved font
+preferences or Core Git operations. The related Bisect picker consumer waits for
+actual child close and drainage before checking accepted, stale or canceled
+results. The [focused checkpoint](qa/native-progress-entry-recovery-2026-11-25.json)
+records the exact cumulative validation scope and retained failures; physical
+and signed acceptance remain separate.

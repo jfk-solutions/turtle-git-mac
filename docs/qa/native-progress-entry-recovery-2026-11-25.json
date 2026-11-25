@@ -1,0 +1,767 @@
+{
+  "schema": 1,
+  "date": "2026-11-25",
+  "recorded_at_utc": "2026-11-25T16:27:55.285601+00:00",
+  "scope": "Bounded native progress font consumer and existing Bisect, conflict report and Submodule command-entry recovery; seven unique case/engine passes cumulatively, not full port or full hosted acceptance.",
+  "source_baseline": "4e592b21cbfe93c4ba0b6a93b91d83a3664e4994",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_comparison": {
+    "font": [
+      "src/TortoiseProc/RebaseDlg.cpp:210 configures message GetLogFontName/GetLogFontSize;219 configures read-only output font with undo disabled.",
+      "src/TortoiseProc/ProgressDlg.cpp:894-896 SetupLogMessageViewControl uses CreateFontForLogs.",
+      "Live changes to already open native output follow the established macOS setting-consumer contract; no claim that pinned Windows uses the same dynamic notification behavior."
+    ],
+    "bisect": "Production BisectWindowController.drainPicker retains captured exact draft, actual child closure/read/sheet drainage and acceptance gates. BisectDialog error alert is owned by the parent; presentationAvailable refuses Reset until attached sheet detaches. Those policies are preserved.",
+    "conflict": "Native report Space belongs to the actual focused table, independently of selected rows. Fixture now verifies refusal without focus, acquires first responder, then verifies checked selected rows.",
+    "submodule": "Production Add shares Clone creationClipboardText; persisted Update keys use GitRepository standardized root. Current Finder authority preparation is a separate pending phase before workspace.busy."
+  },
+  "implementation": {
+    "production_files": [
+      "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift"
+    ],
+    "behavior": [
+      "Resolve current configured font before unchanged-output cache admission.",
+      "Native supplied-preference observation refreshes retained completed/running output without another Git command or new output.",
+      "Font/style-only refresh retains exact output, selection and viewport; new progress/completion retains tail following.",
+      "Preference object rebind avoids identical-object observer replacement and propagates actual supplied clipboard.",
+      "Window closure and representable dismantling retire observers, late output, links and clipboard menus."
+    ],
+    "unchanged": [
+      "Bisect Git operations and source admission/ownership policies",
+      "Conflict report production interaction policy",
+      "Submodule production commands, grants and persistence keys",
+      "Core and renderer sources for this cohort"
+    ],
+    "fixture_repairs": [
+      "Bisect injected picker callbacks wait actual child close/drain before stale/accepted/Cancel assertions; duplicate callbacks remain refused.",
+      "Bisect cancellation uses actual owned default acknowledgment button and paired native sheet drain, retaining cancellation/session/output and refusal while attached.",
+      "Original Reset model state/exit/error/output and receipts captured immediately after !busy, before independent Git diagnostics; original active=false and exact original HEAD invariant retained.",
+      "Font prefix assertions compare exact NSFontManager source conversion before/after; warning/link/footer and style-disabled assertions retained.",
+      "Conflict selected-row checkbox readiness and real first responder established; unfocused Space refusal remains asserted.",
+      "Submodule creation clipboard hook is private, history/source are exact; Update option fixture keys use actual standardized root, same preference object and captured recursive/no-fetch/force persistence.",
+      "Submodule permission and command callbacks wait current saved-authority preparation drainage as well as workspace busy/operation workers."
+    ]
+  },
+  "validation": {
+    "build": {
+      "count": 1,
+      "configuration": "Debug",
+      "exit_code": 0,
+      "cwd": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild",
+        "-project",
+        "TurtleGitMac.xcodeproj",
+        "-scheme",
+        "TurtleGitMac",
+        "-configuration",
+        "Debug",
+        "-destination",
+        "platform=macOS",
+        "-derivedDataPath",
+        "build",
+        "-jobs",
+        "4",
+        "CODE_SIGNING_ALLOWED=NO",
+        "build"
+      ],
+      "log": "build/qa/native-final-progress-build-2026-11-25.log",
+      "terminal_marker": "** BUILD SUCCEEDED **",
+      "warning": "CoreSimulator version warning disabled unrelated simulator support; macOS Debug build completed."
+    },
+    "core": "Not rerun: production change is native-only; no Core source changed for this cohort.",
+    "native_unique_case_engine_passes": 7,
+    "native_pass_matrix": [
+      {
+        "case": "log-rebase-font",
+        "git": "/usr/bin/git",
+        "status": "pass",
+        "log": "build/qa/native-final-progress-repair-font-2026-11-25.log",
+        "command": [
+          "python3",
+          "scripts/test-log-rebase-font.py",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "exit_code": 0,
+        "scope": "Actual hidden Log message/Rebase amend/progress, original live font22 assertion, independent native preference/style restyle, source converter font, warning/link/footer, selection/viewport and retirement. No actual rebase operation."
+      },
+      {
+        "case": "bisect-progress",
+        "git": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "unique_passes": 2,
+        "status": "pass",
+        "log": "build/qa/native-final-progress-bisect-sheet-repair-2026-11-25.log",
+        "command": [
+          "python3",
+          "scripts/test-switch-reset-bisect-workflows.py",
+          "--only",
+          "bisect-progress",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "root_confirmed_terminal_session": 49530,
+        "scope": "Actual Start/Stash/classification cancellation/Reset, picker stale/accepted/Cancel/drain, native acknowledgment, command receipts, captured original model HEAD plus independent main/HEAD, progress/copy/action-log and forced retirement.",
+        "terminal_status_provenance": {
+          "reported_by": "root orchestration",
+          "session_id": 49530,
+          "terminal_exit_code": 0,
+          "log_contains_both_engine_pass_markers": true
+        }
+      },
+      {
+        "case": "conflict-report",
+        "git": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "unique_passes": 2,
+        "status": "pass",
+        "log": "build/qa/native-final-progress-conflict-2026-11-25.log",
+        "command": [
+          "python3",
+          "scripts/test-history-feedback-conflict-batch.py",
+          "--only",
+          "conflict-report",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "scope": "Native selected Space/checkbox, keyboard focus refusal/acceptance, context menus, layouts/reset, changelist-bearing Sync recovery/refresh/cancel and retained repository bytes. No actual conflict resolution mutation, physical gestures or real LFS server."
+      },
+      {
+        "case": "submodule-entry",
+        "git": [
+          "/usr/bin/git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "unique_passes": 2,
+        "status": "pass",
+        "log": "build/qa/native-final-progress-final-submodule-2026-11-25.log",
+        "command": [
+          "python3",
+          "scripts/test-stash-submodule-workflows.py",
+          "--only",
+          "submodule-entry",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "build/git-runtime/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "scope": "Real local Add gitlink, selected Update checkout/persistence, file-only/selected Sync, owned draft/repeated request refusal, exact owning preferences/creation clipboard, current permission/discovery refusal, parent HEAD/index preservation during Update and cleanup."
+      }
+    ],
+    "attempt_results_files": {
+      "native-final-progress-final-results-2026-11-25.json": [
+        {
+          "name": "bisect",
+          "command": [
+            "scripts/test-switch-reset-bisect-workflows.py",
+            "--only",
+            "bisect-progress",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 32.289,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-final-bisect-2026-11-25.log"
+        },
+        {
+          "name": "submodule",
+          "command": [
+            "scripts/test-stash-submodule-workflows.py",
+            "--only",
+            "submodule-entry",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 26.947,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-final-submodule-2026-11-25.log"
+        }
+      ],
+      "native-final-progress-repair-results-2026-11-25.json": [
+        {
+          "name": "font",
+          "command": [
+            "scripts/test-log-rebase-font.py",
+            "--git",
+            "/usr/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 5.346,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-repair-font-2026-11-25.log"
+        },
+        {
+          "name": "bisect",
+          "command": [
+            "scripts/test-switch-reset-bisect-workflows.py",
+            "--only",
+            "bisect-progress",
+            "--git",
+            "/usr/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 34.584,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-repair-bisect-2026-11-25.log"
+        },
+        {
+          "name": "submodule",
+          "command": [
+            "scripts/test-stash-submodule-workflows.py",
+            "--only",
+            "submodule-entry",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 20.104,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-repair-submodule-2026-11-25.log"
+        }
+      ],
+      "native-final-progress-results-2026-11-25.json": [
+        {
+          "name": "font",
+          "command": [
+            "scripts/test-log-rebase-font.py",
+            "--git",
+            "/usr/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 6.045,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-font-2026-11-25.log"
+        },
+        {
+          "name": "bisect",
+          "command": [
+            "scripts/test-switch-reset-bisect-workflows.py",
+            "--only",
+            "bisect-progress",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 34.262,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-bisect-2026-11-25.log"
+        },
+        {
+          "name": "conflict",
+          "command": [
+            "scripts/test-history-feedback-conflict-batch.py",
+            "--only",
+            "conflict-report",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 17.746,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-conflict-2026-11-25.log"
+        },
+        {
+          "name": "submodule",
+          "command": [
+            "scripts/test-stash-submodule-workflows.py",
+            "--only",
+            "submodule-entry",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 17.817,
+          "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/native-final-progress-submodule-2026-11-25.log"
+        }
+      ]
+    },
+    "attempt_history": [
+      {
+        "phase": "reported_final_hosted",
+        "evidence": "build/qa/ci-4826-d38-final-snapshot-2026-11-25/failure-index.json",
+        "issues": [
+          "343b7218 Bisect changed picker target accepted stale result",
+          "cc6fa785 live Rebase font assertion54",
+          "dbed45d8 conflict selected-row Space timeout",
+          "420ab4e7 Submodule entry failures"
+        ],
+        "interpretation": "Diagnosed against actual final downloaded artifacts, not merely step labels; this local checkpoint is not a new hosted run."
+      },
+      {
+        "phase": "initial_font",
+        "log": "build/qa/native-final-progress-font-2026-11-25.log",
+        "exit_code": 1,
+        "failure": "New assertion83 required Monaco bold trait. Original live22 font assertion passed after production fix.",
+        "cause": "Fixture font capability assumption: exact AppKit conversion of Monaco22/24 to bold returns unchanged regular Monaco on this platform."
+      },
+      {
+        "phase": "font_metadata_diagnostic",
+        "command": "swift -e 'import AppKit; for size in [22.0,24.0] { let base=NSFont(name:\"Monaco\",size:size)!; let converted=NSFontManager.shared.convert(base,toHaveTrait:.boldFontMask); print(\"size=\\(size) base=\\(base.fontName) traits=\\(base.fontDescriptor.symbolicTraits.rawValue) converted=\\(converted.fontName) traits=\\(converted.fontDescriptor.symbolicTraits.rawValue) pointSize=\\(converted.pointSize) equal=\\(base == converted)\") }' ",
+        "exit_code": 0,
+        "output": [
+          "size=22.0 base=Monaco traits=2147484672 converted=Monaco traits=2147484672 pointSize=22.0 equal=true",
+          "size=24.0 base=Monaco traits=2147484672 converted=Monaco traits=2147484672 pointSize=24.0 equal=true"
+        ],
+        "scope": "Font metadata only; no window, receiver, app build or whole check rerun."
+      },
+      {
+        "phase": "initial_bisect",
+        "log": "build/qa/native-final-progress-bisect-2026-11-25.log",
+        "exit_code": 1,
+        "failure": "Reset lost original branch",
+        "cause": "Unproven compound failure; no captured result distinguished refused admission, Git failure or model mismatch. Do not retrospectively classify as fixed by diagnostics."
+      },
+      {
+        "phase": "bisect_diagnostic_recheck",
+        "log": "build/qa/native-final-progress-repair-bisect-2026-11-25.log",
+        "exit_code": 0,
+        "scope": "System Git passed with real main/HEAD and Reset exit0. Diagnostic Git awaits preceded original model assertion in this intermediate fixture; it does not independently prove original immediate model timing."
+      },
+      {
+        "phase": "bisect_snapshot_recheck",
+        "log": "build/qa/native-final-progress-final-bisect-2026-11-25.log",
+        "exit_code": 1,
+        "failure": "Reset after cancellation refused admission: retired=false quit=false picker=false busy=false pending=false confirming=false presentation=false",
+        "cause": "Observed attached cancellation error sheet blocks Reset through current presentationAvailable. No change to source policy."
+      },
+      {
+        "phase": "bisect_actual_sheet_recheck",
+        "log": "build/qa/native-final-progress-bisect-sheet-repair-2026-11-25.log",
+        "exit_code": 0,
+        "scope": "Both engines passed actual owned default-button acknowledgment, paired detach, preserved cancellation result, exact immediate model snapshot and independent branch/HEAD."
+      },
+      {
+        "phase": "initial_submodule",
+        "log": "build/qa/native-final-progress-submodule-2026-11-25.log",
+        "exit_code": 1,
+        "failure": "Both engines: Add did not use selected file directory and owning source history",
+        "cause": "Fixture isolated transportClipboardText rather than creationClipboardText; final fixture injects the actual creation hook. This initial fixture did not isolate that clipboard read; no shared clipboard write was used."
+      },
+      {
+        "phase": "submodule_recheck",
+        "log": "build/qa/native-final-progress-repair-submodule-2026-11-25.log",
+        "exit_code": 1,
+        "failure": "Both engines: Update recursive=false despite correct paths/selection",
+        "cause": "Fixture seeded raw private-temporary path option key instead of actual GitRepository standardized root key. Final fixture checks identical production key and preference object plus accepted option persistence."
+      },
+      {
+        "phase": "submodule_final",
+        "log": "build/qa/native-final-progress-final-submodule-2026-11-25.log",
+        "exit_code": 0,
+        "scope": "Both engines pass actual current-authority command entry, selected mutations, private clipboard/history, exact option keys and preserved parent state."
+      },
+      {
+        "phase": "conflict_initial_group",
+        "log": "build/qa/native-final-progress-conflict-2026-11-25.log",
+        "exit_code": 0,
+        "scope": "Both engines pass; not rerun after unrelated fixture-only repairs."
+      }
+    ],
+    "font_diagnostic_from_final_pass": "PROGRESS_STYLE: original=Monaco@22.0 traits=2147484672, originalExpected=Monaco@22.0 traits=2147484672, changed=Monaco@24.0 traits=2147484672, changedExpected=Monaco@24.0 traits=2147484672, warning=Optional(Device RGB colorspace 0.811765 0.184314 0.184314 1), link=Optional(https://example.invalid/path), completion=Optional(Device RGB colorspace 0 0.698039 1 1)",
+    "bisect_final_reset_diagnostics": [
+      "BISECT_RESET: expected=5eb76227e39c271ab4c63ac2b03d1ebbbabd4aa2 actualBranch=main actualHead=5eb76227e39c271ab4c63ac2b03d1ebbbabd4aa2 actualActive=false capturedModelHead=5eb76227e39c271ab4c63ac2b03d1ebbbabd4aa2 capturedModelActive=Optional(false) capturedExit=Optional(0) capturedError=nil receipts=[\"bisect\", \"reset\"] exit=0 output=Previous HEAD position was 26bb7bf step 3",
+      "BISECT_RESET: expected=56a301f31b96c276781dcaa3b20c065b2a85902a actualBranch=main actualHead=56a301f31b96c276781dcaa3b20c065b2a85902a actualActive=false capturedModelHead=56a301f31b96c276781dcaa3b20c065b2a85902a capturedModelActive=Optional(false) capturedExit=Optional(0) capturedError=nil receipts=[\"bisect\", \"reset\"] exit=0 output=Previous HEAD position was 7b49ac4 step 3"
+    ],
+    "log_metadata": [
+      {
+        "path": "build/qa/native-final-progress-bisect-2026-11-25.log",
+        "sha256": "b206039d4a4cf8ab8c242ebc86ce285e1068021e02b90662dbf91418e3c62ad5",
+        "bytes": 2929
+      },
+      {
+        "path": "build/qa/native-final-progress-bisect-sheet-repair-2026-11-25.log",
+        "sha256": "71628041be5ea75038cbd6108e746c6fae14cbdd97d37d9932073443f963e8ba",
+        "bytes": 3804
+      },
+      {
+        "path": "build/qa/native-final-progress-build-2026-11-25.log",
+        "sha256": "0d430eb4fc4af385a745d60f9b9a8292377d4a38c1095e276f86ee25839053fd",
+        "bytes": 271841
+      },
+      {
+        "path": "build/qa/native-final-progress-conflict-2026-11-25.log",
+        "sha256": "b7a9dcc21d3fcebfb2349d6d5bcfcde723b76186d4d589437375d8eca504c0a1",
+        "bytes": 1973
+      },
+      {
+        "path": "build/qa/native-final-progress-final-bisect-2026-11-25.log",
+        "sha256": "09b29e9c5795b1ea04e201294573799fd96194a9cfc7dbe6b8ac44dbd6a2ffb8",
+        "bytes": 3045
+      },
+      {
+        "path": "build/qa/native-final-progress-final-submodule-2026-11-25.log",
+        "sha256": "0da67d42567c196560fca4317ba0eabe63d804070b51bb54e66f667ed4494339",
+        "bytes": 2023
+      },
+      {
+        "path": "build/qa/native-final-progress-font-2026-11-25.log",
+        "sha256": "5923e13b62ceb2c9cfa97cc07b888a86548417829068250d6ced844d6b75ce9f",
+        "bytes": 1510
+      },
+      {
+        "path": "build/qa/native-final-progress-repair-bisect-2026-11-25.log",
+        "sha256": "d0e61fd0c0b29063d7cd5a6716b21660ee6b82b4a093eef6f08c84d57d4306f7",
+        "bytes": 2758
+      },
+      {
+        "path": "build/qa/native-final-progress-repair-font-2026-11-25.log",
+        "sha256": "f69922c805eb4bd19e5945d707b4f25301f45e2fd20a59b628fa3831f69a8f90",
+        "bytes": 879
+      },
+      {
+        "path": "build/qa/native-final-progress-repair-submodule-2026-11-25.log",
+        "sha256": "e9a7159d87003207c4c0979c1a209f38ba1f09499e9036e08d69efa9d6a038d5",
+        "bytes": 4530
+      },
+      {
+        "path": "build/qa/native-final-progress-submodule-2026-11-25.log",
+        "sha256": "727d9fda5269dde1f554978a942058219db9001b9e50d185872124f4250c4705",
+        "bytes": 4046
+      }
+    ]
+  },
+  "inputs": {
+    "current_sha256": {
+      "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "6398abbaa1a09190e61d177d0c22523450190253974fb59118b3668f8009834a",
+      "docs/qa/bisect-progress-native-2026-10-14.swift": "e12c0e4be4d6a5df4fbe42a8834b9ad5d818297ab86af2f0ca6f1a5fff22641d",
+      "docs/qa/log-rebase-font-native-2026-10-08.swift": "815bfd9424cccfa947ef5e8e42ceb80f5e94e5bd6090e5563583490434100730",
+      "docs/qa/conflict-report-native-2026-11-22.swift": "a08e6e19934b5a29a3141fa67c47f2582a5cf77fe0967c4aa1e6c231b2b5d01e",
+      "docs/qa/submodule-commands-native-2026-10-18.swift": "82d26a5cdeb197542960e7901ce4ead0ee9e9a85c9755124cf6c1cab7e344925",
+      "scripts/test-log-rebase-font.py": "83bf7bf7971f7227e652f186514c5f7e04347c3525e55ecff62c00149ab9ebef",
+      "scripts/test-switch-reset-bisect-workflows.py": "1485baeca192abdb7e4682a25aaf5096ce583a8a7963511b9e2364d8ce0a5a1c",
+      "scripts/test-history-feedback-conflict-batch.py": "7ca7f4721a867d98a6f9be3a2d395dd10978bb0e9759562569f68a018975f3a7",
+      "scripts/test-stash-submodule-workflows.py": "2f231901705bd035dc2d44cb1c15acb83b2962cb5ce7db0e91144021e49c5738",
+      "scripts/native_receiver.py": "09a7deb567c5bc93eaaa677b40acb703535025315c832f072898827944c2c128"
+    },
+    "cache_files_match_current": {
+      "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": true,
+      "docs/qa/bisect-progress-native-2026-10-14.swift": true,
+      "docs/qa/log-rebase-font-native-2026-10-08.swift": true,
+      "docs/qa/conflict-report-native-2026-11-22.swift": true,
+      "docs/qa/submodule-commands-native-2026-10-18.swift": true,
+      "scripts/test-log-rebase-font.py": true,
+      "scripts/test-switch-reset-bisect-workflows.py": true,
+      "scripts/test-history-feedback-conflict-batch.py": true,
+      "scripts/test-stash-submodule-workflows.py": true,
+      "scripts/native_receiver.py": true
+    },
+    "initial_freeze_receipt": {
+      "baseline": "4e592b21",
+      "cache": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+      "inputs": {
+        "Sources/TurtleGitMac/SubmoduleProgressOutputView.swift": "6398abbaa1a09190e61d177d0c22523450190253974fb59118b3668f8009834a",
+        "docs/qa/bisect-progress-native-2026-10-14.swift": "2f295f5344a384974cf6cd98e563aa3d882013aad55283f44eab4695a0ed8f03",
+        "docs/qa/log-rebase-font-native-2026-10-08.swift": "4c29f2a0a3383c5abe60f56ae66f719e536c3ba728f61356eca386412a3d17aa",
+        "docs/qa/conflict-report-native-2026-11-22.swift": "a08e6e19934b5a29a3141fa67c47f2582a5cf77fe0967c4aa1e6c231b2b5d01e",
+        "docs/qa/submodule-commands-native-2026-10-18.swift": "6c3283aa190ce0fad227fa144538cee7e823d84e2b3cfd87253c8793bf2f8903",
+        "docs/qa/statistics-interaction-native-2026-10-23.swift": "bcd40f9469c157bc902024f5b1e87e75266c76855bf17cb24d6f85b5d7cfbf4f",
+        "docs/qa/graph-metafile-family-native-2026-10-21.swift": "395ab3f59f0b6fd4f84ae572be812725913b95f128bb7370520e028dcf70a728",
+        "docs/qa/statistics-author-native-2026-10-20.swift": "7da862c6c1e7b52f29201ca6ef7e40c8b310d325bf2da3e5cfa14a128f843303",
+        "scripts/test-log-rebase-font.py": "83bf7bf7971f7227e652f186514c5f7e04347c3525e55ecff62c00149ab9ebef",
+        "scripts/test-switch-reset-bisect-workflows.py": "1485baeca192abdb7e4682a25aaf5096ce583a8a7963511b9e2364d8ce0a5a1c",
+        "scripts/test-history-feedback-conflict-batch.py": "7ca7f4721a867d98a6f9be3a2d395dd10978bb0e9759562569f68a018975f3a7",
+        "scripts/test-stash-submodule-workflows.py": "2f231901705bd035dc2d44cb1c15acb83b2962cb5ce7db0e91144021e49c5738",
+        "scripts/native_receiver.py": "09a7deb567c5bc93eaaa677b40acb703535025315c832f072898827944c2c128",
+        "docs/qa/native-owned-window-cleanup.swift": "eddd136bda6422d978bbea842b40be60a4806de0fe5b34f0501f14ff31b92671"
+      },
+      "scope": "Progress fonts/Bisect/Conflict/Submodule and reported Statistics native ownership; no Core or renderer change"
+    },
+    "note": "One native production build; subsequent repairs changed fixtures only. Cache generation based on app objects/framework/compiler/SDK flags is retained by native_receiver.py.",
+    "app_build_count": 1,
+    "subsequent_fixture_repairs_required_another_app_build": false
+  },
+  "cleanup": {
+    "observed_at_utc": "2026-11-25T16:27:55.308224+00:00",
+    "method": "Parse exact Owned compiler/receiver reaped PIDs from this cohort logs, then read-only kill(pid,0); any extant PID gets read-only ps metadata. No terminating signal, app launch or unrelated process mutation.",
+    "logged_unique_pid_count": 26,
+    "all_logged_pids_absent": true,
+    "pids": [
+      {
+        "pid": 55834,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-font-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 55844,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-font-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 55866,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-font-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 55959,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-bisect-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 56524,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-bisect-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 56810,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-conflict-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 56937,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-conflict-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 57143,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-conflict-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 57352,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 57630,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 57848,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 60128,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-repair-font-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 60154,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-repair-font-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 60240,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-repair-bisect-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 60735,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-repair-bisect-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 61208,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-repair-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 61396,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-repair-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 61789,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-repair-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 64239,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-final-bisect-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 64737,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-final-bisect-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 65024,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-final-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 65210,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-final-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 65972,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-final-submodule-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 70606,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "compiler",
+            "log": "build/qa/native-final-progress-bisect-sheet-repair-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 71106,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-bisect-sheet-repair-2026-11-25.log"
+          }
+        ]
+      },
+      {
+        "pid": 71550,
+        "observed": "absent_ESRCH",
+        "logged_reaped_evidence": [
+          {
+            "role": "receiver",
+            "log": "build/qa/native-final-progress-bisect-sheet-repair-2026-11-25.log"
+          }
+        ]
+      }
+    ],
+    "fixture_cleanup_scope": "Passing native cases report owned windows/operations closed, private preferences/clipboard removed; compiler/receiver parent driver reports reaped. This read-only check independently confirms only logged compiler/receiver PID absence, not a complete machine-wide process or preference inventory."
+  },
+  "limits": [
+    "No whole Core suite rerun, complete corrected-source hosted CI, Intel/minimum-OS, signed sandbox or physical Finder/VoiceOver acceptance established.",
+    "No whole port completion percentage or completed dialog certification from these checks.",
+    "No new SSH/live network, current signed binary, Store submission, installer publication or installed-app update claim.",
+    "Candidate57 and separately running Statistics/export ownership work are outside this receipt.",
+    "Concurrent renderer/WMF/EMF and unrelated protected WIP were not modified by this native cohort."
+  ]
+}

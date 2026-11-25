@@ -14,12 +14,49 @@ import TurtleGitCore
 /// Native adaptation of ProgressDlg's read-only RichEdit and icon copy menu.
 @MainActor final class SubmoduleProgressTextView: NSTextView, NSTextViewDelegate {
     var clipboard: NSPasteboard = .general
-    var preferences: UserDefaults = .standard
+    var preferences: UserDefaults = .standard { didSet { if preferences !== oldValue || preferencesObserver == nil {observePreferences()} } }
+    private var preferencesObserver: NSObjectProtocol?, ownerObserver: NSObjectProtocol?
+    private var retainedPresentation: (text:String,completed:Bool,range:NSRange?,success:Bool)?
+    private(set) var retired=false
     var openLink: (URL) -> Bool = { NSWorkspace.shared.open($0) }
     private var baseFont: NSFont?
     private var renderedCompleted = false, renderedSuccess = false, renderedStyle = true
     private var renderedRange: NSRange?
+    private func observePreferences() {
+        if let preferencesObserver {NotificationCenter.default.removeObserver(preferencesObserver)}
+        preferencesObserver=nil
+        guard !retired else {return}
+        preferencesObserver=NotificationCenter.default.addObserver(forName:UserDefaults.didChangeNotification,object:preferences,queue:.main) { [weak self] _ in
+            Task { @MainActor [weak self] in self?.refreshPreferences() }
+        }
+        refreshPreferences()
+    }
+    private func refreshPreferences() {
+        guard !retired,let value=retainedPresentation else {return}
+        present(value.text,completed:value.completed,completionRange:value.range,success:value.success)
+    }
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}
+        ownerObserver=nil
+        guard !retired,let window else {return}
+        ownerObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in
+            MainActor.assumeIsolated {self?.retire()}
+        }
+    }
+    func retire() {
+        guard !retired else {return};retired=true
+        if let preferencesObserver {NotificationCenter.default.removeObserver(preferencesObserver)}
+        if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}
+        preferencesObserver=nil;ownerObserver=nil;retainedPresentation=nil
+        delegate=nil;isSelectable=false;openLink={_ in false}
+    }
+    deinit {
+        if let preferencesObserver {NotificationCenter.default.removeObserver(preferencesObserver)}
+        if let ownerObserver {NotificationCenter.default.removeObserver(ownerObserver)}
+    }
     func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        guard !retired else {return true}
         if let url = link as? URL { _ = openLink(url) }
         else if let string = link as? String, let url = URL(string: string) { _ = openLink(url) }
         return true
@@ -40,6 +77,7 @@ import TurtleGitCore
     override func menu(for event: NSEvent) -> NSMenu? { outputMenu() }
     func outputMenu() -> NSMenu {
         let menu = NSMenu(); menu.autoenablesItems = false
+        guard !retired else {return menu}
         let copy = NSMenuItem(title: "Copy", action: #selector(copySelection(_:)), keyEquivalent: "")
         copy.target = self; copy.isEnabled = selectedRange().length > 0
         let all = NSMenuItem(title: "Copy all information to clipboard", action: #selector(copyAllInformation(_:)), keyEquivalent: "")
@@ -50,20 +88,28 @@ import TurtleGitCore
     }
     @objc func copySelection(_ sender: Any?) { copy(sender) }
     override func copy(_ sender: Any?) {
+        guard !retired else {return}
         let range = selectedRange(), value = string as NSString
         guard range.length > 0, range.location <= value.length, range.length <= value.length - range.location else { return }
         clipboard.clearContents(); clipboard.setString(value.substring(with: range), forType: .string)
     }
     @objc func copyAllInformation(_ sender: Any?) {
+        guard !retired else {return}
         // No temporary selection: keep both the user's selection and viewport.
         clipboard.clearContents(); clipboard.setString(string, forType: .string)
     }
     func present(_ text: String, completed: Bool = false, completionRange: NSRange? = nil, success: Bool = false) {
+        guard !retired else {return}
+        retainedPresentation=(text,completed,completionRange,success)
         let style = (preferences.object(forKey: "StyleGitOutput") as? NSNumber)?.boolValue ?? true
-        guard !GitReferenceName.equal(string,text) || renderedCompleted != completed || renderedRange != completionRange || renderedSuccess != success || renderedStyle != style else { return }
+        let font=MessageEditorFont.resolve(name:preferences.string(forKey:"LogFontName") ?? MessageEditorFont.defaultName,
+                                          size:(preferences.object(forKey:"LogFontSize") as? NSNumber)?.intValue ?? MessageEditorFont.defaultSize)
+        let contentsChanged = !GitReferenceName.equal(string,text)
+        let statusChanged = renderedCompleted != completed || renderedRange != completionRange || renderedSuccess != success
+        guard contentsChanged || statusChanged || renderedStyle != style || baseFont != font else { return }
+        baseFont=font
         renderedCompleted = completed; renderedRange = completionRange; renderedSuccess = success; renderedStyle = style
-        let ranges = selectedRanges.map(\.rangeValue)
-        let font = baseFont ?? .monospacedSystemFont(ofSize: 12, weight: .regular)
+        let ranges = selectedRanges.map(\.rangeValue),origin=enclosingScrollView?.contentView.bounds.origin
         let attributed = NSMutableAttributedString(string: text, attributes: [.font:font, .foregroundColor:NSColor.textColor])
         let value = text as NSString
         if completed {
@@ -85,6 +131,7 @@ import TurtleGitCore
                 attributed.addAttribute(.foregroundColor,value:color,range:range)
             }
         }
+        self.font=font
         textStorage?.setAttributedString(attributed)
         let length = (text as NSString).length
         selectedRanges = ranges.map { range in
@@ -92,9 +139,12 @@ import TurtleGitCore
             return NSValue(range: NSRange(location: start, length: min(range.length, length - start)))
         }
         if let manager = layoutManager, let container = textContainer { manager.ensureLayout(for: container) }
-        // Source progress updates scroll to the latest output without changing selection.
         if let scroll = enclosingScrollView {
-            scroll.contentView.scroll(to: NSPoint(x: 0, y: max(0, bounds.height - scroll.contentView.bounds.height)))
+            // New progress follows its latest output. A font/style preference
+            // changes presentation only and must not jump away from a user read.
+            let target=contentsChanged || statusChanged ? NSPoint(x:0,y:max(0,bounds.height-scroll.contentView.bounds.height)) : origin ?? .zero
+            let rectangle=NSRect(origin:target,size:scroll.contentView.bounds.size)
+            scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(rectangle).origin)
             scroll.reflectScrolledClipView(scroll.contentView)
         }
     }
@@ -130,5 +180,10 @@ struct SubmoduleProgressOutputView: NSViewRepresentable {
         self.text=text;self.completed=completed;self.completionRange=completionRange;self.success=success;self.preferences=preferences;self.clipboard=clipboard;textBytes=Data(text.utf8)
     }
     func makeNSView(context: Context) -> NSScrollView { SubmoduleProgressTextView.scrollView(preferences: preferences, clipboard: clipboard) }
-    func updateNSView(_ nsView: NSScrollView, context: Context) { (nsView.documentView as? SubmoduleProgressTextView)?.present(text, completed:completed, completionRange:completionRange, success:success) }
+    func updateNSView(_ nsView: NSScrollView, context: Context) {
+        guard let view=nsView.documentView as? SubmoduleProgressTextView,!view.retired else {return}
+        if view.preferences !== preferences {view.preferences=preferences};view.clipboard=clipboard
+        view.present(text, completed:completed, completionRange:completionRange, success:success)
+    }
+    static func dismantleNSView(_ nsView:NSScrollView,coordinator:()) {(nsView.documentView as? SubmoduleProgressTextView)?.retire()}
 }

@@ -123,6 +123,19 @@ private actor StatisticsAuthorWriteGate {
                         return (0..<4).reduce(UInt32(0)){$0 | UInt32(data[offset+$1]) << ($1*8)}
                     }
                     try require(data.count>=88 && word(0)==1 && word(40)==0x464d4520 && Int(word(48))==data.count,"Author graph is not enhanced EMF")
+                    // The authored chart occupies inclusive device pixels 0...959/499.
+                    // File-backed Bitmap allocation is a distinct native consumer contract:
+                    // the independent Windows physical-frame assay establishes round(extent)+1
+                    // (docs/METAFILE-PATH-GRADIENT-PARITY.md), without stretching chart geometry.
+                    try require([word(8),word(12),word(16),word(20)] == [0,0,959,499],"Author EMF changed exact inclusive chart bounds")
+                    try require([word(24),word(28),word(32),word(36)] == [0,0,25400,13229],"Author EMF changed exact hundredth-millimeter physical frame")
+                    try require([word(72),word(76),word(80),word(84)] == [960,960,254,254],"Author EMF changed device pixels/millimeters contract")
+                    func naturalExtent(_ lower:Int,_ upper:Int,_ device:Int,_ millimeters:Int)->Int {
+                        let dpi=Double(word(device))*25.4/Double(word(millimeters))
+                        return Int((Double(word(upper)-word(lower))*dpi/2540).rounded())+1
+                    }
+                    let naturalWidth=naturalExtent(24,32,72,80),naturalHeight=naturalExtent(28,36,76,84)
+                    try require(naturalWidth==961 && naturalHeight==501,"Author EMF header-derived natural allocation changed")
                     var offset=0,fills=0,rasters=0,last:UInt32=0
                     while offset<data.count {
                         let type=word(offset),length=Int(word(offset+4))
@@ -131,14 +144,17 @@ private actor StatisticsAuthorWriteGate {
                     }
                     try require(last==14 && fills>1 && rasters==0,"Author graph lost vector shapes/outlined labels")
                     guard let svg=try MetafileImageDecoder.convert(data),let decoded=ComparisonImage(bytes:svg)?.pixels else {throw StatisticsGraphExportFailure.encoding}
-                    try require(decoded.width==960 && decoded.height==500,"Author EMF viewport changed")
+                    try require(decoded.width==naturalWidth && decoded.height==naturalHeight,"Author EMF natural allocation changed: expected\(naturalWidth)x\(naturalHeight),actual\(decoded.width)x\(decoded.height),bounds=[\(word(8)),\(word(12)),\(word(16)),\(word(20))],frame=[\(word(24)),\(word(28)),\(word(32)),\(word(36))],device=[\(word(72)),\(word(76))],metric=\(graph.metric),style=\(style),encodedBytes=\(data.count)")
                     image=decoded
                 } else {
                     guard let document = PDFDocument(data: data), document.pageCount == 1, let page = document.page(at: 0), let decoded = page.thumbnail(of: CGSize(width: 960, height: 500), for: .mediaBox).cgImage(forProposedRect: nil, context: nil, hints: nil) else { throw StatisticsGraphExportFailure.rendering }
                     image = decoded
                 }
-                let pixelScale=CGFloat(image.width)/960
-                try require(abs(CGFloat(image.height)-500*pixelScale)<=1,"Decoded author graph changed viewport aspect")
+                let isMetafile=format == .wmf || format == .emf
+                // Extra file-allocation edge pixels do not scale recorded device geometry.
+                let pixelScale=isMetafile ? CGFloat(1):CGFloat(image.width)/960
+                let chartHeight=CGFloat(image.height)-(isMetafile ? 1:0)
+                try require(abs(chartHeight-500*pixelScale)<=1,"Decoded author graph changed viewport aspect")
                 let pixelPlot=CGRect(x:drawing.plotBounds.minX*pixelScale,y:drawing.plotBounds.minY*pixelScale,width:drawing.plotBounds.width*pixelScale,height:drawing.plotBounds.height*pixelScale)
                 try verifyColors(image, graph: graph, context: "\(graph.metric) \(style) \(format)", thinLines: style == .line,plotBounds:pixelPlot)
                 try require(bytes(graph.metric.byAuthor ? graph.categoryLabels : graph.seriesLabels) == original, "export mutated graph labels")

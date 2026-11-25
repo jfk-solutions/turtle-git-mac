@@ -33,6 +33,20 @@ actor GraphMetafileWriteGate {
     static func unwrap<T>(_ value:T?,_ message:String)throws->T {guard let value else{throw Failure(message:message)};return value}
     static func wait(line:Int = #line,_ ready:()->Bool)async throws {for _ in 0..<3000 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Graph metafile timeout at \(line)")}
     static func views(_ root:NSView?)->[NSView] {guard let root else{return []};return [root]+root.subviews.flatMap{views($0)}}
+    static func acknowledgment(_ question:NSAlert,owner:StatisticsWindowController)async throws->NSButton {
+        var accepted:NSButton?
+        try await wait {
+            let sheet=question.window;sheet.contentView?.layoutSubtreeIfNeeded()
+            guard sheet.sheetParent===owner.window,owner.window?.attachedSheet===sheet,owner.hasPendingWork,let cell=sheet.defaultButtonCell else{return false}
+            var seen=Set<ObjectIdentifier>()
+            let children=views(sheet.contentView).compactMap{$0 as? NSButton}
+            let candidates=([cell.controlView as? NSButton].compactMap{$0}+children).filter{seen.insert(ObjectIdentifier($0)).inserted && $0.cell === cell}
+            guard candidates.count==1,let button=candidates.first,button.window===sheet,button.isEnabled,!button.isHiddenOrHasHiddenAncestor,
+                  let action=button.action,let target=NSApp.target(forAction:action,to:button.target,from:button) as? NSObject,target.responds(to:action) else{return false}
+            accepted=button;return true
+        }
+        return try unwrap(accepted,"Actual owned default error acknowledgment missing")
+    }
     static func drained()->Bool {StatisticsWindowController.activeExports==0 && StatisticsWindowModel.activeOperations==0 && RevisionGraphWindowModel.activeOperations==0 && RevisionGraphWindowController.activeExportOperations==0}
     static func word(_ bytes:Data,_ offset:Int)->Int {Int((0..<4).reduce(UInt32(0)){$0|UInt32(bytes[offset+$1])<<($1*8)})}
     static func authoredHeader(_ bytes:Data,size:CGSize)throws {
@@ -190,7 +204,7 @@ actor GraphMetafileWriteGate {
         func preserved()throws {for(path,bytes)in snapshot {try require(try Data(contentsOf:repo.root.appendingPathComponent(path))==bytes,"Graph export changed original Git state "+path)}}
         func clean()async {
             owners.forEach{$0.close()};for gate in gates {await gate.finish()}
-            for window in NSApp.windows {if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.cancel);sheet.orderOut(nil)};window.orderOut(nil);window.close()}
+            NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
             for _ in 0..<3000 {if drained() && owners.allSatisfy({owner in
                 if let owner=owner as? StatisticsWindowController{return !owner.hasPendingWork}
                 if let owner=owner as? RevisionGraphWindowController{return !owner.hasPendingWork}
@@ -363,7 +377,11 @@ actor GraphMetafileWriteGate {
         invalid.presentExportError={alert,window,answer in error=alert;errorReply=answer;alert.beginSheetModal(for:window,completionHandler:answer)}
         invalid.saveGraphAs();try await wait{error?.window.sheetParent===invalid.window}
         try require(!FileManager.default.fileExists(atPath:c.base.appendingPathComponent("ungranted.custom.jpg").path),"Final URL validation wrote ungranted normalized sibling")
-        error?.buttons.first?.performClick(nil);try await wait{!invalid.hasPendingWork};errorReply?(.alertFirstButtonReturn)
+        let question=try unwrap(error,"Actual final-URL error sheet missing")
+        let button=try await acknowledgment(question,owner:invalid)
+        try require(button.window===question.window && question.window.sheetParent===invalid.window && button.cell===question.window.defaultButtonCell,"Graph error acknowledgment changed owner before native click")
+        print("Graph export ownership: actual default error acknowledgment click");fflush(stdout)
+        button.performClick(nil);try await wait{!invalid.hasPendingWork && question.window.sheetParent==nil && invalid.window?.attachedSheet==nil};errorReply?(.alertFirstButtonReturn)
         // Actual held writer survives visual close only until real drainage.
         for isRevision in [false,true] {
             let held=GraphMetafileWriteGate();c.gates.append(held)

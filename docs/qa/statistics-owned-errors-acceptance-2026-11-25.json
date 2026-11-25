@@ -1,0 +1,264 @@
+{
+  "schema": 1,
+  "date": "2026-11-25",
+  "kind": "TurtleGitStatisticsOwnedErrorsAcceptance",
+  "status": "Five unique focused native case/engine passes accumulated across two checkpoints; initial combined checkpoint remains failed for its original Author oracle.",
+  "unique_native_passes": 5,
+  "passes": [
+    {
+      "scope": "writer",
+      "engine": "system",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "log": {
+        "path": "build/qa/statistics-reported-ownership-accepted57-2026-11-25-writer-0.log",
+        "sha256": "f1fa2bb9e4c2c0f7cacdb3d121eb0465340ea21fa9e6731fb3c5ff83c8a57502"
+      },
+      "receiver_sha256": "1334300301d607d72eb583205b272d886d77bc851fff9a6bbd8e8ad8e53941be",
+      "forced_helper_cleanup_needed": false,
+      "source_report": "statistics-reported-ownership-accepted57-2026-11-25.json"
+    },
+    {
+      "scope": "writer",
+      "engine": "bundled",
+      "git": "/Users/jkuehner/.codex/worktrees/turtlegit-signed57/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "log": {
+        "path": "build/qa/statistics-reported-ownership-accepted57-2026-11-25-writer-1.log",
+        "sha256": "f1fa2bb9e4c2c0f7cacdb3d121eb0465340ea21fa9e6731fb3c5ff83c8a57502"
+      },
+      "receiver_sha256": "1334300301d607d72eb583205b272d886d77bc851fff9a6bbd8e8ad8e53941be",
+      "forced_helper_cleanup_needed": false,
+      "source_report": "statistics-reported-ownership-accepted57-2026-11-25.json"
+    },
+    {
+      "scope": "ownership",
+      "engine": "system",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "log": {
+        "path": "build/qa/statistics-reported-ownership-accepted57-2026-11-25-ownership-0.log",
+        "sha256": "c17f04f05bf2929795e38be33cdcdbd8595bfb9e84b43530eda33ccfd493335e"
+      },
+      "receiver_sha256": "6a2bfe2389ef7dc9007b919c1961dbbf2292f4050530898abdb9c4fd5ae703f1",
+      "forced_helper_cleanup_needed": false,
+      "source_report": "statistics-reported-ownership-accepted57-2026-11-25.json"
+    },
+    {
+      "scope": "ownership",
+      "engine": "bundled",
+      "git": "/Users/jkuehner/.codex/worktrees/turtlegit-signed57/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "returncode": 0,
+      "log": {
+        "path": "build/qa/statistics-reported-ownership-accepted57-2026-11-25-ownership-1.log",
+        "sha256": "c17f04f05bf2929795e38be33cdcdbd8595bfb9e84b43530eda33ccfd493335e"
+      },
+      "receiver_sha256": "6a2bfe2389ef7dc9007b919c1961dbbf2292f4050530898abdb9c4fd5ae703f1",
+      "forced_helper_cleanup_needed": false,
+      "source_report": "statistics-reported-ownership-accepted57-2026-11-25.json"
+    },
+    {
+      "scope": "author",
+      "engine": "system",
+      "git": "/usr/bin/git",
+      "returncode": 0,
+      "log": {
+        "path": "build/qa/statistics-author-natural-allocation-accepted57-2026-11-25-author-0.log",
+        "sha256": "3fc0afceb14c0f2fb7ecb5e878d1a7d6eae656ec6a61a6c1fb9488e47c591826"
+      },
+      "receiver_sha256": "0103663270809afe6a6ea231f8784c32e1e21804fdc08dddefef9e6f15fa3552",
+      "forced_helper_cleanup_needed": false,
+      "source_report": "statistics-author-natural-allocation-accepted57-2026-11-25.json"
+    }
+  ],
+  "checkpoints": [
+    {
+      "report": {
+        "path": "build/qa/statistics-reported-ownership-accepted57-2026-11-25.json",
+        "sha256": "179a9260beadab86f58aee9c897db21da3eaec7ccf28e1bb0ab0036191fb38c3"
+      },
+      "overall_passed": false,
+      "runner_sha256": "e51a48a3a34c07a49af8dd83030ca6e6e20522bb0b913ee56ba7717c77b49eec",
+      "fixture_sha256": {
+        "statistics-interaction-source-2026-10-23.swift": "49498111f7ba7f4947a8b43341b66f9934c648eadd8ab22e13d6b68a03bf67d0",
+        "statistics-interaction-native-2026-10-23.swift": "bcd40f9469c157bc902024f5b1e87e75266c76855bf17cb24d6f85b5d7cfbf4f",
+        "graph-metafile-family-native-2026-10-21.swift": "395ab3f59f0b6fd4f84ae572be812725913b95f128bb7370520e028dcf70a728",
+        "statistics-author-native-2026-10-20.swift": "7da862c6c1e7b52f29201ca6ef7e40c8b310d325bf2da3e5cfa14a128f843303"
+      },
+      "private_scratch_absent": true,
+      "immutable_inputs_unchanged": {
+        "accepted57_metafile": true,
+        "accepted57_graph": true,
+        "accepted57_packaged_graph": true,
+        "accepted57_packaged_metafile": true,
+        "cache_runtime": true,
+        "cache_products": true,
+        "cache_app_objects": true,
+        "cache_app_sources": true
+      },
+      "immutable_inventory_sha256": {
+        "accepted57_metafile": "b94fc155018294e2f4232a2aa03492024385615189671810bff06785e76ed07a",
+        "accepted57_graph": "2d43aeb57f604bf54b64c744ab2c4482b811b66c4ebbfaa856cb835c3384613b",
+        "accepted57_packaged_graph": "4961fe2f913fc6d3da618beff2bdbc0d0c54d76a1e161a531a5dff0db628cdcb",
+        "accepted57_packaged_metafile": "5c3cadd026ef3bac2c5b67c25fb9bf10e3c27497acfcbc8ebe8f54c70657c944",
+        "cache_runtime": "7504312e21343b51be704e50428a484a5dff3bf3c77972513eeee49792377287",
+        "cache_products": "884b7255b89584cfb619e98a89bedd5fad67a7770daba01811049a3a6a90c409",
+        "cache_app_objects": "af44f6d0544c7777cdd4e9343fbf9084f1a6dcacca4aa81ed1d5fcc68c7bec6a",
+        "cache_app_sources": "d5d66b3525355082d8cd0ed0942cdb77224a5f43b75926ead8b940a5504ac565"
+      },
+      "fixtures_unchanged": {
+        "statistics-interaction-source-2026-10-23.swift": true,
+        "statistics-interaction-native-2026-10-23.swift": true,
+        "graph-metafile-family-native-2026-10-21.swift": true,
+        "statistics-author-native-2026-10-20.swift": true
+      },
+      "helper_cleanup_source_sha256": "52893b0dd3ae00615e13bbbb4b8bcab4cf705535deb0b8c5d2e1df8a5df9d216"
+    },
+    {
+      "report": {
+        "path": "build/qa/statistics-author-natural-allocation-accepted57-2026-11-25.json",
+        "sha256": "c58bfa5489cb45cc54e3084365630d5619d9ac5fa3fe01b7ba43e6dbed181eb8"
+      },
+      "overall_passed": true,
+      "runner_sha256": "db65965a1a8db37cf54052f53cd03ec0d559c7d157572b0303b5cf8c8080ae2f",
+      "fixture_sha256": {
+        "statistics-interaction-source-2026-10-23.swift": "49498111f7ba7f4947a8b43341b66f9934c648eadd8ab22e13d6b68a03bf67d0",
+        "statistics-interaction-native-2026-10-23.swift": "bcd40f9469c157bc902024f5b1e87e75266c76855bf17cb24d6f85b5d7cfbf4f",
+        "graph-metafile-family-native-2026-10-21.swift": "395ab3f59f0b6fd4f84ae572be812725913b95f128bb7370520e028dcf70a728",
+        "statistics-author-native-2026-10-20.swift": "68dadab2b1cf07f9463aa1a1cb8b6d07aa4592c29ffae3b5c08ae320d7fe3cb8"
+      },
+      "private_scratch_absent": true,
+      "immutable_inputs_unchanged": {
+        "accepted57_metafile": true,
+        "accepted57_graph": true,
+        "accepted57_packaged_graph": true,
+        "accepted57_packaged_metafile": true,
+        "cache_runtime": true,
+        "cache_products": true,
+        "cache_app_objects": true,
+        "cache_app_sources": true
+      },
+      "immutable_inventory_sha256": {
+        "accepted57_metafile": "b94fc155018294e2f4232a2aa03492024385615189671810bff06785e76ed07a",
+        "accepted57_graph": "2d43aeb57f604bf54b64c744ab2c4482b811b66c4ebbfaa856cb835c3384613b",
+        "accepted57_packaged_graph": "4961fe2f913fc6d3da618beff2bdbc0d0c54d76a1e161a531a5dff0db628cdcb",
+        "accepted57_packaged_metafile": "5c3cadd026ef3bac2c5b67c25fb9bf10e3c27497acfcbc8ebe8f54c70657c944",
+        "cache_runtime": "7504312e21343b51be704e50428a484a5dff3bf3c77972513eeee49792377287",
+        "cache_products": "884b7255b89584cfb619e98a89bedd5fad67a7770daba01811049a3a6a90c409",
+        "cache_app_objects": "af44f6d0544c7777cdd4e9343fbf9084f1a6dcacca4aa81ed1d5fcc68c7bec6a",
+        "cache_app_sources": "d5d66b3525355082d8cd0ed0942cdb77224a5f43b75926ead8b940a5504ac565"
+      },
+      "fixtures_unchanged": {
+        "statistics-interaction-source-2026-10-23.swift": true,
+        "statistics-interaction-native-2026-10-23.swift": true,
+        "graph-metafile-family-native-2026-10-21.swift": true,
+        "statistics-author-native-2026-10-20.swift": true
+      },
+      "helper_cleanup_source_sha256": "52893b0dd3ae00615e13bbbb4b8bcab4cf705535deb0b8c5d2e1df8a5df9d216"
+    }
+  ],
+  "accepted_runtime_binding": {
+    "accepted57_source_commit": "ce9223db2f37ddefde7e74daf3853f5a74624ce7",
+    "accepted57_source_input_sha256": "4d53d95ef4588c6475a70c248a77e828e0866de975993760f3d9e6fa3bc6ddd5",
+    "accepted57_main_sha256": "372f2d2628b4f3b7a156dcc08ffddd4044995c4cf74c2ea2ea7c3fc34442ced4",
+    "metafile_pins": {
+      "metafile-convert": "9799907c41d4f46e779f5ba500174e83f57615a1ed3fad514be7e902ccce46aa",
+      "renderer.js": "b2e81e072433b2dd0febcfd6b05a2a1ce5c59c725e380156dfc24d3c21aa243b",
+      "color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628"
+    },
+    "graph_sha256": "39d3867b2feca43494feab58688f661924faec4f30821a5572a2c8722251dc40",
+    "cache_root": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac"
+  },
+  "initial_failure": {
+    "scope": "author/system",
+    "code": 134,
+    "expected_by_old_oracle": [
+      960,
+      500
+    ],
+    "actual_natural_allocation": [
+      961,
+      501
+    ],
+    "inclusive_bounds": [
+      0,
+      0,
+      959,
+      499
+    ],
+    "physical_frame_hundredth_mm": [
+      0,
+      0,
+      25400,
+      13229
+    ],
+    "device_pixels": [
+      960,
+      960
+    ],
+    "device_millimeters": [
+      254,
+      254
+    ],
+    "metric": "commitsByDate",
+    "style": "stackedBar",
+    "encoded_bytes": 104720,
+    "log": {
+      "path": "build/qa/statistics-reported-ownership-accepted57-2026-11-25-author-0.log",
+      "sha256": "b4fae899ca269801d3256eeafa4de767263844504d9ab2d2644bba386656d472"
+    },
+    "original_failure_retained": true
+  },
+  "repairs": [
+    {
+      "scope": "Statistics writer and Graph ownership",
+      "change": "Use the real enabled native default acknowledgment control with exact sheet/owner links and paired native/work drainage; retain original writer cancellation, sentinel, stale delivery, duplicate, Quit and ownership assertions.",
+      "source_files": [
+        "docs/qa/statistics-interaction-native-2026-10-23.swift",
+        "docs/qa/graph-metafile-family-native-2026-10-21.swift"
+      ]
+    },
+    {
+      "scope": "Author viewport oracle only",
+      "change": "Assert exact authored inclusive bounds, physical Frame, device pixels/millimeters, then independently derive top-level file allocation using round(frame extent at device DPI)+1 and compare decoded dimensions. Sample metafile plot in unit device coordinates; preserve PNG/PDF backing scales, vector framing, no-raster, author identity, palette and all original export assertions.",
+      "source_file": "docs/qa/statistics-author-native-2026-10-20.swift",
+      "current_sha256": "68dadab2b1cf07f9463aa1a1cb8b6d07aa4592c29ffae3b5c08ae320d7fe3cb8",
+      "production_or_header_change": false
+    }
+  ],
+  "independent_canvas_evidence": {
+    "policy": "The existing Windows file-backed Bitmap(filename,FALSE) assay distinguishes physical frame allocation from inclusive recorded device bounds. Four frame controls about64.1008/64.4031/64.5921/64.8945 pixels produce natural65/65/66/66, establishing round(frame pixels)+1. No exact Windows capture of this authored chart is claimed.",
+    "references": [
+      {
+        "path": "docs/METAFILE-PATH-GRADIENT-PARITY.md",
+        "sha256": "fbc5f5e45cd2c6a618da5ac40e78efc7f059dd582f90ae27ff3d4eb476ffe760"
+      },
+      {
+        "path": "docs/qa/metafile-path-gradient-windows-reference-2026-10-25.json",
+        "sha256": "a2c297a54d9c387bd4dc0e24b8412d01a7f01e28dab2ba4203aa9924b7acc150"
+      },
+      {
+        "path": "Sources/TurtleGitCore/EnhancedMetafileWriter.swift",
+        "sha256": "a6aad29d53217e924353717530b6ff0f594e948fcdcfd837c6e183a39c0c41c7"
+      }
+    ],
+    "accepted_renderer": {
+      "path": "/Users/jkuehner/.codex/worktrees/turtlegit-signed57/tortoise-git-mac/build/metafile-runtime/Metafile/renderer.js",
+      "sha256": "b2e81e072433b2dd0febcfd6b05a2a1ce5c59c725e380156dfc24d3c21aa243b",
+      "lines": "7586-7610",
+      "behavior": "Top-level natural frame allocation adds the inclusive pixel; embedded-child profile remains separate."
+    },
+    "authored_contract": "Bounds960x500 remains unchanged; physical Frame25400x13229 at96DPI rounds960x500, yielding independent natural file allocation961x501. No header shrinking, output crop, new renderer special case or changed image tolerance."
+  },
+  "warnings": {
+    "sandbox_extension_issue_file_to_process": "Retained in full logs, including the fully passing Author process; this warning was not classified as the test failure. The initial failure was the explicit viewport assertion134.",
+    "warning_suppressed": false
+  },
+  "limits": [
+    "Focused private cached native receivers; candidate57 was not rebuilt, installed or mutated. Runtime/cache/source inventories unchanged and private scratch absent in both reports.",
+    "Writer and Graph ownership cover native error/progress lifetime and do not perform metafile image decoding. Author alone executes its existing identity/export/color fixture on system Git.",
+    "No new WMF/EMF features, renderer changes, runtime replacement, expanded image parameter matrix, or signed57 image matrix.",
+    "No complete hosted CI, physical Finder acceptance, visual parity certification, signed deployment or App Store approval claim.",
+    "Four earlier passing case/engine pairs retained without repetition; only the failed Author scope reran after its fixture-only correction."
+  ]
+}

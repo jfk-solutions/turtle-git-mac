@@ -103,7 +103,15 @@ import TurtleGitCore
             let selected=Array(nativePaths.prefix(3));table.selectRowIndexes(IndexSet(integersIn:0..<3),byExtendingSelection:false)
             try await wait("native highlight publication",window:window){model.selection==GitPathSet(selected)}
             model.checked=[]
-            try await wait("unchecked row views",window:window){views(table).compactMap{$0 as? NSButton}.contains{$0.state == .off}}
+            try await wait("unchecked selected row views",window:window){
+                (0..<selected.count).allSatisfy{(table.view(atColumn:0,row:$0,makeIfNecessary:true) as? NSButton)?.state == .off}
+            }
+            // Selection does not grant keyboard focus. In particular the
+            // default button may still be first responder on the hosted SDK.
+            try require(window.makeFirstResponder(nil),"Could not release initial report focus")
+            table.keyDown(with:event(table,key:49,characters:" "))
+            try require(model.checked.isEmpty,"Unfocused report consumed Space")
+            try require(window.makeFirstResponder(table) && window.firstResponder === table,"Native report did not acquire keyboard focus")
             table.keyDown(with:event(table,key:49,characters:" "))
             try await wait("selected-row Space check",window:window){model.checked==GitPathSet(selected) && (table.view(atColumn:0,row:0,makeIfNecessary:true) as? NSButton)?.state == .on}
             table.keyDown(with:event(table,key:49,characters:" "))

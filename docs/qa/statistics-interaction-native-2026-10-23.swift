@@ -30,6 +30,21 @@ actor StatisticsInteractionWriterGate {
         throw Failure(description:"Statistics interaction timeout at \(line)")
     }
     static func drained()->Bool {StatisticsWindowController.activeExports==0 && StatisticsWindowModel.activeOperations==0}
+    static func views(_ root:NSView?)->[NSView] {guard let root else{return []};return [root]+root.subviews.flatMap{views($0)}}
+    static func acknowledgment(_ question:NSAlert,owner:StatisticsWindowController)async throws->NSButton {
+        var accepted:NSButton?
+        try await wait {
+            let sheet=question.window;sheet.contentView?.layoutSubtreeIfNeeded()
+            guard sheet.sheetParent===owner.window,owner.window?.attachedSheet===sheet,owner.hasPendingWork,let cell=sheet.defaultButtonCell else{return false}
+            var seen=Set<ObjectIdentifier>()
+            let children=views(sheet.contentView).compactMap{$0 as? NSButton}
+            let candidates=([cell.controlView as? NSButton].compactMap{$0}+children).filter{seen.insert(ObjectIdentifier($0)).inserted && $0.cell === cell}
+            guard candidates.count==1,let button=candidates.first,button.window===sheet,button.isEnabled,!button.isHiddenOrHasHiddenAncestor,
+                  let action=button.action,let target=NSApp.target(forAction:action,to:button.target,from:button) as? NSObject,target.responds(to:action) else{return false}
+            accepted=button;return true
+        }
+        return try unwrap(accepted,"Actual owned default error acknowledgment missing")
+    }
     @MainActor final class Context {
         let base=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let suite="TurtleGit.StatisticsInteraction."+UUID().uuidString,prefs:UserDefaults
@@ -60,7 +75,7 @@ actor StatisticsInteractionWriterGate {
         func clean()async {
             for gate in gates {await gate.finish()}
             owners.forEach{$0.close()}
-            for window in NSApp.windows {if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.cancel);sheet.orderOut(nil)};window.orderOut(nil);window.close()}
+            NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
             for _ in 0..<3000 {if drained() && owners.allSatisfy({!$0.hasPendingWork}) {break};try? await Task.sleep(nanoseconds:10_000_000)}
             prefs.removePersistentDomain(forName:suite)
         }
@@ -138,8 +153,12 @@ actor StatisticsInteractionWriterGate {
         failed.saveGraphAs();try await wait{alert?.window.sheetParent === failed.window}
         try require(beforeFailure.read().isEmpty && failed.hasPendingWork,"Actual error sheet allowed old chart receipt")
         try require(!failed.windowShouldClose(failed.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Actual error sheet lost close/Quit guard")
-        let question=try unwrap(alert,"Actual error sheet missing");question.buttons[0].performClick(nil)
-        try await wait{!failed.hasPendingWork && failed.canSaveGraph && question.window.sheetParent==nil}
+        let question=try unwrap(alert,"Actual error sheet missing")
+        let button=try await acknowledgment(question,owner:failed)
+        try require(button.window===question.window && question.window.sheetParent===failed.window && button.cell===question.window.defaultButtonCell,"Error acknowledgment changed owner before native click")
+        print("Statistics interaction writer: actual default error acknowledgment click");fflush(stdout)
+        button.performClick(nil)
+        try await wait{!failed.hasPendingWork && failed.canSaveGraph && question.window.sheetParent==nil && failed.window?.attachedSheet==nil}
         answer?(.alertFirstButtonReturn)
         try require(beforeFailure.read().isEmpty,"Duplicate error reply revived obsolete actual chart receipt")
         let resumed=try await receipt(failed)

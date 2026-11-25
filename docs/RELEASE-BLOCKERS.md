@@ -1,5 +1,32 @@
 # Local testing and release gates
 
+## Native progress and command-entry recovery — November 25, 2026
+
+The [progress and command-entry checkpoint](qa/native-progress-entry-recovery-2026-11-25.json)
+passes seven unique native case/engine runs after one Debug build. Open progress
+views now adopt live font/style changes while preserving output, selection and
+viewport, and retire their native observers with the owner. Bisect waits for
+actual picker close and cancellation-error acknowledgment; conflict-list Space
+requires table focus; Submodule checks use private creation clipboard input,
+standardized repository preference keys and completed authority resolution.
+Original failed attempts and the exact fixture repairs remain recorded.
+
+The [Statistics checkpoint](qa/statistics-owned-errors-acceptance-2026-11-25.json)
+adds five unique native passes cumulatively. Writer and Graph error sheets use
+the actual owned native default button. The reported Author export check now
+distinguishes exact 960×500 chart bounds from the independently established
+961×501 file-backed Bitmap allocation, preserving vector, author and color
+assertions without changing the renderer, file headers or runtime kits. No new
+WMF/EMF feature or quality matrix was added.
+
+These twelve focused passes are not a complete hosted CI or physical/signed
+acceptance result. Build57 remains frozen at `ce9223db` and does not contain the
+new progress-font production fix. No installed app was changed. Latest observed
+`4e592b21` website checks passed; its deployment creation failed with GitHub
+HTTP500. Its macOS workflow was still pending; the older d38 Core pass is not a
+current-source full-suite pass. Signed SSH folder permissions and owner testing
+remain open as recorded below.
+
 ## Signed local candidate57 — November 25, 2026
 
 [Build57](qa/signed-consolidation-build57-2026-11-25.json) packages frozen

@@ -38,13 +38,27 @@ import TurtleGitCore
         @MainActor func live(_ model:BisectWindowModel) throws { try require(model.busy && model.output.contains("Unicode 雪") && model.output.contains("Work: 45%") && !model.output.contains("Work: 10%"),"Live CR/UTF-8 output missing");try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Bisect Quit ownership missing") }
         let controller=BisectWindowController(repository:wrapped,access:nil,good:" remotes/origin/good ",bad:"HEAD",preferences:prefs),model=controller.model
         defer { controller.close() }
+        var attemptReceipts:[BisectMutationResult]=[];model.onAttemptCompleted={attemptReceipts.append($0)}
         try await wait { !model.busy };try require(model.canStart && model.choices.contains("remotes/origin/good"),"Start choices/defaults missing")
         // Captured picker fields reject a late changed-target response and a closed parent.
         var choose:((LogEntry?)->Void)?,child:LogWindowController?
         controller.makePicker={ repository,access,revision,preferences,reply in choose=reply;let picker=LogWindowController(repository:repository,access:access,onChoose:reply,labelDefaults:preferences,initialRevision:revision);child=picker;return picker }
         controller.presentPicker={_,_ in true};controller.chooseRevision(good:true)
         try require(model.hasPicker,"Picker ownership missing");model.good="origin/good"
-        let entry=try await repo.history().first!;choose?(entry);try require(model.good == "origin/good" && !model.hasPicker,"Changed picker target accepted stale result");child?.close();child=nil
+        let entry=try await repo.history().first!;choose?(entry)
+        try require(model.good == "origin/good" && model.hasPicker,"Picker published before its actual child retired")
+        child?.close();try await wait {!model.hasPicker && !controller.hasPendingWork};child=nil
+        try require(model.good == "origin/good","Changed picker target accepted stale result")
+        // A fresh accepted result also waits for actual close; Cancel must not
+        // replace the captured draft. Both continuations settle exactly once.
+        controller.chooseRevision(good:true);try require(model.hasPicker,"Fresh picker was not owned")
+        choose?(entry);try require(model.good == "origin/good" && model.hasPicker,"Accepted picker published before child close")
+        child?.close();try await wait {!model.hasPicker && !controller.hasPendingWork};child=nil
+        try require(model.good == entry.hash,"Accepted current picker lost its revision")
+        choose?(nil);try require(model.good == entry.hash,"Duplicate picker callback changed accepted revision")
+        controller.chooseRevision(good:true);try require(model.hasPicker,"Cancel picker was not owned")
+        choose?(nil);child?.close();try await wait {!model.hasPicker && !controller.hasPendingWork};child=nil
+        try require(model.good == entry.hash,"Picker Cancel replaced the captured revision")
         try Data("dirty tracked\n".utf8).write(to:file);model.confirmStash={true};model.good=" remotes/origin/good "
         var raw="";model.onChanged={raw=$0};gate("bisect-good");model.start()
         try await wait { FileManager.default.fileExists(atPath:marker.path) && model.output.contains("Unicode 雪") };try live(model);try require(model.percentage == 45 && model.showingProgress,"Progress layout/percentage missing")
@@ -58,7 +72,43 @@ import TurtleGitCore
         // Cancel a classification; recovery retains the real session and Reset only.
         gate("bisect-good");model.perform(.good);try await wait { FileManager.default.fileExists(atPath:marker.path) && model.output.contains("Unicode 雪") };model.cancel();try await wait { !model.busy }
         try require(model.cancelled && model.state?.active == true && model.postOperations == [.reset],"Cancelled classification lost Reset recovery")
-        gate("disabled");model.perform(.reset);try await wait { !model.busy };try require(model.state?.active == false && model.state?.head == hashes.last,"Reset lost original branch")
+        // Recovery reports cancellation through the real owned SwiftUI alert.
+        // Reset is unavailable until its default acknowledgement and native
+        // sheet detach; do not bypass that contract by clearing model.error.
+        guard let cancelledError=model.error,let parent=controller.window else {throw Failure(description:"Cancellation lost its owned error/result")}
+        let cancelledOutput=model.output,cancelledHead=model.state?.head,cancelledExit=model.lastExitCode
+        var acknowledgement:NSButton?,errorSheet:NSWindow?
+        try await wait {
+            parent.contentView?.layoutSubtreeIfNeeded()
+            guard let sheet=parent.attachedSheet,sheet.sheetParent===parent,let cell=sheet.defaultButtonCell else {return false}
+            sheet.contentView?.layoutSubtreeIfNeeded()
+            var seen=Set<ObjectIdentifier>()
+            let descendants=sheet.contentView.map {Self.descendants($0).compactMap {$0 as? NSButton}} ?? []
+            let candidates=([cell.controlView as? NSButton].compactMap {$0}+descendants).filter {seen.insert(ObjectIdentifier($0)).inserted && $0.cell === cell}
+            guard candidates.count==1,let button=candidates.first,button.window===sheet,button.isEnabled,!button.isHiddenOrHasHiddenAncestor,
+                  let action=button.action,let target=NSApp.target(forAction:action,to:button.target,from:button) as? NSObject,target.responds(to:action) else {return false}
+            errorSheet=sheet;acknowledgement=button;return true
+        }
+        guard let acknowledgement,let errorSheet else {throw Failure(description:"Owned cancellation default acknowledgement missing")}
+        try require(model.error==cancelledError && model.output==cancelledOutput && model.state?.head==cancelledHead && model.lastExitCode==cancelledExit && !model.canPerform(.reset),"Cancellation acknowledgment lost result or allowed Reset under its sheet")
+        try require(parent.attachedSheet===errorSheet && errorSheet.sheetParent===parent && acknowledgement.window===errorSheet && acknowledgement.cell===errorSheet.defaultButtonCell,"Cancellation acknowledgement changed native owner/default")
+        acknowledgement.performClick(nil)
+        try await wait {model.error==nil && parent.attachedSheet==nil && errorSheet.sheetParent==nil}
+        try require(model.cancelled && model.state?.active==true && model.state?.head==cancelledHead && model.lastExitCode==cancelledExit && model.output==cancelledOutput,"Acknowledgement changed retained cancellation/session/output")
+        gate("disabled")
+        try require(model.canPerform(.reset),"Reset after cancellation refused admission: retired=\(model.retired) quit=\(model.confirmingQuit) picker=\(model.hasPicker) busy=\(model.busy) pending=\(model.hasPendingWork) confirming=\(model.confirmingCancellation) presentation=\(model.presentationAvailable())")
+        let resetReceiptStart=attemptReceipts.count
+        model.perform(.reset);try require(model.busy,"Admitted Reset did not start owned work")
+        try await wait { !model.busy }
+        // Preserve the original model assertion's exact readiness boundary:
+        // independent diagnostic reads below must not provide extra settlement.
+        let settledResetState=model.state,settledResetExit=model.lastExitCode,settledResetError=model.error,settledResetOutput=model.output
+        let resetReceipts=attemptReceipts.dropFirst(resetReceiptStart).flatMap(\.commands).map {"\($0.arguments) exit=\($0.exitCode) output=\($0.output)"}.joined(separator:"\n")
+        let actualResetState=try await repo.bisectState(),actualResetBranch=try await repo.branch()
+        let resetDiagnostic="expected=\(hashes.last ?? "nil") actualBranch=\(actualResetBranch) actualHead=\(actualResetState.head) actualActive=\(actualResetState.active) capturedModelHead=\(settledResetState?.head ?? "nil") capturedModelActive=\(String(describing:settledResetState?.active)) capturedExit=\(String(describing:settledResetExit)) capturedError=\(settledResetError ?? "nil") receipts=\(resetReceipts) capturedOutput=\(settledResetOutput)"
+        print("BISECT_RESET: "+resetDiagnostic)
+        try require(settledResetState?.active == false && settledResetState?.head == hashes.last,"Reset lost original branch: "+resetDiagnostic)
+        try require(!actualResetState.active && actualResetState.head==hashes.last && actualResetBranch=="main","Reset repository differs from original branch: "+resetDiagnostic)
         model.saveActionLog();let saved=try store.read();try require(saved.contains("User cancelled") && saved.contains("Unicode 雪"),"Attempt Action log was not preserved")
         // Captured policy, pending question and duplicate late Yes retain natural Reset success.
         prefs.set(true,forKey:"ConfirmKillProcess");prefs.set(2,forKey:"AutoCloseGitProgress")

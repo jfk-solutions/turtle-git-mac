@@ -78,6 +78,22 @@ The test app's signing, entitlements and Finder integration still need their own
 measured acceptance; an account answer is not evidence that a particular build
 has passed those checks.
 
+## Prepared local candidate57 — November 25, 2026
+
+[Build57](qa/signed-consolidation-build57-2026-11-25.json) packages frozen
+`ce9223db` as a universal Apple Development-signed local test candidate, with
+matching source and license material. Its single build, strict static audit,
+fresh signed local-tools/Core/Git phase and source/ZIP integrity checks pass.
+Build56 image execution remains historical evidence for the unchanged copied
+runtime; no new build57 image matrix is claimed.
+
+The [real SSH permission check](qa/signed57-ssh-permission-incomplete-2026-11-25.json)
+was canceled before an accepted folder grant and remains unverified. Both private
+probes and their synthetic files/containers were removed. Candidate57 has not
+been installed, physically accepted in Finder or published. Current hosted CI,
+owner testing and later license/Store clearance remain separate gates. The live
+progress-font correction under development is not part of this frozen package.
+
 ## Prepared local candidate56 — November 25, 2026
 
 [Build56](qa/signed-consolidation-build56-2026-11-25.json) packages the subsequent

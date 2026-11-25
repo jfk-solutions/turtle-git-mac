@@ -34,9 +34,16 @@ extension PrimaryCommandsVerification {
         prefs.set(false,forKey:"DownloadAnimation");prefs.set(0,forKey:"AutoCloseGitProgress")
         prefs.set(["https://example.invalid/private-draft.git"],forKey:"SubmoduleAdd.URLHistory")
         var savedOptions=SubmoduleUpdateOptions();savedOptions.recursive=true
-        prefs.set(try JSONEncoder().encode(savedOptions),forKey:"SubmoduleUpdate."+root.path+".options")
+        // Production keys use GitRepository's standardized root, not the raw
+        // CLI URL (the private temporary directory may use /private/var).
+        let updateOptionsKey="SubmoduleUpdate."+repo.root.path+".options"
+        prefs.set(try JSONEncoder().encode(savedOptions),forKey:updateOptionsKey)
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:wrapper)},snapshotWriter:{_ in true},comparisonMarks:WorkingComparisonMarkStore(storageURL:container.appendingPathComponent("mark.json")))
         workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs;workspace.transportClipboardText={nil}
+        // Submodule Add shares Clone's creation clipboard hook, rather than
+        // Fetch/Push's transport hook. Never consult the shared user clipboard.
+        var creationClipboardReads=0
+        workspace.creationClipboardText={creationClipboardReads += 1;return nil}
         var permissionTargets=[[URL]]();workspace.commandLineRepositoryPermission={paths in permissionTargets.append(paths);return RepositoryAccessLease(url:root)}
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         func invoke(_ arguments:[String]) {workspace.error=nil;workspace.handleCommandLine(arguments:arguments,currentDirectory:root.path)}
@@ -45,19 +52,20 @@ extension PrimaryCommandsVerification {
             let adds=windows(SubmoduleAddProgressWindowController.self).map(\.model),updates=windows(SubmoduleUpdateProgressWindowController.self).map(\.model),syncs=windows(SubmoduleSyncWindowController.self).map(\.model)
             for window in NSApp.windows {window.close()}
             for _ in 0..<1000 {
-                if !workspace.busy && SubmoduleUpdateWindowModel.activeReads==0 && SubmoduleUpdateProgressWindowModel.activeOperations==0 && adds.allSatisfy({!$0.busy}) && updates.allSatisfy({!$0.busy}) && syncs.allSatisfy({!$0.busy}) {return}
+                if !workspace.busy && !workspace.finderActionAuthorityPending && RepositoryModel.activeFinderAuthorityPreparations==0 && SubmoduleUpdateWindowModel.activeReads==0 && SubmoduleUpdateProgressWindowModel.activeOperations==0 && adds.allSatisfy({!$0.busy}) && updates.allSatisfy({!$0.busy}) && syncs.allSatisfy({!$0.busy}) {return}
                 try? await Task.sleep(nanoseconds:10_000_000)
             }
         }
         do {
             let head=try await repo.rebaseCommit("HEAD")
             invoke(["--command=subadd","--path",readme.path])
-            try await wait {!workspace.busy && windows(SubmoduleAddWindowController.self).count==1}
+            try await wait {!workspace.finderActionAuthorityPending && !workspace.busy && windows(SubmoduleAddWindowController.self).count==1}
             let add=try requireOne(windows(SubmoduleAddWindowController.self))
-            try require(add.model.path.isEmpty && add.model.source=="https://example.invalid/private-draft.git","Add did not use the selected file's directory and owning source history")
+            let initialAddDiagnostic="path=\(String(reflecting:add.model.path)), source=\(String(reflecting:add.model.source)), sources=\(add.model.sources), root=\(add.model.repository.root.path), expectedRoot=\(root.path), selected=\(readme.path), workspaceRoot=\(workspace.root?.path ?? "nil"), authorityPending=\(workspace.finderActionAuthorityPending), clipboardReads=\(creationClipboardReads)"
+            try require(add.model.path.isEmpty && add.model.source.utf8.elementsEqual("https://example.invalid/private-draft.git".utf8) && add.model.sources==["https://example.invalid/private-draft.git"] && creationClipboardReads==1,"Add did not use the selected file's directory and owning source history: "+initialAddDiagnostic)
             add.model.source=sourceRoot.path;add.model.path="new-entry";add.model.useKey=false
             invoke(["/command:subadd","/path:"+root.appendingPathComponent("libs").path])
-            try await wait {!workspace.busy}
+            try await wait {!workspace.finderActionAuthorityPending && !workspace.busy}
             try require(windows(SubmoduleAddWindowController.self).count==1 && add.model.path=="new-entry" && add.model.source==sourceRoot.path && workspace.error?.contains("already open")==true,"Repeated command replaced the Add draft")
             try require(!(try await repo.submoduleUpdatePaths()).contains("new-entry"),"Submodule Add ran before acceptance")
             workspace.error=nil;add.model.apply()
@@ -65,43 +73,48 @@ extension PrimaryCommandsVerification {
             let addProgress=try requireOne(windows(SubmoduleAddProgressWindowController.self))
             try require(addProgress.model.success && !addProgress.model.progressPresentation.animateActivity,"Accepted Add failed or lost progress preferences: "+addProgress.model.output)
             try require((try await repo.submoduleUpdatePaths()).contains("new-entry"),"Accepted Add did not stage its gitlink")
-            addProgress.close();try await wait {!workspace.busy}
+            addProgress.close();try await wait {!workspace.finderActionAuthorityPending && !workspace.busy}
             let index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
             // Default base is the selected directory's parent, not its child Git root.
             invoke(["--command=subupdate","--path",root.appendingPathComponent(first).path,"--selectedpath",first])
-            try await wait {!workspace.busy && windows(SubmoduleUpdateWindowController.self).first?.model.busy==false && windows(SubmoduleUpdateWindowController.self).first?.model.paths.contains(first)==true}
+            try await wait {!workspace.finderActionAuthorityPending && !workspace.busy && windows(SubmoduleUpdateWindowController.self).first?.model.busy==false && windows(SubmoduleUpdateWindowController.self).first?.model.paths.contains(first)==true}
             let update=try requireOne(windows(SubmoduleUpdateWindowController.self))
-            try require(update.model.repository.root.path==root.path && update.model.paths==[first] && update.model.selection==[GitReferenceName(first)] && update.model.options.recursive,"Update lost superproject, filter, requested selection or private persisted options: root=\(update.model.repository.root.path), paths=\(update.model.paths), selected=\(update.model.selection), recursive=\(update.model.options.recursive)")
+            let storedUpdateKeys=prefs.dictionaryRepresentation().keys.filter{$0.hasPrefix("SubmoduleUpdate.")}.sorted()
+            let updateDiagnostic="root=\(update.model.repository.root.path), expectedRoot=\(repo.root.path), rawRoot=\(root.path), paths=\(update.model.paths), selected=\(update.model.selection), recursive=\(update.model.options.recursive), owningPreferences=\(update.model.presentationPreferences === prefs), seedKey=\(updateOptionsKey), actualKey=SubmoduleUpdate.\(update.model.repository.root.path).options, storedKeys=\(storedUpdateKeys)"
+            try require(update.model.repository.root.path.utf8.elementsEqual(repo.root.path.utf8) && update.model.presentationPreferences === prefs && update.model.paths==[first] && update.model.selection==[GitReferenceName(first)] && update.model.options.recursive,"Update lost superproject, filter, requested selection or private persisted options: "+updateDiagnostic)
             update.model.options.noFetch=true;update.model.options.force=true
             invoke(["--command=subupdate","--path",root.path,"--bkpath",root.path,"--selectedpath",second])
-            try await wait {!workspace.busy}
+            try await wait {!workspace.finderActionAuthorityPending && !workspace.busy}
             try require(windows(SubmoduleUpdateWindowController.self).count==1 && update.model.paths==[first] && update.model.options.force && workspace.error?.contains("already open")==true,"Repeated Update replaced the checked draft/scope")
             try require(try await firstRepo.rebaseCommit("HEAD").hash==tip.hash,"Update ran without acceptance")
             workspace.error=nil;update.model.apply()
             try await wait {windows(SubmoduleUpdateProgressWindowController.self).first?.model.busy==false}
             let progress=try requireOne(windows(SubmoduleUpdateProgressWindowController.self))
             try require(progress.model.success && !progress.model.progressPresentation.animateActivity,"Scoped Update failed or lost progress preferences: "+progress.model.output)
+            guard let persistedUpdate=prefs.data(forKey:updateOptionsKey) else {throw Failure(description:"Accepted Update did not retain its owning repository option key")}
+            let persistedOptions=try JSONDecoder().decode(SubmoduleUpdateOptions.self,from:persistedUpdate)
+            try require(persistedOptions.recursive && persistedOptions.noFetch && persistedOptions.force,"Accepted Update lost captured recursive/no-fetch/force persistence")
             try require(try await firstRepo.rebaseCommit("HEAD").hash==base.hash,"Update did not restore checked module")
             try require(try await secondRepo.rebaseCommit("HEAD").hash==tip.hash,"Scoped Update changed the unchecked module")
             let parentAfterUpdate=try await repo.rebaseCommit("HEAD")
             try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==index && parentAfterUpdate.hash==head.hash,"Submodule operations committed parent history or changed its index during Update")
-            progress.close();try await wait {!workspace.busy}
+            progress.close();try await wait {!workspace.finderActionAuthorityPending && !workspace.busy}
             let desired="https://example.invalid/new-first.git"
             _ = try await repo.run(["config","--file",".gitmodules","submodule.first.url",desired])
             let config=try Data(contentsOf:root.appendingPathComponent(".git/config"))
             invoke(["/command:subsync","/path:"+readme.path,"/bkpath:"+root.path])
-            try await wait {!workspace.busy && windows(SubmoduleSyncWindowController.self).first?.model.busy==false}
+            try await wait {!workspace.finderActionAuthorityPending && !workspace.busy && windows(SubmoduleSyncWindowController.self).first?.model.busy==false}
             let skipped=try requireOne(windows(SubmoduleSyncWindowController.self))
             try require(skipped.model.output.contains("No directories") && (try Data(contentsOf:root.appendingPathComponent(".git/config")))==config,"File-only Sync broadened to the whole repository")
-            skipped.close();try await wait {!workspace.busy}
+            skipped.close();try await wait {!workspace.finderActionAuthorityPending && !workspace.busy}
             invoke(["--command=subsync","--path",root.appendingPathComponent(first).path])
-            try await wait {!workspace.busy && windows(SubmoduleSyncWindowController.self).first?.model.busy==false}
+            try await wait {!workspace.finderActionAuthorityPending && !workspace.busy && windows(SubmoduleSyncWindowController.self).first?.model.busy==false}
             let sync=try requireOne(windows(SubmoduleSyncWindowController.self))
             try require(sync.model.success && !sync.model.progressPresentation.animateActivity,"Sync failed or lost owning progress settings: "+sync.model.output)
             try require(try await repo.run(["config","submodule.first.url"]).text.trimmingCharacters(in:.whitespacesAndNewlines)==desired,"Sync did not update selected module URL")
             try require(try await secondRepo.run(["config","remote.origin.url"]).text.trimmingCharacters(in:.whitespacesAndNewlines)==sourceRoot.path,"Sync changed an unselected module")
             sync.model.confirmingQuit=true
-            invoke(["--command=subsync","--path",root.path,"--bkpath",root.path]);try await wait {!workspace.busy}
+            invoke(["--command=subsync","--path",root.path,"--bkpath",root.path]);try await wait {!workspace.finderActionAuthorityPending && !workspace.busy}
             try require(windows(SubmoduleSyncWindowController.self).count==1 && workspace.error?.contains("already running")==true,"Sync replaced an owned operation")
             sync.model.confirmingQuit=false;sync.close();workspace.error=nil
             // A fresh workspace must authorize both selected submodule and discovery base.
@@ -110,17 +123,22 @@ extension PrimaryCommandsVerification {
             defer {refused.stopMonitoringForTermination()}
             var requested=[URL]();refused.commandLineRepositoryPermission={paths in requested=paths;return RepositoryAccessLease(url:root.appendingPathComponent(first))}
             refused.handleCommandLine(arguments:["--command=subupdate","--path",root.appendingPathComponent(first).path],currentDirectory:root.path)
-            try require(requested.contains(root.appendingPathComponent("libs")) && refused.error != nil && !refused.busy && windows(SubmoduleUpdateWindowController.self).isEmpty,"Submodule-only grant authorized the superproject")
+            // Saved-authority resolution owns an asynchronous phase before
+            // discovery/adoption sets busy. A synchronous false busy flag is
+            // not a completed permission decision.
+            try await wait {!refused.finderActionAuthorityPending && !refused.busy}
+            try require(requested.contains{$0.path.utf8.elementsEqual(repo.root.appendingPathComponent("libs").path.utf8)} && refused.error != nil && !refused.busy && windows(SubmoduleUpdateWindowController.self).isEmpty,"Submodule-only grant authorized the superproject")
             refused.error=nil;refused.commandLineRepositoryPermission={_ in RepositoryAccessLease(url:root.appendingPathComponent("libs"))}
             refused.handleCommandLine(arguments:["--command=subupdate","--path",root.appendingPathComponent(first).path],currentDirectory:root.path)
-            try await wait {!refused.busy}
+            try await wait {!refused.finderActionAuthorityPending && !refused.busy}
             try require(refused.error != nil && windows(SubmoduleUpdateWindowController.self).isEmpty,"Discovery-folder grant authorized its ungranted superproject")
             refused.error=nil;refused.commandLineRepositoryPermission={_ in nil}
             refused.handleCommandLine(arguments:["--command=subsync","--path",root.path,"--bkpath",root.path],currentDirectory:root.path)
+            try await wait {!refused.finderActionAuthorityPending && !refused.busy}
             try require(!refused.busy && windows(SubmoduleSyncWindowController.self).isEmpty,"Cancelled grant started Sync")
             refused.commandLineRepositoryPermission={_ in RepositoryAccessLease(url:container)}
             refused.handleCommandLine(arguments:["--command=subupdate","--path",sourceRoot.path,"--bkpath",sourceRoot.path],currentDirectory:root.path)
-            try await wait {!refused.busy}
+            try await wait {!refused.finderActionAuthorityPending && !refused.busy}
             try require(refused.error?.contains("superproject")==true && windows(SubmoduleUpdateWindowController.self).isEmpty,"Missing .gitmodules did not stop superproject discovery")
             try require(permissionTargets.count==1,"Existing authorized workspace grant was not reused")
             await cleanup()

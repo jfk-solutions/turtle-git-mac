@@ -2596,6 +2596,7 @@
         "docs/qa/merge-progress-family-2026-10-19.json",
         "docs/qa/merge-stream-2026-10-08.json",
         "docs/qa/message-font-2026-10-08.json",
+        "docs/qa/native-progress-entry-recovery-2026-11-25.json",
         "docs/qa/operation-identity-retry-2026-11-05.json",
         "docs/qa/progress-auto-close-2026-10-08.json",
         "docs/qa/push-cancellation-2026-10-08.json",
