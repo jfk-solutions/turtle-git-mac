@@ -1,0 +1,132 @@
+{
+  "schema": 1,
+  "recordedUtc": "2026-11-25T20:14:10.535844+00:00",
+  "sourceBase": "22ef5cb7255877f8480a7a365f4cd6a508977ce7",
+  "productionChanged": false,
+  "originalHosted": {
+    "run": 45666767671,
+    "source": "2f6c1b37ff551177cb7412a9e4cd9ced3bfe0063",
+    "job": 139394741796,
+    "step": 188,
+    "stepName": "Native historical file and folder item-provider receivers",
+    "failure": "Sync file drags conflicts/system: Sync drag timeout187 waiting for retired CommitFileInteraction.Probe; receiver15894 reaped.",
+    "retainedPasses": [
+      "Sync incoming/system",
+      "Sync outgoing/system",
+      "Rebase historical/system",
+      "Rebase historical/bundled",
+      "Rebase conflicts/system",
+      "Rebase conflicts/bundled"
+    ],
+    "notReached": [
+      "Sync ownership/system",
+      "all4Sync bundled cases"
+    ],
+    "evidence": "Authenticated hosted step log observation; earlier Browser/Status/Log/Revision driver commands completed before sequential Rebase/Sync commands. No uninspected subcase count claimed."
+  },
+  "sourceContract": {
+    "actualView": "SynchronizationConflictFiles mounts ConflictReportTable, backed by ConflictReportNativeTable and ConflictReportTable.Coordinator.",
+    "actualWriter": "ConflictReportTable.Coordinator.tableView(_:writeRowsWith:to:) captures current ordered paths and writes the returned WorkingFileListDrag.",
+    "oldFixture": "The removed SwiftUI probe predicate cannot become true for this native view."
+  },
+  "repair": {
+    "fixture": "docs/qa/sync-file-drags-native-2026-10-23.swift",
+    "sha256": "3073e167c72f958572da15a241205723e16d60af2d4f86552c0aab01625811c6",
+    "behavior": [
+      "Admit actual current native coordinator with sorted model/row and selected projection receipts",
+      "Invoke actual native pasteboard writer on a unique private pasteboard, observing and restoring its original capture closure synchronously",
+      "Retain original ordered paths, literal URL spellings, provider delivery after owner close and exact HEAD/index/worktree preservation",
+      "Retain busy/Quit/attached-sheet/hidden-tab/closed-owner refusal assertions and independent permission lifetime case",
+      "Close owned native sheets/windows and drain existing worker counters before fixture teardown"
+    ],
+    "budgets": "Existing30s fixture wait budget retained; new native admission waits diagnose actual row/selection/owner state."
+  },
+  "validation": {
+    "appSourceFilesCompared": 501,
+    "appBuildRepeated": false,
+    "coreSuiteRepeated": false,
+    "nativePasses": [
+      "conflicts/system",
+      "ownership/system",
+      "incoming/bundled",
+      "outgoing/bundled",
+      "conflicts/bundled",
+      "ownership/bundled"
+    ],
+    "hostedSystemIncomingOutgoingNotRepeated": true,
+    "rebaseBrowserStatusLogRevisionCohortsNotRepeated": true,
+    "logs": [
+      {
+        "path": "build/qa/sync-drag-native-contract-system-affected-2026-11-25.log",
+        "sha256": "f50237ab92249685c3232e17bb2a3bb59d7cfce6aa32c946741c3a21fc862c62",
+        "reportedReapedPids": [
+          52341,
+          52422,
+          52682
+        ]
+      },
+      {
+        "path": "build/qa/sync-drag-native-contract-bundled-2026-11-25.log",
+        "sha256": "aa4bd2f70283c45963183ec53639ed715ebab1538c5a5f3a60e7dbeb1dc632da",
+        "reportedReapedPids": [
+          52877,
+          53058,
+          53233,
+          53436
+        ]
+      }
+    ],
+    "results": [
+      {
+        "name": "system-affected",
+        "command": [
+          "python3",
+          "scripts/test-sync-file-drags.py",
+          "--git",
+          "/usr/bin/git",
+          "--only",
+          "conflicts",
+          "--only",
+          "ownership"
+        ],
+        "startedUtc": "2026-11-25T20:11:38.177259+00:00",
+        "exitCode": 0,
+        "finishedUtc": "2026-11-25T20:11:54.259370+00:00",
+        "log": "build/qa/sync-drag-native-contract-system-affected-2026-11-25.log",
+        "sha256": "f50237ab92249685c3232e17bb2a3bb59d7cfce6aa32c946741c3a21fc862c62"
+      },
+      {
+        "name": "bundled",
+        "command": [
+          "python3",
+          "scripts/test-sync-file-drags.py",
+          "--git",
+          "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+        ],
+        "startedUtc": "2026-11-25T20:11:54.261874+00:00",
+        "exitCode": 0,
+        "finishedUtc": "2026-11-25T20:12:08.277485+00:00",
+        "log": "build/qa/sync-drag-native-contract-bundled-2026-11-25.log",
+        "sha256": "aa4bd2f70283c45963183ec53639ed715ebab1538c5a5f3a60e7dbeb1dc632da"
+      }
+    ]
+  },
+  "cleanup": {
+    "observedOwnedPidsAbsent": [
+      52341,
+      52422,
+      52682,
+      52877,
+      53058,
+      53233,
+      53436
+    ],
+    "presentPidsNotAttributed": [],
+    "nativePrivateWindowsHiddenAndClosed": true,
+    "shippingAppUntouched": true
+  },
+  "limits": [
+    "Focused local native acceptance, not full hosted CI or a physical Finder drag/drop gesture.",
+    "No production, renderer, new WMF/EMF capability, runtime kit, installed application or publication change."
+  ]
+}

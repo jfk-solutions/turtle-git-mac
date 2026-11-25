@@ -1,5 +1,18 @@
 # Local testing and release gates
 
+## Native Sync drag contract recovery — November 25, 2026
+
+The [Sync drag checkpoint](qa/sync-drag-native-contract-recovery-2026-11-25.json)
+passes the six affected or previously unreached case/engine runs. Conflict drags
+now exercise the actual native report/pasteboard writer with sorted selection,
+exact URL/provider contents, busy/Quit/sheet/tab/close refusals and delivery after
+owner close. Historical and independent-grant ownership assertions remain intact.
+The hosted timeout waited for a retired SwiftUI probe; no production change or
+app/Core rebuild was needed. Earlier passing system incoming/outgoing and Rebase
+cohorts were retained. Owned private windows/helpers are closed and drained.
+Full hosted and physical Finder acceptance remain separate; no renderer work or
+installed58 change was performed.
+
 ## History review acceptance recovery — November 25, 2026
 
 The [history checkpoint](qa/history-review-ci-recovery-2026-11-25.json) passes

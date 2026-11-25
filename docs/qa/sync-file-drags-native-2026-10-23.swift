@@ -65,7 +65,8 @@ private extension NSWindow {
             for(name,bytes)in working{try require((try Data(contentsOf:root.appendingPathComponent(name)))==bytes,"Drag changed working contents")}
         }
         func clean()async {
-            for owner in owners{if let window=owner.window,let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.close()};owner.close()};owners=[]
+            NativeOwnedWindowCleanup.close(owners.compactMap(\.window),returnCode:.abort)
+            for owner in owners{owner.close()};owners=[]
             for _ in 0..<3000{if drained(){break};try? await Task.sleep(nanoseconds:10_000_000)}
             FileListDrag.discardAll();prefs.removePersistentDomain(forName:suite)
         }
@@ -183,22 +184,50 @@ private extension NSWindow {
         try await wait{!model.busy && !model.hasPendingInlineWork}
         model.tab=6;let actions=model.conflictFileActions;model.refreshConflictFiles()
         try await wait{!actions.busy && actions.files.count>=3}
-        let adapter:CommitFileInteraction.Probe=try await {
-            try await wait{views(owner.window?.contentView).compactMap{$0 as? CommitFileInteraction.Probe}.contains{$0.captureWorkingDrag != nil && $0.nativeTable != nil}}
-            return try unwrap(views(owner.window?.contentView).compactMap{$0 as? CommitFileInteraction.Probe}.first{$0.captureWorkingDrag != nil && $0.nativeTable != nil},"Missing actual Sync conflict drag adapter")
-        }()
+        // Sync now mounts the same native report used by Resolve/Rebase. Drive
+        // its real pasteboard writer, not the retired SwiftUI interaction probe.
+        @MainActor func waitReport(_ phase:String,_ condition:()->Bool)async throws {
+            for _ in 0..<3000 {
+                owner.window?.contentView?.layoutSubtreeIfNeeded()
+                if condition(){return}
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            let tables=views(owner.window?.contentView).compactMap{$0 as? ConflictReportNativeTable}.map{table in
+                let report=table.dataSource as? ConflictReportTable.Coordinator
+                return "rows=\(table.numberOfRows) attached=\(table.window === owner.window) enabled=\(table.isEnabled) selected=\(table.selectedRowIndexes) projected=\(report?.owner.rows.map(\.path) ?? []) ownerEnabled=\(report?.owner.enabled == true)"
+            }
+            throw Failure(description:"Sync conflict report \(phase): tab=\(model.tab) busy=\(model.busy) inline=\(model.hasPendingInlineWork) available=\(model.canUseConflictFiles) actionsBusy=\(actions.busy) selection=\(actions.selection) paths=\(actions.sortedRows.map(\.path)) tables=\(tables)")
+        }
+        try await waitReport("mount"){views(owner.window?.contentView).compactMap{$0 as? ConflictReportNativeTable}.contains{table in
+            guard let report=table.dataSource as? ConflictReportTable.Coordinator else{return false}
+            return report.owner.captureDrag != nil && table.window === owner.window && table.numberOfRows==report.owner.rows.count && report.owner.rows.map(\.path)==actions.sortedRows.map(\.path) && report.owner.enabled && table.isEnabled
+        }}
+        let table=try unwrap(views(owner.window?.contentView).compactMap{$0 as? ConflictReportNativeTable}.first{table in
+            (table.dataSource as? ConflictReportTable.Coordinator)?.owner.captureDrag != nil && table.window === owner.window
+        },"Missing actual Sync conflict report")
+        let report=try unwrap(table.dataSource as? ConflictReportTable.Coordinator,"Missing actual Sync conflict coordinator")
+        @MainActor func captureNativeDrag()->WorkingFileListDrag? {
+            let capture=report.owner.captureDrag
+            var result:WorkingFileListDrag?
+            report.owner.captureDrag={paths in let value=capture?(paths);result=value;return value}
+            defer{report.owner.captureDrag=capture}
+            let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()}
+            guard report.tableView(table,writeRowsWith:table.selectedRowIndexes,to:board) else{return nil}
+            return result
+        }
         actions.setSortOrder([StatusFileSort(column:.path,order:.reverse)])
-        try await wait{adapter.rows.compactMap{$0.entry?.path}==actions.sortedRows.map(\.path)}
-        let table=try unwrap(adapter.nativeTable,"Detached conflict table"),paths=GitPathSet(c.names+[c.literal])
-        let indexes=IndexSet(adapter.rows.indices.filter{adapter.rows[$0].entry.map{paths.contains($0.path)} == true})
-        try require(indexes.count==3,"Native conflict list omitted real conflicted rows");table.selectRowIndexes(indexes,byExtendingSelection:false)
-        try await wait{actions.selection==paths}
-        let ordered=indexes.compactMap{adapter.rows[$0].entry?.path},drag=try unwrap(adapter.workingDragSelection(),"Conflict highlighted rows refused working drag")
+        try await waitReport("sorted projection"){report.owner.rows.map(\.path)==actions.sortedRows.map(\.path) && table.numberOfRows==report.owner.rows.count && report.owner.enabled}
+        let paths=GitPathSet(c.names+[c.literal])
+        let indexes=IndexSet(report.owner.rows.indices.filter{paths.contains(report.owner.rows[$0].path)})
+        try require(indexes.count==3,"Native conflict list omitted real conflicted rows")
+        CommitFileInteraction.replaceSelection(in:table,with:indexes)
+        try await waitReport("selected projection"){actions.selection==paths && report.owner.selection==paths && table.selectedRowIndexes==indexes}
+        let ordered=indexes.map{report.owner.rows[$0].path},drag=try unwrap(captureNativeDrag(),"Conflict highlighted rows refused native working drag")
         try require(drag.paths==ordered && drag.fileURLs.map{String($0.path.dropFirst(c.root.path.count+1))}==ordered,"Conflict drag changed displayed order or real URLs")
         c.index=try Data(contentsOf:c.root.appendingPathComponent(".git/index"));for path in c.names+[c.literal]{c.working[path]=try Data(contentsOf:c.root.appendingPathComponent(path))}
-        try await fences(owner){adapter.workingDragSelection() != nil}
-        model.tab=2;try require(adapter.workingDragSelection()==nil,"Hidden conflict tab exported drag")
-        owner.close();try require(adapter.workingDragSelection()==nil,"Closed conflict owner exported drag")
+        try await fences(owner){captureNativeDrag() != nil}
+        model.tab=2;try require(captureNativeDrag()==nil,"Hidden conflict tab exported drag")
+        owner.close();try require(captureNativeDrag()==nil,"Closed conflict owner exported drag")
         for(index,provider)in drag.providers.enumerated(){let reply=Reply();provider.loadDataRepresentation(forTypeIdentifier:UTType.fileURL.identifier){reply.finish($0,$1)};try await wait{reply.value != nil};let data=try reply.value!.get(),url=try unwrap(URL(string:String(decoding:data,as:UTF8.self)),"Conflict URL invalid");try require(url==drag.fileURLs[index] && (try Data(contentsOf:url))==c.working[ordered[index]],"Conflict drag rebound after close")}
     }
     static func ownership(_ c:Context)async throws {
