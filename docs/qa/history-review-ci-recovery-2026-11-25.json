@@ -1,0 +1,117 @@
+{
+  "schema": 1,
+  "recordedUtc": "2026-11-25T19:45:17.005747+00:00",
+  "sourceBase": "4eef3a8c300f4488845612cd0aa2085f7d30bb23",
+  "productionChanged": false,
+  "installed58Changed": false,
+  "scope": "Source-aligned native Log graph/header and shared Changed Files/Finder comparison workflow acceptance.",
+  "originalHosted": {
+    "run": 45666767671,
+    "source": "2f6c1b37ff551177cb7412a9e4cd9ced3bfe0063",
+    "rollup": {
+      "job": 139394741940,
+      "failed": "system: forced unwrap of absent Log.Columns.graph at original fixture line173; bundled not reached",
+      "artifact": 15056666681,
+      "artifactSha256": "08e97529eaa90c7997bf830d4c47fe192382aa6fe27a2f90af6e982c2ae96323"
+    },
+    "comparison": {
+      "job": 139394741902,
+      "failed": "changed-files/system: Comparison launch timeout at original fixture line66, active launches0, in verifyFinderChoices; bundled not reached",
+      "retainedPasses": [
+        "recovery/system",
+        "recovery/bundled",
+        "rebase-files/system",
+        "rebase-files/bundled"
+      ],
+      "earlierSubphasesPassed": [
+        "Changed Files revision/list controls",
+        "Changed Files actions"
+      ],
+      "notReached": [
+        "changed-files/bundled",
+        "later rebase-references cohorts"
+      ]
+    },
+    "uploadInfrastructure": {
+      "step": "Upload mixed Log primary activation diagnostics",
+      "diagnosis": "ArtifactService/CreateArtifact request timeout after attempts1-5, with2files validated; preceding native mixed Log activation step passed. Not an application assertion failure."
+    }
+  },
+  "corrections": {
+    "rollup": "Pinned src/TortoiseProc/ColumnManager.h AddMenuItem starts at1, deliberately excluding Graphbit0. Assert absence during/off Follow, retain actual graph cells, persisted Graph visibility +Follow restoration, and use real Email command for caption/icon/persistence/consumed and stale popup receipts. Visibility waits observe actualcolumn state within original30s budget.",
+    "comparison": "Capture actual injected fileComparisonWindowPresentation and retained controller map, rather than enumerate deliberately unordered NSApp.windows. Retain explicit default/alternate tool choices, ready models, map ownership, close retirement/removal and exact HEAD/index/worktree bytes.",
+    "ownership": "Hide nested ordered windows and sheets, retain/close owners and drain actual operation counters; release held approvals/Git gates on failure. Private HOME/CF/XDG/tmp/config are siblings of the repository. Persistent uniquely named timeout sample remains available after temp cleanup."
+  },
+  "validation": {
+    "applicationSourceFilesCompared": 501,
+    "sourceCacheDifferences": [],
+    "staleMacObjects": [],
+    "appBuildRepeated": false,
+    "coreSuiteRepeated": false,
+    "passes": [
+      "rollup/system",
+      "rollup/bundled",
+      "changed-files/system",
+      "changed-files/bundled"
+    ],
+    "initialGroupedExit": 1,
+    "initialFailure": "Comparison fixture cleanup referenced nonexistent SynchronizationWindowModel.activeOperations; no comparison receiver ran in that initial attempt.",
+    "affectedOnlyRepair": "Use actual SynchronizationProgressModel.activeOperations plus Sync inline worker/release counters, preserve all cleanup assertions; rerun only changed-files with both engines.",
+    "affectedOnlyExit": 0,
+    "warnings": [
+      "Changed Files hidden/unshown zero-size NSSplitView warnings remain in successful receiver stderr; no visual acceptance claim."
+    ],
+    "logs": {
+      "history-review-recovery-log-rollup-2026-11-25.log": {
+        "path": "build/qa/history-review-recovery-log-rollup-2026-11-25.log",
+        "sha256": "3c380d76933f195bc0e55b8ed17866b5b6a163d40d465597b353835602beb7ec",
+        "reportedReapedPids": [
+          15436,
+          15576,
+          16968
+        ]
+      },
+      "history-review-recovery-changed-files-2026-11-25.log": {
+        "path": "build/qa/history-review-recovery-changed-files-2026-11-25.log",
+        "sha256": "615bca27ddf96ea1e29000305ab8a52385355281f80a0ae34e9420430a5cb63f",
+        "reportedReapedPids": [
+          18364
+        ]
+      },
+      "history-review-recovery-changed-files-repair-2026-11-25.log": {
+        "path": "build/qa/history-review-recovery-changed-files-repair-2026-11-25.log",
+        "sha256": "aa9a081cef3457804600096acfd98d7c223723323a16cf0606e5de2d2e1b3b59",
+        "reportedReapedPids": [
+          19258,
+          19320,
+          20400
+        ]
+      }
+    }
+  },
+  "cleanup": {
+    "hiddenPrivateOwnedWindowsClosed": true,
+    "ownedObservedPidsAbsent": [
+      15436,
+      15576,
+      16968,
+      18364,
+      19258,
+      19320,
+      20400
+    ],
+    "presentPidsNotAttributed": [],
+    "shippingAppNotTerminated": true
+  },
+  "filesSha256": {
+    "docs/qa/log-rollup-native-2026-10-07.swift": "050986447cb9079c202f442a6010a163c53569ab2bc39f6fe5254f1b8f64e947",
+    "docs/qa/comparison-launch-native-2026-10-14.swift": "53c1719b14f45ed785294056625935c1431ba39705dc7294c4ae6b12eb6db79c",
+    "scripts/test-rebase-revision-files.py": "1e7deaf8669e9df744299d8b657c9cf45a6cc0a73f5471d9940f4ccba8cd16b3"
+  },
+  "limits": [
+    "No complete current hosted CI pass; corrected source must still execute on hosted SDK.",
+    "The unordered-window enumeration was an invalid ownership witness; local passes do not establish every hosted scheduling detail.",
+    "No signed/physical Finder, broad visual/VoiceOver, new WMF/EMF feature, image matrix, installation or Store/public binary acceptance."
+  ],
+  "pinnedUpstream": "7338078f8ddd924b8cddee35f512f2286072136d"
+}

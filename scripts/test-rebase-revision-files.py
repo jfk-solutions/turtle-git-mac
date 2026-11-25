@@ -16,8 +16,14 @@ with tempfile.TemporaryDirectory(prefix='tg-rebase-files-') as temporary:
         if args.only and case not in args.only:continue
         receiver=build_receiver(root,[root/'docs/qa'/source],directory)
         for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
-            fixture=directory/(case+str(index));fixture.mkdir();case_env=env.copy()
+            context=directory/(case+str(index));context.mkdir();fixture=context/'repository';fixture.mkdir();case_env=env.copy()
+            for name in ('home','preferences','temporary','xdg'):(context/name).mkdir(mode=0o700)
+            config=context/'global.config';config.write_text('')
+            case_env.update(HOME=str(context/'home'),CFFIXED_USER_HOME=str(context/'preferences'),
+                            TMPDIR=str(context/'temporary')+'/',XDG_CONFIG_HOME=str(context/'xdg'),
+                            GIT_CONFIG_GLOBAL=str(config))
+            print('Checking '+case+' with '+str(git.absolute()),flush=True)
             if args.captures and case=='rebase-files' and index==0:case_env['TURTLEGIT_REBASE_FILES_CAPTURES']=str(args.captures.absolute())
-            result=run_receiver([str(receiver),str(fixture),str(git.absolute())],cwd=root,env=case_env,capture_output=True,text=True)
+            result=run_receiver([str(receiver),str(fixture),str(git.absolute())],cwd=root,env=case_env,capture_output=True,text=True,timeout_sample=root/'build/qa'/('rebase-files-'+case+'-'+str(index)+'-'+directory.name+'.sample.txt'))
             print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
             if marker and marker not in result.stdout:raise SystemExit('Receiver exited before final assertion: '+case)

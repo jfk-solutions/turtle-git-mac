@@ -1,16 +1,60 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
 
+private extension NSWindow {
+    @objc func quietComparisonOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        ComparisonLaunchVerification.retainWindow(self);alphaValue=0
+        quietComparisonOrder(mode,relativeTo:number)
+    }
+    @objc func quietComparisonSheet(_ sheet:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        ComparisonLaunchVerification.retainWindow(self);ComparisonLaunchVerification.retainWindow(sheet)
+        sheet.alphaValue=0;quietComparisonSheet(sheet,completionHandler:completionHandler)
+    }
+}
 @main struct ComparisonLaunchVerification {
+    @MainActor static var ownedWindows:[NSWindow]=[]
+    @MainActor static func retainWindow(_ window:NSWindow) {if !ownedWindows.contains(where:{$0 === window}) {ownedWindows.append(window)}}
+    @MainActor static func cleanupWindows() async throws {
+        defer {ownedWindows=[];witness=nil}
+        for window in NSApp.windows {retainWindow(window)}
+        for window in ownedWindows.reversed() {
+            if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)}
+            if let controller=window.windowController {controller.close()}else{window.close()}
+        }
+        try await wait {
+            FileListComparisonSession.activeOperations==0 && RepositoryModel.activeFinderAuthorityPreparations==0 && RevisionComparisonWindowModel.activeFileOperations==0 &&
+            CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && StatusWindowModel.activeOperations==0 &&
+            SynchronizationProgressModel.activeOperations==0 && SynchronizationWindowModel.activeInlineOperations==0 && SynchronizationWindowController.activeInlineReleases==0 &&
+            LogWindowModel.activeHistoryLoads==0 && LogWindowModel.activeReferenceReads==0 &&
+            ownedWindows.allSatisfy {window in
+                window.attachedSheet==nil && window.sheetParent==nil && !window.isVisible &&
+                (window.windowController as? FileComparisonWindowController)?.mergeToolHasPendingWork != true &&
+                (window.windowController as? FileComparisonWindowController)?.model.busy != true &&
+                (window.windowController as? FileComparisonWindowController)?.model.filtering != true
+            }
+        }
+    }
     struct Failure: Error, LocalizedError { let message: String; var errorDescription: String? { message } }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(message: message) } }
+    @MainActor static var phase = "starting"
+    @MainActor static var witness: (() -> String)?
+    @MainActor static func trace(_ value: String) { phase=value; print("Comparison launch phase: "+value); fflush(stdout) }
     @MainActor static func wait(_ ready: () -> Bool, line: Int = #line) async throws {
         for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(message: "Comparison launch timeout at fixture line \(line), active launches \(FileListComparisonSession.activeOperations)")
+        throw Failure(message: "Comparison launch timeout at fixture line \(line), active launches \(FileListComparisonSession.activeOperations), phase \(phase), state \(witness?() ?? "none")")
     }
     static func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
     @MainActor static func main() async {
-        do { try await verify() } catch { fputs("Comparison launch failed: \(error)\n", stderr); exit(1) }
+        let capturing=ProcessInfo.processInfo.environment["TURTLEGIT_COMPARISON_CAPTURE"]=="1"
+        let order=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,quiet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietComparisonOrder(_:relativeTo:)))!
+        let sheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!,quietSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietComparisonSheet(_:completionHandler:)))!
+        if !capturing {method_exchangeImplementations(order,quiet);method_exchangeImplementations(sheet,quietSheet)}
+        var failure:Error?
+        do {try await verify()} catch {failure=error}
+        do {try await cleanupWindows()} catch {failure=Failure(message:"\(failure.map {String(describing:$0)} ?? "verification passed"); window cleanup: \(error)")}
+        if !capturing {method_exchangeImplementations(sheet,quietSheet);method_exchangeImplementations(order,quiet)}
+        if let failure {fputs("Comparison launch failed: \(failure)\n",stderr);exit(1)}
     }
     @MainActor static func verifyFinderChoices(executable:URL,prefs:UserDefaults) async throws {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitFinderChoice-"+UUID().uuidString,isDirectory:true)
@@ -37,43 +81,72 @@ import TurtleGitCore
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:helper)})
         workspace.fileComparisonPreferences=prefs;workspace.fileComparisonQuestion={_ in true}
-        workspace.fileComparisonWindowPresentation={controller in controller.window?.orderOut(nil)}
+        var presented:[FileComparisonWindowController]=[]
+        workspace.fileComparisonWindowPresentation={controller in
+            controller.window?.alphaValue=0
+            controller.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000))
+            controller.window?.orderOut(nil)
+            presented.append(controller)
+        }
+        witness={ "Finder busy=\(workspace.busy), authority=\(workspace.finderActionAuthorityPending), pending=\(workspace.hasPendingRepositoryWork), error=\(workspace.error ?? "none"), presented=\(presented.count), retained=\(workspace.fileComparisonWindows.count), native=\(NSApp.windows.count), modal=\(NSApp.modalWindow?.title ?? "none")" }
+        func cleanup() async throws {
+            defer {witness=nil}
+            try? Data().write(to:release)
+            workspace.stopMonitoringForTermination()
+            presented.forEach {$0.close()}
+            try await wait {!workspace.busy && !workspace.hasPendingRepositoryWork && !workspace.finderActionAuthorityPending && FileListComparisonSession.activeOperations==0 && workspace.fileComparisonWindows.isEmpty && presented.allSatisfy {!$0.model.busy && !$0.model.filtering && $0.window?.attachedSheet==nil && $0.window?.isVisible != true}}
+        }
+        do {
+        trace("Finder choices adopt")
         workspace.open(root)
-        try await wait {!workspace.busy};try require(workspace.error==nil,"Private Finder context adoption failed")
+        try await wait {!workspace.busy && !workspace.finderActionAuthorityPending};try require(workspace.error==nil,"Private Finder context adoption failed")
         let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
         var observed:[Bool]=[],opened:[String]=[]
         workspace.fileComparisonPresentation={_,file in observed.append(ComparisonToolInvocation.capture);opened.append(file.path)}
         for action in [RepositoryAction.diff,.previousDiff] {
             for choice in [false,true] {
                 try? FileManager.default.removeItem(at:ready);try? FileManager.default.removeItem(at:release);try Data().write(to:enabled)
+                trace("Finder single \(action.rawValue) alternate=\(choice)")
                 let request=FinderRequest(action:action,paths:[root.appendingPathComponent(path)],alternateTool:choice)
                 observed=[];opened=[]
                 ComparisonToolInvocation.$alternate.withValue(!choice) {workspace.handle(request.url!)}
                 try await wait {FileManager.default.fileExists(atPath:ready.path)}
                 try require(ComparisonToolInvocation.alternate==nil,"Finder handoff leaked tool state into later UI actions")
                 workspace.selection=[other];try Data().write(to:release)
-                try await wait {!workspace.busy && (observed.count==1 || workspace.error != nil) && FileListComparisonSession.activeOperations==0}
+                try await wait {!workspace.busy && !workspace.finderActionAuthorityPending && (observed.count==1 || workspace.error != nil) && FileListComparisonSession.activeOperations==0}
                 try require(workspace.error==nil && observed==[choice] && opened==[path],"Finder URL lost explicit tool/path across repository discovery: "+(workspace.error ?? ""))
             }
         }
         try? FileManager.default.removeItem(at:enabled)
         for choice in [false,true] {
-            let before=Set(NSApp.windows.map {ObjectIdentifier($0)})
+            trace("Finder pair alternate=\(choice)")
+            let before=presented.count
             ComparisonToolInvocation.$alternate.withValue(!choice) {workspace.handle(FinderRequest(action:.diff,paths:[root.appendingPathComponent(path),root.appendingPathComponent(other)],alternateTool:choice).url!)}
             var owned:[FileComparisonWindowController]=[]
-            // Finder discovery, access and file reads deliberately suspend before
-            // the viewer is constructed. Observe actual presentation, not dispatch.
+            // The injected presentation callback is the exact production delivery
+            // boundary. An intentionally unordered window need not appear in
+            // NSApp.windows on every hosted SDK; retain the delivered controller.
             try await wait {
-                owned=NSApp.windows.filter {!before.contains(ObjectIdentifier($0))}.compactMap {$0.windowController as? FileComparisonWindowController}
+                owned=Array(presented.dropFirst(before))
                 return owned.count==1 || workspace.error != nil
             }
             try require(workspace.error==nil && owned.count==1 && owned[0].model.alternateTool==choice,"Finder file-pair viewer lost explicit tool choice")
-            try await wait {owned.allSatisfy {!$0.model.busy && !$0.model.filtering}}
+            try await wait {!workspace.busy && !workspace.finderActionAuthorityPending && !workspace.hasPendingRepositoryWork && owned.allSatisfy {!$0.model.busy && !$0.model.filtering}}
+            try require(presented.count==before+1 && owned.count==1 && workspace.fileComparisonWindows.values.contains {$0 === owned[0]},"Finder pair presentation lost owning workspace retention")
             try require(owned[0].model.error==nil,"Private Finder pair did not load")
             owned.forEach {$0.close()}
+            try await wait {owned.allSatisfy {$0.model.inputEncodingOwnerRetired && $0.window?.attachedSheet==nil && $0.window?.isVisible != true} && !workspace.fileComparisonWindows.values.contains {$0 === owned[0]}}
         }
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(finalHead==head && Data(contentsOf:root.appendingPathComponent(".git/index"))==index && Data(contentsOf:root.appendingPathComponent(path))==Data("working\n".utf8),"Finder tool handoffs changed repository bytes")
+        } catch {
+            let failure=error
+            fputs("Finder choice failure before cleanup: \(failure), \(witness?() ?? "none")\n",stderr)
+            do {try await cleanup()} catch {throw Failure(message:"\(failure); Finder cleanup: \(error)")}
+            throw failure
+        }
+        try await cleanup()
+        trace("Finder choices complete")
     }
     @MainActor static func verifyTools(repo: GitRepository, prefs: UserDefaults, snapshot: RevisionComparisonSnapshot) async throws {
         // Capture Shift before a delayed confirmation, then create and load the
@@ -82,6 +155,7 @@ import TurtleGitCore
             FileListComparisonSession(window: nil, preferences: prefs)
         }
         var reply: CheckedContinuation<Bool, Never>?, captured: FileComparisonWindowModel?
+        defer {session.cancel();reply?.resume(returning:false);reply=nil;captured?.retireImageLoader()}
         session.confirmation = { _ in await withCheckedContinuation { reply = $0 } }
         let launch = Task { @MainActor in
             try await session.run(selectedCount: 4) { _ in
@@ -91,7 +165,7 @@ import TurtleGitCore
         }
         try await wait { reply != nil }
         try require(ComparisonToolInvocation.alternate == nil, "Pending launch leaked its Shift choice")
-        reply?.resume(returning: true); try await launch.value
+        reply?.resume(returning: true); reply=nil; try await launch.value
         guard let captured else { throw Failure(message: "Approved comparison was not captured") }
         captured.comparisonDefaults = prefs
         var observed: [Bool] = []
@@ -192,6 +266,7 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName: suite) }
         prefs.set(3, forKey: "NumDiffWarning")
         let workspace = RepositoryModel(startMonitoring: false, initializePreferences: false)
+        defer {workspace.stopMonitoringForTermination()}
         workspace.fileComparisonPreferences = prefs
         var questions: [Int] = [], opened: [(RevisionComparisonSnapshot, CommitFile)] = []
         workspace.fileComparisonPresentation = { opened.append(($0, $1)) }
@@ -217,11 +292,12 @@ import TurtleGitCore
         try require(questions.count == 3 && opened.count == 4, "Historical threshold equality warned")
         opened = []; prefs.set(3, forKey: "NumDiffWarning")
         var reply: CheckedContinuation<Bool, Never>?
+        defer {reply?.resume(returning:false);reply=nil}
         workspace.fileComparisonQuestion = { _ in await withCheckedContinuation { reply = $0 } }
         workspace.showWorkingFiles(repository: repo, access: nil, paths: paths, owner: owner)
         try await wait { reply != nil }
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Pending question did not own Quit")
-        owner.close(); reply?.resume(returning: true)
+        owner.close(); reply?.resume(returning: true);reply=nil
         try await wait { !workspace.busy && FileListComparisonSession.activeOperations == 0 }
         try require(opened.isEmpty && workspace.error == nil, "Retired approval launched viewers")
         // A real owned alert ends on forced source-window close, independently of injection.
@@ -255,9 +331,12 @@ import TurtleGitCore
         viewer.retireImageLoader()
         try await wait { !viewer.busy && FileListComparisonSession.activeOperations == 0 }
         try require(viewer.document == nil && viewer.error == nil, "Retired blob read published a document/error")
+        trace("revision/list controls")
         try await verifyRevisionControls(repo: repo, prefs: prefs)
+        trace("Changed Files actions")
         try await verifyFileActions(executable:executable,prefs:prefs)
         try await verifyFinderChoices(executable:executable,prefs:prefs)
+        trace("captured tools and Sync changesets")
         try await verifyTools(repo: repo, prefs: prefs, snapshot: snapshot)
         // Aggregated status-list GNU patches stay one captured patch, without a many-viewer warning.
         let commit = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: prefs, dialogDefaults: prefs)
@@ -438,6 +517,7 @@ import TurtleGitCore
         exec \(quote(executable.path)) "$@"
         """
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
+        defer {try? Data().write(to:release)}
         for forced in [false,true] {
             for file in [gate,ready,release]{try? FileManager.default.removeItem(at:file)}
             let child=RevisionComparisonWindowController(repository:GitRepository(root:root,executable:helper),access:RepositoryAccessLease(url:root),from:.revision(base),to:.revision(tip),preferences:prefs,savesGeometry:false)

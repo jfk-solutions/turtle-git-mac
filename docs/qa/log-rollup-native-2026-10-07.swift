@@ -166,34 +166,67 @@ import TurtleGitCore
         precondition(updatedCell.graph == newGraph[0], "Same visible identities must still reload changed native graph snapshots")
         searched.setPathScope(["file"]); try await wait(searched); precondition(searched.canFollowRenames)
         let originalHidden = graphColumn.isHidden
+        @MainActor func graphVisibility(_ expected:Bool,_ phase:String)async throws {
+            let deadline=Date().addingTimeInterval(30)
+            while Date()<deadline {
+                graphHost.layoutSubtreeIfNeeded()
+                if graphColumn.isHidden==expected {return}
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            throw Failure(description:"Graph visibility did not settle phase=\(phase) expectedHidden=\(expected) actualHidden=\(graphColumn.isHidden) follow=\(searched.historyWalk.followRenames) busy=\(searched.busy) ownedWindow=\(graphTable.window === searched.window) savedVisible=\(String(describing:defaults.object(forKey:"Log.Column.Visible.graph")))")
+        }
         searched.toggleHistoryWalk(.followRenames); try await wait(searched)
-        for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        try await graphVisibility(true,"initial Follow hide")
         precondition(graphColumn.isHidden)
         let header = graphTable.headerView!.menu!; header.delegate?.menuNeedsUpdate?(header)
-        let graphItem=header.items.first{$0.identifier?.rawValue=="Log.Columns.graph"}!
-        precondition(!graphItem.isEnabled && graphItem.title==HistoryLabels.caption("Graph"))
+        // ColumnManager.h::AddMenuItem starts at logical column one. Graph
+        // keeps its historical persisted bit-zero preference, not a header item.
+        precondition(header.items.allSatisfy{$0.identifier?.rawValue != "Log.Columns.graph"},"Pinned header must exclude Graph even during Follow")
         searched.toggleHistoryWalk(.followRenames); try await wait(searched)
-        for _ in 0..<20 { graphHost.layoutSubtreeIfNeeded(); try await Task.sleep(nanoseconds: 10_000_000) }
+        try await graphVisibility(originalHidden,"initial Follow restoration")
         precondition(graphColumn.isHidden == originalHidden)
         header.delegate?.menuNeedsUpdate?(header)
-        let toggleGraph=header.items.first{$0.identifier?.rawValue=="Log.Columns.graph"}!
-        precondition(toggleGraph.isEnabled,"Graph command unavailable: ownedWindow=\(graphTable.window === searched.window), busy=\(searched.busy), follow=\(searched.historyWalk.followRenames)")
-        precondition(toggleGraph.image != nil,"Graph command must retain source menu icon")
-        precondition(NSApp.sendAction(toggleGraph.action!,to:toggleGraph.target,from:toggleGraph))
-        precondition(graphColumn.isHidden != originalHidden)
-        precondition(defaults.bool(forKey:"Log.Column.Visible.graph") == !graphColumn.isHidden,"Graph toggle must persist actual visibility")
+        precondition(header.items.allSatisfy{$0.identifier?.rawValue != "Log.Columns.graph"},"Pinned header must exclude Graph outside Follow")
+        // Existing saved values still control Graph. Reload the real consumer
+        // from the opposite private preference; do not invent a native toggle.
+        defaults.set(originalHidden,forKey:"Log.Column.Visible.graph")
+        searched.reload();try await wait(searched)
+        try await graphVisibility(!originalHidden,"opposite persisted preference reload")
+        precondition(graphColumn.isHidden != originalHidden,"Graph did not load its persisted bit-zero visibility")
+        precondition(defaults.bool(forKey:"Log.Column.Visible.graph") == !graphColumn.isHidden,"Graph load changed its persisted visibility")
         searched.toggleHistoryWalk(.followRenames);try await wait(searched)
-        for _ in 0..<20 {graphHost.layoutSubtreeIfNeeded();try await Task.sleep(nanoseconds:10_000_000)}
+        try await graphVisibility(true,"saved preference Follow hide")
         precondition(graphColumn.isHidden)
         searched.toggleHistoryWalk(.followRenames);try await wait(searched)
-        for _ in 0..<20 {graphHost.layoutSubtreeIfNeeded();try await Task.sleep(nanoseconds:10_000_000)}
-        precondition(graphColumn.isHidden != originalHidden,"Follow must restore user graph visibility")
+        try await graphVisibility(!originalHidden,"saved preference Follow restoration")
+        precondition(graphColumn.isHidden != originalHidden,"Follow must restore saved graph visibility")
+        defaults.set(!originalHidden,forKey:"Log.Column.Visible.graph")
+        searched.reload();try await wait(searched)
+        try await graphVisibility(originalHidden,"original persisted preference reload")
+        precondition(graphColumn.isHidden == originalHidden,"Graph did not restore its original saved visibility")
+        // A real non-Graph header command owns icon, persistence and one-use
+        // receipt coverage. Graph remains absent and unchanged throughout.
+        guard let emailColumn=graphTable.tableColumn(withIdentifier:.init("email")) else {throw Failure(description:"Native Email column missing")}
+        let emailHidden=emailColumn.isHidden
         header.delegate?.menuNeedsUpdate?(header)
-        let restoreGraph=header.items.first{$0.identifier?.rawValue=="Log.Columns.graph"}!
-        precondition(NSApp.sendAction(restoreGraph.action!,to:restoreGraph.target,from:restoreGraph))
-        precondition(graphColumn.isHidden == originalHidden)
-        precondition(NSApp.sendAction(toggleGraph.action!,to:toggleGraph.target,from:toggleGraph))
-        precondition(graphColumn.isHidden == originalHidden,"Consumed graph popup receipt must not toggle again")
+        guard let toggleEmail=header.items.first(where:{$0.identifier?.rawValue=="Log.Columns.email"}),let toggleAction=toggleEmail.action else {throw Failure(description:"Native Email header command missing")}
+        precondition(toggleEmail.isEnabled && toggleEmail.title==HistoryLabels.caption("Email"),"Email command unavailable: ownedWindow=\(graphTable.window === searched.window), busy=\(searched.busy), follow=\(searched.historyWalk.followRenames)")
+        precondition(toggleEmail.image != nil,"Native column command must retain source menu icon")
+        precondition(NSApp.sendAction(toggleAction,to:toggleEmail.target,from:toggleEmail))
+        precondition(emailColumn.isHidden != emailHidden && graphColumn.isHidden==originalHidden,"Real column command changed the wrong visibility")
+        precondition(defaults.bool(forKey:"Log.Column.Visible.email") == !emailColumn.isHidden,"Native Email toggle must persist actual visibility")
+        let toggledEmailHidden=emailColumn.isHidden
+        precondition(NSApp.sendAction(toggleAction,to:toggleEmail.target,from:toggleEmail))
+        precondition(emailColumn.isHidden==toggledEmailHidden,"Consumed column popup receipt toggled twice")
+        header.delegate?.menuNeedsUpdate?(header)
+        precondition(header.items.allSatisfy{$0.identifier?.rawValue != "Log.Columns.graph"},"Graph reappeared in refreshed header")
+        guard let restoreEmail=header.items.first(where:{$0.identifier?.rawValue=="Log.Columns.email"}),let restoreAction=restoreEmail.action else {throw Failure(description:"Fresh Email restore command missing")}
+        precondition(restoreEmail.isEnabled && restoreEmail.image != nil)
+        precondition(NSApp.sendAction(restoreAction,to:restoreEmail.target,from:restoreEmail))
+        precondition(emailColumn.isHidden == emailHidden && graphColumn.isHidden == originalHidden)
+        precondition(defaults.bool(forKey:"Log.Column.Visible.email") == !emailColumn.isHidden,"Native Email restore lost persisted visibility")
+        precondition(NSApp.sendAction(toggleAction,to:toggleEmail.target,from:toggleEmail))
+        precondition(emailColumn.isHidden == emailHidden && graphColumn.isHidden == originalHidden,"Retired column popup receipt changed restored visibility")
         print("Native search retains hidden lanes and rollup inheritance, literal/regex/invalid activity guards, same-identity graph refresh and Follow graph hide/restore; parent and repository preservation passed")
         let after = try paths.map { try Data(contentsOf: root.appendingPathComponent($0)) }; precondition(before == after)
         print("Native graph accessibility: real table cells expose image role, ordinary/root parent/lane metadata and collapsed/expanded transitions; actual boundary and representative merge/fork/working/cleared cells describe state. Existing rollup menus, masks, searches, graph refresh and parent preservation passed; repository unchanged. No physical VoiceOver or external AX-client acceptance claimed.")

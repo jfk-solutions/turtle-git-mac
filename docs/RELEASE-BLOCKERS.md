@@ -1,5 +1,22 @@
 # Local testing and release gates
 
+## History review acceptance recovery — November 25, 2026
+
+The [history checkpoint](qa/history-review-ci-recovery-2026-11-25.json) passes
+Log rollup and shared Changed Files comparison with both Git engines. The checks
+now follow the pinned exclusion of Graph from the header menu, retain persisted
+Graph/Follow behavior, and exercise a real Email header command for icons and
+one-use receipts. Finder file-pair checks observe the actual presentation callback
+and retained owner, including tool choice, exact repository bytes and close drain.
+Nested test windows/sheets stay hidden; private process data sits outside the
+repository. An initial cleanup counter-name compile error and only its affected
+recheck remain recorded. No app/Core rebuild or installed58 change was needed.
+
+The earlier hosted mixed-Log diagnostic upload failed at GitHub's artifact service
+after its native check passed. This infrastructure failure and the native fixture
+repairs do not constitute a current complete hosted CI pass or physical Finder/
+visual acceptance. No renderer capability or quality matrix was added.
+
 ## Post-handoff Rebase and command recovery — November 25, 2026
 
 The [focused recovery checkpoint](qa/rebase-command-ci-recovery-2026-11-25.json)
