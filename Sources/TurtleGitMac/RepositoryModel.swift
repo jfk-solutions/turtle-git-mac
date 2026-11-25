@@ -1191,7 +1191,7 @@ private enum TransportBatchPresentationContext {
         return (try makeRepository(FileManager.default.homeDirectoryForCurrentUser), nil, false)
     }
     private func makeRepository(_ url: URL) throws -> GitRepository {
-        try repositoryFactory?(url) ?? GitRepository(root:url,executable:GitRuntime.executable())
+        try repositoryFactory?(url) ?? GitRepository(root:url,executable:GitRuntime.executable(),sshConfigurationAccess:GitRuntime.sshConfigurationAccess)
     }
     /// A command router has no workspace view. Reuse real saved authority and
     /// the live publisher when a workspace exists, without adopting its root.
@@ -2155,7 +2155,7 @@ private enum TransportBatchPresentationContext {
             // accepted source/destination is eligible for durable registration.
             let missing=try await Task.detached {try RepositoryMetadataAccess.next(at:receipt.path,authorizedFolders:allowed,cancellation:token)}.value
             if let missing {throw RepositoryAccessFailure.repositoryRootOutsidePermission(missing.folder.path)}
-            let child=GitRepository(root:receipt.path,executable:source.executable,askpass:source.askpass,diffDetection:source.diffDetection,libgit2Configuration:source.libgit2Configuration)
+            let child=GitRepository(root:receipt.path,executable:source.executable,askpass:source.askpass,diffDetection:source.diffDetection,libgit2Configuration:source.libgit2Configuration,sshConfigurationAccess:source.sshConfigurationAccess)
             let actual=try await child.discoverRoot(cancellation:token)
             guard GitReferenceName.equal(actual.standardizedFileURL.resolvingSymlinksInPath().path,receipt.path.standardizedFileURL.resolvingSymlinksInPath().path),!(try await child.isBare(cancellation:token)) else {throw WorktreeFinderRegistrationFailure.identityChanged}
             let rows=try await source.worktrees(cancellation:token)
@@ -3680,7 +3680,7 @@ private enum TransportBatchPresentationContext {
         model.configureLogPicker = CommandProgressContext.capture { [weak self] log in self?.configureSelectableLog(log, repository: repository, access: access) }
         model.onBlame=CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:preferences) }
         model.onSubmoduleLog=CommandProgressContext.capture { [weak self,weak model] checkout,revision in
-            let child=model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            let child=model?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration,sshConfigurationAccess:repository.sshConfigurationAccess)
             self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:preferences)
         }
         model.onFilesChanged=CommandProgressContext.capture { [weak self] in
@@ -4275,7 +4275,7 @@ private enum TransportBatchPresentationContext {
             guard let self,!self.retired,!self.confirmingQuit else {return}
             let successor=serviceContext.map{FinderServiceDispatchIdentity(action:$0.action,root:path)}
             FinderServicePresentationContext.$current.withValue(successor){
-                self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:inherited,sourceWindow:controller?.window)
+                self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess),access:lease,scope:[],preferences:inherited,sourceWindow:controller?.window)
             }
         }
         controller.configureCreateInteractions=CommandProgressContext.capture { [weak self] child in self?.configureWorktreeInteractions(child) }
@@ -4317,7 +4317,7 @@ private enum TransportBatchPresentationContext {
             guard let self,!self.retired,!self.confirmingQuit else {return}
             let successor=serviceContext.map{FinderServiceDispatchIdentity(action:$0.action,root:path)}
             FinderServicePresentationContext.$current.withValue(successor){
-                self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable),access:lease,scope:[],preferences:presentedPreferences,sourceWindow:controller?.window)
+                self.showSubmoduleUpdate(repository:GitRepository(root:path,executable:repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess),access:lease,scope:[],preferences:presentedPreferences,sourceWindow:controller?.window)
             }
         }
         configureWorktreeInteractions(controller)
@@ -4479,7 +4479,7 @@ private enum TransportBatchPresentationContext {
                 return
             }
             let accepted=model.acceptedNavigationRepository ?? repository.capturingDiffBackend(preferences:defaults)
-            let child=GitRepository(root:checkout,executable:accepted.executable,askpass:accepted.askpass,diffDetection:accepted.diffDetection,libgit2Configuration:accepted.libgit2Configuration)
+            let child=GitRepository(root:checkout,executable:accepted.executable,askpass:accepted.askpass,diffDetection:accepted.diffDetection,libgit2Configuration:accepted.libgit2Configuration,sshConfigurationAccess:accepted.sshConfigurationAccess)
             if showLog { self.showLog(repository:child,access:access,paths:[],endRevision:entry.objectID,selectedRevision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
             else { self.showRepositoryBrowser(repository:child,access:access,revision:entry.objectID,preferences:defaults,sourceWindow:controller.window) }
         }
@@ -4989,7 +4989,7 @@ private enum TransportBatchPresentationContext {
         }
         model.onSubmoduleFileLog=CommandProgressContext.capture { [weak self,weak model] checkout,hash in
             guard let model,!model.isInvalidated,!model.confirmingQuit else{return}
-            let child=model.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            let child=model.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration,sshConfigurationAccess:repository.sshConfigurationAccess)
             self?.showLog(repository:child,access:access,paths:[],endRevision:hash,selectedRevision:hash,preferences:preferences)
         }
         model.onBlame=CommandProgressContext.capture { [weak self,weak model] path,hash in
@@ -5268,7 +5268,7 @@ private enum TransportBatchPresentationContext {
         }
         model.onCommitSubmodule = CommandProgressContext.capture { [weak self] checkout in
             guard !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(checkout) == true else { self?.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-            self?.showCommitDialog(repository: GitRepository(root: checkout, executable: repository.executable), access: access, paths: [], preferences: preferences)
+            self?.showCommitDialog(repository: GitRepository(root: checkout, executable: repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess), access: access, paths: [], preferences: preferences)
         }
         model.onCompare = CommandProgressContext.capture { [weak self, weak model] paths, amendToParent in
             guard let model, model.fileListAvailable, let owner = model.comparisonWindow else { return }
@@ -5394,7 +5394,7 @@ private enum TransportBatchPresentationContext {
         revisionFiles.onFileLog=CommandProgressContext.capture { [weak self] path,revision in self?.showLog(repository:repository,access:access,paths:[path],endRevision:revision,preferences:inherited) }
         revisionFiles.onBlame=CommandProgressContext.capture { [weak self] path,revision in self?.showBlame(repository:repository,access:access,path:path,revision:revision,preferences:inherited) }
         revisionFiles.onSubmoduleLog=CommandProgressContext.capture { [weak self,weak revisionFiles] checkout,revision in
-            let child=revisionFiles?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+            let child=revisionFiles?.acceptedNavigationRepository ?? GitRepository(root:checkout,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration,sshConfigurationAccess:repository.sshConfigurationAccess)
             self?.showLog(repository:child,access:access,paths:[],endRevision:revision,selectedRevision:revision,preferences:inherited)
         }
         revisionFiles.onSubmoduleCompare = CommandProgressContext.capture { [weak self] (path: String, oldPath: String?, from: ComparisonRevision, to: ComparisonRevision) -> Void in
@@ -5585,7 +5585,7 @@ private enum TransportBatchPresentationContext {
                 case .commitSuperproject:
                     guard let superproject else { return }
                     if !GitRuntime.isAppStoreBuild || access?.hasSecurityScope == true && access?.contains(superproject) == true {
-                        self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration), access: access, paths: [],preferences:preferences,presentation:presentation)
+                        self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration,sshConfigurationAccess:repository.sshConfigurationAccess), access: access, paths: [],preferences:preferences,presentation:presentation)
                     } else {
                         let panel = NSOpenPanel(); panel.canChooseDirectories = true; panel.canChooseFiles = false; panel.directoryURL = superproject
                         panel.prompt = "Authorize super project"; panel.message = "Choose the super project folder to open its Commit dialog."
@@ -5593,7 +5593,7 @@ private enum TransportBatchPresentationContext {
                             guard let self,!self.retired,!self.confirmingQuit,self.transportHandoffGeneration==generation,response == .OK, let folder = panel.url else { return }
                             let lease = RepositoryAccessLease(url: folder)
                             guard lease.hasSecurityScope, lease.contains(superproject) else { self.error = RepositoryAccessFailure.securityScopeUnavailable.localizedDescription; return }
-                            self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration), access: lease, paths: [],preferences:preferences,presentation:presentation)
+                            self.showCommitDialog(repository: GitRepository(root: superproject, executable: repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration,sshConfigurationAccess:repository.sshConfigurationAccess), access: lease, paths: [],preferences:preferences,presentation:presentation)
                         }
                     }
                 }
@@ -6283,7 +6283,7 @@ private enum TransportBatchPresentationContext {
         guard !retired, !confirmingQuit, !owner.cancellation.isCancelled else { finishCommandOutput(id); return }
         let preferences = handoff?.preferences ?? fileComparisonPreferences
         let repository = GitRepository(root: repository.root, executable: repository.executable, askpass: repository.askpass,
-            diffDetection: repository.diffDetection, libgit2Configuration: handoff?.backend ?? .load(from: preferences))
+            diffDetection: repository.diffDetection, libgit2Configuration: handoff?.backend ?? .load(from: preferences),sshConfigurationAccess:repository.sshConfigurationAccess)
         let controller = revisionGraphWindowFactory?(repository, access, preferences, false) ?? RevisionGraphWindowController(repository: repository, access: access, preferences: preferences, automaticallyLoad: false)
         if let appearance = handoff?.appearance { controller.window?.appearance = appearance }
         commandGraphWindows[id] = controller

@@ -345,7 +345,7 @@ extension FileOperationProgressState {
         let child=prefix.isEmpty ? root:root.appendingPathComponent(prefix).standardizedFileURL
         guard !prefix.hasPrefix("/"),!prefix.contains("\0"),!prefix.components(separatedBy:"/").contains(where:{$0==".." || $0.caseInsensitiveCompare(".git") == .orderedSame}),
               child.path==root.path || child.path.hasPrefix(root.path+"/"),RepositoryAccessLease.pathIsContained(child,by:root),!GitRuntime.isAppStoreBuild || access?.permits(child)==true else {onError(WorkingFileExportFailure.location.localizedDescription);return}
-        let repo=GitRepository(root:child,executable:repository.executable)
+        let repo=GitRepository(root:child,executable:repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess)
         if action == .log {
             onLog(repo,access,row.kind == .file ? [row.filePath ?? row.path]:[],row.reference?.oldHash,row.reference?.newHash);return
         }

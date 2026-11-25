@@ -46,6 +46,10 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     @Published private(set) var checkingSSH=false
     @Published private(set) var cancellingCheck=false
     @Published private(set) var selectingSSH=false
+    @Published private(set) var configurationAccessOpen=false
+    private(set) var configurationAccessController:SSHConfigurationAccessWindowController?
+    var makeConfigurationAccess:()->SSHConfigurationAccessWindowController = {SSHConfigurationAccessWindowController()}
+    var presentConfigurationAccess:(NSWindow,NSWindow)->Bool = {parent,child in guard parent.attachedSheet==nil else{return false};parent.beginSheet(child);return true}
     @Published var proxy = GitProxySettings()
     @Published var ssh = SSHClientPreferences.load()
     @Published private(set) var busy = false
@@ -80,7 +84,8 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     var bookmarkSSH:(URL)throws->Data = {try $0.bookmarkData(options:.withSecurityScope,includingResourceValuesForKeys:nil,relativeTo:nil)}
     var fieldPreferences:UserDefaults {preferences}
     var pathBase:URL {repository.root}
-    var canEditSSH:Bool {active && loaded && !busy && !selectingSSH && !GitRuntime.isAppStoreBuild}
+    var canEditSSH:Bool {active && loaded && !busy && !selectingSSH && !configurationAccessOpen && !GitRuntime.isAppStoreBuild}
+    var canManageConfigurationAccess:Bool {active && !busy && !selectingSSH && !configurationAccessOpen && window?.isVisible==true && window?.attachedSheet==nil}
     private var permissionReply: ((Bool) -> Void)?
     weak var window: NSWindow?
     init(repository: GitRepository, access: RepositoryAccessLease?, localAvailable: Bool, preferences: UserDefaults = .standard, passwords: (any ProxyPasswordStoring)? = nil) {
@@ -91,7 +96,7 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     var modified: Bool { loaded && (proxy != savedProxy || ssh != savedSSH) }
     var isActive:Bool {active}
     func acceptsCommand(_ identity:UUID)->Bool {active && editorReceipt==identity && editorIdentity==identity}
-    func acceptsEditor(_ identity:UUID)->Bool {acceptsCommand(identity) && loaded && !busy && !selectingSSH}
+    func acceptsEditor(_ identity:UUID)->Bool {acceptsCommand(identity) && loaded && !busy && !selectingSSH && !configurationAccessOpen}
     func attachPresentation(_ owner:UUID) {window=attachments.claim(owner)}
     func detachPresentation(_ owner:UUID) {if attachments.releaseOwner(owner) {window=nil;deactivate()}}
     func attachProbe(owner:UUID,identity:UUID,window:NSWindow) {if attachments.attach(owner:owner,identity:identity,window:window) {self.window=window}}
@@ -106,6 +111,7 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
         if !loaded {load()}
     }
     func deactivate() {
+        configurationAccessController?.retire()
         active=false;lifecycle=UUID();generation=UUID();editorReceipt=UUID();token?.cancel();token=nil
         let retirement=lifecycle,editor=editorReceipt
         let panel=self.panel;self.panel=nil
@@ -123,6 +129,16 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
                 if !saving {busy=false}
             }
         }
+    }
+    func showConfigurationAccess(identity:UUID) {
+        guard acceptsCommand(identity),canManageConfigurationAccess,let window else{return}
+        let activation=lifecycle,child=makeConfigurationAccess()
+        configurationAccessController=child;configurationAccessOpen=true
+        child.bindParent {[weak self,weak child] in guard let self,let child else{return false};return self.active && self.lifecycle==activation && self.editorIdentity==identity && self.configurationAccessController === child && self.window === window}
+        child.onClosed={[weak self,weak child] in guard let self,let child,self.configurationAccessController === child else{return};self.configurationAccessController=nil;self.configurationAccessOpen=false}
+        guard let childWindow=child.window else{child.retire();return}
+        childWindow.alphaValue=window.alphaValue;childWindow.appearance=window.appearance
+        if !presentConfigurationAccess(window,childWindow){child.retire()}
     }
     func editSSHPath(_ value:String,identity:UUID) {guard canEditSSH,acceptsEditor(identity) else {return};ssh.path=value;ssh.bookmark=nil;version=""}
     func useAutomaticSSH(identity:UUID) {guard canEditSSH,acceptsEditor(identity) else {return};ssh=SSHClientPreferences();version=""}
@@ -186,6 +202,7 @@ private actor ProxyPasswordCache: ProxyPasswordStoring {
     }
     func validate() -> String? {
         guard !selectingSSH else {return "Finish selecting the SSH client first."}
+        guard !configurationAccessOpen else{return "Close SSH Configuration Access first."}
         guard loaded, !busy else { return "Finish loading or checking Network settings first." }
         do { _ = try proxy.value(); if !GitRuntime.isAppStoreBuild { _ = try ssh.executable() }; return nil }
         catch { return error.localizedDescription }
@@ -313,9 +330,10 @@ struct NetworkSettingsPage: View {
                             .disabled(GitRuntime.isAppStoreBuild || !model.loaded || model.selectingSSH || model.cancellingCheck || model.busy && !model.checkingSSH)
                         Text(model.version).font(.caption).textSelection(.enabled)
                     }
+                    Button {model.showConfigurationAccess(identity:identity)} label:{CommandLabel(title:"Configuration Access…",icon:.explore)}.disabled(!model.canManageConfigurationAccess)
                     Text(GitRuntime.isAppStoreBuild ? "App Store builds use bundled OpenSSH. Existing Git SSH command overrides still apply." : "Custom clients must be OpenSSH. Git’s SSH environment and repository command overrides retain precedence.").font(.caption).foregroundStyle(.secondary).fixedSize(horizontal:false,vertical:true)
                 }.padding(10)
-            }.disabled(!model.loaded)
+            }
             if model.busy { ProgressView().controlSize(.small) }
             if let error = model.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
             if !model.loaded { Button("Retry loading") {if model.acceptsCommand(identity) {model.retry()}}.disabled(model.busy) }
@@ -330,6 +348,7 @@ struct NetworkSettingsPage: View {
         .onChange(of: model.ssh) { _ in transaction?.notify() }
         .onChange(of: model.busy) { _ in transaction?.notify() }
         .onChange(of: model.selectingSSH) { _ in transaction?.notify() }
+        .onChange(of: model.configurationAccessOpen) { _ in transaction?.notify() }
         .onDisappear {model.detachPresentation(presentation)}
     }
     private func guarded<Value>(_ value:Binding<Value>,identity:UUID)->Binding<Value> {

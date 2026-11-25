@@ -85,7 +85,7 @@ import TurtleGitCore
 
     init(repository: GitRepository, access: RepositoryAccessLease?, path: String, revision: String, options: GitBlameOptions = GitBlamePreferences.load(), preferences: UserDefaults = .standard, regexExecutable:URL? = nil, recentDocuments:BlameRecentDocuments? = nil, requireScope:Bool = GitRuntime.isAppStoreBuild, provider:any RepositoryBookmarkProvider = SystemRepositoryBookmarkProvider(),gravatar:LogGravatar? = nil) {
         self.preferences=preferences;self.recentDocuments=recentDocuments
-        documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable) });self.requireScope=requireScope;self.scopeProvider=provider
+        documentOpener=BlameDocumentOpener(requireScope:requireScope,provider:provider,factory:{ GitRepository(root:$0,executable:repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess) });self.requireScope=requireScope;self.scopeProvider=provider
         model = BlameWindowModel(repository: repository, access: access, path: path, revision: revision, options:options,labelDefaults:preferences,historyRegexExecutable:regexExecutable,gravatar:gravatar)
         let window = BlameCommandWindow(contentRect: NSRect(x: 0, y: 0, width: 1120, height: 700), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.title = "\(RepositoryBrowserGitPath.display(key:path)) at \(revision.prefix(7)) – Blame – TurtleGit"

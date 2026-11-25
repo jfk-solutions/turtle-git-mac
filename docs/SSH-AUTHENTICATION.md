@@ -39,6 +39,22 @@ active preparation and credential management; a Keychain write already in
 progress may finish before cancellation is observed. Save failures report the
 Keychain error and stop preparation before network transport begins.
 
+## SSH configuration permissions
+
+Private-key passphrases and file permissions are separate. Use
+**Settings → Network → Configuration Access…** to authorize your `.ssh`
+folder or individual configuration/known-host files. Additional `Include`
+locations outside an authorized folder require explicit access too. Folder grants
+include their contents and allow known-host file updates; TurtleGit does not
+import or rewrite the configuration.
+
+**Allow Access…**, **Renew** and **Forget** take effect immediately. Forget removes
+the saved permission, leaving files and saved authentication intact. An operation
+that already acquired access may finish; later SSH transports obtain fresh access.
+Configuration permission also applies when private-key autoload is disabled.
+See [configuration and known-host access](GIT-AUTHENTICATION.md#ssh-configuration-and-known-hosts)
+for the complete workflow.
+
 Private checks use injected Keychain storage. Live signed Keychain behavior,
 physical keyboard/theme/VoiceOver acceptance and exhaustive file-replacement
 races remain unverified. See [SSH transport audit](SSH-TRANSPORT-PARITY.md).

@@ -66,7 +66,7 @@ extension GitRepository {
                 else if stage == nil { change = .deleteSubmodule }
                 else if baseHash == stage?.object { change = .identical }
                 else if baseInfo.1 && info.1, let baseHash, let hash = stage?.object {
-                    let child = GitRepository(root: url, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: selected)
+                    let child = GitRepository(root: url, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: selected,sshConfigurationAccess:sshConfigurationAccess)
                     if try await child.replayMergeBase(from: baseHash, to: hash, cancellation: cancellation).fastForward { change = .fastForward }
                     else if try await child.replayMergeBase(from: hash, to: baseHash, cancellation: cancellation).fastForward { change = .rewind }
                     else { change = info.2 > baseInfo.2 ? .newerTime : info.2 < baseInfo.2 ? .olderTime : .sameTime }

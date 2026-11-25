@@ -64,7 +64,7 @@ struct GitPropertiesContext {
         let prefix = parent.standardizedFileURL.path + "/", child = context.repository.root.standardizedFileURL.path
         guard child.hasPrefix(prefix) else { return nil }
         let access = context.access?.contains(parent) == true ? context.access : nil
-        return GitPropertiesContext(repository: GitRepository(root: parent, executable: context.repository.executable), paths: [String(child.dropFirst(prefix.count))], access: access, submodule: true)
+        return GitPropertiesContext(repository: GitRepository(root: parent, executable: context.repository.executable,sshConfigurationAccess:context.repository.sshConfigurationAccess), paths: [String(child.dropFirst(prefix.count))], access: access, submodule: true)
     }
     func load() {
         guard !retired, !busy, !hasSettings else { return }
@@ -92,7 +92,7 @@ struct GitPropertiesContext {
                     if context.paths.count == 1, snapshot.hasSubmodule, let entry = snapshot.entries.first {
                         let child = context.repository.root.appendingPathComponent(entry.path)
                         if (!requiresScopes || context.access?.hasSecurityScope == true && context.access?.contains(child) == true), !contexts.contains(where:{ sameRoot($0.repository.root, child) }) {
-                            let repo = GitRepository(root:child,executable:context.repository.executable)
+                            let repo = GitRepository(root:child,executable:context.repository.executable,sshConfigurationAccess:context.repository.sshConfigurationAccess)
                             if let discovered = try? await repo.discoverRoot(cancellation:token), !retired, request == generation, !token.isCancelled, sameRoot(discovered, child) {
                                 contexts.append(GitPropertiesContext(repository:repo,paths:["."],access:context.access,submodule:false)); snapshots.append(nil); drafts.append(GitPropertyDraft())
                             }

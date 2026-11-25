@@ -362,16 +362,37 @@ import TurtleGitCore
         try require(delivered==ordered.filter{$0 != c.missing} && paired && nested==0 && warning.sheetParent==nil,"Root reordered/skipped mixed rows or launched before sheet drain")
         try await c.preserved()
         // Explicit Compare with base is StartDiff for U too; primary Return
-        // remains ConflictEdit. It uses accepted HEAD, never stage 1.
+        // remains ConflictEdit. U uses accepted HEAD, never stage 1; the
+        // independently applied Added row retains its empty-tree operand.
         let comparePaths=ordered.filter{[c.conflict,c.other,c.normal,c.modified].contains($0)}
         _=try await select(comparePaths,owner,active)
         delivered=[];var compared:[RevisionComparisonSnapshot]=[]
         root.fileComparisonPresentation={snapshot,file in delivered.append(file.path);compared.append(snapshot)}
         model.confirmPrimaryConflictFileActivation={_ in true}
-        model.compareConflictMenu(model.conflictFileMenu(comparePaths,markedPath:c.conflict))
-        try await wait("Explicit mixed Compare did not drain"){!model.busy && !root.hasPendingRepositoryWork}
+        let acceptedMenu=model.conflictFileMenu(comparePaths,markedPath:c.conflict)
         let acceptedHead=String(decoding:c.originalHead,as:UTF8.self).trimmingCharacters(in:.newlines)
-        try require(delivered==comparePaths && compared.count==comparePaths.count && compared.allSatisfy{$0.from == .revision(acceptedHead) && $0.to == .workingTree},"Explicit U Compare edited conflict or used stage 1")
+        @MainActor func explicitComparisonDiagnostic()->String {
+            let accepted=acceptedMenu.rows.map{"path=\(String(reflecting:$0.path)),XY=\($0.index)\($0.worktree),actions=\($0.reportingActions.rawValue),compare=\($0.comparisonAction),old=\(String(reflecting:$0.reportingOriginalPath))"}
+            let outputs=compared.map {snapshot in "from=\(snapshot.from),to=\(snapshot.to),scope=\(String(reflecting:snapshot.scopePaths)),files=\(snapshot.files.map{"\(String(reflecting:$0.path)):\($0.action):old=\(String(reflecting:$0.oldPath))"})"}
+            return "expectedOrder=\(String(reflecting:comparePaths)),delivered=\(String(reflecting:delivered)),acceptedHEAD=\(acceptedHead),rows=\(accepted),snapshots=\(outputs),error=\(String(reflecting:model.error)),busy=\(model.busy),RootPending=\(root.hasPendingRepositoryWork),sheet=\(window.attachedSheet != nil)"
+        }
+        let added=try Prior.unwrap(acceptedMenu.rows.first{GitReferenceName.equal($0.path,c.normal)},"Applied Added row missing")
+        try require(added.comparisonAction=="A" && added.reportingOriginalPath==nil,"Authored topic-only path lost its accepted Added/null operand; "+explicitComparisonDiagnostic())
+        for path in [c.conflict,c.other] {
+            let unmerged=try Prior.unwrap(acceptedMenu.rows.first{GitReferenceName.equal($0.path,path)},"Explicit U row missing")
+            try require(unmerged.reportingActions.contains(.unmerged) && unmerged.comparisonAction=="M","Actual conflict did not retain ordinary explicit-Compare policy; "+explicitComparisonDiagnostic())
+        }
+        model.compareConflictMenu(acceptedMenu)
+        do {try await wait("Explicit mixed Compare did not drain"){!model.busy && !root.hasPendingRepositoryWork}}
+        catch {fputs("Replay explicit comparison: \(explicitComparisonDiagnostic())\n",stderr);throw error}
+        try require(delivered==comparePaths && compared.count==comparePaths.count,"Explicit Compare changed accepted report order or edited conflict; "+explicitComparisonDiagnostic())
+        for (path,snapshot) in zip(comparePaths,compared) {
+            // StartDiff's Added branch is DiffNull. Only ordinary/U rows use
+            // captured HEAD; explicit U Compare must never use stage 1.
+            let expectedBase:ComparisonRevision=GitReferenceName.equal(path,c.normal) ? .emptyTree:.revision(acceptedHead)
+            let expectedAction=GitReferenceName.equal(path,c.normal) ? "A":"M"
+            try require(snapshot.from==expectedBase && snapshot.to == .workingTree && snapshot.scopePaths==[path] && snapshot.files.count==1 && snapshot.files.first?.path==path && snapshot.files.first?.action==expectedAction && snapshot.files.first?.oldPath==nil,"Explicit Compare changed accepted A/null or U/HEAD operands; "+explicitComparisonDiagnostic())
+        }
         // Hold the source warning, replace a real U stage, and require Root's
         // post-warning fresh-stage gate to reject the entire explicit compare.
         delivered=[];compared=[]

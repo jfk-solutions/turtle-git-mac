@@ -191,7 +191,7 @@ import TurtleGitCore
                     let (root,revision)=try await repository.submoduleResetTarget(entry,using:choice,cancellation:token)
                     try token.check();guard operation.live(token),!confirmingQuit,displayGeneration==display else{return}
                     let generation=operation.generation;operation.hasChild=true
-                    let child=GitRepository(root:root,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration)
+                    let child=GitRepository(root:root,executable:repository.executable,askpass:repository.askpass,diffDetection:repository.diffDetection,libgit2Configuration:repository.libgit2Configuration,sshConfigurationAccess:repository.sshConfigurationAccess)
                     onReset(child,revision){[weak self] in
                         guard let self,self.operation.active,!self.confirmingQuit,self.operation.generation==generation,self.displayGeneration==display,self.operation.hasChild else{return}
                         self.resetContinuation=(entry,choice,generation,repository);self.resumeAfterIdle()

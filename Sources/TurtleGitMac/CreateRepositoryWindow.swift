@@ -233,7 +233,7 @@ import TurtleGitCore
         acceptedCreation=outcome
         guard let root=outcome.repositoryRoot,let actualBare=outcome.isBare,access.contains(root) else{throw RepositoryAccessFailure.securityScopeUnavailable}
         try token.check();guard !retired,!confirmingQuit else{return}
-        let repo=GitRepository(root:root,executable:initializer.executable)
+        let repo=GitRepository(root:root,executable:initializer.executable,sshConfigurationAccess:initializer.sshConfigurationAccess)
         let warning=await bareResultSetup.apply(repository:repo,destination:folder,access:access,verifiedBare:actualBare,cancellation:token)
         guard !retired,!token.isCancelled else{return}
         setupWarning=warning;confirmingSuccess=true

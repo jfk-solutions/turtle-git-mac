@@ -415,10 +415,10 @@ final class ApplicationMailContext: @unchecked Sendable {
                 do {
                     try token.check()
                     if GitRuntime.isAppStoreBuild && !lease.hasSecurityScope {throw RepositoryAccessFailure.securityScopeUnavailable}
-                    let candidate = GitRepository(root: directory, executable: repository.executable)
+                    let candidate = GitRepository(root: directory, executable: repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess)
                     let root = try await candidate.discoverRoot(cancellation:token)
                     if GitRuntime.isAppStoreBuild && (!lease.hasSecurityScope || !lease.contains(root)) { throw RepositoryAccessFailure.repositoryRootOutsidePermission(root.path) }
-                    let target = GitRepository(root: root, executable: repository.executable)
+                    let target = GitRepository(root: root, executable: repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess)
                     guard try await !target.isBare(cancellation:token) else { throw FinderCommandFailure.selection }
                     guard !self.retired, self.targetGeneration == generation else { return }
                     perform(target, lease)

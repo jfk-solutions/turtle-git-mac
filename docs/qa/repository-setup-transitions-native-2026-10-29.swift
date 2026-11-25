@@ -283,19 +283,47 @@ private final class SetupIdentityBookmarks:RepositoryBookmarkProvider {
             }
             let repo=GitRepository(root:root,executable:executable,askpass:nil,libgit2Configuration:.init(mask:0))
             let model=SubmoduleAddProgressWindowModel(repository:repo,access:nil,sourceAccess:nil,keyAccess:nil,options:options,preferences:c.prefs)
-            var refreshes:[SubmoduleAddOutcome]=[],completed=0;model.onAttemptCompleted={refreshes.append($0)};model.onAdded={_ in completed += 1}
+            var refreshes:[SubmoduleAddOutcome]=[],completed=0,replacementRefreshes=0,retiredOutcome:String?,retiredPresentation:String?
+            model.onAttemptCompleted={refreshes.append($0)};model.onAdded={_ in completed += 1}
+            func receipt(_ value:SubmoduleAddOutcome)->String {
+                "phase=\(value.phase),attempted=\(value.attempted),added=\(value.added),verified=\(value.verified),configured=\(value.configured),cancelled=\(value.cancelled),receipt=\(value.receipt != nil),verificationError=\(String(reflecting:value.verificationError)),output=\(String(reflecting:String(value.output.prefix(4096))))"
+            }
+            func presentation()->String {"output=\(String(reflecting:model.output)),success=\(model.success),cancelled=\(model.cancelled),error=\(String(reflecting:model.error)),work=\(model.currentWork),percentage=\(String(describing:model.percentage)),completion=\(String(describing:model.completionRange))"}
+            func diagnostic()->String {
+                "variant=\(variant),retired=\(model.isRetired),busy=\(model.busy),pending=\(model.pendingOperations),canRetry=\(model.canRetry),success=\(model.success),cancelled=\(model.cancelled),optionalCallbacks=\(completed),replacementCallbacks=\(replacementRefreshes),error=\(String(reflecting:model.error)),model={\(receipt(model.lastOutcome))},capturedParent=[\(refreshes.map(receipt).joined(separator:"; "))],displayOutput=\(String(reflecting:String(model.output.prefix(4096))))"
+            }
             let owner=SubmoduleAddProgressWindowController(model:model);c.show(owner);model.start()
             if ["cancel","retire","precommand"].contains(variant) {
                 let pids=try await processes(gate,c)
                 if variant != "precommand" {let child=GitRepository(root:root.appendingPathComponent(options.path),executable:c.git);let oid=try await c.hash("HEAD",repository:child);try require(oid==c.head,"Submodule Add gate preceded actual clone/gitlink mutation")}
                 try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit admitted actual Add worker")
-                if variant=="retire"{owner.close()}else{model.cancel()}
+                if variant=="retire" {
+                    retiredOutcome=receipt(model.lastOutcome);retiredPresentation=presentation()
+                    owner.close()
+                    // Replacing the inactive UI callback cannot redirect the
+                    // attempt's already captured durable parent refresh.
+                    model.onAttemptCompleted={_ in replacementRefreshes += 1}
+                }else{model.cancel()}
                 try await wait("Submodule accepted command/helper drain"){model.pendingOperations==0 && pids.allSatisfy{kill($0,0) != 0}}
             }else{try await wait("Submodule actual failure/inspection drain"){!model.busy && model.pendingOperations==0}}
             if ["precommand","failure"].contains(variant) {
-                try require(!model.lastOutcome.added && !model.success && completed==0 && !FileManager.default.fileExists(atPath:root.appendingPathComponent(options.path).path),"Failed/precommand Add falsely adopted checkout")
+                let refused = !model.lastOutcome.added && !model.success && completed==0 && !FileManager.default.fileExists(atPath:root.appendingPathComponent(options.path).path)
+                if !refused {print("Submodule Add refusal diagnostic: "+diagnostic())}
+                try require(refused,"Failed/precommand Add falsely adopted checkout")
+                try require(refreshes.count==1 && !refreshes[0].added && replacementRefreshes==0,"Refused Add lost its once parent receipt: "+diagnostic())
             }else {
-                try require(model.lastOutcome.added && refreshes.count==1 && refreshes[0].added && completed==0,"Accepted Add outcome/once parent refresh lost or optional callback ran")
+                // An inactive presentation is frozen; the captured immutable
+                // attempt callback, rather than lastOutcome, owns its result.
+                let accepted = (variant=="retire" ? receipt(model.lastOutcome)==retiredOutcome && presentation()==retiredPresentation:model.lastOutcome.added) && refreshes.count==1 && refreshes[0].added && completed==0
+                if !accepted {print("Submodule Add acceptance diagnostic: "+diagnostic())}
+                try require(accepted,"Accepted Add outcome/once parent refresh lost or optional callback ran")
+                try require(replacementRefreshes==0,"Retired Add redirected its captured parent receipt: "+diagnostic())
+                if variant=="retire" {
+                    try require(model.isRetired && !model.canRetry && !model.success,"Retired Add revived active success/retry UI: "+diagnostic())
+                    let displayed=model.output
+                    model.start();model.retry()
+                    try require(model.pendingOperations==0 && model.output==displayed && refreshes.count==1 && replacementRefreshes==0 && completed==0,"Retired Add reopened or repeated its accepted attempt: "+diagnostic())
+                }
                 let staged=try await plain.run(["ls-files","--stage","--",options.path]).text
                 try require(staged=="160000 "+c.head+" 0\t"+options.path+"\n","Accepted Add index gitlink identity changed")
                 let afterAdd=try Data(contentsOf:root.appendingPathComponent(".git/index"))

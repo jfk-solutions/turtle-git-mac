@@ -1041,7 +1041,7 @@ enum MergeUnresolvedSaveChoice: Sendable {
             if let repository {askpass=repository.askpass} else {askpass=GitAskpassRuntime.bundled()}
             func atRoot(_ root: URL) -> GitRepository {
                 GitRepository(root:root, executable:git, askpass:askpass,
-                    diffDetection:repository?.diffDetection ?? .load(), libgit2Configuration:repository?.libgit2Configuration)
+                    diffDetection:repository?.diffDetection ?? .load(), libgit2Configuration:repository?.libgit2Configuration,sshConfigurationAccess:repository?.sshConfigurationAccess)
             }
             if case let .repository(root)=discovered,covers(root, with: effectivePermissions) {
                 resolved = (atRoot(root), [])

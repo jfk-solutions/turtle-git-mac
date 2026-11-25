@@ -812,7 +812,7 @@ extension GitRepository {
                 var directory: ObjCBool = false
                 guard FileManager.default.fileExists(atPath: location.path, isDirectory: &directory) else { continue }
                 guard directory.boolValue else { throw SubmoduleComparisonFailure.unsafeCheckout }
-                let child = GitRepository(root: location, executable: executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:libgit2Configuration)
+                let child = GitRepository(root: location, executable: executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:libgit2Configuration,sshConfigurationAccess:sshConfigurationAccess)
                 let discovered = try await child.discoverRoot(cancellation:cancellation)
                 // An uninitialized directory inherits its parent's root; it is not a child repository.
                 guard GitReferenceName.equal(discovered.path,location.path), try await !child.isBare(cancellation:cancellation) else { continue }

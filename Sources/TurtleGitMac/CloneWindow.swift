@@ -230,7 +230,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     private var verifiedResult:(GitRepository,RepositoryAccessLease,RepositoryAccessLease?,Bool,String)?
     private func queueVerified(_ outcome:CloneOutcome,options:CloneOptions,access:RepositoryAccessLease,keyAccess:RepositoryAccessLease?) {
         guard !verifiedDelivered,outcome.verified,let identity=outcome.identity,let acceptedRepository else{return}
-        let repo=GitRepository(root:identity.root,executable:acceptedRepository.executable,askpass:acceptedRepository.askpass,diffDetection:acceptedRepository.diffDetection,libgit2Configuration:acceptedRepository.libgit2Configuration)
+        let repo=GitRepository(root:identity.root,executable:acceptedRepository.executable,askpass:acceptedRepository.askpass,diffDetection:acceptedRepository.diffDetection,libgit2Configuration:acceptedRepository.libgit2Configuration,sshConfigurationAccess:acceptedRepository.sshConfigurationAccess)
         verifiedResult=(repo,access,options.loadSSHKeyWithAgent ? nil:keyAccess,options.bare,outcome.summary)
     }
     private func deliverVerified(){
@@ -499,7 +499,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
     private func finishDirectInspection(cancellation token:OperationCancellation,recoverConfiguration:Bool=false) async throws {
         guard let (outcome,options,destination,access,keyAccess)=pendingInspection else {return}
         let candidate:GitRepository
-        if let acceptedRepository {candidate=GitRepository(root:destination,executable:acceptedRepository.executable,askpass:acceptedRepository.askpass,diffDetection:acceptedRepository.diffDetection,libgit2Configuration:acceptedRepository.libgit2Configuration)}
+        if let acceptedRepository {candidate=GitRepository(root:destination,executable:acceptedRepository.executable,askpass:acceptedRepository.askpass,diffDetection:acceptedRepository.diffDetection,libgit2Configuration:acceptedRepository.libgit2Configuration,sshConfigurationAccess:acceptedRepository.sshConfigurationAccess)}
         else {candidate=GitRepository(root:destination,executable:try executable ?? GitRuntime.executable())}
         var verified=try await candidate.inspectCloneOutcome(outcome,at:destination,cancellation:token)
         queueVerified(verified,options:options,access:access,keyAccess:keyAccess)
@@ -511,7 +511,7 @@ typealias SSHCloneTransportFactory = @MainActor (GitRepository) -> SSHTransportC
             verified=CloneOutcome(output:verified.output,warnings:verified.warnings,repositoryRoot:verified.repositoryRoot,isBare:verified.isBare,cancelledAfterCreation:verified.cancelledAfterCreation,configurationPending:false,identity:verified.identity)
             pendingInspection=(verified,options,destination,access,keyAccess)
         }
-        let repo=options.bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable,askpass:candidate.askpass,diffDetection:candidate.diffDetection,libgit2Configuration:candidate.libgit2Configuration)
+        let repo=options.bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable,askpass:candidate.askpass,diffDetection:candidate.diffDetection,libgit2Configuration:candidate.libgit2Configuration,sshConfigurationAccess:candidate.sshConfigurationAccess)
         try token.check();guard !invalidated else {return}
         if GitRuntime.isAppStoreBuild && !access.contains(repo.root) {throw RepositoryAccessFailure.repositoryRootOutsidePermission(repo.root.path)}
         let actualBare=try await repo.isBare(cancellation:token)
@@ -792,7 +792,7 @@ enum ClonePostAction: String, Hashable {
     let destination: URL
     private let executable: URL
     let acceptedRepository:GitRepository
-    private func repositoryContext(at root:URL)->GitRepository {GitRepository(root:root,executable:acceptedRepository.executable,askpass:acceptedRepository.askpass,diffDetection:acceptedRepository.diffDetection,libgit2Configuration:backend)}
+    private func repositoryContext(at root:URL)->GitRepository {GitRepository(root:root,executable:acceptedRepository.executable,askpass:acceptedRepository.askpass,diffDetection:acceptedRepository.diffDetection,libgit2Configuration:backend,sshConfigurationAccess:acceptedRepository.sshConfigurationAccess)}
     private let destinationAccess: RepositoryAccessLease
     private let sourceAccess: RepositoryAccessLease?, keyAccess: RepositoryAccessLease?
     private let preferences: UserDefaults, autoClosePolicy: GitProgressAutoClose
@@ -841,7 +841,7 @@ enum ClonePostAction: String, Hashable {
     var bareResultSetup = BareRepositoryResultSetup()
     var inspectRepository:(GitRepository,Bool,OperationCancellation) async throws -> GitRepository = {candidate,bare,token in
         try token.check()
-        return bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable,askpass:candidate.askpass,diffDetection:candidate.diffDetection,libgit2Configuration:candidate.libgit2Configuration)
+        return bare ? candidate:GitRepository(root:try await candidate.discoverRoot(cancellation:token),executable:candidate.executable,askpass:candidate.askpass,diffDetection:candidate.diffDetection,libgit2Configuration:candidate.libgit2Configuration,sshConfigurationAccess:candidate.sshConfigurationAccess)
     }
     var statusText:String {
         if busy {return cancelling ? "Cancelling…":workPhase == .configuration ? "Saving clone SSH settings…":workPhase == .inspection ? "Opening cloned repository…":commandFinished ? "Finishing clone configuration…":"Cloning…"}

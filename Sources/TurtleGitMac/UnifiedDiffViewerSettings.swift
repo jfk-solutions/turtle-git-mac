@@ -11,11 +11,11 @@ struct NativeDiffBackendIdentity:Equatable {
 }
 extension GitRepository {
     nonisolated func capturingBackend(_ backend:GitLibGit2Configuration)->GitRepository {
-        GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend)
+        GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend,sshConfigurationAccess:sshConfigurationAccess)
     }
     @MainActor func capturingDiffBackend(preferences:UserDefaults)->GitRepository {
         let backend=GitLibGit2Configuration.load(from:preferences,helperURL:libgit2Configuration?.helperURL)
-        return GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend)
+        return GitRepository(root:root,executable:executable,askpass:askpass,diffDetection:diffDetection,libgit2Configuration:backend,sshConfigurationAccess:sshConfigurationAccess)
     }
 }
 

@@ -224,7 +224,7 @@ private final class RevertNativeWindow:NSWindow {
         validateDrop = {url,token in
             let attributes = try? FileManager.default.attributesOfItem(atPath:url.path)
             let folder = attributes?[.type] as? FileAttributeType == .typeDirectory ? url:url.deletingLastPathComponent()
-            let owner = try await GitRepository(root:folder,executable:repository.executable).discoverSelectionRoot(for:.revert,selected:url,cancellation:token)
+            let owner = try await GitRepository(root:folder,executable:repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess).discoverSelectionRoot(for:.revert,selected:url,cancellation:token)
             guard owner.standardizedFileURL.path == repository.root.standardizedFileURL.path else {throw RevertDropFailure.outsideRepository}
         }
         commands.groupsEnabled = false;commands.fileColumns = fileColumns

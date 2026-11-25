@@ -196,7 +196,7 @@ extension GitRepository {
         let neutral=try TurtleGitTemporaryStorage.root.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at:neutral,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         defer{try? FileManager.default.removeItem(at:neutral)}
-        let command=GitRepository(root:neutral,executable:plan.executable,askpass:nil,diffDetection:diffDetection,libgit2Configuration:libgit2Configuration)
+        let command=GitRepository(root:neutral,executable:plan.executable,askpass:nil,diffDetection:diffDetection,libgit2Configuration:libgit2Configuration,sshConfigurationAccess:sshConfigurationAccess)
         let before=try await command.diagnosisValues(plan,cancellation:cancellation)
         try cancellation?.check()
         guard try plan.witness==DiagnosisRootWitness.read(plan.root),

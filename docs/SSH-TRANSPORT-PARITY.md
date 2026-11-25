@@ -261,3 +261,35 @@ The grouped checkpoint passed 22 Core tests, both Debug builds and all six nativ
 case/engine runs, with every owned receiver reaped. See
 [the lifecycle batch record](qa/ssh-session-lifecycle-2026-10-16.json) for scope and
 the separate remaining hosted Merge view failure.
+
+
+## Explicit sandbox SSH file authority (2026-11-25)
+
+Settings → Network → Configuration Access… manages private security-scoped
+bookmarks for explicitly selected SSH configuration, known-host, signing and
+Include locations. It does not read file contents or recursively discover
+Includes. Folder grants include their contents; file grants do not grant adjacent
+atomic known-host replacement files. No global HOME, client, agent or Git
+configuration override is installed.
+
+The native host installs the store before repository actors are created. Derived
+actors preserve the exact captured optional store. Git execution acquires selected
+permissions before SSH or unknown transports and retains them through child
+termination, including cancellation. Named remotes and ordinary URL rewrites use Git metadata-only queries with the
+captured configuration overrides. Direct push URLs apply Git’s longest-byte-prefix
+`pushInsteadOf` policy to the captured configuration, preserving base-group tie
+order and falling back to Git’s ordinary `insteadOf` resolution. This classifier
+does not create a temporary remote or rewrite the actual transport command. Confirmed
+nonrecursive local and HTTP transports bypass unrelated unavailable grants;
+recursive submodule operations conservatively retain them for child transports.
+Local SSH signing and explicit verification retain the same authority without
+being classified as credential or TLS operations. Version and ordinary local
+metadata requests do not resolve bookmarks.
+
+The permission manager is available even when loading Network's Git configuration
+fails, so access can be repaired. Changes take effect immediately rather than
+waiting for Settings Apply. Renew, Forget, chooser replies and closure are checked
+against the current owner and grant snapshot; active operations retain their
+already accepted leases. See [authentication](GIT-AUTHENTICATION.md#ssh-configuration-and-known-hosts)
+and [privacy](PRIVACY.md) for the user-facing policy. Focused validation is recorded
+in the [batch evidence](qa/ssh-configuration-release-recovery-2026-11-25.json); it does not replace signed Powerbox or server acceptance.

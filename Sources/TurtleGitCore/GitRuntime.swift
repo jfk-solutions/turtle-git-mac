@@ -31,7 +31,19 @@ private final class GitReadPreparationRegistry: @unchecked Sendable {
     }
 }
 
+private final class SSHConfigurationAccessRegistry:@unchecked Sendable {
+    static let shared=SSHConfigurationAccessRegistry()
+    private let lock=NSLock()
+    private var store:SSHConfigurationAccessStore?
+    func install(_ value:SSHConfigurationAccessStore?) {lock.lock();store=value;lock.unlock()}
+    func snapshot()->SSHConfigurationAccessStore? {lock.lock();defer{lock.unlock()};return store}
+}
+
 public enum GitRuntime {
+    /// Native hosts opt in before constructing repositories. Core-only hosts
+    /// never implicitly restore application SSH permissions.
+    public static func installSSHConfigurationAccess(_ store:SSHConfigurationAccessStore?) {SSHConfigurationAccessRegistry.shared.install(store)}
+    public static var sshConfigurationAccess:SSHConfigurationAccessStore? {SSHConfigurationAccessRegistry.shared.snapshot()}
     public static func installReadPreparation(_ preparation: @escaping @Sendable (OperationCancellation?) throws -> Void) {
         GitReadPreparationRegistry.shared.install(preparation)
     }

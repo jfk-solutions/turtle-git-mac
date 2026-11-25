@@ -62,16 +62,25 @@ final class SSHSigningAskpassTests:XCTestCase {
         /bin/cat \(quote(response.path))
         """
         try executable(script,at:helper);try FileManager.default.createSymbolicLink(at:alias,withDestinationURL:helper);try FileManager.default.createSymbolicLink(at:explicit,withDestinationURL:helper)
-        let repo=GitRepository(root:root,executable:git,askpass:helper)
+        let bookmarks=SSHConfigurationAccessTests.Bookmarks()
+        let permissions=SSHConfigurationAccessStore(storageURL:root.appendingPathComponent("private-ssh-grants.json"),provider:bookmarks)
+        try permissions.remember(root,requireSecurityScope:true)
+        let beforeUnsigned=bookmarks.counts
+        let repo=GitRepository(root:root,executable:git,askpass:helper,sshConfigurationAccess:permissions)
         let isolated=["GIT_CONFIG_GLOBAL":"/dev/null","GIT_CONFIG_SYSTEM":"/dev/null","SSH_AUTH_SOCK":"/dev/null"]
         _=try await repo.run(["init","-b","main"],environmentOverrides:isolated)
         for (name,value) in [("user.name","Private Signing QA"),("user.email","signing@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false"),("gpg.format","ssh"),("gpg.ssh.program","/usr/bin/ssh-keygen"),("user.signingkey",key.path)] {_=try await repo.run(["config",name,value],environmentOverrides:isolated)}
         let file=root.appendingPathComponent("file");try Data("base\n".utf8).write(to:file)
         _=try await repo.run(["add","--","file"],environmentOverrides:isolated);_=try await repo.run(["commit","-m","base"],environmentOverrides:isolated)
+        XCTAssertEqual(bookmarks.counts.resolves,beforeUnsigned.resolves,"Unsigned local commit restored unrelated SSH grants")
         let initial=try await repo.run(["rev-parse","HEAD"],environmentOverrides:isolated).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         let allowed=root.appendingPathComponent("allowed-signers"),publicKey=try String(contentsOf:URL(fileURLWithPath:key.path+".pub"))
         try Data(("signing@example.invalid "+publicKey).utf8).write(to:allowed)
         for (name,value) in [("gpg.ssh.allowedSignersFile",allowed.path),("commit.gpgsign","true"),("tag.gpgsign","true")] {_=try await repo.run(["config",name,value],environmentOverrides:isolated)}
+        bookmarks.failResolve=true
+        do {_=try await repo.run(["commit","--allow-empty","-m","permission refused"],environmentOverrides:isolated);XCTFail("SSH signing bypassed an unavailable selected permission")}
+        catch {XCTAssertTrue(error is SSHConfigurationAccessFailure)}
+        bookmarks.failResolve=false
         try Data("wrong synthetic response\n".utf8).write(to:response);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:response.path)
         do {_=try await repo.run(["commit","--allow-empty","-m","signed retry"],environmentOverrides:isolated);XCTFail("Incorrect signing passphrase committed")}
         catch let failure as GitFailure {XCTAssertFalse(failure.localizedDescription.contains("wrong synthetic response"));XCTAssertFalse(failure.localizedDescription.contains(phrase))}
@@ -81,6 +90,8 @@ final class SSHSigningAskpassTests:XCTestCase {
         try Data((phrase+"\n").utf8).write(to:response)
         _=try await repo.run(["commit","--allow-empty","-m","signed retry"],environmentOverrides:isolated)
         _=try await repo.run(["verify-commit","HEAD"],environmentOverrides:isolated)
+        XCTAssertGreaterThan(bookmarks.counts.resolves,beforeUnsigned.resolves)
+        XCTAssertEqual(bookmarks.counts.starts,bookmarks.counts.stops,"Completed SSH signer retained its permission")
         _=try await repo.run(["tag","-s","-m","signed tag","signed-fixture"],environmentOverrides:isolated)
         _=try await repo.run(["verify-tag","signed-fixture"],environmentOverrides:isolated)
         _=try await repo.run(["rebase","--force-rebase","--empty=keep","--gpg-sign","--root"],environmentOverrides:isolated)
@@ -94,11 +105,15 @@ final class SSHSigningAskpassTests:XCTestCase {
         let pending=Task {try await repo.run(["tag","-s","-m","cancelled signing","cancelled-fixture"],environmentOverrides:isolated,cancellation:cancellation)}
         defer{cancellation.cancel()}
         var pids:[Int32]=[]
-        for _ in 0..<1000 {pids=((try? String(contentsOf:ready)) ?? "").split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)};if pids.count==2{break};try await Task.sleep(nanoseconds:5_000_000)}
+        do {
+            for _ in 0..<1000 {pids=((try? String(contentsOf:ready)) ?? "").split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)};if pids.count==2{break};try await Task.sleep(nanoseconds:5_000_000)}
+        }catch {cancellation.cancel();_ = await pending.result;throw error}
         XCTAssertEqual(pids.count,2,"Signing did not reach its owned askpass helper");XCTAssertTrue(pids.allSatisfy{kill($0,0)==0})
+        XCTAssertEqual(bookmarks.counts.starts,bookmarks.counts.stops+1,"Active signer lost its operation-held file permission")
         cancellation.cancel();if case .success=await pending.result {XCTFail("Cancelled signer created a tag")}
         for _ in 0..<500 where pids.contains(where:{kill($0,0)==0}) {try await Task.sleep(nanoseconds:10_000_000)}
         for pid in pids {XCTAssertNotEqual(kill(pid,0),0,"Owned signing prompt child survived command drain")}
+        XCTAssertEqual(bookmarks.counts.starts,bookmarks.counts.stops,"Cancelled signer released before drain or retained permission afterward")
         let cancelledTag=try await repo.run(["show-ref","--verify","--quiet","refs/tags/cancelled-fixture"],environmentOverrides:isolated,successfulExitCodes:0...1).exitCode
         let afterCancellation=try await repo.run(["rev-parse","HEAD"],environmentOverrides:isolated).stdout
         XCTAssertEqual(cancelledTag,1);XCTAssertEqual(afterCancellation,head)
@@ -106,5 +121,6 @@ final class SSHSigningAskpassTests:XCTestCase {
         try FileManager.default.removeItem(at:hold)
         _=try await repo.run(["tag","-s","-m","retried signing","cancelled-fixture"],environmentOverrides:isolated)
         _=try await repo.run(["verify-tag","cancelled-fixture"],environmentOverrides:isolated)
+        XCTAssertEqual(bookmarks.counts.starts,bookmarks.counts.stops)
     }
 }

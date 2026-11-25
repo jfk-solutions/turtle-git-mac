@@ -17,6 +17,9 @@ General settings. Choose the interface language, Git engine, identity and
 authentication settings in order. Git and identity choices save when their
 steps succeed; cancelling a later step keeps those earlier choices.</p>
 <p>On Authentication, <strong>Automatic OpenSSH</strong> uses the normal SSH configuration.
+For the sandboxed app to read existing configuration and known-host files, use
+<strong>Settings → Network → Configuration Access…</strong> to allow the relevant files or
+folder. See <a href="GIT-AUTHENTICATION.html#ssh-configuration-and-known-hosts">SSH file access</a>.
 Choose <strong>Custom OpenSSH</strong> to enter or browse for another OpenSSH executable.
 <strong>Check now</strong> reads its version without saving the choice; <strong>Cancel check</strong>
 stops a pending check. Finish saves a changed SSH choice before applying the

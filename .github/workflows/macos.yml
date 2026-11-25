@@ -919,6 +919,9 @@ jobs:
       - name: Native Network source layout and SSH ownership
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'replay-transport' }}
         run: python3 scripts/test-network-source-family.py
+      - name: Native SSH configuration access and owned permission sheets
+        if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'settings-finder' }}
+        run: python3 scripts/test-ssh-configuration-access.py
       - name: Grouped native exact-text Git identity, credentials and Network settings
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'settings-finder' }}
         run: >-

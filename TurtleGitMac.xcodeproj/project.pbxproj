@@ -544,6 +544,9 @@
 		FEF9E5AD87BB37D384A323E6 /* PatchCursorCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 75FE0B03E791676D94ADF1D0 /* PatchCursorCommands.swift */; };
 		FF0E5C4AB3547674CE31C89B /* PatchPageSetup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A93F4AB3BFC676A7095AACC /* PatchPageSetup.swift */; };
 		FFFC13889BFC170DAB41B92C /* GitLibGit2.swift in Sources */ = {isa = PBXBuildFile; fileRef = F551EF3478A65B697AC427F7 /* GitLibGit2.swift */; };
+		1473390B98D0B7EDA38C4776 /* SSHConfigurationAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 236334FBD9A02EE47CA4FF02 /* SSHConfigurationAccess.swift */; };
+		77E4D0E1369ACF4252197CE7 /* SSHConfigurationTransport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 902A75655FE09CE1214E9246 /* SSHConfigurationTransport.swift */; };
+		672E6697807910C501DB5348 /* SSHConfigurationAccessWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AE207B4FABFAC69009058E /* SSHConfigurationAccessWindow.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -1184,6 +1187,9 @@
 		FF512B23E2DBAC7E83B73747 /* CommitPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommitPreferences.swift; sourceTree = "<group>"; };
 		FF916A1DC9051A8C70F0370C /* FileMove.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileMove.swift; sourceTree = "<group>"; };
 		FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHIdentityAccess.swift; sourceTree = "<group>"; };
+		236334FBD9A02EE47CA4FF02 /* SSHConfigurationAccess.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConfigurationAccess.swift; sourceTree = "<group>"; };
+		902A75655FE09CE1214E9246 /* SSHConfigurationTransport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConfigurationTransport.swift; sourceTree = "<group>"; };
+		29AE207B4FABFAC69009058E /* SSHConfigurationAccessWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SSHConfigurationAccessWindow.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -1458,6 +1464,7 @@
 				1018E4684A7F74369EE313B3 /* SSHAuthenticationStore.swift */,
 				7D861E87DCA7F3D938BFDF07 /* SSHKeyGenerationWindow.swift */,
 				72865D9AC73996DD71D1991A /* SSHKeyImportWindow.swift */,
+				29AE207B4FABFAC69009058E /* SSHConfigurationAccessWindow.swift */,
 				AE84FD354494653334022AA8 /* SSHKeyPassphraseWindow.swift */,
 				EF2BD443F2E22C1D673BB60C /* SSHTransportCoordinator.swift */,
 				A3DED1F87985F333C460E700 /* StashRestoreWindow.swift */,
@@ -1800,6 +1807,8 @@
 				DC74AF01ABF5C5CFD1D6B6B7 /* SourceTextPatchApplication.swift */,
 				1955B87A0E1325E2162C4C37 /* SSHAgentSession.swift */,
 				FFA8ABAE7D9E9C611A3AA3BF /* SSHIdentityAccess.swift */,
+				902A75655FE09CE1214E9246 /* SSHConfigurationTransport.swift */,
+				236334FBD9A02EE47CA4FF02 /* SSHConfigurationAccess.swift */,
 				A6CAABC1071730FA9E23CCD4 /* SSHKeyConversion.swift */,
 				A903049DFE6395BCA1EB8078 /* SSHKeyGeneration.swift */,
 				79BBB2F306958D4D34AFF839 /* SSHTransportPreparation.swift */,
@@ -2473,6 +2482,8 @@
 				A7C474571496517A0BA42FB2 /* SMTPCertificateTransport.swift in Sources */,
 				FC70E4ECEA3F0C2EFA442E19 /* SSHAgentSession.swift in Sources */,
 				1D5A237BEB1F04360AA51C3B /* SSHIdentityAccess.swift in Sources */,
+				77E4D0E1369ACF4252197CE7 /* SSHConfigurationTransport.swift in Sources */,
+				1473390B98D0B7EDA38C4776 /* SSHConfigurationAccess.swift in Sources */,
 				C066D30D4EBBE139C4B0195F /* SSHKeyConversion.swift in Sources */,
 				084320672DDAA80261764600 /* SSHKeyGeneration.swift in Sources */,
 				F4564607AA83749B93DC5894 /* SSHTransportPreparation.swift in Sources */,
@@ -2725,6 +2736,7 @@
 				03FB132957093BAC375BD5BB /* SSHAuthenticationStore.swift in Sources */,
 				03EB74C07B887765C564C04D /* SSHKeyGenerationWindow.swift in Sources */,
 				1BA28775A9F962B4A6F1D19B /* SSHKeyImportWindow.swift in Sources */,
+				672E6697807910C501DB5348 /* SSHConfigurationAccessWindow.swift in Sources */,
 				DF0CD2448F2B8812C9593D7E /* SSHKeyPassphraseWindow.swift in Sources */,
 				25FA6351F250E4932AC95E73 /* SSHTransportCoordinator.swift in Sources */,
 				09618E8B4C40787E3C4DB1F1 /* SVNWindow.swift in Sources */,

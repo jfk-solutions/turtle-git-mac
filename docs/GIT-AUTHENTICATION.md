@@ -27,11 +27,38 @@ owned process group; cancellation uses that existing ownership. The app’s chos
 light/dark appearance is passed to the helper. The dialog uses the shared TurtleGit turtle/Git artwork from the packaged icon
 resources, matching the app and Finder menus.
 
-This implements Git CLI responses, including the generic fallback used by HTTPS
-operations. Certificate dialogs,
-OAuth manager behavior and signed inherited-sandbox execution remain separate
-acceptance work. Private checks do not prove live public-server authentication
-or every credential-helper combination. See [source audit](GIT-AUTHENTICATION-PARITY.md).
+Git's credential helpers and the server determine the available login methods.
+OAuth and browser-based login follow the configured helper's own workflow.
+Implementation and validation details are in the [source audit](GIT-AUTHENTICATION-PARITY.md).
+
+## SSH configuration and known hosts
+
+Open **Settings → Network → Configuration Access…** to allow access to
+existing SSH configuration and known-host files. Choose **Allow Access…** and
+select your `.ssh` folder, or individual files. Hidden folders are visible and
+the chooser starts at your account's `.ssh` location. You can create a folder in
+the chooser before selecting it. Additional locations referenced by `Include`
+need their own explicit selection when they fall outside an authorized folder.
+The permission manager does not parse or import their contents; the SSH client reads its files when you connect.
+
+A folder grant includes its contents and permits the SSH client to update known
+hosts, including adjacent files used during replacement. A file grant is narrower;
+choose its containing folder when the client needs to create or replace files.
+Choose actual regular files or folders rather than symbolic-link roots.
+
+Permissions take effect immediately and are independent of Settings Apply/Cancel.
+Select entries and use **Renew** to restore saved access, or **Forget** to remove
+that saved permission. Forget does not delete files, clear passphrases or interrupt
+an operation that already owns its access. Each later SSH operation obtains its
+own current permissions; a failed restoration stops that transport before launch
+so you can renew or forget the unavailable entry. Ordinary local Git reads and
+confirmed nonrecursive HTTPS/local transports do not require SSH configuration access. A recursive operation may need SSH access for a submodule even when the parent uses HTTPS.
+
+This grants file access; it does not change `HOME`, SSH commands, configuration
+paths or the login agent. Your selected SSH client still decides which files and
+host aliases it uses. Existing `GIT_SSH_COMMAND`, `core.sshCommand` and `GIT_SSH`
+choices keep their precedence. **Auto-load SSH key** and saved key passphrases are
+separate choices: disabling key autoload does not discard configuration access.
 
 ## OpenSSH prompts
 
@@ -57,16 +84,22 @@ itself guarantee cancellation of the security-key operation. SSH responses are
 limited to 1,023 UTF-8 bytes, matching the pinned OpenSSH reader. Oversized or
 multiline responses keep the dialog open instead of silently truncating input.
 
-This is a native OpenSSH adaptation, not certification of the complete upstream
-TortoisePlink host-key dialog. Live-server, security-key device and signed
-sandbox interaction remain acceptance work.
+The SSH client and server control host verification and security-key interaction.
+See the [SSH transport notes](SSH-TRANSPORT-PARITY.md) for implementation details
+and platform-specific limits.
 
 
 ## SSH signing
 
 When Git is configured to sign commits or tags with an encrypted SSH key, local
 signing commands can use the same secure OpenSSH response window. The owning
-Git operation controls cancellation. Explicit askpass helpers and requirement
+Git operation controls cancellation. In the sandboxed app, use
+**Settings → Network → Configuration Access…** to authorize the signing-key
+location and any allowed-signers file that Git needs. Active signing and explicit
+signature-verification operations retain these permissions until their children
+finish. Forgetting a permission affects later operations.
+
+Explicit askpass helpers and requirement
 settings keep their precedence; TurtleGit does not change the login agent or
 signing configuration. Existing GPG pinentry and external signing agents keep
 their configured behavior. See [Commit preparation and signing](COMMIT-IDENTITY-PARITY.md)

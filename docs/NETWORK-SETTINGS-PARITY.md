@@ -204,3 +204,23 @@ compiler/receiver processes are independently absent. See
 failure history. Complete hosted, signed sandbox, real Keychain and physical
 interaction acceptance remain open. No installed app or binary distribution
 changed.
+
+## Native SSH configuration authority
+
+The Network SSH group adds **Configuration Access…** as a macOS sandbox extension,
+independently of the selected OpenSSH executable and proxy loading. Explicit
+file/folder bookmarks, Renew/Forget snapshots and a paired-sheet manager provide
+access to existing SSH configuration and known-host storage. This control does
+not correspond to a missing Windows resource or claim full Network certification.
+The original proxy/client controls and Apply semantics remain separate; accepted
+folder permissions persist immediately even if Settings later closes with Cancel.
+
+The native host registers optional authority before repository capture. Core-only
+hosts retain no implicit application access. Derived repository contexts preserve
+the captured optional store. CLI and optional libgit2 exec transports hold their
+own access through actual process/output cleanup, with endpoint-aware metadata
+admission and conservative recursive/custom cases. Git argv, SSH environment,
+client/agent precedence and configuration contents are not rewritten. Explicit
+Include locations outside granted roots require additional user selections.
+The [user guide](GIT-AUTHENTICATION.md#ssh-configuration-and-known-hosts) describes
+the workflow; the [grouped checkpoint](qa/ssh-configuration-release-recovery-2026-11-25.json) records the actual checks and remaining signed acceptance.

@@ -486,7 +486,7 @@ struct ResolveConflictRow: Identifiable {
                     // The retry retains the original stages and is fenced to this
                     // owner; closing/reloading cannot revive an old reset callback.
                     let ownerGeneration = generation; hasChild = true
-                    onSubmoduleReset(GitRepository(root: root, executable: repository.executable), revision) { [weak self] in
+                    onSubmoduleReset(GitRepository(root: root, executable: repository.executable,sshConfigurationAccess:repository.sshConfigurationAccess), revision) { [weak self] in
                         guard let self, self.active, self.generation == ownerGeneration, self.hasChild, !self.busy else { return }
                         self.hasChild = false; self.apply(selected, using: choice)
                     }

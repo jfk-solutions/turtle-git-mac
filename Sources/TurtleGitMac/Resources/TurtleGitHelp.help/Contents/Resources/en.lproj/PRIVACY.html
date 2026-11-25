@@ -59,6 +59,15 @@ watch repositories after the main app quits. Disabling the agent stops its watch
 but retains its private saved grants for a later enable. These bookmarks are never
 placed in Finder's shared cache. Forgetting a recent entry removes
 its saved bookmark; it does not delete the Git repository.</p>
+<p>SSH configuration permissions are saved separately as owner-only bookmark/path
+metadata in the app's private Application Support directory. Only explicitly
+selected files and folders are remembered. The permission manager does not copy
+configuration, known-host or private-key contents into its archive, traverse
+<code>Include</code> directives, or send these grants to Finder or the background cache.
+Folder grants include their contents. The selected Git/SSH client reads its own
+configuration during requested operations and may update authorized known-host
+files. Forgetting a permission leaves those files and saved authentication intact;
+access already held by an active operation is released when that operation drains.</p>
 <p>The app, Finder extension and optional background service share a local cache of
 monitored repository roots, absolute file paths, statuses, repository metadata and
 publication times. It enables badges and cached menu eligibility; it contains no

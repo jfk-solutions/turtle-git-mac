@@ -14,7 +14,15 @@ public enum GitAskpassRuntime {
         // helpers must already be present in the inherited outer environment.
         let commands: Set<String> = ["clone", "fetch", "pull", "push", "ls-remote", "request-pull", "submodule", "svn", "lfs", "credential"]
         let identity=GitCommandIdentity(arguments)
-        if identity.command=="remote",let action=identity.arguments.drop(while:{["-v","--verbose","--"].contains($0)}).first,["update","prune","show"].contains(action) {return true}
+        if identity.command=="remote" {
+            let tail=identity.arguments.drop(while:{["-v","--verbose","--"].contains($0)})
+            if let action=tail.first,["update","prune","show"].contains(action) {return true}
+            if tail.first=="set-head" {
+                // An explicit branch or deletion is local. Only the automatic
+                // query can contact SSH; -- makes later strings operands.
+                return tail.dropFirst().prefix(while:{$0 != "--"}).contains{["--auto","-a"].contains($0)}
+            }
+        }
         return identity.command.map{commands.contains($0)} ?? false
     }
     /// Local history mutations can invoke ssh-keygen for gpg.format=ssh,

@@ -11,6 +11,10 @@ import UniformTypeIdentifiers
         // Capture saved authority before constructing scenes, but resolve it on
         // the shared first-read worker after the application event loop exists.
         GitConfigurationPermissions.installGitReadPreparation()
+        // Register only the native host. Core-only tools do not restore app
+        // grants; each captured repository retains permissions for its own SSH
+        // transport, independently of private-key autoload preferences.
+        GitRuntime.installSSHConfigurationAccess(.shared)
         ProgressActionLog.install()
         OperationSounds.enabled = true
         DialogGeometry.install()

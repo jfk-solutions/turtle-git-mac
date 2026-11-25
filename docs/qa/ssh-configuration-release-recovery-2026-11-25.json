@@ -1,0 +1,184 @@
+{
+  "date": "2026-11-25",
+  "baseline": "ba168aa24562bb7ed79102e00f650a165b8a797f",
+  "status": "SSH implementation and affected Add/replay checkpoint passed; broader hosted recovery remains open",
+  "implementation": [
+    "Private explicit SSH file/folder bookmark manager in Settings Network, with Renew/Forget snapshots and paired sheet retirement.",
+    "Host-only authority registration; derived repositories retain captured store; transport/signing operations retain scope through child drainage.",
+    "Nonrecursive HTTPS/local classification, recursive child authority and Git URL rewrite precedence.",
+    "Replay explicit comparison validates Added empty-tree separately from unmerged HEAD base.",
+    "Submodule Add product retirement remains unchanged: immutable captured parent result and frozen closed presentation are now required together by setup fixture.",
+    "Direct push URL authority follows pinned Git2.55.0 longest-prefix pushInsteadOf policy, base-group ties and ordinary insteadOf fallback."
+  ],
+  "initial_checkpoint": {
+    "core_log": "build/qa/ssh-configuration-core-2026-11-25.log",
+    "tests": 23,
+    "passed": 21,
+    "failed": 2,
+    "failure": "Anonymous HTTPS push classification requested SSH authority. Exact two argv identified in focused diagnostic recheck.",
+    "diagnostic_log": "build/qa/ssh-configuration-core-diagnostic-2026-11-25.log",
+    "debug_log": "build/qa/ssh-configuration-debug-2026-11-25.log",
+    "debug_failure": "Seven explicit-self compile diagnostics in new manager nested escaping callbacks; repaired without behavior change.",
+    "core_log_sha256": "104b44ee02f4ff895ac01c71b2fadc13ce2dc66ff391d81d02ec6591cde3faa1",
+    "diagnostic_log_sha256": "3d6df77482801dcb0fb3b8022bfd84c6c0b5078eec5f0ef758c5ce3ceba780b4",
+    "debug_log_sha256": "e595bf060ac12cbbb5f59a3eac4454eb6a85664c2c1a9a08a385ae056a6f0b19"
+  },
+  "limitations": [
+    "No signed Powerbox inheritance, physical Finder or real SSH server acceptance implied.",
+    "Signed56 and installed app unchanged; no binary publication/installation.",
+    "Current full hosted CI result remains outstanding; older d38 failures have independent retained evidence.",
+    "No new WMF/EMF work."
+  ],
+  "core": {
+    "unique_tests_passed": 23,
+    "retained_passes_from_first_checkpoint": 17,
+    "repaired_transport_tests": 6,
+    "repair_log": "build/qa/ssh-configuration-core-repair-2026-11-25.log",
+    "scope": "Grant archive/ABA/concurrent Forget, endpoint and recursive transport classification, exact argv/cancellation lifetime, askpass policy and actual encrypted commit/tag/rebase signing. No full Core suite."
+  },
+  "additional_failed_attempts": [
+    {
+      "log": "build/qa/ssh-release-native-permissions-2026-11-25.log",
+      "cause": "Native fixture selected async AppKit beginSheet overload without await; selected explicit completionHandler overload."
+    },
+    {
+      "log": "build/qa/ssh-release-native-permissions-repair-2026-11-25.log",
+      "cause": "NSOpenPanel directory URL trailing-slash representation differed; retain exact standardized path assertion and all file/directory/hidden/create flags."
+    },
+    {
+      "log": "build/qa/ssh-release-native-submodule-2026-11-25.log",
+      "cause": "Proposed lastOutcome publication after retirement violated existing companion frozen-presentation contract; reverted product edits and made setup fixture assert immutable captured parent result plus unchanged closed presentation."
+    }
+  ],
+  "retained_native_passes": [
+    {
+      "scope": "SSH Configuration Access",
+      "runs": 2,
+      "log": "build/qa/ssh-release-native-permissions-path-repair-2026-11-25.log"
+    },
+    {
+      "scope": "Network source",
+      "runs": 2,
+      "log": "build/qa/ssh-release-native-network-2026-11-25.log"
+    },
+    {
+      "scope": "Replay primary explicit Compare",
+      "runs": 2,
+      "log": "build/qa/ssh-release-native-replay-2026-11-25.log"
+    },
+    {
+      "scope": "Submodule Add including unchanged companion retirement contract",
+      "runs": 2,
+      "log": "build/qa/ssh-release-native-submodule-repair-2026-11-25.log"
+    }
+  ],
+  "debug_builds": [
+    {
+      "log": "build/qa/ssh-configuration-debug-repair-2026-11-25.log",
+      "exit": 0,
+      "note": "New Debug object linking and native module linkage verified; raw Xcode log includes exit-zero command diagnostics and simulator-version warning."
+    },
+    {
+      "log": "build/qa/ssh-release-debug-submodule-revert-2026-11-25.log",
+      "exit": 0,
+      "scope": "Restore unchanged Submodule product policy; no Core repetition."
+    }
+  ],
+  "native_runs_passed": 8,
+  "other_ci_work": "Verified handoff, startup readiness, one-pane Paste and libgit2 prompt cleanup are a separate uncommitted recovery cohort; no pass implied.",
+  "pinned_git_push_policy": {
+    "version": "2.55.0",
+    "archive": "build/git-runtime/Git/share/licenses/git/git-2.55.0.tar.xz",
+    "member": "git-2.55.0/remote.c",
+    "member_sha256": "592beef309df5ecdf3e15b4e8bb7538ac40796e2d973716eed5f6e31b159faaa",
+    "functions": [
+      "alias_url",
+      "add_url_alias"
+    ],
+    "policy": "Anonymous URL applies longest raw-byte pushInsteadOf prefix on original URL, first base-group order on equal lengths, or ordinary insteadOf fallback when no push alias"
+  },
+  "source_sha256": {
+    ".github/workflows/macos.yml": "19c829a7b8f569ed6dc4279b7ee7387f145138b7ab4e66b4ab2789399fdb2614",
+    "Sources/TurtleGitCore/FinderCache.swift": "d6123ae5f5c0c11f2239a7646d3946c6b94139b316cbb4e0b69d947d723eb93f",
+    "Sources/TurtleGitCore/GitAskpassRuntime.swift": "ee67ba7b1bcc30c14c723130fed48c3d0bea387378252af3b3efb42ec7bd982a",
+    "Sources/TurtleGitCore/GitRepository.swift": "6cf805ef1f4eafd978d4005c9215a7ee11defcb154d6bd243e370a984adfd913",
+    "Sources/TurtleGitCore/GitRepositoryDiagnosis.swift": "57c3ea3c10f778cb7dc689908f15c903649b647203a1913ec7a097d88a7ec2ed",
+    "Sources/TurtleGitCore/GitRuntime.swift": "04980d729882518921dd0bdccf80bd8ca36ba0df3c8171fc82b90033eb429105",
+    "Sources/TurtleGitCore/SSHConfigurationAccess.swift": "84fcad0c0b8760d6b4bd898b2dc55c64219e941586516969879a6ac8ef34f706",
+    "Sources/TurtleGitCore/SSHConfigurationTransport.swift": "566b5eb958659b30684876b5620b809f95e9cc8626ae0937281b940bb7176e5a",
+    "Sources/TurtleGitCore/SubmoduleComparison.swift": "14f85df98958c2abf2d96a3d706cb21721569df07f8f1affd3be061307db011d",
+    "Sources/TurtleGitCore/SubmoduleConflict.swift": "5998509ca1aaa61ef0358ea9ee8dc2ae386a859a7ba660f5fd1403493424d97d",
+    "Sources/TurtleGitMac/ApplicationDelegate.swift": "374f7d4111884ed2858bd814f460bf703931386a6feea512715c59c887bd6602",
+    "Sources/TurtleGitMac/BlameWindow.swift": "4ae1a1d678d653d3ed096da045a6acc791eedc72c480cf15659357c6c6647a0e",
+    "Sources/TurtleGitMac/CloneWindow.swift": "2f2664cd8f1bba81630ebbeaf3cfe87c916ceb0fea2f146e01b53a88a83a6044",
+    "Sources/TurtleGitMac/CreateRepositoryWindow.swift": "90f73db5ac391a5cfc754bae84e5cd58b17f8a483bc93c8564625d9011c1a48b",
+    "Sources/TurtleGitMac/FileOperationProgress.swift": "ad143bea10a77ec2cd103a00c7cf48af7451ef60b29b54380c792356d2d61f37",
+    "Sources/TurtleGitMac/GitPropertiesWindow.swift": "9b60181464230225cf673a2377ec9272e23e3de90fdead29f78ce86c21587a3d",
+    "Sources/TurtleGitMac/MergeComparisonControls.swift": "bcb1e0022d4b42d9de786af30ae84f3208b49f593d673e340e1c6e7b9ef4c49d",
+    "Sources/TurtleGitMac/NetworkSettings.swift": "0d91b75f1f60a97060767cc147c061c4df9c01e21effcd64158d45ba440a2a9e",
+    "Sources/TurtleGitMac/RepositoryModel.swift": "14cffa52808e6b3893ea8acf6b1870df668b47eabe2fbc4a54415e983c14bf87",
+    "Sources/TurtleGitMac/ResolveWindow.swift": "9e6fcbe2ed369659e47b7f7500277fe87633b348efe471b16cd0ebadbf666db6",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Info.plist": "c9528b21e80bb16f1a257bceabfb0af4f9f2467fcb4423e507af69465bd02975",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GETTING-STARTED.html": "c48747233c9cdbfaa96c790d894c21464cee0fbbc7122ff8a86ee1f8c81a04e3",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/GIT-AUTHENTICATION.html": "a441428ed692901d53cd8246ca395a34e8d3aef3a4462c7e0d2cbe23b7423d4c",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/PRIVACY.html": "a3eb21fe5834b778713f6477523840a6c97137dfedac64101681c09f99c0fa00",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/en.lproj/SSH-AUTHENTICATION.html": "bc00e7fcb0084d51b6414ce921f419f3080749fde1456cb828a47331cfe3da38",
+    "Sources/TurtleGitMac/Resources/TurtleGitHelp.help/Contents/Resources/manifest.json": "5e3a0261de3ffdb349835f60181b1a2fb6d8d63881d2f8ccd6ba4522d0a12183",
+    "Sources/TurtleGitMac/RevertWindow.swift": "d2561ea4b2a17ce13515756522eb7d35f333ecc0875f0bda686c9a7348dced4f",
+    "Sources/TurtleGitMac/SSHConfigurationAccessWindow.swift": "b6fee16bfa0c597bc0ecd70472767064c57fd4646257e6fa54a173c5332e7bf0",
+    "Sources/TurtleGitMac/SendPatchWindow.swift": "63abec51c85b2f99f2bc03b4a143609c658e4a77cfdfd8916701b132052296e4",
+    "Sources/TurtleGitMac/SubmoduleConflictWindow.swift": "8dd330b24e11d0b4298474f8508b59b30fd40ece47d01419e8788c1ff91f2d55",
+    "Sources/TurtleGitMac/TurtleGitMacApp.swift": "14e554815493b647ba41ea7b0892679bdaf453b7e01671fa47a7814a03454186",
+    "Sources/TurtleGitMac/UnifiedDiffViewerSettings.swift": "34a9e5d96f7ae01443ed8d327f455f2e4a141c3443b61143195624ea5c7b3cd2",
+    "Tests/TurtleGitCoreTests/GitAskpassTests.swift": "8f5ec40ed6dbccb5abf946f6c1481212daf305e98e6865b8fb71e460e1f7457d",
+    "Tests/TurtleGitCoreTests/SSHConfigurationAccessTests.swift": "ddbf4385e4bc8eb008393ba630ea999127671d2496c5b28df2e816259eb845e0",
+    "Tests/TurtleGitCoreTests/SSHConfigurationTransportTests.swift": "e1526124838e56a831f13ba12e23ca30ff5e6174ab9c04c0e8f26ab9487f23ad",
+    "Tests/TurtleGitCoreTests/SSHSigningAskpassTests.swift": "f78374ecc47b40652d918fe6855da5ced67071a0773299cc26b04be4ff95b2fd",
+    "TurtleGitMac.xcodeproj/project.pbxproj": "f5c89f82fad8a8028e41e163b83d0f6932b32c9619c584848c77281f9753364c",
+    "docs/qa/replay-recovery-primary-native-2026-11-23.swift": "49134164e3d8077ca58e178971d980db57513d3f67e87640083f184566047623",
+    "docs/qa/repository-setup-transitions-native-2026-10-29.swift": "ae711ced62eb86fe0e3bf047e528caad1626570b3a42cc2c412af05d6a610df1",
+    "docs/qa/ssh-configuration-access-native-2026-11-25.swift": "f2eb318d3b7e46a6e1d6b2247eb5699186c1e2cfabd977510d6fb79e3528184b",
+    "scripts/test-ssh-configuration-access.py": "fc3376940578bb23981509bd5d0484525b41d6c85f340435cb2ca6d841624a20"
+  },
+  "evidence_sha256": {
+    "build/qa/ssh-configuration-core-repair-2026-11-25.log": "c477bc589639df87faa4a9a5a5e124255e0ce5c507a636f098543e2a4f584bac",
+    "build/qa/ssh-release-native-permissions-path-repair-2026-11-25.log": "fb24b141b76352c4d6f84d127e7cf14730dc19352a0a0a58881e36b5d2aca576",
+    "build/qa/ssh-release-native-network-2026-11-25.log": "b5350031a28043d91d35e7662f4aea2546aa1e1a519f8c764fb0d4ad0008dea7",
+    "build/qa/ssh-release-native-replay-2026-11-25.log": "9626de9ab1deadcfa5ed8295cbb0dfadebbd16547eafeb83676b187502b9fb04",
+    "build/qa/ssh-release-native-submodule-repair-2026-11-25.log": "abb3717ffa133c6d8b2335b98408d55da1f9a0fe4d6c3ae43efcaec78c8aaa5a",
+    "build/qa/ssh-release-native-permissions-2026-11-25.log": "82baf82ee259a26071664110981322a80c416723b2b90393c642d2646d5e4fd1",
+    "build/qa/ssh-release-native-permissions-repair-2026-11-25.log": "b3c78a0ade76e8041dd8c702424db15a6ca4fec4e9c64447c5ffcaa0d3752b62",
+    "build/qa/ssh-release-native-submodule-2026-11-25.log": "9f27ead7d1a149dda06b03b093099352095b39cd0f162a6bcc204ab8ebad979a",
+    "build/qa/ssh-configuration-debug-repair-2026-11-25.log": "ed725abd2bfe5435b4f6a2281a2e77e5520eb8c5aefcf683d11e393165eb20a7",
+    "build/qa/ssh-release-debug-submodule-revert-2026-11-25.log": "2b7f0c2bf9c84b1eda4c7229a41213f6a585f6a940b7210044f7d4c2d569f0db"
+  },
+  "cleanup": {
+    "logged_owned_compiler_receiver_pids": [
+      41731,
+      41736,
+      41935,
+      41940,
+      42030,
+      42034,
+      42065,
+      42118,
+      42123,
+      42146,
+      42172,
+      42176,
+      42642,
+      42653,
+      44909,
+      47437,
+      47440,
+      47447,
+      47826
+    ],
+    "currently_present": [],
+    "scope": "Private invisible/offscreen native receivers; original subprocess and sheet drainage assertions retained."
+  },
+  "protected_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  }
+}

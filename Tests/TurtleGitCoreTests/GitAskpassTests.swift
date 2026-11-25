@@ -2,6 +2,10 @@ import XCTest
 @testable import TurtleGitCore
 
 final class GitAskpassTests: XCTestCase {
+    func testRemoteAutomaticHEADAuthenticationRespectsOperandBoundary() {
+        for args in [["remote","set-head","origin","--auto"],["remote","set-head","-a","origin"],["-c","core.sshCommand=ssh","remote","--verbose","set-head","origin","--auto"]] {XCTAssertTrue(GitAskpassRuntime.mayAuthenticate(args))}
+        for args in [["remote","set-head","origin","main"],["remote","set-head","-d","origin"],["remote","set-head","origin","--delete"],["remote","set-head","--","origin","--auto"],["remote","set-head","--","-a"]] {XCTAssertFalse(GitAskpassRuntime.mayAuthenticate(args))}
+    }
     func testSSHModeHintsAndUTF8ReadBoundary() {
         let password = GitAskpassPrompt("user@host's password:", ssh: true)
         XCTAssertTrue(password.secret)

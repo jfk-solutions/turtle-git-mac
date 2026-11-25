@@ -22,6 +22,9 @@ authentication settings in order. Git and identity choices save when their
 steps succeed; cancelling a later step keeps those earlier choices.
 
 On Authentication, **Automatic OpenSSH** uses the normal SSH configuration.
+For the sandboxed app to read existing configuration and known-host files, use
+**Settings → Network → Configuration Access…** to allow the relevant files or
+folder. See [SSH file access](GIT-AUTHENTICATION.md#ssh-configuration-and-known-hosts).
 Choose **Custom OpenSSH** to enter or browse for another OpenSSH executable.
 **Check now** reads its version without saving the choice; **Cancel check**
 stops a pending check. Finish saves a changed SSH choice before applying the

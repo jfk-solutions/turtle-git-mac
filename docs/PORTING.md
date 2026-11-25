@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## SSH file access and focused release recovery — November 25, 2026
+
+Settings → Network → Configuration Access… now saves explicit permissions for SSH
+configuration, known hosts and signing files. Git operations retain those scopes
+through child termination, including cancellation and recursive transports. The
+manager supports explicit file/folder selection, snapshot-safe Renew/Forget and
+actual sheet retirement without changing SSH client or agent precedence.
+
+The [checkpoint](qa/ssh-configuration-release-recovery-2026-11-25.json) records
+23 unique Core passes cumulatively and eight native case/engine runs. It preserves
+the initial compiler/classification/fixture failures and their repairs. Add's
+closed presentation remains frozen while its captured parent result is delivered;
+explicit replay Compare preserves Added/null and unmerged/HEAD operands. No full
+Core repeat, signed Powerbox inheritance, real SSH server or full hosted pass is
+implied. Verified handoff/startup and remaining prompt/editor CI recovery are a
+separate open cohort. Signed56 and the installed app remain unchanged.
+
 ## Shared native receiver retirement — November 25, 2026
 
 The [lifetime checkpoint](qa/native-receiver-lifetime-2026-11-25.json) migrates all

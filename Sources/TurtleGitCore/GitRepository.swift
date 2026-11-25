@@ -41,9 +41,11 @@ public actor GitRepository {
     var replayProgressObservation: RebaseProgressObservation?
     public nonisolated let diffDetection: GitDiffDetection
     public nonisolated let libgit2Configuration: GitLibGit2Configuration?
-    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load(), libgit2Configuration: GitLibGit2Configuration? = nil) {
+    public nonisolated let sshConfigurationAccess:SSHConfigurationAccessStore?
+    public init(root: URL, executable: URL = URL(fileURLWithPath: "/usr/bin/git"), askpass: URL? = GitAskpassRuntime.bundled(), diffDetection: GitDiffDetection = .load(), libgit2Configuration: GitLibGit2Configuration? = nil, sshConfigurationAccess:SSHConfigurationAccessStore? = GitRuntime.sshConfigurationAccess) {
         self.root = root.standardizedFileURL; self.executable = executable; self.askpass = askpass; self.diffDetection = diffDetection
         self.libgit2Configuration = libgit2Configuration
+        self.sshConfigurationAccess=sshConfigurationAccess
     }
     func commandInvocation(_ arguments: [String], literalPathspecs: Bool = true, executorOverride: URL? = nil) -> GitCommandInvocation {
         GitCommandInvocation(executable: executorOverride ?? executable, directory: root,
@@ -71,6 +73,8 @@ public actor GitRepository {
         let onOutput = onOutput ?? replayCommandOutput(arguments)
         let replayObservation=["rebase","commit","reset","cherry-pick"].contains(GitCommandIdentity(arguments).command ?? "") ? replayProgressObservation:nil
         try cancellation?.check()
+        var sshConfigurationPermissions:[SSHConfigurationAccess]=[]
+        defer {withExtendedLifetime(sshConfigurationPermissions) {}}
         // Both CLI and optional libgit2 executors use this boundary. Saved
         // config/include directory scopes must precede either engine's reads.
         // Only the dedicated metadata API isolates configuration/repository
@@ -116,6 +120,10 @@ public actor GitRepository {
             let contextKeys:Set<String>=["GIT_DIR","GIT_WORK_TREE","GIT_COMMON_DIR","GIT_INDEX_FILE","GIT_OBJECT_DIRECTORY","GIT_ALTERNATE_OBJECT_DIRECTORIES","GIT_SHALLOW_FILE","GIT_GRAFT_FILE","GIT_NAMESPACE","GIT_PREFIX","GIT_CONFIG"]
             for key in Array(environment.keys) where contextKeys.contains(key) || key.hasPrefix("GIT_CONFIG_") {environment.removeValue(forKey:key)}
             environment.merge(["GIT_CONFIG_GLOBAL":"/dev/null","GIT_CONFIG_SYSTEM":"/dev/null","GIT_CONFIG_NOSYSTEM":"1","GIT_CONFIG_COUNT":"0","GIT_CONFIG_PARAMETERS":""]) {_, own in own}
+        }
+        if !executableMetadata,let sshConfigurationAccess,
+           try sshConfigurationNeeded(arguments,argumentBytes:argumentBytes,environment:environment,cancellation:cancellation) {
+            sshConfigurationPermissions=try sshConfigurationAccess.acquireAll(cancellation:cancellation)
         }
         environment.removeValue(forKey: "TURTLEGIT_LIBGIT2_CERTIFICATE_ACCEPTANCES")
         let sshPrompt = executableMetadata ? [:] : GitAskpassRuntime.sshEnvironment(arguments: arguments, environment: environment, helper: askpass)

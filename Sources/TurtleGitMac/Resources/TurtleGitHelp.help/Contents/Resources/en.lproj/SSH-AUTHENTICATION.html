@@ -33,6 +33,19 @@ and retired-window replies cannot start another load or save. Quit waits for
 active preparation and credential management; a Keychain write already in
 progress may finish before cancellation is observed. Save failures report the
 Keychain error and stop preparation before network transport begins.</p>
+<h2 id="ssh-configuration-permissions">SSH configuration permissions</h2>
+<p>Private-key passphrases and file permissions are separate. Use
+<strong>Settings → Network → Configuration Access…</strong> to authorize your <code>.ssh</code>
+folder or individual configuration/known-host files. Additional <code>Include</code>
+locations outside an authorized folder require explicit access too. Folder grants
+include their contents and allow known-host file updates; TurtleGit does not
+import or rewrite the configuration.</p>
+<p><strong>Allow Access…</strong>, <strong>Renew</strong> and <strong>Forget</strong> take effect immediately. Forget removes
+the saved permission, leaving files and saved authentication intact. An operation
+that already acquired access may finish; later SSH transports obtain fresh access.
+Configuration permission also applies when private-key autoload is disabled.
+See <a href="GIT-AUTHENTICATION.html#ssh-configuration-and-known-hosts">configuration and known-host access</a>
+for the complete workflow.</p>
 <p>Private checks use injected Keychain storage. Live signed Keychain behavior,
 physical keyboard/theme/VoiceOver acceptance and exhaustive file-replacement
 races remain unverified. See <a href="https://jfk-solutions.github.io/turtle-git-mac/manual/SSH-TRANSPORT-PARITY.html">SSH transport audit</a>.</p>

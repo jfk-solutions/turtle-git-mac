@@ -73,7 +73,7 @@ extension GitRepository {
         let discovered = URL(fileURLWithPath: String(decoding: bytes, as: UTF8.self)).resolvingSymlinksInPath().standardizedFileURL
         guard discovered == location.resolvingSymlinksInPath().standardizedFileURL else { throw SubmoduleComparisonFailure.unsafeCheckout }
         try cancellation?.check()
-        return GitRepository(root: location, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: backend ?? libgit2Configuration ?? .load())
+        return GitRepository(root: location, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: backend ?? libgit2Configuration ?? .load(),sshConfigurationAccess:sshConfigurationAccess)
     }
     /// Revalidate the checkout and immutable displayed objects immediately before
     /// dispatch. Moving parent refs or child HEAD must not retarget this action.
@@ -189,7 +189,7 @@ extension GitRepository {
             else if toHash == nil { change = .deleteSubmodule }
             else if fromHash == toHash { change = .identical }
             else if let fromHash, let toHash {
-                let child = GitRepository(root: location, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: selected)
+                let child = GitRepository(root: location, executable: executable, askpass: askpass, diffDetection: diffDetection, libgit2Configuration: selected,sshConfigurationAccess:sshConfigurationAccess)
                 if try await child.replayMergeBase(from: fromHash, to: toHash, cancellation: cancellation).fastForward { change = .fastForward }
                 else if try await child.replayMergeBase(from: toHash, to: fromHash, cancellation: cancellation).fastForward { change = .rewind }
                 else { change = new.1 > old.1 ? .newerTime : new.1 < old.1 ? .olderTime : .sameTime }
