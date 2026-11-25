@@ -31,7 +31,7 @@ import TurtleGitCore
             if let owner=window.delegate as? ImportPatchWindowController {owner.close()}
             if let owner=window.delegate as? WorkingTreePatchWindowController {owner.close()}
         }
-        for _ in 0..<3000 {if ImportPatchWindowModel.activeWorkers==0{return};try? await Task.sleep(nanoseconds:10_000_000)}
+        for _ in 0..<3000 {if ImportPatchWindowModel.activeWorkers==0 && ImportPatchWindowController.activeReleases==0{return};try? await Task.sleep(nanoseconds:10_000_000)}
     }
     @MainActor static func main()async {NSApp.setActivationPolicy(.prohibited);do{try await verify();await cleanup()}catch{await cleanup();fputs("FAIL Import source: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify()async throws {
@@ -67,15 +67,38 @@ import TurtleGitCore
         model.confirmingQuit=true;flag.wrappedValue=true;model.confirmingQuit=false;flag.wrappedValue=true
         try require(!model.options.signOff,"Quit lifetime revived an option")
         // All picker replies belong to the original panel, input catalog and options.
-        var replies:[(NSApplication.ModalResponse)->Void]=[]
-        owner.presentFiles={_,_,reply in replies.append(reply)};owner.selectedFiles={_ in [files[0]]}
+        var replies:[(NSApplication.ModalResponse)->Void]=[],panels=[NSOpenPanel]()
+        owner.presentFiles={panel,parent,reply in panels.append(panel);replies.append(reply);parent.beginSheet(panel)};owner.selectedFiles={_ in [files[0]]}
+        model.selection=[ids[2]]
+        try require(model.hasPendingWork && model.editable,"Read-only preview did not retain independent worker/edit authority")
         model.addFiles(context:model.formContext)
-        try require(model.pickingFiles && !model.editable && !owner.windowShouldClose(owner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Add panel lost control/Close/Quit gate")
+        try require(panels.count==1,"Enabled Add was refused while its read-only preview drained")
+        try require(model.pickingFiles && !model.editable && panels[0].sheetParent === owner.window && owner.window?.attachedSheet === panels[0],"Add panel lost native paired ownership or control gate")
+        try require(!owner.windowShouldClose(owner.window!),"Add panel allowed parent Close")
+        try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Add panel allowed application Quit")
         let pending=model.formContext;model.option(\.signOff,context:pending).wrappedValue=true
-        replies[0](.cancel);model.addFiles(context:model.formContext);replies[0](.OK)
+        replies[0](.cancel)
+        try require(model.pickingFiles && !model.editable,"Picker callback released controls before native drain")
+        model.addFiles(context:model.formContext);try require(replies.count==1,"Undrained picker admitted replacement")
+        try await wait {!model.pickingFiles && panels[0].sheetParent==nil && owner.window?.attachedSheet==nil}
+        model.addFiles(context:model.formContext);replies[0](.OK)
         try require(model.pickingFiles && model.items.count==3,"Obsolete Add panel settled replacement")
         replies[1](.cancel)
+        try await wait {!model.pickingFiles && panels[1].sheetParent==nil && owner.window?.attachedSheet==nil}
         try require(!model.pickingFiles && !model.options.signOff,"Cancelled picker changed input")
+        // Actual Add completion preserves source order and repeated paths only
+        // after both native sheet links detach.
+        let adding=ImportPatchWindowController(repository:repo,access:nil,preferences:prefs);defer{adding.close()}
+        adding.window?.alphaValue=0;adding.window?.orderFront(nil)
+        var addReply:((NSApplication.ModalResponse)->Void)?,addPanel:NSOpenPanel?
+        adding.presentFiles={panel,parent,reply in addPanel=panel;addReply=reply;parent.beginSheet(panel)}
+        adding.selectedFiles={_ in [files[1],files[0],files[1]]}
+        adding.model.addFiles(context:adding.model.formContext);try require(addReply != nil,"Fresh Add picker did not open")
+        addReply?(.OK);addReply?(.OK)
+        try require(adding.model.items.isEmpty && adding.model.pickingFiles,"Add published files before sheet drain")
+        try await wait {!adding.model.pickingFiles && addPanel?.sheetParent==nil && adding.window?.attachedSheet==nil}
+        try require(adding.model.items.map(\.file)==[files[1],files[0],files[1]] && adding.model.items.allSatisfy(\.checked),"Native Add lost ordered checked duplicate paths")
+        adding.close();try await wait {adding.presentationClosed}
         // Retained native context menu owns its original IDs and catalog lifetime.
         model.select([ids[0]],context:model.formContext)
         try await wait {table.selectedRowIndexes==IndexSet(integer:0)}
@@ -121,6 +144,7 @@ import TurtleGitCore
         try require(dropping.model.items.isEmpty && dropping.model.error==nil,"Late drop published into closed owner")
         // Forced closure cancels the actual owned picker and ignores late OK.
         model.addFiles(context:model.formContext);let late=replies.last!;owner.close();late(.OK)
+        try await wait {owner.presentationClosed && panels.last?.sheetParent==nil && owner.window?.attachedSheet==nil}
         try require(owner.filePanel==nil && model.closed && model.items.isEmpty,"Closed picker accepted late files")
         print("PASS Import source: headerless native checks/order/menu targets, source option/default layout, exact real serial import/signoff, owned file/recovery replies and retired provider Quit lifetime")
     }

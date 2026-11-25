@@ -47,11 +47,12 @@ struct MergeFormatSourceVerification {
         prompt.encoding.selectItem(at: -1); prompt.accept()
         try require(!prompt.status.stringValue.isEmpty && owner.window?.attachedSheet === prompt.window && MergeFormatPrompt.activeDialogs == 1, "Invalid selection accepted")
         prompt.encoding.selectItem(at: 8); prompt.ending.selectItem(at: 0); prompt.accept(); prompt.accept()
-        try await wait { !model.hasPendingEditorChoice && FileComparisonWindowModel.activePaneExports == 0 && MergeFormatPrompt.activeDialogs == 0 }
+        try require(MergeFormatPrompt.activeDialogs == 1 && FileComparisonWindowModel.activePaneExports == 1,"Accepted Encoding sheet released its undrained owner")
+        try await wait { !model.hasPendingEditorChoice && FileComparisonWindowModel.activePaneExports == 0 && MergeFormatPrompt.activeDialogs == 0 && prompt.window?.sheetParent == nil && owner.window?.attachedSheet == nil && model.canTransfer(toBase:false) }
         try require(model.encoding(base: false) == .utf8BOM && model.draftText(base: false) == text && model.dirty, "Auto changed mixed endings or lost output encoding")
         model.showFormatDialog(base: false); try await wait { owner.window?.attachedSheet?.delegate is MergeFormatPrompt }
         let cancelled = owner.window!.attachedSheet!.delegate as! MergeFormatPrompt; cancelled.encoding.selectItem(at: 4); cancelled.ending.selectItem(at: 3); cancelled.cancel(); cancelled.accept()
-        try await wait { !model.hasPendingEditorChoice && FileComparisonWindowModel.activePaneExports == 0 }
+        try await wait { !model.hasPendingEditorChoice && FileComparisonWindowModel.activePaneExports == 0 && MergeFormatPrompt.activeDialogs == 0 && cancelled.window?.sheetParent == nil && owner.window?.attachedSheet == nil && model.canTransfer(toBase:false) }
         try require(model.encoding(base: false) == .utf8BOM && model.draftText(base: false) == text && !cancelled.encoding.isEnabled, "Cancel or old prompt altered the draft")
         // A native chooser is cancelled by model retirement even if its window
         // is temporarily retained for an editor replacement.

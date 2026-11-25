@@ -38,6 +38,21 @@ private extension NSWindow {
   }
   throw ReplayInspectionVerification.Failure(description:"Owned replay inspection work/windows survived cleanup")
  }
+ @MainActor static func retireRemainingWindows() {
+  for window in NSApp.windows {
+   // ARC app controllers disable release-on-close. AppKit owns disposal of
+   // autoreleasing auxiliaries; order them out without closing them twice.
+   let closeWindow = !window.isReleasedWhenClosed
+   if let sheet=window.attachedSheet {
+    let closeSheet = !sheet.isReleasedWhenClosed
+    window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)
+    if closeSheet {sheet.close()}
+   }
+   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)}
+   window.orderOut(nil)
+   if closeWindow {window.close()}
+  }
+ }
  @MainActor static func main()async throws {
   NSApplication.shared.setActivationPolicy(.prohibited)
   let suite="TurtleGit.ReplayInspection.Geometry."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
@@ -50,11 +65,11 @@ private extension NSWindow {
    try await ReplayInspectionVerification.verify(caseName:ProcessInfo.processInfo.environment["TURTLEGIT_INSPECTION_CASE"]!,root:URL(fileURLWithPath:CommandLine.arguments[1]),git:URL(fileURLWithPath:CommandLine.arguments[2]),helper:URL(fileURLWithPath:CommandLine.arguments[3]),editor:URL(fileURLWithPath:CommandLine.arguments[4]))
   }catch{
    let failure=error
-   NSApp.windows.forEach{window in if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.close()}
+   retireRemainingWindows()
    do{try await drain()}catch{throw ReplayInspectionVerification.Failure(description:"\(failure); cleanup: \(error)")}
    throw failure
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  retireRemainingWindows();try await drain()
   print("PASS: native replay inspection case completed")
  }
 }

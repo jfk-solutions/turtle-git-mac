@@ -160,8 +160,10 @@ private extension NSWindow {
         pair[0].model.setPathScope([c.nfd]);try require(exact(pair[0].model.historyPaths.first ?? "",c.nfd),"Scope setter ignored byte-different path");try await wait{!pair[0].model.busy}
         let r1=HistoryRevisionRange(from:"main",to:c.refNFC),r2=HistoryRevisionRange(from:"main",to:c.refNFD)
         for range in [r1,r2]{c.workspace.showLog(repository:c.repo,access:nil,paths:[],revisionRange:range,preferences:c.prefs,sourceWindow:c.host)}
-        let one=c.logs[c.logs.count-2],two=try unwrap(c.logs.last,"No range Log");try await wait{!one.model.busy && !two.model.busy}
-        try require(one !== two && one.model.canReuseForRange(r1) && !one.model.canReuseForRange(r2) && two.model.canReuseForRange(r2),"Range endpoint predicate collapsed ref spelling")
+        let one=c.logs[c.logs.count-2],two=try unwrap(c.logs.last,"No range Log")
+        try require(one !== two,"Byte-distinct range endpoints reused one controller")
+        try await wait{!one.model.busy && !two.model.busy && one.model.canReuseForPresentation && two.model.canReuseForPresentation}
+        try require(one !== two && one.model.canReuseForRange(r1) && !one.model.canReuseForRange(r2) && two.model.canReuseForRange(r2),"Range endpoint predicate collapsed ref spelling; oneRange=\(String(reflecting:one.model.revisionRange)),twoRange=\(String(reflecting:two.model.revisionRange)),oneReusable=\(one.model.canReuseForPresentation),twoReusable=\(two.model.canReuseForPresentation)")
         try require(!one.model.entries.contains{$0.hash==c.c} && two.model.entries.contains{$0.hash==c.c},"Range loaded other named endpoint")
         c.workspace.showLog(repository:c.repo,access:nil,paths:[],revisionRange:r1,preferences:c.prefs);try require(c.logs.last === one,"Exact range did not reuse")
         one.model.confirmingQuit=true;try require(!one.model.canReuseForRange(r1),"Quit Log remained reusable");one.model.confirmingQuit=false

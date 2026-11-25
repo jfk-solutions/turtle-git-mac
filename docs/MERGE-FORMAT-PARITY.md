@@ -51,7 +51,11 @@ validation; normal popups retain the selected initial values.
 
 Acceptance, Cancel/Escape, external sheet completion and owner closure settle
 once and disable the old controls. Native prompt lifetime is tracked independently
-for Quit. Compare now retains its actual prompt and cancels it on model retirement,
+for Quit. The chosen value is delivered only after both native sheet links detach;
+the original parent and operation counter remain owned during that drain. A format
+change can rebuild the native editor presentation, so the next Encoding command
+uses the current writable pane rather than the retired presentation epoch.
+Compare retains its actual prompt and cancels it on model retirement,
 including when an editor window is retained for replacement. Both model routes
 refuse retired/pre-start/window-changed contexts before presenting a chooser.
 

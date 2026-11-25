@@ -5,9 +5,10 @@ import TurtleGitCore
 @main struct MessageHistorySourceVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
-    @MainActor static func wait(_ ready:()->Bool) async throws {
+    @MainActor static var inspect:()->String = {"no Merge owner"}
+    @MainActor static func wait(_ phase:String="native history readiness",line:Int = #line,_ ready:()->Bool) async throws {
         for _ in 0..<500 {if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(description:"History source wait timed out")
+        throw Failure(description:"History source wait timed out: \(phase) at \(line); \(inspect())")
     }
     @MainActor static func capture(_ window:NSWindow) async throws {
         guard let folder=ProcessInfo.processInfo.environment["TURTLEGIT_HISTORY_CAPTURE"] else{return}
@@ -67,17 +68,22 @@ import TurtleGitCore
         emptyWindow.isReleasedWhenClosed=false;emptyWindow.contentView=emptyView;defer {emptyWindow.close()}
         emptyView.ok.performClick(nil);try require(emptyReplies.count==1 && emptyReplies[0]=="","Empty OK was Cancel")
         let repo=GitRepository(root:root,executable:git);_=try await repo.run(["init","-b","main"])
+        // Exercise history, not an unresolved identity-repair sheet. Real Merge
+        // preparation still owns and validates this private repository identity.
+        for (key,value) in [("user.name","History Source QA"),("user.email","history-source@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}
         let merge=MergeWindowController(repository:repo,access:nil,preferences:prefs);defer {merge.close()}
         merge.window!.alphaValue=0;merge.window!.orderFront(nil)
-        try await wait {!merge.model.busy}
+        inspect={ [weak merge] in guard let merge else{return "Merge owner released"};return "prepared=\(merge.model.prepared),busy=\(merge.model.busy),canEdit=\(merge.model.canEditMessage),history=\(merge.model.hasHistory),closed=\(merge.model.closed),sheet=\(merge.window?.attachedSheet != nil),error=\(String(reflecting:merge.model.error))"};defer{inspect={"no Merge owner"}}
+        merge.model.load()
+        try await wait("Merge prepared message admission") {!merge.model.busy && merge.model.prepared && merge.model.canEditMessage}
         merge.model.messageHistory.add(a);merge.model.messageHistory.add(b)
         var inserted:String?
         merge.model.showMessageHistory {inserted=$0}
-        try await wait {merge.window?.attachedSheet != nil}
+        try await wait("Merge native history sheet") {merge.window?.attachedSheet != nil}
         let child=merge.window!.attachedSheet!
         guard let native=child.contentView as? MessageHistoryPickerView else{throw Failure(description:"Merge did not use native history surface")}
         native.table.selectRowIndexes([0,1],byExtendingSelection:false);native.ok.performClick(nil)
-        try await wait {merge.window?.attachedSheet==nil}
+        try await wait("Merge accepted history callback and native drain") {merge.window?.attachedSheet==nil && !merge.model.hasHistory && inserted != nil}
         try require(inserted?.utf8.elementsEqual((b+"\n\n"+a).utf8)==true,"Merge sheet payload")
         merge.model.showMessageHistory {_ in inserted="late"};try await wait {merge.window?.attachedSheet != nil}
         let held=merge.window!.attachedSheet!.contentView as! MessageHistoryPickerView,late=held.table.onReturn

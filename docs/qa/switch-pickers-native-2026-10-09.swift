@@ -88,14 +88,15 @@ import TurtleGitCore
         }
         let event=try refreshEvent(refresh.window!)
         refresh.commandKeyWindow = { nil }
-        try require(!refresh.window!.performKeyEquivalent(with:event),"Foreign window accepted F5")
-        try require(!refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == false,"Background F5 refreshed the catalog")
+        let refusedForm=refresh.model.formContext,refusedNamespace=refresh.model.namespaceRevision,refusedCount=refresh.model.snapshot?.references.count
+        _ = refresh.window!.performKeyEquivalent(with:event) // AppKit may consume a refused custom command.
+        try require(!refresh.model.busy && refresh.model.formContext==refusedForm && refresh.model.namespaceRevision==refusedNamespace && refresh.model.snapshot?.references.count==refusedCount && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == false,"Background F5 refreshed the catalog")
         refresh.commandKeyWindow = { [weak refresh] in refresh?.window }
         let foreign=NSWindow(contentRect:.zero,styleMask:[],backing:.buffered,defer:false);foreign.isReleasedWhenClosed=false
         defer {foreign.close()}
-        try require(!refresh.window!.performKeyEquivalent(with:try refreshEvent(foreign)),"Foreign F5 event identity was accepted")
+        _ = refresh.window!.performKeyEquivalent(with:try refreshEvent(foreign)) // Assert no action below, independent of AppKit consumption.
         foreign.close()
-        try require(!refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == false,"Foreign F5 event refreshed the catalog")
+        try require(!refresh.model.busy && refresh.model.formContext==refusedForm && refresh.model.namespaceRevision==refusedNamespace && refresh.model.snapshot?.references.count==refusedCount && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == false,"Foreign F5 event refreshed the catalog")
         try require(refresh.window!.performKeyEquivalent(with:event),"Owned F5 not handled")
         try await wait([refresh.window!]) { !refresh.model.busy && refresh.model.snapshot?.references.contains(where:{$0.name=="refs/tags/late"}) == true }
         let lateChoice=refresh.model.snapshot!.initialSelection("refs/tags/late"); refresh.model.setFolder(lateChoice.folder); refresh.model.selected=lateChoice.reference; refresh.model.accept()

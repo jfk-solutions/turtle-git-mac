@@ -320,6 +320,15 @@ with directories and duplicate standardized paths skipped, following the source
 `CPatchListCtrl::OnDropFiles`. New entries are checked. The Add panel retains its
 separate source behavior and can add repeated paths.
 
+Add retains the original picker and parent until both native sheet links detach.
+Controls, Close and Quit remain guarded through that release. An accepted reply
+appends checked paths in picker order only while the original catalog, options
+and owner still match; duplicate, replaced or retired replies cannot append files.
+This preserves `CImportPatchDlg::OnBnClickedButtonAdd`'s ordered modal completion
+while adapting its lifetime to AppKit sheets. A background read-only preview does
+not silently refuse the enabled Add command; its own worker accounting and stale
+selection guards remain independent of picker admission.
+
 While macOS loads the URL representations, row mutations, imports, further drops,
 close and application quit are guarded. Failed providers report an error and
 restore the controls; other valid files in the drop can still be added. File

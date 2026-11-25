@@ -37,6 +37,9 @@ import TurtleGitCore
             try await Task.sleep(nanoseconds:10_000_000)
         }
         try require(!rect.isEmpty && table.window === window && window.isVisible && table.isEnabled && !table.isHiddenOrHasHiddenAncestor,"Pointer target clipped/refused: "+diagnostic())
+        if let native=table as? BlameHistoryNativeTable,let coordinator=native.dataSource as? BlameHistoryTable.Coordinator {
+            try await wait {window.contentView?.layoutSubtreeIfNeeded();return coordinator.available && table.numberOfRows==coordinator.model.historyEntries.count}
+        }
         let point=table.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil),stamp=ProcessInfo.processInfo.systemUptime
         let down=NSEvent.mouseEvent(with:.leftMouseDown,location:point,modifierFlags:flags,timestamp:stamp,windowNumber:window.windowNumber,context:nil,eventNumber:41,clickCount:1,pressure:1)!
         let up=NSEvent.mouseEvent(with:.leftMouseUp,location:point,modifierFlags:flags,timestamp:stamp+0.01,windowNumber:window.windowNumber,context:nil,eventNumber:42,clickCount:1,pressure:0)!
@@ -95,7 +98,11 @@ import TurtleGitCore
             editor.setSelectedRange(NSRange(location:3,length:8))
             try await mouse(history,row:9,column:history.column(withIdentifier:.init("message")),flags:.command)
             let line=try unwrap(model.lines.first{$0.hash==later},"Later revision lacks source lines")
-            try await wait {model.selectedLogHashes==[first,later] && model.focusedHistoryHash==later && model.selection==line.number}
+            do {try await wait {model.selectedLogHashes==[first,later] && model.focusedHistoryHash==later && model.selection==line.number}}
+            catch {
+                fputs("Blame pointer selection: selected=\(model.selectedLogHashes),expected=\([first,later]),focused=\(String(reflecting:model.focusedHistoryHash)),expectedFocus=\(later),line=\(model.selection),expectedLine=\(line.number),nativeSelection=\(history.selectedRowIndexes),inputEpoch=\(history.inputEpoch),eventEpoch=\(String(reflecting:history.selectionEventEpoch)),sourceVersion=\(model.sourceVersion),editorRange=\(editor.selectedRange())\n",stderr)
+                throw error
+            }
             var offset=0
             for text in source.prefix(line.number-1) {offset += (text as NSString).length+1}
             try require(editor.selectedRange()==NSRange(location:offset,length:(source[line.number-1] as NSString).length),"New focused multi-selection did not select its first source line")

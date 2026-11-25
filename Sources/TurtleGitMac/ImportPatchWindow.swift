@@ -19,6 +19,9 @@ import TurtleGitCore
     private var mailCompletion:((String?)->Void)?
     private(set) var filePanel:NSOpenPanel?
     private var filePanelID=UUID()
+    private var filePanelParent:NSWindow?
+    private var filePanelFinishing=false
+    private var filePanelReleaseTask:Task<Void,Never>?
     private var question:(UUID,NSAlert,(NSApplication.ModalResponse)->Void)?
     var presentFiles:(NSOpenPanel,NSWindow,@escaping (NSApplication.ModalResponse)->Void)->Void = {panel,owner,reply in panel.beginSheetModal(for:owner,completionHandler:reply)}
     var selectedFiles:(NSOpenPanel)->[URL] = {$0.urls}
@@ -26,7 +29,7 @@ import TurtleGitCore
     private var patch: PatchWindowController?
     private var review: WorkingTreePatchWindowController?
     private var sendPatch: SendMailWorkflow?
-    var activeOperation: Bool { model.hasPendingWork || identitySession?.hasPendingWork == true || releaseTask != nil || model.pickingFiles || model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
+    var activeOperation: Bool { model.hasPendingWork || identitySession?.hasPendingWork == true || releaseTask != nil || filePanelReleaseTask != nil || model.pickingFiles || model.confirmingQuit || model.receivingDrop || model.busy || model.closing || model.openingViewer || model.composingMail || window?.attachedSheet != nil || patch?.model.busy == true || patch?.window?.attachedSheet != nil || review?.activeOperation == true }
     init(repository: GitRepository, access: RepositoryAccessLease?, preferences: UserDefaults = .standard, mailPresentation: ((NSWindowController) -> Void)? = nil) {
         model = ImportPatchWindowModel(repository: repository, access: access, preferences: preferences)
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 800, height: 620), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
@@ -131,16 +134,28 @@ import TurtleGitCore
         }
     }
     private func chooseFiles() {
-        guard !activeOperation,model.editable,let window else{return}
+        // A read-only preview may still be draining after row selection. It
+        // does not own the catalog or disable Add; native questions do.
+        guard !retired,model.editable,filePanel==nil,filePanelReleaseTask==nil,
+              identitySession?.hasPendingWork != true,releaseTask==nil,
+              let window,window.attachedSheet==nil else{return}
         let catalog=model.catalogRevision,flags=model.optionIdentity,id=UUID();filePanelID=id
-        let panel=NSOpenPanel();filePanel=panel;model.pickingFiles=true
+        let panel=NSOpenPanel();filePanel=panel;filePanelParent=window;filePanelFinishing=false;model.pickingFiles=true
         panel.allowsMultipleSelection=true;panel.canChooseDirectories=false
-        panel.title="Add patches";panel.directoryURL=model.repository.root
+        panel.title="Add patches";panel.directoryURL=model.repository.root;panel.alphaValue=window.alphaValue;panel.appearance=window.effectiveAppearance
         presentFiles(panel,window) { [weak self,weak panel] response in
-            guard let self,let panel,self.filePanelID==id,self.filePanel === panel else{return}
-            self.filePanel=nil;self.model.pickingFiles=false
-            guard response == .OK,self.model.editable,self.model.catalogRevision==catalog,self.model.optionIdentity==flags else{return}
-            self.model.add(self.selectedFiles(panel))
+            guard let self,let panel,self.filePanelID==id,self.filePanel === panel,!self.filePanelFinishing else{return}
+            self.filePanelFinishing=true
+            let files=response == .OK ? self.selectedFiles(panel):[]
+            self.filePanelReleaseTask=Task{@MainActor [self] in
+                await FileOperationWindowDrain.detach(panel,parent:window)
+                panel.close()
+                let current = !self.retired && self.filePanelID==id && self.filePanel === panel && self.window === window
+                if self.filePanel === panel {self.filePanel=nil;self.filePanelParent=nil;self.model.pickingFiles=false}
+                self.filePanelReleaseTask=nil
+                guard current,response == .OK,self.model.editable,self.model.catalogRevision==catalog,self.model.optionIdentity==flags else{return}
+                self.model.add(files)
+            }
         }
     }
     func windowShouldClose(_ sender: NSWindow) -> Bool {
@@ -159,7 +174,7 @@ import TurtleGitCore
         guard !retired else{return};retired=true
         model.invalidate();identitySession.retire();filePanelID=UUID()
         if let pending=question {settleQuestion(pending.0,.abort)}
-        let panel=filePanel;filePanel=nil
+        let panel=filePanel,panelParent=filePanelParent;filePanel=nil;filePanelParent=nil
         if let panel {panel.sheetParent?.endSheet(panel,returnCode:.cancel);panel.orderOut(nil);panel.cancel(nil);panel.close()}
         let retiredPatch=patch,retiredReview=review,mailOptions=sendPatch?.options,mailProgress=sendPatch?.progress
         let retiringMail=sendPatch != nil
@@ -173,7 +188,7 @@ import TurtleGitCore
         releaseTask=Task{@MainActor [self] in
             // Forced closure retires UI immediately; ownership ends only when
             // actual reads, Git children, Settings and attached sheets drain.
-            while identitySession.hasPendingWork || panel?.sheetParent != nil || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) || retiredPatch?.model.busy==true || retiredPatch?.window?.attachedSheet != nil || retiredReview?.hasPendingWork==true || mailOptions?.hasPendingWork==true || mailProgress?.model.hasPendingWork==true || mailOptions?.window?.attachedSheet != nil || mailProgress?.window?.attachedSheet != nil {
+            while identitySession.hasPendingWork || filePanelReleaseTask != nil || panel?.sheetParent != nil || (panel != nil && panelParent?.attachedSheet === panel) || owner?.attachedSheet != nil || owner?.sheetParent != nil || (owner != nil && parent?.attachedSheet === owner) || retiredPatch?.model.busy==true || retiredPatch?.window?.attachedSheet != nil || retiredReview?.hasPendingWork==true || mailOptions?.hasPendingWork==true || mailProgress?.model.hasPendingWork==true || mailOptions?.window?.attachedSheet != nil || mailProgress?.window?.attachedSheet != nil {
                 try? await Task.sleep(nanoseconds:5_000_000)
             }
             if retiringMail {let done=mailCompletion;mailCompletion=nil;done?(nil)}

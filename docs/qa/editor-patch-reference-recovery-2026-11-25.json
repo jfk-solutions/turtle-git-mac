@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-25",
+  "baseline": "12c49a1f24d8cefb65d3d8c95582c9f1639e9eaa",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "status": "focused-native-scopes-passed-cumulatively",
+  "source_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "b4ad049964933d4038da9edc027c64af0011dbdd4247f01699cdec8ede2f3fe2",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "98f046b1ad9bffae87a141e95f84397085ade92cea663ce5e4922e64f849ffa2",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "13a60b75cf5bbb31b237273b5163cb5624076b658a6394a8d8269a49ee929b0e",
+    "docs/qa/blame-revision-focus-native-2026-11-23.swift": "f2528bf5854587a08c202b1b9199c948eedb03a843b92082b9617865799283cd",
+    "docs/qa/editor-appearance-native-2026-10-25.swift": "9d944415887d8e8f80777fc619e6b544f3bed969981e5c2ca8f1e6745373a035",
+    "docs/qa/import-source-native-2026-10-17.swift": "c82e2807730c5d797e6b2362b09756cb4275fa44e31c2da7f709028bd9a187f2",
+    "docs/qa/merge-format-native-2026-10-12.swift": "995e1e57db568bfccf37ceb1fda23f105fdbe56d996d6d074f10cf706ab98001",
+    "docs/qa/merge-format-source-native-2026-10-17.swift": "a438f5de05d2a78e0907078e48cf0e3f72af142dd69761bdf623c052321270b8",
+    "docs/qa/merge-pickers-native-2026-10-09.swift": "bfaea27d5690fabca17fc213d34941fec6268584e69980f2e8dcce181387099c",
+    "docs/qa/merge-toolbar-native-2026-10-15.swift": "a3f254e7d052a4dc2fd494a735ba63ad7ef63b246ea64801ba8a0c23b2601cf3",
+    "docs/qa/message-history-source-native-2026-10-17.swift": "af10e7ea557f9a6535622c11375409465292dacd0b0561c0e0cb8437960ff6c7",
+    "docs/qa/rebase-file-drags-native-2026-10-23.swift": "3aee50e3da94006aa0d5f9719e3401cf939feb038ff0c9ac62f80b74843dfa86",
+    "docs/qa/replay-inspection-native-2026-10-20.swift": "6c2e58c6fe0d9dab4a0a20d5e01a5e40f86993c9691deea35294334f06c1a293",
+    "docs/qa/switch-pickers-native-2026-10-09.swift": "902555fb76f6f3d7983b98828e16af09b0c6e58675ee8143eb796aa4cf8709b6",
+    "docs/qa/window-byte-identities-native-2026-10-23.swift": "dadf40dda7706c7cd69371284663894b62b95de1296a5b4cd03015e2e3422b7b",
+    "scripts/test-replay-inspection-native.py": "33c1be1d1954abf8130defa71a98861370611981568f7719fc02f257caffa810"
+  },
+  "fixes": [
+    "Import Add admits its enabled command during a harmless background preview read; picker acceptance preserves ordered selected files and original catalog/options/owner through actual paired-sheet drainage.",
+    "Encoding completion and active-dialog lifetime remain owned until both native sheet links detach, preserving real accepted format changes and stale/duplicate refusal.",
+    "Toolbar overflow honors source artwork and context-icon preferences on effective AppKit-generated representations, preserves native submenu containers and authored leaf dispatch, and retires retained leaf actions."
+  ],
+  "fixture_alignment": [
+    "F5 negative hidden/non-key events preserve form/catalog state while positive owned native refresh remains required.",
+    "Message History loads genuine Merge preparation with private configured Git identity and waits for accepted native sheet drainage.",
+    "Replay recovery uses the selected backend, the same captured repository actor and an admissible descendant range before inducing actual Git failure with an unmerged index.",
+    "Paused replay dragging exercises the real native conflict coordinator and private pasteboard, retaining exact selected-order/payload/index/HEAD and stale-owner assertions.",
+    "Blame and Log byte-identity checks await the actual current native presentation before strict pointer-selection and distinct endpoint/reuse assertions.",
+    "Commit patch appearance checks select an actual Git Gui row; an empty selection correctly has no preview document."
+  ],
+  "core": {
+    "run": false,
+    "reason": "No Core implementation changed; selected native checks execute actual Git operations."
+  },
+  "native": [
+    {
+      "log": "build/qa/editor-recovery-repair-format-2026-11-25.log",
+      "runs": 3,
+      "sha256": "c2391733e7ab3591ee1da98d7046e2a4af0fbe41d6332ae05f1165ddb48b0d44"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-import-2026-11-25.log",
+      "runs": 2,
+      "sha256": "30c987d3672f7cfc85198945303bfa14137d3a75ae30ca0eda5d402d057481f0"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-appearance-2026-11-25.log",
+      "runs": 2,
+      "sha256": "e2854aa1b7a4edcc864aa02e0cbf279dcf8c49dfe02f47de85ac6023a8a72ff4"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-merge-pickers-2026-11-25.log",
+      "runs": 2,
+      "sha256": "df4db6004e83f850e22d8af91c5a24d086ec7eb579684ca1f2a0b00155b95ac5"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-switch-pickers-2026-11-25.log",
+      "runs": 2,
+      "sha256": "6936ec1c89a6d26088741fd58104041c6637187187213cd7e6642113a40d1b1d"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-drags-2026-11-25.log",
+      "runs": 2,
+      "sha256": "bcb4986e4467188dbbb28af6fa453d631a2e9c1885165c14229702f7339436c3"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-blame-2026-11-25.log",
+      "runs": 2,
+      "sha256": "011933471067a25198ca68dc81a72e97461c16470330fd1dde1b1bb9d260b809"
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-identities-2026-11-25.log",
+      "runs": 2,
+      "sha256": "6c4381ae2fae56bdbae489d75c02003b5e0df6e42f5a8802649fc5f8955c6bab"
+    },
+    {
+      "log": "build/qa/editor-recovery-final-history-2026-11-25.log",
+      "runs": 7,
+      "sha256": "30077bb189b01dd6a6b3e3d6e594030f1dd9b4833f0f405708d59dadd2a097a0"
+    },
+    {
+      "log": "build/qa/editor-recovery-final-inspection-2026-11-25.log",
+      "runs": 2,
+      "sha256": "ce4eafcfdd8c2469a6ae530cac2ab1be1d08abda6349e771c540bfabc6758147"
+    },
+    {
+      "log": "build/qa/editor-recovery-toolbar-effective-toolbar-2026-11-25.log",
+      "runs": 2,
+      "sha256": "225ee880e6eb721a1dc372d4015e63614b87c4eb966cbd65f788bb616b60427c"
+    }
+  ],
+  "native_runs": 28,
+  "build": {
+    "exit": 0,
+    "log": "build/qa/editor-recovery-toolbar-effective-build-2026-11-25.log"
+  },
+  "failed_attempts": [
+    {
+      "log": "build/qa/editor-recovery-build-2026-11-25.log",
+      "cause": "Initial Import nested Task required explicit self qualification. No native check started before compile repair."
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-toolbar-2026-11-25.log",
+      "cause": "New compound assertion incorrectly required AppKit-generated submenu root to use custom dispatcher/tag."
+    },
+    {
+      "log": "build/qa/editor-recovery-toolbar-diagnostic-2026-11-25.log",
+      "cause": "Strict diagnostic proved artwork/exact choices present, generated submenuAction root and fresh representation on each read. Leaf dispatch remains strictly checked."
+    },
+    {
+      "log": "build/qa/editor-recovery-toolbar-final-toolbar-2026-11-25.log",
+      "cause": "Strict icon-preference assertion exposed fresh generated roots ignoring decoration of a previous getter result. Repaired effective getter handling rather than removing preference assertion."
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-history-2026-11-25.log",
+      "cause": "Private repository lacked Git identity and correctly opened identity repair instead of history admission."
+    },
+    {
+      "log": "build/qa/editor-recovery-repair-inspection-2026-11-25.log",
+      "cause": "Foreign producer actor and divergent target failed before Git, so recovery was correctly absent. Fixture now reaches a real admitted failed merge."
+    }
+  ],
+  "cleanup": {
+    "logged_owned_compiler_receiver_pids": 55,
+    "currently_present": [],
+    "windows": "Completed receivers assert retirement/drainage; replay driver uses public AppKit lifetime policy to avoid closing autoreleasing auxiliary windows."
+  },
+  "resources": {
+    "help": "Changed guides are not included by help-topics.json; no Help regeneration required.",
+    "localization": "No literal UI labels changed."
+  },
+  "hosted": {
+    "latest_committed_source": "12c49a1f24d8cefb65d3d8c95582c9f1639e9eaa",
+    "pages": {
+      "run": 45612716810,
+      "conclusion": "success"
+    },
+    "macOS": {
+      "run": 45612716647,
+      "observed_status": "pending"
+    },
+    "prior_run": 45607932829,
+    "prior_run_note": "Active native lanes; three available commit-lane failures independently match repairs already committed in12c49a1f. Other failures need actual assertions before diagnosis."
+  },
+  "limitations": [
+    "No complete hosted pass for this batch.",
+    "No whole-port/source-layout certification, minimum macOS/Intel, VoiceOver, signed shipping GUI or physical Finder acceptance inferred from these focused native checks.",
+    "App Store licensing and distribution approval remain open."
+  ],
+  "delivery": "Installed52 and signed55 unchanged. No WMF/EMF edits, installation, publication or Store submission."
+}

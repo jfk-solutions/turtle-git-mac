@@ -45,7 +45,7 @@ import TurtleGitCore
         func use(_ enabled:Bool){prefs.set(enabled,forKey:"UseLibgit2");prefs.set((UInt32(1)<<7)|(1<<12)|(1<<13)|(1<<17),forKey:"UseLibgit2_mask")}
         func clear()throws{try Data().write(to:calls)}
         func log()throws->String{FileManager.default.fileExists(atPath:calls.path) ? try String(contentsOf:calls):""}
-        func owns(_ repo:GitRepository)->GitRepository {GitRepository(root:repo.root,executable:repo.executable,askpass:repo.askpass,diffDetection:repo.diffDetection,libgit2Configuration:.init(helperURL:wrapper))}
+        func owns(_ repo:GitRepository)->GitRepository {GitRepository(root:repo.root,executable:repo.executable,askpass:repo.askpass,diffDetection:repo.diffDetection,libgit2Configuration:.load(from:prefs,helperURL:wrapper))}
         func fixture(_ name:String,conflict:Bool=false)async throws -> GitRepository {
             let path=root.appendingPathComponent(name);try FileManager.default.createDirectory(at:path,withIntermediateDirectories:true)
             let repo=GitRepository(root:path,executable:git,libgit2Configuration:.init(enabled:false))
@@ -205,10 +205,18 @@ import TurtleGitCore
             try require(switching.postActions.contains(.resolve) && (try c.log()).contains("turtlegit-check-conflicts")==enabled,"Switch completion lost selected conflict inspection: \(switching.output)")
             let conflicts=try await repo.conflicts();try require(!conflicts.isEmpty,"Switch-with-merge did not retain actual unmerged stages")
             // Sync's merge-progress owner uses the same accepted engine snapshot.
-            let state=try await repo.synchronizationRebaseState(target:"refs/heads/main")
-            let sync=SynchronizationProgressModel(repository:c.owns(repo),operation:.merge(state),cancellation:OperationCancellation(),preferences:c.prefs,access:RepositoryAccessLease(url:repo.root))
+            // A rejected foreign actor or divergent range is not a failed Git
+            // merge and must not expose recovery. Author a real fast-forward
+            // target without touching HEAD/index; the existing unmerged stages
+            // then make the admitted merge --ff-only command itself fail.
+            let current=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+            let descendant=try await repo.run(["commit-tree",current+"^{tree}","-p",current],input:Data("Recovery inspection descendant\n".utf8)).text.trimmingCharacters(in:.newlines)
+            let acceptedRepository=c.owns(repo)
+            let state=try await acceptedRepository.synchronizationRebaseState(target:descendant)
+            try require(state.canFastForward && state.head==current,"Recovery witness did not produce an admitted fast-forward range")
+            let sync=SynchronizationProgressModel(repository:acceptedRepository,operation:.merge(state),cancellation:OperationCancellation(),preferences:c.prefs,access:RepositoryAccessLease(url:repo.root))
             c.cleanup.append{sync.invalidate()};try c.clear();sync.start();try await wait{!sync.busy && SynchronizationProgressModel.activeOperations==0}
-            try require(!sync.success && sync.recoveryAvailable && (try c.log()).contains("turtlegit-check-conflicts")==enabled,"Sync failed merge recovery omitted source13")
+            try require(!sync.success && sync.recoveryAvailable && (try c.log()).contains("turtlegit-check-conflicts")==enabled,"Sync failed merge recovery omitted source13: sameProducer=\(sync.repository === acceptedRepository),canFastForward=\(state.canFastForward),success=\(sync.success),recovery=\(sync.recoveryAvailable),output=\(sync.output)")
         }
     }
     static func fetch(_ c:Context)async throws {

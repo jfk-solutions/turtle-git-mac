@@ -3631,6 +3631,7 @@ extension MergeLineNavigationProviding where Self: NSTextView {
     let encodings:[ComparisonTextEncoding]
     private var completion: ((MergeFormatSelection?) -> Void)?
     private var ownerObserver: NSObjectProtocol?
+    private var presentationParent: NSWindow?
     private var finished = false, registered = false
     init(pane: String, selection: MergeFormatSelection,legacyEncoding:ComparisonTextEncoding = .windows1252) {
         initial = selection
@@ -3675,16 +3676,26 @@ extension MergeLineNavigationProviding where Self: NSTextView {
     func cancel() { finish(nil) }
     private func finish(_ value: MergeFormatSelection?, closing: Bool = false) {
         guard !finished else { return }; finished = true
-        if registered { registered = false; Self.activeDialogs -= 1 }
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver); self.ownerObserver = nil }
-        if let window, let parent = window.sheetParent { parent.endSheet(window, returnCode: value == nil ? .cancel : .OK); window.orderOut(nil) }
         encoding.isEnabled = false; ending.isEnabled = false; ok.isEnabled = false
-        let callback = completion; completion = nil; if !closing { close() }; callback?(value)
+        let callback = completion; completion = nil
+        guard registered,let window else {
+            if registered {registered=false;Self.activeDialogs -= 1}
+            presentationParent=nil;if !closing {close()};callback?(value);return
+        }
+        let parent=presentationParent
+        Task{@MainActor [self] in
+            await FileOperationWindowDrain.detach(window,parent:parent)
+            if !closing {close()}
+            presentationParent=nil;registered=false;Self.activeDialogs -= 1
+            callback?(value)
+        }
     }
     func present(owner: NSWindow, completion: @escaping (MergeFormatSelection?) -> Void) {
         guard !finished, self.completion == nil else { completion(nil); return }
         guard owner.attachedSheet == nil, let window else { completion(nil); cancel(); return }
-        self.completion = completion; registered = true; Self.activeDialogs += 1
+        self.completion = completion; presentationParent=owner; registered = true; Self.activeDialogs += 1
+        window.alphaValue=owner.alphaValue;window.appearance=owner.effectiveAppearance
         ownerObserver = NotificationCenter.default.addObserver(forName: NSWindow.willCloseNotification, object: owner, queue: .main) { [weak self] _ in MainActor.assumeIsolated { self?.cancel() } }
         owner.beginSheet(window) { [weak self] response in
             guard let self, !self.finished else { return }

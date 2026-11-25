@@ -1,5 +1,22 @@
 # Local testing and release gates
 
+## Editor, patch and reference recovery — November 25, 2026
+
+Import's enabled Add command now works during read-only preview loading and keeps
+its picker, parent and accepted paths until the native sheet actually detaches.
+Encoding likewise delivers its selected format only after both sheet links drain.
+Toolbar overflow menus retain source icons, native submenu behavior and guarded
+leaf actions through preference/display changes and owner retirement.
+
+The [checkpoint](qa/editor-patch-reference-recovery-2026-11-25.json) records the
+native build and grouped workflow checks, preserving failed attempts and their
+causes. Readiness fixes in fixtures use actual native tables, prepared Merge
+identity and captured repository actors; they do not bypass product guards.
+Full hosted CI, broader source/layout acceptance and signed/physical acceptance
+remain open. Installed52 and signed55 are unchanged; this batch adds no WMF/EMF
+scope and does not publish or install a release.
+
+
 ## Log and Settings ownership — November 25, 2026
 
 The [native checkpoint](qa/log-settings-2026-11-25.json) covers source-correct

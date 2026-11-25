@@ -59,12 +59,29 @@ struct MergeToolbarState {
     var checked = false
 }
 
+/// AppKit may manufacture a new submenu container for every getter call. Apply
+/// current presentation policy at that public boundary without caching or
+/// replacing its native submenu target/action.
+@MainActor private final class MergeMenuToolbarItem:NSMenuToolbarItem {
+    var decorateRepresentation:((NSMenuItem)->Void)?
+    override var menuFormRepresentation:NSMenuItem? {
+        get {
+            guard let representation=super.menuFormRepresentation else{return nil}
+            decorateRepresentation?(representation)
+            return representation
+        }
+        set {super.menuFormRepresentation=newValue}
+    }
+}
+
 /// AppKit supplies customization and overflow, while every dispatch asks the
 /// owning live model again. Retained toolbar/overflow items cannot revive it.
 @MainActor final class MergeEditorToolbar: NSObject, NSToolbarDelegate, NSToolbarItemValidation, NSMenuItemValidation {
     let toolbar: NSToolbar
     private weak var window: NSWindow?
     private var observer: AnyCancellable?
+    private var preferencesObserver:AnyCancellable?
+    private let overflowItems=NSHashTable<NSMenuItem>.weakObjects()
     private var queued = false, retired = false
     private var restoring = true, configurationChanged = false
     private let preferences: UserDefaults
@@ -95,11 +112,12 @@ struct MergeToolbarState {
         toolbar.allowsUserCustomization = true; toolbar.autosavesConfiguration = false
         window.toolbarStyle = .expanded
         observer = changes.sink { [weak self] _ in self?.scheduleRefresh() }
+        preferencesObserver=NotificationCenter.default.publisher(for:UserDefaults.didChangeNotification,object:preferences).sink { [weak self] _ in Task { @MainActor [weak self] in self?.scheduleRefresh() } }
         refresh()
         restoreConfiguration()
         restoring = false
         displayObservation = toolbar.observe(\.displayMode, options: [.new]) { [weak self] _, _ in
-            MainActor.assumeIsolated { self?.changedConfiguration() }
+            MainActor.assumeIsolated { self?.changedConfiguration();self?.scheduleRefresh() }
         }
         visibilityObservation = toolbar.observe(\.isVisible,options:[.new]) { [weak self] toolbar,_ in
             MainActor.assumeIsolated {
@@ -128,7 +146,7 @@ struct MergeToolbarState {
         guard configurationChanged, !restoring else { return }; configurationChanged = false
         preferences.set(["items": toolbar.items.map { $0.itemIdentifier.rawValue }, "displayMode": Int(toolbar.displayMode.rawValue)], forKey: profileKey)
     }
-    func toolbarWillAddItem(_ notification: Notification) { changedConfiguration() }
+    func toolbarWillAddItem(_ notification: Notification) { changedConfiguration();scheduleRefresh() }
     func toolbarDidRemoveItem(_ notification: Notification) { changedConfiguration() }
     private func scheduleRefresh() {
         guard !retired, !queued else { return }; queued = true
@@ -157,8 +175,16 @@ struct MergeToolbarState {
         for item in toolbar.items { update(item) }
     }
     func retire() {
-        guard !retired else { return }; saveConfiguration(); retired = true; observer = nil; displayObservation = nil; visibilityObservation = nil
-        for item in toolbar.items { item.isEnabled = false; (item.view as? NSButton)?.isEnabled = false }
+        guard !retired else { return }; saveConfiguration(); retired = true; observer = nil;preferencesObserver=nil; displayObservation = nil; visibilityObservation = nil
+        func disable(_ menu:NSMenu) {for item in menu.items {item.isEnabled=false;if let submenu=item.submenu {disable(submenu)}}}
+        for item in toolbar.items {
+            item.isEnabled = false; (item.view as? NSButton)?.isEnabled = false
+            item.menuFormRepresentation?.isEnabled=false
+            if let menu=item.menuFormRepresentation?.submenu {disable(menu)}
+            if let group=item as? NSMenuToolbarItem {disable(group.menu)}
+        }
+        for item in overflowItems.allObjects {item.isEnabled=false}
+        overflowItems.removeAllObjects()
         if window?.toolbar === toolbar { window?.toolbar = nil }
         installed(false); action = { _ in }; states = { _ in nil }; visible = { false }; toolbarShown = { false };changedVisibility = { _ in }; installed = { _ in }
     }
@@ -167,7 +193,10 @@ struct MergeToolbarState {
     private func command(_ identifier: NSToolbarItem.Identifier) -> MergeToolbarCommand? { MergeToolbarCommand.allCases.first { $0.identifier == identifier } }
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier identifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
         guard !retired, let command = command(identifier), commands.contains(command) else { return nil }
-        let item: NSToolbarItem = menus[command] == nil ? NSToolbarItem(itemIdentifier: identifier) : NSMenuToolbarItem(itemIdentifier: identifier)
+        let item: NSToolbarItem = menus[command] == nil ? NSToolbarItem(itemIdentifier: identifier) : MergeMenuToolbarItem(itemIdentifier: identifier)
+        if let group=item as? MergeMenuToolbarItem {
+            group.decorateRepresentation = { [weak self] representation in self?.decorateRepresentation(representation,command:command) }
+        }
         item.autovalidates = false
         item.label = command.caption; item.paletteLabel = command.caption; item.toolTip = command.caption
         item.image = command.icon.image(size: 20); item.target = self; item.action = #selector(invoke(_:))
@@ -185,7 +214,7 @@ struct MergeToolbarState {
             let item = NSMenuItem(title: command.caption, action: #selector(invoke(_:)), keyEquivalent: "")
             item.target = self; item.tag = MergeToolbarCommand.allCases.firstIndex(of: command)!
             item.image = command.icon.contextImage(defaults:preferences); item.isEnabled = !retired && states(command)?.enabled == true
-            item.state = states(command)?.checked == true ? .on : .off; menu.addItem(item)
+            item.state = states(command)?.checked == true ? .on : .off; menu.addItem(item);overflowItems.add(item)
         }
         return menu
     }
@@ -198,7 +227,26 @@ struct MergeToolbarState {
         overflow.target = self; overflow.tag = item.tag; overflow.image = command.icon.contextImage(defaults:preferences); overflow.isEnabled = item.isEnabled
         overflow.state = state?.checked == true ? .on : .off
         if let choices = menus[command] { overflow.submenu = menu(choices) }
+        overflowItems.add(overflow)
         item.menuFormRepresentation = overflow
+        // Group representations are decorated on every native getter, including
+        // fresh AppKit copies created after insertion or display-mode changes.
+    }
+    private func decorateRepresentation(_ representation:NSMenuItem,command:MergeToolbarCommand) {
+        overflowItems.add(representation)
+        representation.title=command.caption
+        representation.image=command.icon.contextImage(defaults:preferences)
+        representation.isEnabled = !retired && states(command)?.enabled == true
+        representation.state=states(command)?.checked == true ? .on:.off
+        if let submenu=representation.submenu {
+            for child in submenu.items where child.target === self && MergeToolbarCommand.allCases.indices.contains(child.tag) {
+                let childCommand=MergeToolbarCommand.allCases[child.tag]
+                child.image=childCommand.icon.contextImage(defaults:preferences)
+                child.isEnabled = !retired && states(childCommand)?.enabled == true
+                child.state=states(childCommand)?.checked == true ? .on:.off
+                overflowItems.add(child)
+            }
+        }
     }
     @objc private func invoke(_ sender: Any?) {
         let tag = (sender as? NSMenuItem)?.tag ?? (sender as? NSControl)?.tag ?? (sender as? NSToolbarItem)?.tag ?? -1

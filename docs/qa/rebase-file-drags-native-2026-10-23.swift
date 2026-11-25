@@ -127,16 +127,28 @@ private extension NSWindow {
         _=try await c.repo.run(["update-index","--cacheinfo","160000",moduleChanged,"module"])
         let owner=try await c.open(),model=owner.model;model.tab=0
         try await wait(owner.window){model.fileRecovery && model.revisionMenuOwnerAvailable && model.conflictRows.count>=7}
-        var probe:CommitFileInteraction.Probe?
-        try await wait(owner.window){probe=views(owner.window?.contentView).compactMap{$0 as? CommitFileInteraction.Probe}.first{$0.captureWorkingDrag != nil && $0.nativeTable != nil};return probe != nil}
-        let adapter=try unwrap(probe,"Missing paused conflict outbound adapter"),table=try unwrap(adapter.nativeTable,"Missing paused conflict native table")
+        try await wait(owner.window){views(owner.window?.contentView).compactMap{$0 as? ConflictReportNativeTable}.contains{table in
+            guard let report=table.dataSource as? ConflictReportTable.Coordinator else{return false}
+            return report.owner.captureDrag != nil && table.numberOfRows==report.owner.rows.count && table.window === owner.window
+        }}
+        let table=try unwrap(views(owner.window?.contentView).compactMap{$0 as? ConflictReportNativeTable}.first,"Missing paused native conflict report")
+        let report=try unwrap(table.dataSource as? ConflictReportTable.Coordinator,"Missing paused native conflict coordinator")
+        @MainActor func captureNativeDrag() -> WorkingFileListDrag? {
+            let capture=report.owner.captureDrag
+            var result:WorkingFileListDrag?
+            report.owner.captureDrag={paths in let value=capture?(paths);result=value;return value}
+            defer{report.owner.captureDrag=capture}
+            let pasteboard=NSPasteboard.withUniqueName();defer{pasteboard.releaseGlobally()}
+            guard report.tableView(table,writeRowsWith:table.selectedRowIndexes,to:pasteboard) else{return nil}
+            return result
+        }
         model.setConflictSort([RebaseConflictSort(column:.path,order:.reverse)])
-        try await wait(owner.window){adapter.rows.compactMap{$0.entry?.path}==model.conflictTableRows.map(\.entry.path)}
+        try await wait(owner.window){report.owner.rows.map(\.path)==model.conflictTableRows.map(\.entry.path) && table.numberOfRows==report.owner.rows.count}
         let paths=model.conflictTableRows.map(\.entry.path)
         CommitFileInteraction.replaceSelection(in:table,with:IndexSet(integersIn:0..<paths.count))
         try await wait(owner.window){model.selectedConflicts.count==paths.count}
         model.checkedConflicts=[];let checked=model.checkedConflicts
-        let drag=try unwrap(adapter.workingDragSelection(),"Paused selected working drag refused")
+        let drag=try unwrap(captureNativeDrag(),"Paused selected working drag refused")
         try require(drag.paths==paths,"Paused drag lost highlighted native row order")
         try text(drag.text,paths:paths)
         try require(model.checkedConflicts==checked && checked.isEmpty,"Drag used or changed replay commit checkboxes")
@@ -145,12 +157,12 @@ private extension NSWindow {
         let board=NSPasteboard.withUniqueName();defer{board.releaseGlobally()};try require(drag.write(to:board) && board.string(forType:.string)==drag.text,"Working drag lost complete selected text")
         let index=try Data(contentsOf:c.root.appendingPathComponent(".git/index")),head=try await c.repo.run(["rev-parse","HEAD"]).stdout
         let before=try Dictionary(uniqueKeysWithValues:expectedURLs.map{($0,try Data(contentsOf:$0))})
-        model.busy=true;try require(adapter.workingDragSelection()==nil,"Busy paused replay exported files");model.busy=false
-        model.revisionMenuLog.confirmingQuit=true;try require(adapter.workingDragSelection()==nil,"Quit paused replay exported files");model.revisionMenuLog.confirmingQuit=false
+        model.busy=true;try require(captureNativeDrag()==nil,"Busy paused replay exported files");model.busy=false
+        model.revisionMenuLog.confirmingQuit=true;try require(captureNativeDrag()==nil,"Quit paused replay exported files");model.revisionMenuLog.confirmingQuit=false
         model.fileRecovery=false;try require(model.captureWorkingDrag(paths)==nil,"Nonrecovery replay exported paused files");model.fileRecovery=true
-        try await sheetFence(owner){adapter.workingDragSelection()}
+        try await sheetFence(owner){captureNativeDrag()}
         owner.close();c.owners.removeAll{$0 === owner};try await wait{model.retired && drained()}
-        try require(adapter.workingDragSelection()==nil && model.captureWorkingDrag(paths)==nil && owner.window?.attachedSheet==nil && owner.window?.isVisible != true,"Retired paused owner accepted a new drag or remained visible")
+        try require(captureNativeDrag()==nil && model.captureWorkingDrag(paths)==nil && owner.window?.attachedSheet==nil && owner.window?.isVisible != true,"Retired paused owner accepted a new drag or remained visible")
         for provider in drag.providers where provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
             let reply=Reply();provider.loadDataRepresentation(forTypeIdentifier:UTType.fileURL.identifier){reply.finish($0,$1)}
             try await wait{reply.value != nil};let bytes=try reply.value!.get(),url=try unwrap(URL(string:String(decoding:bytes,as:UTF8.self)),"Invalid working URL")

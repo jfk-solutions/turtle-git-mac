@@ -39,6 +39,7 @@ import TurtleGitCore
         if let captures { try FileManager.default.createDirectory(at: captures, withIntermediateDirectories: true) }
         let suite = "TurtleGit.MergeToolbar.Native." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
+        prefs.set(true,forKey:"ShowAppContextMenuIcons")
         MergeGeneralPreferences(firstDifference: false, firstConflict: false).save(to: prefs)
         let base = root.appendingPathComponent("base.txt"), mine = root.appendingPathComponent("mine.txt")
         try Data("same\nold\nmiddle\nold2\n".utf8).write(to: base); try Data("same\nnew\nmiddle\nnew2\n".utf8).write(to: mine)
@@ -49,6 +50,7 @@ import TurtleGitCore
         owner.window?.contentView?.layoutSubtreeIfNeeded()
         let toolbar = owner.editorToolbar!
         try await wait { toolbar.toolbar.items.count >= 10 }
+        try await wait {toolbar.toolbar.items.allSatisfy{$0.image != nil && $0.menuFormRepresentation?.image != nil}}
         try require(owner.window?.toolbar === toolbar.toolbar && model.nativeToolbarInstalled && !toolbar.toolbar.autosavesConfiguration)
         try require(Array(toolbar.toolbar.items.prefix(7).map(\.itemIdentifier)) == [MergeToolbarCommand.open, .save, .saveAs, .reload, .undo, .redo, .previousDifference].map(\.identifier))
         for item in toolbar.toolbar.items {
@@ -75,6 +77,22 @@ import TurtleGitCore
         toolbar.toolbar.displayMode = .iconAndLabel
         let saveAs = item(.saveAs, in: toolbar) as! NSMenuToolbarItem
         try require(saveAs.menu.items.map(\.title) == [MergeToolbarCommand.saveLeft.title, MergeToolbarCommand.saveRight.title])
+        let expectedSaves=[MergeToolbarCommand.saveLeft,.saveRight]
+        toolbar.toolbar.displayMode = .labelOnly
+        try await wait {saveAs.menuFormRepresentation?.image != nil && saveAs.menuFormRepresentation?.submenu?.items.count==2}
+        let effectiveSave=saveAs.menuFormRepresentation!
+        // NSMenuToolbarItem may return a fresh AppKit submenu container on each
+        // read. Its native submenuAction/tag are not command-dispatch receipts.
+        try require(effectiveSave.image != nil && effectiveSave.submenu?.items.map(\.title)==expectedSaves.map(\.caption),detail:"Effective text-only Save As overflow lost image/choices; image=\(effectiveSave.image != nil), action=\(String(describing:effectiveSave.action)), titles=\(String(reflecting:effectiveSave.submenu?.items.map(\.title))),expectedTitles=\(String(reflecting:expectedSaves.map(\.caption)))")
+        try require(zip(effectiveSave.submenu!.items,expectedSaves).allSatisfy{item,command in item.target === toolbar && item.image != nil && item.action != nil && item.tag==MergeToolbarCommand.allCases.firstIndex(of:command)!},detail:"Effective Save As children lost source artwork or command ownership")
+        prefs.set(false,forKey:"ShowAppContextMenuIcons")
+        try require(saveAs.image != nil && saveAs.menuFormRepresentation?.image == nil && saveAs.menuFormRepresentation?.submenu?.items.allSatisfy{$0.image == nil}==true,detail:"Fresh native Save As getter ignored current disabled context icons")
+        toolbar.refresh()
+        try require(saveAs.image != nil && saveAs.menuFormRepresentation?.image == nil && saveAs.menuFormRepresentation?.submenu?.items.allSatisfy{$0.image == nil}==true,detail:"Context icon preference changed toolbar artwork or retained overflow artwork")
+        prefs.set(true,forKey:"ShowAppContextMenuIcons")
+        try require(saveAs.image != nil && saveAs.menuFormRepresentation?.image != nil && saveAs.menuFormRepresentation?.submenu?.items.allSatisfy{$0.image != nil}==true,detail:"Fresh native Save As getter ignored restored context icons")
+        toolbar.toolbar.displayMode = .iconAndLabel;toolbar.refresh()
+        try await wait {saveAs.menuFormRepresentation?.image != nil}
         let overflow = item(.find, in: toolbar).menuFormRepresentation!
         try require(NSApp.sendAction(overflow.action!, to: overflow.target, from: overflow))
         let editors = MergeMarkedWordInterface.panes(in: owner.window?.contentView)
@@ -141,10 +159,22 @@ import TurtleGitCore
         conflictBar.perform(.undo); try require(merge.model.result == original)
         let choices = item(.saveAs, in: conflictBar) as! NSMenuToolbarItem
         try require(choices.menu.items.count == 4)
+        conflictBar.toolbar.displayMode = .labelOnly;conflictBar.refresh()
+        try await wait {choices.menuFormRepresentation?.image != nil && choices.menuFormRepresentation?.submenu?.items.count==4}
+        let effectiveConflictSave=choices.menuFormRepresentation!,effectiveConflictChildren=effectiveConflictSave.submenu!.items
+        let expectedConflictSaves=[MergeToolbarCommand.saveLeft,.saveRight,.saveMerged,.continueResolving]
+        try require(effectiveConflictChildren.map(\.title)==expectedConflictSaves.map(\.caption) && zip(effectiveConflictChildren,expectedConflictSaves).allSatisfy{item,command in item.image != nil && item.target === conflictBar && item.action != nil && item.tag==MergeToolbarCommand.allCases.firstIndex(of:command)!},detail:"Effective Merge Save As overflow differs from live source choices/ownership")
+        let compareChoices=item(.compareSources,in:conflictBar) as! NSMenuToolbarItem
+        try require(compareChoices.menuFormRepresentation?.image != nil && compareChoices.menuFormRepresentation?.submenu?.items.map(\.title)==[MergeToolbarCommand.compareTheirs,.compareMine].map(\.caption),detail:"Compare sources effective overflow lost image or choices")
+        try require(zip(compareChoices.menuFormRepresentation!.submenu!.items,[MergeToolbarCommand.compareTheirs,.compareMine]).allSatisfy{item,command in item.image != nil && item.target === conflictBar && item.action != nil && item.tag==MergeToolbarCommand.allCases.firstIndex(of:command)!},detail:"Effective source comparison children lost dispatch ownership")
+        conflictBar.toolbar.displayMode = .iconAndLabel
         try await capture(replacement, name: "compare-native-toolbar", directory: captures)
         try await capture(merge, name: "merge-native-toolbar", directory: captures)
         let heldFind = item(.find, in: conflictBar), retiredToolbar = conflictBar
         merge.window?.close(); host.close(); retiredToolbar.perform(.useMine); try require(!heldFind.isEnabled && merge.model.result == original)
+        try require(!choices.isEnabled && effectiveConflictChildren.allSatisfy{!$0.isEnabled},detail:"Retired effective overflow retained enabled Save choices")
+        for child in effectiveConflictChildren {if let action=child.action {_ = NSApp.sendAction(action,to:child.target,from:child)}}
+        try require(merge.model.result==original && merge.window?.attachedSheet==nil,detail:"Retained effective overflow revived a retired editor")
         try Data("complete\n".utf8).write(to: root.appendingPathComponent("completed"))
         print("PASS: native Compare/Merge toolbar source order/artwork, live states/toggles, validated busy refusal, menu/overflow dispatch, real Save and conflict Undo, replacement rebinding, image suppression and retired item refusal; windows closed")
     }

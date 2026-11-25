@@ -24,6 +24,7 @@ struct MergeFormatNativeVerification {
         precondition(!owner.windowShouldClose(owner.window!))
         precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         prompt.cancel()
+        try await TwoPaneEngineVerification.wait { MergeFormatPrompt.activeDialogs==0 && prompt.window?.sheetParent==nil && owner.window?.attachedSheet==nil && model.canTransfer(toBase:false) }
         model.chooseFormat = { _,_,_ in nil }; model.showFormatDialog(base:false)
         try await Task.sleep(nanoseconds:30_000_000)
         precondition(model.encoding(base:false) == .windows1252 && model.draftText(base:false) == String(decoding:bytes,as:UTF8.self))
@@ -31,6 +32,7 @@ struct MergeFormatNativeVerification {
         try await TwoPaneEngineVerification.wait { !model.filtering && model.encoding(base:false) == .utf16BEBOM }
         precondition(model.draftText(base:false) == "first\r\nsecond\r\nlast")
         let disk = try Data(contentsOf:mine); precondition(disk == bytes)
+        try await TwoPaneEngineVerification.wait { model.canTransfer(toBase:false) }
         var continuation: CheckedContinuation<MergeFormatSelection?,Never>?
         model.chooseFormat = { _,_,_ in await withCheckedContinuation { continuation = $0 } }
         model.showFormatDialog(base:false); try await TwoPaneEngineVerification.wait { continuation != nil }

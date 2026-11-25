@@ -74,17 +74,15 @@ import TurtleGitCore
         let owner=c.own(CommitWindowController(repository:repo,access:nil,defaults:c.prefs)),model=owner.model
         owner.window?.setContentSize(.init(width:1180,height:850));model.reload(paths:["."]);try await commitReady(owner)
         model.refreshGuiPatch();try await commitReady(owner)
-        guard let patch=model.guiPatch else{throw Failure(description:"Actual GitGui embedded patch missing")}
+        try require(model.selection.isEmpty && model.guiPatch==nil,"Empty GitGui selection acquired an unrelated patch")
         for (name,dark) in [("light",false),("dark",true)] {
             owner.window?.appearance=NSAppearance(named:dark ? .darkAqua:.aqua);model.objectWillChange.send()
-            try await wait(owner.window){patch.darkMode==dark && texts(owner.window).contains{$0 is PatchTextView.PatchText}}
-            let text=texts(owner.window).first{$0 is PatchTextView.PatchText}!
-            try color(text,appearance.colors(.context,dark:dark).background,foreground:appearance.colors(.context,dark:dark).foreground)
-            try require(text.font?.pointSize==13,"Embedded patch ignored configured font size")
-            try require(text.string.isEmpty,"Empty embedded patch acquired unrelated document")
+            try require(model.guiPatch==nil && !texts(owner.window).contains{$0 is PatchTextView.PatchText},"Empty embedded patch acquired unrelated document")
             if let window=owner.window {try captures(window,"commit-empty-"+name)}
         }
+        try require(model.unstagedEntries.contains{$0.path=="sample.txt"},"Actual unstaged GitGui row missing")
         model.selectGuiFiles(["sample.txt"],staged:false);try await commitReady(owner)
+        guard let patch=model.guiPatch else{throw Failure(description:"Actual selected GitGui embedded patch missing")}
         try await wait(owner.window){texts(owner.window).contains{$0 is PatchTextView.PatchText && $0.string.contains("changed 90")}}
         guard let text=texts(owner.window).first(where:{$0 is PatchTextView.PatchText}),let scroll=text.enclosingScrollView else{throw Failure(description:"Embedded text/scroll missing")}
         let indexBefore=try await repo.run(["write-tree"]).stdout,head=try await repo.run(["rev-parse","HEAD"]).stdout
@@ -97,6 +95,7 @@ import TurtleGitCore
             owner.window?.appearance=NSAppearance(named:dark ? .darkAqua:.aqua);model.objectWillChange.send()
             try await wait(owner.window){patch.darkMode==dark && rgb(text.backgroundColor,appearance:text.effectiveAppearance)==appearance.colors(.context,dark:dark).background}
             try color(text,appearance.colors(.context,dark:dark).background,foreground:appearance.colors(.context,dark:dark).foreground)
+            try require(text.font?.pointSize==13,"Embedded patch ignored configured font size")
             try require(Data(patch.document.text.utf8)==document && text.selectedRange()==selection && abs(scroll.contentView.bounds.origin.y-origin.y)<1 && scroll.isFindBarVisible && model.message==draft,"Appearance reset embedded patch state or Commit message")
             if let window=owner.window {try captures(window,"commit-populated-"+name)}
         }

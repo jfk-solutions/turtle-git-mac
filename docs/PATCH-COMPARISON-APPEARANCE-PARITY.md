@@ -12,6 +12,9 @@ TortoiseMerge `BaseView.cpp` selects state colors from `DiffColors`, including
 the source's high-contrast-dark path. These are independent semantic colors.
 
 The embedded Commit patch inherits its containing window's current appearance.
+With no Git Gui file selected there is no patch document; selecting a real staged
+or unstaged row creates its owned preview. The selected preview receives the same
+configured palette and font without manufacturing an unrelated empty document.
 Standalone Unified Diff follows the application appearance until its own Dark
 Mode command explicitly chooses a window override. General's Follow System,
 Light and Dark choices therefore reach windows that have no local override.
