@@ -1,0 +1,152 @@
+{
+  "schema": 1,
+  "recordedUtc": "2026-11-25T20:37:42.688463+00:00",
+  "sourceBase": "27d14e4ae3b26682d2e49f5a9a609c953cf5a14a",
+  "hostedFailures": {
+    "run": 45666767671,
+    "source": "2f6c1b37ff551177cb7412a9e4cd9ced3bfe0063",
+    "job": 139394741796,
+    "general": {
+      "step": 227,
+      "failure": "general-source-family source/system timed out99 after remounting permanently retired model; no source PASS, navigation not reached."
+    },
+    "historical": {
+      "step": 237,
+      "engine": "bundled Debug Git + LibGit2 helper",
+      "failure": "Browser provider NSItemProviderErrorDomain -1000 / RepositoryBrowserFailure.selection after Open/editor/OpenWith/Save passed; same filesystem root differed only in URL directory hint."
+    }
+  },
+  "productCorrection": {
+    "rootIdentity": "Browser-scoped comparison ignores the file URL directory marker while comparing lexically normalized path UTF8 bytes and preserving file scheme/authority/user/password/port rules; no Unicode/case folding or symlink resolution, query/fragment rejected.",
+    "connectedConsumers": [
+      "revision labels",
+      "directory navigation",
+      "transfer inventory",
+      "recursive/file export",
+      "working paths",
+      "submodule metadata",
+      "Revert",
+      "raw/stored/materialized reads",
+      "native delivery name/export",
+      "selected-item providers and file promises"
+    ],
+    "guardsPreserved": "Pinned entry/tree/object/revision/backend/access, filesystem collision and cancellation checks remain. Foreign roots and symlink aliases remain refused."
+  },
+  "fixtureCorrection": {
+    "general": "New native owner receives a new GeneralGitSettingsModel. Prior closed model must continue rejecting activate/check/Browse/stale bindings and duplicate callbacks. Native page/control admission uses actual owner and field readiness.",
+    "historical": "Retains original filtered Open/Save/backend/raw/error/cancel assertions; adds both directory hints for selected providers, promises and recursive folder output, plus foreign-root refusal."
+  },
+  "validation": {
+    "debugBuilds": 1,
+    "coreGroup": "RepositoryBrowserTests",
+    "coreMethodsPassed": 20,
+    "newCoreMethods": 3,
+    "nativeCasesPassed": [
+      "General source/system",
+      "General navigation/system",
+      "historical materialization/bundled Git + LibGit2 helper"
+    ],
+    "results": [
+      {
+        "name": "debug-build",
+        "command": [
+          "xcodebuild",
+          "-project",
+          "TurtleGitMac.xcodeproj",
+          "-scheme",
+          "TurtleGitMac",
+          "-configuration",
+          "Debug",
+          "-destination",
+          "platform=macOS",
+          "-derivedDataPath",
+          "build",
+          "-jobs",
+          "4",
+          "CODE_SIGNING_ALLOWED=NO",
+          "build"
+        ],
+        "startedUtc": "2026-11-25T20:33:01.559922+00:00",
+        "finishedUtc": "2026-11-25T20:34:11.665010+00:00",
+        "exitCode": 0,
+        "log": "build/qa/browser-root-general-family-debug-build-2026-11-25.log",
+        "sha256": "a07fb93333144475af94ecc885fd8405a4dc38436b15ee8489cbbc55ed59068f"
+      },
+      {
+        "name": "core-browser",
+        "command": [
+          "swift",
+          "test",
+          "--filter",
+          "RepositoryBrowserTests"
+        ],
+        "startedUtc": "2026-11-25T20:34:11.670256+00:00",
+        "finishedUtc": "2026-11-25T20:34:43.729739+00:00",
+        "exitCode": 0,
+        "log": "build/qa/browser-root-general-family-core-browser-2026-11-25.log",
+        "sha256": "28d8a95152ade53fa08f64d53209efaa7ba7e0a17d42a06eb43dcb7c8475a3a9"
+      },
+      {
+        "name": "general-native",
+        "command": [
+          "python3",
+          "scripts/test-general-source-family.py",
+          "--git",
+          "/usr/bin/git"
+        ],
+        "startedUtc": "2026-11-25T20:34:43.746421+00:00",
+        "finishedUtc": "2026-11-25T20:34:57.013020+00:00",
+        "exitCode": 0,
+        "log": "build/qa/browser-root-general-family-general-native-2026-11-25.log",
+        "sha256": "f7f8edb4377b2ca86dce6b43f96901598e9a22cde83c9e507b1de67149679563"
+      },
+      {
+        "name": "historical-native",
+        "command": [
+          "python3",
+          "scripts/test-historical-materialization-native.py",
+          "--git",
+          "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git",
+          "--helper",
+          "build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/LibGit2/bin/turtlegit-libgit2"
+        ],
+        "startedUtc": "2026-11-25T20:34:57.027777+00:00",
+        "finishedUtc": "2026-11-25T20:35:06.643988+00:00",
+        "exitCode": 0,
+        "log": "build/qa/browser-root-general-family-historical-native-2026-11-25.log",
+        "sha256": "36c85c226a0f1d8acbc22895698d65f6571c9447a16b610780221067534402f8"
+      }
+    ],
+    "fullCoreOrNativeSuiteRepeated": false,
+    "cachePreflight": "One unselected cached MetafileClassicPathTests reference differed from committed27d. Aligned that cache file from Git object only; protected main-tree WIP was not read or changed and no Metafile cases executed. Remaining471 Core test source files match committed baseline.",
+    "warnings": "Existing local CoreSimulator-version warning remains in successful macOS build log; no simulator used."
+  },
+  "cleanup": {
+    "privatePreferencesRepositoriesWindowsAndPasteboards": true,
+    "observedOwnedPidsAbsent": [
+      76970,
+      79774,
+      79788,
+      79825,
+      79918,
+      79953,
+      80069,
+      80109
+    ],
+    "presentPidsNotAttributed": [],
+    "shipping58Untouched": true
+  },
+  "filesSha256": {
+    "Sources/TurtleGitCore/RepositoryBrowser.swift": "ec2017fd41ea97560e591d2c4a00692e335171c517c3ea2e43f50acc9aa2bdad",
+    "Sources/TurtleGitMac/RepositoryBrowserDrag.swift": "6e314b040f08603bc613da8cca9d3b16e77aed71f2955a7588ec9c85ddcec04c",
+    "Tests/TurtleGitCoreTests/RepositoryBrowserTests.swift": "60fb32af46e46dfd32e68bd3511da9030600e0316a59fcd2889fc2d0d91ae654",
+    "docs/qa/general-source-family-native-2026-10-17.swift": "fc012e5e66fb33d6fc152c190df8279f570216f3ba0934525e84b8171dcb9391",
+    "docs/qa/historical-materialization-native-2026-10-19.swift": "fb9b30cf83c45855f591b8a6498f53b6dcf6db9f81fd83e9bab5b85d5b3ed2ce"
+  },
+  "candidate59": "Still unbuilt; advance source once after this committed batch, retaining copied kits only if their complete recipes/source/toolchain/payloads remain compatible. No old source identity will be relabeled.",
+  "limits": [
+    "Focused local build/Core/native pass, not complete current hosted CI, physical Finder, signed59 or all-dialog visual/accessibility acceptance.",
+    "The previous hosted Git integration step passed on source2f; Browser Core has changed since then, so that is not a full current-Core pass.",
+    "No new WMF/EMF feature, renderer rebuild, image matrix, installed app change or public/Store binary release."
+  ]
+}

@@ -101,6 +101,42 @@ import TurtleGitCore
         }
         try require(promised==filtered,"Historical drag failed to retain accepted engine")
         provider=nil;RepositoryBrowserExportFiles.discardAll()
+        phase("Browser root URL authority, providers and file promises")
+        let acceptedBrowser=browser.model.snapshot!
+        func browserSnapshot(root value:URL)->RepositoryBrowserSnapshot {
+            .init(root:value,revision:acceptedBrowser.revision,objectID:acceptedBrowser.objectID,treeID:acceptedBrowser.treeID,directory:acceptedBrowser.directory,bare:acceptedBrowser.bare,entries:acceptedBrowser.entries,acceptedBackend:acceptedBrowser.acceptedBackend)
+        }
+        func providerBytes(_ provider:NSItemProvider,child:String?=nil)async throws->Data {
+            try await withCheckedThrowingContinuation {reply in
+                provider.loadFileRepresentation(forTypeIdentifier:provider.registeredTypeIdentifiers[0]){url,error in
+                    do {if let error{throw error};guard let url else{throw Failure(description:"Missing root-authorized provider output")};reply.resume(returning:try Data(contentsOf:child.map{url.appendingPathComponent($0)} ?? url))}catch{reply.resume(throwing:error)}
+                }
+            }
+        }
+        for directoryHint in [false,true] {
+            let deliveryRepository=GitRepository(root:FileTransferPaths.fileURL(repo.root.path+(directoryHint ? "/":"")),executable:git,askpass:nil)
+            let snapshot=browserSnapshot(root:FileTransferPaths.fileURL(repo.root.path+(directoryHint ? "":"/")))
+            selected();let backend=captured();disabled()
+            guard let selection=RepositoryBrowserSelectionDrag(repository:deliveryRepository,access:grant,snapshot:snapshot,selected:[entry],inventory:nil,backend:backend) else{throw Failure(description:"Directory URL hint refused native Browser selection")}
+            try require(selection.names==["source 雪.txt"] && selection.providers.count==1 && selection.providers[0].suggestedName=="source 雪.txt","Browser URL hint lost original transfer filename")
+            let bytes=try await providerBytes(selection.providers[0]);try require(bytes==filtered,"Browser URL hint changed provider bytes/backend")
+            let destination=base.appendingPathComponent("root-promise-\(directoryHint).txt")
+            try await selection.promises[0].write(to:destination)
+            try require(try Data(contentsOf:destination)==filtered,"Browser URL hint changed native file-promise bytes/backend")
+            let folder=RepositoryBrowserDrag.provider(repository:deliveryRepository,access:grant,snapshot:snapshot,entry:nil,directory:nil,name:"display-only",folder:true,backend:backend)
+            try require(folder.suggestedName=="nested","Browser URL hint lost selected folder filename")
+            let folderBytes=try await providerBytes(folder,child:"source 雪.txt");try require(folderBytes==filtered,"Browser URL hint changed recursive folder bytes/backend")
+            try await wait{RepositoryBrowserExportFiles.activeLoads==0}
+        }
+        let foreign=browserSnapshot(root:FileTransferPaths.fileURL(repo.root.path+"-foreign"))
+        try require(RepositoryBrowserSelectionDrag(repository:repo,access:grant,snapshot:foreign,selected:[entry],inventory:nil,backend:captured())==nil,"Foreign root advertised a Browser selection")
+        let refused=RepositoryBrowserDrag.provider(repository:repo,access:grant,snapshot:foreign,entry:entry,directory:nil,name:"source 雪.txt",folder:false,backend:captured())
+        try require(refused.suggestedName==nil,"Foreign root advertised a transfer filename")
+        do {_=try await providerBytes(refused);throw Failure(description:"Foreign Browser provider delivered bytes")}catch is Failure{throw Failure(description:"Foreign Browser provider failed to enforce root authority")}catch{}
+        let refusedDestination=base.appendingPathComponent("refused-root-promise.txt")
+        do {try await RepositoryBrowserFilePromise(repository:repo,access:grant,snapshot:foreign,entry:entry,backend:captured()).write(to:refusedDestination);throw Failure(description:"Foreign Browser file promise wrote output")}catch RepositoryBrowserFailure.selection{}
+        try require(!fm.fileExists(atPath:refusedDestination.path),"Foreign Browser promise created a destination")
+        try await wait{RepositoryBrowserExportFiles.activeLoads==0};RepositoryBrowserExportFiles.discardAll()
         phase("Log Open/Save")
         // Log's Open and Save paths materialize separately from raw comparison.
         log.model.select([head.hash]);try await wait{log.model.files.contains{$0.path==path}}

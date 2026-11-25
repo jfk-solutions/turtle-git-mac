@@ -2,6 +2,93 @@ import XCTest
 @testable import TurtleGitCore
 
 final class RepositoryBrowserTests: XCTestCase {
+    private func replacingRoot(_ snapshot:RepositoryBrowserSnapshot,_ root:URL) -> RepositoryBrowserSnapshot {
+        .init(root:root,revision:snapshot.revision,objectID:snapshot.objectID,treeID:snapshot.treeID,directory:snapshot.directory,bare:snapshot.bare,entries:snapshot.entries,acceptedBackend:snapshot.acceptedBackend)
+    }
+    func testBrowserRootIdentityIgnoresDirectoryHintWithoutFoldingAuthorityOrPathBytes() throws {
+        let plain=FileTransferPaths.fileURL("/private/Browser Café"),directory=FileTransferPaths.fileURL("/private/Browser Café/")
+        XCTAssertTrue(RepositoryBrowserPathIdentity.sameRoot(plain,directory))
+        XCTAssertTrue(RepositoryBrowserPathIdentity.sameRoot(directory,plain))
+        XCTAssertTrue(RepositoryBrowserPathIdentity.sameRoot(plain,FileTransferPaths.fileURL("/private/./Browser Café/")))
+        for foreign in [FileTransferPaths.fileURL("/private/Browser Cafe\u{301}"),FileTransferPaths.fileURL("/private/browser Café"),FileTransferPaths.fileURL("/private/Browser Café-other"),FileTransferPaths.fileURL("/private/Browser alias"),URL(string:"https://example.invalid/private/Browser%20Caf%C3%A9")!,URL(string:"file://example.invalid/private/Browser%20Caf%C3%A9")!,URL(string:"file:///private/Browser%20Caf%C3%A9?other")!,URL(string:"file:///private/Browser%20Caf%C3%A9#fragment")!,URL(string:"file://user@localhost:42/private/Browser%20Caf%C3%A9")!] {
+            XCTAssertFalse(RepositoryBrowserPathIdentity.sameRoot(plain,foreign),foreign.absoluteString)
+        }
+    }
+    func testBrowserDirectoryHintRoundTripsAcrossPinnedReadsExportsWorkingAndSubmoduleActions() async throws {
+        let root=FileManager.default.temporaryDirectory.appendingPathComponent("BrowserAuthority-"+UUID().uuidString)
+        // Match first-use/create/clone: the initiating actor exists before its
+        // directory, while backend capture constructs another actor afterward.
+        let repo=GitRepository(root:root,askpass:nil,libgit2Configuration:.init(enabled:false))
+        defer {try? FileManager.default.removeItem(at:root)}
+        let path="nested/selected 雪.bin",bytes=Data([0,0xff,13,10,7])
+        try FileManager.default.createDirectory(at:root.appendingPathComponent("nested"),withIntermediateDirectories:true)
+        _=try await repo.run(["init","-b","main"])
+        for(key,value)in[("user.name","Browser authority QA"),("user.email","browser@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_=try await repo.run(["config",key,value])}
+        try bytes.write(to:root.appendingPathComponent(path));try await repo.stage([path]);_=try await repo.commit(message:"first root")
+        let previous=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
+        _=try await repo.run(["update-index","--add","--cacheinfo","160000,"+previous+",module"])
+        _=try await repo.commit(message:"Browser root authority")
+        let captured=GitRepository(root:root,executable:repo.executable,askpass:nil,libgit2Configuration:.init(enabled:false))
+        let accepted=try await captured.browseRepository(),head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try await repo.run(["ls-files","--stage","-z"]).stdout
+        let firstUse=try await repo.browseRepositoryDirectory(accepted,directory:"nested"),firstEntry=try XCTUnwrap(firstUse.entries.first)
+        let firstContent=try await repo.materializedRepositoryBrowserFile(firstUse,entry:firstEntry);XCTAssertEqual(firstContent.bytes,bytes)
+        for directoryHint in [false,true] {
+            let beforeReadsIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+            let spelling=FileTransferPaths.fileURL(repo.root.path+(directoryHint ? "/":""))
+            let actor=GitRepository(root:spelling,executable:repo.executable,askpass:nil,libgit2Configuration:.init(enabled:false))
+            // Cross the opposite URL hint in both directions rather than relying
+            // on Foundation's filesystem-dependent inferred directory property.
+            let snapshot=replacingRoot(accepted,FileTransferPaths.fileURL(repo.root.path+(directoryHint ? "":"/")))
+            let label=try await actor.repositoryBrowserRevisionLabel(snapshot);XCTAssertEqual(label,"HEAD")
+            let nested=try await actor.browseRepositoryDirectory(snapshot,directory:"nested")
+            let entry=try XCTUnwrap(nested.entries.first{$0.path==path})
+            let inventory=try await actor.repositoryBrowserTransferInventory(snapshot,directory:"nested");XCTAssertEqual(inventory,[entry])
+            let selected=replacingRoot(nested,snapshot.root)
+            let raw=try await actor.repositoryBrowserFile(selected,entry:entry),stored=try await actor.storedRepositoryBrowserBlob(selected,entry:entry),named=try await actor.storedRepositoryBrowserFile(selected,entry:entry),materialized=try await actor.materializedRepositoryBrowserFile(selected,entry:entry)
+            XCTAssertEqual(raw.bytes,bytes);XCTAssertEqual(stored,bytes);XCTAssertEqual(named.bytes,bytes);XCTAssertEqual(materialized.bytes,bytes)
+            try await actor.validateRepositoryBrowserWorkingPath(selected,entry:entry)
+            let single=try await actor.exportRepositoryBrowser(selected,entry:entry);defer{single.discard()}
+            XCTAssertEqual(try Data(contentsOf:single.item),bytes)
+            let folder=try await actor.exportRepositoryBrowser(selected);defer{folder.discard()}
+            XCTAssertEqual(folder.fileCount,1);XCTAssertEqual(try Data(contentsOf:folder.item.appendingPathComponent(entry.name)),bytes)
+            let module=try XCTUnwrap(snapshot.entries.first{$0.kind == .submodule}),child=try await actor.repositoryBrowserSubmodule(snapshot,entry:module)
+            XCTAssertEqual(child.from.revision,previous);XCTAssertEqual(child.to.revision,previous);XCTAssertFalse(child.from.available)
+            XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),beforeReadsIndex)
+            try Data("changed working file".utf8).write(to:root.appendingPathComponent(path))
+            try await actor.revertRepositoryBrowserFile(selected,entry:entry)
+            XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),bytes)
+        }
+        let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout,finalIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
+        XCTAssertEqual(finalHead,head);XCTAssertEqual(finalIndex,index)
+    }
+    func testBrowserRootMismatchRefusesEveryConnectedReadTransferAndMutationBeforeGit() async throws {
+        let(root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
+        let snapshot=try await repo.browseRepository(),entry=try XCTUnwrap(snapshot.entries.first{$0.path==path})
+        let beforeHead=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:root.appendingPathComponent(".git/index")),bytes=try Data(contentsOf:root.appendingPathComponent(path))
+        let operations:[(String,(RepositoryBrowserSnapshot) async throws -> Void)]=[
+            ("label",{_ = try await repo.repositoryBrowserRevisionLabel($0)}),
+            ("directory",{_ = try await repo.browseRepositoryDirectory($0,directory:"")}),
+            ("inventory",{_ = try await repo.repositoryBrowserTransferInventory($0)}),
+            ("export",{let value=try await repo.exportRepositoryBrowser($0,entry:entry);value.discard()}),
+            ("working path",{try await repo.validateRepositoryBrowserWorkingPath($0,entry:entry)}),
+            ("revert",{try await repo.revertRepositoryBrowserFile($0,entry:entry)}),
+            ("raw file",{_ = try await repo.repositoryBrowserFile($0,entry:entry)}),
+            ("stored blob",{_ = try await repo.storedRepositoryBrowserBlob($0,entry:entry)}),
+            ("stored file",{_ = try await repo.storedRepositoryBrowserFile($0,entry:entry)}),
+            ("filtered file",{_ = try await repo.materializedRepositoryBrowserFile($0,entry:entry)})]
+        // Include an existing symlink to this repository: lexical authority must
+        // not be broadened merely because the filesystem resolves another name.
+        let alias=root.deletingLastPathComponent().appendingPathComponent("Browser-alias-"+UUID().uuidString)
+        try FileManager.default.createSymbolicLink(at:alias,withDestinationURL:root);defer{try? FileManager.default.removeItem(at:alias)}
+        for foreign in [root.appendingPathComponent("other"),alias] {
+            for(name,operation)in operations {
+                do {try await operation(replacingRoot(snapshot,foreign));XCTFail("Foreign root admitted by "+name)}
+                catch RepositoryBrowserFailure.selection {} catch RepositoryBrowserFailure.directory {}
+            }
+        }
+        let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
+        XCTAssertEqual(afterHead,beforeHead);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(".git/index")),index);XCTAssertEqual(try Data(contentsOf:root.appendingPathComponent(path)),bytes)
+    }
     func testRevisionLabelUsesSourceReferenceOrderWithoutChangingSnapshot() async throws {
         let (root,repo,path)=try await GitPatchTests().fixture();defer{try? FileManager.default.removeItem(at:root)}
         let hash=try await repo.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)

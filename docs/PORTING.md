@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Browser root authority and General ownership — November 25, 2026
+
+The [connected checkpoint](qa/browser-root-general-recovery-2026-11-25.json)
+fixes a real Browser delivery failure when an actor created before its directory
+and a later captured actor use different file-URL directory hints for the same
+root. Browser actions, exports, providers and promises now share a byte-exact
+lexical root check that preserves authority, entry/tree/backend and grant guards.
+Different roots, Unicode/case spellings and symlink aliases remain refused.
+
+One Debug build, all20 Browser Core methods and three grouped native cases pass,
+including both URL hint orientations and exact filtered outputs/repository bytes.
+General's native fixture now gives a fresh window its own model and retains the
+old model's permanent-retirement assertions. No full local suite was repeated.
+Build59 is still unbuilt and will freeze this correction before its single signed
+build; installed58 and renderer kits are unchanged. Full current hosted CI and
+physical/signed acceptance remain separate.
+
 ## Native Sync drag contract recovery — November 25, 2026
 
 The [Sync drag checkpoint](qa/sync-drag-native-contract-recovery-2026-11-25.json)

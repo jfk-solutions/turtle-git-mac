@@ -68,7 +68,7 @@ import TurtleGitCore
         let pids=try String(contentsOf:ready).split(whereSeparator:{$0.isWhitespace}).compactMap {Int32($0)}
         try require(pids.count==2,"Version process identities missing");model.cancelCheck();try await wait {!model.busy && GeneralGitSettingsModel.activeOperations==0}
         try require(pids.allSatisfy {kill($0,0) != 0 && errno==ESRCH},"Owned Git version process/child remains")
-        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:820,height:700),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false);window.isReleasedWhenClosed=false;window.alphaValue=0;window.title="General – Settings – TurtleGit";model.window=window
+        let window=NSWindow(contentRect:NSRect(x:-24000,y:-24000,width:820,height:700),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false);window.isReleasedWhenClosed=false;window.alphaValue=0;window.title="General – Settings – TurtleGit";model.window=window
         defer {model.suspend();window.contentView=nil;window.close()}
         model.draft=accepted
         var replies:[(NSApplication.ModalResponse)->Void]=[],selected=git,bookmarks=0
@@ -87,24 +87,42 @@ import TurtleGitCore
         model.confirmDisableUpdates {disabled += 1};answers[1](.alertFirstButtonReturn);answers[1](.alertFirstButtonReturn);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(disabled==1,"Update confirmation repeated")
         model.confirmDisableUpdates {disabled += 1};model.suspend();model.activate();answers[2](.alertFirstButtonReturn);try await wait {GeneralGitSettingsModel.activeDialogs==0 && model.canEditPage};try require(disabled==1 && GeneralGitSettingsModel.activeDialogs==0,"Retired update reply changed reopened page")
         // Actual window close retires the owner even with an injected unattached panel.
+        let closedChoice=model.engineChoiceBinding(),closedPath=model.pathBinding(),closedExtra=model.engineField(\.extraPath),closedDraft=model.draft
         model.browse();window.close();replies[4](.OK);try await wait {GeneralGitSettingsModel.activeDialogs==0};try require(bookmarks==1 && GeneralGitSettingsModel.activeDialogs==0 && !model.canEditPage,"Closed owner accepted executable")
-        let pageWindow=NSWindow(contentRect:NSRect(x:0,y:0,width:820,height:700),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false);pageWindow.isReleasedWhenClosed=false;pageWindow.alphaValue=0;pageWindow.title="General – Settings – TurtleGit"
+        let pageWindow=NSWindow(contentRect:NSRect(x:-24000,y:-24000,width:820,height:700),styleMask:[.titled,.closable,.resizable],backing:.buffered,defer:false);pageWindow.isReleasedWhenClosed=false;pageWindow.alphaValue=0;pageWindow.title="General – Settings – TurtleGit"
+        // Native owner closure retires a General model permanently; only page
+        // suspension is reversible. A new Settings owner needs its own model.
+        model.activate();closedChoice.wrappedValue = .system;closedPath.wrappedValue="/closed/git";closedExtra.wrappedValue="/closed/bin"
+        model.check();model.browse();replies[4](.OK)
+        try require(!model.canEditPage && !model.canCheck && model.draft==closedDraft && !model.busy && replies.count==5 && bookmarks==1,"Closed General owner reactivated or accepted retained inputs/reply")
+        let pageModel=GeneralGitSettingsModel(preferences:prefs)
+        pageModel.presentPanel={_,_,reply in replies.append(reply)};pageModel.selectedURL={_ in selected};pageModel.bookmark={_ in bookmarks += 1;return Data("private Git grant".utf8)}
+        pageModel.presentUpdateQuestion={alert,_,reply in questions.append(alert);answers.append(reply)}
         let transaction=SettingsTransaction(),appearance=SettingsAppearanceDraft(appearance:AppAppearance(preferences:prefs))
-        model.draft=accepted;model.error=nil
-        let host=NSHostingView(rootView:GeneralSettings(appearance:appearance,model:model,preferences:prefs).environment(\.settingsTransaction,transaction).defaultAppStorage(prefs))
+        pageModel.draft=accepted;pageModel.error=nil
+        let host=NSHostingView(rootView:GeneralSettings(appearance:appearance,model:pageModel,preferences:prefs).environment(\.settingsTransaction,transaction).defaultAppStorage(prefs))
         let viewport=SettingsPageViewport(frame:pageWindow.contentLayoutRect);viewport.autoresizingMask=[.width,.height];pageWindow.contentView=viewport;viewport.pageDocument.addSubview(host);host.translatesAutoresizingMaskIntoConstraints=false
         NSLayoutConstraint.activate([host.leadingAnchor.constraint(equalTo:viewport.pageDocument.leadingAnchor),host.trailingAnchor.constraint(equalTo:viewport.pageDocument.trailingAnchor),host.topAnchor.constraint(equalTo:viewport.pageDocument.topAnchor),host.bottomAnchor.constraint(equalTo:viewport.pageDocument.bottomAnchor)])
-        defer {transaction.invalidate();model.suspend();pageWindow.contentView=nil;pageWindow.close()}
-        viewport.layoutSubtreeIfNeeded();host.layoutSubtreeIfNeeded();try await wait {views(host).contains {($0 as? PathEntryField.Field)?.accessibilityLabel()=="Git executable"}}
-        let field=views(host).compactMap {$0 as? PathEntryField.Field}.first!;try await wait {field.isEnabled}
+        defer {transaction.invalidate();pageModel.suspend();pageWindow.contentView=nil;pageWindow.close()}
+        @MainActor func waitPage(_ phase:String,_ predicate:()->Bool)async throws {
+            for _ in 0..<2500 {
+                viewport.layoutSubtreeIfNeeded();host.layoutSubtreeIfNeeded()
+                if predicate(){return}
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            let fields=views(host).compactMap{$0 as? PathEntryField.Field}.map{"label=\($0.accessibilityLabel() ?? "nil") attached=\($0.window === pageWindow) enabled=\($0.isEnabled) editable=\($0.isEditable) frame=\($0.frame)"}
+            throw Failure.assertion("General native \(phase): owner=\(pageModel.window === pageWindow) editable=\(pageModel.canEditPage) engine=\(pageModel.canEditEngine) busy=\(pageModel.busy) selecting=\(pageModel.selecting) dialogs=\(GeneralGitSettingsModel.activeDialogs) fields=\(fields)")
+        }
+        try await waitPage("fresh owner/field admission") {pageModel.window === pageWindow && pageModel.canEditEngine && views(host).compactMap{$0 as? PathEntryField.Field}.contains{$0.accessibilityLabel()=="Git executable" && $0.window === pageWindow && $0.isEnabled}}
+        guard let field=views(host).compactMap({$0 as? PathEntryField.Field}).first(where:{$0.accessibilityLabel()=="Git executable" && $0.window === pageWindow}) else {throw Failure.assertion("Missing current General Git field")}
         try require(field.isEditable && field.frame.height>=20,"Native Git completion field clipped")
         let updateBox=views(host).compactMap {$0 as? NSButton}.first {$0.title=="Automatically check for newer versions every week"}
         try require(updateBox != nil && updateBox!.frame.height<=30,"Update checkbox stretched the source application group")
-        let staleChoice=model.engineChoiceBinding(),stalePath=model.pathBinding(),staleExtraPath=model.engineField(\.extraPath)
+        let staleChoice=pageModel.engineChoiceBinding(),stalePath=pageModel.pathBinding(),staleExtraPath=pageModel.engineField(\.extraPath)
         var pageValue=false
-        let stalePage=model.pageField(Binding(get:{pageValue},set:{pageValue=$0}))
-        let sourceDraft=model.draft
-        model.suspend();try await wait {!field.isEnabled}
+        let stalePage=pageModel.pageField(Binding(get:{pageValue},set:{pageValue=$0}))
+        let sourceDraft=pageModel.draft
+        pageModel.suspend();try await waitPage("suspended native controls") {!field.isEnabled}
         if let updateBox,let action=updateBox.action {
             let oldState=updateBox.state,wasModified=transaction.modified
             try require(!updateBox.isEnabled,"Suspended General update checkbox remained actionable")
@@ -113,13 +131,14 @@ import TurtleGitCore
             try require(transaction.modified==wasModified,"Disabled General update action changed its retained draft")
             updateBox.state=oldState
         }
-        model.activate();try await wait {field.isEnabled}
+        pageModel.activate();try await waitPage("reactivated native controls") {pageModel.canEditEngine && field.isEnabled && field.window === pageWindow}
         staleChoice.wrappedValue = .system;stalePath.wrappedValue="/retired/git";staleExtraPath.wrappedValue="/retired/bin";stalePage.wrappedValue=true
-        try require(model.draft==sourceDraft && !pageValue,"Retained General inputs changed the reopened form")
-        model.draft.bookmark=Data("old grant".utf8);field.coordinator?.changed(git.path);try require(model.draft.bookmark==nil,"Typing Git path retained old bookmark")
-        model.draft.extraPath="/usr/local/bin";model.check();try await wait {!model.busy}
-        try require(model.version.hasPrefix("git version "),"Final real version check failed")
-        if let output=ProcessInfo.processInfo.environment["TURTLEGIT_GENERAL_CAPTURE"] {try await capture(pageWindow,to:URL(fileURLWithPath:output))}
+        try require(pageModel.draft==sourceDraft && !pageValue,"Retained General inputs changed the reopened form")
+        pageModel.draft.bookmark=Data("old grant".utf8);field.coordinator?.changed(git.path);try require(pageModel.draft.bookmark==nil,"Typing Git path retained old bookmark")
+        pageModel.draft.extraPath="/usr/local/bin";pageModel.check();try await wait {!pageModel.busy}
+        try require(pageModel.version.hasPrefix("git version "),"Final real version check failed")
+        try require(!model.canEditPage && model.draft==closedDraft && bookmarks==1,"Fresh page changed its retired predecessor")
+        if let output=ProcessInfo.processInfo.environment["TURTLEGIT_GENERAL_CAPTURE"] {pageWindow.setFrameOrigin(.zero);try await capture(pageWindow,to:URL(fileURLWithPath:output))}
         try require(GeneralGitSettingsModel.activeOperations==0 && GeneralGitSettingsModel.activeDialogs==0,"General ownership count leaked")
     }
 }

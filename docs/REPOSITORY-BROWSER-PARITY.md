@@ -732,3 +732,33 @@ Save/Open recovery, transfers and source command masks remain their own
 workflows. The [connected checkpoint](qa/history-file-context-family-2026-11-22.json)
 passes new Browser context/historical handoff and retained file delivery with
 both Git engines. Physical, signed and complete Browser acceptance remain separate.
+
+## Consistent captured repository roots — November 25, 2026
+
+A hosted filtered-output check exposed a real native authority mismatch: an actor
+created before its repository directory existed retained a file URL without a
+directory hint, while backend capture after creation produced the same root with
+that hint. Open/Save could read through the captured actor, but a deferred Browser
+provider rejected the same snapshot through the initiating actor. The source
+Browser uses its selected repository and pinned tree throughout delivery;
+Foundation's directory hint is a macOS representation detail.
+
+Browser label, directory/inventory, raw/materialized read, recursive export,
+working-path, submodule and Revert admission now share one root comparison with
+native provider names, file promises and selected-item transfers. It compares
+lexically normalized filesystem path **UTF-8 bytes**, retaining URL authority
+checks. It does not fold Unicode or case, resolve symlinks, infer grants from
+filesystem aliases, or relax the captured entry/object/tree/backend checks.
+Queries and fragments cannot supply repository authority.
+
+The added Core cases cover actual actor creation before `mkdir`, reconstruction
+afterward, both directory-hint spellings across connected operations, and foreign
+roots/aliases/byte spellings/URL authorities. Native filtered-output coverage adds
+both URL spellings for names, selected file providers, file promises and recursive
+folder delivery, plus foreign-root refusal. Existing Open/Save, accepted filter,
+cancellation and repository-preservation assertions are retained. These additions
+pass the [grouped checkpoint](qa/browser-root-general-recovery-2026-11-25.json):
+one Debug build, all20 Browser Core methods and the bundled-Git native filtered
+workflow. General source/navigation also pass with the fresh-owner fixture.
+Complete hosted, physical/signed Finder and broad visual/accessibility acceptance
+remain separate.

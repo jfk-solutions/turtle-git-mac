@@ -51,7 +51,7 @@ private final class RepositoryBrowserWeakRetention {
 /// Never derive a native path from an escaped label or an opaque selection key.
 private enum RepositoryBrowserDelivery {
     static func name(repository:GitRepository,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry?,directory:String?) throws -> String {
-        guard snapshot.root == repository.root, snapshot.objectID != nil,
+        guard RepositoryBrowserPathIdentity.sameRoot(snapshot.root,repository.root), snapshot.objectID != nil,
               entry.map({ snapshot.entries.contains($0) && $0.kind != .submodule }) ?? true else { throw RepositoryBrowserFailure.selection }
         if let entry,![.directory,.submodule].contains(entry.kind) {
             try RepositoryBrowserTransferPolicy.validateHistoricalFiles(snapshot,entries:[entry])
@@ -67,7 +67,7 @@ private enum RepositoryBrowserDelivery {
         return value.isEmpty ? repository.root.lastPathComponent : String(value.split(separator:"/").last!)
     }
     @MainActor static func export(repository:GitRepository,snapshot:RepositoryBrowserSnapshot,entry:RepositoryBrowserEntry?,cancellation:OperationCancellation?,backend:GitLibGit2Configuration)async throws->RepositoryBrowserExport {
-        guard snapshot.root==repository.root else{throw RepositoryBrowserFailure.selection}
+        guard RepositoryBrowserPathIdentity.sameRoot(snapshot.root,repository.root) else{throw RepositoryBrowserFailure.selection}
         if let entry,!entry.isPathRepresentable,![.directory,.submodule].contains(entry.kind),let revision=snapshot.objectID {
             try RepositoryBrowserTransferPolicy.validateHistoricalFiles(snapshot,entries:[entry])
             let file=CommitFile(path:entry.path,oldPath:nil,action:"M",added:nil,removed:nil,hasStatistics:false,isSubmodule:false)
@@ -175,7 +175,7 @@ private enum RepositoryBrowserDelivery {
     let textProvider:NSItemProvider
     private let access:RepositoryAccessLease?
     init?(repository:GitRepository,access:RepositoryAccessLease?,snapshot:RepositoryBrowserSnapshot,selected:[RepositoryBrowserEntry],inventory:[RepositoryBrowserEntry]?,backend:GitLibGit2Configuration) {
-        guard let revision=snapshot.objectID,let treeID=snapshot.treeID,!selected.isEmpty else{return nil}
+        guard RepositoryBrowserPathIdentity.sameRoot(snapshot.root,repository.root),let revision=snapshot.objectID,let treeID=snapshot.treeID,!selected.isEmpty else{return nil}
         guard (try? RepositoryBrowserTransferPolicy.validateSelection(snapshot,selected:selected,inventory:inventory)) != nil else{return nil}
         var children:RepositoryBrowserPathMap<[RepositoryBrowserEntry]>=[:]
         if let inventory {
