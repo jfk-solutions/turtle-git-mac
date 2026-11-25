@@ -9,11 +9,12 @@ local-tools phase and complete ZIP/source round trips pass their recorded scopes
 The app, exact source, notices and evidence are in
 `build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed`.
 
-The installed app was read-only checked as `0.1.0 (52)` after the build 58 build; it has
-not been updated, quit or reopened by this handoff. Next is owner testing of build 58
-using the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md). No new WMF/EMF feature
-or image-quality matrix is included. Existing build 56 image and build 57 real SSH permission
-evidence retain their original component-specific scope.
+With owner approval, [build58 is now installed and reopened](qa/signed58-installed-2026-11-25.json).
+The initial workspace was observed ready; no repository was selected or changed.
+Build52 is preserved as a verified rollback copy. Owner testing through the
+[acceptance checklist](LOCAL-TESTING-CHECKLIST.md) is next. Existing build56 image
+and build57 real SSH permission evidence retain their original component scope;
+no new WMF/EMF feature or image-quality matrix was added.
 
 For exact `98d35b8b`, [Pages45661147758](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45661147758)
 succeeded. [macOS45661147733](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45661147733)
@@ -22,6 +23,13 @@ as abandoned and the validation matrix was skipped. The cause of abandonment is
 not established. A current complete hosted pass, owner/physical Finder acceptance,
 broader platform/accessibility acceptance and the later license/distribution
 clearance remain open. No binary upload or App Store submission was performed.
+
+The newer documentation revision `36305169` reached the hosted runners, but all eight
+validation lanes failed the workflow admission checker before app tests.
+The [CI admission repair](qa/ssh-ci-admission-repair-2026-11-25.json) now explicitly
+maps the existing SSH configuration step, preserving the workflow and immutable
+baseline. All 52 focused checker tests and the baseline check pass. This CI-only
+change does not rebuild or alter installed58; a complete hosted pass is pending.
 
 The dated checkpoints below preserve their original outcomes; their older pending
 statements are superseded only by later evidence of the same scope. Resource and

@@ -80,16 +80,14 @@ has passed those checks.
 
 ## Current local preparation — November 25, 2026
 
-[Build58](qa/signed-consolidation-build58-2026-11-25.json) is packaged from exact
-`98d35b8b`, including the later progress and Statistics changes. Its single
-universal signed build, static sealed-bundle check, fresh signed local-tools
-phase and complete source/ZIP integrity checks pass their recorded scopes.
-It has not been installed or accepted by the owner. Next is local testing through
-the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md), before any later Store work.
-Current full hosted, physical Finder and broader platform/accessibility acceptance
-remain separate. The matching website deployment passed; macOS CI failed before
-app validation after its required SVN producer was reported abandoned. The earlier
-candidate records below retain their exact source and validation scope.
+[Build58](qa/signed-consolidation-build58-2026-11-25.json) is packaged, and its
+[installed copy](qa/signed58-installed-2026-11-25.json) was reopened with owner
+approval. The initial workspace was observed ready; owner testing through the
+[acceptance checklist](LOCAL-TESTING-CHECKLIST.md) comes before any Store work.
+The older52 copy is preserved for rollback. Full hosted CI is pending; a later
+[CI admission-only correction](qa/ssh-ci-admission-repair-2026-11-25.json) changes
+no application code or candidate bytes. No owner workflow sign-off or Store
+submission is claimed. Earlier candidate records retain their original scope.
 
 ## Prepared local candidate57 — November 25, 2026
 

@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "status": "installed58 and reopened; initial workspace observed",
+  "source_commit": "98d35b8b819b3de68e39318030d300e2b32b69a5",
+  "source_input_sha256": "6b21f84d25909c86850401e23d0425e3d812df04afc0ad8edfe95e143146320c",
+  "build": "58",
+  "version": "0.1.0",
+  "main_sha256": "6f16deefcdad24ac0a684a7c3ae17ddc5d4b81f22fa03e5f8473fcc2a6f66eb9",
+  "packaged_core_sha256": "bb8e9e48068cbf2ea6885019e88a77b0c8cc316968e2e4b6d8f8c505aaea1d90",
+  "owner_authorization": "Install and reopen build 58",
+  "package_record": "signed-consolidation-build58-2026-11-25.json",
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "installed_inventory_matches_package": true,
+  "strict_deep_seal": true,
+  "atomic_exchange": true,
+  "rollback52": {
+    "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build52-before58-2026-11-25.app",
+    "inventory_matches_previous": true,
+    "previous_main_sha256": "e9c98330dc7904fe86906879ff595f8293146a00b9f47030e96a73a6dc258bc7"
+  },
+  "process_and_initial_workspace": {
+    "actual_running_installed_main": [
+      {
+        "pid": 54307,
+        "kernel_executable": "/Applications/TurtleGit for Mac.app/Contents/MacOS/TurtleGitMac"
+      }
+    ],
+    "native_observation": {
+      "method": "cua.getApp exact installed app path",
+      "window": "TurtleGit for Mac",
+      "workspace_id": "workspace",
+      "no_repository_selected": true,
+      "open_clone_create_buttons_present": true,
+      "ready_status_visible": true,
+      "scope": "Initial user-requested workspace only; no repository selected or changed; no complete workflow/Finder acceptance claimed",
+      "control_notes": "Bundle ID lookup was ambiguous; exact installed-path selection displayed the expected workspace. JavaScript assignment reported undefined binding after the app observation; no further UI action needed."
+    },
+    "user_requested_app_left_open": true,
+    "originally_running_main": false,
+    "user_or_unrelated_apps_quit": false
+  },
+  "registration": {
+    "actions": [
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-u",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed/TurtleGit for Mac.app"
+        ],
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "failed to scan /Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed/TurtleGit for Mac.app: -10814\n from spotlight"
+      },
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-u",
+          "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build52-before58-2026-11-25.app"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "argv": [
+          "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+          "-f",
+          "/Applications/TurtleGit for Mac.app"
+        ],
+        "exit_code": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    ],
+    "installed_bundle_resolver": "/Applications/TurtleGit for Mac.app",
+    "original_failed_cleanup_preserved": true,
+    "review": {
+      "strict_installed_signature_and_inventory_passed": true,
+      "rollback52_verified": true,
+      "installed_and_rollback_registration_exit_zero": true,
+      "packaged_source_unregistration_exit": 1,
+      "packaged_source_unregistration_osstatus": -10814,
+      "osstatus_header": "macOS27.2 SDK LaunchServices LSConstants.h: kLSApplicationNotFoundErr=-10814",
+      "scope": "Noninstalled packaged-source registration was not found; original failure retained. Installed URL resolver independently returns exact Applications path; no app replacement retry or global database reset."
+    },
+    "installation_repeated": false
+  },
+  "receipts_sha256": {
+    "signed58-installation-2026-11-25.json": "3f9d667f36e97011ecd3121313aa1bfbe5c9a79f6b996d0301631ea64bf41524",
+    "signed58-reopen-2026-11-25.json": "b57a09543181d943387c7f436e42d4a008640661c221abcfa32105beae04f958"
+  },
+  "original_candidate_and_package_unchanged": true,
+  "Finder_Dock_restart": false,
+  "extension_toggles": false,
+  "public_upload_notarization_store_submission": false,
+  "limits": [
+    "Only initial installed workspace observed; no repository selected or changed",
+    "Owner original-journey testing and complete hosted CI still pending",
+    "No new physical Finder, real server, Intel/minimum macOS or complete accessibility/visual-parity claim"
+  ]
+}

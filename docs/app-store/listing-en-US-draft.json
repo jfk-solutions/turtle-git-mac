@@ -79,7 +79,7 @@
       "build": "0.1.0 (58)",
       "source_commit": "98d35b8b819b3de68e39318030d300e2b32b69a5",
       "evidence": "../qa/signed-consolidation-build58-2026-11-25.json",
-      "scope": "Separately packaged signed local candidate including progress-font and Statistics changes; not installed or owner accepted."
+      "scope": "Signed local candidate including progress-font and Statistics changes; installed and reopened with owner approval. Initial workspace ready; owner workflow testing pending."
     },
     "supplemental_signed_ssh_acceptance": {
       "build": "57",
@@ -87,11 +87,18 @@
       "scope": "Disposable separately signed host-architecture sandbox app reusing byte-identical candidate Core/Git/OpenSSH: actual folder grant, persisted bookmark across fresh processes, inherited config read, adjacent known-host rewrite and Forget/new-process denial with synthetic local files. Not shipping-main-app, installed, physical Finder, real SSH server/key/agent or Store acceptance.",
       "initial_incomplete_attempt": "../qa/signed57-ssh-permission-incomplete-2026-11-25.json"
     },
-    "installed_state": "Read-only checked as 0.1.0 (52) after the build 58 build on 2026-11-25; no installation or user-app quit/reopen performed.",
+    "installed_state": {
+      "build": "0.1.0 (58)",
+      "evidence": "../qa/signed58-installed-2026-11-25.json",
+      "owner_authorized": true,
+      "initial_workspace_ready": true,
+      "owner_workflow_acceptance": false,
+      "previous52_rollback_preserved": true
+    },
     "acceptance_tracker": "../RELEASE-BLOCKERS.md",
     "next_delivery": "Local owner testing before any later App Store distribution.",
     "account_or_submission_changes": false,
-    "hosted_validation": "Exact 98d35b8b Pages passed; matching macOS run failed before application validation after the required SVN producer was reported abandoned. Cause not established; no current full-suite pass claimed."
+    "hosted_validation": "98d35b8b Pages passed; its macOS producer was abandoned. Later36305169 reached runners but stopped at unmapped existing SSH-step admission. A focused52-method checker repair preserves workflow and app sources; complete hosted app validation is pending."
   },
   "historical_preparation_reviews": [
     {

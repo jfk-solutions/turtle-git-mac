@@ -121,6 +121,13 @@ UTILITY_STARTUP = {
     'if': collection_condition('Repository-independent utility and local tool startup', 'settings-finder'),
     'run': 'python3 scripts/test-utility-startup.py',
 }
+SSH_CONFIGURATION_ACCESS_ANCHOR = 'Native Network source layout and SSH ownership'
+SSH_CONFIGURATION_ACCESS_FOLLOWING = 'Grouped native exact-text Git identity, credentials and Network settings'
+SSH_CONFIGURATION_ACCESS = {
+    'name': 'Native SSH configuration access and owned permission sheets',
+    'if': collection_condition('Native SSH configuration access and owned permission sheets', 'settings-finder'),
+    'run': 'python3 scripts/test-ssh-configuration-access.py',
+}
 REVERT_EXACT_ANCHOR = 'Revert completed results and shared file-progress ownership'
 REVERT_EXACT = {
     'name': 'Exact-name Revert clean Retry and retired result ownership',
@@ -357,6 +364,21 @@ def verify(workflow, inventory, originals):
     require(utility[0] == anchors[0] + 1 and actual[utility[0]] == UTILITY_STARTUP,
             'Utility startup command, owner, condition or placement changed')
     actual.pop(utility[0])
+    # This separately reviewed source workflow was added after the immutable
+    # split baseline. Validate its complete execution/ownership contract and
+    # immediate neighbors before removing only this exact additional step.
+    ssh_access = [i for i, step in enumerate(actual)
+                  if step.get('name') == SSH_CONFIGURATION_ACCESS['name']]
+    ssh_anchors = [i for i, step in enumerate(actual)
+                   if step.get('name') == SSH_CONFIGURATION_ACCESS_ANCHOR]
+    require(len(ssh_access) == 1 and len(ssh_anchors) == 1,
+            'Missing or duplicate SSH configuration access consumer/anchor')
+    require(ssh_access[0] == ssh_anchors[0] + 1 and actual[ssh_access[0]] == SSH_CONFIGURATION_ACCESS,
+            'SSH configuration access command, owner, readiness/cancellation or placement changed')
+    require(ssh_access[0] + 1 < len(actual) and
+            actual[ssh_access[0] + 1].get('name') == SSH_CONFIGURATION_ACCESS_FOLLOWING,
+            'Changed SSH configuration access following neighbor')
+    actual.pop(ssh_access[0])
     revert_exact = [i for i, step in enumerate(actual) if step.get('name') == REVERT_EXACT['name']]
     revert_anchors = [i for i, step in enumerate(actual) if step.get('name') == REVERT_EXACT_ANCHOR]
     require(len(revert_exact) == 1 and len(revert_anchors) == 1,

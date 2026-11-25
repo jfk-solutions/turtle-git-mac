@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "source_base": "363051694efd20543716af14e79da27c6af67cf6",
+  "reported_run": 45665144130,
+  "reported_core_job": 139385970169,
+  "cause": "Existing Native SSH configuration access and owned permission sheets workflow step lacked an explicit reviewed addition in the immutable split-baseline checker. Seven observed native/Core lanes stopped at admission before app validation.",
+  "changed_files": [
+    "scripts/check-macos-ci-lanes.py",
+    "scripts/test-macos-ci-lanes.py"
+  ],
+  "preserved": [
+    "Immutable baseline423 steps",
+    "Workflow and MacOSValidationInventory.json unchanged",
+    "All previously reviewed additions and original50 tests",
+    "Exact added step command, settings-finder lane, native_ready and cancellation guard and immediate two neighbors"
+  ],
+  "new_mutation_coverage": [
+    "Missing/duplicate/moved SSH step",
+    "Wrong command/lane, lost readiness/cancellation, implicit success/always",
+    "Injected environment/continue-on-error",
+    "Missing or altered original neighbors and unmapped adjacent step"
+  ],
+  "validation": {
+    "original_methods_retained": 50,
+    "total_methods_passed": 52,
+    "immutable_baseline_check_passed": true,
+    "diff_check_passed": true,
+    "log": "build/qa/ssh-ci-admission-repair-2026-11-25.log",
+    "log_sha256": "f08aa64accc7b3497b27fcb68def7f4fee562fba7de9cbad9b8a44d558832ea7"
+  },
+  "current_hosted_pass_claimed": false,
+  "production_application_sources_changed": false,
+  "installed58_rebuilt": false,
+  "scope": "CI admission-only repair after frozen58. The exact58 source/archive and binaries are unchanged; newer CI checker source is independently identified, not relabeled as frozen58."
+}

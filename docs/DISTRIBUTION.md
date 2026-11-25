@@ -3,7 +3,7 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The latest separately packaged local
-candidate is signed build58; the installed app was read-only checked as build52.
+candidate is signed build58; it is now installed and reopened with owner approval.
 There is no public App Store listing or submitted release. The App Store remains
 a future channel after owner acceptance, distribution signing and the existing
 license/Store terms review.
@@ -11,8 +11,9 @@ license/Store terms review.
 ## Signed local testing build58
 
 [Build58's record](qa/signed-consolidation-build58-2026-11-25.json) identifies
-`0.1.0 (58)`, including the later progress-font and Statistics fixes. It has not
-been installed, launched as the shipping app, uploaded, notarized or submitted.
+`0.1.0 (58)`, including the later progress-font and Statistics fixes. The [installation record](qa/signed58-installed-2026-11-25.json) verifies the installed
+copy and preserved52 rollback. The initial workspace was observed ready; owner
+workflow testing is next. It has not been uploaded, notarized or submitted.
 Use the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md) for this exact build.
 
 | Item | Recorded identity |
@@ -34,10 +35,12 @@ neither is described as new build 58 shipping-main or physical Finder execution.
 
 The current-source website deployment passed. The matching macOS workflow failed
 before app validation because its SVN producer was reported abandoned; a full
-hosted pass is still required. Owner testing, physical Finder and broader
+hosted pass is still required. The later363 CI admission failure now has a
+[focused checker repair](qa/ssh-ci-admission-repair-2026-11-25.json), independently
+scoped from the unchanged installed app. Owner testing, physical Finder and broader
 platform/accessibility acceptance remain separate from this local package.
 Deferred renderer and unrelated installer work are excluded. Earlier packages
-and the installed copy are preserved.
+and the previous installed52 copy are preserved.
 
 ## Signed local testing build56
 

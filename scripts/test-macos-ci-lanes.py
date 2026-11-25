@@ -166,6 +166,53 @@ class MacOSLaneTests(unittest.TestCase):
             if mutation == 'command': steps[index]['run'] = 'true'
             if mutation == 'lane': steps[index]['if'] = "matrix.lane == 'editors'"
             with self.subTest(mutation=mutation), self.assertRaises(AssertionError): self.verify(value)
+    def testSSHConfigurationAccessHasReadyOwnerCancellationAndExactNeighbors(self):
+        steps = self.workflow['jobs']['validation']['steps']
+        index = next(i for i, step in enumerate(steps) if step.get('name') == ci.SSH_CONFIGURATION_ACCESS['name'])
+        self.assertEqual(steps[index], ci.SSH_CONFIGURATION_ACCESS)
+        self.assertEqual(steps[index - 1]['name'], ci.SSH_CONFIGURATION_ACCESS_ANCHOR)
+        self.assertEqual(steps[index + 1]['name'], ci.SSH_CONFIGURATION_ACCESS_FOLLOWING)
+        self.assertTrue(self.eligible(ci.SSH_CONFIGURATION_ACCESS['name'], 'settings-finder', {'earlier_native': 'failure'}))
+        for lane in ci.LANES:
+            with self.subTest(lane=lane):
+                self.assertEqual(self.eligible(ci.SSH_CONFIGURATION_ACCESS['name'], lane), lane == 'settings-finder')
+        for outcome in ['failure', 'skipped', 'cancelled', '']:
+            with self.subTest(outcome=outcome):
+                self.assertFalse(self.eligible(ci.SSH_CONFIGURATION_ACCESS['name'], 'settings-finder', {'native_ready': outcome}))
+        self.assertFalse(self.eligible(ci.SSH_CONFIGURATION_ACCESS['name'], 'settings-finder', cancelled=True))
+        self.verify()
+
+    def testSSHConfigurationAccessCannotDriftOrExcuseOriginalChanges(self):
+        mutations = ['missing', 'duplicate', 'before-anchor', 'after-neighbor', 'wrong-lane',
+                     'wrong-command', 'drop-ready', 'implicit-success', 'always', 'drop-cancel',
+                     'environment', 'continue-on-error', 'missing-anchor', 'anchor-command',
+                     'missing-neighbor', 'neighbor-command', 'unmapped-adjacent-step']
+        for mutation in mutations:
+            value = copy.deepcopy(self.workflow); steps = value['jobs']['validation']['steps']
+            index = next(i for i, step in enumerate(steps) if step.get('name') == ci.SSH_CONFIGURATION_ACCESS['name'])
+            step = steps[index]
+            anchor = next(s for s in steps if s.get('name') == ci.SSH_CONFIGURATION_ACCESS_ANCHOR)
+            neighbor = next(s for s in steps if s.get('name') == ci.SSH_CONFIGURATION_ACCESS_FOLLOWING)
+            if mutation == 'missing': steps.pop(index)
+            if mutation == 'duplicate': steps.insert(index + 1, copy.deepcopy(step))
+            if mutation == 'before-anchor': steps.insert(index - 1, steps.pop(index))
+            if mutation == 'after-neighbor': steps.insert(index + 1, steps.pop(index))
+            if mutation == 'wrong-lane': step['if'] = step['if'].replace('settings-finder', 'editors')
+            if mutation == 'wrong-command': step['run'] = 'true'
+            if mutation == 'drop-ready': step['if'] = step['if'].replace("steps.native_ready.outcome == 'success' && ", '')
+            if mutation == 'implicit-success': step['if'] = "matrix.lane == 'settings-finder'"
+            if mutation == 'always': step['if'] = step['if'].replace('!cancelled()', 'always()')
+            if mutation == 'drop-cancel': step['if'] = step['if'].replace('!cancelled()', 'true')
+            if mutation == 'environment': step['env'] = {'SKIP_ASSERTIONS': '1'}
+            if mutation == 'continue-on-error': step['continue-on-error'] = True
+            if mutation == 'missing-anchor': steps.remove(anchor)
+            if mutation == 'anchor-command': anchor['run'] = 'true'
+            if mutation == 'missing-neighbor': steps.remove(neighbor)
+            if mutation == 'neighbor-command': neighbor['run'] = 'true'
+            if mutation == 'unmapped-adjacent-step': steps.insert(index + 1, {'name': 'Unreviewed SSH check', 'run': 'true'})
+            with self.subTest(mutation=mutation), self.assertRaises(AssertionError):
+                self.verify(value)
+
     def testExactNameRevertHasReadyOwnerAndExactPlacement(self):
         steps = self.workflow['jobs']['validation']['steps']
         index = next(i for i, step in enumerate(steps) if step.get('name') == ci.REVERT_EXACT['name'])

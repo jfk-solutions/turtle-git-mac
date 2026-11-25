@@ -9,11 +9,12 @@ local-tools phase and complete ZIP/source round trips pass their recorded scopes
 The app, exact source, notices and evidence are in
 `build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed`.
 
-The installed app was read-only checked as `0.1.0 (52)` after the build 58 build; it has
-not been updated, quit or reopened by this handoff. Next is owner testing of build 58
-using the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md). No new WMF/EMF feature
-or image-quality matrix is included. Existing build 56 image and build 57 real SSH permission
-evidence retain their original component-specific scope.
+With owner approval, [build58 is now installed and reopened](qa/signed58-installed-2026-11-25.json).
+The initial workspace was observed ready; no repository was selected or changed.
+Build52 is preserved as a verified rollback copy. Owner testing through the
+[acceptance checklist](LOCAL-TESTING-CHECKLIST.md) is next. Existing build56 image
+and build57 real SSH permission evidence retain their original component scope;
+no new WMF/EMF feature or image-quality matrix was added.
 
 For exact `98d35b8b`, [Pages45661147758](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45661147758)
 succeeded. [macOS45661147733](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45661147733)
@@ -22,6 +23,13 @@ as abandoned and the validation matrix was skipped. The cause of abandonment is
 not established. A current complete hosted pass, owner/physical Finder acceptance,
 broader platform/accessibility acceptance and the later license/distribution
 clearance remain open. No binary upload or App Store submission was performed.
+
+The newer documentation revision `36305169` reached the hosted runners, but all eight
+validation lanes failed the workflow admission checker before app tests.
+The [CI admission repair](qa/ssh-ci-admission-repair-2026-11-25.json) now explicitly
+maps the existing SSH configuration step, preserving the workflow and immutable
+baseline. All 52 focused checker tests and the baseline check pass. This CI-only
+change does not rebuild or alter installed58; a complete hosted pass is pending.
 
 The dated checkpoints below preserve their original outcomes; their older pending
 statements are superseded only by later evidence of the same scope. Resource and
@@ -1392,8 +1400,8 @@ signed candidate was replaced by this source checkpoint.
 | --- | --- |
 | Source behavior and layout | [Family records](PORTING.md#current-component-and-workflow-state--october-25-2026) describe connected implementations. The [resource ledger](DIALOG-COVERAGE.md) keeps partial controls and unmapped platform/example resources explicit. Complete dialog states, command eligibility, layout, keyboard and accessibility acceptance must be established from their actual consumers, rather than counting screens. |
 | Connected workflow defects | Commit cross-presentation workflows have a [grouped checkpoint](qa/commit-presentation-workflows-2026-10-29.json). Explicit working-file Compare/conflict intent, captured requesting-repository routing, and Browser read-to-panel/launch ownership now pass their [connected native checkpoint](qa/file-comparison-browser-ownership-2026-10-29.json) with both Git engines and affected regressions. Explicit unchanged-file, copy/rename, Amend first-parent and added/deleted gitlink comparisons pass their [content checkpoint](qa/working-file-content-selection-2026-10-29.json), including read-only index preservation. The later [Log file inspection checkpoint](qa/log-streamed-file-navigation-2026-10-29.json) covers historical navigation and delivery during streamed history; its shared list-control regression is recorded separately. Current Commit screenshots cover both layouts and appearances; signed workflow acceptance remains separate. |
-| Current hosted integration | At the November 23 observation, committed `bf00edd5` [macOS run45109221267](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45109221267) failed at the lane-contract preflight in all eight validation lanes, before app validation; its [Pages run45109221273](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45109221273) succeeded. The new workflow steps had not been registered in the exact-addition checker. This batch repairs that admission contract, retaining all original assertions and adding mutation coverage: 42 focused checks pass locally. A complete hosted run of the corrected source remains open. Installed [build52](qa/signed-consolidation-build52-2026-11-03.json) remains separate. |
-| Installed workflow acceptance | [Build52](qa/signed-consolidation-build52-2026-11-03.json) is installed and left closed after strict package/runtime checks and a bounded physical workspace/Commit startup observation on a private 34,304-path repository. Earlier [build41 acceptance](qa/signed-consolidation-build41-2026-10-30.json) retains Commit headers/staging, Log, Remote and Settings observations. Current-version wider recovery, Finder/grants and representative cold repositories remain separate. |
+| Current hosted integration | Exact `36305169` reached runners after the prior abandoned producer, but all eight lanes stopped at workflow admission. The [SSH-step mapping repair](qa/ssh-ci-admission-repair-2026-11-25.json) passes 52 focused checker methods and immutable baseline verification; it changes no workflow or app source. Complete hosted app validation remains pending. |
+| Installed workflow acceptance | [Build58](qa/signed58-installed-2026-11-25.json) is installed and reopened with owner approval. Complete sealed inventories and rollback52 match; the initial workspace was observed ready. Owner testing of Commit/Log/Settings and physical Finder/repository grants remains separate. |
 | Finder and permissions | [Build18 cold registration](qa/signed-consolidation-build18-2026-10-27.json) records badges and menus without an unwanted workspace. Current-version first-use grants, persisted watched folders, background refresh, multiple repositories, external file grants and the complete command set still need scoped physical acceptance. Finder Sync's native badge placement is the macOS integration. |
 | Startup and large repositories | The [connected readiness batch](qa/finder-readiness-publication-2026-11-03.json) separates usable workspace facts from optional Finder publication. Installed52 first shows usable commands at1.225s while publication continues, and correct Commit rows at the first successful5.569s observation. These include automation overhead and warm filesystem/cache state; cold Finder delivery and every-repository latency remain unproven. |
 | Image menu ownership | The [native image menu family](qa/image-main-menu-2026-10-31.json) connects comparison, standalone selection and repository conflict File/View commands, toolbar state and key ownership. Its record distinguishes hidden native checks from physical menu/keyboard/VoiceOver acceptance. Installed build48 contains this family. |
