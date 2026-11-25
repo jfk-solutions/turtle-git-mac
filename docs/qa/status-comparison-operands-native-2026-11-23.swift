@@ -121,27 +121,30 @@ private extension NSWindow {
                 if let status {return !status.model.busy && status.model.hasStatusSnapshot}
                 return revert!.model.canInteract
             }
-            if commit != nil {try await currentCommitProjection()}
+            if commit != nil {_ = try await currentCommitProjection()}
             else {_=try await Prior.bridge(owner)}
         }
-        func currentCommitProjection()async throws {
-            guard let commit else{return}
+        func currentCommitProjection()async throws->StatusListPrimaryActionBridge.Probe? {
+            guard let commit else{return nil}
+            var accepted:StatusListPrimaryActionBridge.Probe?
             do {try await wait("Current Commit operand projection unavailable") {
                 self.owner.window?.contentView?.layoutSubtreeIfNeeded()
                 let expected=commit.model.displayedFileEntries.map{GitReferenceName($0.path)}
                 let probes=Prior.views(self.owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
-                guard let probe=probes.first(where:{$0.active && $0.window === self.owner.window && !$0.isHiddenOrHasHiddenAncestor}),
+                guard let probe=probes.first(where:{$0.active && $0.window === self.owner.window && !$0.isHiddenOrHasHiddenAncestor && $0.revision==commit.model.fileReportRevision && $0.rows.compactMap({$0}).map({GitReferenceName($0)})==expected}),
                       probe.revision==commit.model.fileReportRevision,
                       probe.rows.compactMap({$0}).map({GitReferenceName($0)})==expected,
                       let table=try? Prior.table(self.owner),table.window === self.owner.window,
                       table.numberOfRows==probe.rows.count,!table.isHiddenOrHasHiddenAncestor,table.isEnabled else{return false}
-                return commit.model.fileListAvailable && !commit.model.busy && !commit.model.fileWorkPending && !commit.model.loadingFileMetadata
+                let ready=commit.model.fileListAvailable && !commit.model.busy && !commit.model.fileWorkPending && !commit.model.loadingFileMetadata
+                if ready {accepted=probe};return ready
             }} catch {
                 let probes=Prior.views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
                 print("OPERAND PROJECTION: expectedRevision=\(commit.model.fileReportRevision),actual=\(probes.map{String(describing:$0.revision)}),expectedRows=\(commit.model.displayedFileEntries.prefix(24).map{String(reflecting:$0.path)})")
                 print(diagnostic("projection-readiness-failure"))
                 throw error
             }
+            return try Prior.unwrap(accepted,"Current Commit operand projection was not retained")
         }
         func diagnostic(_ phase:String)->String {
             let entries:[StatusEntry]
@@ -149,7 +152,7 @@ private extension NSWindow {
             else if let status {entries=status.model.files.map(\.entry)}
             else {entries=revert!.model.commands.files.map(\.entry)}
             let rows=Prior.views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.map{probe in
-                "active=\(probe.active),rows=\(Array(probe.rows.prefix(24))),owner=\(probe.window === owner.window)"
+                "active=\(probe.active),revision=\(probe.revision),current=\(Prior.currentReport(owner,probe)),hidden=\(probe.isHiddenOrHasHiddenAncestor),rows=\(Array(probe.rows.prefix(24))),owner=\(probe.window === owner.window)"
             }
             let tables=Prior.views(owner.window?.contentView).compactMap{$0 as? NSTableView}.map{
                 "count=\($0.numberOfRows),selection=\(Array($0.selectedRowIndexes)),owner=\($0.window === owner.window),hidden=\($0.isHiddenOrHasHiddenAncestor)"
@@ -165,13 +168,28 @@ private extension NSWindow {
             return ordered
         }
         func enter()async throws {
-            // Model reads can settle before SwiftUI republishes the bridge's
-            // receipt. Identical paths/count do not prove its revision current.
-            try await currentCommitProjection()
-            let bridge=try await Prior.bridge(owner),table=try Prior.table(owner),window=owner.window!
+            // Return uses the exact accepted mounted projection, not a separate
+            // lookup that may choose an active but hidden/stale SwiftUI bridge.
+            let bridge:StatusListPrimaryActionBridge.Probe
+            if let current=try await currentCommitProjection() {bridge=current}
+            else {bridge=try await Prior.bridge(owner)}
+            let table=try Prior.table(owner),window=owner.window!
             bridge.commandKeyWindow={[weak window] in window}
             try require(window.makeFirstResponder(table) && window.firstResponder === table,"Source report refused Return focus")
+            try require(Prior.currentReport(owner,bridge),"Return projection retired before dispatch; "+Prior.inputState(owner,bridge))
+            let forward=bridge.activate
+            var receipts:[StatusListPrimaryActionReceipt]=[]
+            bridge.activate={receipt in
+                receipts.append(receipt)
+                Prior.boundary("operand Return forwarded paths=\(String(reflecting:receipt.paths)),mark=\(String(reflecting:receipt.path)),alternate=\(receipt.alternate),receiptRevision=\(receipt.revision),"+Prior.inputState(self.owner,bridge))
+                forward?(receipt)
+            }
+            defer{bridge.activate=forward}
+            Prior.boundary("operand Return begin "+Prior.inputState(owner,bridge)+","+diagnostic("before-Return"))
             try require(bridge.observe(SyncPrimaryActivationVerification.key(window,code:36))==nil,"Native Return escaped source list")
+            Prior.boundary("operand Return ended forwarded=\(receipts.count),"+Prior.inputState(owner,bridge)+","+diagnostic("after-Return"))
+            try require(receipts.count==1,"Native Return consumed without forwarding one accepted selected-row receipt; "+Prior.inputState(owner,bridge))
+            try require(receipts[0].revision==bridge.revision && GitPathSet(receipts[0].paths)==selection,"Native Return forwarded another generation/selected path set; "+diagnostic("forwarded-Return"))
         }
         func launch(_ value:StatusListPrimaryActivationSession.Launch?) {commit?.model.onPrimaryFileActivation=value;status?.model.onPrimaryFileActivation=value;revert?.model.onPrimaryFileActivation=value}
         func confirm(_ value:((Int)async->Bool)?) {commit?.model.confirmPrimaryFileActivation=value;status?.model.confirmPrimaryFileActivation=value;revert?.model.confirmPrimaryFileActivation=value}
@@ -264,7 +282,7 @@ private extension NSWindow {
                         return "base=\(plan.base),count=\(plan.selectedCount),ownerCurrent=\(plan.ownerIsCurrent()),sameWindow=\(plan.window === commit.window),actions=\(actions)"
                     } ?? "none"
                     let delivered=deliveries.prefix(24).map{"path=\(String(reflecting:$0.file.path)),action=\($0.file.action),old=\(String(reflecting:$0.file.oldPath)),from=\($0.snapshot.from),to=\($0.snapshot.to)"}
-                    print("MISSING ORIGIN: reloadedRow=\(reloadedRow.map(describeRow) ?? "absent"),acceptedPlan=\(planDescription),error=\(String(reflecting:commit.model.error)),pending=\(view.pending),busy=\(view.busy),sheet=\(commit.window?.attachedSheet != nil),visible=\(commit.window?.isVisible == true),sourceClosed=\(!commit.model.messageFocusAvailable),deliveries=\(delivered)")
+                    print("MISSING ORIGIN: reloadedRow=\(reloadedRow.map(describeRow) ?? "absent"),acceptedPlan=\(planDescription),error=\(String(reflecting:commit.model.error)),pending=\(view.pending),busy=\(view.busy),sheet=\(commit.window?.attachedSheet != nil),visible=\(commit.window?.isVisible == true),sourceClosed=\(!commit.model.messageFocusAvailable),fileListAvailable=\(commit.model.fileListAvailable),reportRevision=\(commit.model.fileReportRevision),menuRevision=\(commit.model.fileReportMenuRevision),deliveries=\(delivered),boundaries=\(Prior.inputBoundaries)")
                     print(view.diagnostic("missing-origin-failure"));fflush(stdout)
                     throw error
                 }

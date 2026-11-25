@@ -1,5 +1,39 @@
 # Local testing and release gates
 
+## Handoff, transport and selected-file recovery — November 25, 2026
+
+The [connected native checkpoint](qa/command-handoff-status-merge-recovery-2026-11-25.json)
+passes 34 distinct case/engine runs cumulatively across repository handoffs,
+transport pickers, Commit/Working Tree/Revert/Add/Resolve activation, comparison
+operands and Merge block/navigation/whitespace/one-pane workflows. It repairs
+compiler-heavy diagnostics, stale native/menu receipts, obsolete legacy-callback
+oracles and serialized/display coordinate assumptions. Typed explicit Compare
+plans now go through actual Root delivery; Resolve's separate ancestor aggregate
+oracle, all byte/cancellation/ownership assertions and strict stale refusals remain.
+
+One initial group and only affected/unreached repairs were run; passing cohorts
+were retained. Cached production objects/frameworks stayed unchanged, with no
+app/Core/renderer rebuild or Core suite run. All owned helpers are reaped. Original
+failures and limits remain recorded. The later language file-list and Merge General
+fixture failures are a separate pending batch, not a full hosted or physical pass.
+
+## Consolidated signed candidate59 — November 25, 2026
+
+[Build59](qa/signed-consolidation-build59-2026-11-25.json) packages frozen
+`1ad1d98f`, including the Rebase draft-preservation and Browser root-authority
+fixes below. Its single universal signed build, strict static checks, fresh
+sandboxed local-tools phase and complete app/source archive round trips pass.
+The package is `build/local-testing/TurtleGit-for-Mac-0.1.0-build59-signed`.
+Installed58 remains untouched; candidate59 has not been installed or published.
+
+Current `1ad1d98f` Pages deployment passed. Full corrected-source hosted macOS CI
+is pending; the older run's Core lane passed but does not include the Browser
+correction. The connected native fixture recovery above now passes its recorded
+scope; later language and Merge General checks remain underway.
+Owner testing, physical Finder/permission acceptance and distribution clearance
+remain separate. Historical image56 and SSH57 evidence retains its stated scope;
+no new renderer capability, image matrix or permission run was added.
+
 ## Browser root authority and General ownership — November 25, 2026
 
 The [connected checkpoint](qa/browser-root-general-recovery-2026-11-25.json)
@@ -13,8 +47,8 @@ One Debug build, all20 Browser Core methods and three grouped native cases pass,
 including both URL hint orientations and exact filtered outputs/repository bytes.
 General's native fixture now gives a fresh window its own model and retains the
 old model's permanent-retirement assertions. No full local suite was repeated.
-Build59 is still unbuilt and will freeze this correction before its single signed
-build; installed58 and renderer kits are unchanged. Full current hosted CI and
+Build59 now includes this correction in the frozen signed package above;
+installed58 and renderer kits are unchanged. Full current hosted CI and
 physical/signed acceptance remain separate.
 
 ## Native Sync drag contract recovery — November 25, 2026

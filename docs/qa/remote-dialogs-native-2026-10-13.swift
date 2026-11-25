@@ -59,6 +59,7 @@ import TurtleGitCore
             defer { preferences.removePersistentDomain(forName: suite) }
             let parent = FetchWindowController(repository: repository,access: nil,isPull: pull,preferences: preferences)
             defer { parent.close() }
+            parent.window?.alphaValue=0;parent.window?.setFrameOrigin(.init(x:-24000,y:-24000))
             parent.model.options.arbitraryURL = true; parent.model.url = root.path
             parent.configureRemoteReferences = { child in child.model.query = { _,_ in ["first","second"] } }
             parent.model.browse()
@@ -93,14 +94,26 @@ import TurtleGitCore
         let suite = "TurtleGit.TransportPickers." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         prefs.set(false, forKey: "EnableGravatar")
-        func wait(_ ready: () -> Bool) async throws { for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw NSError(domain: "Transport picker timeout", code: 1) }
+        var transportState:()->String={"initial transport setup"}
+        @MainActor func wait(line:Int = #line,_ ready: () -> Bool) async throws {
+            print("BEGIN transport picker wait \(line)");fflush(stdout)
+            for _ in 0..<2000 {
+                for window in NSApp.windows {window.contentView?.layoutSubtreeIfNeeded()}
+                if ready(){print("END transport picker wait \(line)");fflush(stdout);return}
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            let windows=NSApp.windows.map{"title=\($0.title) visible=\($0.isVisible) alpha=\($0.alphaValue) sheet=\($0.attachedSheet != nil) parent=\($0.sheetParent != nil)"}
+            throw NSError(domain:"Transport picker timeout",code:1,userInfo:[NSLocalizedDescriptionKey:"line=\(line) \(transportState()) windows=\(windows)"])
+        }
         func check(_ value: Bool, _ message: String) throws { if !value { throw NSError(domain: message, code: 1) } }
         func choose(_ picker: ReferenceBrowserWindowController, _ name: GitReferenceName) {
             picker.model.nested = true; picker.model.setFolder("refs"); picker.model.select([name], last: name); picker.model.accept()
         }
         let regex = URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/IssueRegex/issue-regex")
         let push = PushWindowController(repository: repo, access: nil, preferences: prefs, historyRegexExecutable: regex)
-        defer { push.close() }; push.window!.alphaValue = 0; push.showWindow(nil); push.model.load(); try await wait { !push.model.busy && !push.model.preparing }
+        defer { push.close() }; push.window!.alphaValue = 0;push.window!.setFrameOrigin(.init(x:-24000,y:-24000))
+        transportState={"Push busy=\(push.model.busy) preparing=\(push.model.preparing) retry=\(push.model.preparationNeedsRetry) canChoose=\(push.model.canChooseReference) choosing=\(push.model.choosingReference) error=\(String(reflecting:push.model.error)) reference=\(push.referencePicker != nil) log=\(push.sourceLogPicker != nil) reflog=\(push.sourceRefLogPicker != nil)"}
+        push.showWindow(nil); push.model.load(); try await wait { !push.model.busy && !push.model.preparing }
         let config = try Data(contentsOf: root.appendingPathComponent(".git/config")), index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         var configured = 0; push.configureReferencePicker = { if $0.preferences === prefs { configured += 1 } }
         push.showReferencePicker(destination: false); try await wait { push.referencePicker?.model.busy == false }
@@ -131,7 +144,9 @@ import TurtleGitCore
         push.close()
         for pull in [false, true] {
             let fetch = FetchWindowController(repository: repo, access: nil, isPull: pull, preferences: prefs); defer { fetch.close() }
-            fetch.window!.alphaValue = 0; fetch.model.options.remote = "origin"; fetch.model.options.branch = "draft"
+            fetch.window!.alphaValue = 0;fetch.window!.setFrameOrigin(.init(x:-24000,y:-24000))
+            transportState={"Fetch pull=\(pull) closed=\(fetch.model.closed) busy=\(fetch.model.busy) preparing=\(fetch.model.preparing) browsing=\(fetch.model.browsing) error=\(String(reflecting:fetch.model.error)) picker=\(fetch.remoteReferenceController != nil)"}
+            fetch.model.options.remote = "origin"; fetch.model.options.branch = "draft"
             fetch.configureRemoteReferences = { $0.model.query = { _, _ in ["first", "second"] } }
             fetch.model.browse(); try await wait { fetch.remoteReferenceController?.model.busy == false }
             try check(fetch.remoteReferenceController!.window!.alphaValue == 0, "Remote selector did not inherit parent visibility")
@@ -143,7 +158,9 @@ import TurtleGitCore
             try check(fetch.remoteReferenceController == nil && !fetch.model.browsing, "Retired Fetch/Pull retained remote selector")
         }
         let sync = SynchronizationWindowController(repository: repo, access: nil, preferences: prefs); defer { sync.close() }
-        sync.window!.alphaValue = 0; sync.model.reload(initial: true); try await wait { !sync.model.busy }
+        sync.window!.alphaValue = 0;sync.window!.setFrameOrigin(.init(x:-24000,y:-24000))
+        transportState={"Sync closed=\(sync.model.closed) busy=\(sync.model.busy) inline=\(sync.model.hasPendingInlineWork) blocking=\(sync.model.hasBlockingChild) choosing=\(sync.model.choosingBranch) error=\(String(reflecting:sync.model.error)) picker=\(sync.branchPicker != nil)"}
+        sync.model.reload(initial: true); try await wait { !sync.model.busy }
         sync.showBranchPicker(.remote); try await wait { sync.branchPicker?.model.busy == false }
         choose(sync.branchPicker!, "refs/remotes/team/nested/topic/one")
         try await wait { !sync.model.choosingBranch && !sync.model.busy && sync.window!.attachedSheet == nil }
@@ -168,12 +185,23 @@ import TurtleGitCore
         exec \(quote(git.path)) "$@"
         """
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-        let closing = PushWindowController(repository: GitRepository(root: root, executable: helper), access: nil, preferences: prefs)
-        defer { closing.close() }; closing.window!.alphaValue = 0; closing.model.load(); try await wait { !closing.model.busy && !closing.model.preparing }
+        // This witness deliberately holds an actual CLI for-each-ref process.
+        // The ordinary picker cases above retain their selected default backend;
+        // only this controlled executable witness must disable libgit2 routing.
+        let heldSuite="TurtleGit.TransportPickers.Held."+UUID().uuidString,heldPreferences=UserDefaults(suiteName:heldSuite)!
+        heldPreferences.set(false,forKey:"UseLibgit2");heldPreferences.set(false,forKey:"EnableGravatar")
+        defer{heldPreferences.removePersistentDomain(forName:heldSuite)}
+        let closing = PushWindowController(repository: GitRepository(root: root, executable: helper,libgit2Configuration:.init(enabled:false)), access: nil, preferences: heldPreferences)
+        defer { closing.close() }; closing.window!.alphaValue = 0;closing.window!.setFrameOrigin(.init(x:-24000,y:-24000))
+        transportState={"Held Push closed=\(closing.model.closed) busy=\(closing.model.busy) preparing=\(closing.model.preparing) retry=\(closing.model.preparationNeedsRetry) canChoose=\(closing.model.canChooseReference) choosing=\(closing.model.choosingReference) error=\(String(reflecting:closing.model.error)) picker=\(closing.referencePicker != nil) readers=\(ReferenceBrowserWindowModel.activeReads) marker=\(FileManager.default.fileExists(atPath:ready.path))"}
+        closing.model.load(); try await wait { !closing.model.busy && !closing.model.preparing }
         try Data().write(to: gate); closing.showReferencePicker(destination: false); try await wait { FileManager.default.fileExists(atPath: ready.path) }
-        let pid = pid_t(try String(contentsOf: ready).trimmingCharacters(in: .whitespacesAndNewlines))!
+        guard let pid=pid_t(try String(contentsOf:ready).trimmingCharacters(in:.whitespacesAndNewlines)),pid>1 else {throw NSError(domain:"Invalid owned reference-reader PID",code:1)}
         try check(ReferenceBrowserWindowModel.activeReads > 0 && kill(pid, 0) == 0, "Reference picker had no owned active reader")
-        closing.close(); try await wait { closing.model.closed && ReferenceBrowserWindowModel.activeReads == 0 }
+        closing.close();try check(closing.model.closed,"Forced Push close did not retire the source immediately")
+        // Reader completion precedes the child's paired native detach/onClosed;
+        // keep ownership until that exact controller and sheet have drained.
+        try await wait {closing.model.closed && ReferenceBrowserWindowModel.activeReads==0 && closing.referencePicker==nil && !closing.model.choosingReference && !closing.serviceWorkPending && closing.window?.attachedSheet==nil}
         try check(closing.referencePicker == nil && !closing.model.choosingReference && kill(pid, 0) == -1 && errno == ESRCH, "Forced Push close leaked child/read or selection state")
         let head = try await repo.run(["rev-parse", "HEAD"]).text.trimmingCharacters(in: .newlines)
         try check(head == tip && Data(contentsOf: root.appendingPathComponent(".git/config")) == config && Data(contentsOf: root.appendingPathComponent(".git/index")) == index, "Picker-only workflows changed Git state")

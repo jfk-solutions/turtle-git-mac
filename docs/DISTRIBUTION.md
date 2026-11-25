@@ -3,10 +3,39 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The latest separately packaged local
-candidate is signed build58; it is now installed and reopened with owner approval.
+candidate is signed build59. Build58 remains installed from the owner-approved
+handoff; build59 has not been installed.
 There is no public App Store listing or submitted release. The App Store remains
 a future channel after owner acceptance, distribution signing and the existing
 license/Store terms review.
+
+## Signed local testing build59
+
+[Build59's record](qa/signed-consolidation-build59-2026-11-25.json) identifies
+`0.1.0 (59)`, including Rebase draft preservation and Browser delivery across
+equivalent directory-URL hints. Its one universal signed build, strict static
+audit, fresh sandboxed local-tools/Core/Git phase and complete source/ZIP checks
+pass. The source companion matches all 14,905 tracked blobs and 116 directories;
+copied and extracted applications match all 7,493 complete inventory members.
+The original candidate, package and installed58 remain separately preserved.
+
+| Item | Recorded identity |
+| --- | --- |
+| Exact clean app source | `1ad1d98fcff11c52f72512f8dc3de9aba75712d2` |
+| Build-input SHA-256 | `631c50d4fc2130699f9df55b0c62f35a020e445fe5d09c4b664d10b82ff47fd7` |
+| Local ZIP | `build/local-testing/TurtleGit-for-Mac-0.1.0-build59-signed/TurtleGit-for-Mac-0.1.0-build59-signed.zip` |
+| ZIP SHA-256 | `16beeb389c08e87960709ff450f61a2e327eb8214163569bc96128df49f12606` |
+| Matching source archive SHA-256 | `aa08501747d93ca3d13507696fbe9be38ce56e649df4b0e5fbd6a12f0fca4a49` |
+| Signing channel | Apple Development, sandboxed AppStore configuration for local testing |
+
+Current-source Pages passed; full corrected-source hosted macOS CI and owner/
+physical acceptance remain open. Historical image56 and SSH57 evidence retains
+its explicit component scope, with fresh59 static compatibility checks; neither
+is new59 execution. Later native fixture corrections are a separate checkpoint.
+No new renderer work, installed-app replacement or public submission is included.
+
+The dated packages below retain their original checkpoint outcomes. Their older
+pending statements are superseded by later evidence only for the same scope.
 
 ## Signed local testing build58
 

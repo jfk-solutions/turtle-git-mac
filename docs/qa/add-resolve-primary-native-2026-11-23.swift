@@ -36,15 +36,21 @@ import TurtleGitCore
         func ready()async throws {
             try await wait("source did not mount") {
                 self.window.contentView?.layoutSubtreeIfNeeded()
-                return !self.busy && self.rows.count>=4 && (try? self.table().numberOfRows)==self.rows.count
+                guard !self.busy,self.rows.count>=4,let table=try? self.table(),table.isEnabled,
+                      table.window === self.window,!table.isHiddenOrHasHiddenAncestor,table.numberOfRows==self.rows.count else{return false}
+                if let resolve=self.resolve,let report=table.dataSource as? ConflictReportTable.Coordinator {
+                    return resolve.model.canInteract && report.owner.enabled && report.owner.rows.map{Data($0.path.utf8)}==resolve.model.sortedReportEntries.map{Data($0.path.utf8)}
+                }
+                return (table.dataSource as? AddFileTable.Coordinator)?.canPresentFileMenu==true
             }
         }
         func table()throws->AddNativeTable {try Prior.unwrap(views(owner).compactMap{$0 as? AddNativeTable}.first,"Native source table missing")}
         var rows:[String] {
-            if let add,let table=try? table(),let report=table.dataSource as? AddFileTable.Coordinator {return report.rows.map(\.path)}
+            if add != nil,let table=try? table(),let report=table.dataSource as? AddFileTable.Coordinator {return report.rows.map(\.path)}
             return resolve?.model.sortedReportEntries.map(\.path) ?? []
         }
         func select(_ paths:[String])async throws->[String] {
+            try await ready()
             let table=try table(),wanted=GitPathSet(paths),ordered=rows.filter{wanted.contains($0)}
             CommitFileInteraction.replaceSelection(in:table,with:IndexSet(rows.indices.filter{wanted.contains(rows[$0])}))
             try await wait("native selected rows not accepted"){self.selection==GitPathSet(ordered)}
@@ -53,19 +59,21 @@ import TurtleGitCore
         func event(_ flags:NSEvent.ModifierFlags=[],code:UInt16=36)throws->NSEvent {
             try Prior.unwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:code),"Native Return missing")
         }
-        func enter(_ flags:NSEvent.ModifierFlags=[],code:UInt16=36) throws {
+        func enter(_ flags:NSEvent.ModifierFlags=[],code:UInt16=36)async throws {
+            try await ready()
             let table=try table();table.commandKeyWindow={[weak self] in self?.window}
             try require(window.makeFirstResponder(table),"Source report refused focus")
             try require(window.performKeyEquivalent(with:event(flags,code:code)),"Source window did not retain Return before default button")
         }
         func confirm(_ answer:((Int) async->Bool)?) {add?.model.confirmPrimaryFileActivation=answer;resolve?.model.confirmPrimaryFileActivation=answer}
-        func clearCallbacks() {add?.model.onPrimaryFileActivation=nil;resolve?.model.onPrimaryFileActivation=nil;confirm(nil)}
+        func clearCallbacks() {add?.model.onPrimaryFileActivation=nil;resolve?.model.onPrimaryFileActivation=nil;resolve?.model.onWorkingFileComparison=nil;confirm(nil)}
         func reload() {add?.model.reload();resolve?.model.load()}
         func closeRequest()->Bool {if let add{return add.windowShouldClose(window)};return resolve!.windowShouldClose(window)}
     }
     /// Paired real AppKit mouse tracking, with public key state injected only
     /// for this private offscreen owner, as in the retained Log pointer case.
-    static func click(_ source:Surface,path:String,column:Int=1,alternate:Bool=false)throws {
+    static func click(_ source:Surface,path:String,column:Int=1,alternate:Bool=false)async throws {
+        try await source.ready()
         let table=try source.table(),row=try Prior.unwrap(source.rows.firstIndex{GitReferenceName.equal($0,path)},"Pointer row absent"),window=source.window
         table.scrollRowToVisible(row);table.scrollColumnToVisible(column);window.contentView?.layoutSubtreeIfNeeded();window.makeFirstResponder(table)
         let rect=table.frameOfCell(atColumn:column,row:row).intersection(table.visibleRect)
@@ -94,7 +102,7 @@ import TurtleGitCore
         let field=NSTextField(frame:.init(x:4,y:4,width:120,height:22));source.window.contentView?.addSubview(field)
         source.window.makeFirstResponder(field)
         try require(!table.performSelectedReturn(source.event()),"Field editor Return stolen")
-        field.removeFromSuperview();_ = try await source.select([]);try source.enter(code:76)
+        field.removeFromSuperview();_ = try await source.select([]);try await source.enter(code:76)
         try require(!source.pending,"Empty Return activated source")
     }
     static func exercise(_ kind:Kind,_ c:Context,paths:[String])async throws {
@@ -106,12 +114,12 @@ import TurtleGitCore
         source.confirm{counts.append($0);return false}
         if let add=source.add {add.model.onPrimaryFileActivation={_,_ in launches += 1}}
         else {source.resolve!.model.onPrimaryFileActivation={_,_ in launches += 1}}
-        try source.enter();try await wait("declined warning did not drain"){!source.pending && !source.busy}
+        try await source.enter();try await wait("declined warning did not drain"){!source.pending && !source.busy}
         try require(counts==[ordered.count] && launches==0,"One source warning did not decline whole selection")
         var answer:CheckedContinuation<Bool,Never>?
         c.unblock.append{answer?.resume(returning:false);answer=nil}
         source.confirm{_ in await withCheckedContinuation{answer=$0}}
-        try source.enter();try await wait("held tool-identity question absent"){answer != nil}
+        try await source.enter();try await wait("held tool-identity question absent"){answer != nil}
         let previousTools=c.prefs.data(forKey:"TurtleGit.MergeTools")
         c.prefs.set(Data("{}".utf8),forKey:"TurtleGit.MergeTools")
         try await Task.sleep(nanoseconds:30_000_000)
@@ -123,43 +131,76 @@ import TurtleGitCore
         source.confirm{counts.append($0);return true}
         if let add=source.add {add.model.onPrimaryFileActivation={plan,_ in seen=plan.actions.map{$0.file.entry.path};alternate=plan.alternateTool;ownerCurrent=plan.ownerIsCurrent;launches += 1;source.reload()}}
         else {source.resolve!.model.onPrimaryFileActivation={plan,_ in seen=plan.entries.map(\.path);alternate=plan.alternateTool;ownerCurrent=plan.ownerIsCurrent;launches += 1;source.reload()}}
-        try source.enter(.shift,code:76);try await wait("selected keypad Return did not drain"){!source.pending && !source.busy}
+        try await source.enter(.shift,code:76);try await wait("selected keypad Return did not drain"){!source.pending && !source.busy}
         try require(seen==ordered && alternate && launches==1 && counts==[ordered.count,ordered.count] && source.checked==checks,"Selected Return lost order/Shift/checkbox separation")
         try require(ownerCurrent?()==false,"Completed source token remained reusable")
         let oldCount=counts.count
         let clicked=c.conflict
         if let add=source.add {add.model.onPrimaryFileActivation={plan,_ in seen=plan.actions.map{$0.file.entry.path};launches += 1}}
         else {source.resolve!.model.onPrimaryFileActivation={plan,_ in seen=plan.entries.map(\.path);launches += 1}}
-        try click(source,path:clicked);try await wait("clicked primary did not drain"){!source.pending && !source.busy}
+        try await click(source,path:clicked);try await wait("clicked primary did not drain"){!source.pending && !source.busy}
         try require(seen==[clicked] && launches==2 && counts.count==oldCount,"Pointer used selected set or warned for unrelated highlights")
-        try click(source,path:clicked,column:0);try require(launches==2,"Checkbox pointer launched default action")
+        try await click(source,path:clicked,column:0);try require(launches==2,"Checkbox pointer launched default action")
         _=try await source.select(paths)
         let root=RepositoryModel(startMonitoring:false,initializePreferences:false,snapshotStore:FinderSnapshotStore(url:c.root.appendingPathComponent("\(kind)-finder.json")),comparisonMarks:WorkingComparisonMarkStore(storageURL:c.root.appendingPathComponent("\(kind)-marks.json")),cachePersistenceDefaults:c.prefs)
         c.roots.append(root);root.fileComparisonPreferences=c.prefs
-        var delivered:[String]=[],nested=0
+        var delivered:[String]=[],nested=0,comparisons:[(String,ComparisonRevision,ComparisonRevision)]=[]
         root.fileComparisonQuestion={_ in nested += 1;return false}
         root.openExternalConflict={_,_,_,_,_,_,_,prepared,_ in prepared();return false}
         root.conflictEditorPresentation={_,_,path,_ in delivered.append(path)}
-        root.fileComparisonPresentation={_,file in delivered.append(file.path)}
-        if let add=source.add {add.model.onPrimaryFileActivation={plan,token in try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)}}
+        root.fileComparisonPresentation={snapshot,file in delivered.append(file.path);comparisons.append((file.path,snapshot.from,snapshot.to))}
+        let addPrimary:StatusListPrimaryActivationSession.Launch={plan,token in try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)}
+        if let add=source.add {add.model.onPrimaryFileActivation=addPrimary}
         else {source.resolve!.model.onPrimaryFileActivation={plan,token in try await root.showConflictListPrimaryFiles(plan,access:nil,cancellation:token)}}
-        try source.enter();try await wait("real Root selected dispatch did not drain"){!source.pending && !source.busy && !root.hasPendingRepositoryWork}
+        try await source.enter();try await wait("real Root selected dispatch did not drain"){!source.pending && !source.busy && !root.hasPendingRepositoryWork}
         try require(delivered==ordered && nested==0,"Root reordered/dropped selected rows or warned twice")
         try await c.preserved()
-        let explicit=[c.conflict,c.other],beforeExplicit=delivered.count
-        _=try await source.select(explicit)
-        if let add=source.add {
-            var compared:[[String]]=[];add.model.onCompare={compared.append($0)}
-            let report=try Prior.unwrap(try source.table().dataSource as? AddFileTable.Coordinator,"Explicit Add menu coordinator absent")
-            report.compareBase()
-            try require(compared.count==1 && GitPathSet(compared[0])==GitPathSet(explicit),"Explicit Add Compare was split into default actions")
-        } else {
-            source.resolve!.model.compare(explicit)
-            try await wait("explicit Resolve aggregate Compare did not finish"){!source.busy && source.resolve!.model.patch != nil}
-            source.resolve!.model.patch=nil
-            try await wait("explicit Resolve aggregate viewer did not detach"){source.window.attachedSheet==nil}
+        let explicit=[c.conflict,c.other],beforeExplicit=delivered,beforeComparisons=comparisons.count,nestedBefore=nested
+        let explicitOrder=try await source.select(explicit),base=String(decoding:c.head,as:UTF8.self).trimmingCharacters(in:.whitespacesAndNewlines)
+        var explicitPlans:[StatusListPrimaryActivation]=[]
+        let explicitLaunch:StatusListPrimaryActivationSession.Launch={plan,token in
+            try require(plan.selectedCount==explicitOrder.count && plan.actions.map{$0.file.entry.path}==explicitOrder,"Explicit Compare changed native accepted order/count")
+            try require(plan.window === source.window && plan.preferences === c.prefs && plan.repository.executable==c.repository.executable && plan.repository.libgit2Configuration?.enabled==false && plan.ownerIsCurrent() && !plan.alternateTool && !plan.amendToParent,"Explicit Compare recaptured owner/preferences/backend/Shift")
+            try require(plan.base == .revision(base) && plan.actions.allSatisfy{if case .comparison = $0{return true};return false},"Explicit Compare was split into default/conflict actions")
+            explicitPlans.append(plan)
+            try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)
         }
-        try require(delivered.count==beforeExplicit,"Explicit Compare entered the selected default dispatcher")
+        if let add=source.add {
+            add.model.onPrimaryFileActivation=explicitLaunch
+            var acceptedReport:AddFileTable.Coordinator?
+            try await wait("Explicit Add menu projection not ready") {
+                source.window.contentView?.layoutSubtreeIfNeeded()
+                guard let report=(try? source.table())?.dataSource as? AddFileTable.Coordinator,
+                      report.canCompareBase,report.selectedRows.map({$0.path})==explicitOrder else{return false}
+                acceptedReport=report;return true
+            }
+            let report=try Prior.unwrap(acceptedReport,"Explicit Add menu coordinator absent")
+            report.compareBase()
+        } else {
+            let resolve=source.resolve!.model
+            // Match the real workspace's distinct HEAD→working callback. The
+            // default selected-conflict dispatcher stays independently installed.
+            resolve.onWorkingFileComparison=explicitLaunch
+            let menu=resolve.fileMenu(explicitOrder,markedPath:explicitOrder.first)
+            try require(menu.entries.map(\.path)==explicitOrder && resolve.canFileCommand(.compareBase,menu:menu),"Explicit Resolve menu receipt was stale or changed selection")
+            resolve.fileCommand(.compareBase,menu:menu)
+        }
+        try await wait("Explicit Add/Resolve typed Compare did not drain"){!source.pending && !source.busy && !root.hasPendingRepositoryWork}
+        let newComparisons=Array(comparisons.dropFirst(beforeComparisons))
+        let explicitDiagnostic="kind=\(kind),plans=\(explicitPlans.count),delivered=\(delivered),comparisonPaths=\(newComparisons.map{$0.0}),nested=\(nested),pending=\(source.pending),busy=\(source.busy),error=\(source.add?.model.error ?? source.resolve?.model.error ?? "none")"
+        try require(explicitPlans.count==1 && Array(delivered.prefix(beforeExplicit.count))==beforeExplicit && Array(delivered.dropFirst(beforeExplicit.count))==explicitOrder && newComparisons.count==explicitOrder.count && newComparisons.map{$0.0}==explicitOrder && newComparisons.allSatisfy{$0.1 == .revision(base) && $0.2 == .workingTree} && nested==nestedBefore,"Explicit Compare entered the selected default dispatcher, dropped/reordered paths or changed prior deliveries; "+explicitDiagnostic)
+        try await c.preserved()
+        source.add?.model.onPrimaryFileActivation=addPrimary
+        if let resolve=source.resolve {
+            // Preserve the ancestor/stage-1 aggregate oracle separately: this
+            // explicit API is deliberately different from Compare with base.
+            let deliveredBeforeAncestor=delivered.count,plansBeforeAncestor=explicitPlans.count
+            resolve.model.viewConflictBase(explicit)
+            try await wait("explicit Resolve ancestor aggregate Compare did not finish"){!source.busy && resolve.model.patch != nil}
+            resolve.model.patch=nil
+            try await wait("explicit Resolve ancestor aggregate viewer did not detach"){source.window.attachedSheet==nil}
+            try require(delivered.count==deliveredBeforeAncestor && explicitPlans.count==plansBeforeAncestor,"Ancestor aggregate entered a default/working comparison dispatcher")
+        }
         _=try await source.select(paths)
         // Cancel the actual owned conflict-preparation progress, rather than
         // replacing cancellation with a model callback. Its held real Git read
@@ -171,7 +212,7 @@ import TurtleGitCore
             readToken=token;await withCheckedContinuation{release=$0};return value
         }
         let previous=delivered.count
-        try source.enter();try await wait("orientation-check conflict read not held"){release != nil}
+        try await source.enter();try await wait("orientation-check conflict read not held"){release != nil}
         let rebaseMarker=c.root.appendingPathComponent(".git/rebase-merge",isDirectory:true)
         try FileManager.default.createDirectory(at:rebaseMarker,withIntermediateDirectories:false)
         release?.resume();release=nil
@@ -180,7 +221,7 @@ import TurtleGitCore
         try require(delivered.count==previous && source.closed==0 && source.window.isVisible && (source.add?.model.error ?? source.resolve?.model.error) != nil,"Changed rebase orientation delivered a viewer or closed its source")
         source.add?.model.error=nil;source.resolve?.model.error=nil
         try await wait("stale orientation error presentation did not detach"){source.window.attachedSheet==nil}
-        try source.enter();try await wait("actual conflict preparation not held"){release != nil && source.window.attachedSheet != nil}
+        try await source.enter();try await wait("actual conflict preparation not held"){release != nil && source.window.attachedSheet != nil}
         let progress=source.window.attachedSheet!
         let cancel=try Prior.unwrap(Prior.views(progress.contentView).compactMap{$0 as? NSButton}.first{$0.title=="Cancel"},"Actual conflict progress Cancel control absent")
         cancel.performClick(nil)
@@ -190,7 +231,7 @@ import TurtleGitCore
         try require(delivered.count==previous && source.closed==0 && source.window.isVisible,"Progress Cancel continued to later selected files or closed its source")
         // A second actual worker is retired by forced source closure. Source
         // onClosed and global Quit stay leased until that read acknowledges.
-        try source.enter();try await wait("forced-close conflict read not held"){release != nil}
+        try await source.enter();try await wait("forced-close conflict read not held"){release != nil}
         source.window.close()
         try require(readToken?.isCancelled==true && source.closed==0 && source.pending && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Forced source closure released worker/Quit ownership")
         release?.resume();release=nil
@@ -204,7 +245,7 @@ import TurtleGitCore
         var unexpectedLaunches=0
         if let add=question.add {add.model.onPrimaryFileActivation={_,_ in unexpectedLaunches += 1}}
         else {question.resolve!.model.onPrimaryFileActivation={_,_ in unexpectedLaunches += 1}}
-        question.confirm(nil);try question.enter();try await wait("native warning absent"){question.window.attachedSheet != nil}
+        question.confirm(nil);try await question.enter();try await wait("native warning absent"){question.window.attachedSheet != nil}
         let sheet=question.window.attachedSheet!
         try require(!question.closeRequest(),"Close bypassed source warning")
         try await wait("cancelled warning did not detach"){!question.pending && !question.busy && sheet.sheetParent==nil && question.window.attachedSheet !== sheet}

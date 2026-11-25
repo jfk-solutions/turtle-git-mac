@@ -126,12 +126,12 @@ import TurtleGitCore
     static func role(_ action:StatusListPrimaryFileAction)->String {
         switch action {case .conflict:return "conflict";case .comparison:return "comparison";case .workingFile:return "working";case .skipMissing:return "skip"}
     }
-    static func checkPlan(_ plan:StatusListPrimaryActivation,_ surface:Surface,_ c:Context,_ ordered:[String],alternate:Bool) throws {
+    static func checkPlan(_ plan:StatusListPrimaryActivation,_ surface:Surface,_ c:Context,_ ordered:[String],alternate:Bool,mode:StatusListPrimaryActivationMode = .primary) throws {
         try require(plan.actions.map{$0.file.entry.path}==ordered,"Selection order changed or a group/checkbox became a path")
         try require(plan.selectedCount==ordered.count && plan.window === surface.window && plan.preferences === c.prefs,"Source count/window/preferences were recaptured")
         try require(plan.repository.executable==c.repository.executable && plan.repository.libgit2Configuration?.enabled==false && plan.alternateTool==alternate && plan.ownerIsCurrent(),"Source runtime/Shift/owner intent changed")
         for action in plan.actions {
-            let path=action.file.entry.path,wanted=path==c.conflict || path==c.other ? "conflict":path==c.untracked || path==c.retained ? "working":path==c.missing ? "skip":"comparison"
+            let path=action.file.entry.path,wanted=mode == .compareWithBase ? "comparison":path==c.conflict || path==c.other ? "conflict":path==c.untracked || path==c.retained ? "working":path==c.missing ? "skip":"comparison"
             try require(role(action)==wanted,"Selected row \(path) default was \(role(action)), expected \(wanted)")
         }
     }
@@ -242,7 +242,8 @@ import TurtleGitCore
         root.conflictEditorPresentation={_,_,path,_ in deliveries.append(("conflict",path,nil,nil))}
         root.fileComparisonPresentation={snapshot,file in deliveries.append(("comparison",file.path,snapshot.from,snapshot.to))}
         var currentRequest:StatusListPrimaryActivation?
-        surface.launch{plan,token in try checkPlan(plan,surface,c,ordered,alternate:false);currentRequest=plan;try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)}
+        let primaryLaunch:StatusListPrimaryActivationSession.Launch={plan,token in try checkPlan(plan,surface,c,ordered,alternate:false);currentRequest=plan;try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)}
+        surface.launch(primaryLaunch)
         try await surface.enter();try await wait("Real Root \(kind) dispatch did not drain"){!surface.pending && !surface.busy && !root.hasPendingRepositoryWork}
         let expected=ordered.filter{!GitReferenceName.equal($0,c.missing)}
         try require(deliveries.map{$0.1}==expected && nestedQuestions==0,"Root dropped/reordered a mixed row or asked a second warning")
@@ -250,19 +251,32 @@ import TurtleGitCore
             try require(delivery.2 == .workingTree && delivery.3 == .workingTree,"Unversioned/retained-copy preview inherited tracked deletion/HEAD semantics")
         }
         try await c.preserved()
-        var explicitComparisons=0
-        let explicitPaths=[c.conflict,c.normal]
-        if let commit=surface.commit {
-            commit.model.onCompare={paths,_ in if GitPathSet(paths)==GitPathSet(explicitPaths){explicitComparisons += 1}}
-            commit.model.compare(paths:explicitPaths)
-        } else if let status=surface.status {
-            status.model.onAction={action,paths in if action == .diff && GitPathSet(paths)==GitPathSet(explicitPaths){explicitComparisons += 1}}
-            status.model.diff(explicitPaths)
-        } else if let revert=surface.revert {
-            revert.model.onCompare={paths in if GitPathSet(paths)==GitPathSet(explicitPaths){explicitComparisons += 1}}
-            revert.model.diff(explicitPaths)
+        // With a typed source launch installed, explicit Compare owns an
+        // asynchronous compareWithBase plan rather than a legacy onCompare/
+        // onAction callback. Keep the prior mixed delivery oracle intact and
+        // exercise this request through the same real Root dispatch.
+        let mixedDeliveries=deliveries,questionsBeforeCompare=questions,nestedBeforeCompare=nestedQuestions
+        let explicitPaths=[c.conflict,c.normal],explicitSet=GitPathSet(explicitPaths)
+        let explicitOrder=ordered.filter{explicitSet.contains($0)}
+        var explicitPlans:[StatusListPrimaryActivation]=[]
+        surface.launch{plan,token in
+            try checkPlan(plan,surface,c,explicitOrder,alternate:false,mode:.compareWithBase)
+            try require(plan.base == .revision(expectedBase),"Explicit Compare changed captured HEAD base")
+            explicitPlans.append(plan)
+            try await root.showStatusListPrimaryFiles(plan,access:nil,cancellation:token)
         }
-        try require(explicitComparisons==1 && deliveries.map{$0.1}==expected,"Explicit Compare was changed into a per-row default/conflict action")
+        if let commit=surface.commit {commit.model.compare(paths:explicitPaths)}
+        else if let status=surface.status {status.model.diff(explicitPaths)}
+        else if let revert=surface.revert {revert.model.diff(explicitPaths)}
+        try await wait("Explicit typed Compare did not drain"){!surface.pending && !surface.busy && !root.hasPendingRepositoryWork}
+        let explicitDeliveries=Array(deliveries.dropFirst(mixedDeliveries.count))
+        let retainedMixed=Array(deliveries.prefix(mixedDeliveries.count)).elementsEqual(mixedDeliveries){a,b in a.0==b.0 && a.1==b.1 && a.2==b.2 && a.3==b.3}
+        let explicitDiagnostic="kind=\(kind),plans=\(explicitPlans.count),roles=\(explicitPlans.flatMap{$0.actions.map{role($0)}}),paths=\(explicitDeliveries.map{$0.1}),questions=\(questions),nested=\(nestedQuestions),pending=\(surface.pending),busy=\(surface.busy),error=\(surface.commit?.model.error ?? surface.status?.model.error ?? surface.revert?.model.error ?? "none")"
+        try require(explicitPlans.count==1 && explicitPlans[0].actions.allSatisfy{if case .comparison = $0{return true};return false},"Explicit Compare was changed into a per-row default/conflict action; "+explicitDiagnostic)
+        try require(retainedMixed && explicitDeliveries.count==explicitOrder.count && explicitDeliveries.map{$0.1}==explicitOrder && explicitDeliveries.allSatisfy{$0.0=="comparison" && $0.2 == .revision(expectedBase) && $0.3 == .workingTree},"Explicit Compare dropped/reordered operands or changed earlier mixed deliveries; "+explicitDiagnostic)
+        try require(questions==questionsBeforeCompare && nestedQuestions==nestedBeforeCompare,"Explicit Compare repeated source/Root warning; "+explicitDiagnostic)
+        try await c.preserved()
+        surface.launch(primaryLaunch)
         // Hold the real Root conflict read after it has read the actual index;
         // forced closure must cancel delivery but retain the source's close/Quit
         // ownership until this accepted worker acknowledges retirement.

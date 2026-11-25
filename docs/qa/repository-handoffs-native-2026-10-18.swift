@@ -44,11 +44,21 @@ private extension NSWindow {
     }
     static func same(_ first:URL?,_ second:URL)->Bool {first?.resolvingSymlinksInPath().path==second.resolvingSymlinksInPath().path}
     @MainActor static func diagnostic(_ model:RepositoryModel,expected:URL?=nil)->String {
-        ["expectedRoot="+(expected?.path ?? "nil"),"actualRoot="+(model.root?.path ?? "nil"),
-         "busy=\(model.busy)","quit=\(model.confirmingQuit)","handoff=\(model.hasPendingRepositoryHandoff)",
-         "registration=\(model.hasPendingFinderServiceWork)","repositoryWork=\(model.hasPendingRepositoryWork)",
-         "watchOperations=\(String(describing:model.finderWatches?.pendingOperations))", "savedPaths=\(model.recentRepositories.map(\.lastKnownPath))",
-         "error=\(String(reflecting:model.error))", "output=\(String(reflecting:String(model.output.prefix(4096))))"].joined(separator:",")
+        var fields:[String]=[]
+        fields.append("expectedRoot="+(expected?.path ?? "nil"))
+        fields.append("actualRoot="+(model.root?.path ?? "nil"))
+        fields.append("busy=\(model.busy)")
+        fields.append("quit=\(model.confirmingQuit)")
+        fields.append("handoff=\(model.hasPendingRepositoryHandoff)")
+        fields.append("registration=\(model.hasPendingFinderServiceWork)")
+        fields.append("repositoryWork=\(model.hasPendingRepositoryWork)")
+        fields.append("watchOperations=\(String(describing:model.finderWatches?.pendingOperations))")
+        let savedPaths=model.recentRepositories.map(\.lastKnownPath)
+        fields.append("savedPaths=\(savedPaths)")
+        fields.append("error=\(String(reflecting:model.error))")
+        let output=String(model.output.prefix(4096))
+        fields.append("output=\(String(reflecting:output))")
+        return fields.joined(separator:",")
     }
     @MainActor static func check(_ value:Bool,_ message:String,model:RepositoryModel,expected:URL?=nil)throws {
         if !value {print("Repository handoff diagnostic: "+message+"; "+diagnostic(model,expected:expected))}

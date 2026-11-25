@@ -1,0 +1,91 @@
+{
+  "kind": "TurtleGitNativeWorkflowRecovery",
+  "date": "2026-11-25",
+  "production_source_commit": "1ad1d98fcff11c52f72512f8dc3de9aba75712d2",
+  "production_changes": false,
+  "implementation_scope": [
+    "Repository handoff fixture: decompose the hosted compiler-heavy diagnostic without changing its assertions.",
+    "Transport picker ownership: isolate the intentionally held CLI reader from selectable libgit2, retain normal backend coverage, await actual child/native-sheet/service drainage.",
+    "Commit/Working Tree/Revert/Add/Resolve: accept only current mounted native report receipts for pointer/Return/checkbox paths, then observe typed explicit Compare plans and actual Root deliveries; preserve default/conflict routing, captured Shift, ordered selection and byte/owner/cancellation assertions.",
+    "Resolve retains its distinct stage-1 aggregate command and checks that it cannot enter working-file or default dispatch.",
+    "Repository comparison operands: retain the exact accepted native bridge and require actual one-use dispatch before the missing-origin/no-delivery oracle.",
+    "Merge block selection: distinguish serialized result from aligned display, visit removed Base then added Mine blocks, verify native21/serialized5 caret mapping, exact Copy/Cut/Paste/Undo/Redo and unchanged input bytes."
+  ],
+  "validation": {
+    "unique_complete_case_engine_runs": 34,
+    "complete_cases": {
+      "handoffs_both_engines": 2,
+      "transport_dialogs_and_management_both_engines": 4,
+      "primary_legacy_selection_add_resolve_both_engines": 6,
+      "comparison_operands_nine_cohorts_both_engines": 18,
+      "merge_block_navigation_whitespace_one_pane_system_driver": 4
+    },
+    "checkpoint_sequence": [
+      "One initial grouped run across five connected workflow groups, preserving independent terminal results.",
+      "Only failed or unreached Status/Merge cases were rechecked after actual fixture repairs; all24 initial complete passes were retained.",
+      "After remaining typed Add/Resolve and enabled-report admission corrections, only four remaining Status cases were rechecked; all earlier complete cases retained."
+    ],
+    "final_affected_report_passed": true,
+    "debug_application_builds": 0,
+    "core_test_runs": 0,
+    "renderer_builds_or_tests": 0,
+    "cached_production_swift_files": 501,
+    "cached_objects_frameworks_and_recipes_unchanged": true,
+    "additional_retained_hosted": [
+      "Both remote source-form passes.",
+      "Six earlier Merge whitespace-state workflows before block selection."
+    ],
+    "original_failures_retained": [
+      "Hosted handoff diagnostic expression compiler failure.",
+      "Hosted transport generic timeout: exact hosted phase remains unproven; the controlled CLI backend assumption and ownership completion ordering were corrected from source.",
+      "Hosted Status compound Revert assertion and missing-origin error oracle before actual accepted dispatch; exact original failing conjunct was not logged.",
+      "Initial local explicit Compare fixture expected legacy callbacks while a typed dispatcher remained installed.",
+      "Initial local Merge used serialized text/caret as the aligned-display oracle.",
+      "Affected local Add Compare retained the same obsolete callback expectation.",
+      "Bundled local table lookup lacked a callsite; asynchronous current enabled-report admission now fences selection/pointer/checkbox, but its exact prior failed caller remains unproven."
+    ],
+    "limits": [
+      "No complete current hosted CI, physical Finder acceptance or whole-dialog visual parity claim.",
+      "No app/Core production source, signed59 package, installed58 or renderer change.",
+      "Later language file-list and Merge General fixture corrections have a separate pending checkpoint."
+    ]
+  },
+  "receipts": {
+    "command-handoff-checkpoint-preflight-2026-11-25.json": {
+      "path": "build/qa/command-handoff-checkpoint-preflight-2026-11-25.json",
+      "sha256": "dfa75362744cbf36a3ee6e7a30cca837e1357785afe54b5316bfead20c3a0f7f"
+    },
+    "command-handoff-status-merge-native-2026-11-25.json": {
+      "path": "build/qa/command-handoff-status-merge-native-2026-11-25.json",
+      "sha256": "d4f28a4b07b6e242f4346ed76cc181e59ab8301a6bd6c873c2d0572fe8b43252"
+    },
+    "command-handoff-status-merge-native-2026-11-25-cleanup.json": {
+      "path": "build/qa/command-handoff-status-merge-native-2026-11-25-cleanup.json",
+      "sha256": "e860f39edd16d25cdede3d333f23317c581e2c67be2cdcbd843d03d1412e2812"
+    },
+    "command-handoff-status-merge-native-repair-2026-11-25.json": {
+      "path": "build/qa/command-handoff-status-merge-native-repair-2026-11-25.json",
+      "sha256": "b53d74cc174099606e4a5ecc5726f0c04047daf8331e4dde42f3227827a0abba"
+    },
+    "command-handoff-status-merge-native-repair-2026-11-25-cleanup.json": {
+      "path": "build/qa/command-handoff-status-merge-native-repair-2026-11-25-cleanup.json",
+      "sha256": "48e872cfcdb246a3f981a705b7ce2867b3063e256e134908493624342b9d4853"
+    },
+    "command-handoff-status-native-final-2026-11-25.json": {
+      "path": "build/qa/command-handoff-status-native-final-2026-11-25.json",
+      "sha256": "69ce1292e4e92b2e810b699210c57f1c0e1122f1735d30a66d8960ae8ec4aae1"
+    },
+    "command-handoff-status-native-final-2026-11-25-cleanup.json": {
+      "path": "build/qa/command-handoff-status-native-final-2026-11-25-cleanup.json",
+      "sha256": "8f824143856c831a821d7acf331391992f50031752b50e3149b990703e212859"
+    }
+  },
+  "cleanup": {
+    "private_repositories_preferences_and_pasteboards": true,
+    "hidden_or_offscreen_owned_windows": true,
+    "owned_receivers_compilers_and_git_helpers_reaped": true,
+    "observed_owned_pids_absent": true,
+    "user_owned_apps_terminated": false,
+    "partial_failure_evidence_preserved": true
+  }
+}

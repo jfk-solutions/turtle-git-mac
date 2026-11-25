@@ -1,0 +1,97 @@
+{
+  "kind": "TurtleGitSignedConsolidatedLocalCandidate",
+  "date": "2026-11-25",
+  "source_commit": "1ad1d98fcff11c52f72512f8dc3de9aba75712d2",
+  "source_input_sha256": "631c50d4fc2130699f9df55b0c62f35a020e445fe5d09c4b664d10b82ff47fd7",
+  "version": "0.1.0",
+  "build": "59",
+  "team": "A49SCA5S8K",
+  "main_sha256": "209046479ca68fe7655662aac21f8d777371fae86968a464a76eb0316b00d8c1",
+  "packaged_core_sha256": "8c5354d7a629406d564313eba78f6aa25818cfd06dab43be94ef23e704585b78",
+  "implementation": "Includes the post-build58 Rebase draft-preservation and Browser directory-hint authority fixes, plus current Statistics/progress changes. Later native fixture repairs do not alter this frozen package.",
+  "static": {
+    "strict_deep_seal": true,
+    "universal_owned_components": 8,
+    "compiled_locales": 38,
+    "exact_help_source_files": 104,
+    "source_and_runtime_inputs_unchanged": true
+  },
+  "fresh_signed_local_tools": {
+    "passed": true,
+    "native_ui_executed": false,
+    "private_probe_root_removed": true,
+    "observed_owned_pids_absent": [
+      95652,
+      12588,
+      12690,
+      12738,
+      12902
+    ]
+  },
+  "package": {
+    "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build59-signed",
+    "archive": {
+      "name": "TurtleGit-for-Mac-0.1.0-build59-signed.zip",
+      "sha256": "16beeb389c08e87960709ff450f61a2e327eb8214163569bc96128df49f12606",
+      "bytes": 427095677
+    },
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-1ad1d98fcff11c52f72512f8dc3de9aba75712d2.tar.gz",
+      "commit": "1ad1d98fcff11c52f72512f8dc3de9aba75712d2",
+      "sha256": "aa08501747d93ca3d13507696fbe9be38ce56e649df4b0e5fbd6a12f0fca4a49",
+      "bytes": 207883143,
+      "tracked_blobs": 14905,
+      "directories": 116,
+      "exact_names_blobs_modes_comment": true,
+      "tar_umask": "0002"
+    },
+    "complete_inventory_members": 7493,
+    "complete_copy_and_extraction_equal": true,
+    "copy_and_zip_roundtrip_deep_strict": true
+  },
+  "receipts": {
+    "signed59-final-preparation-2026-11-25.json": {
+      "path": "build/qa/signed59-final-preparation-2026-11-25.json",
+      "sha256": "28ce4224c5ec3c04e24cccbcad9a06c8104d94979e5999bd3b098141051726bb"
+    },
+    "signed59-final-command-2026-11-25.json": {
+      "path": "build/qa/signed59-final-command-2026-11-25.json",
+      "sha256": "ce769d6e142f90ef372f22deeb632f43ba44fbcc8c2f6b3676d3af19edbd208a"
+    },
+    "signed59-static-2026-11-25.json": {
+      "path": "build/qa/signed59-static-2026-11-25.json",
+      "sha256": "c181a36d1ae792d659d3ebf70a47abadfe5fc1e4683b10289fe429beb29d7310"
+    },
+    "signed59-local-tools-consumer-2026-11-25.json": {
+      "path": "build/qa/signed59-local-tools-consumer-2026-11-25.json",
+      "sha256": "6fa2dc570d834a3a71bb6573c586b784cb5b5bb31fe7c8d66271799dbca67da9"
+    },
+    "signed59-local-tools-phase-contract-2026-11-25.json": {
+      "path": "build/qa/signed59-local-tools-phase-contract-2026-11-25.json",
+      "sha256": "46328bddfd4af15bad2da7c0f540c472820e6c0abfe6096caa0cd8980d1c1875"
+    },
+    "signed59-package-2026-11-25.json": {
+      "path": "build/qa/signed59-package-2026-11-25.json",
+      "sha256": "591e983441b30b55223e7dddbccc923dc9f0238104d2397c3d8fbe9798a612a9"
+    }
+  },
+  "retained_evidence": {
+    "images": "Historical build56 only; unchanged runtime compiler/SDK/source/flags/payload and current sealed relocation checked statically; no new59 image execution.",
+    "ssh_permissions": "Historical build57 only, with500 unchanged source/role components and seven explicit exclusions; no59 main/Core equivalence or new Powerbox execution."
+  },
+  "installation_performed": false,
+  "installed_build_58_preserved": true,
+  "public_upload_notarization_store_submission": false,
+  "remaining": [
+    "Full corrected-source hosted CI, owner testing and physical Finder/permissions acceptance remain separate.",
+    "Intel/minimum-macOS, accessibility and complete upstream visual parity not certified.",
+    "Later native fixture correction checkpoint is separate and pending."
+  ],
+  "build_attempt": {
+    "number": "59",
+    "attempts": 1,
+    "exit_code": 0,
+    "elapsed_seconds": 531.233,
+    "terminal_log_sha256": "3c249ea65c02c9ccd1259028e525984c361bde900f29fe6cb46a9fb1d61ddcd3"
+  }
+}
