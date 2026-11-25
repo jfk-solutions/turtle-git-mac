@@ -36,7 +36,7 @@ import TurtleGitCore
             (rename, "New name", "file", { rename.model.name }, { rename.model.name = $0 }),
             (clone, "Destination directory", root.path + "/file", { clone.model.directory }, { clone.model.directory = $0 }),
             (worktree, "Worktree directory", root.path + "/file", { worktree.model.directory }, { worktree.model.directory = $0 }),
-            (export, "ZIP file", root.path + "/file", { export.model.destination }, { export.model.destination = $0 })]
+            (export, "Archive file", root.path + "/file", { export.model.destination }, { export.model.destination = $0 })]
         for (owner, label, prefix, value, set) in configurations {
             set(prefix); owner.window?.alphaValue = 0; owner.window?.orderFront(nil)
             var field: PathEntryField.Field?
@@ -46,10 +46,31 @@ import TurtleGitCore
             guard let editor = control.currentEditor() as? PathEntryField.Editor else { throw Failure(description: "Native editor absent") }
             coordinator.present = { _ in }
             try require(!editor.isAutomaticQuoteSubstitutionEnabled && !editor.isAutomaticDashSubstitutionEnabled && !editor.isAutomaticTextReplacementEnabled && !editor.isAutomaticSpellingCorrectionEnabled && !editor.isAutomaticTextCompletionEnabled && !editor.smartInsertDeleteEnabled, "Path editor inherited prose transformations")
-            editor.setSelectedRange(NSRange(location: 0, length: editor.string.utf16.count))
-            for piece in ["literal", "-", "-", "'", "\"", " ", "雪"] { editor.insertText(piece, replacementRange: editor.selectedRange()) }
-            let literal = "literal--'\" 雪"
-            try await wait { value() == literal && PathEntryField.Coordinator.activeReads == 0 }
+            func typingSnapshot()->String {
+                "label=\(label),model=\(String(reflecting:value())),modelUTF8=\(Array(value().utf8)),editor=\(String(reflecting:editor.string)),editorUTF8=\(Array(editor.string.utf8)),control=\(String(reflecting:control.stringValue)),controlUTF8=\(Array(control.stringValue.utf8)),selection=\(editor.selectedRange()),marked=\(editor.markedRange()),currentEditor=\(control.currentEditor() === editor),currentControl=\(coordinator.field === control),editorOwner=\(editor.owner === coordinator),responder=\(owner.window?.firstResponder === editor),acceptsInput=\(coordinator.acceptsInput),mayEdit=\(coordinator.mayEdit()),enabled=\(control.isEnabled),retired=\(coordinator.retired),activeReads=\(PathEntryField.Coordinator.activeReads)"
+            }
+            var typingEvents=[String]()
+            editor.setSelectedRange(NSRange(location:0,length:editor.string.utf16.count))
+            typingEvents.append("before literal insertion: "+typingSnapshot())
+            var committedLiteral=""
+            do {
+                for piece in ["literal", "-", "-", "'", "\"", " ", "雪"] {
+                    editor.insertText(piece,replacementRange:editor.selectedRange())
+                    committedLiteral += piece
+                    typingEvents.append("after piece "+String(reflecting:piece)+": "+typingSnapshot())
+                    // Each native input event must finish its declarative form
+                    // update before the next event uses that form's receipt.
+                    // The actual debounced completion worker yields naturally.
+                    let expected=Data(committedLiteral.utf8)
+                    try await wait {Data(value().utf8)==expected && Data(editor.string.utf8)==expected && Data(control.stringValue.utf8)==expected && PathEntryField.Coordinator.activeReads==0}
+                }
+                let literal="literal--'\" 雪",expected=Data(literal.utf8)
+                try require(Data(value().utf8)==expected && Data(editor.string.utf8)==expected && Data(control.stringValue.utf8)==expected,"Literal path spelling changed")
+            } catch {
+                print("Path literal typing diagnostic: expected=\(String(reflecting:committedLiteral)),expectedUTF8=\(Array(committedLiteral.utf8)); "+typingSnapshot())
+                typingEvents.forEach{print("Path literal event: "+$0)}
+                throw error
+            }
             set(prefix); try await wait { editor.string == prefix && value() == prefix }
             editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0)); editor.undoManager?.removeAllActions(); editor.breakUndoCoalescing()
             var reads = 0, presentations = 0
@@ -74,12 +95,16 @@ import TurtleGitCore
             editor.insertCompletion(prefix, forPartialWordRange: editor.rangeForUserCompletion, movement: NSCancelTextMovement, isFinal: true)
             try await wait { value() == prefix && editor.string == prefix }
             editor.insertCompletion(chosen, forPartialWordRange: editor.rangeForUserCompletion, movement: NSReturnTextMovement, isFinal: true)
-            try await wait { value() == chosen }
+            // A file completion has no automatic trailing-directory read. Use
+            // the real completion action for its newly committed spelling, then
+            // drain that worker before sending the next native editing event.
+            editor.complete(nil)
+            try await wait { Data(value().utf8)==Data(chosen.utf8) && Data(editor.string.utf8)==Data(chosen.utf8) && Data(control.stringValue.utf8)==Data(chosen.utf8) && PathEntryField.Coordinator.activeReads==0 }
             editor.breakUndoCoalescing(); try require(editor.undoManager?.canUndo == true, "Completion has no native Undo")
             editor.undoManager?.undo();
+            try await wait { Data(value().utf8)==Data(prefix.utf8) && Data(editor.string.utf8)==Data(prefix.utf8) && Data(control.stringValue.utf8)==Data(prefix.utf8) && PathEntryField.Coordinator.activeReads==0 }
             try require(value() == prefix, "Undo mismatch in \(label): editor=\(editor.string.debugDescription), model=\(value().debugDescription), expected=\(prefix.debugDescription)")
-            editor.undoManager?.redo(); try await wait { value() == chosen }
-            try await wait { PathEntryField.Coordinator.activeReads == 0 }
+            editor.undoManager?.redo(); try await wait { Data(value().utf8)==Data(chosen.utf8) && Data(editor.string.utf8)==Data(chosen.utf8) && Data(control.stringValue.utf8)==Data(chosen.utf8) && PathEntryField.Coordinator.activeReads==0 }
             set(prefix); try await wait { editor.string == prefix }; editor.setSelectedRange(NSRange(location: editor.string.utf16.count, length: 0))
             var reply: CheckedContinuation<[String], Error>?
             coordinator.read = { _, _ in try await withCheckedThrowingContinuation { reply = $0 } }

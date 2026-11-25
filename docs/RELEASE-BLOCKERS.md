@@ -1,5 +1,52 @@
 # Local testing and release gates
 
+## Signed local candidate57 — November 25, 2026
+
+[Build57](qa/signed-consolidation-build57-2026-11-25.json) packages frozen
+`ce9223db` with the explicit SSH configuration access manager, current creation
+authority and native ownership fixes, matching source and notices. Its single
+universal signed build, strict static audit, fresh signed local-tools/Core/Git
+phase and complete ZIP/source integrity checks pass. The existing build56 signed
+image phase remains explicitly historical, bound to the unchanged copied runtime;
+it is not a new build57 image matrix.
+
+The local package is
+`build/local-testing/TurtleGit-for-Mac-0.1.0-build57-signed`. It has not been
+installed, launched as the shipping app or published. The
+[SSH permission check](qa/signed57-ssh-permission-incomplete-2026-11-25.json)
+remains incomplete: the exact generated folder was preselected, but the actual
+Powerbox returned Cancel before a grant was accepted, and desktop control could
+not acquire that private app. Both owned probes and their synthetic files and
+containers were removed. This does not establish a bookmark or transport defect.
+Current hosted CI, physical Finder/permission and owner acceptance remain open.
+The newly identified live progress-font correction is a later source batch and
+is not included in this frozen package.
+
+## Native path, credential and Statistics acceptance — November 25, 2026
+
+The [focused checkpoint](qa/path-credentials-statistics-acceptance-2026-11-25.json)
+records six passing native case/engine runs. Path entry settles each actual
+accepted contextual edit before the next native insertion; credential editing
+waits its replacement native control; Statistics acknowledges its real owned
+error button. Exact text, stale callbacks, exports, repository bytes and work
+drainage remain asserted. The initial Path failure and its affected-only recheck
+are retained. No application or Core implementation changed, and no app build or
+Core suite was repeated. Signed57 remains the frozen `ce9223db` application;
+these acceptance-fixture corrections do not alter its payload. Full hosted,
+physical/accessibility and signed acceptance remain distinct.
+
+## Reported SourceCopy oracle acceptance — November 25, 2026
+
+The [bounded SourceCopy record](qa/sourcecopy-reported-oracle-acceptance-2026-11-25.json)
+records four passing consumer/conflict case/engine runs against an isolated copy
+of the accepted runtime. Expected ordinary-image samples follow the authored
+texels and committed bilinear policy, with unchanged tolerance and original wire
+inputs. This corrects a stale native oracle; it adds no renderer capability.
+The signed57-derived kit and cached app inputs remained unchanged, and private
+scratch/helper cleanup passed. The log's sandbox-extension warnings remain
+explicit. No runtime rebuild, interpolation/WMF matrix, installation or signed
+Powerbox/image acceptance is implied; protected renderer work stays separate.
+
 ## Revert, colors and three-pane acceptance — November 25, 2026
 
 The [bounded checkpoint](qa/native-acceptance-recovery-2026-11-25.json) passes
@@ -34,9 +81,10 @@ one-pane Paste and optional-backend prompts. Fixtures now exercise actual
 registration/readiness barriers, preserve closed/suspended owner behavior and
 drain their owned dialogs. No production source changed, so the preceding SSH
 Core and native passes are retained without another app build or full Core run.
-Initial failed assumptions and the exact repairs remain recorded. Five other
-failures from the old d38 final editor receipt remain under source review; this
-is not a complete hosted result. Signed56 and the installed app are unchanged.
+Initial failed assumptions and the exact repairs remain recorded. The five other
+failures from the old d38 final editor receipt subsequently received the focused
+Merge/progress passes recorded above; this is not a complete hosted result.
+Signed56 and the installed app were unchanged by this checkpoint.
 
 ## SSH file access and focused release recovery — November 25, 2026
 

@@ -71,12 +71,35 @@ private actor ExactTextPasswords:ProxyPasswordStoring {
         try await wait{model.snapshot != nil && !model.busy}
         let groups=model.snapshot!.groups,first=groups.first{exact($0.url,a)}!,second=groups.first{exact($0.url,b)}!
         try require(first.id != second.id && Set(groups.map(\.id)).count==2,"Canonical credential URLs collapsed group identifiers")
+        let previousIdentity=model.editorIdentity
+        let previousCombos=Set(views(host).compactMap{$0 as? NSComboBox}.filter{$0.accessibilityLabel()=="Credential helper"}.map(ObjectIdentifier.init))
         model.select(first.id);try await wait{!model.busy && model.selected==first.id};owner.contentView?.layoutSubtreeIfNeeded()
-        try await wait{views(host).contains{($0 as? NSComboBox)?.accessibilityLabel()=="Credential helper"}}
-        let combo=views(host).compactMap{$0 as? NSComboBox}.first{$0.accessibilityLabel()=="Credential helper"}!,editor=combo.delegate as! CloneHistoryCombo.Coordinator,staleCallback=editor.change
+        let selectedIdentity=model.editorIdentity,requiresReplacement=selectedIdentity != previousIdentity
+        var currentCombo:NSComboBox?
+        do {
+            try await wait {
+                owner.contentView?.layoutSubtreeIfNeeded()
+                let candidates=views(host).compactMap{$0 as? NSComboBox}.filter {
+                    $0.accessibilityLabel()=="Credential helper" && $0.window===owner && $0.isEnabled && !$0.isHiddenOrHasHiddenAncestor &&
+                    (!requiresReplacement || !previousCombos.contains(ObjectIdentifier($0))) && exact($0.stringValue,model.draft.helpers.first ?? "") && $0.delegate is CloneHistoryCombo.Coordinator
+                }
+                guard model.editorIdentity==selectedIdentity,!model.busy,model.selected==first.id,candidates.count==1 else{return false}
+                currentCombo=candidates[0];return true
+            }
+        } catch {
+            print("Credential native replacement diagnostic: before=\(previousIdentity),selected=\(selectedIdentity),current=\(model.editorIdentity),replacement=\(requiresReplacement),selectedGroup=\(String(describing:model.selected)),busy=\(model.busy),draftUTF8=\(Array((model.draft.helpers.first ?? "").utf8)),combos=\(views(host).compactMap{$0 as? NSComboBox}.map{"id=\(ObjectIdentifier($0)),old=\(previousCombos.contains(ObjectIdentifier($0))),owner=\($0.window===owner),enabled=\($0.isEnabled),hidden=\($0.isHiddenOrHasHiddenAncestor),UTF8=\(Array($0.stringValue.utf8))"})")
+            throw error
+        }
+        let combo=currentCombo!,editor=combo.delegate as! CloneHistoryCombo.Coordinator,staleCallback=editor.change
         var fields:[GitCredentialFields]=[]
         model.writeCredentialFields={value,file,expected,mask in fields.append(mask);try await repo.saveCredential(value,file:file,expected:expected,fields:mask)}
-        editor.change(replacement);try await wait{owner.contentView?.layoutSubtreeIfNeeded();return exact(combo.stringValue,replacement)};try require(model.modified && exact(model.draft.helpers[0],replacement),"Hosted helper binding ignored canonical-only edit")
+        editor.change(replacement)
+        do {try await wait{owner.contentView?.layoutSubtreeIfNeeded();return exact(combo.stringValue,replacement)}}
+        catch {
+            print("Credential exact binding diagnostic: identity=\(model.editorIdentity),accepted=\(selectedIdentity),sameNative=\(views(host).contains{$0 === combo}),owner=\(combo.window===owner),enabled=\(combo.isEnabled),expectedUTF8=\(Array(replacement.utf8)),nativeUTF8=\(Array(combo.stringValue.utf8)),draftUTF8=\(model.draft.helpers.map{Array($0.utf8)}),modified=\(model.modified),busy=\(model.busy),error=\(String(reflecting:model.error))")
+            throw error
+        }
+        try require(model.modified && exact(model.draft.helpers[0],replacement),"Hosted helper binding ignored canonical-only edit")
         try require(await model.apply(),"Exact helper Apply failed")
         let helperBytes=try await raw(repo,"credential."+a+".helper"),usernames=try await raw(repo,"credential."+a+".username"),httpPath=try await raw(repo,"credential."+a+".useHttpPath")
         try require(fields.last == .helper && helperBytes==Data((replacement+"\0").utf8),"Helper dirty mask/Apply normalized bytes")

@@ -302,8 +302,28 @@ actor StatisticsExportWriteGate {
         phase("error sheet: first attached",c,failed)
         try require(failed.hasPendingWork && !failed.windowShouldClose(failed.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Owned export error lost sheet/Quit guard")
         let question=try unwrap(alert,"Actual failure alert missing")
-        StatisticsExportNativeDiagnostics.watch(question.buttons[0],parent:failed.window,owner:failed)
-        phase("error sheet: actual OK performClick begin",c,failed);question.buttons[0].performClick(nil);phase("error sheet: actual OK performClick returned",c,failed)
+        func buttons(_ root:NSView?)->[NSButton] {
+            guard let root else{return []};return (root as? NSButton).map{[$0]} ?? root.subviews.flatMap{buttons($0)}
+        }
+        var acknowledgment:NSButton?
+        do {
+            try await wait("actual owned default acknowledgment control") {
+                let sheet=question.window;sheet.contentView?.layoutSubtreeIfNeeded()
+                guard sheet.sheetParent===failed.window,failed.window?.attachedSheet===sheet,let cell=sheet.defaultButtonCell else{return false}
+                var seen=Set<ObjectIdentifier>()
+                let candidates=([cell.controlView as? NSButton].compactMap{$0}+buttons(sheet.contentView)).filter {seen.insert(ObjectIdentifier($0)).inserted && $0.cell === cell}
+                guard candidates.count==1,let button=candidates.first,button.window===sheet,button.isEnabled,!button.isHiddenOrHasHiddenAncestor,
+                      let action=button.action,let target=NSApp.target(forAction:action,to:button.target,from:button) as? NSObject,target.responds(to:action) else{return false}
+                acknowledgment=button;return true
+            }
+        } catch {
+            print("Statistics acknowledgment diagnostic: explicitButtons=\(question.buttons.count),defaultCell=\(String(describing:question.window.defaultButtonCell)),actual=\(buttons(question.window.contentView).map{"title=\($0.title),enabled=\($0.isEnabled),owner=\($0.window===question.window),default=\($0.cell === question.window.defaultButtonCell),action=\($0.action.map(NSStringFromSelector) ?? "nil"),target=\(String(describing:$0.target))"})")
+            throw error
+        }
+        let ok=try unwrap(acknowledgment,"Displayed default acknowledgment missing")
+        try require(ok.window===question.window && ok.cell===question.window.defaultButtonCell && ok.isEnabled && ok.action != nil,"Actual error acknowledgment lost native default/dispatch ownership")
+        StatisticsExportNativeDiagnostics.watch(ok,parent:failed.window,owner:failed)
+        phase("error sheet: actual OK performClick begin",c,failed);ok.performClick(nil);phase("error sheet: actual OK performClick returned",c,failed)
         StatisticsExportNativeDiagnostics.record("native performClick returned")
         try await wait("first error sheet detach/drain"){!failed.hasPendingWork && failed.window?.attachedSheet==nil && question.window.sheetParent==nil}
         phase("error sheet: first detached/drained",c,failed)

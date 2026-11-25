@@ -1,0 +1,157 @@
+{
+  "date": "2026-11-25",
+  "baseline": "4826c466ea7640b9c95ac52806876c2f40a2752c",
+  "status": "four focused native SourceCopy case/engine runs passed",
+  "scope": "Reported ordinary-image SourceCopy oracle alignment only; no renderer capability change or quality-matrix execution.",
+  "production_changes": false,
+  "fixture": "docs/qa/metafile-sourcecopy-native-2026-10-24.swift",
+  "fixture_sha256": "6fa8c515745a23fa72b762be51d28ff1752ca80d8e0aae8cbecd0f97ca95982f",
+  "reported_hosted_case": {
+    "artifact": 15037536196,
+    "file": "sourcecopy-image.emf",
+    "pixel": [
+      14,
+      14
+    ],
+    "old_expected_rgba": [
+      0,
+      0,
+      0,
+      0
+    ],
+    "actual_rgba": [
+      4,
+      24,
+      48,
+      76
+    ]
+  },
+  "independent_oracle_derivation": {
+    "basis": "Original authored2x2 associated texels, accepted committed default bilinear interpolation policy; no runtime output used as oracle",
+    "source_coordinates": "((x-8)/24,(y-8)/24)",
+    "clamp": "transparent outside original image",
+    "sourceover": "associated source RGB + opaque blue*(255-source alpha)/255; alpha255",
+    "tolerance": 2,
+    "source_centers": [
+      [
+        8,
+        8
+      ],
+      [
+        32,
+        8
+      ],
+      [
+        8,
+        32
+      ],
+      [
+        32,
+        32
+      ]
+    ],
+    "outside": [
+      4,
+      4
+    ]
+  },
+  "changes": [
+    "Correct9ordinary default-bilinear/source-center/outside probes",
+    "Add original SourceCopy/SourceOver ordinary image pair in both native Compare modes",
+    "Preserve original wire inputs, solid/state/Clear/texture/drop/conflict/raw-byte and ownership assertions",
+    "Include expected alpha in failure diagnostics"
+  ],
+  "native_runs_passed": 4,
+  "native_cases": [
+    {
+      "case": "consumers",
+      "git": "/usr/bin/git",
+      "passed": true,
+      "returncode": 0,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/sourcecopy-reported-oracle-native-2026-11-25-consumers-0.log",
+      "log_sha256": "ed4f25fda1e3683b8a581a8a2e7d93a29eb1a2c1d9e97a9ce976e1536fbb5484",
+      "forced_helper_cleanup_needed": false
+    },
+    {
+      "case": "consumers",
+      "git": "/Users/jkuehner/.codex/worktrees/turtlegit-signed57/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "passed": true,
+      "returncode": 0,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/sourcecopy-reported-oracle-native-2026-11-25-consumers-1.log",
+      "log_sha256": "ed4f25fda1e3683b8a581a8a2e7d93a29eb1a2c1d9e97a9ce976e1536fbb5484",
+      "forced_helper_cleanup_needed": false
+    },
+    {
+      "case": "conflict",
+      "git": "/usr/bin/git",
+      "passed": true,
+      "returncode": 0,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/sourcecopy-reported-oracle-native-2026-11-25-conflict-0.log",
+      "log_sha256": "e9af4f3104999419356699ac1730b7c961057b9ae42257e8c04dfd536d61a86f",
+      "forced_helper_cleanup_needed": false
+    },
+    {
+      "case": "conflict",
+      "git": "/Users/jkuehner/.codex/worktrees/turtlegit-signed57/tortoise-git-mac/build/git-runtime/Git/bin/git",
+      "passed": true,
+      "returncode": 0,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/sourcecopy-reported-oracle-native-2026-11-25-conflict-1.log",
+      "log_sha256": "e9af4f3104999419356699ac1730b7c961057b9ae42257e8c04dfd536d61a86f",
+      "forced_helper_cleanup_needed": false
+    }
+  ],
+  "execution_identity": {
+    "cache_root": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+    "kit": "/Users/jkuehner/.codex/worktrees/turtlegit-signed57/tortoise-git-mac/build/metafile-runtime/Metafile",
+    "kit_pins": {
+      "metafile-convert": "9799907c41d4f46e779f5ba500174e83f57615a1ed3fad514be7e902ccce46aa",
+      "renderer.js": "b2e81e072433b2dd0febcfd6b05a2a1ce5c59c725e380156dfc24d3c21aa243b",
+      "color-curves.bin": "440a11991aed54e095ea4867c6a83791b4eaca7a4be7be9db51610c087c05628"
+    },
+    "driver_sha256": "9e53dae55656979aadf80a52ccf1e550028343d0783554cc949c9c62a3cd0d78",
+    "runner_sha256": "e3d72d12b23eb6ead265b3d3d39f5e8968596b70fd64eb9280354db80c3353c2",
+    "cached_receiver_sha256": "308471e0a7465dafe8786d060b8aa868de102c0ab1681cdc95968f7b4784848b"
+  },
+  "ownership": {
+    "private_bundle_copy_inventory_equal": true,
+    "private_scratch_absent": true,
+    "immutable_inputs_unchanged": {
+      "signed57_unsigned_kit": true,
+      "signed57_packaged_kit": true,
+      "cache_runtime": true,
+      "cache_debug_products": true,
+      "cache_app_objects": true,
+      "cache_app_sources": true
+    },
+    "immutable_inventory_sha256": {
+      "signed57_unsigned_kit": "b94fc155018294e2f4232a2aa03492024385615189671810bff06785e76ed07a",
+      "signed57_packaged_kit": "5c3cadd026ef3bac2c5b67c25fb9bf10e3c27497acfcbc8ebe8f54c70657c944",
+      "cache_runtime": "7504312e21343b51be704e50428a484a5dff3bf3c77972513eeee49792377287",
+      "cache_debug_products": "9a3851aa35db3f1449651ebd0ca690de8b204896052c75fc0a9639bcb436afe2",
+      "cache_app_objects": "61f2fcb1350f7248ceffb34a87fe4ce3b3d2f3672eb3f161ec6176bc4bf009fb",
+      "cache_app_sources": "e460272a5d95f8aaa8b07ac3c74e856eb36b2277f108c5cde1f3a639463aa22c"
+    },
+    "fixture_unchanged": true
+  },
+  "recorded_inputs": [
+    {
+      "path": "build/qa/sourcecopy-reported-oracle-freeze-2026-11-25.json",
+      "sha256": "65a132c8ab0adabd72f0deda5fc4bf4fd493056b58668a588070eb2ce8a897e4"
+    },
+    {
+      "path": "build/qa/sourcecopy-reported-oracle-native-2026-11-25.json",
+      "sha256": "2042e0679c9d4d5786217cb280b5ce9512a1692a95865ccf773988183d901ac9"
+    },
+    {
+      "path": "build/qa/sourcecopy-reported-oracle-native-2026-11-25.log",
+      "sha256": "9f3cc0fc2beb99dc11f4f696d50fa181f4a1d12aa57be4ca095c29c7c4107294"
+    }
+  ],
+  "execution_limits": [
+    "System and packaged Git each ran consumers and conflict using a disposable private bundle with accepted immutable signed57-derived runtime bytes.",
+    "Expected associated RGBA derives from original authored2x2 source texels and committed default bilinear policy, not renderer output. Tolerance remains2; original wire fixtures and unrelated solid/state/Clear/texture/drop/conflict/raw-byte/ownership assertions remain.",
+    "The log retains sandbox_extension_issue_file_to_process Operation not permitted diagnostics for the disposable bundle; this passing hidden consumer run does not certify sandbox Powerbox, signed inheritance or physical image UI.",
+    "No renderer/runtime/generator/reference rebuild or modifications, no app/Core build, no interpolation/WMF matrix, no installation or registration. Protected main renderer WIP remains separate.",
+    "Full hosted CI, broader Windows pixel parity, physical/signed image acceptance and full-port completion remain unclaimed."
+  ]
+}

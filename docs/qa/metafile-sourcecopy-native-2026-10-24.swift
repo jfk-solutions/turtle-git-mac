@@ -23,14 +23,34 @@ private extension NSWindow {
     // white. Every canvas has an authored opaque-blue outside rectangle.
     static let gray=[Sample(x:20,y:20,red:0,green:0,blue:0,alpha:0),Sample(x:4,y:4,red:0,green:0,blue:255)]
     static let rgb=[Sample(x:20,y:20,red:128,green:0,blue:0,alpha:128),Sample(x:4,y:4,red:0,green:0,blue:255)]
-    static let image=[Sample(x:14,y:14,red:0,green:0,blue:0,alpha:0),Sample(x:50,y:14,red:0,green:128,blue:0,alpha:128),Sample(x:14,y:50,red:0,green:0,blue:255),Sample(x:50,y:50,red:64,green:0,blue:0,alpha:64)]
-    // Texture filtering differs from DrawImage's existing clamped-texel profile.
+    // The unchanged default-mode DrawImage uses the accepted ordinary bilinear
+    // policy (see the independent November5 interpolation references). The
+    // authored 2x2 image maps to (8,8,48,48), so source coordinates are
+    // ((x-8)/24,(y-8)/24). Its associated texels are transparent, green128,
+    // blue255 and red64; out-of-image Clamp is transparent. At (14,14), the
+    // weights 9/16,3/16,3/16,1/16 give RGBA (4,24,48,76). The other old probe
+    // positions include transparent Clamp neighbors, not nearest texel copies.
+    // Exact source centers independently retain clear/partial/opaque checks;
+    // the outside probe retains the previously painted opaque blue background.
+    static let image=[
+        Sample(x:14,y:14,red:4,green:24,blue:48,alpha:76),
+        Sample(x:50,y:14,red:4,green:24,blue:0,alpha:28),
+        Sample(x:14,y:50,red:4,green:0,blue:48,alpha:52),
+        Sample(x:50,y:50,red:4,green:0,blue:0,alpha:4),
+        Sample(x:8,y:8,red:0,green:0,blue:0,alpha:0),
+        Sample(x:32,y:8,red:0,green:128,blue:0,alpha:128),
+        Sample(x:8,y:32,red:0,green:0,blue:255),
+        Sample(x:32,y:32,red:64,green:0,blue:0,alpha:64),
+        Sample(x:4,y:4,red:0,green:0,blue:255)]
+    // SourceOver uses the same independently derived filtered source over the
+    // authored opaque-blue background: C_out=C_source+(1-alpha_source)*blue.
+    static let imageOver=image.map {sample in Sample(x:sample.x,y:sample.y,red:sample.red,green:sample.green,blue:sample.blue+255-sample.alpha,alpha:255,tolerance:sample.tolerance)}
+    // Texture filtering retains its separate brush-coordinate phase.
     // The authored texture matrix is scale24 + translation8. At device pixel
     // centers, texel coordinates are (pixel+.5-8)/24-.5. Transparent Clamp
     // neighbors give green128*(35/48)*(37/48)=71.94, blue255 times the same
     // weights=143.33, and red64*(35/48)^2=34.03, rounded to display bytes.
-    // Keep the original source-alpha replacement assertions; do not reuse the
-    // nearest/clamped DrawImage samples for this bilinear texture brush.
+    // Do not reuse the ordinary DrawImage samples for this texture brush.
     static let texture=[Sample(x:14,y:14,red:0,green:0,blue:0,alpha:0),Sample(x:50,y:14,red:0,green:72,blue:0,alpha:72),Sample(x:14,y:50,red:0,green:0,blue:143,alpha:143),Sample(x:50,y:50,red:34,green:0,blue:0,alpha:34),Sample(x:4,y:4,red:0,green:0,blue:255)]
     static let state=[Sample(x:16,y:16,red:0,green:128,blue:127),Sample(x:48,y:16,red:0,green:0,blue:0,alpha:0),Sample(x:16,y:48,red:128,green:0,blue:127),Sample(x:48,y:48,red:128,green:0,blue:0,alpha:128)]
     static let grayName="sourcecopy-solid-transparent.emf"
@@ -50,7 +70,7 @@ private extension NSWindow {
             let offset=(sample.y*width+sample.x)*4
             let actual=Array(bytes[offset..<(offset+4)])
             let channels=[sample.red,sample.green,sample.blue]
-            try require((0..<3).allSatisfy{abs(Int(bytes[offset+$0])-channels[$0])<=sample.tolerance} && abs(Int(actual[3])-sample.alpha)<=sample.tolerance,"\(name) (\(sample.x),\(sample.y)) expected \(channels), actual \(actual)")
+            try require((0..<3).allSatisfy{abs(Int(bytes[offset+$0])-channels[$0])<=sample.tolerance} && abs(Int(actual[3])-sample.alpha)<=sample.tolerance,"\(name) (\(sample.x),\(sample.y)) expected RGBA \(channels+[sample.alpha]), actual \(actual)")
         }
     }
     @MainActor final class Context {
@@ -69,7 +89,7 @@ private extension NSWindow {
     }
     static func consumers(_ c:Context)async throws {
         let alpha=image
-        let pairs:[(String,String,[Sample],[Sample])]=[(grayName,rgbName,gray,rgb),(argbName,pargbName,alpha,texture),("sourcecopy-state.emf","sourcecopy-image-affine.emf",state,alpha)]
+        let pairs:[(String,String,[Sample],[Sample])]=[(grayName,rgbName,gray,rgb),(argbName,pargbName,alpha,texture),(argbName,"sourceover-image.emf",alpha,imageOver),("sourcecopy-state.emf","sourcecopy-image-affine.emf",state,alpha)]
         for explicit in [false,true] {
             for(leftName,rightName,leftPixels,rightPixels)in pairs {
                 let left=try c.input(leftName),right=try c.input(rightName),owner:FileComparisonWindowController

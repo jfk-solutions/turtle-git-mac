@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "status": "incomplete; no accepted Powerbox grant or transport execution",
+  "source_commit": "ce9223db2f37ddefde7e74daf3853f5a74624ce7",
+  "source_input_sha256": "4d53d95ef4588c6475a70c248a77e828e0866de975993760f3d9e6fa3bc6ddd5",
+  "candidate_build": "57",
+  "attempts": [
+    {
+      "state": "build/qa/signed57-ssh-state-2026-11-25.json",
+      "sha256": "717825b7275dd80f2fa6e577ebed347e2baedb13c551ee4e7d96955132374c77",
+      "status": "failed grant",
+      "failure": "CalledProcessError(1, ['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-fe19cc0129c246b3820ce52493b0392d/SSHProbe.app/Contents/MacOS/TurtleGitMac', 'grant', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-fe19cc0129c246b3820ce52493b0392d'], 'SIGNED57_SSH {\"bundleIdentifier\":\"org.turtlegit.macos.signed57-ssh-fe19cc0129c246b3820ce52493b0392d\",\"containerHome\":\"\\\\/Users\\\\/jkuehner\\\\/Library\\\\/Containers\\\\/org.turtlegit.macos.signed57-ssh-fe19cc0129c246b3820ce52493b0392d\\\\/Data\",\"failure\":\"Error Domain=Only the exact disposable test folder is allowed Code=1 \\\\\"(null)\\\\\"\",\"passed\":false,\"phase\":\"grant\",\"pid\":40608}\\n', '')",
+      "children": {
+        "observed_helper_processes": 0,
+        "owned_helper_pids": [],
+        "owned_helper_groups": [],
+        "observed_helper_roles": {
+          "git": 0,
+          "ssh-command": 0,
+          "ssh": 0,
+          "ssh-keygen": 0
+        },
+        "own_process_group_required_roles": [],
+        "observed_processes": [],
+        "kernel_executable_identity_required": true,
+        "helper_processes_and_groups_drained": true,
+        "forced_cleanup_needed": false,
+        "observer_errors": []
+      },
+      "cleanup": {
+        "private_container_removed": true,
+        "external_fixture_removed": true,
+        "private_probe_removed": true,
+        "finished_utc": "2026-11-25T16:06:10.169311+00:00"
+      },
+      "completed_phases": []
+    },
+    {
+      "state": "build/qa/signed57-ssh-recovery-state-2026-11-25.json",
+      "sha256": "d67a74da0cc04992c1b5220c3a8d21b33f8610e05b76627d3d5e22b31f60f394",
+      "status": "failed grant",
+      "failure": "CalledProcessError(1, ['/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-work-133ac9f3a6f64c2c808f4d316053679a/SSHProbe.app/Contents/MacOS/TurtleGitMac', 'grant', '/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed57-ssh-external-133ac9f3a6f64c2c808f4d316053679a'], 'SIGNED57_SSH {\"bundleIdentifier\":\"org.turtlegit.macos.signed57-ssh-133ac9f3a6f64c2c808f4d316053679a\",\"containerHome\":\"\\\\/Users\\\\/jkuehner\\\\/Library\\\\/Containers\\\\/org.turtlegit.macos.signed57-ssh-133ac9f3a6f64c2c808f4d316053679a\\\\/Data\",\"failure\":\"Error Domain=Only the exact disposable test folder is allowed Code=1 \\\\\"response=0; selected=\\\\/Users\\\\/jkuehner\\\\/Desktop\\\\/git\\\\/jfk-solutions\\\\/tortoise-git-mac\\\\/build\\\\/qa\\\\/signed57-ssh-external-133ac9f3a6f64c2c808f4d316053679a; expected=\\\\/Users\\\\/jkuehner\\\\/Desktop\\\\/git\\\\/jfk-solutions\\\\/tortoise-git-mac\\\\/build\\\\/qa\\\\/signed57-ssh-external-133ac9f3a6f64c2c808f4d316053679a\\\\\" UserInfo={NSLocalizedDescription=response=0; selected=\\\\/Users\\\\/jkuehner\\\\/Desktop\\\\/git\\\\/jfk-solutions\\\\/tortoise-git-mac\\\\/build\\\\/qa\\\\/signed57-ssh-external-133ac9f3a6f64c2c808f4d316053679a; expected=\\\\/Users\\\\/jkuehner\\\\/Desktop\\\\/git\\\\/jfk-solutions\\\\/tortoise-git-mac\\\\/build\\\\/qa\\\\/signed57-ssh-external-133ac9f3a6f64c2c808f4d316053679a}\",\"passed\":false,\"phase\":\"grant\",\"pid\":46608}\\n', '')",
+      "children": {
+        "observed_helper_processes": 0,
+        "owned_helper_pids": [],
+        "owned_helper_groups": [],
+        "observed_helper_roles": {
+          "git": 0,
+          "ssh-command": 0,
+          "ssh": 0,
+          "ssh-keygen": 0
+        },
+        "own_process_group_required_roles": [],
+        "observed_processes": [],
+        "kernel_executable_identity_required": true,
+        "helper_processes_and_groups_drained": true,
+        "forced_cleanup_needed": false,
+        "observer_errors": []
+      },
+      "cleanup": {
+        "private_container_removed": true,
+        "external_fixture_removed": true,
+        "private_probe_removed": true,
+        "finished_utc": "2026-11-25T16:08:30.541974+00:00"
+      },
+      "completed_phases": []
+    }
+  ],
+  "recovery_diagnostics": "Exact generated folder was selected, but NSOpenPanel returned response0 (Cancel). Computer control could not acquire the running unique bundle by ID and timed out by app path. No accepted grant/remember/transport result exists; cause of cancellation is not established.",
+  "source_changes": "Only the ignored private probe added response/selected/expected diagnostics. No shipping app or Core change.",
+  "cleanup": "Both exact UUID private app copies, external synthetic fixtures and sandbox containers removed after owned processes drained; no forced helper cleanup.",
+  "sensitive_data": "Synthetic configuration and generated public-host-key bytes only; no actual SSH configuration, private keys, agent or network connection.",
+  "installation_performed": false,
+  "public_upload_performed": false,
+  "next_required_evidence": "Observe actual Powerbox OK and saved scoped bookmark, restart and verify Core/bundled Git child read/adjacent rewrite, Forget and new-process denial.",
+  "limits": [
+    "Not a product bookmark failure proof",
+    "Not a signed SSH permission acceptance pass",
+    "Existing Core/native SSH tests remain separate evidence; no repetition"
+  ]
+}
