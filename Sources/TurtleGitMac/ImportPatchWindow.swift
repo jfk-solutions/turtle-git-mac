@@ -872,6 +872,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
 @MainActor final class WorkingTreePatchWindowController: NSWindowController, NSWindowDelegate, NSMenuItemValidation {
     var editorCommandMenu: MergeEditorCommandMenu?
     var editorToolbar:MergeEditorToolbar?
+    private var conflictSheetObservation:AnyCancellable?
     var commandsAvailable:Bool { !retired && !preparingReplacement && editorOpenWorkflow == nil }
     var editorOpenWorkflow: MergeEditorOpenWorkflow?
     var makeEditorOpenWorkflow: (NSWindow, [RepositoryAccessLease], UserDefaults) -> MergeEditorOpenWorkflow = { MergeEditorOpenWorkflow(window: $0, permissions: $1, preferences: $2) }
@@ -880,7 +881,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     var preparingReplacement: Bool { (sharedReplacementOwner ?? replacementOwner)?.preparingPatch == true }
     func windowDidBecomeKey(_ notification: Notification) { editorCommandMenu?.install() }
     func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove() }
-    func detachForReplacement() { editorToolbar?.retire();editorCommandMenu?.retire(); model.retire(); model.window = nil }
+    func detachForReplacement() { conflictSheetObservation=nil;editorToolbar?.retire();editorCommandMenu?.retire(); model.retire(); model.window = nil }
     func validateMenuItem(_ item: NSMenuItem) -> Bool { !retired && !activeOperation && !preparingReplacement && (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) }
     @objc func reloadEditor(_ sender: Any?) {
         guard !activeOperation, !preparingReplacement else { return }
@@ -920,6 +921,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         let host = NSHostingController(rootView: WorkingTreePatchDialog(model: model).defaultAppStorage(preferences)); host.sizingOptions = []
         window.contentViewController = host
         super.init(window: window); window.delegate = self; window.patchModel = model; window.openMergeDocument = { [weak self] in self?.openMergeDocument(nil) }; model.window = window
+        conflictSheetObservation=NotificationCenter.default.publisher(for:NSWindow.didEndSheetNotification,object:window).sink { [weak model] _ in
+            // The completion can precede the final native sheet-link update.
+            DispatchQueue.main.async { [weak model] in model?.updateParentState() }
+        }
         window.setContentSize(.init(width: 1100, height: 720)); window.contentMinSize = .init(width: 800, height: 460); window.center()
         DialogGeometry.attach(window, identifier: "TurtleGit.PatchReview")
         model.close = { [weak self] in self?.approvedClose = true; self?.window?.performClose(nil) }
@@ -957,6 +962,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func retireOwner() {
         guard !retired else{return};retired=true
+        conflictSheetObservation=nil
         editorToolbar?.retire();editorCommandMenu?.retire();
         let opening=editorOpenWorkflow;opening?.retire();editorOpenWorkflow=nil
         let editor=model.editor,conflict=model.conflictEditor
@@ -1019,7 +1025,11 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published private(set) var fileResults: [Data: WorkingTreePatchFileResult] = [:]
     @Published private(set) var fileInspections:[Data:WorkingTreePatchFileInspection] = [:]
     var onConflictEditorChanged:(TextConflictWindowModel?)->Void = {_ in}
-    @Published private(set) var conflictEditor:TextConflictWindowModel? {didSet {onConflictEditorChanged(conflictEditor)}}
+    @Published private(set) var conflictEditor:TextConflictWindowModel? {didSet {
+        if pendingConflictLoad !== conflictEditor {pendingConflictLoad=nil}
+        onConflictEditorChanged(conflictEditor)
+    }}
+    private var pendingConflictLoad:TextConflictWindowModel?
     private var conflictChanges:AnyCancellable?
     var conflictOperationActive:Bool {conflictEditor.map {$0.busy || $0.preparing || $0.formatPending || $0.exportingSource} == true}
     @Published private(set) var highlightedFiles = Set<Int>()
@@ -1200,6 +1210,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     func retire() {
         guard !retired else { return }; retired = true; operation?.cancel();dismissSpecialQuestion();dismissSaveQuestion()
+        pendingConflictLoad=nil
         fileListGeneration = UUID()
         previewDocument.retire(); editor?.retireImageLoader(); editorChanges = nil;conflictEditor?.retire();conflictEditor = nil;conflictChanges = nil
         beforeScroll = nil; afterScroll = nil; close = {}; chooseDraft = { .cancel }; onBusyChanged = {}
@@ -1345,6 +1356,10 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private func installConflict(_ comparison:WorkingTreePatchFileComparison) {
         let next = TextConflictWindowModel(repository:repository,access:access,path:comparison.document.destination.path)
+        // The outer comparison read still owns `busy`. Defer initialization so
+        // its command block cannot cancel this child's newly started read.
+        // Also fence the embedded View's onAppear until this owner admits it.
+        next.initialLoadDeferred=true
         next.configureMergeToolReadOnly(mergeToolReadOnly)
         next.patchComparison = comparison;next.window = window;next.comparisonDefaults = preferences
         next.workingMergePermissions = [access,fileAccess].compactMap {$0} + relatedPermissions
@@ -1367,8 +1382,11 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             } catch {self.onMutationStopped();throw error}
         }
         next.onChanged = {_ in}
+        next.confirmingQuit=confirmingQuit || draftDecisionPending || busy || parentActive()
         conflictChanges = next.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send();self?.onBusyChanged() }
-        conflictEditor = next;next.load();updateParentState()
+        conflictEditor = next
+        if !retired,!next.retired,conflictEditor === next {pendingConflictLoad=next}
+        updateParentState()
     }
     enum ComparisonPresentation: Equatable { case text, processing, failure(String), binary, empty }
     var comparisonPresentation: ComparisonPresentation {
@@ -1418,6 +1436,16 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         editor?.confirmingQuit = confirmingQuit || draftDecisionPending || parentActive()
         let blocked = confirmingQuit || draftDecisionPending || busy || parentActive()
         if conflictEditor?.confirmingQuit != blocked {conflictEditor?.confirmingQuit = blocked}
+        if let pending=pendingConflictLoad {
+            if retired || pending.retired || conflictEditor !== pending {pendingConflictLoad=nil}
+            else if !blocked,window?.attachedSheet==nil,pending.window === window,
+                    pending.patchComparison?.fileID==comparison?.fileID {
+                // Consume before entering the child: its synchronous busy and
+                // Combine publications must never admit the same load twice.
+                pendingConflictLoad=nil
+                pending.beginTransferredDocument()
+            }
+        }
         objectWillChange.send()
     }
     func setEditing(_ value: Bool) {

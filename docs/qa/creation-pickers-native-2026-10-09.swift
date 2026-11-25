@@ -145,8 +145,15 @@ import TurtleGitCore
             chooser.options.tracking = .noTrack;chooser.options.overrideBranch=true
             let cancelDraft=chooser.versionPickerDraft,cancelFocus=chooser.referenceFocusRequest
             chooser.browse(.branch)
-            guard let canceled=ref() else { throw Failure(description:"Cancel child missing") }; try await wait([canceled.window!]) { !canceled.model.busy }; canceled.model.cancel(); try await wait([window]) { chooser.pickerTarget==nil && !chooser.busy }
-            try require(chooser.revision=="refs/heads/nested/topic" && chooser.versionPickerDraft==cancelDraft && chooser.options.tracking == .noTrack && chooser.options.overrideBranch && chooser.referenceFocusRequest==cancelFocus,"Cancel changed branch base/options or invented another focus request")
+            guard let canceled=ref() else { throw Failure(description:"Cancel child missing") }; try await wait([canceled.window!]) { !canceled.model.busy }
+            // ChooseVersion.h148–163 refreshes even on Cancel; the real new
+            // reference proves a read, independently of retained draft state.
+            let cancelCatalogRef="refs/tags/cancel-creation-refresh-\(kind)",cancelCommit=chooser.commitRevision
+            try require(!chooser.references.contains{$0.name==cancelCatalogRef},"Creation Cancel witness already loaded")
+            _=try await repo.run(["update-ref",cancelCatalogRef,prior])
+            canceled.model.cancel(); try await wait([window]) { chooser.pickerTarget==nil && !chooser.busy && chooser.references.contains{$0.name==cancelCatalogRef} }
+            try require(chooser.commitRevision==cancelCommit,"Creation Cancel replaced exact typed commit draft")
+            try require(chooser.revision=="refs/heads/nested/topic" && chooser.versionPickerDraft==cancelDraft && chooser.options.tracking == .noTrack && chooser.options.overrideBranch && chooser.referenceFocusRequest==cancelFocus+1,"Cancel changed branch base/options or failed exactly one source refocus request")
             chooser.options.target = .commit; chooser.commitRevision=prior; chooser.browse(.commit)
             guard let first=log() else { throw Failure(description:"Full Log missing") }; try await wait([first.window!]) { !first.model.busy && first.model.entries.count==2 }
             guard let table=find(HistoryTableView.self,first.window!.contentView!) else { throw Failure(description:"Log table missing") }

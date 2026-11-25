@@ -87,17 +87,23 @@ import TurtleGitCore
             retained = choose
             return LogWindowController(repository: repository, access: access, onChooseMultiple: choose, labelDefaults: preferences)
         }
+        print("REBASE ADD PHASE: open cancellation picker")
         controller.showAdditionalCommits(); try await wait { controller.logPicker != nil && controller.logPicker?.model.busy == false }
         try require(controller.logPicker!.model.selectingMultiple && controller.logPicker!.model.colorPreferences === prefs && model.pickingCommits && !model.canStart && RebaseWindowController.activeCommitPickers == 1, "Add picker does not own multi-selection/preferences")
         let cancelled = retained
+        print("REBASE ADD PHASE: finish cancellation picker")
         controller.logPicker!.model.finishMultipleSelection(nil)
         try await wait { RebaseWindowController.activeCommitPickers == 0 && !model.pickingCommits && controller.window?.attachedSheet == nil }
         cancelled?([base]); try require(!model.busy && model.plan!.entries.map(\.id) == beforeStale, "Old picker callback inserted rows")
         model.readAddedPlan = { try await repo.addingRebaseCommits($0, revisions: $1, cancellation: $2) }
+        print("REBASE ADD PHASE: open acceptance picker")
         controller.showAdditionalCommits(); try await wait { controller.logPicker?.model.busy == false && controller.logPicker != nil }
+        print("REBASE ADD PHASE: finish acceptance picker")
         controller.logPicker!.model.finishMultipleSelection([base]); try await drain()
         try require(model.entries.first?.commit.hash == base.hash && !model.pickingCommits && RebaseWindowController.activeCommitPickers == 0 && controller.window?.attachedSheet == nil, "Accepted picker did not detach before Add")
-        controller.presentCommitPicker = { _, _ in false }; controller.showAdditionalCommits(); try await drain()
+        controller.presentCommitPicker = { _, _ in false }
+        print("REBASE ADD PHASE: open refused picker")
+        controller.showAdditionalCommits(); try await drain()
         try require(!model.pickingCommits && controller.logPicker == nil && RebaseWindowController.activeCommitPickers == 0, "Refused picker leaked owner")
         // Before a valid plan exists, cancelled draft resolution keeps old draft;
         // a real successful resolution with invalid references stays editable.
@@ -131,6 +137,7 @@ import TurtleGitCore
         try require(parent.canStart && parent.isCherryPick, "Merge Cherry Pick unavailable")
         var parentReply: CheckedContinuation<[LogParentChoice], Error>?
         parent.readMainlineChoices = { _, token in ownedToken = token; return try await withCheckedThrowingContinuation { parentReply = $0 } }
+        print("REBASE ADD PHASE: start reached-mainline held read")
         start(parent)
         do {try await wait {parentReply != nil}} catch {
             var actual:RebaseState?
@@ -142,21 +149,28 @@ import TurtleGitCore
         }
         let reached=try await repo.rebaseState(),reachedHead=try await repo.rebaseCommit("HEAD").hash
         try require(reached.mainlineDecision?.commit==merge.hash && parent.busy && parent.active && RebaseWindowModel.activeReplayOperations>0,"Reached parent metadata lacks durable replay ownership")
+        print("REBASE ADD PHASE: cancel reached-mainline held read")
         parent.cancelReplay();try require(ownedToken?.isCancelled==true && parent.busy,"Cancel released noncooperative parent read")
+        print("REBASE ADD PHASE: release cancelled reached-mainline held read")
         parentReply?.resume(returning: try await repo.logParentChoices(merge)); parentReply = nil; try await drain()
         let cancelledState=try await repo.rebaseState()
         try require(cancelledState.mainlineDecision==reached.mainlineDecision && parent.plan!.entries.first?.mainline == nil && !parent.busy && parent.error == nil && parent.active,"Cancelled reached read changed mainline or lost resumable session")
         try require((try await repo.rebaseCommit("HEAD")).hash==reachedHead,"Cancelled reached read changed earlier committed progress")
         parent.readMainlineChoices = { try await repo.logParentChoices($0, cancellation: $1) }
+        print("REBASE ADD PHASE: open reached-mainline sheet")
         parent.request("continue"); try await wait { parent.hasReplayQuestion && parentController.window?.attachedSheet != nil }
         let sheet=parentController.window!.attachedSheet!,buttons=nativeViews(sheet.contentView!).compactMap{$0 as? NSButton}.filter{!$0.isHiddenOrHasHiddenAncestor && !$0.title.isEmpty}
         let fields=nativeViews(sheet.contentView!).compactMap{$0 as? NSTextField}.map(\.stringValue)
         guard let cancel=buttons.first(where:{$0.title=="Cancel"}),let cancelAction=cancel.action else{throw Failure(description:"Actual parent Cancel missing")}
         try require(buttons.count==3 && sheet.defaultButtonCell === cancel.cell && sheet.alphaValue==0 && fields.contains(where:{$0.contains("Which parent do you want to pick?") && $0.contains(merge.hash)}),"Actual reached parent sheet lost source text/choices/default Cancel/owner")
+        print("REBASE ADD PHASE: cancel reached-mainline sheet")
         try require(NSApp.sendAction(cancelAction,to:cancel.target,from:cancel),"Native reached parent Cancel failed to dispatch")
         try await drain();try await wait {parentController.window?.attachedSheet==nil && !parent.hasReplayQuestion && !parent.busy}
         try require((try await repo.rebaseState()).mainlineDecision==reached.mainlineDecision && parent.active,"Native Cancel did not retain the reached parent decision")
-        parent.request("continue"); try await wait { parent.hasReplayQuestion }; parentController.close(); try await drain()
+        print("REBASE ADD PHASE: reopen reached-mainline sheet")
+        parent.request("continue"); try await wait { parent.hasReplayQuestion }
+        print("REBASE ADD PHASE: close reached-mainline owner")
+        parentController.close(); try await drain()
         try require(parent.retired && !parent.hasReplayQuestion && !parent.busy,"Forced reached-parent closure retained question or worker")
         let retiredState=try await repo.rebaseState()
         try require(retiredState.mainlineDecision==reached.mainlineDecision,"Closing parent changed the durable decision")

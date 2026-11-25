@@ -142,7 +142,9 @@ import TurtleGitCore
         exec \(quote) "$@"
         """
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
-        let slowRepository = GitRepository(root: root, executable: wrapper)
+        // These phases intentionally intercept actual CLI children. Ordinary
+        // repositories above retain their default reference backend coverage.
+        let slowRepository = GitRepository(root: root, executable: wrapper, libgit2Configuration: .init(enabled:false))
         for command in ["for-each-ref", "check-ref-format", "request-pull"] {
             for forced in [false, true] {
                 try Data((command == "for-each-ref" ? command : "").utf8).write(to: phase)
@@ -154,7 +156,8 @@ import TurtleGitCore
                     try await wait { !slow.model.busy }; try Data(command.utf8).write(to: phase)
                     slow.model.start = first; slow.model.sendMail = false; slow.model.create()
                 }
-                try await wait { FileManager.default.fileExists(atPath: marker.path) }
+                do {try await wait { FileManager.default.fileExists(atPath: marker.path) }}
+                catch {throw NSError(domain:"RequestPullLifecycle",code:1,userInfo:[NSLocalizedDescriptionKey:"Controlled CLI marker missing: command=\(command),forced=\(forced),phase=\(String(reflecting:(try? String(contentsOf:phase)) ?? "<unreadable>")),busy=\(slow.model.busy),pending=\(slow.model.pendingOperations),optionsAvailable=\(slow.model.optionsAvailable),retired=\(slow.model.isRetired),error=\(String(reflecting:slow.model.error)); \(error)"]) }
                 let pids = try String(contentsOf: marker).split(whereSeparator: \.isWhitespace).compactMap { Int32($0) }
                 try check(pids.count == 2 && RequestPullWindowModel.activeOperations > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Owned operation lost process/Quit lifetime")
                 if forced { slow.close() }

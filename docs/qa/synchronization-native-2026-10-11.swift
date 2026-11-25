@@ -31,6 +31,13 @@ import TurtleGitCore
         }
         preconditionFailure("Synchronization did not settle at fixture line \(line)")
     }
+    @MainActor static func awaitTransportAdmission(_ owner:SynchronizationWindowController,line:UInt = #line)async throws {
+        let model=owner.model,window=owner.window
+        try await settle({
+            owner.window?.contentView?.layoutSubtreeIfNeeded()
+            return window != nil && owner.model === model && model.window === window && !model.closed && !model.confirmingQuit && !model.confirmingCancellation && !model.busy && !model.hasBlockingChild && window?.attachedSheet == nil
+        },line:line)
+    }
     struct StashPreparationFailure:Error,CustomStringConvertible {let description:String}
     @MainActor static func awaitStashForm(_ owner:StashWindowController)async throws {
         if !owner.model.prepared && !owner.model.preparing {owner.model.prepare()}
@@ -215,10 +222,18 @@ import TurtleGitCore
         owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
         let model = owner.model; model.sshSettings.enabled = false
         try await settle { !model.busy }
-        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "main"
         var confirmations = 0, questions = 0, checkoutCompleted = false
         model.confirmCheckout = { branch in confirmations += 1; precondition(branch == "main"); return true }
-        model.askTracking = { branch, remote, destination in questions += 1; precondition(checkoutCompleted && branch == "main" && remote == "origin" && destination == "main"); return SynchronizationTrackingAnswer(choice: .yes) }
+        var firstPullAdmission="not dispatched"
+        model.askTracking = { branch, remote, destination in
+            questions += 1
+            let state="branch=\(String(reflecting:branch)),remote=\(String(reflecting:remote)),destination=\(String(reflecting:destination)),checkoutCompleted=\(checkoutCompleted),confirmations=\(confirmations),questions=\(questions),currentLocal=\(String(reflecting:model.localBranch)),currentRemote=\(String(reflecting:model.remote)),currentRemoteBranch=\(String(reflecting:model.remoteBranch)),busy=\(model.busy),transport=\(model.transportRunning),blocked=\(model.hasBlockingChild),sheet=\(owner.window?.attachedSheet != nil),error=\(String(reflecting:model.error)),admission=[\(firstPullAdmission)]"
+            precondition(checkoutCompleted,"Pull asked tracking before required checkout completed: "+state)
+            precondition(branch=="main","Pull tracking local branch changed: "+state)
+            precondition(remote=="origin","Pull tracking remote changed: "+state)
+            precondition(destination=="main","Pull tracking destination changed: "+state)
+            return SynchronizationTrackingAnswer(choice: .yes)
+        }
         let presentCheckout = model.performCheckout!
         model.performCheckout = { capturedRepository, plan, token in
             precondition(plan.oldHead == baseline)
@@ -226,7 +241,10 @@ import TurtleGitCore
             precondition(result.command != nil && owner.window?.attachedSheet == nil)
             checkoutCompleted = true; return result
         }
-        model.performPullAction(.pull); precondition(model.transportRunning && !owner.windowShouldClose(owner.window!))
+        try await awaitTransportAdmission(owner)
+        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "main"
+        firstPullAdmission="local=\(String(reflecting:model.localBranch)),remote=\(String(reflecting:model.remote)),remoteBranch=\(String(reflecting:model.remoteBranch)),busy=\(model.busy),blocked=\(model.hasBlockingChild),sheet=\(owner.window?.attachedSheet != nil),outgoing=\(model.outgoing != nil),sameWindow=\(model.window === owner.window),closed=\(model.closed)"
+        model.performPullAction(.pull,shift:false); precondition(model.transportRunning && !owner.windowShouldClose(owner.window!))
         try await settle { !model.busy }
         precondition(confirmations == 1 && questions == 1 && checkoutCompleted && model.commandSucceeded && model.tab == 4)
         precondition(model.incomingCommits?.contains { $0.hash == incoming } == true && model.incomingGraph.count == model.incomingCommits?.count)
@@ -238,22 +256,22 @@ import TurtleGitCore
         try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Graph" && $0.numberOfRows == model.incomingCommits?.count } }
         model.tab = 5; owner.window!.contentView!.layoutSubtreeIfNeeded()
         try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Path" && $0.numberOfRows == model.incomingComparison.snapshot?.files.count } }
-        model.performPullAction(.pull); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.pull,shift:false); try await settle { !model.busy }
         precondition(model.commandSucceeded && model.tab == 3 && model.incomingCommits?.isEmpty == true)
         _ = try await repo.run(["config", "--unset", "branch.main.merge"])
         model.askTracking = { _, _, _ in SynchronizationTrackingAnswer(choice: .no) }
-        model.performPullAction(.pull); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.pull,shift:false); try await settle { !model.busy }
         let absent = try await repo.run(["config", "--get", "branch.main.merge"], successfulExitCodes: 0...1); precondition(model.commandSucceeded && absent.exitCode == 1)
         let beforeCancel = try await repo.run(["show-ref"]).stdout
         model.askTracking = { _, _, _ in SynchronizationTrackingAnswer(choice: .cancel, suppress: true) }
-        model.performPullAction(.pull); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.pull,shift:false); try await settle { !model.busy }
         let afterCancel = try await repo.run(["show-ref"]).stdout
         precondition(!model.commandSucceeded && beforeCancel == afterCancel && !preferences.bool(forKey: "AskSetTrackedBranch"))
         _ = try await repo.run(["config", "branch.main.merge", "refs/heads/main"])
+        try await awaitTransportAdmission(owner)
         model.localBranch = "other"; model.confirmCheckout = { _ in false }
-        model.performPullAction(.pull); try await settle { !model.busy }
+        model.performPullAction(.pull,shift:false); try await settle { !model.busy }
         let afterAbort = try await hash(repo); precondition(afterAbort == incoming && !model.commandSucceeded)
-        model.localBranch = "main"
         try Data("second\n".utf8).write(to: authorRoot.appendingPathComponent("second")); try await author.stage(["second"]); _ = try await author.commit(message: "second incoming")
         _ = try await author.run(["push", "origin", "main"]); let second = try await hash(author)
         _ = try await repo.run(["config", "branch.main.rebase", "merges"])
@@ -262,7 +280,7 @@ import TurtleGitCore
             let before = try await hash(repo); precondition(before == incoming && target == second && autoStart && preserve && model.busy)
             handoff = true; _ = try await repo.run(["merge", "--ff-only", "--", target])
         }
-        model.performPullAction(.pull); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.localBranch = "main"; model.performPullAction(.pull,shift:false); try await settle { !model.busy }
         precondition(handoff && model.commandSucceeded && model.incomingComparison.snapshot?.to == .revision(second))
         _ = try await repo.run(["config", "branch.main.rebase", "false"]); _ = try await repo.run(["config", "pull.ff", "false"])
         try Data("local conflict\n".utf8).write(to: clientRoot.appendingPathComponent("file")); try await repo.stage(["file"]); _ = try await repo.commit(message: "local conflict")
@@ -270,7 +288,7 @@ import TurtleGitCore
         var hints = 0
         preferences.removeObject(forKey: MergeProgressWindowModel.conflictHintPreference)
         model.presentConflictHint = { hints += 1; return true }
-        model.performPullAction(.pull); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.pull,shift:false); try await settle { !model.busy }
         precondition(hints == 1 && preferences.bool(forKey: MergeProgressWindowModel.conflictHintPreference))
         precondition(!model.commandSucceeded && model.tab == 6 && model.conflicts.contains { $0.path == "file" })
         // Failed Pull owns a separate conflict-list read. Its busy flag alone
@@ -279,9 +297,10 @@ import TurtleGitCore
         _ = try await repo.run(["merge", "--abort"])
         try Data("dirty checkout work\n".utf8).write(to: clientRoot.appendingPathComponent("file"))
         let fetchHead = try Data(contentsOf: clientRoot.appendingPathComponent(".git/FETCH_HEAD"))
-        model.localBranch = "other"; model.confirmCheckout = { _ in true }
         model.performCheckout = presentCheckout
-        model.performPullAction(.pull)
+        try await awaitTransportAdmission(owner)
+        model.localBranch = "other"; model.confirmCheckout = { _ in true }
+        model.performPullAction(.pull,shift:false)
         try await settle { owner.window?.attachedSheet?.title.contains("Checkout Progress") == true }
         let progress = owner.window!.attachedSheet!
         let checkoutController = progress.delegate as! SynchronizationProgressController
@@ -302,9 +321,10 @@ import TurtleGitCore
         blockedOwner.window!.alphaValue = 0; blockedOwner.showWindow(nil); defer { blockedOwner.close() }
         let blocked = blockedOwner.model; blocked.sshSettings.enabled = false
         try await settle { !blocked.busy && blocked.outgoing != nil }
-        blocked.localBranch = "other"; blocked.remote = "origin"; blocked.remoteBranch = "main"; blocked.confirmCheckout = { _ in true }
         let refsBeforeClose = try await repo.run(["show-ref"]).stdout
-        blocked.performPullAction(.pull)
+        try await awaitTransportAdmission(blockedOwner)
+        blocked.localBranch = "other"; blocked.remote = "origin"; blocked.remoteBranch = "main"; blocked.confirmCheckout = { _ in true }
+        blocked.performPullAction(.pull,shift:false)
         precondition(blocked.transportRunning)
         try await settle { (FileManager.default.fileExists(atPath: marker.path) && blockedOwner.window?.attachedSheet != nil) || blocked.commandCompleted }
         precondition(FileManager.default.fileExists(atPath: marker.path) && blockedOwner.window?.attachedSheet != nil, "Checkout did not start: \(blocked.commandOutput)")
@@ -427,9 +447,24 @@ import TurtleGitCore
         precondition(model.tab == 6 && model.conflicts.contains { $0.path == "file" } && model.incomingComparison.snapshot == nil)
         _ = try await repo.run(["merge", "--abort"])
 
+        let shiftOwner=owner.window
+        do {
+            // Command completion can precede the conflict report's own read
+            // and child retirement. Start from an admitted current owner.
+            try await settle { owner.model === model && model.window === shiftOwner && !model.closed && model.commandCompleted && !model.busy && !model.hasBlockingChild && owner.optionsController == nil && shiftOwner?.attachedSheet == nil }
+        } catch {
+            print("SYNC SHIFT ADMISSION: sameModel=\(owner.model === model),sameWindow=\(model.window === shiftOwner),closed=\(model.closed),completed=\(model.commandCompleted),busy=\(model.busy),blocked=\(model.hasBlockingChild),options=\(owner.optionsController != nil),sheet=\(shiftOwner?.attachedSheet != nil)");fflush(stdout)
+            throw error
+        }
         let output = model.commandOutput, refs = model.referenceChanges.count, selectedTab = model.tab
         model.fetch(.fetchAndRebase, shift: true)
-        precondition(owner.optionsController == nil && !model.busy && model.commandOutput == output && model.referenceChanges.count == refs && model.tab == selectedTab && preferences.integer(forKey: "TurtleGit.Sync." + repo.root.path + ".pullAction") == 2)
+        let shiftState="options=\(owner.optionsController != nil),busy=\(model.busy),outputUnchanged=\(model.commandOutput == output),refs=\(model.referenceChanges.count)/\(refs),tab=\(model.tab)/\(selectedTab),pullAction=\(preferences.integer(forKey:"TurtleGit.Sync."+repo.root.path+".pullAction")),blocked=\(model.hasBlockingChild),sheet=\(shiftOwner?.attachedSheet != nil),closed=\(model.closed)"
+        precondition(owner.optionsController == nil,"Shift Fetch/Rebase opened options: "+shiftState)
+        precondition(!model.busy,"Shift Fetch/Rebase started work: "+shiftState)
+        precondition(model.commandOutput == output,"Shift Fetch/Rebase changed output: "+shiftState)
+        precondition(model.referenceChanges.count == refs,"Shift Fetch/Rebase changed reference rows: "+shiftState)
+        precondition(model.tab == selectedTab,"Shift Fetch/Rebase changed selected tab: "+shiftState)
+        precondition(preferences.integer(forKey:"TurtleGit.Sync."+repo.root.path+".pullAction")==2,"Shift Fetch/Rebase did not persist chosen split entry: "+shiftState)
         // Forced parent closure ends the owned options sheet and resumes exactly
         // once, without publishing a late refresh into the invalidated parent.
         model.fetch(.fetch, shift: true)
@@ -492,11 +527,21 @@ import TurtleGitCore
         try await settle { !model.busy && model.outgoing != nil }
         model.remote = "origin"; model.remoteBranch = "main"; model.localBranch = "main"
         var rebaseChild: RebaseWindowController?, lastFlags: (Bool, Bool)?, count = 0
+        var automaticOwnedProgress:FetchProgressWindowController?
         model.runRebase = { target, autoStart, preserve in
             count += 1; lastFlags = (autoStart, preserve)
-            precondition(model.busy && !model.commandCompleted && model.incomingComparison.snapshot == nil && owner.optionsController != nil && owner.window?.attachedSheet == nil)
+            precondition(model.busy && !model.commandCompleted && model.incomingComparison.snapshot == nil && model.referenceChanges.isEmpty && model.incomingCommits == nil && owner.optionsController != nil && owner.window?.attachedSheet == nil)
             let options = owner.optionsController!
             precondition(options.window?.sheetParent == nil && options.window?.isVisible == false && options.fetchProgressController!.window?.sheetParent == nil && options.fetchProgressController!.model.dispatchingAction)
+            let progress=options.fetchProgressController!
+            if autoStart { automaticOwnedProgress=progress }
+            // Capture before querying: close delegates may cancel owned work.
+            let syncCloseState="transport=\(model.transportRunning),busy=\(model.busy),sheet=\(owner.window?.attachedSheet != nil),blocked=\(model.hasBlockingChild),pending=\(model.hasPendingInlineWork),closed=\(model.closed)"
+            let optionsCloseState="busy=\(options.model.busy),transport=\(options.model.transportRunning),preparing=\(options.model.preparing),progress=\(options.model.progress != nil),fetchProgress=\(options.model.fetchProgress != nil),progressController=\(options.progressController != nil),fetchProgressController=\(options.fetchProgressController === progress),sheet=\(options.window?.attachedSheet != nil),quit=\(options.model.confirmingQuit),cancel=\(options.model.confirmingCancellation)"
+            let progressCloseState="busy=\(progress.model.busy),dispatching=\(progress.model.dispatchingAction),quit=\(progress.model.confirmingQuit),cancel=\(progress.model.confirmingCancellation),rebaseDecision=\(progress.model.confirmingRebaseDecision),pending=\(progress.model.pendingOperations),canCancel=\(progress.model.canCancel),sheet=\(progress.window?.attachedSheet != nil),parent=\(progress.window?.sheetParent != nil)"
+            precondition(!owner.windowShouldClose(owner.window!),"Sync accepted close during owned Rebase; "+syncCloseState+"; options="+optionsCloseState+"; progress="+progressCloseState)
+            precondition(!options.windowShouldClose(options.window!),"Fetch options accepted close during owned Rebase; "+optionsCloseState+"; Sync="+syncCloseState+"; progress="+progressCloseState)
+            precondition(!progress.windowShouldClose(progress.window!),"Fetch progress accepted close during owned Rebase; "+progressCloseState+"; Sync="+syncCloseState+"; options="+optionsCloseState)
             let child = RebaseWindowController(repository: repo, access: nil, preferences: preferences); rebaseChild = child
             child.window!.alphaValue = 0; child.model.completionAfterFetch = true; child.model.completionAutoStart = autoStart
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -516,12 +561,13 @@ import TurtleGitCore
         precondition(automaticOptions.model.configuredRebase)
         automaticOptions.model.options.branch = "main"; automaticOptions.model.fetch()
         try await settle { rebaseChild != nil && !rebaseChild!.model.busy && rebaseChild!.model.finished }
-        let automatic = rebaseChild!, automaticProgress = automaticOptions.fetchProgressController!
+        let automatic = rebaseChild!
         precondition(count == 1 && lastFlags!.0 && lastFlags!.1 && automatic.model.completedSuccessfully && automatic.model.options.upstream == first)
-        let advanced = try await hash(repo); precondition(advanced == first && model.busy && !model.commandCompleted && model.referenceChanges.isEmpty && model.incomingCommits == nil)
-        precondition(!owner.windowShouldClose(owner.window!) && !automaticOptions.windowShouldClose(automaticOptions.window!) && !automaticProgress.windowShouldClose(automaticProgress.window!))
-        automatic.model.close()
-        try await settle { model.commandCompleted && !model.busy }
+        let advanced = try await hash(repo); precondition(advanced == first)
+        // Successful after-Fetch autoStart closes its Rebase and Fetch owners
+        // automatically; an explicit Close here would mask that contract.
+        try await settle { model.commandCompleted && !model.busy && owner.optionsController == nil && automatic.model.retired && automaticOptions.model.closed && !automaticOptions.serviceWorkPending }
+        precondition(automatic.window?.isVisible == false && automatic.window?.sheetParent == nil && automaticOptions.window?.isVisible == false && automaticOptions.window?.sheetParent == nil && automaticOptions.fetchProgressController == nil && automaticOptions.progressController == nil && automaticOwnedProgress?.window?.isVisible == false && automaticOwnedProgress?.window?.sheetParent == nil)
         precondition(model.incomingComparison.snapshot?.from == .revision(base) && model.incomingComparison.snapshot?.to == .revision(first) && model.referenceChanges.contains { $0.name.rawValue == "refs/heads/main" && $0.newHash == first } && owner.optionsController == nil && automaticOptions.window?.isVisible == false)
 
         // Manual full Fetch performs a real divergent replay through the editor.
@@ -556,17 +602,29 @@ import TurtleGitCore
         let cancelledHead = try await hash(repo)
         precondition(cancelledHead == replayed && model.incomingUpToDate && model.referenceChanges.contains { $0.name.rawValue == "refs/remotes/origin/main" && $0.newHash == third })
 
-        // Presentation failure retains successful fetch ref updates and reports
-        // the handoff error in the parent, with no invisible waiting windows.
+        // A failed Rebase handoff restores the exact Fetch sheet chain and
+        // retains its failed result until the user acknowledges Close.
         let fourth = try await advance("fourth")
         let presentOwnedRebase = model.runRebase
-        model.runRebase = { _, _, _ in throw SynchronizationFailure.invalidInput }
+        var failedTarget:String?
+        model.runRebase = { target, _, _ in failedTarget=target;throw SynchronizationFailure.invalidInput }
         model.fetch(.fetch, shift: true)
         try await settle { owner.optionsController != nil && !owner.optionsController!.model.busy }
         let failedOptions = owner.optionsController!
         failedOptions.model.options.branch = "main"; failedOptions.model.launchRebase = true; failedOptions.model.fetch()
+        try await settle {
+            guard let progress=failedOptions.fetchProgressController else{return false}
+            return !progress.model.busy && !progress.model.dispatchingAction && !progress.model.success && progress.model.postActions == [.rebase] &&
+                failedOptions.window?.sheetParent === owner.window && owner.window?.attachedSheet === failedOptions.window &&
+                progress.window?.sheetParent === failedOptions.window && failedOptions.window?.attachedSheet === progress.window
+        }
+        let failedProgress=failedOptions.fetchProgressController!
+        precondition(failedTarget==fourth && failedProgress.model.output.contains("Opening Rebase failed."))
+        precondition(model.busy && !model.commandCompleted && owner.optionsController === failedOptions && !failedOptions.model.closed)
+        failedProgress.model.close()
         try await settle { model.commandCompleted && !model.busy }
         precondition(!model.commandSucceeded && model.error != nil && model.referenceChanges.contains { $0.name.rawValue == "refs/remotes/origin/main" && $0.newHash == fourth } && owner.optionsController == nil && owner.window?.attachedSheet == nil)
+        precondition(failedOptions.model.closed && failedOptions.window?.sheetParent == nil && failedOptions.window?.isVisible == false && failedOptions.fetchProgressController == nil && failedProgress.window?.sheetParent == nil && failedProgress.window?.isVisible == false)
         let retainedError = model.error!
         precondition(model.commandOutput.contains(retainedError))
         model.reload(); try await settle { !model.busy }
@@ -582,8 +640,16 @@ import TurtleGitCore
         try await settle { rebaseChild != nil && !rebaseChild!.model.busy && rebaseChild!.model.plan != nil }
         let forced = rebaseChild!, forcedProgress = forcedOptions.fetchProgressController!, lateDismiss = forced.onClosed
         owner.close(); let closedOutput = model.commandOutput
+        precondition(model.closed && forced.model.retired && forcedOptions.model.closed)
         lateDismiss(); lateDismiss()
-        try await Task.sleep(nanoseconds: 50_000_000)
+        // Retirement is immediate, while the accepted handoff worker and native
+        // sheets retain ownership until their actual close acknowledgements.
+        try await settle {
+            !model.busy && owner.optionsController == nil && !forced.model.busy &&
+                !forcedOptions.serviceWorkPending && forcedProgress.model.pendingOperations==0 && !forcedProgress.model.dispatchingAction &&
+                forced.window?.sheetParent == nil && forcedOptions.window?.sheetParent == nil && forcedProgress.window?.sheetParent == nil &&
+                forced.window?.isVisible == false && forcedOptions.window?.isVisible == false && forcedProgress.window?.isVisible == false
+        }
         let closedHead = try await hash(repo), fetchedRef = String(decoding: try await repo.run(["rev-parse", "refs/remotes/origin/main"]).stdout, as: UTF8.self).trimmingCharacters(in: .newlines)
         precondition(model.closed && !model.busy && model.commandOutput == closedOutput && model.referenceChanges.isEmpty && model.incomingComparison.snapshot == nil && owner.optionsController == nil && closedHead == replayed && fetchedRef == fifth)
         precondition(forced.window?.sheetParent == nil && forced.window?.isVisible == false && forcedOptions.window?.isVisible == false && forcedProgress.window?.isVisible == false && !forcedProgress.model.dispatchingAction)
@@ -620,7 +686,6 @@ import TurtleGitCore
         owner.window!.alphaValue = 0; owner.showWindow(nil); defer { owner.close() }
         let model = owner.model; model.sshSettings.enabled = false
         try await settle { !model.busy && model.outgoing != nil }
-        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "main"
         var prompts: [FetchRebasePrompt] = [], mergeCount = 0, rebaseCount = 0
         model.presentRebasePrompt = { prompt in prompts.append(prompt); precondition(prompt == .fastForward); return FetchRebaseAnswer(value: 1, suppress: false) }
         let presentMerge = model.performFastForward!
@@ -640,20 +705,25 @@ import TurtleGitCore
             preferences.set(false,forKey:"UseLibgit2");preferences.removeObject(forKey:"UseLibgit2_mask")
             precondition(owner.window?.attachedSheet == nil); return result
         }
-        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner)
+        model.localBranch = "main"; model.remote = "origin"; model.remoteBranch = "main"
+        model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }
         let merged = try await hash(repo)
         precondition(merged == first && mergeCount == 1 && prompts == [.fastForward] && model.commandSucceeded && model.tab == 4)
         precondition(model.incomingComparison.snapshot?.from == .revision(base) && model.incomingComparison.snapshot?.to == .revision(first))
         let restored = SynchronizationWindowModel(repository: repo, access: nil, preferences: preferences); precondition(restored.pullAction == .fetchAndRebase)
         prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: 7, suppress: true) }
-        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
-        precondition(prompts == [.unchanged] && model.commandSucceeded && preferences.integer(forKey: FetchRebasePrompt.unchanged.rawValue) == 7)
+        try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }
+        let unchangedState="prompts=\(prompts),success=\(model.commandSucceeded),suppression=\(preferences.integer(forKey:FetchRebasePrompt.unchanged.rawValue)),busy=\(model.busy),blocked=\(model.hasBlockingChild),sheet=\(owner.window?.attachedSheet != nil),completed=\(model.commandCompleted),closed=\(model.closed),error=\(String(reflecting:model.error))"
+        precondition(prompts == [.unchanged],"Fetch/Rebase unchanged prompt mismatch: "+unchangedState)
+        precondition(model.commandSucceeded,"Fetch/Rebase unchanged command failed: "+unchangedState)
+        precondition(preferences.integer(forKey:FetchRebasePrompt.unchanged.rawValue)==7,"Fetch/Rebase unchanged suppression not retained: "+unchangedState)
         model.presentRebasePrompt = { _ in preconditionFailure("suppressed prompt was shown") }
-        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }; precondition(model.commandSucceeded && mergeCount == 1)
+        try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }; precondition(model.commandSucceeded && mergeCount == 1)
         preferences.removeObject(forKey: FetchRebasePrompt.unchanged.rawValue)
         let second = try await advance("second")
         prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: 3, suppress: false) }
-        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }
         let abortedHead = try await hash(repo); precondition(abortedHead == first && prompts == [.fastForward] && model.commandSucceeded && model.incomingCommits == nil && model.tab == 3)
         model.runRebase = { target, autoStart, preserve in
             rebaseCount += 1; precondition(!autoStart && !preserve && model.busy && owner.window?.attachedSheet == nil)
@@ -681,18 +751,18 @@ import TurtleGitCore
             precondition(owner.window?.attachedSheet == nil)
         }
         prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: prompt == .unchanged ? 6 : 2, suppress: false) }
-        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }
         let rebasedFF = try await hash(repo)
         precondition(prompts == [.unchanged, .fastForward] && rebaseCount == 1 && rebasedFF == second && model.incomingComparison.snapshot?.to == .revision(second))
         try Data("local\n".utf8).write(to: clientRoot.appendingPathComponent("local")); try await repo.stage(["local"]); _ = try await repo.commit(message: "local replay")
         let original = try await hash(repo), third = try await advance("third")
-        prompts = []; model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        prompts = []; try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }
         let replayed = try await hash(repo)
         precondition(prompts.isEmpty && rebaseCount == 2 && model.commandSucceeded && replayed != original && replayed != third)
         precondition(model.incomingComparison.snapshot?.from == .revision(original) && model.incomingComparison.snapshot?.to == .revision(replayed))
         let ancestry = try await repo.run(["merge-base", "--is-ancestor", third, "HEAD"], successfulExitCodes: 0...1); precondition(ancestry.exitCode == 0)
         prompts = []; model.presentRebasePrompt = { prompt in prompts.append(prompt); return FetchRebaseAnswer(value: 7, suppress: false) }
-        model.performPullAction(.fetchAndRebase); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false); try await settle { !model.busy }
         let ahead = try await hash(repo)
         precondition(prompts == [.unchanged] && ahead == replayed && model.commandSucceeded && !model.incomingUpToDate)
         precondition(model.incomingCommits?.isEmpty == true && model.incomingComparison.snapshot?.from == .revision(replayed) && model.incomingComparison.snapshot?.to == .revision(third))
@@ -705,7 +775,7 @@ import TurtleGitCore
             _ = try! await repo.run(["switch", "--detach", third])
             return FetchRebaseAnswer(value: 1, suppress: false)
         }
-        model.performPullAction(.fetchAndRebase)
+        try await awaitTransportAdmission(owner); model.performPullAction(.fetchAndRebase,shift:false)
         try await settle { owner.window?.attachedSheet?.title.contains("Merge Progress") == true }
         let staleProgress = owner.window!.attachedSheet!, staleController = staleProgress.delegate as! SynchronizationProgressController
         try await settle { !staleController.model.busy }
@@ -771,7 +841,7 @@ import TurtleGitCore
         try await settle { !model.busy && model.outgoing != nil }
         model.compareTags(shift: true)
         precondition(model.compareTagsSelected && !model.busy && !model.comparingTags && preferences.integer(forKey: "TurtleGit.Sync." + repo.root.path + ".pullAction") == 6)
-        model.performPullAction(shift: false); try await settle { !model.busy }
+        try await awaitTransportAdmission(owner); model.performPullAction(shift: false); try await settle { !model.busy }
         precondition(model.error == nil && model.comparingTags && model.tab == 7 && model.tagSnapshot!.remote == "origin")
         let refsAfterRead = try await repo.run(["show-ref"]).stdout; precondition(refsAfterRead == refs)
         try await settle { views(owner.window!.contentView!).compactMap { $0 as? NSTableView }.contains { $0.tableColumns.first?.title == "Tag" } }
@@ -902,7 +972,7 @@ import TurtleGitCore
             let progress = blockedOwner.commandProgress!, pid = pid_t(try String(contentsOf: marker, encoding: .utf8).trimmingCharacters(in: .newlines))!
             precondition(progress.model.busy && progress.window?.sheetParent === blockedOwner.window)
             let refsBeforeClose = try await repo.run(["show-ref"]).stdout
-            blockedOwner.close(); try await settle { kill(pid, 0) == -1 && errno == ESRCH }
+            blockedOwner.close(); try await settle { kill(pid, 0) == -1 && errno == ESRCH && !blocked.busy && !progress.model.busy && progress.window?.sheetParent == nil && blockedOwner.commandProgress == nil }
             let refsAfterClose = try await repo.run(["show-ref"]).stdout
             precondition(blocked.closed && !blocked.busy && !progress.model.busy && progress.window?.sheetParent == nil && blockedOwner.commandProgress == nil && refsAfterClose == refsBeforeClose)
         }
@@ -1433,7 +1503,8 @@ import TurtleGitCore
         let environment = GitRuntime.environment(executable: selected).sorted { $0.key < $1.key }.map { "export " + $0.key + "=" + quote($0.value) }.joined(separator: "\n")
         let script = "#!/bin/sh\n" + environment + "\nif [ -f " + quote(enable.path) + " ]; then\nfor argument; do\nif [ \"$argument\" = remote ]; then\nprintf '%s\\n' \"$$\" > " + quote(marker.path) + "\nwhile :; do sleep 1; done\nfi\ndone\nfi\nexec " + quote(selected.path) + " \"$@\"\n"
         try Data(script.utf8).write(to: shim); try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: shim.path)
-        let repo = GitRepository(root: directory, executable: shim)
+        // This receiver intentionally holds the CLI remote process below.
+        let repo = GitRepository(root: directory, executable: shim, libgit2Configuration: .init(enabled:false))
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, refs = try await repo.run(["show-ref"]).stdout
         let index = try Data(contentsOf: directory.appendingPathComponent(".git/index"))
         let owner = SynchronizationWindowController(repository: repo, access: nil, preferences: preferences)
@@ -1474,10 +1545,22 @@ import TurtleGitCore
         precondition(finalHead == head && finalRefs == refs && finalIndex == index)
         // Exercise the actual combo delegate distinction: choosing a remote is
         // different from typing the same text, even when redraw matches a choice.
-        let combo = NSComboBox(), coordinator = FetchHistoryCombo.Coordinator()
-        coordinator.choices = model.remoteChoices; combo.addItems(withObjectValues: coordinator.choices)
-        coordinator.selectionState = { model.remoteWasSelected = $0 }
-        coordinator.change = { model.remote = $0 }
+        @MainActor func mountedRemoteCombo()async throws -> (EditableHistoryCombo,FetchHistoryCombo.Coordinator) {
+            try await settle {
+                owner.window?.contentView?.layoutSubtreeIfNeeded()
+                guard model.canEditText,let content=owner.window?.contentView,
+                      let combo=views(content).compactMap({$0 as? EditableHistoryCombo}).first(where:{$0.accessibilityLabel()=="Remote URL"}),
+                      combo.window === owner.window,!combo.isHiddenOrHasHiddenAncestor,combo.isEnabled,!combo.lifetime.retired,
+                      let coordinator=combo.delegate as? FetchHistoryCombo.Coordinator else{return false}
+                return coordinator.accepts(combo) && coordinator.choices.map{Data($0.utf8)}==model.remoteChoices.map{Data($0.utf8)}
+            }
+            let combo=views(owner.window!.contentView!).compactMap{$0 as? EditableHistoryCombo}.first{$0.accessibilityLabel()=="Remote URL"}!
+            let coordinator=combo.delegate as! FetchHistoryCombo.Coordinator
+            precondition(owner.window!.makeFirstResponder(combo),"Mounted Remote URL combo refused native focus")
+            precondition(owner.window!.firstResponder === combo || combo.currentEditor().map{owner.window!.firstResponder === $0}==true,"Remote URL field editor belongs to another control")
+            return (combo,coordinator)
+        }
+        let (combo,coordinator)=try await mountedRemoteCombo()
         combo.selectItem(at: coordinator.choices.firstIndex(of: "review")!)
         coordinator.comboBoxSelectionDidChange(Notification(name: NSComboBox.selectionDidChangeNotification, object: combo))
         precondition(model.remote == "review" && model.remoteWasSelected)
@@ -1489,8 +1572,9 @@ import TurtleGitCore
         removing.close(); try await settle { owner.remoteSettingsController == nil && !model.busy }
         precondition(model.remote == model.remoteChoices.first && model.remote == "origin")
         precondition(model.localBranch == "main" && model.remoteBranch == "typed-branch" && model.force)
-        combo.stringValue = "review"
-        coordinator.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: combo))
+        let (typedCombo,typedCoordinator)=try await mountedRemoteCombo()
+        typedCombo.stringValue = "review"
+        typedCoordinator.controlTextDidChange(Notification(name: NSControl.textDidChangeNotification, object: typedCombo))
         precondition(model.remote == "review" && !model.remoteWasSelected)
         model.manageRemotes(); let typed = owner.remoteSettingsController!
         try await settle { !typed.model.busy }; typed.close()
@@ -1511,12 +1595,22 @@ import TurtleGitCore
         try await settle { FileManager.default.fileExists(atPath: marker.path) }
         let pid = pid_t(try String(contentsOf: marker).trimmingCharacters(in: .newlines))!
         owner.close()
-        try await settle { kill(pid, 0) == -1 }
+        precondition(model.closed && blocked.model.closed,"Closing Sync must synchronously revoke both native owners")
+        try await settle { kill(pid, 0) == -1 && !model.busy && !model.managingRemotes && !model.hasPendingInlineWork && !blocked.model.busy && !blocked.model.hasPendingWork && owner.remoteSettingsController == nil && owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil }
         let processState = kill(pid, 0), processError = errno
         precondition(processState == -1 && processError == ESRCH)
         precondition(model.closed && !model.busy && !model.managingRemotes && blocked.model.closed && !blocked.model.busy)
         precondition(owner.remoteSettingsController == nil && owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil)
         model.manageRemotes(); precondition(owner.remoteSettingsController == nil)
+        let retiredRemote=model.remote,retiredSelection=model.remoteWasSelected
+        typedCombo.stringValue="retired callback must not publish"
+        typedCoordinator.controlTextDidChange(Notification(name:NSControl.textDidChangeNotification,object:typedCombo))
+        coordinator.comboBoxSelectionDidChange(Notification(name:NSComboBox.selectionDidChangeNotification,object:combo))
+        precondition(model.remote==retiredRemote && model.remoteWasSelected==retiredSelection,"Retired Remote URL controls published late edits")
+        let closedHead=try await repo.run(["rev-parse","HEAD"]).stdout,closedRefs=try await repo.run(["show-ref"]).stdout
+        precondition(closedHead==head && closedRefs==refs)
+        let closedIndex=try Data(contentsOf:directory.appendingPathComponent(".git/index"))
+        precondition(closedIndex==index)
         print("PASS: native Sync Manage opens owned Remote settings, applies real config, preserves typed branch/URL/Force, refreshes outgoing on dismissal, discards unapplied edits, distinguishes selected/typed remotes and URLs with source Refresh fallback, and reaps blocked reads on forced owner closure")
     }
     @MainActor static func main() async throws {

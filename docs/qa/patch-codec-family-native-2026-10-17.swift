@@ -4,7 +4,7 @@ import TurtleGitCore
 
 @main struct PatchCodecFamilyVerification {
     struct Failure:Error,CustomStringConvertible {let description:String}
-    static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
+    static func require(_ value:Bool,_ message:@autoclosure ()->String)throws {if !value {throw Failure(description:message())}}
     @MainActor static func wait(_ ready:()->Bool,line:UInt = #line) async throws {
         for _ in 0..<2000 {for window in NSApp.windows {window.contentView?.layoutSubtreeIfNeeded()};if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Patch codec wait at \(line)")
@@ -34,7 +34,20 @@ import TurtleGitCore
         for path in paths {let file=root.appendingPathComponent(path);try (path==paths[3] ? Data("head\nold\nkeep\ntail\n".utf8):codec.encode(base)).write(to:file);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:file.path)}
         try await repo.stage(paths);_=try await repo.commit(message:"base")
         for path in paths {try (path==paths[3] ? Data("head\n日本語\nkeep\ntail\n".utf8):codec.encode(patched)).write(to:root.appendingPathComponent(path))}
-        let patch=try await repo.run(["diff","--full-index","--binary","--"]).stdout
+        // A patch container has one encoding, unlike the working files it
+        // describes. Decode each authored Git section losslessly, retaining its
+        // complete headers/object IDs/modes, then supply one UTF8 container.
+        var patch=Data()
+        for path in paths {
+            let section=try await repo.run(["diff","--full-index","--binary","--",path]).stdout
+            let text=path==paths[3] ? String(data:section,encoding:.utf8):codec.decode(section)
+            guard let text else{throw Failure(description:"Authored patch section did not decode losslessly: "+path)}
+            if path==paths[3] {try require(Data(text.utf8)==section,"UTF8 Git patch section changed original bytes")}
+            else {try require(try codec.encode(text)==section,"Regional Git patch section changed original bytes")}
+            patch.append(contentsOf:text.utf8)
+        }
+        guard let patchText=String(data:patch,encoding:.utf8) else{throw Failure(description:"Authored patch container is not UTF8")}
+        try require(patchText.contains("日本語") && patchText.contains("шапка") && patchText.contains("новое"),"UTF8 patch container lost intended Japanese or regional hunk text")
         for (path,text) in zip(paths,[base,conflict,local,"head\nold\nkeep\nместный хвост\n"]) {try codec.encode(text).write(to:root.appendingPathComponent(path))}
         let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
         let suite="TurtleGit.PatchCodec."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
@@ -43,6 +56,7 @@ import TurtleGitCore
         let owner=WorkingTreePatchWindowController(repository:repo,access:nil,fileAccess:nil,bytes:patch,title:"Legacy patch recovery",preferences:prefs),model=owner.model,window=owner.window!
         defer {owner.close()};window.alphaValue=0;window.orderFront(nil)
         try await wait {!model.busy && model.editor?.filtering==false}
+        try require(model.review?.document.sourceEncoding == .utf8,"Accepted review did not retain the authored UTF8 patch container")
         try require(model.editor?.document?.destination.text==patched && model.editor?.encoding(base:false) == codec,"Clean patch preview decoding")
         let files=model.review!.files,b=files.first{$0.path==paths[1]}!,c=files.first{$0.path==paths[2]}!,a=files.first{$0.path==paths[0]}!,d=files.first{$0.path==paths[3]}!
         try require(model.fileState(b)=="conflict" && model.fileInspections[b.pathBytes]?.diagnostic.contains("Preview to merge")==true,"Recovery classification used generic binary decoding")
@@ -62,7 +76,13 @@ import TurtleGitCore
         try require(!model.canPreviewFiles([d.id],generation:retiredGeneration),"Retired preview command remained available")
         model.patchFiles([d.id],generation:model.fileListGeneration)
         try await wait {!model.busy && model.fileResults[d.pathBytes] != nil}
-        try require(model.fileResults[d.pathBytes]?.success==false && model.fileResults[d.pathBytes]?.requiresMerge==true && model.canPreviewFiles([d.id],generation:model.fileListGeneration),"Encoding failure did not retain manual Preview")
+        func encodingRecoveryState()->String {
+            let result=model.fileResults[d.pathBytes]
+            return "resultSuccess=\(String(describing:result?.success)),requiresMerge=\(String(describing:result?.requiresMerge)),output=\(String(reflecting:result?.output)),preview=\(model.canPreviewFiles([d.id],generation:model.fileListGeneration)),state=\(model.fileState(d)),busy=\(model.busy),conflictWork=\(model.conflictOperationActive),dirty=\(model.dirty),editing=\(model.editingEnabled),quit=\(model.confirmingQuit),retired=\(model.retired),requiresRefresh=\(model.requiresRefresh),applied=\(model.appliedPaths.contains(d.pathBytes)),generation=\(model.fileListGeneration),focused=\(String(describing:model.focusedFile)),policy=\(model.reviewEncodingPolicy.legacyEncoding.rawValue),preference=\(prefs.integer(forKey:"TurtleGitMerge.LegacyCodePage")),inspection=\(String(reflecting:model.fileInspections[d.pathBytes]?.diagnostic))"
+        }
+        try require(model.fileResults[d.pathBytes]?.success==false,"Encoding recovery unexpectedly succeeded: \(encodingRecoveryState())")
+        try require(model.fileResults[d.pathBytes]?.requiresMerge==true,"Encoding failure omitted manual recovery classification: \(encodingRecoveryState())")
+        try require(model.canPreviewFiles([d.id],generation:model.fileListGeneration),"Encoding failure did not retain manual Preview admission: \(encodingRecoveryState())")
         model.previewFiles([d.id],generation:model.fileListGeneration)
         try await wait {!model.busy && model.conflictEditor?.sourceToolsAllowed==true}
         let mixed=model.conflictEditor!

@@ -6,6 +6,28 @@ import TurtleGitCore
 @MainActor enum RebaseMessageEditVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
+    // Git versions spell UTC as either Z or +00:00. Preserve every other
+    // offset and the complete timestamp; equal instants alone are insufficient.
+    static func sameAuthorDate(_ actual:String?,_ expected:String)->Bool {
+        guard let actual else{return false}
+        let pattern="^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(Z|[+-][0-9]{2}:[0-9]{2})$"
+        guard actual.range(of:pattern,options:.regularExpression) != nil,expected.range(of:pattern,options:.regularExpression) != nil else{return false}
+        let parser=ISO8601DateFormatter()
+        guard let actualInstant=parser.date(from:actual),let expectedInstant=parser.date(from:expected),actualInstant==expectedInstant else{return false}
+        func utcSpelling(_ value:String)->String {value.hasSuffix("+00:00") ? String(value.dropLast(6))+"Z":value}
+        func roundTrips(_ value:String,_ instant:Date)->Bool {
+            var seconds=0
+            if !value.hasSuffix("Z") {
+                let suffix=String(value.suffix(6))
+                guard let hours=Int(suffix.dropFirst().prefix(2)),let minutes=Int(suffix.suffix(2)),hours<24,minutes<60 else{return false}
+                seconds=(hours*3600+minutes*60)*(suffix.first=="-" ? -1:1)
+            }
+            guard let zone=TimeZone(secondsFromGMT:seconds) else{return false}
+            let formatter=ISO8601DateFormatter();formatter.timeZone=zone
+            return utcSpelling(formatter.string(from:instant))==utcSpelling(value)
+        }
+        return utcSpelling(actual)==utcSpelling(expected) && roundTrips(actual,actualInstant) && roundTrips(expected,expectedInstant)
+    }
     static func wait(line: Int = #line, _ ready: () -> Bool) async throws {
         for _ in 0..<2400 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
         throw Failure(description: "Replay message editing did not settle at \(line)")
@@ -16,11 +38,17 @@ import TurtleGitCore
         let editor = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_EDITOR"] ?? FileManager.default.currentDirectoryPath + "/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac")
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Message QA"), ("user.email", "messages@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
+        var authoredSecond=0
         func commit(_ path: String) async throws -> LogEntry {
-            try Data((path + "\n").utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: path); return try await repo.rebaseCommit("HEAD")
+            let date="2001-02-03T04:05:0\(authoredSecond)Z";authoredSecond += 1
+            try Data((path + "\n").utf8).write(to: root.appendingPathComponent(path)); try await repo.stage([path])
+            _ = try await repo.run(["commit","-m",path],environmentOverrides:["GIT_AUTHOR_DATE":date,"GIT_COMMITTER_DATE":date])
+            return try await repo.rebaseCommit("HEAD")
         }
         _ = try await commit("base"); _ = try await repo.run(["switch", "-c", "source"])
         let first = try await commit("first"), second = try await commit("second")
+        let firstDate="2001-02-03T04:05:01Z"
+        try require(sameAuthorDate(first.date,firstDate),"Authored UTC witness lost its fixed original date/offset")
         _ = try await repo.run(["switch", "main"])
         var plan = try await repo.cherryPickPlan(revisions: [second.hash, first.hash]); plan.options.addCherryPickedFrom = true
         for index in plan.entries.indices { plan.entries[index].action = .edit }
@@ -39,14 +67,14 @@ import TurtleGitCore
         }
         do {
             let initial = try await open(), initialModel = initial.model
-            if !(initialModel.amendMessage.contains("cherry picked from commit " + first.hash) && initialModel.replayMessageCommit?.author == first.author && initialModel.replayMessageCommit?.date == first.date) {
+            if !(initialModel.amendMessage.contains("cherry picked from commit " + first.hash) && initialModel.replayMessageCommit?.author == first.author && sameAuthorDate(initialModel.replayMessageCommit?.date,firstDate)) {
                 print("Initial Edit attribution diagnostic: message=\(String(reflecting: initialModel.amendMessage)), expectedTrailerOID=\(String(reflecting: first.hash))")
-                print("Initial Edit metadata diagnostic: expectedAuthor=\(String(reflecting: first.author)), actualAuthor=\(String(reflecting: initialModel.replayMessageCommit?.author)), expectedDate=\(String(reflecting: first.date)), actualDate=\(String(reflecting: initialModel.replayMessageCommit?.date)), appliedCommit=\(String(reflecting: initialModel.replayMessageCommit?.hash))")
+                print("Initial Edit metadata diagnostic: expectedAuthor=\(String(reflecting: first.author)), actualAuthor=\(String(reflecting: initialModel.replayMessageCommit?.author)), expectedDate=\(String(reflecting: firstDate)), originalGitDate=\(String(reflecting: first.date)), actualDate=\(String(reflecting: initialModel.replayMessageCommit?.date)), appliedCommit=\(String(reflecting: initialModel.replayMessageCommit?.hash))")
                 if let state = initialModel.state {
                     print("Initial Edit state diagnostic: active=\(state.active), editPause=\(state.isEditPause), cherryPick=\(state.isCherryPick), stoppedCommit=\(String(reflecting: state.stoppedCommit)), stoppedEntryID=\(String(reflecting: state.stoppedEntryID)), originalHead=\(String(reflecting: state.originalHead)), onto=\(String(reflecting: state.onto)), step=\(state.currentStep)/\(state.total), session=\(String(reflecting: state.session))")
                 } else { print("Initial Edit state diagnostic: state=nil") }
             }
-            try require(initialModel.amendMessage.contains("cherry picked from commit " + first.hash) && initialModel.replayMessageCommit?.author == first.author && initialModel.replayMessageCommit?.date == first.date, "Edit lost applied attribution/author/date")
+            try require(initialModel.amendMessage.contains("cherry picked from commit " + first.hash) && initialModel.replayMessageCommit?.author == first.author && sameAuthorDate(initialModel.replayMessageCommit?.date,firstDate), "Edit lost applied attribution/author/date")
             let draft = "Approved first\n\n(cherry picked from commit " + first.hash + ")\n"
             let binding = initialModel.messageBinding(initialModel.formContext), editorID = initialModel.replayMessageEditorID
             binding.wrappedValue = draft; initialModel.refreshState()
@@ -73,7 +101,7 @@ import TurtleGitCore
             let accepted = selection!; accepted.checked = ["first"]; accepted.message = draft; accepted.commit(.commit)
             try await wait { !model.selectingSplit && !model.busy && drained() }
             let amended = try await repo.rebaseCommit("HEAD")
-            try require(model.state?.isEditPause == true && amended.subject == "Approved first" && amended.parents == stoppedHead.parents && amended.author == first.author && amended.date == first.date && model.replayMessageCommit?.hash == amended.hash, "Checked amendment lost topology, author/date or refreshed message context")
+            try require(model.state?.isEditPause == true && amended.subject == "Approved first" && amended.parents == stoppedHead.parents && amended.author == first.author && sameAuthorDate(amended.date,firstDate) && model.replayMessageCommit?.hash == amended.hash, "Checked amendment lost topology, author/date or refreshed message context")
             let firstEditorID = model.replayMessageEditorID, stale = model.messageBinding(model.formContext)
             model.request("continue")
             try await wait { !model.busy && model.state?.stoppedCommit == second.hash && model.state?.isEditPause == true && drained() }

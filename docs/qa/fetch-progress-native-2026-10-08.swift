@@ -71,7 +71,10 @@ import TurtleGitCore
         let bare = GitRepository(root: bareRoot, executable: git); _ = try await bare.run(["config","core.hooksPath","/dev/null"])
         let bareProgress = FetchProgressWindowModel(repository: bare, access: nil, options: options, preferences: preferences)
         await bareProgress.run(); precondition(bareProgress.success && bareProgress.postActions == [.log,.reset,.fetch,.switchBranch])
-        let invalid = FetchProgressWindowModel(repository: repo, access: nil, options: options, preferences: preferences); invalid.invalidate(); await invalid.run(); precondition(invalid.busy && invalid.output.isEmpty)
+        let invalid = FetchProgressWindowModel(repository: repo, access: nil, options: options, preferences: preferences)
+        let activeBeforeInvalidRun=FetchProgressWindowModel.activeOperations
+        invalid.invalidate(); await invalid.run()
+        precondition(!invalid.busy && invalid.output.isEmpty && !invalid.success && invalid.postActions.isEmpty && invalid.pendingOperations==0 && FetchProgressWindowModel.activeOperations==activeBeforeInvalidRun,"Retired Fetch revived work, presentation or completion state")
         precondition(FetchPostAction.retry.icon == .refresh && MenuIcon.refresh.image() != nil && MergeAbortPostAction.retry.icon == .refresh)
         print("Ordinary Fetch progress: captured options and retained owner/result; exact success/failure/bare/all-remotes action lists; HEAD/index/working bytes preserved while tracking updates; fresh Reset defaults without mutation; captured Retry and duplicate action guards; real all-remotes partial update preserved; original refresh ICO available, Abort Retry corrected. No windows, standard preference or clipboard writes.")
     }

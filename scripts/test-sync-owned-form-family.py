@@ -109,14 +109,26 @@ private extension NSWindow {
     case "pull":try await SynchronizationVerification.verifyPull(root:root,preferences:prefs)
     case "fetch-merge":try await SynchronizationVerification.verifyFetchAndRebase(root:root,preferences:prefs)
     case "literal-push","literal-pull","literal-lifetime":try await SyncLiteralReferenceVerification.main()
-    case "dialog":try await SynchronizationVerification.main()
+    case "dialog":
+     try await SynchronizationVerification.main()
+     if ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_LIFETIME_DIAGNOSTICS"] == "1" {FileHandle.standardError.write(Data("SYNC LIFETIME: dialog main returned\n".utf8))}
     default:throw Failure(description:"Unknown Sync family case")
     }
    }
   }catch{failure=error}
+  let lifetimeDiagnostics=ProcessInfo.processInfo.environment["TURTLEGIT_SYNC_LIFETIME_DIAGNOSTICS"] == "1"
+  if lifetimeDiagnostics {FileHandle.standardError.write(Data(("SYNC LIFETIME: before global close; failure="+String(describing:failure)+"\n").utf8))}
   for window in NSApp.windows {
+   // App controllers explicitly opt out of AppKit release-on-close under ARC.
+   // AppKit also lists self-managed auxiliary windows here: order those out,
+   // leaving their autoreleasing lifetime to AppKit instead of closing twice.
+   let arcOwned = !window.isReleasedWhenClosed,identity=ObjectIdentifier(window)
+   if lifetimeDiagnostics {FileHandle.standardError.write(Data("SYNC LIFETIME: pre-retire id=\(identity) class=\(type(of:window)) title=\(String(reflecting:String(window.title.prefix(256)))) releasedWhenClosed=\(window.isReleasedWhenClosed) visible=\(window.isVisible) sheet=\(window.attachedSheet != nil) parent=\(window.sheetParent != nil)\n".utf8))}
    if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)}
-   window.makeFirstResponder(nil);window.endEditing(for:nil);window.orderOut(nil);window.close()
+   if arcOwned {window.makeFirstResponder(nil);window.endEditing(for:nil)}
+   window.orderOut(nil)
+   if arcOwned {window.close()}
+   if lifetimeDiagnostics {FileHandle.standardError.write(Data("SYNC LIFETIME: after-retire id=\(identity) closedARCWindow=\(arcOwned)\n".utf8))}
   }
   for _ in 0..<3000 {
    let drained=SynchronizationProgressModel.activeOperations==0 && SynchronizationWindowModel.activeInlineOperations==0 && SynchronizationWindowController.activeInlineReleases==0 && FinderFilesystemWorkflowRelease.activeRetirements==0 && StatusWindowModel.activeOperations==0 && CommitWindowModel.activeReloads==0 && FileListComparisonSession.activeOperations==0

@@ -123,12 +123,14 @@ import TurtleGitCore
             model.chooseHistoricalExport(paths)
             try require(GitPathSet(exported.last ?? [])==GitPathSet([retained,modified,unknown]),"Mixed Export included a missing disk leaf")
             let order=model.fileTableRows.compactMap(\.file).filter{paths.contains($0.id)},expected=order.filter{!GitPathSet([added,renamed]).contains($0.path)}.map(\.path)
-            let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
-            ComparisonToolInvocation.$alternate.withValue(true){table.keyDown(with:event)}
+            let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.shift,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
+            table.keyDown(with:event)
             try await wait("mixed primary drain"){!model.busy && !model.fileNavigationReadPending && plans.count==1 && FileListComparisonSession.activeOperations==0}
             let plan=try unwrap(plans.first,"Mixed owned plan missing")
             try require(warnings==[order.count] && plan.selectedCount==order.count && plan.actions.map{$0.file.path}==expected,"Missing skip changed order/count or repeated warning")
-            try require(plan.repository.root==root && plan.preferences===preferences && plan.alternateTool,"Mixed activation lost captured producer intent")
+            try require(plan.repository.root==repository.root,"Mixed activation changed its repository")
+            try require(plan.preferences===preferences,"Mixed activation changed its preferences")
+            try require(plan.alternateTool,"Mixed Shift+Return lost its event modifier")
             for action in plan.actions {if case .workingFile(let file,let currentVersion)=action {try require([retained,unknown].contains(file.path) && currentVersion == .workingTree,"Working preview substituted HEAD")}}
             try require(GitPathSet(delivered.map{$0.2})==GitPathSet(expected) && delivered.count==expected.count && model.error==nil,"Root skipped a valid leaf or tried a missing added/renamed leaf")
             for item in delivered where [retained,unknown].contains(item.2) {try require(item.0 == .workingTree && item.1 == .workingTree,"Actual Root preview changed currentVersion to HEAD")}

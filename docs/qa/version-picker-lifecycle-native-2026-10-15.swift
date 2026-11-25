@@ -1,5 +1,12 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func pickerQAOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        setFrameOrigin(.init(x:-24000,y:-24000));pickerQAOrder(mode,relativeTo:number)
+    }
+}
 
 @main struct VersionPickerLifecycleVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
@@ -17,12 +24,18 @@ import TurtleGitCore
         var error: String?
         var active = true, picking = false
         var commits: [String] = [], references: [String?] = []
+        var holdReferencePublication=false
+        var referencePublication:((Bool)->Void)?
         var onBrowsePicker: ((CheckoutTarget) -> Void)?
         var versionPickerDraft: [GitReferenceName] { [target.rawValue, commitRevision].map { GitReferenceName($0) } }
         init(_ repository: GitRepository, _ revision: String) { self.repository = repository; commitRevision = revision }
         func beginPicker(_ target: CheckoutTarget) -> Bool { guard active, !picking, self.target == target else { return false }; picking = true; return true }
         func finishPicker() { picking = false }
-        func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) { references.append(name); picking = false; completion() }
+        func acceptReferenceSelection(_ name: String?, completion: @escaping (Bool) -> Void) {
+            references.append(name)
+            if holdReferencePublication {referencePublication=completion}
+            else {picking=false;completion(true)}
+        }
         func acceptCommitSelection(_ entry: LogEntry?) { if let entry { commits.append(entry.hash); commitRevision = entry.hash }; picking = false }
         func invalidate() { active = false; picking = false }
     }
@@ -31,6 +44,7 @@ import TurtleGitCore
     }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        method_exchangeImplementations(class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,class_getInstanceMethod(NSWindow.self,#selector(NSWindow.pickerQAOrder(_:relativeTo:)))!)
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2]), repo = GitRepository(root: root, executable: git)
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Version QA"), ("user.email", "qa@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
@@ -74,6 +88,7 @@ import TurtleGitCore
         // A canonically equivalent Git spelling is still a changed byte-exact draft.
         coordinator.presentPicker = { _, _ in true }; probe.commitRevision = "café"; probe.onBrowsePicker?(.commit)
         let unicode = coordinator.commitPicker!; probe.commitRevision = "cafe\u{301}"; callbacks.last?(entry); unicode.model.close()
+        try await wait { !probe.picking && host.attachedSheet == nil }
         try require(probe.commits == [base] && !probe.picking, "Unicode-normalized equality accepted changed Git input")
         probe.target = .branch; probe.commitRevision = next; probe.onBrowsePicker?(.branch)
         try await wait { coordinator.referencePicker?.model.busy == false && coordinator.referencePicker?.model.snapshot != nil }
@@ -82,6 +97,17 @@ import TurtleGitCore
         reference.model.setFolder(tagSelection.folder); reference.model.select(["refs/tags/release"], last: "refs/tags/release"); reference.model.accept()
         try await wait { !probe.picking }
         try require(probe.references.count == 1 && probe.references[0] == "refs/tags/release", "Reference result lost canonical name")
+        // Cancel still refreshes the catalog. A stale read cannot turn an
+        // unrelated draft change into an accepted reclassification callback.
+        let beforeStalePublication=selections
+        probe.holdReferencePublication=true;probe.onBrowsePicker?(.branch)
+        try await wait {coordinator.referencePicker?.model.busy == false && coordinator.referencePicker?.model.snapshot != nil}
+        coordinator.referencePicker?.model.cancel()
+        try await wait {probe.referencePublication != nil && host.attachedSheet == nil}
+        probe.commitRevision="changed while Cancel refresh was held"
+        let rejected=probe.referencePublication;probe.referencePublication=nil;probe.picking=false;rejected?(false)
+        try require(selections==beforeStalePublication,"Rejected Cancel publication reported an accepted changed base")
+        probe.holdReferencePublication=false
 
         let branch = BranchTagWindowController(repository: repo, access: nil, isTag: false, preferences: preferences)
         defer { branch.close() }
@@ -90,9 +116,11 @@ import TurtleGitCore
         branch.presentPicker = { _, _ in true }; var branchCommands = 0; branch.configureCommitPicker = { _ in branchCommands += 1 }
         branch.model.chooser.browse(.commit); try await wait { branch.commitPicker?.model.busy == false && branch.commitPicker?.model.entries.count == 2 }
         let branchLog = branch.commitPicker!; branch.model.useHead = true; branchLog.model.select([base]); branchLog.model.accept()
+        try await wait { branch.model.chooser.pickerTarget == nil && branch.window?.attachedSheet == nil }
         try require(branch.model.chooser.commitRevision == next && branchCommands == 1 && branch.model.chooser.pickerTarget == nil, "Branch HEAD change did not invalidate old base choice")
         branch.model.useHead = false; branch.model.chooser.browse(.commit); try await wait { branch.commitPicker?.model.busy == false && branch.commitPicker?.model.entries.count == 2 }
         branch.commitPicker?.model.select([base]); branch.commitPicker?.model.accept()
+        try await wait { branch.model.chooser.pickerTarget == nil && branch.window?.attachedSheet == nil }
         try require(branch.model.chooser.commitRevision == base && branch.model.chooser.commitChoices.contains(base), "Branch accepted base missing from session choices")
 
         let worktree = WorktreeCreateWindowController(repository: repo, access: nil, preferences: preferences)
@@ -102,23 +130,24 @@ import TurtleGitCore
         worktree.presentPicker = { _, _ in true }; worktree.model.chooser.browse(.commit)
         try await wait { worktree.commitPicker?.model.busy == false && worktree.commitPicker?.model.entries.count == 2 }
         let worktreeLog = worktree.commitPicker!; worktree.model.directory += "-changed"; worktreeLog.model.select([base]); worktreeLog.model.accept()
+        try await wait { worktree.model.chooser.pickerTarget == nil && worktree.window?.attachedSheet == nil }
         try require(worktree.model.chooser.commitRevision == next && worktree.model.chooser.pickerTarget == nil, "Changed worktree destination consumed old base result")
         worktree.model.chooser.browse(.commit); try await wait { worktree.commitPicker?.model.busy == false && worktree.commitPicker?.model.entries.count == 2 }
         let retired = worktree.commitPicker!; worktree.close(); retired.model.select([base]); retired.model.accept()
         try require(worktree.model.chooser.commitRevision == next && worktree.commitPicker == nil, "Retired Worktree consumed late picker")
         let export = ExportWindowController(repository: repo, access: nil, revision: next, preferences: preferences)
         defer { export.close() }
-        try await wait { !export.model.busy }
+        try await wait { export.model.canEditForm }
         export.showWindow(nil); export.model.target = .commit; export.model.commit = next
         export.model.onBrowsePicker?(.commit)
         try await wait { export.commitPicker?.model.busy == false && export.commitPicker?.model.entries.count == 2 }
         export.model.destination += "-changed"; export.commitPicker?.model.select([base]); export.commitPicker?.model.accept()
-        try await wait { export.model.pickerTarget == nil && export.window?.attachedSheet == nil }
+        try await wait { export.model.pickerTarget == nil && export.model.canEditForm && export.window?.attachedSheet == nil }
         try require(export.model.commit == next, "Changed Export destination consumed old revision")
         export.model.onBrowsePicker?(.commit)
         try await wait { export.commitPicker?.model.busy == false && export.commitPicker?.model.entries.count == 2 }
         export.commitPicker?.model.select([base]); export.commitPicker?.model.accept()
-        try await wait { export.model.pickerTarget == nil && export.window?.attachedSheet == nil }
+        try await wait { export.model.pickerTarget == nil && export.model.canEditForm && export.window?.attachedSheet == nil }
         try require(export.model.commit == base && export.model.commitChoices.contains(base), "Export accepted revision missing from session choices")
         export.close()
         try await wait { ExportWindowModel.activeReads == 0 && SwitchWindowModel.activeReads == 0 && MergeWindowModel.activeReads == 0 && BranchTagWindowModel.activeReads == 0 && WorktreeCreateWindowModel.activeOperations == 0 && LogWindowModel.activeHistoryLoads == 0 && ReferenceBrowserWindowModel.activeReads == 0 }

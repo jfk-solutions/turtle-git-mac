@@ -1,5 +1,19 @@
 # TurtleGit for Mac — full port tracking
 
+## Picker and embedded conflict recovery — November 25, 2026
+
+The [current checkpoint](qa/picker-conflict-recovery-2026-11-25.json) restores
+reference-catalog refresh on Cancel and preserves unchanged custom options.
+A refused stale read cannot notify its parent as an accepted selection. Embedded
+patch conflicts now begin loading after their parent's work finishes, rather than
+cancelling their own initialization. Replacement and retirement revoke pending
+loads. Eight focused Core methods and 32 native cohort/Git checks pass. Eight
+previous transport-family results are retained, not rerun. Shift+Return now
+captures its event before preparation. The record keeps failed attempts and the
+AppKit auxiliary cleanup repair separate from the ordinary final passes. This is not complete
+hosted, signed or physical acceptance. Installed52 and signed55 are unchanged.
+
+
 ## Native editor command ownership — November 23, 2026
 
 The [editor command checkpoint](qa/editor-command-family-2026-11-23.json) fixes a

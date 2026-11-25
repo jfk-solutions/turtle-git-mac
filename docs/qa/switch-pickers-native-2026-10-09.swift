@@ -62,8 +62,15 @@ import TurtleGitCore
         }
         owner.model.options.target = .branch; owner.model.branchRevision="refs/heads/nested/topic"; owner.model.browse(.branch)
         guard let canceled=owner.referencePicker else { throw Failure(description:"Cancel browser missing") }; try await wait([canceled.window!]) { !canceled.model.busy }
-        canceled.model.cancel(); try await wait([owner.window!]) { owner.model.pickerTarget == nil && !owner.model.busy }
-        try require(owner.model.revision == "refs/heads/nested/topic","Cancel changed selected branch")
+        // ChooseVersion.h148–163 refreshes the catalog on Browse References
+        // Cancel, retaining the typed revision instead of accepting a new ref.
+        let cancelCatalogRef="refs/tags/cancel-catalog-refresh"
+        let cancelDraft=owner.model.versionPickerDraft,cancelCommit=owner.model.commitRevision
+        try require(!owner.model.references.contains{$0.name==cancelCatalogRef},"Cancel catalog witness already loaded")
+        _=try await repo.run(["update-ref",cancelCatalogRef,prior])
+        canceled.model.cancel(); try await wait([owner.window!]) { owner.model.pickerTarget == nil && !owner.model.busy && owner.model.references.contains{$0.name==cancelCatalogRef} }
+        try require(owner.model.revision == "refs/heads/nested/topic" && owner.model.versionPickerDraft==cancelDraft && owner.model.commitRevision==cancelCommit,"Cancel changed selected branch or exact typed draft")
+        try require(owner.model.options.overwriteChanges && owner.model.options.merge,"Cancel reset retained Switch force/merge options")
         owner.model.browse(.branch); guard let next=owner.referencePicker else { throw Failure(description:"Next browser missing") }; try await wait([next.window!]) { !next.model.busy }
         canceled.model.finish("refs/tags/release"); try require(owner.referencePicker === next && owner.model.pickerTarget == .branch,"Stale browser changed new child")
         next.model.cancel(); try await wait([owner.window!]) { owner.model.pickerTarget == nil && !owner.model.busy }

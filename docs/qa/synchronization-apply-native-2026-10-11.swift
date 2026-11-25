@@ -68,7 +68,13 @@ struct SynchronizationApplyVerification {
         blocked.model.add([files[0]]); try Data().write(to: enable); blocked.model.apply()
         try await wait { FileManager.default.fileExists(atPath: marker.path) }
         let pid = pid_t(try String(contentsOf: marker).trimmingCharacters(in: .newlines))!, beforeReplies = notifications
-        owner.close(); try await wait { kill(pid, 0) == -1 && errno == ESRCH && kill(-pid, 0) == -1 && errno == ESRCH }
+        owner.close()
+        precondition(model.closed && blocked.model.closed)
+        try await wait {
+            kill(pid, 0) == -1 && errno == ESRCH && kill(-pid, 0) == -1 && errno == ESRCH &&
+                !blocked.model.busy && !blocked.hasPendingWork && !model.importingPatches && owner.importPatchController == nil &&
+                owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil
+        }
         precondition(model.closed && blocked.model.closed && !blocked.model.busy && !model.importingPatches && owner.importPatchController == nil)
         precondition(owner.window!.attachedSheet == nil && blocked.window!.sheetParent == nil && notifications == beforeReplies)
         model.applyPatch(); precondition(owner.importPatchController == nil)

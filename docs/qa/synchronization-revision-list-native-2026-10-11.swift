@@ -10,12 +10,29 @@ struct SynchronizationRevisionListVerification {
         while DispatchTime.now().uptimeNanoseconds < deadline {
             if condition() { return }; try await Task.sleep(nanoseconds: 5_000_000)
         }
-        preconditionFailure("Sync revision list did not settle at fixture line \(line)")
+        throw NSError(domain:"SyncRevisionListTimeout",code:1,userInfo:[NSLocalizedDescriptionKey:"Sync revision list did not settle at fixture line \(line)"])
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
+    @MainActor static func mountedTable(_ window: NSWindow) -> NSTableView? {
+        guard let content=window.contentView else{return nil};content.layoutSubtreeIfNeeded()
+        return descendants(content).compactMap{$0 as? NSTableView}.first {
+            guard $0.window === window,$0.tableColumn(withIdentifier:.init("actions")) != nil,
+                  let coordinator=$0.dataSource as? SynchronizationHistoryTable.Coordinator,!coordinator.retired,!coordinator.refreshing,
+                  coordinator.entryHashes==coordinator.model.historyEntries.map(\.hash),$0.numberOfRows==coordinator.entryHashes.count else{return false}
+            return coordinator.sourceTab==coordinator.model.tab
+        }
+    }
     @MainActor static func table(_ window: NSWindow) -> NSTableView {
-        window.contentView!.layoutSubtreeIfNeeded()
-        return descendants(window.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumn(withIdentifier: .init("actions")) != nil }!
+        guard let current=mountedTable(window) else{preconditionFailure("Current mounted Sync revision table missing; windowVisible=\(window.isVisible),sheet=\(window.attachedSheet != nil)")}
+        return current
+    }
+    @MainActor static func revisionMenu(_ window:NSWindow,indexes:IndexSet,allowUnavailable:Bool=false)->NSMenu {
+        let list=table(window),coordinator=list.dataSource as! SynchronizationHistoryTable.Coordinator
+        precondition(allowUnavailable || coordinator.revisionActionAvailable,"Fresh revision menu was requested before admission: tab=\(coordinator.sourceTab),pendingQuestion=\(coordinator.hasPendingQuestion),visible=\(window.isVisible),sheet=\(window.attachedSheet != nil),selection=\(list.selectedRowIndexes)")
+        precondition(indexes.allSatisfy{$0<list.numberOfRows},"Revision menu requested absent native rows: selection=\(indexes),rows=\(list.numberOfRows)")
+        list.selectRowIndexes(indexes,byExtendingSelection:false)
+        guard let menu=list.menu else{preconditionFailure("Mounted revision table lost its native menu")}
+        menu.delegate?.menuNeedsUpdate?(menu);return menu
     }
     @MainActor static func verifyFind(_ owner: SynchronizationWindowController, outgoing: [LogEntry], incoming: [LogEntry]) async throws {
         let model = owner.model, window = owner.window!
@@ -27,15 +44,14 @@ struct SynchronizationRevisionListVerification {
         let originalFindRoute = model.onHistoryFind
         defer { model.onHistoryFind = originalFindRoute }
         model.onHistoryFind = { [weak owner] tab, index in owner?.showHistoryFind(sourceTab: tab, selectionIndex: index, regexExecutable: matcher) }
-        func menu(_ indexes: IndexSet) -> NSMenu {
-            let list = table(window); list.selectRowIndexes(indexes, byExtendingSelection: false)
-            let menu = list.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        func menu(_ indexes: IndexSet,allowUnavailable:Bool=false) -> NSMenu {
+            Self.revisionMenu(window,indexes:indexes,allowUnavailable:allowUnavailable)
         }
         func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item)) }
         func key(_ window: NSWindow, text: String, modifiers: NSEvent.ModifierFlags, code: UInt16) -> NSEvent {
             NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: modifiers, timestamp: 0, windowNumber: window.windowNumber, context: nil, characters: text, charactersIgnoringModifiers: text, isARepeat: false, keyCode: code)!
         }
-        model.tab = 0; try await settle { table(window).numberOfRows == outgoing.count }
+        model.tab = 0; try await settle { mountedTable(window)?.numberOfRows == outgoing.count }
         let single = menu(IndexSet(integer: 0)), capturedFind = single.items.first { $0.title == "Find" }!
         let capturedTarget = capturedFind.target // Retain the originating coordinator across tab replacement.
         precondition(capturedFind.image != nil)
@@ -44,12 +60,12 @@ struct SynchronizationRevisionListVerification {
         precondition(titles.firstIndex(of: "Show branches this commit is on")! == titles.firstIndex(of: "Find")! + 1)
         precondition(menu(IndexSet([0, 1])).items.filter { $0.title == "Find" }.count == 1)
         single.delegate?.menuDidClose?(single)
-        model.tab = 4; try await settle { table(window).numberOfRows == incoming.count }
+        model.tab = 4; try await settle { mountedTable(window)?.numberOfRows == incoming.count }
         let incomingBefore = model.historyNavigation[4]?.id
         precondition(NSApp.sendAction(capturedFind.action!, to: capturedTarget, from: capturedFind) && owner.historyFind[0] == nil)
-        model.tab=0;try await settle{table(window).numberOfRows==outgoing.count}
+        model.tab=0;try await settle{mountedTable(window)?.numberOfRows==outgoing.count}
         invoke(menu(IndexSet(integer:0)).items.first{$0.title=="Find"}!)
-        model.tab=4;try await settle{table(window).numberOfRows==incoming.count}
+        model.tab=4;try await settle{mountedTable(window)?.numberOfRows==incoming.count}
         let outFind = owner.historyFind[0]!, outWindow = outFind.window!
         precondition(outWindow.parent === window && outWindow.alphaValue == window.alphaValue && outFind.searchIndex() == 0)
         try await settle { !outFind.loadingReferences }
@@ -74,7 +90,7 @@ struct SynchronizationRevisionListVerification {
         let selectedIncoming = table(window).selectedRowIndexes
         outFind.searchReference("refs/heads/remote-root")
         try await settle { !outFind.busy }
-        precondition(outFind.status.stringValue.contains("No further match") && table(window).selectedRowIndexes == selectedIncoming)
+        precondition(outFind.status.stringValue.contains("No further match") && mountedTable(window)?.selectedRowIndexes == selectedIncoming)
         // A separate Find belongs to In Commits; Cmd+F does not reset the cursor.
         let inTable = table(window) as! HistoryTableView
         precondition(inTable.performKeyEquivalent(with: key(window, text: "f", modifiers: .command, code: 3)))
@@ -86,7 +102,7 @@ struct SynchronizationRevisionListVerification {
         inFind.searchReference("refs/heads/side")
         try await settle { !inFind.busy && model.historyNavigation[4]?.hash == incoming.first { $0.subject.hasPrefix("Side parent") }?.hash }
         model.tab = 0
-        try await settle { table(window).numberOfRows == outgoing.count && table(window).selectedRowIndexes == IndexSet(integer: rootIndex) }
+        try await settle { mountedTable(window)?.numberOfRows == outgoing.count && mountedTable(window)?.selectedRowIndexes == IndexSet(integer: rootIndex) }
         let outTable = table(window) as! HistoryTableView
         // Context Find focuses the same window and resets to its captured row.
         invoke(menu(IndexSet(integer: 0)).items.first { $0.title == "Find" }!)
@@ -141,7 +157,10 @@ struct SynchronizationRevisionListVerification {
         precondition(outTable.performKeyEquivalent(with: key(window, text: "f", modifiers: .command, code: 3)))
         let reopened = owner.historyFind[0]!
         precondition(reopened !== outFind && reopened.searchIndex() == retained)
-        reopened.close(); inFind.close(); precondition(owner.historyFind.isEmpty)
+        reopened.close(); inFind.close()
+        precondition(reopened.closed && inFind.closed)
+        try await settle { owner.historyFind.isEmpty && reopened.window?.parent == nil && inFind.window?.parent == nil }
+        precondition(owner.historyFind.isEmpty)
         // Parent closure force-closes both independently owned modeless dialogs.
         let closing = SynchronizationWindowController(repository: model.repository, access: nil, preferences: model.preferences)
         closing.showWindow(nil); try await settle { !closing.model.busy && !closing.model.hasBlockingChild }
@@ -158,7 +177,9 @@ struct SynchronizationRevisionListVerification {
         precondition(failing.acknowledgingFailure, "Find error was not acknowledged: status=\(failing.status.stringValue), canSearch=\(failing.canSearch()), parentBusy=\(closing.model.busy), parentBlocked=\(closing.model.hasBlockingChild)")
         try await settle { failing.acknowledgingFailure && failing.window?.attachedSheet != nil }
         precondition(!closing.windowShouldClose(closing.window!))
-        closing.close(); precondition(closing.model.closed && closing.historyFind.isEmpty && children.allSatisfy { $0.closed && $0.window?.parent == nil && $0.window?.attachedSheet == nil })
+        closing.close(); precondition(closing.model.closed && children.allSatisfy { $0.closed })
+        try await settle { closing.historyFind.isEmpty && children.allSatisfy { $0.window?.parent == nil && $0.window?.attachedSheet == nil } }
+        precondition(closing.model.closed && closing.historyFind.isEmpty && children.allSatisfy { $0.closed && $0.window?.parent == nil && $0.window?.attachedSheet == nil })
         let closedNavigation = closing.model.historyNavigation
         children.forEach { $0.navigate(outgoing[0].hash, true) }
         precondition(closing.model.historyNavigation.count == closedNavigation.count)
@@ -218,16 +239,15 @@ struct SynchronizationRevisionListVerification {
     @MainActor static func verifyHistoryOperations(_ owner: SynchronizationWindowController, root: URL) async throws {
         let model = owner.model, window = owner.window!, repo = model.repository
         model.tab = 0
-        try await settle { !model.busy && !model.hasBlockingChild && table(window).numberOfRows == model.historyEntries.count }
+        try await settle { !model.busy && !model.hasBlockingChild && mountedTable(window)?.numberOfRows == model.historyEntries.count }
         let rows = model.historyEntries
         let row = rows.firstIndex { $0.hash != model.historyHead }!
         let entry = rows[row], branch = model.historyCurrentBranch
         let refs = try await repo.run(["show-ref"]).stdout
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout
         let index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
-        func menu(_ indexes: IndexSet) -> NSMenu {
-            let list = table(window); list.selectRowIndexes(indexes, byExtendingSelection: false)
-            let menu = list.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        func menu(_ indexes: IndexSet,allowUnavailable:Bool=false) -> NSMenu {
+            Self.revisionMenu(window,indexes:indexes,allowUnavailable:allowUnavailable)
         }
         func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item)) }
         let originalOperation = model.onHistoryOperation, originalReplay = model.runHistoryReplay
@@ -323,7 +343,7 @@ struct SynchronizationRevisionListVerification {
         let switchedBranch = try await repo.branch()
         precondition(switchedBranch == "sync-menu-branch")
         progress.close()
-        try await settle { owner.historyOperationController == nil && !model.busy }
+        try await settle { owner.historyOperationController == nil && !model.busy && !model.hasBlockingChild && window.attachedSheet == nil && progress.window?.sheetParent == nil }
         _ = try await repo.run(["switch", branch])
         model.refresh(); try await settle { !model.busy && model.historyCurrentBranch == branch }
         let afterRefs = try await repo.run(["show-ref"]).stdout, afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout
@@ -342,11 +362,10 @@ struct SynchronizationRevisionListVerification {
         _ = try await repo.run(["update-ref", "refs/remotes/origin/main", "refs/heads/remote-root"])
         model.refresh()
         model.tab = 0
-        try await settle { !model.busy && !model.hasBlockingChild && model.historyEntries.contains { $0.parents.isEmpty } && model.historyEntries.contains { $0.references.contains { $0.name.hasPrefix("refs/tags/") } } && table(window).numberOfRows == model.historyEntries.count }
+        try await settle { !model.busy && !model.hasBlockingChild && model.historyEntries.contains { $0.parents.isEmpty } && model.historyEntries.contains { $0.references.contains { $0.name.hasPrefix("refs/tags/") } } && mountedTable(window)?.numberOfRows == model.historyEntries.count }
         let outgoing = model.historyEntries
-        func menu(_ indexes: IndexSet) -> NSMenu {
-            let list = table(window); list.selectRowIndexes(indexes, byExtendingSelection: false)
-            let menu = list.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        func menu(_ indexes: IndexSet,allowUnavailable:Bool=false) -> NSMenu {
+            Self.revisionMenu(window,indexes:indexes,allowUnavailable:allowUnavailable)
         }
         func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApp.sendAction(item.action!, to: item.target, from: item)) }
         let refs = try await repo.run(["show-ref"]).stdout
@@ -357,13 +376,13 @@ struct SynchronizationRevisionListVerification {
         precondition(captured.image != nil && !menu(IndexSet([0, 1])).items.contains { $0.title == "Export this version…" })
         precondition(window.attachedSheet == nil)
         table(window).menu!.delegate?.menuDidClose?(table(window).menu!)
-        model.tab = 4; try await settle { table(window).numberOfRows == model.incomingCommits!.count }
+        model.tab = 4; try await settle { mountedTable(window)?.numberOfRows == model.incomingCommits!.count }
         precondition(NSApp.sendAction(captured.action!,to:capturedTarget,from:captured) && owner.historyExportController == nil)
-        model.tab=0;try await settle{table(window).numberOfRows==outgoing.count}
+        model.tab=0;try await settle{mountedTable(window)?.numberOfRows==outgoing.count}
         invoke(menu(IndexSet(integer:rootIndex)).items.first{$0.title=="Export this version…"}!)
         model.tab=4
         let first = owner.historyExportController!
-        try await settle { !first.model.busy }
+        try await settle { first.model.canEditForm }
         precondition(first.window!.sheetParent === window && model.exportingHistory && model.hasBlockingChild && !owner.windowShouldClose(window))
         precondition(first.model.revision == outgoing[rootIndex].hash && first.model.target == .commit && first.model.wholeProject && first.model.directory.isEmpty)
         if CommandLine.arguments.count > 3 {
@@ -389,13 +408,13 @@ struct SynchronizationRevisionListVerification {
         precondition(first.activeOperation && !first.windowShouldClose(first.window!))
         first.model.chooseCommit(); precondition(first.commitPicker === logPicker)
         logPicker.model.close()
-        try await settle { first.commitPicker == nil && first.model.pickerTarget == nil }
+        try await settle { first.commitPicker == nil && first.model.pickerTarget == nil && first.model.canEditForm && first.window?.attachedSheet == nil && logPicker.window?.sheetParent == nil && logPicker.model.pendingHistoryLoads == 0 && !logPicker.model.noteWorkPending }
         precondition(first.model.commit == draft)
         first.model.commit = outgoing[0].hash; first.model.chooseCommit()
         let chooseLog = first.commitPicker!
         try await settle { !chooseLog.model.busy && chooseLog.model.entries.contains { $0.hash == draft } }
-        chooseLog.model.select([draft]); chooseLog.model.accept()
-        try await settle { first.commitPicker == nil && first.model.pickerTarget == nil }
+        chooseLog.model.select([draft]);try await settle{chooseLog.model.canAcceptSelection && chooseLog.model.revision?.hash==draft};chooseLog.model.accept()
+        try await settle { first.commitPicker == nil && first.model.pickerTarget == nil && first.model.canEditForm && first.window?.attachedSheet == nil && chooseLog.window?.sheetParent == nil && chooseLog.model.pendingHistoryLoads == 0 && !chooseLog.model.noteWorkPending }
         precondition(first.model.commit == draft)
         first.model.target = .branch; first.model.branch = "refs/heads/main"
         first.model.onBrowsePicker?(.branch)
@@ -411,32 +430,32 @@ struct SynchronizationRevisionListVerification {
         refsPicker.model.setFolder("refs/tags")
         let pickedTag = refsPicker.model.rows.first { $0.reference.name.rawValue == "refs/tags/export-picker-late" }!.reference.name
         refsPicker.model.selected = pickedTag; refsPicker.model.accept()
-        try await settle { first.referencePicker == nil && !first.model.busy && first.model.pickerTarget == nil }
+        try await settle { first.referencePicker == nil && first.model.canEditForm && first.model.pickerTarget == nil && first.window?.attachedSheet == nil && refsPicker.window?.sheetParent == nil && refsPicker.model.pendingReferenceReads == 0 }
         precondition(first.model.target == .tag && first.model.tag == pickedTag.rawValue && first.model.commit == draft && first.model.references.contains { $0.name == pickedTag.rawValue })
         _ = try await repo.run(["tag", "-d", "export-picker-late"])
         first.model.target = .branch; first.model.onBrowsePicker?(.branch)
         let cancelRefs = first.referencePicker!
         try await settle { !cancelRefs.model.busy }
         cancelRefs.model.cancel()
-        try await settle { first.referencePicker == nil && !first.model.busy && first.model.pickerTarget == nil }
+        try await settle { first.referencePicker == nil && first.model.canEditForm && first.model.pickerTarget == nil && first.window?.attachedSheet == nil && cancelRefs.window?.sheetParent == nil && cancelRefs.model.pendingReferenceReads == 0 }
         precondition(first.model.target == .branch && first.model.branch == "refs/heads/main" && first.model.commit == draft && !first.model.references.contains { $0.name == pickedTag.rawValue })
-        first.model.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory }
+        first.model.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory && !model.hasBlockingChild && !first.model.hasPendingWork && first.window?.sheetParent == nil }
         for choice in [CheckoutTarget.branch, .commit] {
             model.onHistoryExport?(outgoing[rootIndex].hash)
             let forcedOptions = owner.historyExportController!
-            try await settle { !forcedOptions.model.busy }
+            try await settle { forcedOptions.model.canEditForm }
             forcedOptions.model.target = choice == .branch ? .branch : .commit
             forcedOptions.model.onBrowsePicker?(choice)
             let heldRefs = forcedOptions.referencePicker, heldLog = forcedOptions.commitPicker
             try await settle { heldRefs.map { !$0.model.busy } ?? (heldLog.map { !$0.model.busy } ?? false) }
             let priorCommit = forcedOptions.model.commit, priorBranch = forcedOptions.model.branch
             forcedOptions.close()
-            try await settle { owner.historyExportController == nil && window.attachedSheet == nil && forcedOptions.model.pickerTarget == nil }
+            try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.hasBlockingChild && forcedOptions.model.pickerTarget == nil && !forcedOptions.hasPendingWork && heldRefs?.window?.sheetParent == nil && heldLog?.window?.sheetParent == nil }
             heldRefs?.model.accept(); heldLog?.model.accept()
             precondition(forcedOptions.referencePicker == nil && forcedOptions.commitPicker == nil && forcedOptions.model.commit == priorCommit && forcedOptions.model.branch == priorBranch)
             precondition(heldRefs?.window?.sheetParent == nil && heldLog?.window?.sheetParent == nil)
         }
-        model.tab = 0; try await settle { table(window).numberOfRows == outgoing.count }
+        model.tab = 0; try await settle { mountedTable(window)?.numberOfRows == outgoing.count }
         let tagIndex = outgoing.firstIndex { $0.references.contains { $0.name.hasPrefix("refs/tags/") } }!
         let tags = outgoing[tagIndex].references.filter { $0.name.hasPrefix("refs/tags/") }
         let branch = outgoing[tagIndex].references.first { $0.name.hasPrefix("refs/heads/") }!
@@ -445,8 +464,10 @@ struct SynchronizationRevisionListVerification {
         let tagMenu = table(window).menu!; tagMenu.delegate?.menuNeedsUpdate?(tagMenu)
         let exporting = tagMenu.items.first { $0.title == "Export this version…" }!
         precondition(tagMenu.items.firstIndex { $0.title == "Export this version…" }! > tagMenu.items.firstIndex { $0.title == "Create tag at this version…" }!)
-        table(window).selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)
-        invoke(exporting)
+        table(window).selectRowIndexes(IndexSet(integer: (tagIndex+1)%outgoing.count), byExtendingSelection: false)
+        invoke(exporting);precondition(owner.historyExportController == nil,"Changed selection revived retained Export")
+        let freshExport=menu(IndexSet(integer:tagIndex)).items.first{$0.title=="Export this version…"}!
+        invoke(freshExport)
         let child = owner.historyExportController!
         try await settle { !child.model.busy }
         precondition(child.model.target == .tag && child.model.tag == tags[0].name && child.model.revision == tags[0].name)
@@ -461,10 +482,11 @@ struct SynchronizationRevisionListVerification {
         try unzip.run(); let contents = pipe.fileHandleForReading.readDataToEndOfFile(); unzip.waitUntilExit()
         let expected = try await repo.run(["show", outgoing[tagIndex].hash + ":tracked.txt"]).stdout
         precondition(unzip.terminationStatus == 0 && contents == expected && contents == Data("resolution\n".utf8))
-        progress.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory }
+        progress.close(); try await settle { owner.historyExportController == nil && window.attachedSheet == nil && !model.exportingHistory && !model.hasBlockingChild && !child.hasPendingWork }
         precondition(child.model.exported == destination)
+        let quitExport=menu(IndexSet(integer:tagIndex)).items.first{$0.title=="Export this version…"}!
         model.confirmingQuit = true
-        precondition(NSApp.sendAction(exporting.action!, to: exporting.target, from: exporting) && owner.historyExportController == nil)
+        precondition(NSApp.sendAction(quitExport.action!, to: quitExport.target, from: quitExport) && owner.historyExportController == nil)
         model.confirmingQuit = false
         // Freeze only Export's catalog read, after Sync's own startup settles.
         func quote(_ text: String) -> String { "'" + text.replacingOccurrences(of: "'", with: "'\\''") + "'" }
@@ -491,7 +513,9 @@ struct SynchronizationRevisionListVerification {
             exec \(quote(git.path)) "$@"
             """
             try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
-            let slowRepo = GitRepository(root: root, executable: helper)
+            // This cohort owns real CLI process groups and intercepts the
+            // catalog command; ordinary repositories retain default backends.
+            let slowRepo = GitRepository(root: root, executable: helper, libgit2Configuration:.init(enabled:false))
             let closing = SynchronizationWindowController(repository: slowRepo, access: nil, preferences: preferences)
             closing.showWindow(nil); defer { closing.close() }
             try await settle { !closing.model.busy && !closing.model.hasBlockingChild }
@@ -512,7 +536,7 @@ struct SynchronizationRevisionListVerification {
             let pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
             precondition(pids.count == 2 && pids.allSatisfy { kill($0, 0) == 0 } && waiting.model.busy)
             if forced { closing.close() } else { waiting.model.cancel() }
-            try await settle { closing.historyExportController == nil && !closing.model.exportingHistory && pids.allSatisfy { kill($0, 0) != 0 } }
+            try await settle { closing.historyExportController == nil && !closing.model.exportingHistory && !closing.model.hasBlockingChild && !waiting.hasPendingWork && pids.allSatisfy { kill($0, 0) != 0 } }
             precondition(waiting.model.error == nil && !waiting.model.busy && waiting.model.pickerTarget == nil)
             if refreshing { precondition(waiting.model.references.map(\.name) == priorCatalog && waiting.model.commit == priorCommit && waiting.model.branch == "refs/heads/main") }
             else { precondition(waiting.model.references.isEmpty && waiting.model.currentBranch.isEmpty) }
@@ -568,17 +592,17 @@ struct SynchronizationRevisionListVerification {
         let owner = SynchronizationWindowController(repository:repo,access:nil,preferences:preferences)
         owner.showWindow(nil); defer { owner.close() }
         let model = owner.model
-        try await settle { !model.busy && model.outgoing != nil }
+        try await settle { !model.busy && model.outgoing != nil && mountedTable(owner.window!) != nil }
         model.force = true; model.refresh()
-        try await settle { !model.busy && model.historyEntries.count == 6 }
+        try await settle { !model.busy && model.historyEntries.count == 6 && mountedTable(owner.window!) != nil }
         var native = table(owner.window!)
         let rows = model.historyEntries
         let mergeIndex = rows.firstIndex { $0.parents.count == 2 }!, rootIndex = rows.firstIndex { $0.parents.isEmpty }!
         var captured: [(ComparisonRevision,ComparisonRevision)] = []
         model.onHistoryCompare = { captured.append(($0,$1)) }
-        func menu(_ indexes: IndexSet) -> NSMenu {
-            native.selectRowIndexes(indexes,byExtendingSelection:false)
-            let menu = native.menu!; menu.delegate?.menuNeedsUpdate?(menu); return menu
+        func menu(_ indexes: IndexSet,allowUnavailable:Bool=false) -> NSMenu {
+            native=table(owner.window!)
+            return Self.revisionMenu(owner.window!,indexes:indexes,allowUnavailable:allowUnavailable)
         }
         func invoke(_ item: NSMenuItem) { precondition(item.isEnabled && NSApplication.shared.sendAction(item.action!,to:item.target,from:item)) }
         var log: LogWindowController?
@@ -638,7 +662,7 @@ struct SynchronizationRevisionListVerification {
         let guardedRange = menu(IndexSet([mainIndex,sideIndex])).items.first { $0.title.hasPrefix("Show log of ") }!
         let priorRange = capturedRange
         model.confirmingQuit = true
-        precondition(!menu(IndexSet([mainIndex,sideIndex])).items.first { $0.title.hasPrefix("Show log of ") }!.isEnabled)
+        precondition(menu(IndexSet([mainIndex,sideIndex]),allowUnavailable:true).items.first { $0.title.hasPrefix("Show log of ") }?.isEnabled != true)
         precondition(NSApplication.shared.sendAction(guardedRange.action!,to:guardedRange.target,from:guardedRange))
         precondition(capturedRange == priorRange && log == nil)
         model.confirmingQuit = false
@@ -685,16 +709,18 @@ struct SynchronizationRevisionListVerification {
         let pickerItem = containing.chooser.menu!.items.first { $0.title == "Browse References" }!
         precondition(NSApplication.shared.sendAction(pickerItem.action!,to:pickerItem.target,from:pickerItem))
         try await settle { containing.picker != nil }
-        precondition(model.hasBlockingChild && !menu(IndexSet(integer:mergeIndex)).items.first { $0.title == "Show branches this commit is on" }!.isEnabled)
+        precondition(model.hasBlockingChild && menu(IndexSet(integer:mergeIndex),allowUnavailable:true).items.first { $0.title == "Show branches this commit is on" }?.isEnabled != true)
         let nestedReferences = containing.picker as! ReferenceBrowserWindowController
         containing.close()
+        precondition(containing.closed && nestedReferences.model.closed)
+        try await settle { !containing.hasPendingWork && owner.historyContainingReferences.isEmpty && !model.hasBlockingChild }
         precondition(containing.closed && nestedReferences.model.closed && owner.historyContainingReferences.isEmpty && !model.hasBlockingChild)
         let containingTarget = containingItem.target
         native.menu!.delegate?.menuDidClose?(native.menu!)
         model.tab = 4
-        try await settle { table(owner.window!).numberOfRows == 0 }
+        try await settle { mountedTable(owner.window!)?.numberOfRows == 0 }
         precondition(NSApplication.shared.sendAction(containingItem.action!,to:containingTarget,from:containingItem) && owner.historyContainingReferences.isEmpty)
-        model.tab=0;try await settle{table(owner.window!).numberOfRows==rows.count};native=table(owner.window!)
+        model.tab=0;try await settle{mountedTable(owner.window!)?.numberOfRows==rows.count};native=table(owner.window!)
         invoke(menu(IndexSet(integer:mergeIndex)).items.first{$0.title=="Show branches this commit is on"}!)
         model.tab=4
         let crossTabChild = owner.historyContainingReferences.values.first!
@@ -705,16 +731,18 @@ struct SynchronizationRevisionListVerification {
         try await Task.sleep(nanoseconds:20_000_000)
         precondition(table(owner.window!).selectedRowIndexes.isEmpty)
         model.tab = 0
-        try await settle { table(owner.window!).numberOfRows == rows.count && table(owner.window!).selectedRowIndexes == IndexSet(integer:rootIndex) }
+        try await settle { mountedTable(owner.window!)?.numberOfRows == rows.count && mountedTable(owner.window!)?.selectedRowIndexes == IndexSet(integer:rootIndex) }
         native = table(owner.window!)
         let navigationID = model.historyNavigation[0]!.id
         precondition(model.handledHistoryNavigation[0] == navigationID)
         native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
-        model.tab = 4; try await settle { table(owner.window!).numberOfRows == 0 }
-        model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
+        model.tab = 4; try await settle { mountedTable(owner.window!)?.numberOfRows == 0 }
+        model.tab = 0; try await settle { mountedTable(owner.window!)?.numberOfRows == rows.count }
         native = table(owner.window!)
         precondition(native.selectedRowIndexes.isEmpty && model.handledHistoryNavigation[0] == navigationID, "Recreated tables must not replay handled navigation")
-        crossTabChild.close(); precondition(owner.historyContainingReferences.isEmpty)
+        crossTabChild.close(); precondition(crossTabChild.closed)
+        try await settle { !crossTabChild.hasPendingWork && owner.historyContainingReferences.isEmpty && !model.hasBlockingChild }
+        precondition(owner.historyContainingReferences.isEmpty)
         let closedNavigation = model.historyNavigation[0]!.id
         crossTabChild.onNavigate(rows[0].hash,true)
         precondition(model.historyNavigation[0]!.id == closedNavigation, "A closed references child cannot navigate its parent")
@@ -729,7 +757,7 @@ struct SynchronizationRevisionListVerification {
         let incomingChild = owner.historyContainingReferences.values.first!
         try await settle { !incomingChild.busy && incomingChild.snapshot?.hash == incomingRows[0].hash }
         native.menu!.delegate?.menuDidClose?(native.menu!)
-        model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
+        model.tab = 0; try await settle { mountedTable(owner.window!)?.numberOfRows == rows.count }
         native = table(owner.window!); native.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
         let outgoingNavigation = model.historyNavigation[0]!.id
         incomingChild.onNavigate(incomingTarget,false)
@@ -738,7 +766,7 @@ struct SynchronizationRevisionListVerification {
         precondition(incomingChild.status.stringValue == "The reference is not visible in In Commits." && model.historyNavigation[4]?.hash == incomingTarget)
         try await Task.sleep(nanoseconds:20_000_000)
         precondition(native.selectedRowIndexes == IndexSet(integer:0))
-        model.tab = 4; try await settle { table(owner.window!).numberOfRows == incomingRows.count && model.handledHistoryNavigation[4] == model.historyNavigation[4]?.id }
+        model.tab = 4; try await settle { mountedTable(owner.window!)?.numberOfRows == incomingRows.count && model.handledHistoryNavigation[4] == model.historyNavigation[4]?.id }
         native = table(owner.window!)
         precondition(native.selectedRowIndexes.isEmpty)
         incomingChild.onNavigate(incomingTarget,true)
@@ -749,9 +777,11 @@ struct SynchronizationRevisionListVerification {
         let highlightedHead = incomingCoordinator.tableView(native,viewFor:native.tableColumn(withIdentifier:.init("message")),row:0) as! NSTableCellView
         let headTraits = NSFontManager.shared.traits(of:highlightedHead.textField!.font!)
         precondition(incomingRows[0].isHead && headTraits.contains(.boldFontMask) && headTraits.contains(.italicFontMask) && native.selectedRowIndexes == IndexSet(integer:incomingRows.count - 1))
-        incomingChild.close(); precondition(owner.historyContainingReferences.isEmpty)
+        incomingChild.close(); precondition(incomingChild.closed)
+        try await settle { !incomingChild.hasPendingWork && owner.historyContainingReferences.isEmpty && !model.hasBlockingChild }
+        precondition(owner.historyContainingReferences.isEmpty)
         try await verifyFind(owner, outgoing: rows, incoming: incomingRows)
-        model.tab = 0; try await settle { table(owner.window!).numberOfRows == rows.count }
+        model.tab = 0; try await settle { mountedTable(owner.window!)?.numberOfRows == rows.count }
         native = table(owner.window!)
         precondition(!menu(IndexSet([0,1])).items.contains { $0.title == "Show branches this commit is on" })
         model.confirmingQuit = true
@@ -769,18 +799,20 @@ struct SynchronizationRevisionListVerification {
         precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
         precondition(captured.last!.0 == .revision(rows[mergeIndex].parents[0]) && captured.last!.1 == .revision(rows[mergeIndex].hash))
         let returning = NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
-        _ = menu(IndexSet([0,1])); native.keyDown(with:returning)
+        _ = menu(IndexSet([0,1]))
+        precondition(owner.window!.makeFirstResponder(native) && owner.window!.firstResponder === native,"Return source table did not acquire actual focus")
+        native.keyDown(with:returning)
         precondition(captured.last!.0 == .revision(rows[0].parents[0]) && captured.last!.1 == .revision(rows[0].hash))
         let beforeRoot = captured.count
         let warningCoordinator=native.dataSource as! SynchronizationHistoryTable.Coordinator
         warningCoordinator.presentQuestion={_,_,reply in reply(.alertFirstButtonReturn)}
-        _ = owner.window!.makeFirstResponder(native)
+        precondition(owner.window!.makeFirstResponder(native) && owner.window!.firstResponder === native,"Root Return source table did not acquire actual focus")
         _ = menu(IndexSet(integer:rootIndex)); native.keyDown(with:returning)
         precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
         precondition(captured.count == beforeRoot)
         try await settle{!warningCoordinator.hasPendingQuestion}
         model.confirmingQuit = true
-        _ = menu(IndexSet(integer:mergeIndex)); native.keyDown(with:returning)
+        _ = menu(IndexSet(integer:mergeIndex),allowUnavailable:true); native.keyDown(with:returning)
         precondition(NSApplication.shared.sendAction(native.doubleAction!,to:native.target,from:native))
         precondition(captured.count == beforeRoot)
         model.confirmingQuit = false
@@ -839,7 +871,9 @@ struct SynchronizationRevisionListVerification {
         precondition(model.error == nil && model.comparison.comparisonWindows.count == 1)
         let mergeViewer = model.comparison.comparisonWindows.values.first!
         precondition(mergeViewer.model.document?.base.bytes == tipPatch && mergeViewer.model.document?.destination.bytes == mergePatch)
-        mergeViewer.close(); precondition(model.comparison.comparisonWindows.isEmpty)
+        mergeViewer.close()
+        try await settle { model.comparison.comparisonWindows.isEmpty && !model.comparison.allComparisonWindows.contains { $0 === mergeViewer } }
+        precondition(model.comparison.comparisonWindows.isEmpty)
         let rootMenu = menu(IndexSet(integer:rootIndex))
         precondition(!rootMenu.items.contains { $0.title == "Compare with previous revision" })
         precondition(rootMenu.items.contains { $0.title == "Compare with working tree" })
@@ -852,10 +886,11 @@ struct SynchronizationRevisionListVerification {
         let disjointTwo = menu(IndexSet([0,4])).items.first { $0.title == "Compare revisions" }!
         invoke(disjointTwo)
         precondition(captured.last!.0 == .revision(rows[4].hash) && captured.last!.1 == .revision(rows[0].hash))
+        let quitComparison=menu(IndexSet([0,4])).items.first{$0.title=="Compare revisions"}!
         model.confirmingQuit = true
-        precondition(!menu(IndexSet([0,4])).items.first { $0.title == "Compare revisions" }!.isEnabled)
+        precondition(menu(IndexSet([0,4]),allowUnavailable:true).items.first { $0.title == "Compare revisions" }?.isEnabled != true)
         let count = captured.count
-        precondition(NSApplication.shared.sendAction(disjointTwo.action!,to:disjointTwo.target,from:disjointTwo))
+        precondition(NSApplication.shared.sendAction(quitComparison.action!,to:quitComparison.target,from:quitComparison))
         precondition(captured.count == count)
         model.confirmingQuit = false
         let finalRefs = try await repo.run(["show-ref"]).stdout, finalConfig = try Data(contentsOf:root.appendingPathComponent(".git/config")), finalIndex = try Data(contentsOf:root.appendingPathComponent(".git/index"))
@@ -936,7 +971,7 @@ struct SynchronizationRevisionListVerification {
         preferences.set(false,forKey:"UseSystemLocaleForDates"); DialogGeometry.install(preferences:preferences)
         let owner = SynchronizationWindowController(repository:repo,access:nil,preferences:preferences), window = owner.window!, model = owner.model
         owner.showWindow(nil); defer { owner.close() }
-        try await settle { !model.busy && model.outgoing != nil }
+        try await settle { !model.busy && model.outgoing != nil && mountedTable(window) != nil }
         let entry = model.historyEntries.first!
         model.requestHistoryActions(entry)
         try await settle { model.historyActions[entry.hash] != nil }
@@ -946,6 +981,7 @@ struct SynchronizationRevisionListVerification {
         defer { clipboard.releaseGlobally() }
         model.historyPasteboard = clipboard
         func copyItem(_ title: String) -> NSMenuItem {
+            precondition(mountedTable(window) === native && coordinator.revisionActionAvailable,"Fresh clipboard menu lost current native admission")
             precondition(native.menu?.delegate === coordinator, "Revision menu lost its coordinator")
             native.menu!.delegate?.menuNeedsUpdate?(native.menu!)
             guard let item = native.menu!.items.first(where: { $0.title == "Copy to clipboard" })?.submenu?.items.first(where: { $0.title == title }) else {
@@ -960,8 +996,10 @@ struct SynchronizationRevisionListVerification {
         var comparisons: [(ComparisonRevision, ComparisonRevision)] = []
         model.onHistoryCompare = { comparisons.append(($0, $1)) }
         func comparisonItem(_ title: String) -> NSMenuItem {
+            precondition(mountedTable(window) === native && coordinator.revisionActionAvailable,"Fresh comparison menu lost current native admission: command=\(title),busy=\(model.busy),blocked=\(model.hasBlockingChild),sheet=\(window.attachedSheet != nil),question=\(coordinator.hasPendingQuestion)")
             native.menu!.delegate?.menuNeedsUpdate?(native.menu!)
-            return native.menu!.items.first { $0.title == title }!
+            guard let item=native.menu!.items.first(where:{$0.title==title}) else{preconditionFailure("Required fresh comparison command missing: \(title); selection=\(native.selectedRowIndexes); menu=\(native.menu!.items.map(\.title))")}
+            return item
         }
         let capturedComparison = comparisonItem("Compare revisions")
         precondition(capturedComparison.image != nil)
@@ -976,9 +1014,9 @@ struct SynchronizationRevisionListVerification {
         let previous = comparisonItem("Compare with previous revision")
         invoke(previous)
         precondition(comparisons.last!.0 == .revision(rows[0].parents[0]) && comparisons.last!.1 == .revision(rows[0].hash))
-        let count = comparisons.count
+        let count = comparisons.count,quitPrevious=comparisonItem("Compare with previous revision")
         model.confirmingQuit = true
-        precondition(NSApplication.shared.sendAction(previous.action!,to:previous.target,from:previous))
+        precondition(NSApplication.shared.sendAction(quitPrevious.action!,to:quitPrevious.target,from:quitPrevious))
         precondition(comparisons.count == count, "Captured comparison must respect owner guards")
         model.confirmingQuit = false
         // Exercise the same concrete comparison window used by RepositoryModel routing.
@@ -1023,14 +1061,25 @@ struct SynchronizationRevisionListVerification {
         let firstPatch = try await repo.run(["format-patch","--stdout",rows[0].hash + "~1.." + rows[0].hash,"--"]).stdout
         let secondPatch = try await repo.run(["format-patch","--stdout",rows[1].hash + "~1.." + rows[1].hash,"--"]).stdout
         native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false);invoke(changes);precondition(!model.busy && model.comparison.comparisonWindows.isEmpty)
-        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false);invoke(comparisonItem("Compare change sets"))
-        try await settle { !model.busy && model.comparison.comparisonWindows.values.first?.model.busy == false }
+        native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)
+        let changeSetAdmission="available=\(coordinator.revisionActionAvailable),sourceTab=\(coordinator.sourceTab),tab=\(model.tab),selection=\(Array(native.selectedRowIndexes)),hashes=\(model.historyEntries.map(\.hash)),busy=\(model.busy),blocked=\(model.hasBlockingChild),pendingQuestion=\(coordinator.hasPendingQuestion),closed=\(model.closed),quit=\(model.confirmingQuit),cancel=\(model.confirmingCancellation),tableOwner=\(native.window === model.window),sheet=\(model.window?.attachedSheet != nil)"
+        invoke(comparisonItem("Compare change sets"))
+        do {try await settle { !model.busy && model.comparison.comparisonWindows.values.first?.model.busy == false }}
+        catch {
+            let children=model.comparison.comparisonWindows.values.map{"busy=\($0.model.busy),visible=\($0.window?.isVisible == true),sheet=\($0.window?.attachedSheet != nil),error=\(String(reflecting:$0.model.error))"}
+            print("SYNC CHANGE SET FAILURE: before=[\(changeSetAdmission)],nowAvailable=\(coordinator.revisionActionAvailable),sourceTab=\(coordinator.sourceTab),tab=\(model.tab),selection=\(Array(native.selectedRowIndexes)),hashes=\(model.historyEntries.map(\.hash)),busy=\(model.busy),blocked=\(model.hasBlockingChild),pendingQuestion=\(coordinator.hasPendingQuestion),owner=\(native.window === model.window),visible=\(model.window?.isVisible == true),sheet=\(model.window?.attachedSheet != nil),error=\(String(reflecting:model.error)),children=\(children)");fflush(stdout)
+            throw error
+        }
         precondition(model.error == nil && model.comparison.comparisonWindows.count == 1)
         let changeViewer = model.comparison.comparisonWindows.values.first!
         precondition(changeViewer.model.document?.base.bytes == firstPatch && changeViewer.model.document?.destination.bytes == secondPatch)
         precondition(changeViewer.model.snapshot.from == .revision(rows[0].hash) && changeViewer.model.snapshot.to == .revision(rows[1].hash))
         precondition(changeViewer.model.editableBase == nil && changeViewer.model.alignment != nil)
-        changeViewer.close(); precondition(model.comparison.comparisonWindows.isEmpty)
+        changeViewer.close()
+        // The cache owns this exact viewer until its retired editor/reload
+        // workers acknowledge closure; native close alone is not the drain.
+        try await settle { model.comparison.comparisonWindows.isEmpty && !model.comparison.allComparisonWindows.contains(where:{$0 === changeViewer}) }
+        precondition(model.comparison.comparisonWindows.isEmpty)
         var browser: RepositoryBrowserWindowController?
         model.onHistoryBrowseRepository = { hash in
             let child = RepositoryBrowserWindowController(repository:repo,access:nil,revision:hash)
@@ -1065,7 +1114,9 @@ struct SynchronizationRevisionListVerification {
             precondition(child.window!.sheetParent === window && model.creatingHistoryReference && model.hasBlockingChild)
             precondition(child.model.chooser.revision == rows[1].hash && !child.model.useHead)
             precondition(child.model.isTag == (title == "Create tag at this version…"))
-            child.close(); precondition(owner.historyReferenceController == nil && !model.creatingHistoryReference && window.attachedSheet == nil)
+            child.close()
+            try await settle { owner.historyReferenceController == nil && !model.creatingHistoryReference && window.attachedSheet == nil && !child.model.hasPendingWork && child.window?.sheetParent == nil }
+            precondition(owner.historyReferenceController == nil && !model.creatingHistoryReference && window.attachedSheet == nil)
             native.selectRowIndexes(IndexSet(integer:1),byExtendingSelection:false)
         }
         native.selectRowIndexes(IndexSet(integersIn:0..<2),byExtendingSelection:false)

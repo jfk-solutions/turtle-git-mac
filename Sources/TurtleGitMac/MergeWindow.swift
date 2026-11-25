@@ -224,14 +224,14 @@ import TurtleGitCore
               let window = control.window, window.attachedSheet == nil else { return }
         if window.makeFirstResponder(control) { appliedReferenceFocusRequest = referenceFocusRequest }
     }
-    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
+    func acceptReferenceSelection(_ name: String?, completion: @escaping (Bool) -> Void) {
         guard !invalidated, pickerTarget == .branch else { return }
         let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
         let token = OperationCancellation(); referenceSelectionToken = token; busy = true
         Self.activeReads += 1; pendingTransportReads += 1
         Task {
             var applied = false
-            defer { Self.activeReads -= 1; pendingTransportReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1; pendingTransportReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; if applied { referenceFocusRequest += 1 }; completion(applied) } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)

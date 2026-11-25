@@ -4519,7 +4519,10 @@ struct LogDialog: View {
     }
     override func keyDown(with event:NSEvent) {
         guard ownsKeyboard(event) else{return}
-        if [36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty {activateSelection();return}
+        if [36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty {
+            ComparisonToolInvocation.$alternate.withValue(event.modifierFlags.contains(.shift)) {activateSelection()}
+            return
+        }
         let navigation=[125,126,115,119].contains(event.keyCode) && event.modifierFlags.intersection([.command,.control,.option]).isEmpty
         let anchor=focusedFileRow() ?? selectedRowIndexes.first
         super.keyDown(with:event)

@@ -172,9 +172,11 @@ final class TransportPhaseReceiptTests:XCTestCase {
         let outcome=try await f.wrapped.cloneOutcome(f.clone,to:f.destination,cancellation:token,onCommandFinished:{value in events.clone(value);token.cancel()})
         let receipt=try XCTUnwrap(events.cloneValues.first);XCTAssertEqual(events.cloneValues.count,1)
         XCTAssertTrue(receipt.success);XCTAssertFalse(receipt.cancelled);XCTAssertEqual(receipt.exitCode,0)
-        XCTAssertTrue(outcome.cancelledAfterCreation);XCTAssertFalse(outcome.verified);XCTAssertNotNil(outcome.verificationError)
+        XCTAssertTrue(outcome.cancelledAfterCreation);XCTAssertTrue(outcome.verified,outcome.verificationError ?? "Accepted Clone verification failed");XCTAssertNil(outcome.verificationError)
+        XCTAssertNotNil(outcome.identity);XCTAssertEqual(outcome.isBare,false);XCTAssertFalse(outcome.configurationPending)
+        XCTAssertEqual(outcome.repositoryRoot?.resolvingSymlinksInPath().path,f.destination.standardizedFileURL.resolvingSymlinksInPath().path)
         let recovered=try await f.wrapped.inspectCloneOutcome(outcome,at:f.destination)
-        XCTAssertTrue(recovered.verified);XCTAssertEqual(recovered.output,outcome.output)
+        XCTAssertTrue(recovered.verified);XCTAssertEqual(recovered.output,outcome.output);XCTAssertEqual(recovered.identity,outcome.identity)
         XCTAssertEqual(try String(contentsOf:f.submitted),"clone\n")
         XCTAssertEqual(try String(contentsOf:f.destination.appendingPathComponent("file")),"original\n")
     }

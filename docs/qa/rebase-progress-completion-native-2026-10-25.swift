@@ -217,6 +217,7 @@ private extension NSWindow {
             let c=try Context(route);do {
                 print("OWNERSHIP START: "+route)
                 try await c.seed();let owner=try await c.open(),model=owner.model
+                let acceptedPlan=model.plan
                 var failedPickQuestions=0
                 if route=="failure" {model.chooseFailedPickRecovery={_ in failedPickQuestions += 1;return .cancel}}
                 try await c.installGate();c.start(model)
@@ -234,7 +235,24 @@ private extension NSWindow {
                 }
                 print("OWNERSHIP DRAINED: route=\(route) active=\(model.active) completed=\(model.completedSuccessfully) failedPickQuestions=\(failedPickQuestions)")
                 if route=="failure" {try require(failedPickQuestions==1 && model.active && !model.completedSuccessfully,"Actual failed Pick was not retained after Cancel recovery choice")}
-                if route=="stale" {_=try await c.repository.abortRebase();let actual=try await c.repository.rebaseCommit("HEAD");try require(actual.hash==c.originalHead,"Retired callback changed external abort target")}
+                if route=="stale" {
+                    let beforeAbortState=model.state
+                    func rawAbortReceipt(_ relative:String)->String {
+                        do {
+                            let handle=try FileHandle(forReadingFrom:c.root.appendingPathComponent(".git/"+relative))
+                            defer {try? handle.close()}
+                            return String(reflecting:String(decoding:try handle.read(upToCount:4096) ?? Data(),as:UTF8.self))
+                        } catch {return "unavailable: "+String(String(reflecting:error).prefix(512))}
+                    }
+                    let beforeDisk=["rebase-merge/orig-head","rebase-merge/head-name","rebase-merge/onto","rebase-merge/stopped-sha","HEAD","refs/heads/topic"].map {($0,rawAbortReceipt($0))}
+                    let abort=try await c.repository.abortRebase();let actual=try await c.repository.rebaseCommit("HEAD")
+                    if actual.hash != c.originalHead {
+                        for (path,bytes) in beforeDisk {print("Stale Abort raw receipt: "+path+"="+bytes)}
+                        print("Stale Abort diagnostic: expectedHEAD=\(String(reflecting:c.originalHead)), actualHEAD=\(String(reflecting:actual.hash)), planBranchHash=\(String(reflecting:acceptedPlan?.branchHash)), planBranchReference=\(String(reflecting:acceptedPlan?.branchReference)), planUpstream=\(String(reflecting:acceptedPlan?.upstreamHash)), planOnto=\(String(reflecting:acceptedPlan?.ontoHash))")
+                        print("Stale Abort session diagnostic: beforeActive=\(String(reflecting:beforeAbortState?.active)), cachedAbortTarget=\(String(reflecting:beforeAbortState?.originalHead)), beforeBranch=\(String(reflecting:beforeAbortState?.branch)), beforeOnto=\(String(reflecting:beforeAbortState?.onto)), stoppedCommit=\(String(reflecting:beforeAbortState?.stoppedCommit)), beforeSession=\(String(reflecting:beforeAbortState?.session)), afterActive=\(abort.state.active), afterAbortTarget=\(String(reflecting:abort.state.originalHead)), afterBranch=\(String(reflecting:abort.state.branch)), witnessedHEAD=\(String(reflecting:abort.witnessedHead)), abortExit=\(abort.exitCode), abortOutput=\(String(reflecting:String(abort.output.suffix(4000)))), retiredOutput=\(String(reflecting:String(model.output.suffix(4000))))")
+                    }
+                    try require(actual.hash==c.originalHead,"Retired callback changed external abort target")
+                }
                 try require(!model.completedSuccessfully,"Cancelled/failed/retired replay claimed terminal success")
                 if route=="retire" || route=="stale" {try require(model.scrollRevisionRequest==scroll && model.replayProgress?.sessionID==receipt.sessionID,"Late progress mutated retired owner")}
                 else {try require(!model.retainsOnlyProgressTab,"Failure/cancel adopted success-only result layout")}

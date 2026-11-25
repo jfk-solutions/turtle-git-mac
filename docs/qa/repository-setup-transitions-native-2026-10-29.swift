@@ -7,6 +7,26 @@ import TurtleGitCore
 private extension NSWindow {
     @objc func setupQAOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int){alphaValue=0;setFrameOrigin(.init(x:-24000,y:-24000));setupQAOrder(mode,relativeTo:number)}
 }
+// Synthetic receiver-only bookmarks: an unbundled executable has no app-scope
+// signing authority. Real shipping key grants keep the system scoped provider.
+private final class SetupIdentityBookmarks:RepositoryBookmarkProvider {
+    let path:Data
+    private(set) var creates=0,resolves=0,starts=0,stops=0,unexpectedPaths=0
+    init(key:URL){path=Data(key.path.utf8)}
+    func create(for url:URL)throws->Data {
+        guard url.isFileURL,Data(url.path.utf8)==path else{throw SSHIdentityAccessFailure.permission}
+        creates += 1;return path
+    }
+    func resolve(_ data:Data)throws->ResolvedBookmark {
+        guard data==path,let text=String(data:data,encoding:.utf8) else{throw SSHIdentityAccessFailure.permission}
+        resolves += 1;return .init(url:URL(fileURLWithPath:text),stale:false)
+    }
+    func startAccessing(_ url:URL)->Bool {
+        guard url.isFileURL,Data(url.path.utf8)==path else{unexpectedPaths += 1;return false}
+        starts += 1;return true
+    }
+    func stopAccessing(_ url:URL){if Data(url.path.utf8) != path{unexpectedPaths += 1};stops += 1}
+}
 @MainActor @main enum RepositorySetupTransitionsVerification {
     struct Failure:Error,CustomStringConvertible{let description:String}
     static func require(_ value:Bool,_ message:String,line:Int = #line)throws{if !value{throw Failure(description:"Repository setup \(line): "+message)}}
@@ -140,7 +160,15 @@ private extension NSWindow {
         exec \(quote(c.git.path)) "$@"
         """
         try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:wrapper.path);try Data().write(to:fail)
-        let identities=SSHIdentityAccessStore(storageURL:c.folder.appendingPathComponent("private-identity-grants.json"));try identities.remember(key,requireSecurityScope:false)
+        let bookmarks=SetupIdentityBookmarks(key:key)
+        let identities=SSHIdentityAccessStore(storageURL:c.folder.appendingPathComponent("private-identity-grants.json"),provider:bookmarks);try identities.remember(key,requireSecurityScope:false)
+        func verifyPrivateGrant()throws {
+            let access=try identities.acquire(path:key.path,requireSecurityScope:false)
+            try require(Data(access.file.path.utf8)==Data(key.path.utf8) && access.permission.contains(key),"Private Clone identity grant changed the exact key path")
+            withExtendedLifetime(access){}
+        }
+        try verifyPrivateGrant()
+        try require(bookmarks.creates==1 && bookmarks.resolves==1 && bookmarks.starts==bookmarks.stops && bookmarks.unexpectedPaths==0,"Private Clone identity roundtrip leaked or retargeted its synthetic lease")
         let agentRoot=URL(fileURLWithPath:"/tmp/tg-setup-"+String(UUID().uuidString.prefix(8)));try FileManager.default.createDirectory(at:agentRoot,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
         var coordinators:[SSHTransportCoordinator]=[],factories=0
         c.releases.append{coordinators.forEach{$0.close()}}
@@ -162,7 +190,9 @@ private extension NSWindow {
         let cloned=GitRepository(root:destination,executable:c.git),saved=try await cloned.run(["config","--local","--get","remote.origin.turtlegitsshkeyfile"]).text
         let cloneCalls=try String(contentsOf:URL(fileURLWithPath:wrapper.path+".clones")),keyCalls=try String(contentsOf:URL(fileURLWithPath:wrapper.path+".keys"))
         try require(saved==key.path+"\n" && cloneCalls=="clone\n" && keyCalls=="key\nkey\n" && registered==1 && factories==1,"Clone key retry repeated clone/transport/adoption or changed key path")
-        owner.close();coordinators.forEach{$0.close()};try await wait("private Clone agent/helper drain"){SSHTransportCoordinator.activeOperations==0 && (try? FileManager.default.contentsOfDirectory(atPath:agentRoot.path).isEmpty)==true};try await c.unchanged()
+        owner.close();coordinators.forEach{$0.close()};try await wait("private Clone agent/helper drain"){SSHTransportCoordinator.activeOperations==0 && (try? FileManager.default.contentsOfDirectory(atPath:agentRoot.path).isEmpty)==true}
+        try require(bookmarks.creates==1 && bookmarks.resolves>=2 && bookmarks.starts==bookmarks.stops && bookmarks.unexpectedPaths==0,"Actual Clone transport failed to use or drain the exact private identity grant")
+        try await c.unchanged()
     }
     static func initialize(_ c:Context)async throws {
         for variant in ["cancel","retire","inspection","precommand","failure"] {

@@ -231,15 +231,16 @@ enum ExportArchiveChoice:Int,CaseIterable {
         if referenceSelectionToken != nil { referenceSelectionToken?.cancel(); referenceSelectionTask?.cancel() }
         pickerTarget = nil
     }
-    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
+    func acceptReferenceSelection(_ name: String?, completion: @escaping (Bool) -> Void) {
         guard !invalidated,!confirmingQuit, pickerTarget == .branch else { return }
         let requested = name ?? revision, draft = commit, request = OperationCancellation(), repository = repository, selectionDraft = versionPickerDraft,epoch=formContext.epoch
         referenceSelectionToken = request; busy = true
         Self.activeReads += 1;beginWork()
         referenceSelectionTask = Task { [self, access] in
+            var applied=false
             defer {
                 Self.activeReads -= 1; withExtendedLifetime(access) {}
-                if referenceSelectionToken === request { referenceSelectionToken = nil; referenceSelectionTask = nil; busy = false; pickerTarget = nil; completion() }
+                if referenceSelectionToken === request { referenceSelectionToken = nil; referenceSelectionTask = nil; busy = false; pickerTarget = nil; completion(applied) }
                 endWork()
             }
             do {
@@ -253,6 +254,7 @@ enum ExportArchiveChoice:Int,CaseIterable {
                     self.commit = draft
                 } else if requested == "HEAD" { self.target = .head }
                 else { self.target = .commit; self.selectCustomRevision(requested) }
+                applied=true
             } catch {
                 guard !invalidated,!confirmingQuit,formContext.epoch==epoch, referenceSelectionToken === request, !request.isCancelled else { return }
                 self.error = error.localizedDescription

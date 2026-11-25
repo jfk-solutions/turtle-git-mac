@@ -1,0 +1,180 @@
+{
+  "date": "2026-11-25",
+  "baseline": "bba88d28606384cce2f1b338807c39748e17296a",
+  "status": "focused-scopes-passed-cumulatively",
+  "production_changes": true,
+  "source_sha256": {
+    "Tests/TurtleGitCoreTests/TransportPhaseReceiptTests.swift": "d08cd00bd370592f960cc019f1eb409339b773b89b67b149ffb3f5f0df7dc8e6",
+    "docs/qa/fetch-progress-native-2026-10-08.swift": "b1e7b84e771daf83c0977a23f620259f4d37755bf25213e48514704fa1e5ea94",
+    "docs/qa/request-pull-lifecycle-native-2026-10-15.swift": "64916725b8b8c38206474ebe308221599e4ae7f349545b439553994f578cef1e",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "b90b2ba011136322d2ab601d3feb0dd2abbbe023f75e6097e21c980786fae763",
+    "docs/qa/rebase-progress-completion-native-2026-10-25.swift": "5de1716737c97c79b411fd90a701088dc8376000b4e2a29c3591d783d3381b67",
+    "docs/qa/synchronization-native-2026-10-11.swift": "3ad4bfba71d6aba79483763dc5f904c17ed15896bdc395cc9d10b9368750ee7d",
+    "docs/qa/synchronization-revision-list-native-2026-10-11.swift": "1d615aed60aa79c87a4fc61bf298d2346c0f808cc71a7da50c1ff9919425e84f",
+    "docs/qa/rebase-message-edit-native-2026-10-18.swift": "6ea5798bb97eb53d54e2456e212c459dd9345b3e7d952f67630af16730c38d5f",
+    "docs/qa/repository-setup-transitions-native-2026-10-29.swift": "86bab0cd8d675d779f7253d2e54ec8585a1980556ed1bfdf470dec638560b54b",
+    "docs/qa/status-primary-activation-native-2026-10-30.swift": "6d95943ea1ea17ebc36b4186b0a4a177d9ad44f5d359d181d93346a929b59f3d",
+    "docs/qa/status-comparison-operands-native-2026-11-23.swift": "ddb0f1a069f2f4abf5c70a4332fa40c865691e9833a6a488f78846350a31b03e",
+    "docs/qa/log-working-row-affordances-native-2026-11-23.swift": "3f8ed158638c9a9a6fb0458440c67042664ccf81a628691070d0fdc29ab336d6",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "b3a0fb2621fee65cdfd72ddea2792ab9042dccb001f62f61747ccb6d48aa24bd",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "6f224cca58f1dfc894bdcdbf666deaf92fb0b7dcb0242e81347ee44df6a45f21",
+    "docs/qa/switch-pickers-native-2026-10-09.swift": "a941cf875eb955ac66a9e6a0f52392d5c6ea891d3d204168c02beb46ab136f2a",
+    "docs/qa/merge-pickers-native-2026-10-09.swift": "3afba51c4775f93a0b75572a6b638004435d968f7103f325213fe6adf7ee251e",
+    "docs/qa/creation-pickers-native-2026-10-09.swift": "e692f4d12ceb36f89ffdcf7954936b630a3df3596b4fa3b8f4f256e69598f22c",
+    "docs/qa/patch-recovery-native-2026-10-16.swift": "f222602d44a08309b229f6353572d176dc516b9fd91b52e422eeaba2f670907c",
+    "Sources/TurtleGitMac/MergeWindow.swift": "b477236c2c41ea3a5ddd225e5a27a8d353c5031c5b8b25a1b8cbc099563168c0",
+    "Sources/TurtleGitMac/ExportWindow.swift": "fa9f75bc705cae1ffeb0b9a65bb5b7cccb434ce06a1266339871b2195b8fe746",
+    "docs/qa/version-picker-lifecycle-native-2026-10-15.swift": "6aba01a7e25bd438c048f0fdda9101452b47a756fea4a45a21cf2b205bf884c8",
+    "Sources/TurtleGitMac/LogWindow.swift": "037cd8ace572648cd0d870d9c840e8b6853bd9e3e941e701088a72cf7109b77e",
+    "docs/qa/patch-codec-family-native-2026-10-17.swift": "877ff74d4d3f6cc6888c89dc02cdb7dab0f5c08ee9f5a6a53a43892ab4fa47d4",
+    "scripts/test-sync-owned-form-family.py": "7e8784f4cc5114f1514683a9ec466746904117ad23fb29ddeeab92a1f7e72178",
+    "docs/qa/synchronization-apply-native-2026-10-11.swift": "acff3a55cf9cdaafc726459364a8f9a92714008553753ca9d1444c0abbeace8e"
+  },
+  "retained_passes": [
+    {
+      "family": "fetch-progress",
+      "engines": 2,
+      "log": "build/qa/transport-recovery-repair-fetch-progress-2026-11-23.log",
+      "log_sha256": "b3e0a2b494981cfbb7887734b571695e778a33831bd5b8bd23b9e9a316223c33"
+    },
+    {
+      "family": "request-pull-lifecycle",
+      "engines": 2,
+      "log": "build/qa/transport-recovery-request-pull-2026-11-23.log",
+      "log_sha256": "d0831d8b1c6177d464a05ececfbb179761921b41f96ae015be95d4eb91647ed4"
+    },
+    {
+      "family": "rebase-add",
+      "engines": 2,
+      "log": "build/qa/transport-recovery-rebase-add-2026-11-23.log",
+      "log_sha256": "eb985debfa37f5da533f4f6f9010e0829e3ec5779e9608732f75af6d3d781ebb"
+    },
+    {
+      "family": "rebase-ownership",
+      "engines": 2,
+      "log": "build/qa/transport-recovery-final-rebase-ownership-2026-11-23.log",
+      "log_sha256": "786382f21fd6dbfaa5ed23a0a0c3ddc3911154a73efcfdfdd45a32deda4f586e"
+    }
+  ],
+  "core": {
+    "command": "swift test --filter TransportPhaseReceiptTests",
+    "methods": 8,
+    "failures": 0,
+    "log": "build/qa/transport-phase-receipts-2026-11-25.log"
+  },
+  "not_claimed": [
+    "complete hosted CI success",
+    "shipping signed/physical Finder acceptance",
+    "complete TortoiseGit parity",
+    "App Store eligibility/licensing clearance"
+  ],
+  "delivery": "Installed52 and signed55 unchanged; no install, signing, upload, or WMF/EMF changes in this batch.",
+  "fixes": [
+    "Restore pinned ChooseVersion Cancel refresh; preserve custom defaults on unchanged target, restore focus once, require explicit applied-publication receipt before notifying parent.",
+    "Defer embedded patch-conflict initialization until outer work and native sheets settle; consume exact child once, remove pending work on replacement/retirement; genuine later Quit still cancels.",
+    "Capture Shift from the actual changed-file Return event before native Log comparison preparation.",
+    "Align transport cancellation and native activation fixtures with current receipts without removing stale-action or bytes/HEAD/index assertions.",
+    "Accept only valid equal author timestamps and offsets with UTC Z/+00:00 equivalence; preserve author, trailers and topology.",
+    "Use a receiver-only bookmark provider for unsigned Clone SSH tests; shipping system scope remains strict."
+  ],
+  "hosted_baseline": {
+    "run": 45210440626,
+    "sha": "bba88d28606384cce2f1b338807c39748e17296a",
+    "status": "failure",
+    "builds": "all eight app and Finder lanes passed",
+    "core": "two assertions in one outdated Clone cancellation test; focused correction now passes eight methods",
+    "not_equivalent_to_local_validation": true
+  },
+  "failed_attempts": [
+    "Initial Sync revision attempt failed at Export Cancel catalog assertion. Root temporarily aligned fixture to current code; pinned ChooseVersion proved code was wrong. Temporary adjustment was reverted; original Cancel catalog assertions remain and production was corrected.",
+    "Initial Sync dialog attempt reached final Manage test then failed by checking retirement after process exit alone. It now waits for actual worker and sheet drainage while retaining synchronous revocation and ESRCH assertions.",
+    "First build and six picker/Git runs passed; an independent static review found a refused-publication callback edge case. Dependent checks were interrupted/reaped, explicit applied Bool was added and only affected scopes are rechecked.",
+    "New lifecycle witness used a removed ReferenceBrowser model.close API; corrected to its actual Cancel API. No app rebuild is required for that fixture-only repair.",
+    "Lifecycle assertions required actual child/Export owner drainage before succession; the original Unicode and destination outcomes remain strict.",
+    "Sync setup sampled desktop modifiers or wrote fields before initial presentation; explicit modifiers and setup-after-admission preserve the intended inputs.",
+    "Codec fixture mixed raw CP1251 and UTF8 hunks in one container. Rebuilt each section losslessly as UTF8, preserving Git metadata, targets and all exact recovery assertions.",
+    "Native Log needed a product correction to capture the actual Shift+Return event; corrected and both activation cohorts/Git pairs pass.",
+    "The final Apply check waited for process exit before its async close; it now waits for the original worker/cache/sheet predicates as well.",
+    "Normal receiver cleanup crashed after all phases. Zombie diagnostic identified AppKit._NSGlassEffectWindow double release: global cleanup had called close on its autoreleasing auxiliary. The driver now uses public lifetime policy and leaves framework disposal to AppKit. Both ordinary Git runs then passed."
+  ],
+  "cleanup": {
+    "status": "passed",
+    "current_owned_receivers": [],
+    "counter_and_window_checks": "Final receivers assert actual pending work, no visible windows or sheets, process/group reaping; platform auxiliaries are managed by AppKit.",
+    "user_apps": "Untouched"
+  },
+  "accepted_native": [
+    {
+      "log": "build/qa/picker-conflict-recovery-final-pickers-2026-11-25.log",
+      "cohort_engine_passes": 6,
+      "sha256": "02d87964a97a85d8e941c224ad669aa042f0c3939636689c5e05ee784e487fa2"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-final-sync-revision-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "7edee4d95d1138e07fa4ca8131110271058fd11b8e098455857cb7266d067a6f"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-final-patch-panels-2026-11-25.log",
+      "cohort_engine_passes": 6,
+      "sha256": "ee535d34327083afa8698ccc51baba589f5ac1cec1b276c780e7d6166ae2cb05"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-final-patch-paths-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "8fb406877167134c4123b34f7b4ff0b5d8d6575c1abd7c9cd03a46d925f48c09"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-final-replay-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "997d1b5e63a201bd398353deeaacb8638867512da7ca289d83bccb3293d1838a"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-final-clone-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "93b69b34f60a32175485ce706a6b9db34bf2b695b480478bbcff2cc3ffd9dd6f"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-final-commit-operands-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "e002785f34a3a6a8c01873849f2e4fca21b265d8a3897feb4558ccd2f549e163"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-repair-activation-2026-11-25.log",
+      "cohort_engine_passes": 4,
+      "sha256": "1da88206019df4e4936fe8e4ca5c96ea697c123509c0c476ac2447972c154820"
+    },
+    {
+      "log": "build/qa/picker-conflict-recovery-last-patch-codecs-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "bfce20144477161cea2a29eeb3c003f2c28541007dc79b03d012d6dcd46c6b31"
+    },
+    {
+      "log": "build/qa/picker-lifecycle-only-2026-11-25.log",
+      "cohort_engine_passes": 2,
+      "sha256": "e5e68932dddc8d2c364084b796512eb56250ae66d23a0dd7c0d0b99d7f60625e"
+    },
+    {
+      "log": "build/qa/sync-system-acceptance-2026-11-25.log",
+      "cohort_engine_passes": 1,
+      "sha256": "3d7211a6201bbd9e90c646fd67da7fdd9c00555227797358001fb13965014a34"
+    },
+    {
+      "log": "build/qa/sync-bundled-acceptance-2026-11-25.log",
+      "cohort_engine_passes": 1,
+      "sha256": "6e07f5226cfd7c02c4cebd2b9cba3e77f5a720ee26dc1054e671e50d6942029e"
+    }
+  ],
+  "accepted_native_count": 32,
+  "retained_native_count": 8,
+  "build": {
+    "exit": 0,
+    "log": "build/qa/picker-conflict-recovery-repair-build-2026-11-25.log",
+    "note": "Incremental builds only after product changes; latest build includes Shift capture. No rebuild for fixture-only repairs."
+  },
+  "diagnostics": {
+    "zombie_log": "build/qa/sync-zombie-corrected-2026-11-25.log",
+    "not_acceptance": true,
+    "normal_runs": "Both final Sync receipts ran without zombies."
+  }
+}

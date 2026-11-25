@@ -83,3 +83,14 @@ per-file recovery. Legacy text reaches the embedded editor, and unrepresentable
 automatic output retains a manual Preview/encoding-change continuation. Existing
 binary/special choices and raw application bytes remain. Physical/signed and
 wider raw-patch text decoding acceptance are still open.
+
+## Embedded initialization — November 25, 2026
+
+The embedded conflict model defers its initial load until its parent comparison
+read and native sheet finish. Previously the parent's busy state could cancel
+that same load through the child command gate and leave a blank editor. The
+accepted child starts once; replacement and retirement revoke pending admission.
+The existing fixture covers blocking, admission of the same child and retirement
+before admission. A genuine Quit after loading starts still cancels it; there is
+no automatic retry. Explicit Refresh creates a new preview. Validation remains
+separate from complete signed or physical editor acceptance.

@@ -117,3 +117,11 @@ holds the async prepared boundary before acknowledging its injected launch;
 actual Word/LibreOffice applications and permission dialogs remain unexecuted.
 Physical input, VoiceOver, signed Finder/platform execution and complete upstream
 dialog parity remain separate acceptance scopes.
+
+## Event modifier capture — November 25, 2026
+
+The native changed-file table now captures Shift from its Return event before
+starting comparison. It does not depend on the keyboard state after that event.
+The selection plan retains this choice through the warning and asynchronous reads.
+The regression uses a real Shift+Return event and separately checks repository,
+preferences and alternate-tool capture.

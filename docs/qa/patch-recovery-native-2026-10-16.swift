@@ -28,9 +28,32 @@ struct PatchRecoveryVerification {
         try await PatchFilePanelVerification.wait{!model.busy && model.editor?.filtering==false}
         let files=model.review!.files,b=files.first{$0.path=="b.txt"}!,c=files.first{$0.path=="c.txt"}!
         try require(model.fileState(files.first{$0.path=="a.txt"}!).isEmpty && model.fileState(b)=="conflict" && model.fileState(c)=="error","Initial ready/conflict/error rows")
+        var parentBlocked=false;model.parentActive={parentBlocked}
         model.highlightFiles([b.id]);model.previewFiles([b.id],generation:model.fileListGeneration)
+        parentBlocked=true;model.updateParentState()
+        try await PatchFilePanelVerification.wait{!model.busy && model.conflictEditor != nil}
+        let pending=model.conflictEditor!
+        try require(pending.document==nil && !pending.busy && !pending.sourceToolsAllowed && !pending.canChooseConflict,"Blocked parent prematurely loaded or enabled its embedded conflict")
+        pending.load();pending.choose(.theirs)
+        try require(pending.document==nil && !pending.busy,"Blocked embedded appearance/action admitted its deferred read")
+        // A different owner retired before admission must never start its child
+        // when the former parent gate later clears.
+        let lateOwner=WorkingTreePatchWindowController(repository:repo,access:nil,fileAccess:nil,bytes:patch,title:"Retired pending patch recovery",preferences:prefs),late=lateOwner.model
+        defer{lateOwner.close()};lateOwner.window?.alphaValue=0;lateOwner.window?.orderFront(nil)
+        var lateBlocked=false;late.parentActive={lateBlocked}
+        try await PatchFilePanelVerification.wait{!late.busy && late.editor?.filtering==false}
+        let lateFile=late.review!.files.first{$0.path=="b.txt"}!
+        late.previewFiles([lateFile.id],generation:late.fileListGeneration);lateBlocked=true;late.updateParentState()
+        try await PatchFilePanelVerification.wait{!late.busy && late.conflictEditor != nil}
+        let retiredPending=late.conflictEditor!
+        try require(retiredPending.document==nil && !retiredPending.sourceToolsAllowed,"Late-owner fixture did not retain a pending conflict")
+        lateOwner.close();lateBlocked=false;late.updateParentState();retiredPending.load()
+        try await PatchFilePanelVerification.wait{!lateOwner.hasPendingWork && lateOwner.window?.isVisible != true && lateOwner.window?.sheetParent==nil && lateOwner.window?.attachedSheet==nil}
+        try require(late.retired && retiredPending.retired && retiredPending.document==nil && !retiredPending.busy,"Retired pending child loaded or escaped ownership")
+        parentBlocked=false;model.updateParentState()
         try await PatchFilePanelVerification.wait{!model.busy && model.conflictEditor?.sourceToolsAllowed==true && (window as! TextConflictNSWindow).mergedText != nil}
         var conflict=model.conflictEditor!
+        try require(conflict === pending,"Clearing parent admission replaced the accepted conflict owner")
         try require(conflict.document?.base==base && conflict.document?.mine==currentB && conflict.document?.theirs==patched && conflict.blocks.count==1,"Recorded/current/patched three-pane contents")
         try require(owner.editorToolbar != nil && conflict.nativeToolbarInstalled && !conflict.repositoryResolutionAllowed,"Embedded native toolbar and no index-resolution action")
         try require(try Data(contentsOf:root.appendingPathComponent("b.txt"))==Data(currentB.utf8),"Preview wrote working contents")

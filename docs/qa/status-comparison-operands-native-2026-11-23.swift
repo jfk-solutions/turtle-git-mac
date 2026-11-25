@@ -121,7 +121,27 @@ private extension NSWindow {
                 if let status {return !status.model.busy && status.model.hasStatusSnapshot}
                 return revert!.model.canInteract
             }
-            _=try await Prior.bridge(owner)
+            if commit != nil {try await currentCommitProjection()}
+            else {_=try await Prior.bridge(owner)}
+        }
+        func currentCommitProjection()async throws {
+            guard let commit else{return}
+            do {try await wait("Current Commit operand projection unavailable") {
+                self.owner.window?.contentView?.layoutSubtreeIfNeeded()
+                let expected=commit.model.displayedFileEntries.map{GitReferenceName($0.path)}
+                let probes=Prior.views(self.owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
+                guard let probe=probes.first(where:{$0.active && $0.window === self.owner.window && !$0.isHiddenOrHasHiddenAncestor}),
+                      probe.revision==commit.model.fileReportRevision,
+                      probe.rows.compactMap({$0}).map({GitReferenceName($0)})==expected,
+                      let table=try? Prior.table(self.owner),table.window === self.owner.window,
+                      table.numberOfRows==probe.rows.count,!table.isHiddenOrHasHiddenAncestor,table.isEnabled else{return false}
+                return commit.model.fileListAvailable && !commit.model.busy && !commit.model.fileWorkPending && !commit.model.loadingFileMetadata
+            }} catch {
+                let probes=Prior.views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
+                print("OPERAND PROJECTION: expectedRevision=\(commit.model.fileReportRevision),actual=\(probes.map{String(describing:$0.revision)}),expectedRows=\(commit.model.displayedFileEntries.prefix(24).map{String(reflecting:$0.path)})")
+                print(diagnostic("projection-readiness-failure"))
+                throw error
+            }
         }
         func diagnostic(_ phase:String)->String {
             let entries:[StatusEntry]
@@ -145,6 +165,9 @@ private extension NSWindow {
             return ordered
         }
         func enter()async throws {
+            // Model reads can settle before SwiftUI republishes the bridge's
+            // receipt. Identical paths/count do not prove its revision current.
+            try await currentCommitProjection()
             let bridge=try await Prior.bridge(owner),table=try Prior.table(owner),window=owner.window!
             bridge.commandKeyWindow={[weak window] in window}
             try require(window.makeFirstResponder(table) && window.firstResponder === table,"Source report refused Return focus")

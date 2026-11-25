@@ -84,3 +84,14 @@ record states the actual grouped native scope and any observed failures.
 [Shared chooser QA](qa/version-picker-lifecycle-2026-10-15.json) records the actual
 source comparison, six accepted case/Git pairs, original failures/repairs and
 owned-process cleanup. Full dialog/application parity remains incomplete.
+
+## Cancel refresh correction — November 25, 2026
+
+The shared coordinator now forwards an unchanged Cancel to the reference reader,
+as required by pinned `ChooseVersion.h` lines 148–163. The read retains its owner
+and draft guards. An unchanged result preserves custom tracking and creation
+options instead of reporting another selection to Branch/Tag or Worktree.
+The reference control receives one focus request. Existing native fixtures now
+create a reference after opening the picker and require it in the parent catalog
+after Cancel; their draft, stale-callback and retirement assertions remain.
+Validation is recorded in the recovery checkpoint, not inferred from this code.

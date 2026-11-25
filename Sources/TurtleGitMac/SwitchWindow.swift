@@ -19,7 +19,7 @@ extension UserDefaults {
     var onBrowsePicker: ((CheckoutTarget) -> Void)? { get set }
     func beginPicker(_ target: CheckoutTarget) -> Bool
     func finishPicker()
-    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void)
+    func acceptReferenceSelection(_ name: String?, completion: @escaping (Bool) -> Void)
     func acceptCommitSelection(_ entry: LogEntry?)
     func invalidate()
 }
@@ -67,10 +67,12 @@ extension UserDefaults {
                 self.pendingResult = { [weak self] in
                     guard let self, self.pickerRequest == request else { return }
                     guard self.resultAllowed(), self.model.versionPickerDraft == draft, self.contextualDraft() == context else { self.pickerRequest = nil; self.model.finishPicker(); return }
-                    guard name != nil else {self.pickerRequest=nil;self.model.finishPicker();return}
-                    self.model.acceptReferenceSelection(name) { [weak self] in
+                    // CChooseVersion refreshes its catalog on Cancel too. The
+                    // unchanged draft above remains the authority for that read.
+                    self.model.acceptReferenceSelection(name) { [weak self] applied in
                         guard let self, !self.invalidated, self.pickerRequest == request else { return }
-                        self.pickerRequest = nil; if self.model.error == nil { self.onSelection() }
+                        self.pickerRequest = nil
+                        if applied, self.model.error == nil, name != nil || self.model.versionPickerDraft != draft { self.onSelection() }
                     }
                 }
                 self.drainResult()
@@ -311,15 +313,15 @@ extension UserDefaults {
               control.isEnabled, let window = control.window, window.attachedSheet == nil else { return }
         if window.makeFirstResponder(control) { appliedReferenceFocusRequest = referenceFocusRequest }
     }
-    func acceptReferenceSelection(_ name: String?, completion: @escaping () -> Void) {
+    func acceptReferenceSelection(_ name: String?, completion: @escaping (Bool) -> Void) {
         guard !confirmingQuit, !invalidated, !finished, pickerTarget == .branch else { return }
         referenceSelectionToken?.cancel(); let token = OperationCancellation(); referenceSelectionToken = token; busy = true
-        let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft
+        let requested = name ?? revision, draft = commitRevision, selectionDraft = versionPickerDraft, originalTarget=options.target
         let repository=self.repository.capturingDiffBackend(preferences:preferences)
         Self.activeReads += 1;pendingReferenceReads += 1
         Task {
             var applied = false
-            defer { Self.activeReads -= 1;pendingReferenceReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; formRevision = UUID(); if applied { referenceFocusRequest += 1 }; completion() } }
+            defer { Self.activeReads -= 1;pendingReferenceReads -= 1; withExtendedLifetime(access) {}; if referenceSelectionToken === token { referenceSelectionToken = nil; busy = false; pickerTarget = nil; formRevision = UUID(); if applied { referenceFocusRequest += 1 }; completion(applied) } }
             do {
                 if GitRuntime.isAppStoreBuild && (access?.hasSecurityScope != true || access?.contains(repository.root) != true) { throw RepositoryAccessFailure.securityScopeUnavailable }
                 let catalog = try await repository.checkoutReferences(includeFetchHead: preferences.includesFetchHead, localBranchesFirst: AdvancedListBehavior(defaults: preferences).localBranchesFirst, cancellation: token)
@@ -329,7 +331,9 @@ extension UserDefaults {
                     options.target = target
                     if target == .branch { branchRevision = requested } else { tagRevision = requested }; commitRevision = draft
                 } else { options.target = .commit; selectCustomRevision(requested) }
-                defaults(); applied = true
+                // Refreshing an unchanged Cancel must retain custom creation
+                // and tracking options; a chosen or reclassified base owns new defaults.
+                if name != nil || options.target != originalTarget { defaults() }; applied = true
             } catch { if !invalidated, referenceSelectionToken === token, !token.isCancelled { self.error = error.localizedDescription } }
         }
     }

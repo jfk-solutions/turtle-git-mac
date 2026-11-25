@@ -53,23 +53,33 @@ private extension NSWindow {
             prefs.removePersistentDomain(forName:suite)
         }
     }
+    static func currentReport(_ owner:NSWindowController,_ probe:StatusListPrimaryActionBridge.Probe)->Bool {
+        guard let status=owner as? StatusWindowController else{return true}
+        // Native selection synchronously retires model menu receipts. SwiftUI
+        // must publish that exact generation and ordered projection before the
+        // next real pointer/key gesture can use this mounted report.
+        let expected=status.model.tableRows.map{$0.row.entry?.id}
+        return probe.revision==status.model.primaryActionRevision &&
+            probe.rows.map{$0.map{Data($0.utf8)}}==expected.map{$0.map{Data($0.utf8)}} &&
+            (try? table(owner).numberOfRows)==expected.count
+    }
     static func bridge(_ owner:NSWindowController)async throws->StatusListPrimaryActionBridge.Probe {
         do {
             try await wait("Primary row bridge not mounted") {
                 // Offscreen windows still need layout after their asynchronous
                 // report snapshot replaces the initial loading presentation.
                 owner.window?.contentView?.layoutSubtreeIfNeeded()
-                return views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.contains{$0.active && !$0.rows.isEmpty}
+                return views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.contains{$0.active && !$0.rows.isEmpty && currentReport(owner,$0)}
             }
         } catch {
             let probes=views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
             let tables=views(owner.window?.contentView).compactMap{$0 as? NSTableView}
-            let probeState=probes.map {"active=\($0.active),rows=\($0.rows.count),window=\($0.window != nil)"}
+            let probeState=probes.map {"active=\($0.active),rows=\($0.rows),window=\($0.window != nil),revision=\($0.revision),current=\(currentReport(owner,$0))"}
             let tableState=tables.map {"rows=\($0.numberOfRows),hidden=\($0.isHiddenOrHasHiddenAncestor)"}
             print("PRIMARY MOUNT: owner=\(type(of:owner)) visible=\(owner.window?.isVisible == true) frame=\(String(describing:owner.window?.frame)) probes=\(probeState) tables=\(tableState)")
             throw error
         }
-        return try unwrap(views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.first{$0.active && !$0.rows.isEmpty},"No live primary bridge")
+        return try unwrap(views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}.first{$0.active && !$0.rows.isEmpty && currentReport(owner,$0)},"No live primary bridge")
     }
     static func table(_ owner:NSWindowController)throws->NSTableView {try unwrap(views(owner.window?.contentView).compactMap{$0 as? NSTableView}.first{$0.headerView != nil},"No native source report")}
     static func select(_ owner:NSWindowController,paths:[String],accepted:()->Bool)async throws {
@@ -84,7 +94,7 @@ private extension NSWindow {
         try await wait("Native rows not ready"){table.numberOfRows==probe.rows.count}
         owner.window?.makeFirstResponder(table)
         CommitFileInteraction.replaceSelection(in:table,with:IndexSet(probe.rows.indices.filter{probe.rows[$0].map{wanted.contains($0)} ?? false}))
-        try await wait("Native multi-selection not projected"){accepted()}
+        try await wait("Native multi-selection and current report receipt not projected"){owner.window?.contentView?.layoutSubtreeIfNeeded();return accepted() && currentReport(owner,probe)}
     }
     static func click(_ owner:NSWindowController,path:String,shift:Bool=false,column:Int?=nil)async throws {
         if owner is ResolveWindowController {try nativeResolveClick(owner,path:path,shift:shift,column:column ?? 1);return}
