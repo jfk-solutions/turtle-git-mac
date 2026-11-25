@@ -131,11 +131,17 @@ private extension NSWindow {
    print("PASS: history file context "+mode);fflush(stdout)
   } catch {
    let original=error
-   // This receiver process owns all its windows. Controller closure preserves
-   // each feature's real cancellation/drain behavior; no user app is targeted.
+   // Own our controllers, not AppKit's release-on-close auxiliary windows.
+   // Preserve feature cancellation/drain behavior without changing that policy.
    for window in NSApp.windows {
-    if let controller=window.windowController {controller.close()}
-    else {window.isReleasedWhenClosed=false;window.orderOut(nil);window.close()}
+    let arcOwned = !window.isReleasedWhenClosed
+    if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)}
+    if arcOwned {window.makeFirstResponder(nil);window.endEditing(for:nil)}
+    window.orderOut(nil)
+    if arcOwned {
+     if let controller=window.windowController {controller.close()}
+     else {window.close()}
+    }
    }
    do {try await waitForDrain()} catch {throw NSError(domain:"TurtleGit.HistoryFileContext.Failure",code:1,userInfo:[NSLocalizedDescriptionKey:String(describing:original)+"; cleanup: "+String(describing:error)])}
    throw original

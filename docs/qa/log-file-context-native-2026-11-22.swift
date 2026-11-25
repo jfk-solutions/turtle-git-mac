@@ -228,7 +228,9 @@ import TurtleGitCore
             table.isHidden=true;try require(!table.accessibilityPerformShowMenu(),"Hidden report exposed AX menu");table.isHidden=false
             // Return visits every selected occurrence, independently of the mark.
             table.selectRowIndexes(IndexSet(fileRows.prefix(2)),byExtendingSelection:false);window.makeFirstResponder(table);comparisons=[]
-            ComparisonToolInvocation.$alternate.withValue(true){table.keyDown(with:key(table,36))}
+            // Native Return captures Shift from the actual event before any
+            // asynchronous preparation, rather than an enclosing TaskLocal.
+            table.keyDown(with:key(table,36,flags:.shift))
             try require(comparisons.flatMap{$0.0}.count==2 && comparisons.allSatisfy{$0.1},"Return did not compare complete highlighted selection/captured Shift")
             // Actual AppKit double-action dispatch must use clickedRow only.
             let clicked=fileRows[0],clickedColumn=table.column(withIdentifier:.init(StatusListColumn.path.rawValue))

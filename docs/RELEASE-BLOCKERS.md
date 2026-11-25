@@ -1,5 +1,22 @@
 # Local testing and release gates
 
+## History invocation recovery — November 25, 2026
+
+The [checkpoint](qa/history-invocation-recovery-2026-11-25.json) retains four
+native workflow/Git passes: actual Shift+Return in Log contexts, and replay
+identity repair with its unresolved autostash kept intact. A fresh invocation
+verifies repeated Settings rereads, failed-hook arguments and exact unchanged
+HEAD/index/worktree. The earlier Browser/Blame and primary-Log passes are retained,
+not repeated. No production source, app build or Core suite changed.
+
+Log's failure cleanup also preserves AppKit-managed auxiliary-window lifetime;
+its updated generated receiver was compiled separately after the workflow passes.
+That compilation is not counted as another native run. Seven logged owned PIDs
+are absent. The cleanup inventory identifies more generic receiver sites for a
+related lifecycle batch; those remain open. Candidate56, installed52 and earlier
+packages are unchanged; full hosted and physical/visual acceptance remain open.
+
+
 ## Signed local candidate56 — November 25, 2026
 
 [Build56](qa/signed-consolidation-build56-2026-11-25.json) packages exact `b3db4ca7`

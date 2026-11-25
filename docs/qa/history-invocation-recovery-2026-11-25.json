@@ -1,0 +1,84 @@
+{
+  "date": "2026-11-25",
+  "baseline": "d19403e8a2202bd395c9ec3c5c80e327ca2a9c5f",
+  "status": "affected-native-workflows-passed; revised-failure-cleanup-compiled-separately",
+  "source_sha256": {
+    "docs/qa/log-file-context-native-2026-11-22.swift": "5b5c21e771c5cab5729b34981954a33f83f494fbde0240acdcd90e42d22c8ef0",
+    "docs/qa/replay-hook-identity-native-2026-10-18.swift": "c557ec6ad4817404dc5b4e9f87adcccd1a317ffc765fac54808b5f9120eafb7b",
+    "scripts/test-history-file-context-family.py": "4c65bab681ba5f515e3ab5d91e1b52fc51f927261a26c4a59de9ec0de6f62b9b"
+  },
+  "native_runs": 4,
+  "native": [
+    {
+      "name": "log-context",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-history-file-context-family.py",
+        "--only",
+        "log-context",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 29.643,
+      "log": "build/qa/history-invocation-recovery-log-context-2026-11-25.log",
+      "sha256": "ffab6c5ccd322f04518024872b3b8366a177fc6af9c242ccc4adb43fafed8acb"
+    },
+    {
+      "name": "replay-identity",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-history-action-family.py",
+        "--only",
+        "replay",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 16.984,
+      "log": "build/qa/history-invocation-recovery-replay-identity-2026-11-25.log",
+      "sha256": "b2839de49b3588be7333af075614cbf29d768af88dd14f3de28ef8e1b088ff6d"
+    }
+  ],
+  "repairs": [
+    "Log context Return sends the actual Shift modifier; strict complete highlighted selection and alternate-tool assertions remain.",
+    "Autostash identity decline retains its stash, blocks Start, and preserves history. Independent clean invocation verifies repeated Settings rereads, failed pre-rebase hook/original arguments and exact HEAD/index/worktree.",
+    "Native Log failure cleanup preserves AppKit auxiliary lifetime instead of rewriting release policy; controller cancellation and existing drainage assertions remain."
+  ],
+  "validation_scope": {
+    "core_or_app_build_rerun": false,
+    "reason": "No production source changes; cached b3db4ca7 app objects reused.",
+    "native_driver_for_workflow_passes": "d19403e8; revised fixture bytes above.",
+    "cleanup_change": "Failure-path-only driver correction followed the native passes. Focused generated receiver compilation is separate, not an additional functional run."
+  },
+  "cleanup": {
+    "logged_owned_pids": [
+      32717,
+      32734,
+      32925,
+      33108,
+      33120,
+      33311,
+      33815
+    ],
+    "currently_present": []
+  },
+  "retained_results": [
+    "Browser/Blame context both engines passed in hosted415 artifact15026120693.",
+    "Primary Log both engines passed in delivery-regressions-2026-11-25.json; not repeated."
+  ],
+  "limits": [
+    "No full hosted, physical/signed UI/Finder or complete source/layout certification.",
+    "Additional generic native-receiver auxiliary-window cleanup sites remain identified for one related lifecycle batch; this record does not claim those fixed."
+  ],
+  "delivery": "Candidate56 b3db source, installed52 and earlier packages unchanged.",
+  "cleanup_compile": {
+    "exit": 0,
+    "log": "build/qa/history-invocation-recovery-cleanup-compile-2026-11-25.log",
+    "sha256": "43c18ad99e57ff90238ff54d3489008e204fe4f84ceeb3c645d2d6e5e661ea3e"
+  }
+}

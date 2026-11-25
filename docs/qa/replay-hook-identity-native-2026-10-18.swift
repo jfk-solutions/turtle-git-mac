@@ -53,19 +53,43 @@ enum ReplayHookIdentityVerification {
         try require(offers == 1 && !FileManager.default.fileExists(atPath: repository.root.appendingPathComponent("hook-args").path), "Missing identity ran pre-rebase script or skipped repair")
         try require(model.hasReplayStash, "Source identity preflight did not retain the earlier autostash")
         try require(try Data(contentsOf: repository.root.appendingPathComponent("file")) == Data("base\n".utf8), "Identity preflight ran before the source stash boundary")
+        try require(!model.canStart,"Retained autostash allowed another Start before its restoration decision")
+        let stashedIndex=try Data(contentsOf:repository.root.appendingPathComponent(".git/index"))
+        let retainedStash=try await repository.run(["rev-parse","--verify","refs/stash"]).stdout
+        try require(try await repository.run(["rev-parse","HEAD"]).stdout==head,"Declined identity changed replay history")
         phase("repeated Settings repair then actual failed pre-rebase hook")
-        var repaired = 0
-        model.repairReplayIdentity = {
+        // Start correctly refuses the previous model's unresolved autostash.
+        // An independent clean invocation exercises repeated Settings repair
+        // without clearing or bypassing that retained restoration obligation.
+        let (repairRepository,repairModel)=try await fixture("settings-repair")
+        defer {repairModel.retire()}
+        try install(repairRepository)
+        _=try await repairRepository.run(["config","--local","user.name",""])
+        let repairHead=try await repairRepository.run(["rev-parse","HEAD"]).stdout
+        let repairIndex=try Data(contentsOf:repairRepository.root.appendingPathComponent(".git/index"))
+        let repairFile=try Data(contentsOf:repairRepository.root.appendingPathComponent("file")),repairTopic=try Data(contentsOf:repairRepository.root.appendingPathComponent("topic"))
+        var repaired = 0,identityReads=0
+        repairModel.readReplayIdentity = { token in
+            identityReads += 1
+            return try await repairRepository.replayUserIdentity(environment:[:],cancellation:token)
+        }
+        repairModel.repairReplayIdentity = {
             repaired += 1
-            if repaired == 2 { _ = try? await repository.run(["config", "--local", "user.name", "Repaired name"]) }
+            if repaired == 2 { _ = try? await repairRepository.run(["config", "--local", "user.name", "Repaired name"]) }
             return true
         }
-        model.execute("start"); try await wait { !model.busy }
+        repairModel.execute("start"); try await wait { !repairModel.busy }
         try require(repaired == 2, "Settings return was trusted without rereading/reoffering incomplete identity")
-        try require(model.error?.contains("Pre-rebase hook failed") == true, "Repaired identity did not reach the existing owned hook")
-        try require(try String(contentsOf: repository.root.appendingPathComponent("hook-args"), encoding: .utf8) == "main|topic", "Preflight altered captured hook arguments")
-        let afterRepair = try await repository.run(["rev-parse", "HEAD"]).stdout
-        try require(afterRepair == head, "Failed hook changed replay history")
+        try require(identityReads==3,"Settings repair did not reread identity after each return")
+        try require(repairModel.error?.contains("Pre-rebase hook failed") == true, "Repaired identity did not reach the existing owned hook")
+        try require(try String(contentsOf: repairRepository.root.appendingPathComponent("hook-args"), encoding: .utf8) == "main|topic", "Preflight altered captured hook arguments")
+        let afterRepair = try await repairRepository.run(["rev-parse", "HEAD"]).stdout
+        try require(afterRepair == repairHead, "Failed hook changed replay history")
+        try require(try Data(contentsOf:repairRepository.root.appendingPathComponent(".git/index"))==repairIndex,"Failed hook changed the exact index")
+        try require(try Data(contentsOf:repairRepository.root.appendingPathComponent("file"))==repairFile && Data(contentsOf:repairRepository.root.appendingPathComponent("topic"))==repairTopic,"Failed hook changed working input bytes")
+        let afterRetainedStash=try await repository.run(["rev-parse","--verify","refs/stash"]).stdout
+        try require(model.hasReplayStash && !model.canStart && afterRetainedStash==retainedStash,"Independent Settings invocation consumed the original stash obligation")
+        try require(try Data(contentsOf:repository.root.appendingPathComponent(".git/index"))==stashedIndex && Data(contentsOf:repository.root.appendingPathComponent("file"))==Data("base\n".utf8),"Independent Settings invocation changed the stashed owner's index/worktree")
 
         phase("held identity read retirement and actual Quit accounting")
         let (heldRepository, heldModel) = try await fixture("held-read")
