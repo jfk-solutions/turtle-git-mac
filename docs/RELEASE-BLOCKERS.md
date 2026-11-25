@@ -1,5 +1,23 @@
 # Local testing and release gates
 
+## Compare selection and localized lists — November 25, 2026
+
+The [Compare repair](qa/compare-native-selection-recovery-2026-11-25.json) fixes
+caret movement to EOF in the direct native presentation path. Both presentation
+entries now preserve source selections with current owner/document/generation
+guards, while explicit history and navigation retain precedence. One incremental
+Debug build and seven affected native cases pass; unchanged runtime kits and
+unrelated passing cohorts were retained. This later fix is not in signed59 or
+installed58. The separate confirmed F5/external Reload position-preservation
+family in both text editors remains open.
+
+[Localized file-list recovery](qa/localized-file-lists-recovery-2026-11-25.json)
+passes six German/French/English file/history processes. Each selection command
+uses the current localized menu epoch, with original icon/dispatch/count and
+semantic placement assertions plus stale-item refusal. The three previously
+passing language Settings processes were retained. Full current hosted and
+physical acceptance remain separate.
+
 ## Handoff, transport and selected-file recovery — November 25, 2026
 
 The [connected native checkpoint](qa/command-handoff-status-merge-recovery-2026-11-25.json)

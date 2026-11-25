@@ -33,6 +33,8 @@ physical acceptance remain open. Historical image56 and SSH57 evidence retains
 its explicit component scope, with fresh59 static compatibility checks; neither
 is new59 execution. Later native fixture corrections are a separate checkpoint.
 No new renderer work, installed-app replacement or public submission is included.
+The later Compare caret-preservation source repair is not included in build59;
+the next consolidation follows the distinct position-preserving Reload batch.
 
 The dated packages below retain their original checkpoint outcomes. Their older
 pending statements are superseded by later evidence only for the same scope.

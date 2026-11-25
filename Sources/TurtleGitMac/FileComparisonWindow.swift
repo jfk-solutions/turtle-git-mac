@@ -610,7 +610,10 @@ private extension FileComparisonDocument {
         if sourceLineSelectionID == id { sourceLineApplied = true; sourceLineSelectionID = nil }
     }
     func captureToolChoice(_ alternate: Bool) { guard !busy, !externalAttempted, !retired else { return }; alternateTool = alternate }
-    @Published var document: FileComparisonDocument?
+    @Published var document: FileComparisonDocument? {didSet{nativeDocumentIdentity=UUID()}}
+    // A synchronous native presentation must not restore a selection captured
+    // for a document replaced by a reentrant owner callback.
+    fileprivate private(set) var nativeDocumentIdentity=UUID()
     var singleFileMode = false
     @Published var nativeToolbarInstalled = false
     @Published private(set) var showToolbar = MergeEditorChrome.visible("Toolbar",defaults:.standard)
@@ -2771,9 +2774,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         // Hosting can deliver a previously captured View value after an edit.
         // Read the current alignment and preserve the selection in source
         // coordinates before replacing attributed display text.
-        let oldDisplay = view.string
-        let previousCells = (view as? FileComparisonTextView)?.sourceCells ?? context.coordinator.cells
-        let sourceSelection = try? FileComparisonEditing.sourceRange(view.selectedRange(), cells: previousCells)
+        let sourceSelection=(view as? FileComparisonTextView).flatMap{context.coordinator.capturePresentationSelection(in:$0)}
         let cells = model.alignment == nil ? self.cells : model.displayCells(base: base)
         context.coordinator.cells = cells; context.coordinator.base = base
         if let target = view as? FileComparisonTextView, target.blockGeneration != model.alignmentGeneration {
@@ -2800,14 +2801,11 @@ struct FileComparisonEditor: NSViewRepresentable {
         let target = view as? FileComparisonTextView
         target?.presentationDepth += 1
         let presentationChanged = target?.foldLayout.installPresentation(value, font: model.generalPreferences.nativeFont, in: view, controller: model.folding) ?? false
+        if presentationChanged,let target {
+            context.coordinator.restorePresentationSelection(sourceSelection,in:target,cells:cells)
+        }
         target?.presentationDepth -= 1
         if presentationChanged { view.needsDisplay = true }
-        if let sourceSelection, !oldDisplay.utf8.elementsEqual(value.string.utf8) {
-            let start = min(FileComparisonEditing.displayOffset(sourceOffset: sourceSelection.location, cells: cells), value.length)
-            let end = min(FileComparisonEditing.displayOffset(sourceOffset: NSMaxRange(sourceSelection), cells: cells), value.length)
-            let range = NSRange(location: start, length: max(0, end - start))
-            if view.selectedRange() != range { view.setSelectedRange(range) }
-        }
         model.lineWrapping.geometryChanged = { [weak model] in DispatchQueue.main.async {
             model?.applyViewportNavigation(); model?.refreshLocatorViewport(); model?.invalidateLineRulers();model?.refreshPaneStatus()
         } }
@@ -2971,12 +2969,39 @@ struct FileComparisonEditor: NSViewRepresentable {
                 format: { text,encoding,name in current()?.replace(text,caret:0,actionName:name,encoding:encoding) }
             ))
         }
+        fileprivate struct PresentationSelection {
+            let sourceRange:NSRange,view:ObjectIdentifier,window:ObjectIdentifier
+            let document:UUID,presentation:UUID,generation:Int,base:Bool
+        }
+        fileprivate func capturePresentationSelection(in view:FileComparisonTextView)->PresentationSelection? {
+            guard model.ownsNativeEditor(view),let window=view.window,
+                  let source=try? FileComparisonEditing.sourceRange(view.selectedRange(),cells:view.sourceCells) else{return nil}
+            return .init(sourceRange:source,view:ObjectIdentifier(view),window:ObjectIdentifier(window),
+                         document:model.nativeDocumentIdentity,presentation:model.nativePresentationEpoch,
+                         generation:model.alignmentGeneration,base:base)
+        }
+        fileprivate func restorePresentationSelection(_ receipt:PresentationSelection?,in view:FileComparisonTextView,cells:[MergeSourceCell]) {
+            guard let receipt,receipt.view==ObjectIdentifier(view),receipt.window==view.window.map(ObjectIdentifier.init),
+                  receipt.document==model.nativeDocumentIdentity,receipt.presentation==model.nativePresentationEpoch,
+                  receipt.generation==model.alignmentGeneration,receipt.base==base,view.baseSide==base,
+                  model.ownsNativeEditor(view) else{return}
+            let length=view.string.utf16.count
+            let start=min(FileComparisonEditing.displayOffset(sourceOffset:receipt.sourceRange.location,cells:cells),length)
+            let end=min(FileComparisonEditing.displayOffset(sourceOffset:NSMaxRange(receipt.sourceRange),cells:cells),length)
+            let range=NSRange(location:start,length:max(0,end-start))
+            // Restore while presentation callbacks are suppressed. Explicit
+            // history, initial navigation and queued source selections still
+            // run afterward and take precedence over this passive preservation.
+            if view.selectedRange() != range {view.setSelectedRange(range)}
+        }
         func installCurrentPresentation() {
             guard let scroll,let view=scroll.documentView as? FileComparisonTextView,model.ownsNativeEditor(view) else{return}
+            let selection=capturePresentationSelection(in:view)
             cells = model.displayCells(base: base); view.sourceCells = cells
             if view.blockGeneration != model.alignmentGeneration { view.blockSelection.clear(in: view); view.invalidateNavigationRevision(); view.blockGeneration = model.alignmentGeneration }
             view.presentationDepth += 1
-            _ = view.foldLayout.installPresentation(FileComparisonEditor.attributed(cells, font: view.font ?? model.generalPreferences.nativeFont, model: model, base: base), font: view.font ?? model.generalPreferences.nativeFont, in: view, controller: model.folding)
+            let changed=view.foldLayout.installPresentation(FileComparisonEditor.attributed(cells, font: view.font ?? model.generalPreferences.nativeFont, model: model, base: base), font: view.font ?? model.generalPreferences.nativeFont, in: view, controller: model.folding)
+            if changed {restorePresentationSelection(selection,in:view,cells:cells)}
             view.presentationDepth -= 1
             view.missingOffsets = FileComparisonEditor.missingOffsets(cells, model: model, base: base)
             view.whitespaceRenderer.update(text: view.string, cells: cells, otherCells: model.onePaneActive ? nil : model.displayCells(base: !base), preferences: model.whitespaceDisplay)

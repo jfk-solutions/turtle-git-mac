@@ -51,7 +51,10 @@ struct MergeBlockSelectionVerification {
             }
         }
         func diagnostic()->String {
-            ThreePaneEngineVerification.snapshot(merge)+"; serialized="+String(reflecting:three.result)+"; display="+String(reflecting:three.resultDisplayText)+"; current="+String(reflecting:currentResult()?.string)
+            let selected=currentResult()
+            let selection=selected.map{NSStringFromRange($0.selectedRange())} ?? "none"
+            let block=(selected as? MergeBlockSelecting)?.mergeSelectedBlockRange.map(NSStringFromRange) ?? "none"
+            return ThreePaneEngineVerification.snapshot(merge)+"; serialized="+String(reflecting:three.result)+"; display="+String(reflecting:three.resultDisplayText)+"; current="+String(reflecting:selected?.string)+"; selection="+selection+"; block="+block+"; focused=\(merge.window?.firstResponder === selected)"
         }
         try await ThreePaneEngineVerification.wait(phase:"current block-selection result",diagnostic:diagnostic){
             merge.window?.contentView?.layoutSubtreeIfNeeded()
@@ -60,9 +63,12 @@ struct MergeBlockSelectionVerification {
         // Aligned native rows include view-only cells. Verify the unchanged
         // serialized file oracle separately from its exact native presentation.
         try require(three.result == after,"Initial block-selection file text differs: "+diagnostic())
-        try await ThreePaneEngineVerification.wait(phase:"block-selection native presentation",diagnostic:diagnostic){currentResult()?.string == three.resultDisplayText}
+        try await ThreePaneEngineVerification.wait(phase:"block-selection native presentation and initial navigation drain",diagnostic:diagnostic){three.selectionRequest == nil && currentResult()?.string == three.resultDisplayText}
         guard let result=currentResult() else {throw Failure(description:"Current block-selection result disappeared: "+diagnostic())}
-        merge.window!.makeFirstResponder(result);result.setSelectedRange(NSRange(location:0,length:0));await Task.yield();three.navigateBlock(1,conflictsOnly:false)
+        try require(merge.window!.makeFirstResponder(result),"Result navigation focus was refused: "+diagnostic())
+        result.setSelectedRange(NSRange(location:0,length:0));await Task.yield()
+        try require(currentResult() === result && three.selectionRequest == nil && result.selectedRange() == NSRange(location:0,length:0),"Result navigation header was superseded before Next Difference: "+diagnostic())
+        three.navigateBlock(1,conflictsOnly:false)
         let resultBlock=result as! MergeBlockSelecting
         let removed=try resultBlock.mergeSelectedBlockRange.unwrap("Missing removed result display block: "+diagnostic())
         try require(result.selectedRange() == NSRange(location:5,length:0) && (result.string as NSString).substring(with:removed) == "old one\nold two","Removed result display block: "+diagnostic())

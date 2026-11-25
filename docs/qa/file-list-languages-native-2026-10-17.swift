@@ -45,15 +45,28 @@ struct FileListLanguagesVerification {
         let commands=owner.commandMenu!,previousMenu=commands.applicationMenu,previousKey=commands.keyWindow
         commands.applicationMenu={main};commands.keyWindow={window};commands.install()
         defer {commands.remove();commands.applicationMenu=previousMenu;commands.keyWindow=previousKey}
-        guard let root=main.items.first(where:{$0.identifier?.rawValue=="TurtleGit.Commit.Commands"}),let menu=root.submenu else {throw Failure(description:"Missing localized Commit menu")}
-        try require(main.index(of:root)<main.index(of:windowItem) && root.title==NSLocalizedString("Commit",comment:""),"Localized root lost semantic Window placement")
-        guard let check=menu.items.first(where:{$0.title==NSLocalizedString("Check files",comment:"")})?.submenu else {throw Failure(description:"Missing translated Check files group")}
         for key in ["All","None"] {
+            // Dispatch retires that menu epoch. Observe the next installed
+            // localized command instead of retaining its predecessor's item.
+            var accepted:NSMenuItem?
+            try await wait(window) {
+                commands.install()
+                guard let root=main.items.first(where:{$0.identifier?.rawValue=="TurtleGit.Commit.Commands"}),
+                      let check=root.submenu?.items.first(where:{$0.title==NSLocalizedString("Check files",comment:"")})?.submenu,
+                      let item=check.items.first(where:{$0.title==NSLocalizedString(key,comment:"")}),
+                      commands.validateMenuItem(item) else{return false}
+                accepted=item;return true
+            }
+            guard let root=main.items.first(where:{$0.identifier?.rawValue=="TurtleGit.Commit.Commands"}),let item=accepted else {throw Failure(description:"Missing current localized selection action: "+key)}
+            try require(main.index(of:root)<main.index(of:windowItem) && root.title==NSLocalizedString("Commit",comment:""),"Localized root lost semantic Window placement: "+key)
+            try require(commands.validateMenuItem(item) && item.image != nil,"Selection caption lost action/icon availability: key=\(key),valid=\(commands.validateMenuItem(item)),image=\(item.image != nil)")
             let shift=NSEvent.modifierFlags.contains(.shift),checking=key == "None" ? shift:!shift
-            guard let item=check.items.first(where:{$0.title==NSLocalizedString(key,comment:"")}) else {throw Failure(description:"Missing translated selection action")}
-            try require(commands.validateMenuItem(item) && item.image != nil,"Selection caption lost action/icon availability")
             try require(NSApp.sendAction(item.action!,to:item.target,from:item),"Translated selection action did not dispatch")
             try await wait(window) {model.checkedPathsForCommit.count == (checking ? model.visibleEntries.count:0)}
+            let checked=model.checkedPathsForCommit
+            try require(!commands.validateMenuItem(item),"Consumed translated selection item remained current: "+key)
+            _=NSApp.sendAction(item.action!,to:item.target,from:item)
+            try require(model.checkedPathsForCommit==checked,"Consumed translated selection item changed checked files: "+key)
         }
         model.check({$0.path=="Modified"},checking:true)
         try await wait(window) {model.checkedPathsForCommit.count==1}
@@ -83,7 +96,7 @@ struct FileListLanguagesVerification {
         let root=FileManager.default.temporaryDirectory.appendingPathComponent("TurtleGitFileLanguages-"+UUID().uuidString)
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let suite="TurtleGit.FileLanguages."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!,board=NSPasteboard.withUniqueName()
-        defer {NSApp.windows.forEach {$0.close()};board.releaseGlobally();prefs.removePersistentDomain(forName:suite);try? FileManager.default.removeItem(at:root)}
+        defer {NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort);board.releaseGlobally();prefs.removePersistentDomain(forName:suite);try? FileManager.default.removeItem(at:root)}
         prefs.set(true,forKey:"AddBeforeCommit")
         let repo=GitRepository(root:root,executable:URL(fileURLWithPath:"/usr/bin/git"))
         _=try await repo.run(["init","-b","main"])

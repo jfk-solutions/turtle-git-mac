@@ -37,6 +37,29 @@ has independent runtime priority even though its Settings checkbox is disabled
 when FirstDiff is off. Disabling both flags suppresses the initial selection.
 Existing explicit navigation and block-choice commands retain their meanings.
 
+## Native presentation selection recovery — November 25, 2026
+
+The [connected repair](qa/compare-native-selection-recovery-2026-11-25.json)
+fixes a real Compare caret jump during a provisional-to-authoritative reload.
+Completing the busy phase can install native text directly through the coordinator;
+that path previously bypassed selection preservation and moved the actual caret
+to EOF. Both presentation entry points now capture source coordinates before
+changing cells/text, remap them under current view/window/document/generation
+guards and leave explicit history/navigation requests in charge afterward.
+
+One incremental Debug build and seven affected native editor cases pass, including
+header and nonzero Unicode/multiline selection, live fonts, provisional reload,
+encoding/patch behavior and existing block/navigation/whitespace/one-pane guards.
+One bounded diagnostic and the affected fixture's initial-navigation race remain
+recorded; unrelated passing cohorts and all runtime kits were retained.
+
+This passive selection repair does not yet distinguish user Reload from fresh
+Open. Pinned `OnFileReload` uses `LoadViews(-1)` to retain logical caret/top line,
+whereas fresh Open and input-encoding reinterpretation use configured initial
+navigation. Both native editors still route F5 and accepted external changes
+through generic load; that confirmed position-preserving Reload family remains
+open. The signed59 package and installed58 do not contain this later source fix.
+
 ## Evidence and remaining work
 
 The grouped Core checkpoint passed 24 tests with zero failures: source defaults,

@@ -1,0 +1,76 @@
+{
+  "kind": "TurtleGitCompareNativePresentationSelectionRecovery",
+  "date": "2026-11-25",
+  "base_source_commit": "7ef3692940d36ee8f08d58678246364d218861ca",
+  "production_overlay": {
+    "path": "Sources/TurtleGitMac/FileComparisonWindow.swift",
+    "sha256": "71fcf7529a53d907440a05969c81e25f90b8aa6fc03d8fe6f5fe731cadd2c10f"
+  },
+  "defect": "Completing a Compare load sets busy=false while a provisional alignment can still be filtering. synchronizeNativeEditors installs this projection directly through the coordinator; that entry point previously replaced source cells/native text without preserving selection. Both actual current panes moved from an authored header caret to EOF, and the authoritative engine then retained that corrupted position.",
+  "causal_source_path": [
+    "FileComparisonWindowModel.busy.didSet",
+    "synchronizeNativeEditors(installPresentation:true)",
+    "FileComparisonEditor.Coordinator.installCurrentPresentation",
+    "Native NSTextStorage replacement and selection notification",
+    "rebuildAlignment authoritative result capturing current native source selection"
+  ],
+  "repair": [
+    "Both native presentation entry points capture source selection before replacing cells/text and restore mapped selection when the presentation changes.",
+    "Receipts bind exact native view/window, opaque document identity, target presentation epoch, generation, side and current ownership; no blind reset to position zero.",
+    "Restoration runs under presentation notification suppression and sets only changed ranges. Explicit history, queued selection and initial-navigation requests keep precedence.",
+    "No generic folding or Core changes."
+  ],
+  "validation": {
+    "incremental_debug_builds": 1,
+    "debug_build_exit": 0,
+    "debug_build_seconds": 55.78,
+    "complete_affected_native_cases": 7,
+    "cases": [
+      "General preferences/fixed-pitch/live font/initial navigation/Unicode multiline restyle and provisional-to-verified reload",
+      "Input encoding",
+      "Patch settings/export",
+      "Block selection",
+      "Block navigation",
+      "Whitespace states",
+      "One-pane editing"
+    ],
+    "core_suite_repeated": false,
+    "unrelated_cases_retained": "Earlier30 noneditor cases and six locale file/history processes were retained. Four earlier Merge cases were rechecked because the shared Compare implementation changed.",
+    "unrelated_runtime_inventory_members_unchanged": 5625,
+    "other_production_sources_unchanged": 500,
+    "general_fixture_sha256": "913847fdb750992417f18396f029d201d4b4c6c5ebaf78b004a119ba078261c0",
+    "block_fixture_sha256": "ab288c3ba2b88389363d16869cf974cb0cb519999634e996cb5711c8c5c4eef0"
+  },
+  "failure_history": [
+    "Old hosted219 passed source/profile then failed its retained-view/disabled-navigation General assertion.",
+    "The corrected current-owner fixture revealed real EOF movement; the original failure and single bounded native transition witness remain recorded.",
+    "A deeper diagnostic was prepared on main temporarily but never copied or executed; the synchronous direct-install source path established the cause.",
+    "The first affected Merge recheck hit an unfenced initial navigation request in its three-way fixture; only four affected/unreached Merge cases were rechecked after current-request/focus/origin fencing."
+  ],
+  "receipts": {
+    "merge-editor-language-native-2026-11-25.json": {
+      "path": "build/qa/merge-editor-language-native-2026-11-25.json",
+      "sha256": "eb1a6f9e50cfcee957f1db0421a08137520f908c2fee06f8eacd5b9075ac41f9"
+    },
+    "merge-general-caret-transition-witness-2026-11-25.json": {
+      "path": "build/qa/merge-general-caret-transition-witness-2026-11-25.json",
+      "sha256": "5f5caf1cc2058df71e13a9238c40bdc7c5f70684773125ba385cfe47c205cd9d"
+    },
+    "compare-selection-repair-2026-11-25-journal.json": {
+      "path": "build/qa/compare-selection-repair-2026-11-25-journal.json",
+      "sha256": "69480483e280bd8ac724aac8e69077aea22760ecf62ae8765ad379aad9968b7a"
+    },
+    "compare-selection-merge4-recheck-2026-11-25.json": {
+      "path": "build/qa/compare-selection-merge4-recheck-2026-11-25.json",
+      "sha256": "7a5b461e3129c37359bf92ac4339d2edd8efc82b161d5367e146792228383e4d"
+    }
+  },
+  "cleanup": "All owned compiler/receiver/helper processes were reaped; recorded PIDs are absent and private windows/preferences/files were cleaned. No user app was terminated.",
+  "signed59_unchanged": true,
+  "installed58_unchanged": true,
+  "renderer_feature_work": false,
+  "remaining": [
+    "Explicit F5/menu and accepted external Reload still need their own position-preserving purpose in both editors; fresh Open/input reinterpretation must retain configured initial navigation. This is a separate confirmed end-user parity batch.",
+    "No full current hosted CI, physical Finder, signed current-code or complete visual/accessibility acceptance claimed."
+  ]
+}

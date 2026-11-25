@@ -17,7 +17,9 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-languages-') as temporary:
     settings=folder/'LanguageSettings.swift';settings.write_text((root/'docs/qa/language-family-native-2026-10-17.swift').read_text().replace('@main ', '',1))
     main=folder/'LanguageMain.swift';main.write_text('import AppKit\n@main struct LanguageMain { @MainActor static func main() async throws { NSApp.setActivationPolicy(.prohibited);switch ProcessInfo.processInfo.environment["TURTLEGIT_LANGUAGE_CASE"] { '+''.join('case "'+case+'":try await '+functions[case]+';' for case in cases)+'default:fatalError("Unknown language case")} } }\n')
     fixtures=[]
-    if 'settings' in cases:fixtures.append(settings)
+    # File-list captures use this helper even when the Settings cohort is retained
+    # from an earlier pass. Including its stripped type does not run that cohort.
+    if 'settings' in cases or 'files' in cases:fixtures.append(settings)
     if 'files' in cases:fixtures.append(root/'docs/qa/file-list-languages-native-2026-10-17.swift')
     if 'history' in cases:fixtures.append(root/'docs/qa/history-localization-native-2026-11-01.swift')
     receiver=build_receiver(root,[*fixtures,main],folder)

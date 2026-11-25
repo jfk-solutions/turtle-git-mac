@@ -1,0 +1,61 @@
+{
+  "kind": "TurtleGitLocalizedFileListNativeRecovery",
+  "date": "2026-11-25",
+  "production_source_commit": "1ad1d98fcff11c52f72512f8dc3de9aba75712d2",
+  "source_equivalent_through_commit": "7ef3692940d36ee8f08d58678246364d218861ca",
+  "production_changes": false,
+  "scope": [
+    "Reacquire the current localized Commit root, Check files submenu and action for each All/None dispatch; retain semantic Window placement, validation, icon, real action and checked-count assertions.",
+    "Verify the consumed menu item is refused and cannot change checked paths.",
+    "Include the Settings capture helper as library source for files-only subsets without reexecuting Settings; use safe owned-window cleanup."
+  ],
+  "validation": {
+    "complete_native_processes": 6,
+    "locales": [
+      "de",
+      "fr",
+      "en"
+    ],
+    "cohorts": [
+      "files",
+      "history"
+    ],
+    "history_git": "/usr/bin/git",
+    "retained_hosted_settings_processes": [
+      "de",
+      "fr",
+      "en"
+    ],
+    "full_app_or_Core_build": false,
+    "Core_suite": false,
+    "renderers_changed_or_executed": false,
+    "cached_production_objects_and_frameworks_unchanged": true,
+    "language_command": [
+      "python3",
+      "scripts/test-language-family.py",
+      "--only",
+      "files",
+      "--only",
+      "history"
+    ],
+    "language_elapsed_seconds": 18.286,
+    "language_log_sha256": "d965f669462efd19c2ef5bed413f97841b974728bf0e8e8114664aaa70cb9dde"
+  },
+  "original_failure": "Old2f settings-finder411 reached files/de and reported compound selection-caption action/icon unavailability; the fixture reused a menu whose first command retired its epoch. Original output did not identify the failing iteration/conjunct.",
+  "receipts": {
+    "merge-editor-language-native-2026-11-25.json": {
+      "path": "build/qa/merge-editor-language-native-2026-11-25.json",
+      "sha256": "eb1a6f9e50cfcee957f1db0421a08137520f908c2fee06f8eacd5b9075ac41f9"
+    },
+    "language_log": {
+      "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/merge-editor-language-native-2026-11-25-language.log",
+      "sha256": "d965f669462efd19c2ef5bed413f97841b974728bf0e8e8114664aaa70cb9dde"
+    }
+  },
+  "cleanup": "All six language receivers and compiler were reaped; private process directories/preferences/pasteboards and owned windows were cleaned; no user app was terminated.",
+  "limits": [
+    "Six focused native process passes, not complete hosted or physical language/accessibility acceptance.",
+    "Separate Merge General provisional-presentation caret defect found by the same grouped command remains under repair; its failed status is retained in the parent report.",
+    "No installed58 change or signed59 replacement."
+  ]
+}

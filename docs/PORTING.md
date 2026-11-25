@@ -1,5 +1,26 @@
 # TurtleGit for Mac — full port tracking
 
+## Compare presentation and localized workflow recovery — November 25, 2026
+
+The [native presentation repair](qa/compare-native-selection-recovery-2026-11-25.json)
+preserves caret and Unicode/multiline selection through the direct and SwiftUI
+Compare presentation paths, including provisional reload projections and live
+font changes. One Debug build and seven affected editor cases pass. The
+[localized lists checkpoint](qa/localized-file-lists-recovery-2026-11-25.json)
+passes six file/history locale processes, retaining earlier Settings passes.
+The separate [handoff/selected-file checkpoint](qa/command-handoff-status-merge-recovery-2026-11-25.json)
+passes its 34 distinct case/engine runs with affected-only repairs and no full
+Core/native repeats. All recorded owned helpers are reaped.
+
+[Signed59](qa/signed-consolidation-build59-2026-11-25.json) is packaged from
+`1ad1d98f`; it includes the Browser/Rebase fixes, but not the later Compare caret
+repair. Installed58 remains unchanged. Both editors still need a distinct
+position-preserving F5/accepted-external Reload purpose, following pinned
+`LoadViews(-1)` while fresh Open/input reinterpretation keeps initial navigation.
+That confirmed end-user workflow is the next related implementation batch.
+Full corrected-source hosted, signed/physical and complete visual acceptance
+remain separate; no new renderer work or public submission was performed.
+
 ## Browser root authority and General ownership — November 25, 2026
 
 The [connected checkpoint](qa/browser-root-general-recovery-2026-11-25.json)
@@ -13,8 +34,8 @@ One Debug build, all20 Browser Core methods and three grouped native cases pass,
 including both URL hint orientations and exact filtered outputs/repository bytes.
 General's native fixture now gives a fresh window its own model and retains the
 old model's permanent-retirement assertions. No full local suite was repeated.
-Build59 is still unbuilt and will freeze this correction before its single signed
-build; installed58 and renderer kits are unchanged. Full current hosted CI and
+Build59 now packages this correction in its frozen local candidate;
+installed58 and renderer kits are unchanged. Full current hosted CI and
 physical/signed acceptance remain separate.
 
 ## Native Sync drag contract recovery — November 25, 2026
