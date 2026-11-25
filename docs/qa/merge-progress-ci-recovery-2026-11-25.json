@@ -1,0 +1,138 @@
+{
+  "date": "2026-11-25",
+  "baseline": "9b55c562",
+  "status": "all five affected native cohorts passed with both Git versions",
+  "production_changes": false,
+  "source_review": [
+    "Private Merge clone identity and explicit CLI only for argv-controlled shim actors/prefs; ordinary backend coverage retained elsewhere.",
+    "Exact global-option-aware command parser includes both literal path modes and explicit private Local marker paths.",
+    "Native Switch view owns its Dock producer, so both Switch models use actual hidden/offscreen controllers and real registration/drain.",
+    "Merge inspection/dismissal gate exact current ls-files -u read, preserving all seven cleanup-stage assertions.",
+    "Owned word-input sheet is ARC-managed; historical SIGSEGV has no stack proving cause.",
+    "Abort probes wait complete valid live PID markers and actual work drainage instead of a fixed sleep.",
+    "Format Patch stdout remains exclusively the verified filename receipt; diagnostics use stderr and are still asserted in combined output."
+  ],
+  "native_runs_passed": 10,
+  "checks": [
+    {
+      "scope": "Word input ownership",
+      "runs": 2,
+      "log": "build/qa/merge-release-word-2026-11-25.log"
+    },
+    {
+      "scope": "Abort Merge dialogs, output and cancellation",
+      "runs": 2,
+      "log": "build/qa/merge-release-abort-2026-11-25.log"
+    },
+    {
+      "scope": "Local command stream, Dock and process ownership",
+      "runs": 2,
+      "log": "build/qa/merge-release-local-progress-literal-repair-2026-11-25.log"
+    },
+    {
+      "scope": "Merge forced cleanup across seven stages",
+      "runs": 2,
+      "log": "build/qa/merge-release-cleanup-final-2026-11-25.log"
+    },
+    {
+      "scope": "Format Patch retained progress and deferred confirmation",
+      "runs": 2,
+      "log": "build/qa/merge-release-format-progress-final-2026-11-25.log"
+    }
+  ],
+  "failed_attempts": [
+    {
+      "log": "build/qa/merge-release-local-progress-2026-11-25.log",
+      "cause": "Positional command/root assumptions skipped actual Switch command after a global -c argument."
+    },
+    {
+      "log": "build/qa/merge-release-cleanup-2026-11-25.log",
+      "cause": "Same fixed-position command probe bypassed remote preparation gate."
+    },
+    {
+      "log": "build/qa/merge-release-format-progress-2026-11-25.log",
+      "cause": "New diagnostic tried to read private model.files; removed only diagnostic field."
+    },
+    {
+      "log": "build/qa/merge-release-local-progress-repair-2026-11-25.log",
+      "cause": "Switch model alone has no view-owned Dock producer; mounted actual private native controller."
+    },
+    {
+      "log": "build/qa/merge-release-cleanup-repair-2026-11-25.log",
+      "cause": "Fixture gated status while actual post-merge inspection/dismissal uses ls-files -u."
+    },
+    {
+      "log": "build/qa/merge-release-format-progress-repair-2026-11-25.log",
+      "cause": "Probe wrote diagnostic text to stdout, invalidating strict exported-file receipt. Moved diagnostic to stderr, preserving combined output assertion."
+    },
+    {
+      "log": "build/qa/merge-release-local-progress-final-2026-11-25.log",
+      "cause": "Parser omitted --no-literal-pathspecs, deliberately used by Stash save. Added valid global mode; original data/result assertions retained."
+    }
+  ],
+  "source_sha256": {
+    "docs/qa/merge-word-input-native-2026-10-20.swift": "b79f12f225f5cd410ca7760501555619dd3e851a9c28e39dc90a5f4ce3ba47a2",
+    "docs/qa/local-command-progress-native-2026-10-14.swift": "2c358ea9d9b04dda4cb5cb6a339393d349210d59a7ebbc08c3b0010210afdd06",
+    "docs/qa/merge-cleanup-native-2026-10-09.swift": "33b27971ab4aa6371d5781d1de14e924bf3b589995902bc8ff5f4931dc35390a",
+    "docs/qa/merge-abort-dialog-native-2026-10-08.swift": "791288c8b9c01809d2bd1b5a27f8f35b8ed37a99ac807960e61487ed930ffae4",
+    "docs/qa/format-patch-progress-native-2026-10-08.swift": "dc1e1ebb9d89aaf646c966af348018c5fac5ba03a9f88c5d8e52a5bdf6bd21ec"
+  },
+  "evidence_sha256": {
+    "build/qa/merge-release-abort-2026-11-25.log": "69cf34b54cdbbe33b6ad7f8e392a1b9e9c16fe726897221a98832fa6c024bfb8",
+    "build/qa/merge-release-cleanup-2026-11-25.log": "84e9c0f71cc95cbbeaabb5bd7fe93c56efd1cd72bf8b8806792c2d3ae39678d8",
+    "build/qa/merge-release-cleanup-final-2026-11-25.log": "633d9fa18abadc4eb29ebc3415eab6e290c8d2d2d79153ede6f2e71a72d3f8d8",
+    "build/qa/merge-release-cleanup-repair-2026-11-25.log": "042e9ca7bcceb373006ef268de51579b0ce33d0e5a139d5f1af7a2b52bbd7e7a",
+    "build/qa/merge-release-format-progress-2026-11-25.log": "eaa597e578049ed497738b7550aff5c4841263cdad646e8354d988f78dc9bfaf",
+    "build/qa/merge-release-format-progress-final-2026-11-25.log": "b586c2817a3d6322c7b61a8072fd77b6eb51e4fe95cf79f692203139bdad0558",
+    "build/qa/merge-release-format-progress-repair-2026-11-25.log": "7947d32ac31fe934757c7a982eb4703ec9e74aed9db36f399b3416960bbde5dd",
+    "build/qa/merge-release-local-progress-2026-11-25.log": "0109eaa2031126f3b5e170f10d5aac431793920b082b9d44574062443f8fd666",
+    "build/qa/merge-release-local-progress-final-2026-11-25.log": "ef3fc702013ddb194ef5119763dc3a15fff0a621da070d9d83fa76e913730d5e",
+    "build/qa/merge-release-local-progress-literal-repair-2026-11-25.log": "e3f6ee376b9a4080c6a746bf221bc2a00ec06ac93e5392ac75485dc2c34d0ecd",
+    "build/qa/merge-release-local-progress-repair-2026-11-25.log": "f1500bd74d0667201773416d07d91a0d6224f53bbe019c9efa5342d0d120cf40",
+    "build/qa/merge-release-word-2026-11-25.log": "94d0dc9f085aaaaad041f3986e22b1f0293292047156af7af127d1a741c9622e"
+  },
+  "core_and_app_build": {
+    "run": false,
+    "reason": "No production changes. Retain preceding SSH23 Core and14 native passes; reuse current source/framework/module/compiler/architecture-keyed Debug receiver objects."
+  },
+  "cleanup": {
+    "logged_owned_compiler_receiver_pids": [
+      52649,
+      52660,
+      52675,
+      52695,
+      52699,
+      52803,
+      52810,
+      52890,
+      52898,
+      53231,
+      53541,
+      53816,
+      53825,
+      53886,
+      53910,
+      54453,
+      54535,
+      59949,
+      59981,
+      60499,
+      60518,
+      60797,
+      61070,
+      61123,
+      61330,
+      65941,
+      65969,
+      66097
+    ],
+    "currently_present": [],
+    "scope": "All test windows private/invisible/offscreen; original owned process, callback, state and sheet-drain assertions retained."
+  },
+  "limitations": [
+    "Focused current checks do not establish a complete hosted run or shipping/physical acceptance.",
+    "Word-input historical crash cause remains unproven; actual current cohort passes are the evidence.",
+    "No protected reference driver or WMF/EMF changes.",
+    "Signed56 and installed app unchanged; no binary publication or App Store submission."
+  ]
+}

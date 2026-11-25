@@ -4,10 +4,10 @@ import TurtleGitCore
 @main struct MergeCleanupVerification {
     struct Failure: Error { let message: String }
     @MainActor static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(message: message) } }
-    @MainActor static func wait(_ predicate: () -> Bool) async throws {
+    @MainActor static func wait(_ predicate: () -> Bool,line:UInt = #line,diagnostic:()->String={""}) async throws {
         let deadline = Date().addingTimeInterval(15)
         while !predicate() && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        try require(predicate(), "Timed out")
+        try require(predicate(), "Timed out at \(line): "+diagnostic())
     }
     @MainActor static func main() async {
         do { try await verify() } catch { fputs("Merge cleanup failed: \(error)\n", stderr); exit(1) }
@@ -17,7 +17,7 @@ import TurtleGitCore
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let suite = "TurtleGit.MergeCleanup.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
-        prefs.set(0, forKey: "AutoCloseGitProgress")
+        prefs.set(0, forKey: "AutoCloseGitProgress");prefs.set(false,forKey:"UseLibgit2")
         let source = root.appendingPathComponent("source")
         try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
         let producer = GitRepository(root: source, executable: git)
@@ -31,15 +31,34 @@ import TurtleGitCore
             let client = root.appendingPathComponent(stage)
             _ = try await producer.run(["clone", source.path, client.path])
             let actual = GitRepository(root: client, executable: git)
+            // Clone does not copy producer-local identity. Prepare the actual
+            // private clone before asking Merge to admit metadata/Git work.
+            for (key,value) in [("user.name","Cleanup QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_=try await actual.run(["config",key,value])}
             _ = try await actual.run(["branch", "feature", "refs/remotes/origin/feature"])
             let before = try await actual.run(["rev-parse", "HEAD"]).stdout
             let helper = root.appendingPathComponent("slow-" + stage), marker = URL(fileURLWithPath: helper.path + ".started")
-            let command = ["validation":"rev-parse", "inspection":"status", "dismissal":"status", "deletion":"branch"][stage] ?? stage
+            let command = ["validation":"rev-parse", "inspection":"ls-files", "dismissal":"ls-files", "deletion":"branch"][stage] ?? stage
             let quoted = "'" + git.path.replacingOccurrences(of: "'", with: "'\\''") + "'"
             let script = """
             #!/bin/sh
-            if [ "\(stage)" = inspection ] && [ "${4-}" = merge ]; then exit 1; fi
-            if [ "${4-}" = '\(command)' ]; then
+            fixture_git_command=
+            fixture_skip_global=0
+            for fixture_arg in "$@"; do
+              if [ "$fixture_skip_global" = 1 ]; then fixture_skip_global=0; continue; fi
+              case "$fixture_arg" in
+                -C|-c|--git-dir|--work-tree|--namespace|--config-env) fixture_skip_global=1 ;;
+                --literal-pathspecs|--no-optional-locks|--no-pager|--paginate|--bare|--no-replace-objects|--no-lazy-fetch) ;;
+                -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) ;;
+                -*) break ;;
+                *) fixture_git_command=$fixture_arg; break ;;
+              esac
+            done
+            if [ "\(stage)" = inspection ] && [ "$fixture_git_command" = merge ]; then exit 1; fi
+            fixture_conflict_query=0
+            if [ "$fixture_git_command" = ls-files ]; then
+              for fixture_arg in "$@"; do if [ "$fixture_arg" = -u ]; then fixture_conflict_query=1; fi; done
+            fi
+            if [ "$fixture_git_command" = '\(command)' ] && { [ '\(stage)' != inspection ] && [ '\(stage)' != dismissal ] || [ "$fixture_conflict_query" = 1 ]; }; then
               printf 'owned cleanup work\\n'
               /bin/sleep 30 &
               task_child=$!
@@ -52,15 +71,15 @@ import TurtleGitCore
             try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
             var ids: [Int32] = []
             defer { for pid in ids where kill(pid, 0) == 0 { _ = kill(pid, SIGTERM) } }
-            let wrapped = GitRepository(root: client, executable: helper)
+            let wrapped = GitRepository(root: client, executable: helper,libgit2Configuration:.init(enabled:false))
             if stage == "remote" || stage == "config" {
                 let owner = MergeWindowController(repository: wrapped, access: nil, preferences: prefs)
                 defer { owner.close() }
                 owner.model.load(revision: "refs/heads/feature")
-                try await wait { FileManager.default.fileExists(atPath: marker.path) }
+                try await wait({(try? String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}.count)==2},diagnostic:{"stage=\(stage),metadataBusy=\(owner.model.busy),prepared=\(owner.model.prepared),error=\(String(reflecting:owner.model.error)),sheet=\(owner.window?.attachedSheet != nil)"})
                 ids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
-                try require(ids.count == 2 && ids.allSatisfy { kill($0,0) == 0 }, "Metadata process not live")
-                owner.close(); try await wait { ids.allSatisfy { kill($0,0) != 0 } }
+                try require(ids.count == 2 && ids.allSatisfy { $0>0 && kill($0,0) == 0 }, "Metadata process not live")
+                owner.close(); try await wait { ids.allSatisfy { kill($0,0) != 0 } && !owner.model.busy && owner.model.closed }
                 try require(owner.model.closed && !owner.model.busy && owner.model.references.isEmpty && owner.model.error == nil, "Closed metadata published")
             } else {
                 var options = MergeOptions(); options.revision = "refs/heads/feature"; options.fastForwardOnly = true
@@ -80,15 +99,14 @@ import TurtleGitCore
                     prefs.set(true, forKey: "ConfirmKillProcess")
                     model.confirmCancellation = { lateAnswer = $0 }
                 }
-                try await wait { FileManager.default.fileExists(atPath: marker.path) }
+                try await wait({(try? String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}.count)==2},diagnostic:{"stage=\(stage),busy=\(model.busy),success=\(model.success),output=\(String(reflecting:model.output)),pending=\(model.hasPendingWork)"})
                 ids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
-                try require(ids.count == 2 && ids.allSatisfy { kill($0,0) == 0 }, "Progress process not live")
+                try require(ids.count == 2 && ids.allSatisfy { $0>0 && kill($0,0) == 0 }, "Progress process not live")
                 if stage == "merge" { model.cancel(); try require(model.confirmingCancellation, "Missing confirmation") }
                 controller.close()
                 let frozen = (model.output, model.rawOutput, model.postActions, changes)
                 lateAnswer?(true); model.perform(.push); model.cancelResult(); model.start()
-                try await wait { ids.allSatisfy { kill($0,0) != 0 } }
-                try await Task.sleep(nanoseconds: 100_000_000)
+                try await wait { ids.allSatisfy { kill($0,0) != 0 } && !model.hasPendingWork && !model.busy && !model.confirmingCancellation && !model.confirmingDeletion && !model.checkingDismissal }
                 try require(!model.busy && !model.confirmingCancellation && !model.confirmingDeletion && !model.checkingDismissal, "Closed progress still busy")
                 try require(model.output == frozen.0 && model.rawOutput == frozen.1 && model.postActions == frozen.2 && changes == frozen.3 && dispatches == 0 && aborts == 0, "Late completion changed closed progress")
                 prefs.set(false, forKey: "ConfirmKillProcess")

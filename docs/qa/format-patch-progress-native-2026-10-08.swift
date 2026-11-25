@@ -48,9 +48,22 @@ import TurtleGitCore
         let quoted = "'" + git.path.replacingOccurrences(of:"'",with:"'\\''") + "'", partialQuoted = "'" + partial.path.replacingOccurrences(of:"'",with:"'\\''") + "'"
         let script = """
         #!/bin/sh
-        if [ "${4-}" = format-patch ] && [ ! -f "$0.release" ]; then
+        fixture_git_command=
+        fixture_skip_global=0
+        for fixture_arg in "$@"; do
+          if [ "$fixture_skip_global" = 1 ]; then fixture_skip_global=0; continue; fi
+          case "$fixture_arg" in
+            -C|-c|--git-dir|--work-tree|--namespace|--config-env) fixture_skip_global=1 ;;
+            --literal-pathspecs|--no-optional-locks|--no-pager|--paginate|--bare|--no-replace-objects|--no-lazy-fetch) ;;
+            -C?*|-c?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) ;;
+            -*) break ;;
+            *) fixture_git_command=$fixture_arg; break ;;
+          esac
+        done
+        if [ "$fixture_git_command" = format-patch ] && [ ! -f "$0.release" ]; then
           printf 'partial bytes' > \(partialQuoted)
-          printf 'partial diagnostic\\n'
+          # stdout remains Git's complete exported-path receipt.
+          printf 'partial diagnostic\\n' >&2
           /bin/sleep 30 &
           task_child=$!
           trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -62,7 +75,7 @@ import TurtleGitCore
         try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         let slowRepo = GitRepository(root:root,executable:helper); prefs.set(true,forKey:"ConfirmKillProcess")
         let slow = FormatPatchWindowModel(repository:slowRepo,access:nil,preferences:prefs); slow.load(); try await wait { !slow.busy }; slow.mode = .number; slow.count = 1; slow.directory = root.appendingPathComponent("slow-output").path; slow.sendMail = true
-        slow.composeMail = { _ in preconditionFailure("Cancelled mail") }; slow.export(); try await wait { FileManager.default.fileExists(atPath:marker.path) }
+        slow.composeMail = { _ in preconditionFailure("Cancelled mail") }; slow.export(); try await wait { (try? String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}.count)==2 }
         let pids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0.trimmingCharacters(in:.whitespacesAndNewlines)) }; precondition(pids.count == 2)
         slow.confirmCancellation = { $0(false) }; slow.cancelExport(); precondition(slow.busy && !slow.cancelRequested)
         slow.confirmCancellation = { $0(true) }; slow.cancelExport(); try await wait { !slow.busy }; precondition(slow.cancelled && !slow.success && slow.progress && slow.output.contains("partial diagnostic")); try await wait { kill(pids[0],0) != 0 && kill(pids[1],0) != 0 }; let partialBytes = try String(contentsOf:partial); precondition(partialBytes == "partial bytes")
@@ -72,7 +85,26 @@ import TurtleGitCore
         try FileManager.default.removeItem(at:marker); try FileManager.default.removeItem(at:release)
         let deferred = FormatPatchWindowModel(repository:slowRepo,access:nil,preferences:prefs); deferred.load(); try await wait { !deferred.busy }; deferred.mode = .number; deferred.directory = root.appendingPathComponent("deferred").path; deferred.sendMail = false
         var respond:((Bool)->Void)?, deferredCloses = 0; deferred.close = { deferredCloses += 1 }; deferred.confirmCancellation = { respond = $0 }; deferred.export(); try await wait { FileManager.default.fileExists(atPath:marker.path) }; deferred.cancelExport(); precondition(deferred.confirmingCancellation)
-        let gatePids = try String(contentsOf:marker).split(separator:" ").compactMap { Int32($0.trimmingCharacters(in:.whitespacesAndNewlines)) }; try Data().write(to:release); kill(gatePids[1],SIGTERM); try await wait { !deferred.busy }; precondition(deferred.success && deferred.progress && deferredCloses == 0); respond?(true); respond?(true); try await wait { !deferred.finishScheduled }; precondition(!deferred.cancelled && deferredCloses == 1)
+        @MainActor func deferredDiagnostic()->String {
+            "busy=\(deferred.busy),success=\(deferred.success),progress=\(deferred.progress),confirming=\(deferred.confirmingCancellation),cancelled=\(deferred.cancelled),cancelRequested=\(deferred.cancelRequested),finishScheduled=\(deferred.finishScheduled),pending=\(deferred.hasPendingWork),closes=\(deferredCloses),output=\(String(reflecting:deferred.output))"
+        }
+        @MainActor func requireDeferred(_ value:Bool,_ phase:String)throws {
+            guard value else{throw NSError(domain:"Format Patch deferred confirmation: "+phase,code:1,userInfo:[NSLocalizedDescriptionKey:deferredDiagnostic()])}
+        }
+        // The marker's directory entry precedes its complete PID publication.
+        try await wait {(try? String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}.count)==2}
+        let gatePids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)}
+        try requireDeferred(gatePids.count==2 && gatePids.allSatisfy{$0>0 && kill($0,0)==0},"held command/PID ownership")
+        try Data().write(to:release);kill(gatePids[1],SIGTERM)
+        try await wait {!deferred.busy}
+        try requireDeferred(deferred.success,"successful command completion while confirmation remains held")
+        try requireDeferred(deferred.output.contains("partial diagnostic"),"stderr diagnostic retained in combined progress display")
+        try requireDeferred(deferred.progress,"completed progress retained before question reply")
+        try requireDeferred(deferredCloses==0,"no automatic close before question reply")
+        respond?(true);respond?(true)
+        try await wait {!deferred.finishScheduled}
+        try requireDeferred(!deferred.cancelled,"late Yes must not cancel accepted command")
+        try requireDeferred(deferredCloses==1,"late duplicate Yes must acknowledge exactly once")
         let afterHead = try await repo.run(["rev-parse","HEAD"]).stdout, afterIndex = try Data(contentsOf:root.appendingPathComponent(".git/index")); precondition(head == afterHead && index == afterIndex)
         print("Format Patch: actual Since/Number/Range across captured policies, once acknowledgement, captured mail file URLs and real git am tree equality, private histories, retained failure/fresh export, owned No/Yes cancellation with partial output, delayed confirmation completion. Hidden options host; no displayed UI/email/standard preferences.")
     }

@@ -169,6 +169,10 @@ import TurtleGitCore
         print("Abort native lifecycle: separate hidden options/reset-progress windows; Merge failure retry reopens options/new progress; Mixed/Hard retry keeps progress; final close retires owner.")
         let streamHelper = root.appendingPathComponent("abort-stream-git")
         let streamReady = root.appendingPathComponent("abort-stream-ready"), release = root.appendingPathComponent("abort-stream-release")
+        func streamPID()->Int32? {
+            guard let text=try? String(contentsOf:streamReady),let pid=Int32(text.trimmingCharacters(in:.whitespacesAndNewlines)),pid>0,kill(pid,0)==0 else{return nil}
+            return pid
+        }
         let behaviorFile = root.appendingPathComponent("abort-stream-behavior")
         let streamScript = """
         #!/bin/sh
@@ -208,9 +212,9 @@ import TurtleGitCore
             controller.window!.alphaValue = 0; controller.window!.orderFront(nil)
             var callbacks = 0; controller.model.onChanged = { _ in callbacks += 1 }
             controller.model.abort()
-            try await waitUntil { controller.model.output.contains("Resetting α") && controller.model.output.contains("tracked paths") && FileManager.default.fileExists(atPath: streamReady.path) }
+            try await waitUntil { controller.model.output.contains("Resetting α") && controller.model.output.contains("tracked paths") && streamPID() != nil }
             precondition(controller.model.busy && !controller.model.success && controller.model.postActions.isEmpty)
-            let pid = Int32(try String(contentsOf: streamReady).trimmingCharacters(in: .whitespacesAndNewlines))!
+            guard let pid=streamPID() else{throw NSError(domain:"Abort streaming PID publication was incomplete or no longer live",code:1)}
             if behavior == "limit" {
                 try await waitUntil { controller.model.output.contains("Output truncated") }
                 precondition(controller.model.busy && controller.model.output.utf8.count < 17000)
@@ -288,8 +292,8 @@ import TurtleGitCore
             controller.window!.alphaValue = 0; controller.window!.orderFront(nil)
             var changes = 0; controller.model.onChanged = { _ in changes += 1 }
             controller.model.abort()
-            try await waitUntil { controller.model.output.contains("tracked paths") && FileManager.default.fileExists(atPath: streamReady.path) }
-            let pid = Int32(try String(contentsOf: streamReady).trimmingCharacters(in: .whitespacesAndNewlines))!
+            try await waitUntil { controller.model.output.contains("tracked paths") && streamPID() != nil }
+            guard let pid=streamPID() else{throw NSError(domain:"Abort streaming PID publication was incomplete or no longer live",code:1)}
             let progress = controller.progress!, progressWindow = progress.window!
             var delayedReply: ((Bool) -> Void)?
             if scenario == "stale" { controller.model.confirmCancellation = { delayedReply = $0 } }

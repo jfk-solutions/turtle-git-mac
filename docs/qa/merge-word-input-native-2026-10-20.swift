@@ -109,9 +109,10 @@ import TurtleGitCore
         pair.model.busy=true;view.moveWordRight(nil);view.deleteWordForward(nil)
         try Check.require(view.string==text && view.selectedRange()==caret,"Busy owner accepted word input");pair.model.busy=false
         let sheet=NSWindow(contentRect:.init(x:0,y:0,width:100,height:80),styleMask:[.titled],backing:.buffered,defer:false)
+        sheet.isReleasedWhenClosed=false
         pair.window!.beginSheet(sheet,completionHandler:{_ in});view.moveWordRight(nil);view.deleteWordForward(nil)
         try Check.require(view.string==text && view.selectedRange()==caret,"Sheet owner accepted word input")
-        pair.window!.endSheet(sheet);sheet.close();try await Check.wait{pair.window?.attachedSheet==nil}
+        pair.window!.endSheet(sheet);sheet.close();try await Check.wait{pair.window?.attachedSheet==nil && sheet.sheetParent==nil}
         pair.model.configureMergeToolReadOnly(true);try await Check.wait{!view.isEditable}
         view.moveWordRight(nil);try Check.require(view.selectedRange().location==5,"Read-only pane lost source word navigation")
         let selection=view.selectedRange();view.deleteWordBackward(nil);try Check.require(view.string==text && view.selectedRange()==selection,"Read-only word delete mutated text")

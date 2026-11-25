@@ -1,5 +1,18 @@
 # TurtleGit for Mac — full port tracking
 
+## Merge and progress CI recovery — November 25, 2026
+
+All five remaining cohorts from the older final editor receipt now have focused
+current passes with both Git versions: Word ownership, local command progress,
+Merge cleanup, Abort Merge and retained Format Patch progress. The
+[checkpoint](qa/merge-progress-ci-recovery-2026-11-25.json) preserves ten native
+runs, the failed attempts and source-backed fixture repairs. Real command gates,
+native Dock owners, PID admission and stdout file receipts remain strict.
+The historical Word SIGSEGV has no stack proving its cause. No production source,
+Core suite, app build, protected reference driver or WMF/EMF work changed. Earlier
+passes are retained; complete hosted, signed/physical and owner acceptance remain
+open. Signed56 and the installed app are unchanged.
+
 ## Native registration and editor CI recovery — November 25, 2026
 
 The [focused checkpoint](qa/ci-authority-editor-recovery-2026-11-25.json) records
