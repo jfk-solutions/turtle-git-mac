@@ -31,7 +31,7 @@ import TurtleGitCore
         workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs;workspace.transportClipboardText={nil}
         workspace.commandLineRepositoryPermission={paths in RepositoryAccessLease(url:paths[0])}
         workspace.commandTransportWorkflowPresentation={_,controller,_,_ in controller.window?.alphaValue=0;controller.window?.setFrameOrigin(NSPoint(x:-20000,y:-20000))}
-        defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
+        defer {workspace.stopMonitoringForTermination();NativeOwnedWindowCleanup.close(NSApp.windows)}
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         func invoke(_ args:[String]) {workspace.handleCommandLine(arguments:args,currentDirectory:roots[0].path)}
         let cloneDestination=container.appendingPathComponent("exact-destination")
@@ -158,7 +158,7 @@ import TurtleGitCore
         workspace.commandLinePathListPermission={_,_ in listGrants += 1;return RepositoryAccessLease(url:container)}
         workspace.commandLineRepositoryPermission={_ in repositoryGrants += 1;return RepositoryAccessLease(url:root)}
         workspace.commandLineOutputPermission={_ in outputGrants += 1;return RepositoryAccessLease(url:container)}
-        defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
+        defer {workspace.stopMonitoringForTermination();NativeOwnedWindowCleanup.close(NSApp.windows)}
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         func invoke(_ args:[String]) {workspace.handleCommandLine(arguments:args,currentDirectory:root.path)}
         let list=container.appendingPathComponent("paths.list")
@@ -248,7 +248,7 @@ import TurtleGitCore
         workspace.commandLineRepositoryPermission={_ in RepositoryAccessLease(url:root)}
         var created=0
         workspace.commitWindowFactory={created += 1;return CommitWindowController(repository:$0,access:$1,defaults:prefs)}
-        defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
+        defer {workspace.stopMonitoringForTermination();NativeOwnedWindowCleanup.close(NSApp.windows)}
         workspace.handleCommandLine(arguments:["/command:commit","/logmsg:bare"],currentDirectory:root.path)
         try await wait {!workspace.busy}
         try require(created==0 && workspace.error?.contains("requires a working tree")==true,"Bare repository bypassed ordinary Commit eligibility: \(workspace.error ?? "none")")
@@ -309,7 +309,7 @@ import TurtleGitCore
         workspace.commandLineRepositoryPermission={_ in permissions += 1;return RepositoryAccessLease(url:root)}
         workspace.commitWindowFactory={CommitWindowController(repository:$0,access:$1,defaults:prefs)}
         workspace.logWindowFactory={LogWindowController(repository:$0,access:$1,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,loadsImmediately:false)}
-        defer { workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()} }
+        defer { workspace.stopMonitoringForTermination();NativeOwnedWindowCleanup.close(NSApp.windows) }
         func invoke(_ args:[String]) {workspace.handleCommandLine(arguments:args,currentDirectory:root.path)}
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         // Startup delivery occurs exactly once in either SwiftUI/delegate order.
@@ -320,10 +320,20 @@ import TurtleGitCore
             try require(delegate.startupLaunchMode == .actionOnly && !delegate.applicationShouldOpenUntitledFile(NSApp),"Primary command requested workspace startup")
             delegate.startupCommandHandler={model,args,cwd in precondition(model === workspace && args==["/command:log"] && cwd==root.path);calls += 1}
             if modelFirst {delegate.repositoryModel=workspace;try require(calls==0,"Premature startup delivery")}
+            var preparations=0,releasePreparation:CheckedContinuation<Void,Never>?
+            defer {releasePreparation?.resume();releasePreparation=nil}
+            delegate.prepareGitConfigurationReads={preparations += 1;await withCheckedContinuation{releasePreparation=$0}}
             delegate.startupDidFinishLaunching()
-            if !modelFirst {try require(calls==1 && delegate.standaloneWorkspace === workspace,"Action-only startup did not acquire/deliver its owned routing model");delegate.repositoryModel=workspace}
+            try await wait {releasePreparation != nil}
+            try require(calls==0 && !delegate.startupDelivered && preparations==1,"Startup command bypassed held configuration readiness")
+            if !modelFirst {try require(delegate.standaloneWorkspace === workspace,"Action-only startup did not acquire its owned routing model");delegate.repositoryModel=workspace}
             delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
-            try require(calls==1 && delegate.startupDelivered,"Startup command delivered twice")
+            try require(calls==0 && preparations==1,"Repeated launch duplicated preparation or delivered while held")
+            releasePreparation?.resume();releasePreparation=nil
+            try await wait {calls==1 && delegate.startupDelivered && delegate.gitConfigurationReadsReady}
+            if !modelFirst {try require(calls==1 && delegate.standaloneWorkspace === workspace,"Action-only startup did not acquire/deliver its owned routing model")}
+            delegate.repositoryModel=workspace;delegate.startupDidFinishLaunching()
+            try require(calls==1 && delegate.startupDelivered && preparations==1,"Startup command delivered twice")
         }
         invoke(["--command=commit","--path",file.path,"--logmsg","subject\n\nbody","--bugid","42"])
         try await wait {!workspace.busy && windows(CommitWindowController.self).first?.model.busy == false}
@@ -398,12 +408,22 @@ import TurtleGitCore
         try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==conflictIndex,"Rejected Resolve option changed the conflict index")
         let cancelled = RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true})
         defer {cancelled.stopMonitoringForTermination()}
-        cancelled.commandLineRepositoryPermission={_ in nil}
+        var cancelledRequests=0,unrelatedRequests=0,permissionTargets:[URL]=[]
+        cancelled.commandLineRepositoryPermission={paths in cancelledRequests += 1;permissionTargets=paths;return nil}
         cancelled.handleCommandLine(arguments:["/command:commit"],currentDirectory:root.path)
+        try await wait {cancelledRequests==1 && !cancelled.hasPendingFinderServiceWork}
         try require(!cancelled.busy && windows(CommitWindowController.self).isEmpty,"Cancelled authorization launched Commit")
-        cancelled.commandLineRepositoryPermission={_ in RepositoryAccessLease(url:root.deletingLastPathComponent().appendingPathComponent("outside"))}
+        let unrelated=root.deletingLastPathComponent().appendingPathComponent("outside")
+        let unrelatedGrant=RepositoryAccessLease(url:unrelated)
+        try require(!unrelatedGrant.contains(root),"Unrelated permission fixture unexpectedly contains repository")
+        cancelled.commandLineRepositoryPermission={paths in unrelatedRequests += 1;permissionTargets=paths;return unrelatedGrant}
         cancelled.handleCommandLine(arguments:["/command:commit"],currentDirectory:root.path)
-        try require(cancelled.error != nil && !cancelled.busy,"Unrelated grant was accepted")
+        try await wait {unrelatedRequests==1 && !cancelled.hasPendingFinderServiceWork}
+        let refused = cancelled.error != nil && !cancelled.busy
+        if !refused {print("Unrelated grant diagnostic: requested=\(permissionTargets.map(\.path)),repository=\(root.path),grant=\(unrelated.path),containsRoot=\(unrelatedGrant.contains(root)),cancelRequests=\(cancelledRequests),unrelatedRequests=\(unrelatedRequests),busy=\(cancelled.busy),authorityPending=\(cancelled.hasPendingFinderServiceWork),error=\(String(reflecting:cancelled.error)),commitWindows=\(windows(CommitWindowController.self).count)")}
+        try require(refused,"Unrelated grant was accepted")
+        try require(cancelledRequests==1 && unrelatedRequests==1 && windows(CommitWindowController.self).isEmpty && cancelled.root==nil,"Unrelated authorization launched/adopted Commit or repeated a permission callback")
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==conflictIndex,"Refused/cancelled authorization changed the conflict index")
         let noMessage = RepositoryModel(startMonitoring:false,initializePreferences:false)
         defer {noMessage.stopMonitoringForTermination()}
         noMessage.commandLineMessagePermission={_ in nil}

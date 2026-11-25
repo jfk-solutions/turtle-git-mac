@@ -18,10 +18,25 @@ struct MergeOnePaneContextVerification {
         defer { owner.window?.close() }
         let model = owner.model; model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); model.load()
         try await TwoPaneEngineVerification.settled(model); owner.window?.contentView?.layoutSubtreeIfNeeded()
-        func wait(_ ready: () -> Bool) async throws { for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }; throw NSError(domain: "One-pane context did not settle", code: 1) }
+        @MainActor func wait(_ label:String = "native one-pane state",_ ready: () -> Bool) async throws {
+            for _ in 0..<1000 {owner.window?.contentView?.layoutSubtreeIfNeeded();if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
+            let editors=TwoPaneEngineVerification.editors(owner.window?.contentView).map{"class=\(type(of:$0)),attached=\($0.window === owner.window),editable=\($0.isEditable),length=\($0.string.utf16.count)"}
+            throw NSError(domain:"One-pane context did not settle: "+label,code:1,userInfo:[NSLocalizedDescriptionKey:"busy=\(model.busy),filtering=\(model.filtering),pendingChoice=\(model.hasPendingEditorChoice),canTransfer=\(model.canTransfer(toBase:false)),encoding=\(String(describing:model.encoding(base:false))),error=\(String(reflecting:model.error)),editors=\(editors)"])
+        }
         try await wait { TwoPaneEngineVerification.editors(owner.window?.contentView).count == 1 }
-        let view = TwoPaneEngineVerification.editors(owner.window?.contentView)[0]
-        guard let provider = view as? ComparisonContextMenuProviding else { throw NSError(domain: "Context provider missing", code: 1) }
+        var view = TwoPaneEngineVerification.editors(owner.window?.contentView)[0]
+        guard let initialProvider = view as? ComparisonContextMenuProviding else { throw NSError(domain: "Context provider missing", code: 1) }
+        var provider=initialProvider
+        @MainActor func writableEditor(_ phase:String)async throws {
+            try await TwoPaneEngineVerification.settled(model)
+            try await wait(phase) {
+                let live=TwoPaneEngineVerification.editors(owner.window?.contentView)
+                return live.count==1 && live[0].window === owner.window && live[0].isEditable && model.canTransfer(toBase:false)
+            }
+            view=TwoPaneEngineVerification.editors(owner.window?.contentView)[0]
+            guard let current=view as? ComparisonContextMenuProviding else{throw NSError(domain:"Current context provider missing: "+phase,code:1)}
+            provider=current
+        }
         view.setSelectedRange((view.string as NSString).range(of: "old 🦎 words"))
         first.setString("FIRST", forType: .string); second.setString("SECOND", forType: .string)
         func item(_ menu: NSMenu, _ title: String) throws -> NSMenuItem { guard let item = menu.items.first(where: { $0.title == title }) else { throw NSError(domain: "Missing " + title, code: 1) }; return item }
@@ -61,17 +76,22 @@ struct MergeOnePaneContextVerification {
         try check(encoding.items.map(\.title) == MergeFormatSelection.encodings.map(\.rawValue), "Source nine-encoding order differs")
         try invoke(encoding.items.first { $0.title == ComparisonTextEncoding.utf16BEBOM.rawValue }!)
         try check(model.encoding(base: false) == .utf16BEBOM, "Reordered encoding action chose wrong format")
+        // Output conversion rebuilds alignment and native editor writability.
+        // Wait for its actual current presentation before the next conversion.
+        try await writableEditor("UTF16 output conversion native admission")
         model.changeEncoding(.utf8, base: false)
+        try await writableEditor("UTF8 output conversion native admission")
+        try check(model.encoding(base:false) == .utf8,"Second output conversion was not accepted")
         view.setSelectedRange((view.string as NSString).range(of: "new"))
         let pasteMenu = try context(second)
         try invoke(try item(pasteMenu, "Paste")); try await TwoPaneEngineVerification.settled(model)
         try check(model.draftText(base: false) == "same\r\nSECOND words\r\nlast", "Paste did not use captured text/destination coordinates")
-        model.undo(); try await TwoPaneEngineVerification.settled(model)
+        model.undo(); try await writableEditor("Paste Undo native admission")
         view.setSelectedRange((view.string as NSString).range(of: "new"))
         let cutMenu = try context(first)
         try invoke(try item(cutMenu, "Cut")); try await TwoPaneEngineVerification.settled(model)
         try check(first.string(forType: .string) == "new" && model.draftText(base: false) == "same\r\n words\r\nlast", "Cut clipboard/payload differs")
-        model.undo(); try await TwoPaneEngineVerification.settled(model)
+        model.undo(); try await writableEditor("Cut Undo native admission")
         model.editingEnabled = false; try await wait { !view.isEditable }
         view.setSelectedRange((view.string as NSString).range(of: "old"))
         let readonly = try context(first)

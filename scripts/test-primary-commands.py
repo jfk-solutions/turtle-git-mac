@@ -19,6 +19,9 @@ with tempfile.TemporaryDirectory(prefix='tg-primary-commands-') as temporary:
     for case in args.only or ['family','bare','io','network','files','maintenance','integration','patches','bisect','submodules','syncsvn','history','lfs','worktrees','mail','utilities','transfers','services','conflicts','resolve']:
         for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
             directory=folder/(case+str(index));directory.mkdir()
+            private=directory/'private';private.mkdir(mode=0o700)
+            for path in ['home/Library/Preferences','tmp','xdg']:(private/path).mkdir(parents=True,mode=0o700)
+            env.update(HOME=str(private/'home'),CFFIXED_USER_HOME=str(private/'home'),TMPDIR=str(private/'tmp')+'/',XDG_CONFIG_HOME=str(private/'xdg'))
             print('Checking primary command '+case+' with '+str(git),flush=True)
             result=run_receiver([str(receiver),str(directory),str(git.absolute()),case],cwd=root,env=env,capture_output=True,text=True)
             print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()

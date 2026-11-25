@@ -1,5 +1,17 @@
 # TurtleGit for Mac — full port tracking
 
+## Native registration and editor CI recovery — November 25, 2026
+
+The [focused checkpoint](qa/ci-authority-editor-recovery-2026-11-25.json) records
+six native runs over verified Clone/Init handoff, startup and authorization,
+one-pane Paste and optional-backend prompts. Fixtures now exercise actual
+registration/readiness barriers, preserve closed/suspended owner behavior and
+drain their owned dialogs. No production source changed, so the preceding SSH
+Core and native passes are retained without another app build or full Core run.
+Initial failed assumptions and the exact repairs remain recorded. Five other
+failures from the old d38 final editor receipt remain under source review; this
+is not a complete hosted result. Signed56 and the installed app are unchanged.
+
 ## SSH file access and focused release recovery — November 25, 2026
 
 Settings → Network → Configuration Access… now saves explicit permissions for SSH

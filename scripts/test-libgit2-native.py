@@ -43,11 +43,13 @@ private extension NSWindow {
   method_exchangeImplementations(normal,hidden);defer{method_exchangeImplementations(normal,hidden)}
   do{try await GitLibGit2NativeVerification.main()}
   catch{
+   fputs("Libgit2 failure before driver cleanup: \(GitLibGit2NativeVerification.ownershipState())\n",stderr)
    NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    for _ in 0..<3000 {
-    if CloneProgressWindowModel.activeOperations==0 && FetchProgressWindowModel.activeOperations==0 && NSApp.windows.allSatisfy({!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}) {break}
+    if GitLibGit2NativeVerification.drained() {break}
     try? await Task.sleep(nanoseconds:10_000_000)
    }
+   fputs("Libgit2 driver cleanup drained=\(GitLibGit2NativeVerification.drained()): \(GitLibGit2NativeVerification.ownershipState())\n",stderr)
    throw error
   }
  }

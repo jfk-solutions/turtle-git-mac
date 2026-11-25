@@ -6,13 +6,21 @@ import TurtleGitCore
 private actor RemoteExportGate{
     private(set) var waiting=false
     private var continuation:CheckedContinuation<Void,Never>?
-    func pause()async{waiting=true;await withCheckedContinuation{continuation=$0}}
-    func release(){continuation?.resume();continuation=nil}
+    private var released=false
+    func pause()async{guard !released else{return};waiting=true;await withCheckedContinuation{continuation=$0}}
+    func release(){released=true;continuation?.resume();continuation=nil}
 }
 @main struct GitLibGit2NativeVerification{
     struct Failure:Error{let message:String}
     static func require(_ value:Bool,_ message:String)throws{if !value{throw Failure(message:message)}}
-    @MainActor static func wait(_ message:String,_ ready:()->Bool)async throws{for _ in 0..<3000{if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Timeout: "+message)}
+    @MainActor static func ownershipState()->String {
+        let windows=NSApp.windows.sorted{$0.windowNumber<$1.windowNumber}.prefix(40).map {window in
+            "\(type(of:window))#\(window.windowNumber){visible=\(window.isVisible),parent=\(window.sheetParent?.windowNumber ?? -1),sheet=\(window.attachedSheet?.windowNumber ?? -1),delegate=\(window.delegate.map{String(describing:type(of:$0))} ?? "nil")}"
+        }.joined(separator:";")
+        return "clone=\(CloneProgressWindowModel.activeOperations),fetch=\(FetchProgressWindowModel.activeOperations),windows=\(NSApp.windows.count):[\(windows)]"
+    }
+    @MainActor static func drained()->Bool {CloneProgressWindowModel.activeOperations==0 && FetchProgressWindowModel.activeOperations==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}}
+    @MainActor static func wait(_ message:String,_ ready:()->Bool)async throws{for _ in 0..<3000{if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Timeout: "+message+"; "+ownershipState())}
     @MainActor static func capture(_ controller:NSWindowController,name:String)async throws{
         guard let directory=ProcessInfo.processInfo.environment["TURTLEGIT_LIBGIT2_CAPTURE"],let window=controller.window,let content=window.contentView else{return}
         let folder=URL(fileURLWithPath:directory);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
@@ -42,7 +50,7 @@ private actor RemoteExportGate{
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),helper=URL(fileURLWithPath:CommandLine.arguments[3])
         try await backend(root:root,git:git,helper:helper)
         try await prompts(root:root)
-        try await wait("Owned libgit2 native work survived"){CloneProgressWindowModel.activeOperations==0 && FetchProgressWindowModel.activeOperations==0 && NSApp.windows.allSatisfy{!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}}
+        try await wait("Owned libgit2 native work survived"){drained()}
         print("PASS libgit2 native family: private backend snapshots/default CLI/actual local clone+fetch; isolated combined Git credentials; source certificate default Cancel, fingerprints, read-only native inspector, held accepted export then parent cancellation/reject and actual drain. No public remote, Keychain or system trust changes.")
     }
     @MainActor static func backend(root:URL,git:URL,helper:URL)async throws{
@@ -92,13 +100,16 @@ private actor RemoteExportGate{
         NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:owner.window!.windowNumber,context:nil,characters:character,charactersIgnoringModifiers:character,isARepeat:false,keyCode:code)!
     }
     @MainActor static func prompts(root:URL)async throws{
+        var owned=[NSWindowController]()
+        func own<T:NSWindowController>(_ value:T)->T {owned.append(value);return value}
+        defer {for controller in owned.reversed(){controller.close()}}
         let credentials=GitSVNAuthenticationPrompt(kind:.credentials,realm:"https://fixture-user:private-secret@localhost:8443/private.git?token=private-query#private-fragment",username:"fixture-user",maySave:false)
         let encoded=try GitRemoteAuthenticationPrompt.encoded(credentials)
         try require(try GitRemoteAuthenticationPrompt.decode(encoded,enabled:false)==nil,"Git remote native gate ignored")
         try require(try GitSVNAuthenticationPrompt.decode(encoded,enabled:true)==nil,"Remote protocol leaked into SVN gate")
         try require(try GitRemoteAuthenticationPrompt.decode(encoded,enabled:true)==credentials,"Remote combined schema changed")
         var replies:[GitSVNAuthenticationResponse?]=[]
-        let owner=GitSVNPromptWindowController(prompt:credentials,icon:MenuIcon.turtle.image(size:32),transportName:"Git"){replies.append($0)}
+        let owner=own(GitSVNPromptWindowController(prompt:credentials,icon:MenuIcon.turtle.image(size:32),transportName:"Git"){replies.append($0)})
         owner.window!.alphaValue=0;owner.showWindow(nil)
         defer{owner.close()}
         try require(owner.window!.title=="Password - https://fixture-user@localhost:8443/private.git" && owner.username.stringValue=="fixture-user" && owner.save.superview==nil && credentialGrid(owner) != nil && owner.window?.initialFirstResponder===owner.password,"Git credentials source title/aligned rows/focus/no persistence missing")
@@ -123,7 +134,7 @@ private actor RemoteExportGate{
         try require(replies[0]?.username=="fixture-user" && replies[0]?.password=="fixture-password" && replies[0]?.save==false && owner.password.stringValue.isEmpty && secureEditor.string.isEmpty,"Combined response/live secure-editor clearing failed")
         // Both callback negotiation states keep the pinned combined form: with
         // no URL username focus Username, then permit a genuinely blank password.
-        let empty=GitSVNPromptWindowController(prompt:.init(kind:.credentials,realm:"https://localhost/repo.git"),transportName:"Git"){replies.append($0)}
+        let empty=own(GitSVNPromptWindowController(prompt:.init(kind:.credentials,realm:"https://localhost/repo.git"),transportName:"Git"){replies.append($0)})
         empty.window?.alphaValue=0;empty.showWindow(nil);defer{empty.close()}
         try require(empty.window?.initialFirstResponder===empty.username && credentialGrid(empty) != nil && empty.save.superview==nil,"No-hint negotiation lost source combined form/username focus")
         empty.password.stringValue="retain-on-invalid-user";empty.submit()
@@ -131,30 +142,30 @@ private actor RemoteExportGate{
         let unicode="é-e\u{301}-雪";empty.username.currentEditor()?.string=unicode;empty.username.stringValue=unicode;empty.window?.makeFirstResponder(empty.password);empty.password.currentEditor()?.string="";empty.password.stringValue=""
         empty.remoteAcceptButton?.performClick(nil);try await wait("Unicode/blank-password credential reply missing"){replies.count==2}
         try require(replies[1]?.username?.utf8.elementsEqual(unicode.utf8)==true && replies[1]?.password=="" && empty.password.stringValue.isEmpty,"Unicode username/blank password changed")
-        let cancelled=GitSVNPromptWindowController(prompt:credentials,transportName:"Git"){replies.append($0)}
+        let cancelled=own(GitSVNPromptWindowController(prompt:credentials,transportName:"Git"){replies.append($0)})
         cancelled.window?.alphaValue=0;cancelled.showWindow(nil);cancelled.window?.makeFirstResponder(cancelled.password)
         guard let cancelledEditor=cancelled.password.currentEditor() as? NSTextView else{throw Failure(message:"Cancel secure editor missing")}
         cancelledEditor.string="cancelled-private-secret";cancelled.password.stringValue=cancelledEditor.string
         try require(cancelled.window!.performKeyEquivalent(with:key(cancelled,"\u{1b}",53)),"Native Escape was not handled")
         cancelled.abort();try await wait("Escape did not close and answer once"){replies.count==3}
         try require(replies[2]==nil && cancelled.password.stringValue.isEmpty && cancelledEditor.string.isEmpty,"Escape retained live secure editor or sent credentials")
-        let forced=GitSVNPromptWindowController(prompt:credentials,transportName:"Git"){replies.append($0)}
+        let forced=own(GitSVNPromptWindowController(prompt:credentials,transportName:"Git"){replies.append($0)})
         forced.window?.alphaValue=0;forced.showWindow(nil);forced.window?.makeFirstResponder(forced.password);let forcedEditor=forced.password.currentEditor();forcedEditor?.string="forced-secret";forced.password.stringValue="forced-secret";forced.close()
         try await wait("Forced credential close did not answer once"){replies.count==4}
         try require(replies[3]==nil && forced.password.stringValue.isEmpty && forcedEditor?.string.isEmpty != false,"Forced close retained secure editor")
-        let svn=GitSVNPromptWindowController(prompt:.init(kind:.username,realm:"Legacy SVN realm",maySave:true)){_ in}
+        let svn=own(GitSVNPromptWindowController(prompt:.init(kind:.username,realm:"Legacy SVN realm",maySave:true)){_ in})
         svn.window?.alphaValue=0;svn.showWindow(nil);try require(svn.window?.title=="SVN Authentication" && svn.save.superview != nil && svn.password.superview==nil,"Git layout changed legacy SVN username-only form");svn.abort()
         let der=try Data(contentsOf:URL(fileURLWithPath:ProcessInfo.processInfo.environment["TURTLEGIT_CERTIFICATE_FIXTURE"]!)),details=try GitCertificateDetails(base64DER:der.base64EncodedString())
         let validationError="The certificate does not match the requested hostname.\nThe issuer is not trusted.",issuer="CN=Private fixture issuer, O=TurtleGit QA"
         let trust=GitSVNAuthenticationPrompt(kind:.trust,realm:"https://localhost:8443/private.git",maySave:false,failures:8,hostname:"localhost",issuer:issuer,fingerprint:details.sha256,certificate:der.base64EncodedString(),validationError:validationError)
         let legacy=GitSVNAuthenticationPrompt(kind:.trust,realm:"https://localhost:8443/private.git",maySave:false,failures:8,hostname:"localhost",issuer:issuer,fingerprint:details.sha256,certificate:der.base64EncodedString())
-        let legacyReview=GitSVNPromptWindowController(prompt:legacy,transportName:"Git"){_ in}
+        let legacyReview=own(GitSVNPromptWindowController(prompt:legacy,transportName:"Git"){_ in})
         let legacyError=views(legacyReview.window!.contentView!).compactMap{$0 as? NSTextField}.first{$0.accessibilityLabel()=="Certificate validation error"}?.stringValue ?? ""
         try require(legacyError.contains(legacy.realm) && legacy.failureDescriptions.allSatisfy{legacyError.contains($0)},"Older Git trust payload lost generic diagnostic fallback")
         legacyReview.abort()
         let board=NSPasteboard(name:.init("TurtleGit.Libgit2.Certificate."+UUID().uuidString));defer{board.releaseGlobally()}
         var trustReplies:[GitSVNAuthenticationResponse?]=[]
-        let review=GitSVNPromptWindowController(prompt:trust,icon:MenuIcon.originalImage(resource:"certcheck",size:32),transportName:"Git"){trustReplies.append($0)}
+        let review=own(GitSVNPromptWindowController(prompt:trust,icon:MenuIcon.originalImage(resource:"certcheck",size:32),transportName:"Git"){trustReplies.append($0)})
         review.makeCertificateViewer={GitCertificateDetailsWindowController(details:$0,pasteboard:board,images:{MenuIcon.originalImage(resource:$0)})}
         review.window!.alphaValue=0;review.window!.appearance=NSAppearance(named:.darkAqua);review.showWindow(nil);defer{review.close()}
         try require(review.remoteCancelButton != nil && review.remoteCancelButton!.cell as? NSButtonCell === review.window!.defaultButtonCell && review.remoteAcceptButton?.title=="Accept certificate" && review.sha1.stringValue==details.sha1,"Source-shaped Git certificate controls/fingerprints missing")
@@ -163,13 +174,14 @@ private actor RemoteExportGate{
         try await capture(review,name:"git-transport-certificate")
         review.remoteOpenButton!.performClick(nil)
         try await wait("Actual certificate inspector was not attached"){review.certificateViewer?.window?.sheetParent===review.window}
-        let inspector=review.certificateViewer!;inspector.copyButton.performClick(nil)
+        let inspector=own(review.certificateViewer!);inspector.copyButton.performClick(nil)
         try require(board.string(forType:.string)==details.fingerprints && (inspector.certificateView.value(forKey:"editable") as? Bool)==false && (inspector.certificateView.value(forKey:"trustDisplayed") as? Bool)==false,"Inspector changed trust or copied different bytes")
         let target=root.appendingPathComponent("certificate.pem"),gate=RemoteExportGate()
         var answer:((NSApplication.ModalResponse)->Void)?
         inspector.format.selectItem(at:1);inspector.exportDestination={_ in target}
         inspector.presentExport={panel,parent,reply in answer=reply;panel.alphaValue=0;parent.beginSheet(panel,completionHandler:nil)}
         inspector.writeExport={bytes,url in await gate.pause();try bytes.write(to:url,options:.atomic)}
+        do {
         inspector.exportButton.performClick(nil);try await wait("Native export sheet missing"){answer != nil && inspector.window!.attachedSheet != nil}
         answer?(.OK);answer?(.OK)
         for _ in 0..<3000{if await gate.waiting{break};try await Task.sleep(nanoseconds:10_000_000)}
@@ -177,7 +189,20 @@ private actor RemoteExportGate{
         review.abort();review.trustTemporary();try require(trustReplies.isEmpty,"Parent cancellation replied before accepted export drain")
         await gate.release();try await wait("Git cancelled certificate reply did not drain once"){trustReplies.count==1 && review.window!.attachedSheet==nil && inspector.window!.sheetParent==nil && !inspector.exporting}
         try require(trustReplies[0]?.decision == .reject && trustReplies[0]?.save==false && (try Data(contentsOf:target))==details.encoded(as:.pem),"Cancelled Git review accepted certificate or lost owned export")
-        let cancel=GitSVNPromptWindowController(prompt:trust,icon:MenuIcon.originalImage(resource:"certcheck",size:32),transportName:"Git"){trustReplies.append($0)};cancel.window!.alphaValue=0;cancel.showWindow(nil);cancel.remoteCancelButton!.performClick(nil)
+        let cancel=own(GitSVNPromptWindowController(prompt:trust,icon:MenuIcon.originalImage(resource:"certcheck",size:32),transportName:"Git"){trustReplies.append($0)});cancel.window!.alphaValue=0;cancel.showWindow(nil);cancel.remoteCancelButton!.performClick(nil)
         try await wait("Actual default Cancel did not reject"){trustReplies.count==2 && !cancel.window!.isVisible};cancel.close()
+        print("Libgit2 prompt teardown before explicit owned close: "+ownershipState());fflush(stdout)
+        for controller in owned.reversed(){controller.close()}
+        try await wait("Owned libgit2 prompt teardown did not drain") {
+            !inspector.exporting && owned.allSatisfy{owner in owner.window.map{!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil} ?? true}
+        }
+        print("Libgit2 prompt teardown after paired drain: "+ownershipState());fflush(stdout)
+        }catch {
+            await gate.release()
+            for controller in owned.reversed(){controller.close()}
+            do {try await wait("Failed certificate export owner cleanup") {!inspector.exporting && owned.allSatisfy{$0.window?.attachedSheet==nil && $0.window?.sheetParent==nil}}}
+            catch {fputs("Libgit2 failure cleanup incomplete: \(ownershipState())\n",stderr)}
+            throw error
+        }
     }
 }

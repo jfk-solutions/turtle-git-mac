@@ -1,0 +1,96 @@
+{
+  "date": "2026-11-25",
+  "baseline": "ac9d2307",
+  "status": "focused native recovery passed; full hosted and signed/physical acceptance remain open",
+  "production_changes": false,
+  "implementation": [
+    "Clone handoff exercises actual private repository/watch registration before adoption; captured busy/source ownership retained through queued/latest/Open/Close/Quit scenarios.",
+    "Startup holds and releases actual asynchronous configuration readiness in both model/delegate orders, preserving exactly-once delivery. Each permission request drains before the next hook or refusal check.",
+    "One-pane encoding/Undo waits actual current editable native view and model admission before Paste/Cut; byte/clipboard assertions remain.",
+    "Nine test-owned credential/certificate prompt controllers are retained, explicitly closed and paired-sheet/export drained without hiding unknown windows. Original global drainage predicate is unchanged.",
+    "Existing shared receiver cleanup and private HOME/preferences/tmp/offscreen policies apply to touched handoff/startup fixtures."
+  ],
+  "checks": [
+    {
+      "scope": "Verified Clone/Init handoff and competing owners",
+      "runs": 2,
+      "log": "build/qa/ci-authority-handoff-repair-2026-11-25.log"
+    },
+    {
+      "scope": "Primary startup/commands and authorization refusals",
+      "runs": 2,
+      "log": "build/qa/ci-authority-startup-repair-2026-11-25.log"
+    },
+    {
+      "scope": "One-pane native Paste after encoding/Undo",
+      "runs": 1,
+      "log": "build/qa/ssh-release-native-one-pane-2026-11-25.log"
+    },
+    {
+      "scope": "Optional libgit2 transport and owned credential/certificate prompts",
+      "runs": 1,
+      "log": "build/qa/ssh-release-native-libgit2-2026-11-25.log"
+    }
+  ],
+  "native_runs_passed": 6,
+  "failed_attempts": [
+    {
+      "log": "build/qa/ssh-release-native-handoff-2026-11-25.log",
+      "cause": "Immediate handoff assertion ignored actual asynchronous registration after real Clone completion."
+    },
+    {
+      "log": "build/qa/ssh-release-native-handoff-repair-2026-11-25.log",
+      "cause": "Fixture demanded admission of a new result while Quit was already active. Corrected to queue accepted result before Quit and separately refuse later callbacks."
+    },
+    {
+      "log": "build/qa/ssh-release-native-startup-2026-11-25.log",
+      "cause": "Fixture replaced authorization hook before saved-authority resolution and permission callback drained; cancellation/unrelated refusal checks now await real completion."
+    }
+  ],
+  "source_sha256": {
+    "docs/qa/libgit2-native-2026-10-19.swift": "20c939929ae649f6ca72401424bbc17c13ecb48132d9ade1d79f69279f7ad6fc",
+    "docs/qa/merge-one-pane-context-native-2026-10-12.swift": "83a2568219314366ee55b4861c49809319cbadb01364df7eb5d2eafd6c72387a",
+    "docs/qa/primary-commands-native-2026-10-18.swift": "0d9f90ea17e40ac81ce8c0569791a468fcda60d3c6d229722c1900128efdc4c3",
+    "docs/qa/repository-handoffs-native-2026-10-18.swift": "a9e8c14dbcc99cac48a9d400776aebb0575922b6992419402a26bae9f33709ea",
+    "scripts/test-libgit2-native.py": "060dd425d040d9ea8695be44342e5143d382c464fc6f3a84c3150043799f198f",
+    "scripts/test-primary-commands.py": "757cdbf1ba4525edbac7628a75f47e519ca300c2959ddf5b22f16b7ef8092032",
+    "scripts/test-repository-handoffs.py": "3a6733e7df229e7cfb10342e696e41cafc68ad5dac89464e4b9b03a557b81d4b"
+  },
+  "evidence_sha256": {
+    "build/qa/ci-authority-handoff-repair-2026-11-25.log": "eac9863a3feed27bedfb78cf6397cd5b3e9e016296a0bc76bec9b9a1c6fea788",
+    "build/qa/ci-authority-startup-repair-2026-11-25.log": "e2433d8ab0520df4bfa31f46657aba6f6d9ffbf2e074d188498e26fb8e5f868b",
+    "build/qa/ssh-release-native-handoff-2026-11-25.log": "dedab0e5dfe92177c9de8fbafc57595fc5103b08393c654c59b41bbeaec53eb2",
+    "build/qa/ssh-release-native-handoff-repair-2026-11-25.log": "139928851b32e1e84ce4e55aec82eda3f0795794392f0d96a12ea73df82c55ec",
+    "build/qa/ssh-release-native-libgit2-2026-11-25.log": "61c7e8a792347025e3e5f4b0c7359ae02e0218de31b32613d1c6ba6e424af88f",
+    "build/qa/ssh-release-native-one-pane-2026-11-25.log": "5f0ffc6fb7c981069163ae163037607a093df1477f99b491680cce390e1f3221",
+    "build/qa/ssh-release-native-startup-2026-11-25.log": "e474b5a08459f0fd4499ad64d2829adf2bacd161f1f79580344fbaac9ae24230"
+  },
+  "core_and_app_build": {
+    "run": false,
+    "reason": "Only native fixtures/runners changed; retain SSH23 Core/8 native checkpoint and current Debug objects. One-pane receiver cache includes exact QA bytes, object/module/framework bytes and compiler/architecture/flags."
+  },
+  "cleanup": {
+    "logged_owned_compiler_receiver_pids": [
+      48211,
+      48216,
+      48413,
+      48435,
+      48968,
+      49145,
+      49149,
+      50401,
+      50415,
+      51128,
+      51827,
+      51845,
+      52168
+    ],
+    "currently_present": [],
+    "one_pane": "Existing runner awaited owned receiver completion; no separate PID printed."
+  },
+  "limitations": [
+    "Does not establish a complete hosted pass or signed/physical Finder acceptance.",
+    "Five additional failures in the old d38 final editor receipt remain under source review: word-input SIGSEGV without stack, local-command progress, Merge cleanup, Format Patch retained progress and Abort Merge. No cause or repair is claimed here.",
+    "Installed app, signed56 and protected WMF/EMF work remain unchanged."
+  ]
+}

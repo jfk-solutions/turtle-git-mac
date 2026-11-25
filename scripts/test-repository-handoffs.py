@@ -12,6 +12,9 @@ with tempfile.TemporaryDirectory(prefix='tg-repository-handoffs-') as temporary:
     env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
         directory=folder/str(index);directory.mkdir()
+        private=directory/'private';private.mkdir(mode=0o700)
+        for path in ['home/Library/Preferences','tmp','xdg']:(private/path).mkdir(parents=True,mode=0o700)
+        env.update(HOME=str(private/'home'),CFFIXED_USER_HOME=str(private/'home'),TMPDIR=str(private/'tmp')+'/',XDG_CONFIG_HOME=str(private/'xdg'))
         print('Checking repository handoffs with '+str(git),flush=True)
         result=run_receiver([str(receiver),str(directory),str(git.absolute())],cwd=root,env=env,capture_output=True,text=True)
         print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
