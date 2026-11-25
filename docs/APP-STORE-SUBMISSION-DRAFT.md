@@ -78,6 +78,19 @@ The test app's signing, entitlements and Finder integration still need their own
 measured acceptance; an account answer is not evidence that a particular build
 has passed those checks.
 
+## Current local preparation — November 25, 2026
+
+[Build58](qa/signed-consolidation-build58-2026-11-25.json) is packaged from exact
+`98d35b8b`, including the later progress and Statistics changes. Its single
+universal signed build, static sealed-bundle check, fresh signed local-tools
+phase and complete source/ZIP integrity checks pass their recorded scopes.
+It has not been installed or accepted by the owner. Next is local testing through
+the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md), before any later Store work.
+Current full hosted, physical Finder and broader platform/accessibility acceptance
+remain separate. The matching website deployment passed; macOS CI failed before
+app validation after its required SVN producer was reported abandoned. The earlier
+candidate records below retain their exact source and validation scope.
+
 ## Prepared local candidate57 — November 25, 2026
 
 [Build57](qa/signed-consolidation-build57-2026-11-25.json) packages frozen
@@ -87,12 +100,22 @@ fresh signed local-tools/Core/Git phase and source/ZIP integrity checks pass.
 Build56 image execution remains historical evidence for the unchanged copied
 runtime; no new build57 image matrix is claimed.
 
-The [real SSH permission check](qa/signed57-ssh-permission-incomplete-2026-11-25.json)
-was canceled before an accepted folder grant and remains unverified. Both private
-probes and their synthetic files/containers were removed. Candidate57 has not
-been installed, physically accepted in Finder or published. Current hosted CI,
-owner testing and later license/Store clearance remain separate gates. The live
-progress-font correction under development is not part of this frozen package.
+The [initial SSH permission attempt](qa/signed57-ssh-permission-incomplete-2026-11-25.json)
+was canceled before an accepted folder grant. That dated incomplete result is
+preserved; its cause is not retrospectively established. The later
+[signed57 supplemental SSH acceptance](qa/signed57-ssh-permission-acceptance-2026-11-25.json)
+passes the actual Powerbox folder grant, saved bookmark across fresh processes,
+inherited configuration read and adjacent known-host rewrite through the packaged
+Core/Git/OpenSSH, then Forget and new-process denial. It used an independently
+signed disposable host-architecture sandbox app with byte-identical candidate
+components and synthetic local files, not the unchanged shipping main app, a
+real SSH key/agent or a remote server. Its owned processes and disposable roots
+were removed.
+
+That component-level pass does not establish installed-candidate, physical Finder,
+full hosted CI or Store acceptance. Owner testing and later license/distribution
+clearance remain separate gates. Candidate57 stays frozen at `ce9223db`; it does
+not include the subsequent progress-font and Statistics production changes.
 
 ## Prepared local candidate56 — November 25, 2026
 

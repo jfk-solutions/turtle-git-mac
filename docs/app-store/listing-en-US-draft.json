@@ -74,12 +74,34 @@
     "confirmation": "Owner explicitly requested testing the finished app before App Store distribution on 2026-10-26."
   },
   "preparation_review": {
-    "date": "2026-11-05",
-    "installed_local_testing_build": "0.1.0 (52)",
-    "installed_source": "3702643e020511fc09687cda58f352ad5d12e459",
-    "evidence": "../qa/signed-consolidation-build52-2026-11-03.json",
+    "date": "2026-11-25",
+    "latest_packaged_candidate": {
+      "build": "0.1.0 (58)",
+      "source_commit": "98d35b8b819b3de68e39318030d300e2b32b69a5",
+      "evidence": "../qa/signed-consolidation-build58-2026-11-25.json",
+      "scope": "Separately packaged signed local candidate including progress-font and Statistics changes; not installed or owner accepted."
+    },
+    "supplemental_signed_ssh_acceptance": {
+      "build": "57",
+      "evidence": "../qa/signed57-ssh-permission-acceptance-2026-11-25.json",
+      "scope": "Disposable separately signed host-architecture sandbox app reusing byte-identical candidate Core/Git/OpenSSH: actual folder grant, persisted bookmark across fresh processes, inherited config read, adjacent known-host rewrite and Forget/new-process denial with synthetic local files. Not shipping-main-app, installed, physical Finder, real SSH server/key/agent or Store acceptance.",
+      "initial_incomplete_attempt": "../qa/signed57-ssh-permission-incomplete-2026-11-25.json"
+    },
+    "installed_state": "Read-only checked as 0.1.0 (52) after the build 58 build on 2026-11-25; no installation or user-app quit/reopen performed.",
     "acceptance_tracker": "../RELEASE-BLOCKERS.md",
-    "next_delivery": "Local testing before any later App Store distribution. New source changes are not installed or accepted by this metadata review.",
-    "account_or_submission_changes": false
-  }
+    "next_delivery": "Local owner testing before any later App Store distribution.",
+    "account_or_submission_changes": false,
+    "hosted_validation": "Exact 98d35b8b Pages passed; matching macOS run failed before application validation after the required SVN producer was reported abandoned. Cause not established; no current full-suite pass claimed."
+  },
+  "historical_preparation_reviews": [
+    {
+      "date": "2026-11-05",
+      "installed_local_testing_build": "0.1.0 (52)",
+      "installed_source": "3702643e020511fc09687cda58f352ad5d12e459",
+      "evidence": "../qa/signed-consolidation-build52-2026-11-03.json",
+      "acceptance_tracker": "../RELEASE-BLOCKERS.md",
+      "next_delivery": "Local testing before any later App Store distribution. New source changes are not installed or accepted by this metadata review.",
+      "account_or_submission_changes": false
+    }
+  ]
 }

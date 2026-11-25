@@ -1,5 +1,32 @@
 # Local testing and release gates
 
+## Current local handoff — November 25, 2026
+
+[Signed build58](qa/signed-consolidation-build58-2026-11-25.json) is packaged from
+frozen `98d35b8b`, including the progress-font and Statistics implementation
+batches. Its one universal build, static sealed-bundle checks, fresh signed
+local-tools phase and complete ZIP/source round trips pass their recorded scopes.
+The app, exact source, notices and evidence are in
+`build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed`.
+
+The installed app was read-only checked as `0.1.0 (52)` after the build 58 build; it has
+not been updated, quit or reopened by this handoff. Next is owner testing of build 58
+using the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md). No new WMF/EMF feature
+or image-quality matrix is included. Existing build 56 image and build 57 real SSH permission
+evidence retain their original component-specific scope.
+
+For exact `98d35b8b`, [Pages45661147758](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45661147758)
+succeeded. [macOS45661147733](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45661147733)
+failed without executing app validation: the required SVN producer was reported
+as abandoned and the validation matrix was skipped. The cause of abandonment is
+not established. A current complete hosted pass, owner/physical Finder acceptance,
+broader platform/accessibility acceptance and the later license/distribution
+clearance remain open. No binary upload or App Store submission was performed.
+
+The dated checkpoints below preserve their original outcomes; their older pending
+statements are superseded only by later evidence of the same scope. Resource and
+control counts are not a feature-completion percentage.
+
 ## Statistics and signed SSH acceptance — November 25, 2026
 
 The [Statistics family checkpoint](qa/statistics-source-family-2026-11-25.json)

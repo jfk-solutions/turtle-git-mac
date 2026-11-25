@@ -2,12 +2,42 @@
 
 *A macOS fork of TortoiseGit*
 
-Local testing comes before publication. The installed candidate is signed build52;
-signed build56 is packaged separately for local testing from exact committed
-source. Earlier packages remain preserved; deferred uncommitted work is excluded.
+Local testing comes before publication. The latest separately packaged local
+candidate is signed build58; the installed app was read-only checked as build52.
 There is no public App Store listing or submitted release. The App Store remains
-a future distribution channel, with full-port acceptance, distribution signing
-and the existing license/Store terms review still open.
+a future channel after owner acceptance, distribution signing and the existing
+license/Store terms review.
+
+## Signed local testing build58
+
+[Build58's record](qa/signed-consolidation-build58-2026-11-25.json) identifies
+`0.1.0 (58)`, including the later progress-font and Statistics fixes. It has not
+been installed, launched as the shipping app, uploaded, notarized or submitted.
+Use the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md) for this exact build.
+
+| Item | Recorded identity |
+| --- | --- |
+| Exact clean app source | `98d35b8b819b3de68e39318030d300e2b32b69a5` |
+| Build-input SHA-256 | `6b21f84d25909c86850401e23d0425e3d812df04afc0ad8edfe95e143146320c` |
+| Local ZIP | `build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed/TurtleGit-for-Mac-0.1.0-build58-signed.zip` |
+| ZIP SHA-256 | `e9527057e531ab6745226e3a516004dbc6cdbdce0d40989ea3b0f0302de38342` |
+| Matching source archive SHA-256 | `b94105e0a353bdc3dec83a064294cf670aa28055dd98419c5f4c2b7c8b161ddf` |
+| Signing channel | Apple Development, sandboxed AppStore configuration for local testing |
+
+The single universal build, strict static audit, fresh signed local-tools/Core/Git
+phase and complete source/ZIP checks pass. The source archive matches all 14,898
+tracked blobs, names, modes and commit metadata; copied and extracted apps match
+all 7,493 complete inventory members. Owned observed helpers and scratch are absent.
+The existing build 56 image and build 57 real SSH folder-permission passes are retained only
+for their unchanged components, with explicit static compatibility bindings;
+neither is described as new build 58 shipping-main or physical Finder execution.
+
+The current-source website deployment passed. The matching macOS workflow failed
+before app validation because its SVN producer was reported abandoned; a full
+hosted pass is still required. Owner testing, physical Finder and broader
+platform/accessibility acceptance remain separate from this local package.
+Deferred renderer and unrelated installer work are excluded. Earlier packages
+and the installed copy are preserved.
 
 ## Signed local testing build56
 

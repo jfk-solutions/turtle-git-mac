@@ -1,0 +1,268 @@
+{
+  "schema": 1,
+  "status": "packaged local signed58; not installed or published",
+  "source_commit": "98d35b8b819b3de68e39318030d300e2b32b69a5",
+  "source_input_sha256": "6b21f84d25909c86850401e23d0425e3d812df04afc0ad8edfe95e143146320c",
+  "identity": {
+    "bundle_identifier": "org.turtlegit.macos",
+    "marketing_version": "0.1.0",
+    "build_number": "58",
+    "peers": {
+      "finder": {
+        "bundle_identifier": "org.turtlegit.macos.finder",
+        "marketing_version": "0.1.0",
+        "build_number": "58"
+      },
+      "cache": {
+        "bundle_identifier": "org.turtlegit.macos.cache",
+        "marketing_version": "0.1.0",
+        "build_number": "58"
+      }
+    }
+  },
+  "main_sha256": "6f16deefcdad24ac0a684a7c3ae17ddc5d4b81f22fa03e5f8473fcc2a6f66eb9",
+  "packaged_core_sha256": "bb8e9e48068cbf2ea6885019e88a77b0c8cc316968e2e4b6d8f8c505aaea1d90",
+  "package": "build/local-testing/TurtleGit-for-Mac-0.1.0-build58-signed",
+  "archive": {
+    "name": "TurtleGit-for-Mac-0.1.0-build58-signed.zip",
+    "sha256": "e9527057e531ab6745226e3a516004dbc6cdbdce0d40989ea3b0f0302de38342",
+    "bytes": 427093842
+  },
+  "source_archive": {
+    "name": "TurtleGit-for-Mac-source-98d35b8b819b3de68e39318030d300e2b32b69a5.tar.gz",
+    "commit": "98d35b8b819b3de68e39318030d300e2b32b69a5",
+    "sha256": "b94105e0a353bdc3dec83a064294cf670aa28055dd98419c5f4c2b7c8b161ddf",
+    "bytes": 207846228,
+    "tracked_blobs": 14898,
+    "directories": 116,
+    "exact_names_blobs_modes_comment": true,
+    "tar_umask": "0002"
+  },
+  "complete_inventory_members": 7493,
+  "build_attempts": [
+    {
+      "exit_code": 0,
+      "elapsed_seconds": 547.438,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed58-final-build-2026-11-25.log",
+      "log_sha256": "eed5085c4f0a63fd783a123e809cc00a4535a0081bf70553adb0624cc9a8d1aa"
+    }
+  ],
+  "passed_scope": [
+    "One universal Apple Development-signed AppStore configuration build58 from exact clean98d35b8b/V3 inputs, independently copied immutable57 runtime kits",
+    "Static deep strict signature, universal/paired architecture, sandbox roles, artwork, all38 compiled locales and104 bundled Help source members",
+    "Fresh signed disposable local-tools public Core/bundled Git phase; verified Clone cancellation identity and repeat read-only inspection",
+    "Full copied and ZIP-extracted bundle inventory and deep strict signature equality; exact source archive tracked names/blobs/modes/commit comment"
+  ],
+  "includes": [
+    "Progress output live font/style refresh with selection/viewport and lifetime preservation",
+    "Statistics source summary/date captions, deferred author-cutoff model rebuild, style maximum reset and readable large summaries",
+    "Previously committed SSH configuration access manager and connected command/dialog ownership fixes"
+  ],
+  "retained_historical_scope": {
+    "metafile": {
+      "historical_build": "56",
+      "historical_source_commit": "b3db4ca74b553495fd44aaee48fa348b996fb1b8",
+      "receipts": {
+        "preparation": {
+          "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed56-build-command-2026-11-25.json",
+          "sha256": "d3ea23c93ceb8a2c928048d050828905008a9a40064ed1ad15bfc1473c2339d5"
+        },
+        "static": {
+          "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed56-static-2026-11-25.json",
+          "sha256": "aa9588f9baa5f4146bcd31ac3b98b4cd6eccec3c06032ba1f073a27ab7c85ee5"
+        },
+        "metafile": {
+          "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed56-metafile-consumer-2026-11-25.json",
+          "sha256": "e5f2124a14110181ebe04aea59806caeebe785cba71388871b105af4e1c1657c"
+        }
+      },
+      "unsigned_kit_payload_inventory_sha256": "6bdcaeda2efff09b3f43f5b45dbcf9d1372b4faf571d07444742e7a638fbf9bd",
+      "complete_source_manifest_compiler_sdk_flags_architectures_equal": true,
+      "current_bundle_relocation_architectures_entitlements_and_seal_checked": true,
+      "runtime_reconstruction": {
+        "source_manifest_sha256": "61dbecc4a100964ac6082666b1bf25b9878061a11406d62da0fa5b1822199ae1",
+        "verified_data_members": 31,
+        "verified_signature_independent_native_members": 1,
+        "source_inventory_sha256": "6bdcaeda2efff09b3f43f5b45dbcf9d1372b4faf571d07444742e7a638fbf9bd"
+      },
+      "current58_image_execution_performed": false,
+      "limit": "Historical build56 Metafile consumer evidence only; matching copied unsigned payload and source/compiler/SDK/architecture inventory does not establish build58 Core/image consumer execution or GUI acceptance."
+    },
+    "ssh": {
+      "historical_build": "57",
+      "historical_source_commit": "ce9223db2f37ddefde7e74daf3853f5a74624ce7",
+      "historical_candidate": {
+        "source_commit": "ce9223db2f37ddefde7e74daf3853f5a74624ce7",
+        "source_input_sha256": "4d53d95ef4588c6475a70c248a77e828e0866de975993760f3d9e6fa3bc6ddd5",
+        "main_sha256": "372f2d2628b4f3b7a156dcc08ffddd4044995c4cf74c2ea2ea7c3fc34442ced4",
+        "packaged_core_sha256": "90c5be47bccaa75e3d04f3c10f56bf59144adb94e8201e007dde53077c00d7b9",
+        "team": "A49SCA5S8K"
+      },
+      "receipt": {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/docs/qa/signed57-ssh-permission-acceptance-2026-11-25.json",
+        "sha256": "99bbf0a9b10bc39ba2d1f58cdc244d4709b73978a1a8521200cb3b247649f053"
+      },
+      "component_binding": {
+        "path": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed58-retained57-ssh-component-binding-2026-11-25.json",
+        "sha256": "b52475800c8ec0b4fa855f6ae016926dc9b76ebcf40e3231fcf1dd56f5f12ffc"
+      },
+      "source_component_count": 503,
+      "source_components_equal_between57_and58": true,
+      "runtime_kit_payloads_equal": true,
+      "current_bundle_relocation_architectures_entitlements_and_seal_checked": true,
+      "current58_ssh_permission_execution_performed": false,
+      "current58_main_or_core_binary_equivalence_claimed": false,
+      "limit": "Real Powerbox+restart/read/known_hosts rewrite/Forget/newprocess denial were observed ONLY in57 private signed probe.58source components match except explicitly unrelated Stats/progress files; fresh58static still must verify exact runtime kits and fresh role seals. No58physicalpermission/main/Core execution claim."
+    }
+  },
+  "signed_parent_cleanup": {
+    "phase": "local-tools",
+    "passed": true,
+    "observed_owned_pids": [
+      25373,
+      42214,
+      42305,
+      42529
+    ],
+    "all_observed_owned_pids_absent": true,
+    "scratch_roots_absent": [
+      "/Users/jkuehner/.codex/worktrees/turtlegit-signed58/tortoise-git-mac/build/qa/signed-finder-m8aiv7d_"
+    ],
+    "helper_cleanup": {
+      "observed_helper_processes": 2,
+      "owned_helper_pids": [
+        42305,
+        42529
+      ],
+      "owned_helper_groups": [
+        42305,
+        42529
+      ],
+      "observed_helper_roles": {
+        "git": 2
+      },
+      "own_process_group_required_roles": [],
+      "observed_processes": [
+        {
+          "pid": 42305,
+          "ppid": 42214,
+          "pgid": 42305,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/.codex/worktrees/turtlegit-signed58/tortoise-git-mac/build/qa/signed-finder-m8aiv7d_/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        },
+        {
+          "pid": 42529,
+          "ppid": 42214,
+          "pgid": 42529,
+          "roles": [
+            "git"
+          ],
+          "actual_executable": "/Users/jkuehner/.codex/worktrees/turtlegit-signed58/tortoise-git-mac/build/qa/signed-finder-m8aiv7d_/Denied.app/Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git"
+        }
+      ],
+      "kernel_executable_identity_required": true,
+      "helper_processes_and_groups_drained": true,
+      "forced_cleanup_needed": false,
+      "observer_errors": []
+    },
+    "probe_report_sha256": "03ef5d77c144a78f740a5a6b69a226d34fde32ae84f0b4a48cabf676f60dca74",
+    "installation_performed": false,
+    "shipping_gui_launched": false
+  },
+  "receipts_sha256": {
+    "signed58-build-command-2026-11-25.json": "0dac7771da1c0b292e5e46cd049c79594fffc2288c07bdd97aa9fd373c8bf6af",
+    "signed58-final-command-2026-11-25.json": "03896191bba76c5d01bddab46ad013370d29a58ad52f4a6a4911b97864a274d8",
+    "signed58-static-2026-11-25.json": "017dfda5655abe35462d87423cc958b49fb457d942859016e0ffbe86f2cd5fbe",
+    "signed58-static-review-2026-11-25.json": "459e13fdc498d9c0dde8823d7ff53d11d62dffebd1f95e8dcaace52c0dc16816",
+    "signed58-local-tools-consumer-2026-11-25.json": "03ef5d77c144a78f740a5a6b69a226d34fde32ae84f0b4a48cabf676f60dca74",
+    "signed58-local-tools-phase-contract-2026-11-25.json": "656b2d239c473baca33ed9188278a7cc06c02b3d25359b8e5263a9d6de2d7828",
+    "signed58-local-tools-cleanup-2026-11-25.json": "82f42da284e914b392b6cdacd14d29fc7c1223649d012bf8de8b520286dbcec9",
+    "signed58-package-2026-11-25.json": "6775fec4a2406566f3723b0417bd85f5ce2fc6fbaed88dbc2cadb62b75d33804",
+    "ci-98d35b8b-observation-2026-11-25.json": "fa45e33ac1f7a825bd6f2753958fa1aba71990fe4752d629eeed791ae697e49f"
+  },
+  "package_manifest_sha256": "24bea73a0f27a9fefc11e5408b578e3565892331822536d7e38b5dee4c47ba04",
+  "package_sha256sums_sha256": "8a7d37333ff46fae89659fdc9bfacb9e71f8169fb79e7d9a6c6b91d6dd31ce05",
+  "ci_observations": {
+    "source_commit": "98d35b8b819b3de68e39318030d300e2b32b69a5",
+    "observations": [
+      {
+        "run_id": 45661147758,
+        "workflow": "GitHub Pages",
+        "status": "completed",
+        "conclusion": "success",
+        "updated_at": "2026-11-25T17:07:33Z"
+      },
+      {
+        "run_id": 45661147733,
+        "workflow": "macOS",
+        "status": "queued",
+        "conclusion": null,
+        "updated_at": "2026-11-25T17:06:52Z"
+      },
+      {
+        "run_id": 45661147733,
+        "workflow": "macOS",
+        "status": "completed",
+        "conclusion": "failure",
+        "job_evidence": {
+          "svn_runtime_job": {
+            "id": 139371313843,
+            "status": "completed",
+            "conclusion": "cancelled",
+            "started_at": "2026-11-25T17:06:52Z",
+            "completed_at": "2026-11-25T17:21:54Z",
+            "runner_name": "",
+            "steps": []
+          },
+          "required_lanes_gate": {
+            "id": 139380942756,
+            "conclusion": "failure",
+            "reported_needs": {
+              "svn-runtime": "abandoned",
+              "validation": "skipped"
+            },
+            "log_error": "Required macOS validation did not succeed: {\"svn-runtime\": \"abandoned\", \"validation\": \"skipped\"}"
+          },
+          "validation": {
+            "id": 139380944934,
+            "conclusion": "skipped",
+            "steps": []
+          }
+        },
+        "scope": "No current-source application validation executed. Cause of producer abandonment not established; no app test failure is attributed from this run."
+      }
+    ],
+    "historical_run": {
+      "run_id": 45607932829,
+      "source_commit": "d38d2f592e6cadd41bf991e22b00344e81fc5129",
+      "status": "completed",
+      "conclusion": "failure",
+      "core_and_svn_passed": true,
+      "distribution_failed_step": "Native Cherry Pick and Rebase recovery across Git versions"
+    },
+    "current_source_full_hosted_pass": false,
+    "rerun_or_cancellation_performed": false
+  },
+  "installed_read_only_observation": {
+    "path": "/Applications/TurtleGit for Mac.app",
+    "version": "0.1.0",
+    "build": "52",
+    "checked_after58_build": true,
+    "installation_performed": false
+  },
+  "shipping_gui": "not launched",
+  "finder_activation": "not performed",
+  "public_upload_notarization_store_submission": "not performed",
+  "limits": [
+    "No candidate58 physical UI/Finder acceptance",
+    "No full matching-source hosted CI claim",
+    "No full port/visual parity claim",
+    "No installation, Finder activation, public upload, notarization or Store submission by packaging",
+    "Historical57 real SSH folder permission proof is bound to unchanged components; no new58 permission or shipping-main execution claimed",
+    "Existing56 Metafile execution is retained for the identical full copied kit; no new image matrix or protected renderer work",
+    "Owner local acceptance, full matching-source hosted CI and supported-platform/accessibility acceptance remain separate",
+    "Later documentation-only metadata corrections do not alter frozen58 source or binaries"
+  ]
+}
