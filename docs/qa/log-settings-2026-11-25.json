@@ -1,0 +1,131 @@
+{
+  "date": "2026-11-25",
+  "baseline": "d38d2f592e6cadd41bf991e22b00344e81fc5129",
+  "status": "focused-native-scopes-passed-cumulatively",
+  "upstream": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "source_sha256": {
+    "Sources/TurtleGitMac/GeneralSettings.swift": "ad991d34e5a804d513dbac256eb4aa1994731f56dcfa791d1c999a804aefddc1",
+    "Sources/TurtleGitMac/LogWindow.swift": "ac57a434ee8a5672d98512e04646ac1e02030722d720f270c8a8a40d1733d738",
+    "Sources/TurtleGitMac/MergeEditorSettings.swift": "9b0c40aba2bbc1031d768063c8aedc4a5a3e3b050581fac19aac46e490da2645",
+    "Sources/TurtleGitMac/NativeListSelection.swift": "7bc24f834364aa1670243d195368d0555883760999d9c8c9a5d50e49a4bbf9d0",
+    "docs/qa/commit-message-encoding-native-2026-10-07.swift": "b6a092fcde22b5ab0f1333a45a30cadb7422c03e8205c6c1be756dcc8c1cfae4",
+    "docs/qa/historical-materialization-native-2026-10-19.swift": "0bc0fdd39f203445391d4eaf0e8e077bf4c83d38fcdee6f19de8ba268ead3891",
+    "docs/qa/language-family-native-2026-10-17.swift": "4af20bfa1a480ef5366d9d0bc507e404ecb6f4b3fe74152e5b30491e81ff58cb",
+    "docs/qa/merge-colors-source-native-2026-10-17.swift": "1f68c621772d53798852852f8b3dc47aff5556e3de24765867f9c1fa1bc5b712",
+    "docs/qa/merge-editor-source-native-2026-10-17.swift": "635fb896741f7b3ab54397a94fef6c328d7aa7edea069e059bf594d3c1a5fd61",
+    "docs/qa/native-list-interactions-native-2026-10-25.swift": "8eb70cf5bf8c4313d63362cbd17a65f19fee26c208fe5508d8a46edf91544be0",
+    "docs/qa/primary-log-columns-native-2026-10-21.swift": "c1195726e9e8d6902e13196439f0c9801849e16937e615da54bbd71f98c0ff35",
+    "docs/qa/report-workspace-family-native-2026-10-25.swift": "0109939584396974c846fc766d84f551364939ad8913553bc3c0d8ca168a27d4",
+    "docs/qa/repository-presentation-native-2026-10-15.swift": "22d358c818c7d25be88c685c6caa1c418b82a2a0082fb98f60d3426346c2bf38",
+    "docs/qa/status-colors-native-2026-10-09.swift": "7c9492f544a02f5b6019c430080c7a31fbeecf93039d1009e933e6d91205a8f8",
+    "docs/qa/working-status-projection-native-2026-11-23.swift": "448a6af1ac04fbba33ead3e7986c7a31bc41b493483508d2b58b3c44cf5e3ec5",
+    "scripts/test-historical-materialization-native.py": "02fce7d6b7c5ea20b127e67fe046e46495abc915473fab1c1f478a2cefeec0f2"
+  },
+  "fixes": [
+    "Exclude Graph from the header visibility menu, preserve saved bit-zero visibility and default graph width/position, reject legacy Graph toggle actions.",
+    "Use full-width native Log changed-file reports.",
+    "Retire General settings on actual owner closure; reject later engine/language Apply while preserving valid Apply for suspended pages and fresh reopening.",
+    "Invalidate color menu receipts when native controls move between owners and reject foreign/disabled well actions.",
+    "Clip retained native fields to current cells while AppKit updates their width."
+  ],
+  "core": {
+    "run": false,
+    "reason": "No Core implementation changed; affected native checks execute actual Git operations."
+  },
+  "color_oracle": "Pinned C++ RGB/HSL source blobs verified independently; conversion comparisons passed.",
+  "native": [
+    {
+      "log": "build/qa/log-settings-status-colors-2026-11-25.log",
+      "runs": 2,
+      "sha256": "ebe433be8060e92c05d3c13c0161e720725c2ee5438b46cc34e5c516bc3436ef"
+    },
+    {
+      "log": "build/qa/log-settings-language-2026-11-25.log",
+      "runs": 1,
+      "sha256": "9869354050c2e11f5341d4ed0b9be69bd20017d1e52b8a675a3a86dd01ab5eed"
+    },
+    {
+      "log": "build/qa/log-settings-editor-2026-11-25.log",
+      "runs": 1,
+      "sha256": "526cbad3dfc982f720e7d92a0c8957d7d65c6e424df81ffca9456f5839d7fe48"
+    },
+    {
+      "log": "build/qa/log-settings-colors-2026-11-25.log",
+      "runs": 2,
+      "sha256": "e02f95cc1b5c43965dee3229a5e6d892d3e12b4e77f84ede78743b56e2fd34f5"
+    },
+    {
+      "log": "build/qa/log-settings-log-2026-11-25.log",
+      "runs": 2,
+      "sha256": "6be47afea6518c17408a1eec9827fd832a1f03905755b63249dbfd423518f0d1"
+    },
+    {
+      "log": "build/qa/log-settings-workspace-2026-11-25.log",
+      "runs": 2,
+      "sha256": "9d9a02806504c90d4eee12a8c50b1f6ec4a3af7f384dea1fa5c07691e8cda24c"
+    },
+    {
+      "log": "build/qa/log-settings-presentation-2026-11-25.log",
+      "runs": 2,
+      "sha256": "93237da5d6abe2a1b842d34f5671e9760ed8a5e459a0364f9b5295cd756056b6"
+    },
+    {
+      "log": "build/qa/log-settings-revert-2026-11-25.log",
+      "runs": 2,
+      "sha256": "e639da149171a0b825ea4d000d069fe26d48b51528bcba9b0468f99a7b27c65d"
+    },
+    {
+      "log": "build/qa/log-settings-encoding-2026-11-25.log",
+      "runs": 2,
+      "sha256": "c3aea9411b097fc13bef83d160a0e4356c72e22dc8dc13e6e9eb54de1663106e"
+    },
+    {
+      "log": "build/qa/log-settings-promise-system-2026-11-25.log",
+      "runs": 1,
+      "sha256": "ccf3a3792f5148824a98981f33b15d49891f2261e1b5f325ca55ffc9bbc4a769"
+    },
+    {
+      "log": "build/qa/log-settings-promise-bundled-2026-11-25.log",
+      "runs": 1,
+      "sha256": "f4478b7997a947fa4fb93f294d054692a64a65a6f84068de2de3c8c47b106ee2"
+    },
+    {
+      "log": "build/qa/log-settings-repair-list-2026-11-25.log",
+      "runs": 2,
+      "scope": "system callbacks/lifecycle passed before consumers failed"
+    },
+    {
+      "log": "build/qa/log-settings-final-list-bundled-2026-11-25.log",
+      "runs": 2,
+      "scope": "bundled callbacks/lifecycle passed before consumers failed"
+    },
+    {
+      "log": "build/qa/log-settings-consumers-2026-11-25.log",
+      "runs": 2,
+      "scope": "final consumers both Git engines"
+    }
+  ],
+  "failed_attempts": [
+    "The migrated native-field check exposed a retained 895-point field in a 460-point cell. The renderer was corrected and rebuilt.",
+    "The migration also retained two SwiftUI-only assumptions: glyph-hugging marker bounds and explicit left paragraph alignment. Native assertions now independently measure actual caption/font/alignment, retaining full text-frame clipping and truncation."
+  ],
+  "limitations": [
+    "No complete hosted CI result for these changes.",
+    "No shipping signed, physical Finder, minimum-macOS/Intel, VoiceOver or full visual parity claim.",
+    "Earlier historical-provider refusal not reproduced locally; diagnostics retain its exact guards."
+  ],
+  "delivery": "Installed52 and signed55 unchanged. No WMF/EMF edits, installation or submission.",
+  "native_runs": 24,
+  "build": {
+    "exit": 0,
+    "log": "build/qa/log-settings-repair-build-2026-11-25.log"
+  },
+  "resources": {
+    "help": "Changed guides are absent from help-topics.json; no Help regeneration needed.",
+    "localization": "No literal UI labels changed."
+  },
+  "cleanup": {
+    "owned_receivers_remaining": [],
+    "workers_windows_sheets": "asserted by completed native receivers"
+  }
+}

@@ -90,6 +90,7 @@ import TurtleGitCore
         field.wrappedValue="ja";wizard.close()
         try require(AppLanguageChoice.selected(in:prefs)=="fr","Later wizard closure rolled back a saved page")
         model.suspend();old.wrappedValue="ja";model.activate()
+        try await wait{model.canEditPage && model.language=="fr"}
         try require(model.language=="fr","Returning General page missed newly saved wizard choice")
         model.languageBinding().wrappedValue="ja"
         model.publishFinderLanguage = { _ in throw Failure(description:"private publication failed") }
@@ -109,7 +110,31 @@ import TurtleGitCore
         try require(!menus.modified,"General language change dirtied Context Menu policy")
         menus.cancel()
         try require(menus.draft.language=="de","Cancel restored a stale Finder language")
-        window.close();model.suspend()
+        let closedChoice=model.languageBinding(),closedLanguage=model.language
+        window.close();model.activate();closedChoice.wrappedValue="ja"
+        model.languageBinding().wrappedValue="fr"
+        try require(!model.canEditPage && !model.applyLanguage() && model.language==closedLanguage,"Closed General owner revived language authority")
+        var staleInspections=0
+        model.inspectEngine={_,_ in staleInspections += 1;return "git version private-stale"}
+        let closedPreferences=NSDictionary(dictionary:prefs.persistentDomain(forName:suite) ?? [:])
+        let staleApply=await model.apply(validateUnchanged:true)
+        try require(!staleApply && staleInspections==0 && closedPreferences.isEqual(to:prefs.persistentDomain(forName:suite) ?? [:]),"Closed General owner inspected Git or changed preferences through retained Apply")
+        let reopened=GeneralGitSettingsModel(preferences:prefs)
+        let newOwner=NSWindow(contentRect:.init(x:0,y:0,width:600,height:400),styleMask:[.titled,.closable],backing:.buffered,defer:false)
+        newOwner.isReleasedWhenClosed=false;newOwner.alphaValue=0;defer{newOwner.close()}
+        reopened.attach(to:newOwner,attachment:UUID());reopened.languageBinding().wrappedValue="fr"
+        try require(reopened.canEditPage && reopened.language=="fr" && reopened.languageModified && AppLanguageChoice.selected(in:prefs)=="de","Fresh General owner did not retain independent reopen authority")
+        reopened.cancelLanguage()
+        var currentInspections=0
+        reopened.inspectEngine={_,_ in currentInspections += 1;return "git version private-current"}
+        let freshApply=await reopened.apply(validateUnchanged:true)
+        try require(freshApply && currentInspections==1,"Fresh General owner refused valid engine Apply")
+        reopened.engineField(\.extraPath).wrappedValue="/private/turtlegit-language-native"
+        let acceptedEngine=reopened.draft
+        reopened.suspend()
+        let suspendedApply=await reopened.apply(validateUnchanged:true)
+        try require(suspendedApply && currentInspections==2 && !reopened.modified && (GitRuntime.isAppStoreBuild || GitEnginePreferences.load(from:prefs)==acceptedEngine),"Suspending an unretired General page blocked global engine Apply")
+        newOwner.close()
         try require(GeneralGitSettingsModel.activeOperations==0 && GeneralGitSettingsModel.activeDialogs==0 && FirstStartWizardModel.activeWrites==0,"Language selection leaked owners")
         print("PASS language family de: all compiled locale tables, process label/fallback, General Apply/Cancel/stale callbacks, Wizard page save/late reply/close, system reset and owned light/dark forms; no Git/global preferences touched")
     }

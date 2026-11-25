@@ -179,13 +179,15 @@ import SwiftUI
         let apply = buttons.first { $0.title == "Apply" }!
         let restore = buttons.first { $0.title == "Restore Defaults" }!
         let cancel = buttons.first { $0.title == "Cancel" }!
-        precondition(buttons.filter { $0.title == "Default" }.count == 6)
+        let choices=descendants(window.contentView!).compactMap{$0 as? MergeColorChoiceView}
+        precondition(choices.count==6 && choices.allSatisfy{$0.choices.items.map(\.title)==["Automatic","","More colors…"]})
         precondition(!apply.isEnabled && !cancel.isEnabled)
-        let wells = descendants(window.contentView!).compactMap { $0 as? NSColorWell }
+        let wells=choices.map(\.well)
         precondition(wells.count == 6)
-        wells[0].color = NSColor(srgbRed: 3.0/255, green: 127.0/255, blue: 249.0/255, alpha: 1)
-        precondition(wells[0].action != nil)
-        precondition(NSApplication.shared.sendAction(wells[0].action!, to: wells[0].target, from: wells[0]))
+        let added=choices.first{$0.identifier?.rawValue=="StatusColors.added"}!,well=added.well
+        well.color = NSColor(srgbRed: 3.0/255, green: 127.0/255, blue: 249.0/255, alpha: 1)
+        precondition(well.action != nil)
+        precondition(NSApplication.shared.sendAction(well.action!, to: well.target, from: well))
         precondition(reopened.draft.rgb(.added) == [3,127,249])
         for _ in 0..<1000 {
             if apply.isEnabled && cancel.isEnabled { break }
@@ -193,15 +195,17 @@ import SwiftUI
         }
         cancel.performClick(nil)
         precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && !reopened.changed)
-        wells[0].color = NSColor(srgbRed: 3.0/255, green: 127.0/255, blue: 249.0/255, alpha: 1)
-        _ = NSApplication.shared.sendAction(wells[0].action!, to: wells[0].target, from: wells[0])
+        well.color = NSColor(srgbRed: 3.0/255, green: 127.0/255, blue: 249.0/255, alpha: 1)
+        _ = NSApplication.shared.sendAction(well.action!, to: well.target, from: well)
         for _ in 0..<1000 {
             if apply.isEnabled { break }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
         apply.performClick(nil)
         precondition(StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
-        buttons.first(where: { $0.title == "Default" })!.performClick(nil)
+        added.menuNeedsUpdate(added.choices)
+        let automatic=added.choices.items.first{$0.title=="Automatic"}!
+        precondition(automatic.image != nil && NSApplication.shared.sendAction(automatic.action!,to:automatic.target,from:automatic))
         precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])
         restore.performClick(nil)
         precondition(reopened.draft.rgb(.added) == StatusTextRole.added.rgb && StatusColorPreferences.load(preferences).rgb(.added) == [3,127,249])

@@ -350,8 +350,12 @@ import TurtleGitCore
                 // Let the native field editor render its own selection/caret.
                 guard field.currentEditor()==nil else{return nil}
                 guard let cell=field.cell?.copy() as? NSTextFieldCell else{return nil}
-                let frame=currentColumnFrame(field.bounds,from:field)
-                let drawing=currentColumnFrame(field.cell?.drawingRect(forBounds:field.bounds) ?? field.bounds,from:field)
+                // Retained native fields can still have their old width while
+                // AppKit updates a resized column. Draw/truncate in its current
+                // cell, including the native full-width style's insets.
+                let frame=currentColumnFrame(field.bounds,from:field).intersection(bounds)
+                let drawing=currentColumnFrame(field.cell?.drawingRect(forBounds:field.bounds) ?? field.bounds,from:field).intersection(bounds)
+                guard !frame.isEmpty,!drawing.isEmpty else{return nil}
                 let measured=cell.cellSize(forBounds:NSRect(x:0,y:0,width:CGFloat.greatestFiniteMagnitude,height:drawing.height)).width
                 let width=min(drawing.width,max(0,measured))
                 let x:CGFloat

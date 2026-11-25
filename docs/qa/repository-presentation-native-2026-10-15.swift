@@ -67,12 +67,12 @@ import TurtleGitCore
         _ = coordinator.make()
         let table = coordinator.table, pathColumn = table.tableColumn(withIdentifier: .init("path"))!
         func tooltip() -> String? { coordinator.tableView(table, viewFor: pathColumn, row: 0)?.toolTip }
-        try require(tooltip() == root.appendingPathComponent("new 🐢.txt").path, "Native Add full-path tooltip")
+        try require(tooltip() == root.appendingPathComponent("new 🐢.txt").path + "\nUntracked", "Native Add tooltip must retain the full path and source status")
         try require(advanced.edit("ShowListFullPathTooltip", text: "false"), "Edit tooltip preference")
         advanced.apply(); coordinator.refresh(); try require(tooltip() == nil, "Native Add disabled tooltip")
         _ = advanced.edit("ShowListFullPathTooltip", text: ""); _ = advanced.edit("DialogTitles", text: "")
         advanced.apply(); coordinator.refresh()
-        try require(tooltip() == root.appendingPathComponent("new 🐢.txt").path, "Native Add tooltip reset")
+        try require(tooltip() == root.appendingPathComponent("new 🐢.txt").path + "\nUntracked", "Native Add tooltip reset must retain path and status")
         try require(commit.window!.title == root.path + " – Commit – TurtleGit", "Title reset updates existing window")
         // A later preference notification must not rewrite a closed owner.
         let closed = independent.window!; independent.close(); let closedTitle = closed.title

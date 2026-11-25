@@ -80,10 +80,23 @@ import TurtleGitCore
         let rawPause = try Data(contentsOf: rebaseRoot.appendingPathComponent(".git/rebase-merge/message"))
         let expectedPause = try CommitMessageEncoding.decode(rawPause, name: "windows-1252")
         precondition(stopped.state.message == expectedPause && expectedPause.trimmingCharacters(in: .newlines) == "café")
+        // The sequencer reader above and the editable applied commit have
+        // separate sources. Read raw HEAD independently; do not reuse the
+        // presentation parser as its own expected value.
+        let rawApplied = try await body(rebaseRepo)
+        precondition(rawApplied == Data([0x63,0x61,0x66,0xe9,0x0a]), "Applied Edit changed original windows-1252 commit bytes")
+        let expectedApplied = try CommitMessageEncoding.decode(rawApplied, name: "windows-1252")
+        precondition(expectedApplied == "café\n")
         let rebase = RebaseWindowModel(repository: rebaseRepo, access: nil, messageDefaults: defaults); rebase.editorExecutable = editor; rebase.load()
+        defer {rebase.retire()}
         var deadline = Date().addingTimeInterval(30)
         while rebase.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-        precondition(!rebase.busy && rebase.error == nil && rebase.amendMessage == expectedPause)
+        if rebase.busy || rebase.error != nil || rebase.amendMessage != expectedApplied {
+            fputs("Legacy Edit load: busy=\(rebase.busy), error=\(String(reflecting:rebase.error)), actualMessage=\(String(reflecting:rebase.amendMessage)), expectedApplied=\(String(reflecting:expectedApplied)), expectedSequencer=\(String(reflecting:expectedPause)), appliedBytes=\(Array(rawApplied)), sequencerBytes=\(Array(rawPause)), stateMessage=\(String(reflecting:rebase.state?.message))\n",stderr)
+        }
+        precondition(!rebase.busy,"Legacy Edit load remained busy")
+        precondition(rebase.error == nil,rebase.error ?? "Legacy Edit error")
+        precondition(rebase.amendMessage == expectedApplied,"Legacy Edit did not display the applied commit message")
         rebase.amendMessage = "café edited"; rebase.request("continue")
         deadline = Date().addingTimeInterval(30)
         while rebase.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }

@@ -1,4 +1,4 @@
-# General settings — implementation in progress
+# General settings
 
 Reference: pinned SetMainPage.cpp and IDD_SETTINGSMAIN at
 `7338078f8ddd924b8cddee35f512f2286072136d`.
@@ -16,6 +16,11 @@ access leases remain alive for engines captured by repositories and open dialogs
 Custom engine selection is validated by running `git --version` in private app
 temporary storage, with draft runtime environment, before Apply saves it.
 Version checks are cancelable and fence callbacks when the page disappears.
+Returning to a cached General page reloads an externally saved language after
+native page activation, while preserving an unsaved language draft. Hiding a
+page suspends its callbacks; closing its native Settings owner permanently
+retires that model and its retained fields. Reopening Settings creates a new
+transaction and page model rather than reactivating the closed owner.
 The environment viewer is an owned read-only native sheet, supports selection,
 and shows the effective draft process variables without writing them to logs or
 files. Shared property-sheet Apply/Cancel owns the preference draft.

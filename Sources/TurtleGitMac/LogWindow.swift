@@ -4596,6 +4596,7 @@ struct LogChangedFileReport:NSViewRepresentable {
         func make()->NSScrollView {
             let scroll=NSScrollView();scroll.hasVerticalScroller=true;scroll.hasHorizontalScroller=true;scroll.borderType = .bezelBorder
             table.dataSource=self;table.delegate=self;table.allowsMultipleSelection=true;table.allowsColumnReordering=true;table.usesAlternatingRowBackgroundColors=false
+            table.style = .fullWidth
             table.target=self;table.doubleAction=#selector(activateFile)
             let header=LogChangedFileHeader(frame:NSRect(x:0,y:0,width:0,height:24));header.fitColumn={[weak self] column,useDefault in self?.fitColumn(column,useDefault:useDefault)==true};table.headerView=header
             table.floatsGroupRows=false
@@ -5831,10 +5832,14 @@ struct RevisionTable: NSViewRepresentable {
                 if let columnReceipt{reset.representedObject=ColumnCommand(columnReceipt,nil)}
                 menu.addItem(reset);menu.addItem(.separator())
                 for definition in LogRevisionColumns.definitions {
+                    // ColumnManager::AddMenuItem starts at logical column 1.
+                    // Graph retains its persisted bit-zero visibility, but the
+                    // source header menu cannot toggle it.
+                    if definition.id=="graph" {continue}
                     if definition.id=="bugs" && !model.issueProperties.showsBugIDColumn || definition.id=="svn" && !model.hasGitSVN {continue}
                     let item=NSMenuItem(title:HistoryLabels.caption(definition.title),action:#selector(columnCommand(_:)),keyEquivalent:"")
                     item.image=MenuIcon.settingsDialogs.contextImage(defaults:model.colorPreferences)
-                    item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil && !(definition.id=="graph" && model.historyWalk.followRenames)
+                    item.target=self;item.identifier = .init("Log.Columns."+definition.id);item.isEnabled=columnReceipt != nil
                     if let columnReceipt{item.representedObject=ColumnCommand(columnReceipt,definition.id)}
                     item.state=table?.tableColumn(withIdentifier:.init(definition.id))?.isHidden==false ? .on:.off;menu.addItem(item)
                 }
@@ -6214,7 +6219,7 @@ struct RevisionTable: NSViewRepresentable {
         }
         @objc func toggleColumn(_ sender:NSMenuItem){guard columnCommandsAvailable,let id=sender.representedObject as? String else{return};toggleColumnID(id)}
         private func toggleColumnID(_ id:String) {
-            guard columnCommandsAvailable,!(id=="graph" && model.historyWalk.followRenames),let column=table?.tableColumn(withIdentifier:.init(id)) else{return}
+            guard columnCommandsAvailable,id != "graph",let column=table?.tableColumn(withIdentifier:.init(id)) else{return}
             if id=="bugs" && !model.issueProperties.showsBugIDColumn || id=="svn" && !model.hasGitSVN{return}
             column.isHidden.toggle();columnLayoutEpoch=UUID()
             model.colorPreferences.set(!column.isHidden,forKey:"Log.Column.Visible."+id)

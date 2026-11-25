@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+## Log and Settings ownership — November 25, 2026
+
+The [native checkpoint](qa/log-settings-2026-11-25.json) covers source-correct
+Graph header menus, full-width reports, permanent Settings owner retirement and
+color menus bound to their current window. It also fixes retained native text
+clipping after column resize. Twenty-four native runs and the independent color
+oracle pass cumulatively; initial failures remain recorded. No Core code changed.
+Full hosted, signed and physical acceptance remain open. Installed52 and signed55
+are unchanged.
+
+
 ## Picker and embedded conflict recovery — November 25, 2026
 
 The [current checkpoint](qa/picker-conflict-recovery-2026-11-25.json) restores
@@ -236,8 +247,8 @@ Browser waits for its owned children and physical parent detachment, while
 accepted external file promises retain their independent captured lifetime.
 Native drag admission also binds the originating hit row or tree item.
 
-Log's Graph column now participates in the source column visibility menu and
-persistent preference; Follow temporarily hides it and restores that preference.
+Log retains Graph's saved visibility and source default position. Its header
+menu starts after Graph; Follow temporarily hides it and restores the saved value.
 The containing-reference dialog follows the optional list font, keeps a compact
 subject/Show log row and carries captured actors through Log, Browse, Compare and
 owned pickers. Stale menu selections and parent epochs cannot dispatch later.

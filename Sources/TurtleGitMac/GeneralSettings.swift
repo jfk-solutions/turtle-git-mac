@@ -33,7 +33,7 @@ import TurtleGitCore
     var publishFinderLanguage: ((String) throws -> Bool)?
     var notifyFinderLanguage: () -> Void = { DistributedNotificationCenter.default().postNotificationName(NSNotification.Name(FinderIntegration.notification), object: nil) }
     func applyLanguage() -> Bool {
-        guard !busy, !selecting, !confirmingUpdates else { return false }
+        guard !retired, !busy, !selecting, !confirmingUpdates else { return false }
         guard languageModified else { return true }
         let acceptedLanguage=language,acceptedLifecycle=lifecycle,baseline=FinderMenuSettings.from(defaults:preferences)
         let intents=SettingsPublicationIntents(defaults:preferences),pending=intents.pending(.finderMenu)
@@ -81,12 +81,13 @@ import TurtleGitCore
     @Published private var active=false
     private var lifecycle=UUID()
     private var live=false
+    private var retired=false
     private var attachment:UUID?
     private var windowObserver:NSObjectProtocol?
     weak var window:NSWindow? {didSet {
         guard oldValue !== window else {return};cancelBrowse();cancelUpdateQuestion()
         if let windowObserver {NotificationCenter.default.removeObserver(windowObserver)};windowObserver=nil
-        if let window {windowObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.suspend()} }}
+        if let window {windowObserver=NotificationCenter.default.addObserver(forName:NSWindow.willCloseNotification,object:window,queue:.main) { [weak self] _ in MainActor.assumeIsolated {self?.retire()} }}
     }}
     deinit {if let windowObserver {NotificationCenter.default.removeObserver(windowObserver)}}
     var inspectEngine:((GitEnginePreferences,OperationCancellation)async throws->String)?
@@ -129,12 +130,14 @@ import TurtleGitCore
     }
     var modified: Bool { draft != saved }
     func attach(to owner:NSWindow?, attachment receipt:UUID) {
+        guard !retired else{return}
         guard let owner else { detach(attachment:receipt); return }
         guard attachment != receipt || window !== owner || !live else { return }
         attachment=receipt; window=owner; activate()
     }
     func detach(attachment receipt:UUID) { guard attachment == receipt else{return};attachment=nil;suspend() }
     func activate() {
+        guard !retired else{return}
         live=true;lifecycle=UUID();let generation=lifecycle
         DispatchQueue.main.async { [weak self] in
             guard let self,self.live,self.lifecycle==generation else{return}
@@ -155,6 +158,12 @@ import TurtleGitCore
             guard let self,self.lifecycle==generation,!self.live else{return}
             self.active=false;self.busy=false;self.checking=false;self.cancellingCheck=false
         }
+    }
+    private func retire() {
+        guard !retired else{return};retired=true;attachment=nil
+        // Page suspension is reversible; native owner closure is not. Keep
+        // dialog/worker accounting until its existing release paths drain.
+        suspend()
     }
     private func releaseDialog(_ dialog:NSWindow, publication:@escaping (GeneralGitSettingsModel)->Void) {
         let parent=dialog.sheetParent ?? window
@@ -217,7 +226,7 @@ import TurtleGitCore
     }
     func cancelCheck() {guard live,checking,!cancellingCheck else {return};cancellingCheck=true;token?.cancel()}
     func apply(validateUnchanged:Bool = false,cancellation:OperationCancellation? = nil)async->Bool {
-        guard !busy,!selecting,!confirmingUpdates else {return false}
+        guard !retired,!busy,!selecting,!confirmingUpdates else {return false}
         guard modified || validateUnchanged else {return true}
         let settings=draft,token=cancellation ?? OperationCancellation(),generation=UUID()
         request=generation;self.token=token;busy=true;error=nil;Self.activeOperations += 1

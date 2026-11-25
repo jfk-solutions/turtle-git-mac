@@ -191,26 +191,61 @@ private extension NSWindow {
         try require(h.table.delegate !== retiredDelegate && NativeListSelection.originalDelegate(of:h.table) === h.original,"Reparented table did not acquire fresh owned binding")
     }
     static func markerGeometry(_ adapter:CommitFileInteraction.Probe,owner:NSWindowController,indexes:IndexSet)async throws {
-        let table=try unwrap(adapter.nativeTable,"Measured table absent")
+        try await markerGeometry(table:unwrap(adapter.nativeTable,"Measured table absent"),owner:owner,indexes:indexes,expectedPaths:adapter.rows.map{$0.entry?.path},nativeFields:false)
+    }
+    static func markerGeometry(table:NSTableView,owner:NSWindowController,indexes:IndexSet,expectedPaths:[String?],nativeFields:Bool)async throws {
         @MainActor func descendants(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(descendants)}
         @MainActor func pathColumn()->Int? {table.tableColumns.firstIndex{FileListLabels.column(named:$0.title) == .path}}
         @MainActor func check(_ row:Int)throws->Bool {
             guard let column=pathColumn(),let cell=table.view(atColumn:column,row:row,makeIfNecessary:true),
-                  let marker=descendants(cell).compactMap({$0 as? NativeListSelectionLabelMarker.Probe}).first(where:{!$0.retired && $0.window === table.window}),
-                  marker.bounds.width>0,marker.bounds.height>0,
                   let text=NativeListSelection.labelTextRect(in:table,row:row),let highlight=NativeListSelection.labelRect(in:table,row:row) else{return false}
-            let expected=marker.convert(marker.bounds,to:table).intersection(table.frameOfCell(atColumn:column,row:row))
+            let marker=descendants(cell).compactMap({$0 as? NativeListSelectionLabelMarker.Probe}).first(where:{!$0.retired && $0.window === table.window})
+            let nativeField=(cell as? NSTableCellView)?.textField
+            let content:NSView
+            if nativeFields {
+                guard let nativeField,nativeField.window === table.window else{return false};content=nativeField
+            } else {guard let marker else{return false};content=marker}
+            guard content.bounds.width>0,content.bounds.height>0 else{return false}
+            @MainActor func currentNativeContentRect(_ rect:NSRect)->NSRect {
+                var converted=content.convert(rect,to:table)
+                if nativeFields {
+                    // A retained cell's presentation origin can lag a column
+                    // reorder. Its label offset belongs to the column currently
+                    // bound to this exact native row/cell, not the old origin.
+                    let origin=cell.convert(cell.bounds,to:table).minX
+                    converted.origin.x += table.frameOfCell(atColumn:column,row:row).minX-origin
+                }
+                return converted.intersection(table.frameOfCell(atColumn:column,row:row))
+            }
+            let expected=currentNativeContentRect(content.bounds)
             guard !expected.isNull,expected.width>0 else{return false}
-            try require(abs(text.minX-expected.minX)<0.5 && abs(text.minY-expected.minY)<0.5 && abs(text.width-expected.width)<0.5 && abs(text.height-expected.height)<0.5,"Selection text did not use actual SwiftUI Text marker bounds")
-            try require(highlight.minX<=expected.minX+0.5 && highlight.maxX>=expected.maxX-0.5,"Selection left original glyphs outside its cover rectangle")
+            let columnDiagnostic=table.tableColumns.map{"\($0.identifier.rawValue):\($0.width):hidden=\($0.isHidden)"}
+            let geometryDiagnostic="nativeFields=\(nativeFields),owner=\(type(of:owner)),table=\(type(of:table)),row=\(row),path=\(String(reflecting:expectedPaths[row])),column=\(column),columns=\(columnDiagnostic),columnRect=\(table.rect(ofColumn:column)),rowRect=\(table.rect(ofRow:row)),cellRect=\(table.frameOfCell(atColumn:column,row:row)),cellFrame=\(cell.frame),cellBounds=\(cell.bounds),cellConverted=\(cell.convert(cell.bounds,to:table)),contentFrame=\(content.frame),contentBounds=\(content.bounds),contentConverted=\(content.convert(content.bounds,to:table)),expected=\(expected),text=\(text),highlight=\(highlight),drawing=\(String(describing:NativeListSelection.labelDrawing(in:table,row:row)?.frame)),visible=\(table.visibleRect),selection=\(table.selectedRowIndexes)"
+            try require(abs(text.minX-expected.minX)<0.5 && abs(text.minY-expected.minY)<0.5 && abs(text.width-expected.width)<0.5 && abs(text.height-expected.height)<0.5,"Selection text did not use actual rendered text content bounds: "+geometryDiagnostic)
+            if nativeFields {
+                guard let nativeField,let nativeFont=nativeField.font,let nativeCell=nativeField.cell else{return false}
+                // An AppKit label spans the available column width; its glyphs
+                // do not. Measure actual caption/font independently, then use
+                // the native alignment and clipped drawing origin for coverage.
+                let drawable=currentNativeContentRect(nativeCell.drawingRect(forBounds:nativeField.bounds))
+                let measured=(nativeField.stringValue as NSString).size(withAttributes:[.font:nativeFont]).width
+                let glyphWidth=min(drawable.width,measured),glyphX:CGFloat
+                switch nativeField.alignment {case .right:glyphX=drawable.maxX-glyphWidth;case .center:glyphX=drawable.midX-glyphWidth/2;default:glyphX=drawable.minX}
+                let glyph=NSRect(x:glyphX,y:drawable.minY,width:glyphWidth,height:drawable.height).intersection(table.frameOfCell(atColumn:column,row:row))
+                try require(highlight.minX<=glyph.minX+0.5 && highlight.maxX>=glyph.maxX-0.5,"Native label-only selection left caption glyphs outside its cover: glyph=\(glyph), "+geometryDiagnostic)
+                try require(highlight.minX>=table.frameOfCell(atColumn:column,row:row).minX-0.5 && highlight.maxX<=table.frameOfCell(atColumn:column,row:row).maxX+0.5,"Native glyph cover escaped current column: "+geometryDiagnostic)
+                if measured+8<expected.width {try require(highlight.width<expected.width,"Native label-only selection filled the whole available text field: "+geometryDiagnostic)}
+            } else {
+                try require(highlight.minX<=expected.minX+0.5 && highlight.maxX>=expected.maxX-0.5,"Selection left original glyphs outside its cover rectangle")
+            }
             guard let drawing=NativeListSelection.labelDrawing(in:table,row:row),let font=drawing.cell.font else{return false}
             // Inspect the attributed caption actually drawn in the marker
             // bounds. NSCell title/drawing rectangles were identity mappings on
             // the affected SDK and did not detect its physical truncation.
             let caption=drawing.cell.attributedStringValue
             let captionWidth=(caption.string as NSString).size(withAttributes:[.font:font]).width
-            let attributedSize=caption.size()
-            let expectedCaption=adapter.rows[row].entry?.path
+            let attributedSize=nativeFields ? NSAttributedString(string:caption.string,attributes:[.font:font]).size():caption.size()
+            let expectedCaption=expectedPaths[row]
             try require(expectedCaption.map{caption.string.utf8.elementsEqual($0.utf8)} == true,"Selection caption differs from the actual displayed path")
             var attributesMatch=true
             caption.enumerateAttributes(in:NSRange(location:0,length:caption.length),options:[]){attributes,_,_ in
@@ -218,13 +253,15 @@ private extension NSWindow {
                       let paragraph=attributes[.paragraphStyle] as? NSParagraphStyle else{attributesMatch=false;return}
                 if !actualFont.isEqual(font) || paragraph.alignment != .left || paragraph.lineBreakMode != .byTruncatingTail {attributesMatch=false}
             }
-            let diagnostic="caption=\(caption.string), font=\(font), independentWidth=\(captionWidth), attributedSize=\(attributedSize), marker=\(expected), drawing=\(drawing.frame)"
+            let diagnostic="caption=\(caption.string), font=\(font), nativeFont=\(String(describing:nativeField?.font)),nativeAlignment=\(String(describing:nativeField?.alignment.rawValue)),overlayAlignment=\(drawing.cell.alignment.rawValue),nativeLineBreak=\(String(describing:nativeField?.lineBreakMode.rawValue)),overlayLineBreak=\(drawing.cell.lineBreakMode.rawValue),independentWidth=\(captionWidth), attributedSize=\(attributedSize), marker=\(expected), drawing=\(drawing.frame)"
             print("Native attributed label metrics: "+diagnostic);fflush(stdout)
-            try require(attributesMatch,"Actual overlay caption lost its explicit font/paragraph layout: "+diagnostic)
+            if nativeFields {try require(nativeField?.font?.isEqual(font)==true && nativeField?.lineBreakMode == .byTruncatingTail && drawing.cell.lineBreakMode == nativeField?.lineBreakMode && drawing.cell.alignment == nativeField?.alignment,"Native field overlay lost actual font/paragraph policy: "+diagnostic)}
+            else {try require(attributesMatch,"Actual overlay caption lost its explicit font/paragraph layout: "+diagnostic)}
             try require(abs(drawing.frame.minX-expected.minX)<0.5 && abs(drawing.frame.minY-expected.minY)<0.5 && abs(drawing.frame.width-expected.width)<0.5 && abs(drawing.frame.height-expected.height)<0.5,"Attributed caption does not draw in the measured Text content frame: "+diagnostic)
             try require(abs(attributedSize.width-captionWidth)<0.5,"Attributed caption layout differs from the independently measured native font span: "+diagnostic)
             try require(drawing.frame.width>=captionWidth-0.5 && drawing.frame.height>=attributedSize.height-0.5,"Actual full path caption lacks sufficient drawable space: "+diagnostic)
-            try require(marker.hitTest(.zero)==nil && !marker.isAccessibilityElement(),"Text geometry marker intercepted native input/accessibility")
+            if let marker {try require(marker.hitTest(.zero)==nil && !marker.isAccessibilityElement(),"Text geometry marker intercepted native input/accessibility")}
+            else {try require(nativeField?.isEditable==false && nativeField?.isSelectable==false,"Native report label unexpectedly edits or selects text")}
             return true
         }
         @MainActor func ready()async throws {
@@ -233,7 +270,7 @@ private extension NSWindow {
                 do {return try indexes.allSatisfy{try check($0)}}catch {failure=error;return true}
             }
             if let failure {throw failure}
-            for row in indexes {try require(try check(row),"Actual selected path Text marker did not materialize")}
+            for row in indexes {try require(try check(row),"Actual selected path text content did not materialize")}
         }
         try await ready()
         let index=try unwrap(pathColumn(),"Actual path column absent"),column=table.tableColumns[index]
@@ -266,17 +303,24 @@ private extension NSWindow {
         try await wait(log.window){!log.model.busy && log.model.entries.contains{$0.hash==c.head}}
         log.model.select([c.head]);try await wait(log.window){!log.model.busy && log.model.files.count==3}
         for (name,owner,fullRow) in [("commit",commit as NSWindowController,false),("status",status as NSWindowController,false),("log",log as NSWindowController,false)] {
-            let adapter=try await ReportWorkspaceVerification.probe(owner)
-            let table=try unwrap(adapter.nativeTable,"Capture table absent")
+            let adapter:CommitFileInteraction.Probe?,table:NSTableView,paths:[String?]
+            if let log=owner as? LogWindowController {
+                let report=try await ReportWorkspaceVerification.logReport(log,expected:c.paths)
+                adapter=nil;table=report.0;paths=log.model.fileTableRows.map{$0.file?.path}
+            } else {
+                let current=try await ReportWorkspaceVerification.probe(owner)
+                adapter=current;table=try unwrap(current.nativeTable,"Capture table absent");paths=current.rows.map{$0.entry?.path}
+            }
             c.prefs.set(fullRow,forKey:"FullRowSelect")
-            let indexes=IndexSet(adapter.rows.indices.filter{adapter.rows[$0].entry.map{["alpha.txt","zeta.txt"].contains($0.path)} == true})
+            let indexes=IndexSet(paths.indices.filter{paths[$0].map{["alpha.txt","zeta.txt"].contains($0)} == true})
             try require(indexes.count==2,"Capture selection omitted alpha/zeta")
             table.selectRowIndexes(indexes,byExtendingSelection:false)
             for (theme,appearance) in [("light",NSAppearance.Name.aqua),("dark",.darkAqua)] {
                 owner.window?.appearance=NSAppearance(named:appearance)
                 try await wait(owner.window){NativeListSelection.usesFullRowSelection(in:table)==fullRow && (fullRow ? table.selectionHighlightStyle != .none:table.selectionHighlightStyle == .none)}
                 await tick();await tick();owner.window?.contentView?.layoutSubtreeIfNeeded()
-                try await markerGeometry(adapter,owner:owner,indexes:indexes)
+                if let adapter {try await markerGeometry(adapter,owner:owner,indexes:indexes)}
+                else {try await markerGeometry(table:table,owner:owner,indexes:indexes,expectedPaths:paths,nativeFields:true)}
                 let rect=table.visibleRect
                 try require(rect.width>100 && rect.height>50 && table.selectedRowIndexes==indexes,"Capture did not realize selected native rows")
                 if let folder {

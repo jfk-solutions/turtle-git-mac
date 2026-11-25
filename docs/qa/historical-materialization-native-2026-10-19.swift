@@ -87,10 +87,17 @@ import TurtleGitCore
         phase("Browser provider")
         // Provider callbacks may begin later, after settings and owner changes.
         selected();var provider:NSItemProvider?=browser.model.dragProvider(entry);disabled()
-        let promised:Data=try await withCheckedThrowingContinuation {reply in
-            provider!.loadFileRepresentation(forTypeIdentifier:provider!.registeredTypeIdentifiers[0]){url,error in
-                do {if let error{throw error};guard let url else {throw Failure(description:"Missing promised output")};reply.resume(returning:try Data(contentsOf:url))}catch{reply.resume(throwing:error)}
+        let promised:Data
+        do {
+            promised=try await withCheckedThrowingContinuation {reply in
+                provider!.loadFileRepresentation(forTypeIdentifier:provider!.registeredTypeIdentifiers[0]){url,error in
+                    do {if let error{throw error};guard let url else {throw Failure(description:"Missing promised output")};reply.resume(returning:try Data(contentsOf:url))}catch{reply.resume(throwing:error)}
+                }
             }
+        } catch {
+            let snapshot=browser.model.snapshot
+            print("BROWSER PROMISE FAILURE: actorRoot=\(repo.root.absoluteString),snapshotRoot=\(snapshot?.root.absoluteString ?? "nil"),sameRoot=\(snapshot?.root==repo.root),revision=\(String(reflecting:snapshot?.revision)),object=\(String(reflecting:snapshot?.objectID)),directory=\(String(reflecting:snapshot?.directory)),entryPath=\(String(reflecting:entry.path)),entryName=\(String(reflecting:entry.name)),entryKind=\(entry.kind),entryInSnapshot=\(snapshot?.entries.contains(entry)==true),suggestedName=\(String(reflecting:provider?.suggestedName)),types=\(provider?.registeredTypeIdentifiers ?? []),error=\(error)");fflush(stdout)
+            throw error
         }
         try require(promised==filtered,"Historical drag failed to retain accepted engine")
         provider=nil;RepositoryBrowserExportFiles.discardAll()

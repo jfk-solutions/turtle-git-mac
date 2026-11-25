@@ -3071,13 +3071,13 @@ for actual local scope and outstanding hosted acceptance.
 
 ## Graph column visibility and native font consumer
 
-Pinned `GitLogListBase.cpp` initializes the Graph column as visible and available
-for the ordinary Log (`ColumnManager.h` names these separate fields). The native
-header now exposes its localized Graph command with stable identifier
-`Log.Columns.graph`, retaining the user's visibility preference. Follow hides the
-graph and disables that command; leaving Follow restores the saved preference.
-Reset columns restores the default, subject to the active Follow constraint.
-Existing column command receipts still reject stale popup actions.
+Pinned `GitLogListBase.cpp` initializes Graph as visible. `ColumnManager.h`
+starts its header menu at column one, excluding Graph. The native header follows
+that rule and refuses legacy Graph toggle actions. Saved visibility still loads,
+including historical values for column zero, as in `ColumnManager.cpp`. Follow
+hides Graph temporarily; leaving Follow restores the saved value. Reset restores
+the ordinary default, subject to Follow. The default width remains 65 points and
+its position stays before the revision text. Existing receipts reject stale menus.
 
 The optional Commit file-list font receiver now hosts the complete Commit dialog.
 Calling its table-building method on an uninstalled SwiftUI parent bypassed that

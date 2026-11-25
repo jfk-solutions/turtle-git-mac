@@ -1,5 +1,16 @@
 # Local testing and release gates
 
+## Log and Settings ownership — November 25, 2026
+
+The [native checkpoint](qa/log-settings-2026-11-25.json) covers source-correct
+Graph header menus, full-width reports, permanent Settings owner retirement and
+color menus bound to their current window. It also fixes retained native text
+clipping after column resize. Twenty-four native runs and the independent color
+oracle pass cumulatively; initial failures remain recorded. No Core code changed.
+Full hosted, signed and physical acceptance remain open. Installed52 and signed55
+are unchanged.
+
+
 ## Picker and embedded conflict recovery — November 25, 2026
 
 The [current checkpoint](qa/picker-conflict-recovery-2026-11-25.json) restores

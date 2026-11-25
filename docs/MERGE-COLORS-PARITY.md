@@ -15,6 +15,10 @@ role/channel's default color and restores only that channel in the selected
 palette. The checkmark follows whether the selected RGB equals that default.
 More colors activates the shared native color panel; alpha is disabled and
 chosen colors are converted to sRGB bytes, matching the source RGB-only values.
+The same control supplies Status, Log, Blame and Unified Diff colors. Automatic
+commands belong to one native owner and one menu invocation; moving a control
+to another window invalidates retained commands even when its RGB and edit
+context are unchanged. Disabled or foreign color wells cannot change its draft.
 
 Light/Dark choose the palette being edited, initially following the current
 application appearance. Both drafts are retained when switching palettes.

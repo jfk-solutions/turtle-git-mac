@@ -44,8 +44,6 @@ enum PrimaryLogColumnsVerification {
         defer{prefs.removePersistentDomain(forName:suite)}
         for key in ["EnableLogCache","EnableGravatar","LogIncludeWorkingTreeChanges"]{prefs.set(false,forKey:key)}
         prefs.set(true,forKey:"LogFontForLogCtrl");prefs.set("Menlo",forKey:"LogFontName");prefs.set(18,forKey:"LogFontSize")
-        // Deliberately hostile legacy Graph visibility must not hide fixed index0.
-        prefs.set(false,forKey:"Log.Column.Visible.graph")
         var owners:[LogWindowController]=[],replies:[(NSApplication.ModalResponse)->Void]=[]
         func own()->LogWindowController{
             let owner=LogWindowController(repository:repo,access:nil,labelDefaults:prefs,savesGeometry:false)
@@ -56,6 +54,22 @@ enum PrimaryLogColumnsVerification {
             for _ in 0..<1200{if LogRevisionColumnQuestion.activeCount==0 && LogWindowModel.activeHistoryLoads==0{return};try? await Task.sleep(nanoseconds:10_000_000)}
         }
         do{
+            // Source persists visibility bit zero even though its header menu
+            // starts at logical column one. Do not confuse a saved hidden Graph
+            // with the fresh default or silently rewrite that saved preference.
+            prefs.set(false,forKey:"Log.Column.Visible.graph")
+            let legacy=own()
+            try await wait(legacy.window){!legacy.model.busy && legacy.model.entries.count==3 && (try? table(legacy)) != nil}
+            let (legacyTable,legacyCoordinator)=try table(legacy)
+            try await wait(legacy.window){legacyCoordinator.columnCommandsAvailable}
+            let legacyGraph=legacyTable.tableColumn(withIdentifier:.init("graph"))!
+            try require(legacyGraph.isHidden,"Persisted Graph visibility bit zero was overwritten")
+            let legacyHeader=try menu(legacyCoordinator)
+            try require(!legacyHeader.items.contains{$0.identifier?.rawValue=="Log.Columns.graph"},"Persisted hidden Graph leaked a header toggle")
+            let staleGraphToggle=NSMenuItem(title:"Graph",action:nil,keyEquivalent:"");staleGraphToggle.representedObject="graph"
+            legacyCoordinator.toggleColumn(staleGraphToggle)
+            try require(legacyGraph.isHidden && (prefs.object(forKey:"Log.Column.Visible.graph") as? Bool)==false,"Legacy Graph callback bypassed source header exclusion")
+            legacy.window?.close();prefs.removeObject(forKey:"Log.Column.Visible.graph")
             let owner=own(),model=owner.model
             try await wait(owner.window){!model.busy && model.entries.count==3 && (try? table(owner)) != nil}
             let (native,coordinator)=try table(owner)
@@ -68,6 +82,14 @@ enum PrimaryLogColumnsVerification {
             try require(native.tableColumns.first?.identifier.rawValue=="graph" && !graph.isHidden && graph.width<200,"Default compact graph not before list")
             var header=try menu(coordinator)
             try require(!header.items.contains{$0.identifier?.rawValue=="Log.Columns.graph"},"Source fixed Graph appeared in visibility commands")
+            var expectedColumns=["hash","actions","message","author","date","email","committer","committerEmail","committerDate"]
+            if model.issueProperties.showsBugIDColumn {expectedColumns.append("bugs")}
+            if model.hasGitSVN {expectedColumns.append("svn")}
+            let actualColumns=header.items.compactMap{$0.identifier?.rawValue}.filter{$0 != "Log.Columns.Reset"}
+            try require(actualColumns==expectedColumns.map{"Log.Columns."+$0},"Header columns lost pinned logical order or conditional availability")
+            if MenuPresentationSettings.applicationContextIcons(defaults:prefs) {
+                try require(header.items.filter{$0.action != nil}.allSatisfy{$0.image != nil},"Header source commands lost configured artwork")
+            }
             let email=try item(header,"email"),hash=try item(header,"hash")
             let emailColumn=native.tableColumn(withIdentifier:.init("email"))!,hashColumn=native.tableColumn(withIdentifier:.init("hash"))!
             let hashBefore=hashColumn.isHidden
@@ -138,6 +160,6 @@ enum PrimaryLogColumnsVerification {
             try require(finalHead==head && finalIndex==index,"Column workflow mutated Git state")
             await clean();try require(LogRevisionColumnQuestion.activeCount==0,"Owned Reset questions did not drain")
         }catch{await clean();throw error}
-        print("PASS Log columns: content fitting/native divider, fixed Graph, scoped layout, one-use header/Ordering, Reset Yes/No/Quit/forced-close actual drain")
+        print("PASS Log columns: content fitting/native divider, default Graph and persisted bit-zero/header exclusion, scoped layout, one-use header/Ordering, Reset Yes/No/Quit/forced-close actual drain")
     }
 }

@@ -564,7 +564,7 @@ enum SettingsColorValue {
         request.used = true; return request
     }
     @objc private func colorChanged(_ sender: Any?) {
-        guard enabled, !retired, window != nil, let changed, let color = well.color.usingColorSpace(.sRGB) else { return }
+        guard (sender as? NSColorWell) === well,enabled,well.isEnabled,!retired,window != nil,let changed,let color=well.color.usingColorSpace(.sRGB) else{return}
         func channel(_ value: CGFloat) -> UInt32 { UInt32(min(255, max(0, Int((value * 255).rounded())))) }
         let rgb = channel(color.redComponent) << 16 | channel(color.greenComponent) << 8 | channel(color.blueComponent)
         well.color = Self.color(rgb); changed(rgb)
@@ -573,7 +573,15 @@ enum SettingsColorValue {
     @objc private func moreColors(_ sender: Any?) { guard take(sender) != nil, changed != nil else { return }; well.activate(true); presentPanel(.shared) }
     @objc private func showChoices(_ sender: Any?) { guard enabled, !retired, window != nil, changed != nil else { return }; choices.popUp(positioning: nil, at: NSPoint(x: bounds.minX, y: bounds.minY), in: self) }
     private func closeOwnedPanel() { if well.isActive { well.deactivate(); NSColorPanel.shared.orderOut(nil) } }
-    override func viewWillMove(toWindow newWindow: NSWindow?) { if window !== newWindow { choices.cancelTracking(); closeOwnedPanel() }; super.viewWillMove(toWindow: newWindow) }
+    override func viewWillMove(toWindow newWindow: NSWindow?) {
+        if window !== newWindow {
+            choices.cancelTracking();closeOwnedPanel()
+            // The RGB/context may be identical in another owner. Its native
+            // window still cannot inherit commands captured in the old owner.
+            generation=UUID();rebuildChoices()
+        }
+        super.viewWillMove(toWindow:newWindow)
+    }
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
         if let ownerObserver { NotificationCenter.default.removeObserver(ownerObserver) }; ownerObserver = nil

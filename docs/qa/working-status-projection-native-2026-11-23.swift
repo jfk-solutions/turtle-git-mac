@@ -224,13 +224,16 @@ private extension NSWindow {
             try await c.setup();c.prefs.set(false,forKey:"RevertWithRecycleBin")
             let sourceIndex=try await c.repo.run(["ls-files","--stage","-z","--",c.source]).stdout
             let owner=RevertWindowController(repository:c.repo,access:nil,preferences:c.prefs)
-            c.own(owner);owner.model.setScope([c.copy,c.renamed])
+            // A path-scoped destination alone is Added; the real Rename
+            // witness requires both sides in the root report. Selection still
+            // limits the accepted operation below.
+            c.own(owner);owner.model.setScope(["."])
             try await wait("Actual Revert Added/Rename report unavailable"){owner.window?.contentView?.layoutSubtreeIfNeeded();return owner.model.canInteract && owner.model.entries.contains{$0.path==c.copy} && owner.model.entries.contains{$0.path==c.renamed}}
             let added=try Prior.unwrap(owner.model.entries.first{$0.path==c.copy},"Revert Added row absent"),renamed=try Prior.unwrap(owner.model.entries.first{$0.path==c.renamed},"Revert Rename row absent")
             try c.check(added);try require(renamed.isRenamed && renamed.reportingOriginalPath==c.old,"Revert source Rename origin lost")
             var progress:RevertProgressWindowController?,finished=false,succeeded=false
             owner.model.onAccepted={entries in
-                let child=RevertProgressWindowController(repository:c.repo,access:nil,entries:entries,amend:false,againstHead:false,autoCloseSuccess:false,preferences:c.prefs,policy:.init(recycle:false))
+                let child=RevertProgressWindowController(repository:c.repo,access:nil,entries:entries,amend:false,againstHead:false,autoCloseSuccess:false,preferences:c.prefs,policy:.init(recycle:false),paths:owner.model.invocationPaths)
                 progress=child;c.own(child);child.model.onFinished={_,success in finished=true;succeeded=success};child.model.start()
             }
             owner.model.checked=[];owner.model.setChecked([c.copy,c.renamed],value:true);owner.model.apply()

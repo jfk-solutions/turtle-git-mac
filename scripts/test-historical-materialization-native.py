@@ -32,6 +32,21 @@ private extension NSWindow {
   }
   throw NSError(domain:"Historical materialization owned work/windows survived cleanup",code:1)
  }
+ @MainActor static func retireRemainingWindows() {
+  for window in NSApp.windows {
+   // Controllers use ARC with release-on-close disabled. AppKit-managed
+   // autoreleasing auxiliaries are ordered out and disposed by AppKit.
+   let closeWindow = !window.isReleasedWhenClosed
+   if let sheet=window.attachedSheet {
+    let closeSheet = !sheet.isReleasedWhenClosed
+    window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)
+    if closeSheet {sheet.close()}
+   }
+   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)}
+   window.orderOut(nil)
+   if closeWindow {window.close()}
+  }
+ }
  @MainActor static func main()async throws {
   NSApplication.shared.setActivationPolicy(.prohibited)
   let suite="TurtleGit.HistoricalMaterialization.Geometry."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
@@ -42,10 +57,10 @@ private extension NSWindow {
   method_exchangeImplementations(normal,hidden);defer{method_exchangeImplementations(normal,hidden)}
   do { try await HistoricalMaterializationVerification.verify() }
   catch {
-   NSApp.windows.forEach{window in if let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.close()};window.close()}
+   retireRemainingWindows()
    try? await drain();throw error
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  retireRemainingWindows();try await drain()
  }
 }
 '''

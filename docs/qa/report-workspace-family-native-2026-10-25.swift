@@ -121,6 +121,26 @@ private extension NSWindow {
         try require(drag.paths==["zeta.txt","alpha.txt"],"Report status sort/selection lost")
         try detach(adapter,table:table)
     }
+    static func logReport(_ owner:LogWindowController,expected:[String])async throws->(LogChangedFileNativeTable,LogChangedFileReport.Coordinator) {
+        try await wait(owner.window) {
+            guard let table=views(owner.window?.contentView).compactMap({$0 as? LogChangedFileNativeTable}).first,
+                  let coordinator=table.dataSource as? LogChangedFileReport.Coordinator,
+                  coordinator.model === owner.model,table.window === owner.window,table.numberOfRows==expected.count,
+                  let column=table.tableColumns.firstIndex(where:{$0.identifier.rawValue==StatusListColumn.path.rawValue}) else{return false}
+            let actual=(0..<table.numberOfRows).compactMap{(table.view(atColumn:column,row:$0,makeIfNecessary:true) as? NSTableCellView)?.textField?.stringValue}
+            return actual.map{Data($0.utf8)}==expected.map{Data($0.utf8)}
+        }
+        let table=try unwrap(views(owner.window?.contentView).compactMap{$0 as? LogChangedFileNativeTable}.first,"Actual Log native report absent")
+        let coordinator=try unwrap(table.dataSource as? LogChangedFileReport.Coordinator,"Actual Log report coordinator absent")
+        try require(table.enclosingScrollView?.borderType == .bezelBorder && table.numberOfRows==3 && table.tableColumns.count>=5,"Log report lost bordered native rows/columns")
+        for appearance in [NSAppearance.Name.aqua,.darkAqua] {
+            owner.window?.appearance=NSAppearance(named:appearance)
+            try await wait(owner.window){table.style == .fullWidth && !table.usesAlternatingRowBackgroundColors}
+        }
+        table.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+        try require(table.selectedRowIndexes==IndexSet(integer:0) && table.rect(ofRow:0).width>=table.bounds.width-2,"Log report lost native full-width highlight")
+        return (table,coordinator)
+    }
     static func log(_ c:Context)async throws {
         let owner=c.own(LogWindowController(repository:c.repo,access:RepositoryAccessLease(url:c.root),labelDefaults:c.prefs,savesColumnLayout:false,savesGeometry:false,loadsImmediately:false)),model=owner.model
         model.showWorkingTree=false;model.reload()
@@ -129,12 +149,21 @@ private extension NSWindow {
         try await wait(owner.window){!model.busy && model.files.count==3}
         c.index=try Data(contentsOf:c.root.appendingPathComponent(".git/index"))
         model.setChangedFileSort([LogChangedFileSort(column:.path,order:.reverse)])
-        let adapter=try await probe(owner),table=try await check(adapter,owner,expected:Array(c.paths.reversed()))
+        let (table,coordinator)=try await logReport(owner,expected:Array(c.paths.reversed()))
         table.selectRowIndexes(IndexSet([0,2]),byExtendingSelection:false)
         try await wait(owner.window){model.selectedFiles==GitPathSet(["zeta.txt","alpha.txt"])}
-        let drag=try unwrap(model.captureFileDrag(["zeta.txt","alpha.txt"]),"Historical report drag unavailable")
+        try await wait(owner.window){views(owner.window?.contentView).compactMap{$0 as? FileListDragInteraction.Probe}.contains{$0.nativeTable === table}}
+        let dragProbe=try unwrap(views(owner.window?.contentView).compactMap{$0 as? FileListDragInteraction.Probe}.first{$0.nativeTable === table},"Actual native Log drag source absent")
+        let drag=try unwrap(dragProbe.captureSelection(),"Historical report drag unavailable")
         try require(drag.paths==["zeta.txt","alpha.txt"] && drag.revision == .revision(c.head),"Report historical drag lost revision/order")
-        try detach(adapter,table:table)
+        let retainedSelection=table.selectedRowIndexes,retainedColumns=table.tableColumns
+        dragProbe.retire()
+        LogChangedFileReport.dismantleNSView(try unwrap(table.enclosingScrollView,"Log report scroll owner absent"),coordinator:coordinator)
+        try require(table.style == .fullWidth && !table.usesAlternatingRowBackgroundColors,"Retiring native Log changed report appearance")
+        try require(dragProbe.captureSelection()==nil && table.backdropRect(in:table.visibleRect)==nil,"Retired Log report retained drag input or artwork")
+        try require(table.dataSource==nil && table.delegate==nil && table.menu==nil && !table.ownerAvailable() && NativeListSelection.usesFullRowSelection(in:table)==nil,"Retired native Log retained interactions")
+        try require(table.tableColumns.count==retainedColumns.count && zip(table.tableColumns,retainedColumns).allSatisfy{pair in pair.0 === pair.1},"Retiring Log report replaced native columns")
+        try require(drag.paths==["zeta.txt","alpha.txt"] && retainedSelection==IndexSet([0,2]),"Retirement changed already accepted historical drag/order")
     }
     static func main()async {
         NSApplication.shared.setActivationPolicy(.prohibited)

@@ -195,3 +195,11 @@ value help and exact native geometry ownership/restoration. The original
 AppKit row-span recursion is captured separately from the source layout defect;
 its affected-workload checkpoint is recorded without attributing an unproven
 cause to the shared selection decorator.
+
+## Native cell clipping — November 25, 2026
+
+A native field can retain its old width briefly after a column shrinks. The
+selection renderer now clips that field's drawing frame to the current cell,
+keeping truncation aligned with the new column. The strict native fixture caught
+a 895-point retained field in a 460-point cell. Its geometry assertions remain
+unchanged; the report checks use the current AppKit controls.

@@ -96,8 +96,11 @@ struct MergeEditorSourceVerification {
         if let path = ProcessInfo.processInfo.environment["TURTLEGIT_MERGE_EDITOR_CAPTURE"] { try await capture(window, into: URL(fileURLWithPath: path)) }
         window.alphaValue = 0; window.orderFront(nil); model.setActive(true)
         let closedBinding = model.binding(\.fontSize); model.openProfiles(context: model.editContext)
-        try await wait { window.attachedSheet != nil }; window.close()
+        try await wait { window.attachedSheet != nil };let closingProfile=window.attachedSheet!;window.close()
         closedBinding.wrappedValue = "24"; model.acceptProfiles(session)
+        try require(!model.apply() && model.fontSize=="18","Closed profile owner accepted Apply or retained binding before release")
+        model.setActive(true);model.attach(to:window)
+        try await wait {MergeEditorSettingsModel.activeProfileEditors==0 && model.profileSession==nil && !model.active && closingProfile.sheetParent==nil && window.attachedSheet==nil}
         try require(MergeEditorSettingsModel.activeProfileEditors == 0 && model.profileSession == nil && !model.active && !model.apply() && model.fontSize == "18", "Owner closure revived settings/profile lifetime")
         print("PASS Merge Editor source: captured form/hidden Apply, profile save/read recovery without partial preferences, owned validated sheet/Cancel/late replies/Quit, numeric bounds and disabled/retired native fonts; private files/preferences only")
     }

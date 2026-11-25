@@ -100,7 +100,19 @@ struct MergeColorsSourceVerification {
         let automatic = generic.choices.items[0]; try send(automatic); try send(automatic)
         try require(edits == [0], "Automatic menu was not single use")
         generic.menuNeedsUpdate(generic.choices); try send(generic.choices.items[0]); try require(edits == [0, 0], "Reopened menu did not get a fresh invocation")
+        generic.menuNeedsUpdate(generic.choices);let oldOwnerChoice=generic.choices.items[0]
+        let nextOwner=NSWindow(contentRect:.init(x:-24000,y:-24000,width:160,height:40),styleMask:[.titled],backing:.buffered,defer:false)
+        nextOwner.isReleasedWhenClosed=false;nextOwner.alphaValue=0;defer{nextOwner.close()}
+        owner.contentView=NSView();nextOwner.contentView=generic
+        generic.configure(value:0x123456,automatic:0,label:"Fixture",identifier:"fixture",contextIdentity:"second",changed:{edits.append($0)})
         owner.close()
+        try send(oldOwnerChoice);try require(edits==[0,0],"Old color owner menu survived native view migration")
+        let foreignWell=NSColorWell();foreignWell.color = .red
+        try require(NSApp.sendAction(generic.well.action!,to:generic.well.target,from:foreignWell) && edits==[0,0],"Foreign native color well changed this choice")
+        generic.menuNeedsUpdate(generic.choices);try send(generic.choices.items[0])
+        try require(edits==[0,0,0],"Closing old owner retired the current migrated color choice")
+        let closingChoice=generic.choices.items[0];nextOwner.close();try send(closingChoice)
+        try require(edits==[0,0,0] && !generic.well.isEnabled && !generic.arrow.isEnabled,"Closed current color owner revived callbacks")
         model.setActive(true); model.selectPalette(false, context: model.editContext)
         try await wait { host.layoutSubtreeIfNeeded(); return currentControls() }
         if let path = ProcessInfo.processInfo.environment["TURTLEGIT_MERGE_COLORS_CAPTURE"] { try await capture(window, into: URL(fileURLWithPath: path)) }
