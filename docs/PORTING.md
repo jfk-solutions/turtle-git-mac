@@ -1,5 +1,18 @@
 # TurtleGit for Mac — full port tracking
 
+## Revert, colors and three-pane acceptance — November 25, 2026
+
+The [bounded checkpoint](qa/native-acceptance-recovery-2026-11-25.json) passes
+four native case/engine runs plus the independently compiled pinned C++ color
+oracle. Revert preserves the natural cached rename origin; color Settings wait
+for all six actual native swatches; three-pane checks distinguish ordinary Save
+from Mark resolved, which completes once and closes its owner. The initial
+terminal-save readiness failure and exact correction are retained. No production
+source changed, no app/Core rebuild was needed and earlier passes remain valid.
+Signed57 uses frozen `ce9223db`; these subsequent acceptance-fixture corrections
+do not change its application code. Full hosted, signed permission/Finder and
+owner acceptance remain separate gates.
+
 ## Merge and progress CI recovery — November 25, 2026
 
 All five remaining cohorts from the older final editor receipt now have focused

@@ -12,9 +12,18 @@ import TurtleGitCore
         guard let view else { return [] }
         return (view as? NSTextView).map { [$0] } ?? view.subviews.flatMap { textViews($0) }
     }
-    @MainActor static func wait(_ condition: () -> Bool) async throws {
-        for _ in 0..<1000 { if condition() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        preconditionFailure("Timed out waiting for three-pane engine work")
+    struct Failure:Error,CustomStringConvertible {let description:String}
+    @MainActor static func wait(phase:String="retained three-pane caller",file:StaticString=#fileID,line:Int=#line,diagnostic:(()->String)?=nil,_ condition:()->Bool)async throws {
+        for _ in 0..<1000 {if condition(){return};try await Task.sleep(nanoseconds:10_000_000)}
+        throw Failure(description:"Three-pane timeout phase=\(phase),caller=\(file):\(line); "+(diagnostic?() ?? "no model snapshot supplied"))
+    }
+    @MainActor static func mount(_ owner:TextConflictWindowController) {
+        owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil)
+        owner.window?.contentView?.layoutSubtreeIfNeeded()
+    }
+    @MainActor static func snapshot(_ owner:TextConflictWindowController)->String {
+        let model=owner.model,views=textViews(owner.window?.contentView)
+        return "busy=\(model.busy),preparing=\(model.preparing),retired=\(model.retired),dirty=\(model.dirty),resultLength=\(model.result.utf16.count),document=\(model.document != nil),nativeReady=\(model.nativeEditorReady),tools=\(model.sourceToolsAllowed),pending=\(owner.mergeToolHasPendingWork),error=\(String(reflecting:model.error)),visible=\(owner.window?.isVisible==true),sheet=\(owner.window?.attachedSheet != nil),selectionRequest=\(String(describing:model.selectionRequest)),views=\(views.map{"type=\(type(of:$0)),editable=\($0.isEditable),field=\($0.isFieldEditor),length=\($0.string.utf16.count),font=\(String(describing:$0.font?.pointSize)),owner=\($0.window === owner.window)"})"
     }
     @MainActor static func capture(_ window: NSWindow, to directory: URL, dark: Bool) async throws {
         // Diagnostic only: hidden NSHosting captures can omit SwiftUI labels.
@@ -70,7 +79,7 @@ import TurtleGitCore
             }
             for mine in [false,true] {
                 let cells=rows.map {mine ? $0.mine:$0.theirs},display=cells.map(\.displayText).joined(separator:"\n")+"\n"
-                try await wait {textViews(owner.window?.contentView).contains {$0.string==display && !$0.isEditable}}
+                try await wait(phase:"alias source display,theme=\(dark),mine=\(mine)",diagnostic:{snapshot(owner)}) {textViews(owner.window?.contentView).contains {$0.string==display && !$0.isEditable}}
                 let view=textViews(owner.window?.contentView).first {$0.string==display && !$0.isEditable}!
                 var offset=0
                 for cell in cells {
@@ -106,35 +115,39 @@ import TurtleGitCore
         let head = try await repository.run(["rev-parse", "HEAD"]).stdout
         let filter = MergeRegexFilter(name: "Ignore version numbers", expression: "[0-9]+", replacement: "")
         try MergeRegexFilters.save([filter], defaults: defaults)
-        let controller = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp"), model = controller.model
-        model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters(); model.load()
-        try await wait { !model.busy && model.document != nil }
+        var owners:[TextConflictWindowController]=[]
+        defer {owners.forEach{$0.close()}}
+        do {
+        let controller = TextConflictWindowController(repository:repository,access:nil,path:"sample.cpp",preferences:defaults), model = controller.model
+        owners.append(controller)
+        model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); model.comparisonDefaults = defaults; model.regexDefaults = defaults; model.refreshRegexFilters();mount(controller);model.load()
+        try await wait(phase:"initial merge document and current native result",diagnostic:{snapshot(controller)}) { !model.busy && model.document != nil && model.nativeEditorReady }
         precondition(model.document?.mergeSources != nil && model.blocks.count == 1 && !model.dirty && model.supportsComments)
         precondition(model.locatorMap.columns.count == 3 && model.locatorMap.columns[1].contains { $0.state == .conflicted })
         model.setLocatorPreferences(.init(visible: false, fishEye: false))
         precondition(MergeLocatorPreferences.load(from: defaults) == .init(visible: false, fishEye: false))
         model.setLocatorPreferences(.init())
-        model.selectRegexFilter(filter.name); try await wait { !model.busy }
+        model.selectRegexFilter(filter.name); try await wait(phase:"filtered comparison engine",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
         precondition(model.regexFilterName == filter.name && model.sourceComparison?.rows[0].mine.state == .conflictAdded)
         precondition(model.result.hasPrefix("version 2\n") && model.blocks.count == 2 && model.blocks.first?.isIgnored == true)
         controller.window?.contentView?.layoutSubtreeIfNeeded()
         try await Task.sleep(nanoseconds: 150_000_000)
-        try await wait { !model.busy }
-        try await wait { editableView(controller.window?.contentView) != nil }
+        try await wait(phase:"filtered comparison before native readiness",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
+        try await wait(phase:"filtered current result editor",diagnostic:{snapshot(controller)}) { model.nativeEditorReady && editableView(controller.window?.contentView) != nil }
         try await verifyAliases(model,controller,defaults)
         model.setWhitespaceDisplay(.init(visible: false, endingIcons: true))
-        try await wait {
+        try await wait(phase:"all three whitespace renderers",diagnostic:{snapshot(controller)}) {
             let views = textViews(controller.window?.contentView)
             return views.count >= 3 && views.allSatisfy { ($0 as? MergeWhitespaceDisplaying)?.whitespaceRenderer.preferences.visible == false }
         }
         precondition(MergeWhitespaceDisplayPreferences.load(from: defaults) == .init(visible: false, endingIcons: true))
         model.setWhitespaceDisplay(.init())
-        try await wait { model.selectionRequest == nil }
+        try await wait(phase:"pending source selection consumption",diagnostic:{snapshot(controller)}) { model.selectionRequest == nil }
         let fontViews = textViews(controller.window?.contentView), fontStrings = textViews(controller.window?.contentView).map(\.string)
         let fontSelections = fontViews.map { $0.selectedRange() }
         MergeGeneralPreferences(fontName: "Menlo", fontSize: 14).save(to: defaults)
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
-        try await wait { fontViews.allSatisfy { $0.font?.pointSize == 14 } }
+        try await wait(phase:"captured font views update",diagnostic:{snapshot(controller)}) { fontViews.allSatisfy { $0.font?.pointSize == 14 } }
         precondition(fontViews.map(\.string) == fontStrings && fontViews.map { $0.selectedRange() } == fontSelections && !model.dirty)
         MergeGeneralPreferences().save(to: defaults)
         NotificationCenter.default.post(name: .mergeEditorPreferencesChanged, object: nil)
@@ -144,7 +157,7 @@ import TurtleGitCore
         guard let replace = model.replaceEntireResult else { preconditionFailure("Production merged text view did not install Undo hooks") }
         let generated = model.result
         replace(model.result + "manual edit\n")
-        try await wait { model.canUndo }
+        try await wait(phase:"manual native edit Undo registration",diagnostic:{snapshot(controller)}) { model.canUndo }
         precondition(model.dirty && model.canUndo)
         model.chooseReload = { .cancel }; model.selectRegexFilter(nil)
         precondition(model.regexFilterName == filter.name && model.dirty && model.result.hasSuffix("manual edit\n"))
@@ -153,16 +166,16 @@ import TurtleGitCore
         precondition(model.comparisonOptions == originalOptions && MergeComparisonOptions.load(from: defaults) == originalOptions)
         model.undo(); precondition(model.result == generated && !model.dirty)
         let requestedOptions = MergeComparisonOptions(whitespace: .ignoreChanges, ignoreCase: true, ignoreEndings: false, ignoreComments: true)
-        model.setComparisonOptions(requestedOptions); try await wait { !model.busy }
+        model.setComparisonOptions(requestedOptions); try await wait(phase:"changed comparison options reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
         precondition(model.comparisonOptions == requestedOptions && MergeComparisonOptions.load(from: defaults) == requestedOptions)
-        model.selectRegexFilter(nil); try await wait { !model.busy }
-        try await wait { editableView(controller.window?.contentView) != nil }
+        model.selectRegexFilter(nil); try await wait(phase:"No Filter reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
+        try await wait(phase:"No Filter current result editor",diagnostic:{snapshot(controller)}) { model.nativeEditorReady && editableView(controller.window?.contentView) != nil }
         precondition(model.regexFilterName == nil && model.sourceComparison?.rows[0].mine.state != .filtered && !model.canUndo)
-        model.selectRegexFilter(filter.name); try await wait { !model.busy }
-        try await wait { editableView(controller.window?.contentView) != nil }
+        model.selectRegexFilter(filter.name); try await wait(phase:"restore selected regex reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
+        try await wait(phase:"restored regex current result editor",diagnostic:{snapshot(controller)}) { model.nativeEditorReady && editableView(controller.window?.contentView) != nil }
         replace(model.result + "discard me\n")
-        model.chooseReload = { .discard }; model.load(); try await wait { !model.busy }
-        try await wait { editableView(controller.window?.contentView) != nil }
+        model.chooseReload = { .discard }; model.load(); try await wait(phase:"discard dirty draft reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
+        try await wait(phase:"discarded draft current result editor",diagnostic:{snapshot(controller)}) { model.nativeEditorReady && editableView(controller.window?.contentView) != nil }
         precondition(model.regexFilterName == filter.name && !model.result.contains("discard me"))
         let afterWorking = try Data(contentsOf: file), afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(afterWorking == working && afterIndex == index)
@@ -171,22 +184,25 @@ import TurtleGitCore
         replace(model.result + "retained profile edit\n"); model.chooseReload = { .cancel }
         let beforeProfileReload = model.result; model.load()
         precondition(model.result == beforeProfileReload && model.supportsComments)
-        model.chooseReload = { .discard }; model.load(); try await wait { !model.busy }
+        model.chooseReload = { .discard }; model.load(); try await wait(phase:"changed comment profile reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
         precondition(!model.supportsComments && model.error == nil)
         try MergeCommentProfileFile.save(originalProfiles, at: model.commentProfileURL, expected: "swift=//,/*,*/\n")
-        model.load(); try await wait { !model.busy }
+        model.load(); try await wait(phase:"restored comment profile reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
         precondition(model.supportsComments && model.error == nil)
-        try await wait { editableView(controller.window?.contentView) != nil }
+        try await wait(phase:"restored profile current result editor",diagnostic:{snapshot(controller)}) { model.nativeEditorReady && editableView(controller.window?.contentView) != nil }
         precondition(model.blocks.count == 2 && model.blocks.first?.isIgnored == true)
         for _ in 0..<2 { model.selectConflict(0); model.choose(.mine) }
         precondition(model.blocks.isEmpty && !MergeText.hasMarkers(model.result) && model.dirty)
-        model.chooseReload = { .save }; model.selectRegexFilter(nil); try await wait { !model.busy }
-        try await wait { editableView(controller.window?.contentView) != nil }
+        model.chooseReload = { .save }; model.selectRegexFilter(nil); try await wait(phase:"save-before-filter reload",diagnostic:{snapshot(controller)}) { !model.busy && model.nativeEditorReady }
+        try await wait(phase:"saved filter current result editor",diagnostic:{snapshot(controller)}) { model.nativeEditorReady && editableView(controller.window?.contentView) != nil }
         let savedBeforeReload = try Data(contentsOf: file), indexBeforeResolution = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(savedBeforeReload == Data("version 2\nmine\nlast\n".utf8) && indexBeforeResolution == index)
         precondition(model.regexFilterName == nil && model.blocks.count == 1)
         model.choose(.mine); precondition(!MergeText.hasMarkers(model.result))
-        model.save(markResolved: true); try await wait { !model.busy && MergeRegexOperations.activeRequests == 0 }
+        var resolvedReplies=0,resolvedAccepted=false
+        model.save(markResolved:true,completion:{accepted in resolvedReplies += 1;resolvedAccepted=accepted})
+        try await wait(phase:"marked-resolved terminal owner and helper drain",diagnostic:{"replies=\(resolvedReplies),accepted=\(resolvedAccepted); "+snapshot(controller)}) {resolvedReplies==1 && !model.busy && !controller.mergeToolHasPendingWork && model.retired && controller.window?.isVisible != true && MergeRegexOperations.activeRequests==0}
+        precondition(resolvedAccepted && resolvedReplies==1 && model.error==nil)
         let stages = try await repository.conflicts(), afterHead = try await repository.run(["rev-parse", "HEAD"]).stdout
         let resolved = try Data(contentsOf: file)
         precondition(stages.isEmpty && afterHead == head && resolved == Data("version 2\nmine\nlast\n".utf8))
@@ -198,27 +214,44 @@ import TurtleGitCore
         try Data("#!/bin/sh\n/bin/sleep 2\nexit 1\n".utf8).write(to: slow)
         try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: slow.path)
         var stalledConfiguration = configuration; stalledConfiguration.executable = slow
-        let stalled = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp")
-        stalled.model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); stalled.model.engineConfiguration = stalledConfiguration; stalled.model.load()
+        let stalled = TextConflictWindowController(repository:repository,access:nil,path:"sample.cpp",preferences:defaults)
+        stalled.model.commentProfileURL = root.appendingPathComponent("ignorecomments.txt"); stalled.model.engineConfiguration = stalledConfiguration;owners.append(stalled);mount(stalled);stalled.model.load()
         precondition(stalled.model.preparing); stalled.window?.performClose(nil)
-        try await wait { MergeRegexOperations.activeRequests == 0 }
+        try await wait(phase:"standard Close cancellation of preparation",diagnostic:{snapshot(stalled)}) {MergeRegexOperations.activeRequests==0 && !stalled.mergeToolHasPendingWork && stalled.model.retired && stalled.window?.isVisible != true}
         precondition(stalled.model.document == nil && stalled.model.error == nil)
         stalled.window?.close()
-        let emptyOwner = TextConflictWindowController(repository: repository, access: nil, path: "sample.cpp"), empty = emptyOwner.model
+        let emptyOwner = TextConflictWindowController(repository:repository,access:nil,path:"sample.cpp",preferences:defaults), empty = emptyOwner.model
         empty.comparisonDefaults = defaults; empty.commentProfileURL = root.appendingPathComponent("ignorecomments.txt")
-        empty.load(); try await wait { !empty.busy }
+        owners.append(emptyOwner);mount(emptyOwner)
+        empty.load(); try await wait(phase:"fresh empty-result document and native editor",diagnostic:{snapshot(emptyOwner)}) { !empty.busy && empty.nativeEditorReady }
         precondition(empty.document != nil && empty.error == nil)
         let beforeEmpty = try Data(contentsOf: file)
         MergeFileSaveOptions.saveBackupPreference(true, to: defaults)
-        empty.chooseEmptyResult = { _ in .delete }; empty.result = ""; empty.save(markResolved: false)
-        try await wait { !empty.busy }
+        var deleteReplies=0,deleteAccepted=false
+        empty.chooseEmptyResult = { _ in .delete }; empty.result = ""
+        empty.save(markResolved:false,completion:{accepted in deleteReplies += 1;deleteAccepted=accepted})
+        try await wait(phase:"ordinary empty-result delete keeps live editor",diagnostic:{"replies=\(deleteReplies),accepted=\(deleteAccepted); "+snapshot(emptyOwner)}) {deleteReplies==1 && !empty.busy && empty.nativeEditorReady && !emptyOwner.mergeToolHasPendingWork}
+        precondition(deleteAccepted && deleteReplies==1 && !empty.retired && emptyOwner.window?.isVisible==true)
         precondition(empty.error == nil && empty.document?.workingContents == nil && !FileManager.default.fileExists(atPath: file.path))
         let originalBackup = try Data(contentsOf: URL(fileURLWithPath: file.path + ".bak"))
         precondition(originalBackup == beforeEmpty)
-        empty.save(markResolved: true); try await wait { !empty.busy }
+        var emptyResolveReplies=0,emptyResolveAccepted=false
+        empty.save(markResolved:true,completion:{accepted in emptyResolveReplies += 1;emptyResolveAccepted=accepted})
+        // Successful Mark resolved intentionally closes and retires this owner.
+        // Its native editor must no longer accept input; completion and exact
+        // Git/file/backup assertions below are the terminal success contract.
+        try await wait(phase:"empty-result marked-resolved terminal owner",diagnostic:{"replies=\(emptyResolveReplies),accepted=\(emptyResolveAccepted); "+snapshot(emptyOwner)}) {emptyResolveReplies==1 && !empty.busy && !emptyOwner.mergeToolHasPendingWork && empty.retired && emptyOwner.window?.isVisible != true && MergeRegexOperations.activeRequests==0}
+        precondition(emptyResolveAccepted && emptyResolveReplies==1 && !empty.nativeEditorReady && !empty.sourceToolsAllowed)
         let deletedConflicts = try await repository.conflicts(), preservedBackup = try Data(contentsOf: URL(fileURLWithPath: file.path + ".bak"))
         precondition(deletedConflicts.isEmpty && preservedBackup == beforeEmpty && empty.error == nil)
-        emptyOwner.window?.close(); try await wait { MergeRegexOperations.activeRequests == 0 }
+        emptyOwner.window?.close(); try await wait(phase:"empty owner helper drain",diagnostic:{snapshot(emptyOwner)}) { MergeRegexOperations.activeRequests == 0 }
+        try await wait(phase:"success owned window/helper drain",diagnostic:{owners.map{snapshot($0)}.joined(separator:"; ")}) {MergeRegexOperations.activeRequests==0 && owners.allSatisfy{!$0.mergeToolHasPendingWork && $0.window?.isVisible != true && $0.window?.attachedSheet==nil && $0.window?.sheetParent==nil}}
         print("Three-pane Subversion integration: production panes/result, ignored regex conflicts, original Mine preference, Cancel/Undo, No Filter, discard and Save-before-Reload, unchanged Git state before Save, explicit resolution, HEAD preservation and standard Close cancellation passed. Owned windows/helpers closed; private repository/preferences only.")
+        } catch {
+            let original=error;owners.forEach{$0.close()}
+            do {try await wait(phase:"failure owned window/helper drain",diagnostic:{owners.map{snapshot($0)}.joined(separator:"; ")}) {MergeRegexOperations.activeRequests==0 && owners.allSatisfy{!$0.mergeToolHasPendingWork && $0.window?.isVisible != true && $0.window?.attachedSheet==nil && $0.window?.sheetParent==nil}}}
+            catch {throw Failure(description:"\(original); cleanup: \(error)")}
+            throw original
+        }
     }
 }

@@ -164,17 +164,30 @@ import SwiftUI
         // Actual native settings content and action controls, without opening
         // a shared color panel or changing the main application preferences.
         let window = NSWindow(contentRect: NSRect(x: 0,y: 0,width: 580,height: 400), styleMask: [.titled], backing: .buffered, defer: false)
-        window.isReleasedWhenClosed = false
-        window.contentViewController = NSHostingController(rootView: StatusColorsSettings(model: reopened))
+        window.isReleasedWhenClosed = false;window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000))
+        window.contentViewController = NSHostingController(rootView:StatusColorsSettings(model:reopened).defaultAppStorage(preferences))
         window.contentView!.layoutSubtreeIfNeeded()
         func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
         window.setContentSize(NSSize(width: 580,height: 400))
         window.contentView!.layoutSubtreeIfNeeded()
-        defer { window.close() }
+        defer { window.orderOut(nil);window.close() }
+        window.orderFront(nil)
+        let expectedColorIDs=Set([StatusTextRole.added,.deleted,.merged,.modified,.conflict,.renamed].map{"StatusColors."+$0.rawValue})
+        let expectedChoices=["Automatic","","More colors…"]
+        var configured=false
         for _ in 0..<1000 {
-            if descendants(window.contentView!).compactMap({ $0 as? NSButton }).contains(where: { $0.title == "Apply" }) { break }
-            try await Task.sleep(nanoseconds: 5_000_000)
+            window.contentView?.layoutSubtreeIfNeeded()
+            let controls=descendants(window.contentView!).compactMap{$0 as? MergeColorChoiceView}
+            let ids=Set(controls.compactMap{$0.identifier?.rawValue})
+            configured=controls.count==6 && ids==expectedColorIDs && controls.allSatisfy{$0.window===window && $0.well.window===window && $0.choices.items.map(\.title)==expectedChoices} && descendants(window.contentView!).compactMap({$0 as? NSButton}).contains{$0.title=="Apply"}
+            if configured {break}
+            try await Task.sleep(nanoseconds:5_000_000)
         }
+        if !configured {
+            let controls=descendants(window.contentView!).compactMap{$0 as? MergeColorChoiceView}
+            print("Status color native readiness: expectedIDs=\(expectedColorIDs.sorted()),actual=\(controls.map{"id=\($0.identifier?.rawValue ?? "nil"),owner=\($0.window===window),wellOwner=\($0.well.window===window),wellEnabled=\($0.well.isEnabled),arrowEnabled=\($0.arrow.isEnabled),choices=\($0.choices.items.map(\.title))"}),visible=\(window.isVisible),frame=\(window.frame)")
+        }
+        precondition(configured,"Six configured native status color controls did not mount")
         let buttons = descendants(window.contentView!).compactMap { $0 as? NSButton }
         let apply = buttons.first { $0.title == "Apply" }!
         let restore = buttons.first { $0.title == "Restore Defaults" }!

@@ -230,7 +230,15 @@ private extension NSWindow {
             c.own(owner);owner.model.setScope(["."])
             try await wait("Actual Revert Added/Rename report unavailable"){owner.window?.contentView?.layoutSubtreeIfNeeded();return owner.model.canInteract && owner.model.entries.contains{$0.path==c.copy} && owner.model.entries.contains{$0.path==c.renamed}}
             let added=try Prior.unwrap(owner.model.entries.first{$0.path==c.copy},"Revert Added row absent"),renamed=try Prior.unwrap(owner.model.entries.first{$0.path==c.renamed},"Revert Rename row absent")
-            try c.check(added);try require(renamed.isRenamed && renamed.reportingOriginalPath==c.old,"Revert source Rename origin lost")
+            try c.check(added)
+            let exactOrigin=renamed.isRenamed && renamed.reportingOriginalPath==c.old
+            if !exactOrigin {
+                func row(_ entry:StatusEntry)->String {
+                    "path=\(String(reflecting:entry.path)),XY=\(entry.index)\(entry.worktree),original=\(String(reflecting:entry.originalPath)),sourceActions=\(String(describing:entry.sourceActions?.rawValue)),sourceOriginal=\(String(reflecting:entry.sourceOriginalPath)),reporting=\(entry.reportingActions.rawValue),origin=\(String(reflecting:entry.reportingOriginalPath)),originUTF8=\(String(describing:entry.reportingOriginalPath.map{Array($0.utf8)}))"
+                }
+                print("Revert Rename diagnostic: expectedOld=\(String(reflecting:c.old)),expectedUTF8=\(Array(c.old.utf8)),scope=\(owner.model.invocationPaths),busy=\(owner.model.busy),canInteract=\(owner.model.canInteract),error=\(String(reflecting:owner.model.error)),accepted=[\(owner.model.entries.map(row).joined(separator:"; "))]")
+            }
+            try require(exactOrigin,"Revert source Rename origin lost")
             var progress:RevertProgressWindowController?,finished=false,succeeded=false
             owner.model.onAccepted={entries in
                 let child=RevertProgressWindowController(repository:c.repo,access:nil,entries:entries,amend:false,againstHead:false,autoCloseSuccess:false,preferences:c.prefs,policy:.init(recycle:false),paths:owner.model.invocationPaths)

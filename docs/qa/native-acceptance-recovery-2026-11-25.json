@@ -1,0 +1,82 @@
+{
+  "date": "2026-11-25",
+  "baseline": "ce9223db2f37ddefde7e74daf3853f5a74624ce7",
+  "status": "four native case/engine runs and independent pinned C++ conversion oracle passed",
+  "production_changes": false,
+  "implementation": [
+    "Revert exact renamed/original-byte assertion unchanged; failure-only XY/raw action/scope/current-state receipts added. Current natural R entry passes through actual Revert acquisition with both Git versions; historical failed component is not inferred.",
+    "Status color acceptance mounts real private offscreen owner and waits all six configured native role IDs and exact Automatic/separator/More colors menus, preserving every original action/default/cancel/late-menu assertion.",
+    "Three-pane acceptance uses private preferences captured at controller construction, actual current native editor readiness and unique bounded phase/model/native diagnostics for existing waits.",
+    "Ordinary empty-result Save/Delete retains current editable owner; both Mark resolved saves require exactly one completion plus closed/retired owner and work drainage. Exact stages, HEAD, result and backup assertions preserved."
+  ],
+  "checks": [
+    {
+      "scope": "Revert natural cached rename-origin projection",
+      "runs": 2,
+      "log": "build/qa/native-acceptance-revert-2026-11-25.log"
+    },
+    {
+      "scope": "Native six Settings status swatches and Log color policy",
+      "runs": 1,
+      "log": "build/qa/native-acceptance-colors-2026-11-25.log"
+    },
+    {
+      "scope": "Three-pane editor, ordinary Save and terminal Mark resolved",
+      "runs": 1,
+      "log": "build/qa/native-acceptance-three-pane-save-repair-2026-11-25.log"
+    }
+  ],
+  "native_runs_passed": 4,
+  "independent_oracle": {
+    "language": "C++",
+    "source_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+    "inputs": 29,
+    "modes": [
+      "light",
+      "dark",
+      "high-contrast"
+    ],
+    "result": "passed in colors log"
+  },
+  "failed_attempts": [
+    {
+      "log": "build/qa/native-acceptance-three-pane-2026-11-25.log",
+      "cause": "New readiness gate incorrectly demanded an editable live owner after successful Mark resolved, which deliberately closes/retires the editor. Split terminal completion/closure from ordinary Save and pending-preparation Close."
+    }
+  ],
+  "source_sha256": {
+    "docs/qa/working-status-projection-native-2026-11-23.swift": "2bfac29ec8984cfda14a3111cc6df60aad77024e7b711dab365fa0e70bd5bedb",
+    "docs/qa/status-colors-native-2026-10-09.swift": "c44522b8ffcf861f5f36a521080659a53ded931c8ccb8d459cbd17a374df79ca",
+    "docs/qa/three-pane-engine-native-2026-10-12.swift": "eb2d5ea1519c7a3690b6ffcc53e4fc160ff986305f330868095dd869b84072d8"
+  },
+  "evidence_sha256": {
+    "build/qa/native-acceptance-colors-2026-11-25.log": "19d6c705d98ccb076d9bc4a306ff8ab5963e5a66a994935ea34230f978424500",
+    "build/qa/native-acceptance-revert-2026-11-25.log": "6fe37ed801c8b16f5b0a859699bd4e09ba25ed6318905a0f64f50113c9a03ff8",
+    "build/qa/native-acceptance-three-pane-2026-11-25.log": "ca6436bbdfce359633f312a9c2863a93ca360aa16f993738ac82662b07c5784b",
+    "build/qa/native-acceptance-three-pane-save-repair-2026-11-25.log": "19b21f4e43bf3b849f2b7919851178786581d540980ec218a61b0cad3aa6e9a0"
+  },
+  "core_and_app_build": {
+    "run": false,
+    "reason": "Only native QA fixtures changed. Existing Debug objects and earlier SSH/Core/native passes retained. Signed57 exact ce922 source remains unchanged."
+  },
+  "cleanup": {
+    "logged_owned_compiler_receiver_pids": [
+      87450,
+      87546,
+      87656,
+      87922,
+      87945,
+      87982,
+      88110,
+      92416,
+      92541
+    ],
+    "currently_present": [],
+    "windows": "Private invisible/offscreen owners and original sheet/worker/helper drainage retained."
+  },
+  "limits": [
+    "Focused checks do not prove a full hosted pass, all upstream dialogs or signed/physical acceptance.",
+    "No system contrast setting, real shared color panel or user preferences changed.",
+    "Protected WMF/EMF, concurrent local installer work and installed app untouched."
+  ]
+}
