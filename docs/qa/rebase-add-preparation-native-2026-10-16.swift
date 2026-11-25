@@ -5,10 +5,26 @@ import TurtleGitCore
 @main struct RebaseAddPreparationVerification {
     struct Failure: LocalizedError, CustomStringConvertible { let description: String; var errorDescription: String? { description } }
     @MainActor static var owners: [RebaseWindowController] = []
-    static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
+    @MainActor static var currentPhase="initial"
+    @MainActor static func trace(_ message:String) {
+        print("REBASE ADD: "+message);fflush(stdout)
+    }
+    @MainActor static func phase(_ name:String) {currentPhase=name;trace("PHASE "+name)}
+    @MainActor static func diagnostic()->String {
+        let counters="preparations=\(RebaseWindowModel.activePreparationReads) columns=\(RebaseWindowModel.activeColumnReads) replay=\(RebaseWindowModel.activeReplayOperations) pickers=\(RebaseWindowController.activeCommitPickers)"
+        let models=owners.enumerated().map{index,owner in
+            let model=owner.model
+            return "owner\(index){busy=\(model.busy),active=\(model.active),retired=\(model.retired),adding=\(model.addingCommits),picking=\(model.pickingCommits),split=\(model.selectingSplit),question=\(model.hasReplayQuestion),sheet=\(owner.window?.attachedSheet != nil),error=\(model.error ?? "nil")}"
+        }.joined(separator:" ")
+        return "phase=\(currentPhase) "+counters+" modal=\(NSApp.modalWindow != nil) "+models
+    }
+    static func require(_ value: Bool, _ message: String) throws {
+        if !value {fputs("REBASE ADD ASSERTION: "+message+"\n",stderr);fflush(stderr);throw Failure(description:message)}
+    }
     @MainActor static func wait(_ ready: () -> Bool, line: Int = #line) async throws {
-        for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Add preparation timeout at \(line)")
+        trace("WAIT line=\(line) phase="+currentPhase)
+        for _ in 0..<2000 { if ready() {trace("READY line=\(line) phase="+currentPhase);return};try await Task.sleep(nanoseconds:10_000_000) }
+        throw Failure(description:"Add preparation timeout at \(line): "+diagnostic())
     }
     @MainActor static func drain() async throws {
         try await wait { RebaseWindowModel.activePreparationReads == 0 && RebaseWindowModel.activeColumnReads == 0 && RebaseWindowModel.activeReplayOperations == 0 }
@@ -18,7 +34,11 @@ import TurtleGitCore
         do { try await verify(); owners.forEach { $0.model.retire(); $0.close() }; owners = [] }
         catch { owners.forEach { $0.model.retire(); $0.close() }; owners = []; fputs("Add preparation failed: \(error)\n", stderr); exit(1) }
     }
-    @MainActor static func start(_ model:RebaseWindowModel) {model.request("start");if let question=model.pendingConfirmation {model.answerConfirmation(question,proceed:true)}}
+    @MainActor static func start(_ model:RebaseWindowModel) {
+        trace("DISPATCH Start "+diagnostic());model.request("start")
+        if let question=model.pendingConfirmation {trace("ANSWER Start confirmation");model.answerConfirmation(question,proceed:true)}
+        trace("RETURN Start "+diagnostic())
+    }
     @MainActor static func nativeViews(_ view:NSView)->[NSView] {
         let selector = #selector(getter:NSView.subviews)
         typealias Getter = @convention(c)(AnyObject,Selector)->Unmanaged<NSArray>
@@ -29,6 +49,7 @@ import TurtleGitCore
         return result
     }
     @MainActor static func verify() async throws {
+        phase("initial repository and plan setup")
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repo.run(["init", "-b", "main"])
         for (key, value) in [("user.name", "Add QA"), ("user.email", "add@example.invalid"), ("commit.gpgsign", "false"), ("core.hooksPath", "/dev/null")] { _ = try await repo.run(["config", key, value]) }
@@ -46,9 +67,10 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName: suite) }
         prefs.set(false, forKey: "ContextMenuIcons")
         @MainActor func make() -> RebaseWindowController {
+            trace("CONSTRUCT owner \(owners.count)")
             let controller = RebaseWindowController(repository: repo, access: nil, preferences: prefs)
-            owners.append(controller); controller.window?.alphaValue = 0; controller.window?.orderFront(nil)
-            return controller
+            owners.append(controller); controller.window?.alphaValue = 0; controller.window?.setFrameOrigin(.init(x:-24000,y:-24000)); controller.window?.orderFront(nil)
+            trace("CONSTRUCTED owner \(owners.count-1)");return controller
         }
         let controller = make(), model = controller.model
         model.load(upstream: "refs/heads/side"); try await drain()
@@ -57,7 +79,9 @@ import TurtleGitCore
         let added = try await repo.addingRebaseCommits(initial, revisions: [side.hash, topic.hash])
         // Delay a genuine completed read to prove that cancellation owns the reply
         // until drain and rejects even a successful result already in flight.
+        phase("held Add cancellation, failure and immutable retry")
         var reply: CheckedContinuation<RebasePlan, Error>?, ownedToken: OperationCancellation?
+        defer{reply?.resume(throwing:OperationCancellationFailure.cancelled)}
         model.readAddedPlan = { _, _, token in ownedToken = token; return try await withCheckedThrowingContinuation { reply = $0 } }
         model.addCommits([side.hash, topic.hash]); try await wait { reply != nil }
         try require(model.addingCommits && model.busy && !model.canStart && model.hasCancellablePreparation && RebaseWindowModel.activePreparationReads > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Add read lost UI/Quit ownership")
@@ -85,24 +109,26 @@ import TurtleGitCore
         var retained: (([LogEntry]?) -> Void)?
         controller.makeCommitPicker = { repository, access, preferences, choose in
             retained = choose
-            return LogWindowController(repository: repository, access: access, onChooseMultiple: choose, labelDefaults: preferences)
+            let picker=LogWindowController(repository: repository, access: access, onChooseMultiple: choose, labelDefaults: preferences)
+            picker.window?.alphaValue=0;picker.window?.setFrameOrigin(.init(x:-24000,y:-24000))
+            return picker
         }
-        print("REBASE ADD PHASE: open cancellation picker")
+        phase("open cancellation picker")
         controller.showAdditionalCommits(); try await wait { controller.logPicker != nil && controller.logPicker?.model.busy == false }
         try require(controller.logPicker!.model.selectingMultiple && controller.logPicker!.model.colorPreferences === prefs && model.pickingCommits && !model.canStart && RebaseWindowController.activeCommitPickers == 1, "Add picker does not own multi-selection/preferences")
         let cancelled = retained
-        print("REBASE ADD PHASE: finish cancellation picker")
+        phase("finish cancellation picker")
         controller.logPicker!.model.finishMultipleSelection(nil)
         try await wait { RebaseWindowController.activeCommitPickers == 0 && !model.pickingCommits && controller.window?.attachedSheet == nil }
         cancelled?([base]); try require(!model.busy && model.plan!.entries.map(\.id) == beforeStale, "Old picker callback inserted rows")
         model.readAddedPlan = { try await repo.addingRebaseCommits($0, revisions: $1, cancellation: $2) }
-        print("REBASE ADD PHASE: open acceptance picker")
+        phase("open acceptance picker")
         controller.showAdditionalCommits(); try await wait { controller.logPicker?.model.busy == false && controller.logPicker != nil }
-        print("REBASE ADD PHASE: finish acceptance picker")
+        phase("finish acceptance picker")
         controller.logPicker!.model.finishMultipleSelection([base]); try await drain()
         try require(model.entries.first?.commit.hash == base.hash && !model.pickingCommits && RebaseWindowController.activeCommitPickers == 0 && controller.window?.attachedSheet == nil, "Accepted picker did not detach before Add")
         controller.presentCommitPicker = { _, _ in false }
-        print("REBASE ADD PHASE: open refused picker")
+        phase("open refused picker")
         controller.showAdditionalCommits(); try await drain()
         try require(!model.pickingCommits && controller.logPicker == nil && RebaseWindowController.activeCommitPickers == 0, "Refused picker leaked owner")
         // Before a valid plan exists, cancelled draft resolution keeps old draft;
@@ -113,6 +139,7 @@ import TurtleGitCore
         try require(draft.plan == nil && draft.entries.map { $0.commit.hash } == [side.hash] && !draft.canStart && draft.error == nil, "Incomplete references lost source editable Add draft")
         let oldDraft = draft.entries.map(\.id)
         var draftReply: CheckedContinuation<[RebaseEntry], Error>?
+        defer{draftReply?.resume(throwing:OperationCancellationFailure.cancelled)}
         draft.readAddedEntries = { _, _, token in ownedToken = token; return try await withCheckedThrowingContinuation { draftReply = $0 } }
         draft.addCommits([base.hash]); try await wait { draftReply != nil }; _ = draft.cancelPreparation()
         draftReply?.resume(returning: try await repo.addingRebaseEntries([], revisions: [base.hash])); draftReply = nil; try await drain()
@@ -136,8 +163,9 @@ import TurtleGitCore
         parent.load(cherryPick: [merge.hash]); try await drain()
         try require(parent.canStart && parent.isCherryPick, "Merge Cherry Pick unavailable")
         var parentReply: CheckedContinuation<[LogParentChoice], Error>?
+        defer{parentReply?.resume(throwing:OperationCancellationFailure.cancelled)}
         parent.readMainlineChoices = { _, token in ownedToken = token; return try await withCheckedThrowingContinuation { parentReply = $0 } }
-        print("REBASE ADD PHASE: start reached-mainline held read")
+        phase("start reached-mainline held read")
         start(parent)
         do {try await wait {parentReply != nil}} catch {
             var actual:RebaseState?
@@ -149,27 +177,27 @@ import TurtleGitCore
         }
         let reached=try await repo.rebaseState(),reachedHead=try await repo.rebaseCommit("HEAD").hash
         try require(reached.mainlineDecision?.commit==merge.hash && parent.busy && parent.active && RebaseWindowModel.activeReplayOperations>0,"Reached parent metadata lacks durable replay ownership")
-        print("REBASE ADD PHASE: cancel reached-mainline held read")
+        phase("cancel reached-mainline held read")
         parent.cancelReplay();try require(ownedToken?.isCancelled==true && parent.busy,"Cancel released noncooperative parent read")
-        print("REBASE ADD PHASE: release cancelled reached-mainline held read")
+        phase("release cancelled reached-mainline held read")
         parentReply?.resume(returning: try await repo.logParentChoices(merge)); parentReply = nil; try await drain()
         let cancelledState=try await repo.rebaseState()
         try require(cancelledState.mainlineDecision==reached.mainlineDecision && parent.plan!.entries.first?.mainline == nil && !parent.busy && parent.error == nil && parent.active,"Cancelled reached read changed mainline or lost resumable session")
         try require((try await repo.rebaseCommit("HEAD")).hash==reachedHead,"Cancelled reached read changed earlier committed progress")
         parent.readMainlineChoices = { try await repo.logParentChoices($0, cancellation: $1) }
-        print("REBASE ADD PHASE: open reached-mainline sheet")
+        phase("open reached-mainline sheet")
         parent.request("continue"); try await wait { parent.hasReplayQuestion && parentController.window?.attachedSheet != nil }
         let sheet=parentController.window!.attachedSheet!,buttons=nativeViews(sheet.contentView!).compactMap{$0 as? NSButton}.filter{!$0.isHiddenOrHasHiddenAncestor && !$0.title.isEmpty}
         let fields=nativeViews(sheet.contentView!).compactMap{$0 as? NSTextField}.map(\.stringValue)
         guard let cancel=buttons.first(where:{$0.title=="Cancel"}),let cancelAction=cancel.action else{throw Failure(description:"Actual parent Cancel missing")}
         try require(buttons.count==3 && sheet.defaultButtonCell === cancel.cell && sheet.alphaValue==0 && fields.contains(where:{$0.contains("Which parent do you want to pick?") && $0.contains(merge.hash)}),"Actual reached parent sheet lost source text/choices/default Cancel/owner")
-        print("REBASE ADD PHASE: cancel reached-mainline sheet")
+        phase("cancel reached-mainline sheet")
         try require(NSApp.sendAction(cancelAction,to:cancel.target,from:cancel),"Native reached parent Cancel failed to dispatch")
         try await drain();try await wait {parentController.window?.attachedSheet==nil && !parent.hasReplayQuestion && !parent.busy}
         try require((try await repo.rebaseState()).mainlineDecision==reached.mainlineDecision && parent.active,"Native Cancel did not retain the reached parent decision")
-        print("REBASE ADD PHASE: reopen reached-mainline sheet")
+        phase("reopen reached-mainline sheet")
         parent.request("continue"); try await wait { parent.hasReplayQuestion }
-        print("REBASE ADD PHASE: close reached-mainline owner")
+        phase("close reached-mainline owner")
         parentController.close(); try await drain()
         try require(parent.retired && !parent.hasReplayQuestion && !parent.busy,"Forced reached-parent closure retained question or worker")
         let retiredState=try await repo.rebaseState()
@@ -193,6 +221,7 @@ import TurtleGitCore
     }
 
     @MainActor static func reachedOrdering()async throws {
+        phase("reachedOrdering")
         let c=try ReachedContext("reached-ordering")
         do {
             try await c.seed();let owner=try await c.open([c.last.hash,c.merge.hash,c.empty.hash,c.ordinary.hash]),model=owner.model
@@ -225,6 +254,7 @@ import TurtleGitCore
         }catch{await c.cleanup();throw error}
     }
     @MainActor static func repeatedReachedSkip()async throws {
+        phase("repeatedReachedSkip")
         let c=try ReachedContext("reached-repeat-skip")
         do {
             try await c.seed();let owner=try await c.open([c.merge.hash]),model=owner.model
@@ -245,6 +275,7 @@ import TurtleGitCore
         }catch{await c.cleanup();throw error}
     }
     @MainActor static func reachedOwnership()async throws {
+        phase("reachedOwnership")
         let c=try ReachedContext("reached-owner")
         do {
             try await c.seed();let owner=try await c.open([c.merge.hash,c.ordinary.hash]),model=owner.model
@@ -269,7 +300,9 @@ import TurtleGitCore
         }catch{await c.cleanup();throw error}
     }
     @MainActor static func noCommitSquashRecovery()async throws {
+        phase("noCommitSquashRecovery")
         for mode in ["commit","abort","conflict"] {
+            phase("no-commit Squash "+mode)
             let c=try ReachedContext("reached-no-commit-"+mode)
             do {
                 try await c.seed()
@@ -325,6 +358,7 @@ import TurtleGitCore
         }
     }
     @MainActor static func noCommitSquashSplit()async throws {
+        phase("noCommitSquashSplit")
         let c=try ReachedContext("reached-no-commit-split")
         c.preferences.set(true,forKey:"HintStagingMode")
         do {
@@ -421,6 +455,7 @@ import TurtleGitCore
             try FileManager.default.removeItem(at:messageFile);return try await repository.rebaseCommit("HEAD")
         }
         func seed()async throws {
+            trace("SEED "+root.lastPathComponent)
             _=try await repository.run(["init","-b","main"])
             for(key,value)in [("user.name","Reached QA"),("user.email","reached@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("rebase.updateRefs","false")] {_=try await repository.run(["config",key,value])}
             let base=try await commit("base.txt","base")
@@ -435,6 +470,7 @@ import TurtleGitCore
             originalHead=try await repository.rebaseCommit("HEAD").hash
         }
         func open(_ selected:[String]?=nil)async throws->RebaseWindowController {
+            trace("OPEN "+root.lastPathComponent+" selected=\(selected?.count ?? 0)")
             let owner=RebaseWindowController(repository:repository,access:nil,preferences:preferences);controllers.append(owner);owners.append(owner)
             owner.window?.isReleasedWhenClosed=false;owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.window?.orderFront(nil)
             owner.model.editorExecutable=editor;owner.model.load(cherryPick:selected)
@@ -445,7 +481,11 @@ import TurtleGitCore
             model.chooseMainline={ [self] commit,choices in events?(commit,choices);return await withCheckedContinuation{answers.append($0)}}
         }
         func answer(_ parent:Int?) {guard !answers.isEmpty else{return};answers.removeFirst().resume(returning:parent)}
-        func request(_ model:RebaseWindowModel,_ action:String) {model.request(action);if let question=model.pendingConfirmation{model.answerConfirmation(question,proceed:true)}}
+        func request(_ model:RebaseWindowModel,_ action:String) {
+            trace("DISPATCH "+action+" "+root.lastPathComponent+" "+diagnostic())
+            model.request(action);if let question=model.pendingConfirmation{model.answerConfirmation(question,proceed:true)}
+            trace("RETURN "+action+" "+root.lastPathComponent+" "+diagnostic())
+        }
         func cleanup()async {
             for owner in controllers {owner.model.retire();owner.close();owner.model.chooseMainline={_,_ in nil};owner.model.confirmEmptyMessageReview={false}}
             while !answers.isEmpty {answer(nil)}

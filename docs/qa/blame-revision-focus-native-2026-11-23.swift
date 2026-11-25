@@ -18,6 +18,50 @@ import TurtleGitCore
     static func unwrap<T>(_ value:T?,_ message:String)throws->T {guard let value else{throw Prior.Failure(description:message)};return value}
     static func wait(line:Int = #line,_ ready:()->Bool)async throws {try await Prior.wait(line:line,ready)}
     static func views(_ owner:NSWindowController)->[NSView] {Prior.views(owner.window?.contentView)}
+    static func admitHistory(_ table:BlameHistoryNativeTable,window:NSWindow,line:Int = #line)async throws {
+        guard let coordinator=table.dataSource as? BlameHistoryTable.Coordinator else {throw Prior.Failure(description:"History coordinator missing at \(line)")}
+        @MainActor func receipt()->[String]? {
+            window.contentView?.layoutSubtreeIfNeeded()
+            let model=coordinator.model
+            let projected=IndexSet(model.historyEntries.enumerated().compactMap{model.selectedLogHashes.contains($0.element.hash) ? $0.offset:nil})
+            guard coordinator.table === table,!coordinator.updating,coordinator.available,
+                  table.window === window,window.isVisible,table.isEnabled,!table.isHiddenOrHasHiddenAncestor,
+                  table.numberOfRows==model.historyEntries.count,table.selectedRowIndexes==projected,
+                  model.pendingHistoryReveal==nil,
+                  window.makeFirstResponder(table),window.firstResponder === table,
+                  let editor=Prior.views(window.contentView).compactMap({$0 as? NSTextView}).first(where:{$0.accessibilityLabel()=="Blame source text"}),
+                  editor.window === window,!editor.isHiddenOrHasHiddenAncestor else{return nil}
+            return [String(describing:ObjectIdentifier(table)),String(describing:ObjectIdentifier(editor)),
+                    String(model.sourceVersion),String(model.historyVersion),String(model.historySourceFocusSerial),
+                    table.inputEpoch.uuidString,String(describing:Array(table.selectedRowIndexes)),
+                    String(describing:model.selection),String(describing:editor.selectedRange()),
+                    String(describing:table.enclosingScrollView?.contentView.bounds),
+                    String(describing:editor.enclosingScrollView?.contentView.bounds)]
+        }
+        do {
+            // A same-count/projection check in the publication turn is insufficient.
+            // Observe the actual source/report receipt across a main-runloop boundary;
+            // pending reveal must be consumed and serial/caret/scroll state unchanged.
+            var stable=false
+            let deadline=DispatchTime.now().uptimeNanoseconds+25_000_000_000
+            for _ in 0..<2500 {
+                if DispatchTime.now().uptimeNanoseconds>=deadline {break}
+                if let before=receipt() {
+                    await withCheckedContinuation { (continuation:CheckedContinuation<Void,Never>) in
+                        RunLoop.main.perform(inModes:[.default,.common]) {continuation.resume()}
+                    }
+                    if receipt()==before {stable=true;break}
+                }
+                try await Task.sleep(nanoseconds:10_000_000)
+            }
+            try require(stable,"History native/source projection did not settle at \(line)")
+        } catch {
+            let model=coordinator.model
+            let projected=model.historyEntries.enumerated().compactMap{model.selectedLogHashes.contains($0.element.hash) ? $0.offset:nil}
+            fputs("Blame report admission caller=\(line) currentCoordinator=\(coordinator.table === table) updating=\(coordinator.updating) available=\(coordinator.available) currentWindow=\(table.window === window) visible=\(window.isVisible) hidden=\(table.isHiddenOrHasHiddenAncestor) enabled=\(table.isEnabled) rows=\(table.numberOfRows)/\(model.historyEntries.count) selected=\(Array(table.selectedRowIndexes)) projected=\(projected) focused=\(String(reflecting:model.focusedHistoryHash)) firstResponder=\(String(describing:window.firstResponder)) sourceVersion=\(model.sourceVersion) historySourceSerial=\(model.historySourceFocusSerial) pendingReveal=\(String(reflecting:model.pendingHistoryReveal)) inputEpoch=\(table.inputEpoch)\n",stderr)
+            throw error
+        }
+    }
     static func mouse(_ table:NSTableView,row:Int,column:Int,flags:NSEvent.ModifierFlags=[],line:Int = #line)async throws {
         guard let window=table.window else{throw Prior.Failure(description:"Detached pointer owner")}
         func diagnostic()->String {
@@ -28,6 +72,10 @@ import TurtleGitCore
         guard (0..<table.numberOfRows).contains(row),table.tableColumns.indices.contains(column),!table.tableColumns[column].isHidden else {
             throw Prior.Failure(description:"Pointer admission: "+diagnostic())
         }
+        // Settle current model/report projection before deriving any coordinates.
+        // An earlier layout/scroll rect is not a receipt for the eventual event.
+        if let native=table as? BlameHistoryNativeTable {try await admitHistory(native,window:window,line:line)}
+        try require(window.makeFirstResponder(table) && window.firstResponder === table,"Pointer first responder refused: "+diagnostic())
         var rect=NSRect.zero
         for _ in 0..<200 {
             window.contentView?.layoutSubtreeIfNeeded()
@@ -37,9 +85,20 @@ import TurtleGitCore
             try await Task.sleep(nanoseconds:10_000_000)
         }
         try require(!rect.isEmpty && table.window === window && window.isVisible && table.isEnabled && !table.isHiddenOrHasHiddenAncestor,"Pointer target clipped/refused: "+diagnostic())
-        if let native=table as? BlameHistoryNativeTable,let coordinator=native.dataSource as? BlameHistoryTable.Coordinator {
-            try await wait {window.contentView?.layoutSubtreeIfNeeded();return coordinator.available && table.numberOfRows==coordinator.model.historyEntries.count}
+        // Recompute after the final actual layout/scroll, with no await before delivery.
+        window.contentView?.layoutSubtreeIfNeeded();table.layoutSubtreeIfNeeded()
+        rect=table.frameOfCell(atColumn:column,row:row).intersection(table.visibleRect)
+        try require(!rect.isEmpty && table.window === window && window.firstResponder === table,"Pointer owner changed after layout: "+diagnostic())
+        if let coordinator=table.dataSource as? BlameHistoryTable.Coordinator {
+            let model=coordinator.model
+            let projected=IndexSet(model.historyEntries.enumerated().compactMap{model.selectedLogHashes.contains($0.element.hash) ? $0.offset:nil})
+            try require(coordinator.table === table && !coordinator.updating && coordinator.available && table.numberOfRows==model.historyEntries.count && table.selectedRowIndexes==projected,"Pointer final report projection changed: "+diagnostic())
         }
+        let local=NSPoint(x:rect.midX,y:rect.midY)
+        try require(table.row(at:local)==row && table.column(at:local)==column,"Pointer cell hit-test mismatch: "+diagnostic())
+        let beforeRows=Array(table.selectedRowIndexes)
+        let beforeEpoch=(table as? BlameHistoryNativeTable)?.inputEpoch
+        let beforeVersion=(table.dataSource as? BlameHistoryTable.Coordinator)?.model.sourceVersion
         let point=table.convert(NSPoint(x:rect.midX,y:rect.midY),to:nil),stamp=ProcessInfo.processInfo.systemUptime
         let down=NSEvent.mouseEvent(with:.leftMouseDown,location:point,modifierFlags:flags,timestamp:stamp,windowNumber:window.windowNumber,context:nil,eventNumber:41,clickCount:1,pressure:1)!
         let up=NSEvent.mouseEvent(with:.leftMouseUp,location:point,modifierFlags:flags,timestamp:stamp+0.01,windowNumber:window.windowNumber,context:nil,eventNumber:42,clickCount:1,pressure:0)!
@@ -53,7 +112,11 @@ import TurtleGitCore
         let injected=imp_implementationWithBlock(block)
         class_replaceMethod(NSWindow.self,selector,injected,method_getTypeEncoding(method))
         defer{class_replaceMethod(NSWindow.self,selector,original,method_getTypeEncoding(method));imp_removeBlock(injected)}
-        window.makeFirstResponder(table);NSApp.postEvent(up,atStart:true);table.mouseDown(with:down)
+        try require(down.window === window && up.window === window && table.window === window && window.firstResponder === table,"Pointer event/window ownership mismatch: "+diagnostic())
+        print("Blame pointer preflight caller=\(line) target=\(row)/\(column) hit=\(table.row(at:local))/\(table.column(at:local)) selected=\(beforeRows) flags=\(down.modifierFlags.rawValue) inputEpoch=\(String(reflecting:beforeEpoch)) sourceVersion=\(String(reflecting:beforeVersion)) rect=\(rect) window=\(ObjectIdentifier(window)) table=\(ObjectIdentifier(table))")
+        NSApp.postEvent(up,atStart:true);table.mouseDown(with:down)
+        let native=table as? BlameHistoryNativeTable,model=(table.dataSource as? BlameHistoryTable.Coordinator)?.model
+        print("Blame pointer delivered caller=\(line) selected=\(Array(table.selectedRowIndexes)) model=\(model?.selectedLogHashes.sorted() ?? []) focus=\(String(reflecting:model?.focusedHistoryHash)) line=\(String(reflecting:model?.selection)) delivered=\(String(reflecting:native?.selectionEventDelivered)) inputEpochBefore=\(String(reflecting:beforeEpoch)) inputEpochAfter=\(String(reflecting:native?.inputEpoch)) sourceVersionBefore=\(String(reflecting:beforeVersion)) sourceVersionAfter=\(String(reflecting:model?.sourceVersion)) sameWindow=\(table.window === window) sameResponder=\(window.firstResponder === table)");fflush(stdout)
     }
     static func key(_ window:NSWindow,code:UInt16,flags:NSEvent.ModifierFlags=[])->NSEvent {
         let scalar:UInt32=[123:0xF702,124:0xF703,125:0xF701,126:0xF700,115:0xF729,119:0xF72B,109:0xF70D][code] ?? 0
@@ -100,7 +163,7 @@ import TurtleGitCore
             let line=try unwrap(model.lines.first{$0.hash==later},"Later revision lacks source lines")
             do {try await wait {model.selectedLogHashes==[first,later] && model.focusedHistoryHash==later && model.selection==line.number}}
             catch {
-                fputs("Blame pointer selection: selected=\(model.selectedLogHashes),expected=\([first,later]),focused=\(String(reflecting:model.focusedHistoryHash)),expectedFocus=\(later),line=\(model.selection),expectedLine=\(line.number),nativeSelection=\(history.selectedRowIndexes),inputEpoch=\(history.inputEpoch),eventEpoch=\(String(reflecting:history.selectionEventEpoch)),sourceVersion=\(model.sourceVersion),editorRange=\(editor.selectedRange())\n",stderr)
+                fputs("Blame pointer selection: selected=\(model.selectedLogHashes),expected=\([first,later]),focused=\(String(reflecting:model.focusedHistoryHash)),expectedFocus=\(later),line=\(model.selection),expectedLine=\(line.number),nativeSelection=\(Array(history.selectedRowIndexes)),inputEpoch=\(history.inputEpoch),eventEpoch=\(String(reflecting:history.selectionEventEpoch)),sourceVersion=\(model.sourceVersion),editorRange=\(editor.selectedRange())\n",stderr)
                 throw error
             }
             var offset=0
@@ -113,7 +176,8 @@ import TurtleGitCore
             try await mouse(history,row:9,column:history.column(withIdentifier:.init("message")),flags:.command)
             try await wait {model.selectedLogHashes==[first]}
             try require(editor.selectedRange().length==0 && editor.selectedRange().location==19,"History deselection did not collapse at the native active caret")
-            window.makeFirstResponder(editor);editor.setSelectedRange(NSRange(location:20,length:0))
+            try require(editor.window === window && !editor.isHiddenOrHasHiddenAncestor && window.makeFirstResponder(editor) && window.firstResponder === editor,"Reversed source selection did not own live keyboard responder")
+            editor.setSelectedRange(NSRange(location:20,length:0))
             editor.keyDown(with:key(window,code:123,flags:.shift))
             try require(editor.selectedRange()==NSRange(location:19,length:1),"Native reversed selection fixture did not move")
             try await mouse(history,row:0,column:history.column(withIdentifier:.init("message")),flags:.command)
@@ -136,7 +200,8 @@ import TurtleGitCore
             try require(NSLocationInRange(12,history.rows(in:history.visibleRect)),"Source toggle-off did not reveal its clicked revision")
             // Keyboard range extension uses the actual endpoint, while the
             // keyboard/AX context menu retains the whole highlighted set.
-            history.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false);window.makeFirstResponder(history)
+            history.selectRowIndexes(IndexSet(integer:0),byExtendingSelection:false)
+            try await admitHistory(history,window:window)
             history.keyDown(with:key(window,code:125,flags:.shift))
             try await wait {model.selectedLogHashes==Set(entries.prefix(2).map(\.hash)) && model.focusedHistoryHash==entries[1].hash && history.selectedRowIndexes==IndexSet([0,1])}
             struct MenuAnchor {
@@ -173,7 +238,8 @@ import TurtleGitCore
             let field=NSTextField(frame:.init(x:4,y:4,width:120,height:22));window.contentView?.addSubview(field);window.makeFirstResponder(field)
             history.keyDown(with:key(window,code:125,flags:.shift))
             try require(model.selectedLogHashes==selected,"Field editor focus let history navigation run")
-            field.removeFromSuperview();window.makeFirstResponder(history)
+            field.removeFromSuperview()
+            try await admitHistory(history,window:window)
             history.isHidden=true;history.keyDown(with:key(window,code:125,flags:.shift));try require(!history.accessibilityPerformShowMenu() && model.selectedLogHashes==selected,"Hidden report accepted focus/menu")
             history.isHidden=false
             model.busy=true;history.keyDown(with:key(window,code:125,flags:.shift));model.focusHistory([oldHash],focus:oldHash);model.highlight(oldLine,additive:false)

@@ -1,5 +1,22 @@
 # TurtleGit for Mac — full port tracking
 
+## Post-handoff Rebase and command recovery — November 25, 2026
+
+The [focused recovery checkpoint](qa/rebase-command-ci-recovery-2026-11-25.json)
+fixes loss of an unsaved Rebase draft when Stash or identity repair is declined
+before Start. It preserves the accepted editor only while session, plan, HEAD
+and ownership remain unchanged, before hooks/replay or stash mutation. Both Git
+engines pass the native draft/repository-state assertions after one Debug build.
+
+Blame focus, bare-command refusal, Rebase Add and Sync/replay selected activation
+have focused local passes. Native checks now observe actual authority/responder
+completion, use private valid file operands and drain Sync workers before private
+cleanup. Original failures and affected-only repairs remain recorded. The hosted
+Add/Sync timeout causes are still unproven; later hosted Log/Changed Files failures
+remain under investigation. A complete hosted pass is outstanding. This later
+source fix does not change installed58, and no new renderer work or binary release
+was performed.
+
 ## Current local handoff — November 25, 2026
 
 [Signed build58](qa/signed-consolidation-build58-2026-11-25.json) is packaged from

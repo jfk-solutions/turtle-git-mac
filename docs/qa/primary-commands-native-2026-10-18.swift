@@ -238,30 +238,93 @@ import TurtleGitCore
         try await wait {RepositoryModel.activeCommandFileOperations==0 && LogWindowModel.activeHistoryLoads==0 && CommitWindowModel.activeReloads==0}
         print("PASS: command file IO family: authorized exact path-list Commit and explicit input deletion; single-picker hash/Cancel output; real revision/working unified documents; native source-line selection; cancelled permissions/preparation and Quit drain; unchanged Git/source state; owned windows closed")
     }
+    // Bare-directory Blame still requests its parent, just like a file/symlink
+    // launch. Grant only this receiver's disposable container, never real saved
+    // bookmarks or an ambient home-directory permission.
+    final class BareBookmarks:RepositoryBookmarkProvider,@unchecked Sendable {
+        let container:URL,root:URL
+        private let lock=NSLock()
+        private var accessed:[String]=[]
+        init(container:URL,root:URL){self.container=container.standardizedFileURL;self.root=root.standardizedFileURL}
+        private func allowed(_ url:URL)->Bool {let path=url.standardizedFileURL.path;return path==container.path || path==root.path}
+        func create(for url:URL)throws->Data {guard allowed(url) else{throw Failure(description:"Bare bookmark escaped private authority")};return Data(url.standardizedFileURL.path.utf8)}
+        func resolve(_ data:Data)throws->ResolvedBookmark {
+            guard let path=String(data:data,encoding:.utf8) else{throw Failure(description:"Invalid private bare bookmark")}
+            let url=URL(fileURLWithPath:path,isDirectory:true)
+            guard allowed(url) else{throw Failure(description:"Bare bookmark resolved outside private authority")}
+            return ResolvedBookmark(url:url,stale:false)
+        }
+        func startAccessing(_ url:URL)->Bool {guard allowed(url) else{return false};lock.lock();accessed.append(url.standardizedFileURL.path);lock.unlock();return true}
+        func stopAccessing(_ url:URL) {}
+        var accessedPaths:[String] {lock.lock();defer{lock.unlock()};return accessed}
+    }
     @MainActor static func verifyBare() async throws {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","--bare","-b","main"])
+        // Blame/previous Diff take a file operand. A directory supplied as
+        // Blame's leaf correctly discovers its parent instead of this repo.
+        // HEAD is an actual private file here; eligibility must reject bare
+        // before any versioned-file/history operation is attempted.
+        let fileOperand=root.appendingPathComponent("HEAD")
+        var directory:ObjCBool=false
+        try require(FileManager.default.fileExists(atPath:fileOperand.path,isDirectory:&directory) && !directory.boolValue,"Bare fixture HEAD file operand absent")
+        func bareBytes()throws->[String:Data] {
+            guard let members=FileManager.default.enumerator(at:root,includingPropertiesForKeys:[.isRegularFileKey]) else{throw Failure(description:"Cannot inspect private bare Git state")}
+            var result:[String:Data]=[:]
+            for case let file as URL in members {
+                let relative=String(file.path.dropFirst(root.path.count+1))
+                // test-primary-commands.py owns root/private/ for HOME, CF
+                // preferences and TMP. Those writes are not Git-store changes.
+                if relative=="private" {members.skipDescendants();continue}
+                guard try file.resourceValues(forKeys:[.isRegularFileKey]).isRegularFile==true else{continue}
+                result[relative]=try Data(contentsOf:file)
+            }
+            return result
+        }
+        let gitBefore=try bareBytes()
         let suite="TurtleGit.PrimaryBare."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!
         defer {prefs.removePersistentDomain(forName:suite)}
-        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true})
-        workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs
-        workspace.commandLineRepositoryPermission={_ in RepositoryAccessLease(url:root)}
+        let container=root.deletingLastPathComponent(),bookmarks=BareBookmarks(container:root.deletingLastPathComponent(),root:root)
+        let store=try RepositoryAccessStore(storageURL:container.appendingPathComponent("bare-authority.json"),provider:bookmarks)
+        let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true},snapshotStore:FinderSnapshotStore(url:container.appendingPathComponent("bare-finder.json")),savedAccessStore:store,comparisonMarks:WorkingComparisonMarkStore(storageURL:container.appendingPathComponent("bare-marks.json"),provider:bookmarks),cachePersistenceDefaults:prefs)
+        workspace.repositoryBookmarkProvider=bookmarks
+        workspace.requiresRepositoryScope=true;workspace.fileComparisonPreferences=prefs
+        var permissionTargets:[[URL]]=[]
+        workspace.commandLineRepositoryPermission={paths in
+            try require(!paths.isEmpty && paths.allSatisfy{RepositoryAccessLease.pathIsContained($0,by:container)},"Bare command requested authority outside its disposable container")
+            permissionTargets.append(paths)
+            return RepositoryAccessLease(url:container,provider:bookmarks)
+        }
         var created=0
         workspace.commitWindowFactory={created += 1;return CommitWindowController(repository:$0,access:$1,defaults:prefs)}
         defer {workspace.stopMonitoringForTermination();NativeOwnedWindowCleanup.close(NSApp.windows)}
+        @MainActor func commandDrained(_ command:String,line:Int = #line)async throws {
+            // Saved authority resolution owns a Task before adoption sets busy.
+            // Observe its actual lifetime as well as specialized command owners;
+            // !busy alone can still mean that the accepted command has not begun.
+            do {try await wait {
+                !workspace.busy && !workspace.finderActionAuthorityPending && !workspace.hasPendingRepositoryWork && RepositoryModel.activeCommandFileOperations==0
+            }} catch {
+                fputs("Bare command completion command=\(command) caller=\(line) created=\(created) busy=\(workspace.busy) authorityPending=\(workspace.finderActionAuthorityPending) pending=\(workspace.hasPendingRepositoryWork) fileOperations=\(RepositoryModel.activeCommandFileOperations) bare=\(workspace.bare) root=\(String(describing:workspace.root)) error=\(workspace.error ?? "none")\n",stderr)
+                throw error
+            }
+        }
         workspace.handleCommandLine(arguments:["/command:commit","/logmsg:bare"],currentDirectory:root.path)
-        try await wait {!workspace.busy}
-        try require(created==0 && workspace.error?.contains("requires a working tree")==true,"Bare repository bypassed ordinary Commit eligibility: \(workspace.error ?? "none")")
+        try await commandDrained("commit")
+        try require(created==0 && workspace.error?.contains("requires a working tree")==true,"Bare repository bypassed ordinary Commit eligibility: \(workspace.error ?? "none"), created=\(created), busy=\(workspace.busy), pending=\(workspace.hasPendingRepositoryWork), authorityPending=\(workspace.finderActionAuthorityPending), bare=\(workspace.bare)")
         for command in ["blame","prevdiff","add","rename","remove","cleanup","ignore","merge","stashsave","stashapply","stashpop","stashlist","importpatch","bisect"] {
             workspace.error=nil
-            workspace.handleCommandLine(arguments:["--command="+command],currentDirectory:root.path)
-            try await wait {!workspace.busy}
-            try require(workspace.error?.contains("requires a working tree")==true,"Bare source-file command bypassed working-tree guard: "+command)
+            let operands=["blame","prevdiff"].contains(command) ? ["--path",fileOperand.path]:[]
+            workspace.handleCommandLine(arguments:["--command="+command]+operands,currentDirectory:root.path)
+            try await commandDrained(command)
+            try require(workspace.error?.contains("requires a working tree")==true,"Bare source-file command bypassed working-tree guard: "+command+", error="+(workspace.error ?? "none")+", pending=\(workspace.hasPendingRepositoryWork), busy=\(workspace.busy)")
         }
         workspace.error=nil
         workspace.handleCommandLine(arguments:["--command=merge","--abort"],currentDirectory:root.path)
-        try await wait {!workspace.busy}
-        try require(workspace.error?.contains("requires a working tree")==true,"Bare Abort Merge bypassed working-tree guard")
+        try await commandDrained("merge --abort")
+        try require(workspace.error?.contains("requires a working tree")==true,"Bare Abort Merge bypassed working-tree guard: "+(workspace.error ?? "none"))
+        try require(created==0 && !permissionTargets.isEmpty && !bookmarks.accessedPaths.isEmpty && bookmarks.accessedPaths.allSatisfy{ $0==container.standardizedFileURL.path || $0==root.standardizedFileURL.path },"Bare command family created a Commit window or lost exact private scoped authority")
+        try require(try bareBytes()==gitBefore,"Rejected bare command family changed Git file names or raw bytes")
         print("PASS: bare command eligibility preserves the ordinary native working-tree guard; no Commit window created")
     }
     @MainActor static func main() async throws {

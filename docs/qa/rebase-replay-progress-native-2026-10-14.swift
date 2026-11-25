@@ -8,7 +8,7 @@ import TurtleGitCore
     @MainActor static func verify()async throws{
         NSApp.setActivationPolicy(.prohibited)
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
-        _ = try await repo.run(["init","-b","main"]);for (key,value) in [("user.name","Replay QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_ = try await repo.run(["config",key,value])}
+        _ = try await repo.run(["init","-b","main"]);for (key,value) in [("user.name","Replay QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null"),("rebase.autostash","false")]{_ = try await repo.run(["config",key,value])}
         try Data("base".utf8).write(to:root.appendingPathComponent("base"));try await repo.stage(["base"]);_ = try await repo.commit(message:"base");let base=try await repo.rebaseCommit("HEAD")
         _ = try await repo.run(["checkout","-b","upstream"]);try Data("up".utf8).write(to:root.appendingPathComponent("up"));try await repo.stage(["up"]);_ = try await repo.commit(message:"up")
         _ = try await repo.run(["checkout","-b","topic",base.hash]);try Data("first".utf8).write(to:root.appendingPathComponent("first"));try await repo.stage(["first"]);_ = try await repo.commit(message:"first")
@@ -50,8 +50,51 @@ import TurtleGitCore
         // available; it must not turn a command that never ran into Done.
         try Data("dirty".utf8).write(to:root.appendingPathComponent("base"))
         let decline=RebaseWindowController(repository:repo,access:nil,preferences:prefs);defer{decline.close()};decline.model.load(upstream:"upstream");try await wait{!decline.model.busy && decline.model.canStart}
-        decline.model.amendMessage="unsaved draft 雪";decline.model.chooseStashBeforeReplay={false};decline.model.execute("start");try await wait{!decline.model.busy && RebaseWindowModel.activeReplayOperations==0}
-        try require(decline.model.amendMessage=="unsaved draft 雪" && decline.model.canStart && !decline.model.hasReplayStash,"Declined pre-replay question lost draft/retry state");decline.close()
+        @MainActor func repositoryReceipt()async throws ->[Data] {
+            let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+            let state=try await repo.rebaseState()
+            let head=try await repo.run(["rev-parse","HEAD"]).stdout
+            let index=try await repo.run(["ls-files","--stage","-z"]).stdout
+            let stash=try await repo.run(["rev-parse","--verify","--quiet","refs/stash"],successfulExitCodes:0...1)
+            return [head,index,try encoder.encode(state),Data(String(stash.exitCode).utf8)+stash.stdout,try Data(contentsOf:root.appendingPathComponent("base"))]
+        }
+        @MainActor func declinedReady(_ owner:RebaseWindowController,_ phase:String)async throws {
+            do {try await wait{!owner.model.busy && !owner.model.replaying && owner.model.pendingBatchWorkers==0 && RebaseWindowModel.activeReplayOperations==0}}
+            catch {
+                fputs("Declined pre-replay phase=\(phase) busy=\(owner.model.busy) replaying=\(owner.model.replaying) workers=\(owner.model.pendingBatchWorkers) active=\(owner.model.active) canStart=\(owner.model.canStart) finished=\(owner.model.finished) stash=\(owner.model.hasReplayStash) editor=\(owner.model.replayMessageEditorID) draft=\(String(reflecting:owner.model.amendMessage)) pendingConfirmation=\(owner.model.pendingConfirmation != nil) question=\(owner.model.hasReplayQuestion) sheet=\(owner.window?.attachedSheet != nil) error=\(owner.model.error ?? "none") output=\(String(owner.model.output.suffix(1024)))\n",stderr)
+                throw error
+            }
+        }
+        let beforeDecline=try await repositoryReceipt(),declinedDraft="unsaved draft 雪"
+        let declineEditor=decline.model.replayMessageEditorID
+        var stashQuestions=0
+        decline.model.amendMessage=declinedDraft
+        decline.model.chooseStashBeforeReplay={stashQuestions += 1;return false}
+        decline.model.execute("start");try await declinedReady(decline,"stash")
+        let afterDecline=try await repositoryReceipt()
+        let declinedState="questions=\(stashQuestions),draft=\(String(reflecting:decline.model.amendMessage)),canStart=\(decline.model.canStart),stash=\(decline.model.hasReplayStash),finished=\(decline.model.finished),active=\(decline.model.active),editorSame=\(decline.model.replayMessageEditorID==declineEditor),error=\(decline.model.error ?? "none")"
+        try require(stashQuestions==1,"Dirty tracked state did not reach exactly one actual pre-replay Stash question: "+declinedState)
+        try require(decline.model.amendMessage==declinedDraft && decline.model.canStart && !decline.model.hasReplayStash,"Declined pre-replay question lost draft/retry state: "+declinedState)
+        try require(decline.model.replayMessageEditorID==declineEditor && !decline.model.active && !decline.model.finished && !decline.model.completedSuccessfully,"Declined pre-start question replaced editor or invented completed replay: "+declinedState)
+        try require(beforeDecline==afterDecline,"Declined Stash changed actual HEAD/index/session/stash/dirty worktree bytes")
+        decline.close()
+        // The adjacent author/committer repair question also precedes Start.
+        // A clean tracked tree reaches it without creating a stash first.
+        try Data("base".utf8).write(to:root.appendingPathComponent("base"))
+        let identityDecline=RebaseWindowController(repository:repo,access:nil,preferences:prefs);defer{identityDecline.close()}
+        identityDecline.model.load(upstream:"upstream");try await wait{!identityDecline.model.busy && identityDecline.model.canStart}
+        let beforeIdentityDecline=try await repositoryReceipt(),identityDraft="identity question draft 雪",identityEditor=identityDecline.model.replayMessageEditorID
+        var identityQuestions=0,unexpectedStashQuestions=0
+        identityDecline.model.amendMessage=identityDraft
+        identityDecline.model.chooseStashBeforeReplay={unexpectedStashQuestions += 1;return false}
+        identityDecline.model.readReplayIdentity={_ in .init(authorName:"",authorEmail:"",committerName:"",committerEmail:"")}
+        identityDecline.model.repairReplayIdentity={identityQuestions += 1;return false}
+        identityDecline.model.execute("start");try await declinedReady(identityDecline,"identity")
+        let afterIdentityDecline=try await repositoryReceipt()
+        try require(identityQuestions==1 && unexpectedStashQuestions==0,"Clean pre-start identity question was not reached exactly once")
+        try require(identityDecline.model.amendMessage==identityDraft && identityDecline.model.replayMessageEditorID==identityEditor && identityDecline.model.canStart && !identityDecline.model.hasReplayStash && !identityDecline.model.active && !identityDecline.model.finished && !identityDecline.model.completedSuccessfully,"Declined identity repair lost accepted draft/editor/retry state: "+String(reflecting:identityDecline.model.amendMessage))
+        try require(beforeIdentityDecline==afterIdentityDecline,"Declined identity repair changed HEAD/index/session/stash/working bytes")
+        identityDecline.close()
         print("Replay progress: real Continue CR/split-UTF8 stream, No/Yes cancellation, active Quit accounting, actual paused session/HEAD/index recovery, forced-close Abort cancellation and callback fencing; Core scope clears for subsequent Abort. Owned controllers closed.")
     }
 }

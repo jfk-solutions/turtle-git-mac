@@ -1,0 +1,215 @@
+{
+  "schema": 1,
+  "recordedUtc": "2026-11-25T19:35:15.948168+00:00",
+  "sourceBase": "2f6c1b37ff551177cb7412a9e4cd9ced3bfe0063",
+  "productionFix": {
+    "file": "Sources/TurtleGitMac/RebaseWindow.swift",
+    "problem": "Declining a pre-start Stash or identity-repair question installed an inactive snapshot and discarded the unsaved message draft.",
+    "behavior": "Preserve the existing editor only before hook/replay submission, with unchanged accepted session, plan, intent, inactive HEAD, editor bytes/identity and command owner, and no stash obligation/mutation. Real replay, replaced owners and hook paths retain snapshot recovery.",
+    "newUiLabels": false,
+    "coreChanged": false,
+    "installed58Changed": false
+  },
+  "fixtureRepairs": {
+    "blame": "Wait for actual native/source projection, pending reveal and responder receipt stable across a main-runloop boundary; derive and hit-test fresh pointer coordinates without an intervening await. Preserve actual Command-click and all stale/negative assertions.",
+    "primaryBare": "Wait accepted saved-authority and command ownership; use private provider-backed folder authority and valid existing HEAD file operands for Blame/previous Diff. All16 working-tree refusal assertions, no Commit windows and exact private Git file names/bytes remain. Exclude only the driver-owned private preferences/temp subtree.",
+    "rebaseAdd": "Private per-case HOME/CF/XDG/tmp, invisible/offscreen owners and Log child, flushed phases/waits and bounded timeout sampling; release held continuations on failure. No established hosted-timeout cause.",
+    "syncReplay": "Durable private phases and native event/owner diagnostics. Drain Sync-specific workers, roots and sheets before shared private HEAD/preference cleanup. No established hosted-timeout cause."
+  },
+  "hostedEvidence": {
+    "run": 45666767671,
+    "source": "2f6c1b37ff551177cb7412a9e4cd9ced3bfe0063",
+    "retainedPasses": {
+      "blame": [
+        "commands/system",
+        "commands/bundled",
+        "source-menu/system",
+        "source-menu/bundled"
+      ],
+      "rebase": [
+        "structural-group/system",
+        "structural-group/bundled",
+        "source/system",
+        "source/bundled",
+        "references/system",
+        "references/bundled",
+        "controls/system",
+        "controls/bundled"
+      ],
+      "primary": [
+        "family/system",
+        "family/bundled"
+      ]
+    },
+    "failuresAddressedOrDiagnosed": [
+      "Blame focus/system native selection assertion",
+      "Rebase Add/system native receiver300s timeout",
+      "Primary bare/system observed before asynchronous authority completed",
+      "Sync/replay selected/system180s timeout; no flushed cohort output"
+    ],
+    "artifacts": [
+      {
+        "id": 15053528019,
+        "sha256": "16f3b77f921f91bb881373a1c144e93e4adb5a82968352df42ac4123d90688c8"
+      },
+      {
+        "id": 15056366100,
+        "sha256": "97664928bd2902819e978d9d02e853ea5b0a2a42d9c2ab8b28c155f3d9c0218b"
+      }
+    ],
+    "completeHostedPass": false,
+    "newerReportedFailuresPending": [
+      "Rebase Revision Files and shared Changed Files workflows",
+      "Native Log compressed graph rollup receiver",
+      "Upload mixed Log primary activation diagnostics"
+    ]
+  },
+  "localValidation": {
+    "debugBuilds": 1,
+    "applicationSourceFilesMatchedToIsolatedCache": 501,
+    "passed": [
+      "Blame focus/system and bundled (before independent Rebase production change)",
+      "Rebase Add/system and bundled (before pre-start draft correction)",
+      "Rebase replay/system and bundled, including both actual declined question closures, draft/editor/retry and HEAD/index/session/stash/worktree receipts",
+      "Primary bare/system and bundled with16 refusals and exact Git store preservation per engine",
+      "Sync/replay selected activation/system and bundled with owned-sheet and worker drainage"
+    ],
+    "originalFailuresRetained": [
+      "Replay/system declined draft assertion exposed the production defect",
+      "First bare focused repair advanced to private-authority mismatch",
+      "Second bare repair advanced to invalid directory Blame operand; no generic error was accepted"
+    ],
+    "groupedCheckpointExit": 1,
+    "groupedCheckpointExplanation": "Rebase replay and Sync/replay passed; the bare fixture failed on its invalid file-workflow directory operand. Only bare was repaired and rechecked afterward.",
+    "bareAffectedOnlyRecheckExit": 0,
+    "coreSuiteRerun": false,
+    "reasonNoCoreRerun": "No Core code changed; the production behavior belongs to the native Rebase model and is exercised in the native replay receiver.",
+    "fullNativeSuiteRerun": false,
+    "logs": {
+      "build": {
+        "path": "build/qa/rebase-primary-sync-recovery-build-2026-11-25.log",
+        "sha256": "edb01d6a335d585e153c91592439fd90b183ef6b178a7decfa36804dcf5c1a23",
+        "reportedReapedPids": []
+      },
+      "blameFocus": {
+        "path": "build/qa/blame-focus-ci-checkpoint-2026-11-25.log",
+        "sha256": "2f3c8739c0f49b378347224c9f561d33db0857c8d8fd7df8ea91de696737a7cf",
+        "reportedReapedPids": [
+          80281,
+          80326,
+          80463
+        ]
+      },
+      "addSystem": {
+        "path": "build/qa/rebase-add-ci-diagnostic-system-2026-11-25.log",
+        "sha256": "e5e7cf7e8db16df4da5e1a722d4aa6c5c3531f53af9977bca90cd2d9593b5be3",
+        "reportedReapedPids": [
+          69157,
+          69326
+        ]
+      },
+      "addBundledAndOriginalReplayFailure": {
+        "path": "build/qa/rebase-unreached-ci-checkpoint-2026-11-25.log",
+        "sha256": "d75c707c6417104f25a806b1adaac263f88aab93e3bc86bbf3b89076f1a03ea3",
+        "reportedReapedPids": [
+          80938,
+          81088,
+          88308,
+          88458
+        ]
+      },
+      "replayAfterProductionRepair": {
+        "path": "build/qa/native-ci-recovery-final-rebase-replay-2026-11-25.log",
+        "sha256": "a31bfa519ef4dccbfcb73a87c6c194815ca55a4b55e3bf87c1b2fce99653c0d1",
+        "reportedReapedPids": [
+          95760,
+          95771,
+          95958,
+          96764
+        ]
+      },
+      "bareFirstAuthorityAttempt": {
+        "path": "build/qa/primary-bare-ci-checkpoint-2026-11-25.log",
+        "sha256": "6cc9f6bcef406f9b6430bf2942af6b1f1789c1ab5bca0c6e1d1537e421a02692",
+        "reportedReapedPids": [
+          89523,
+          89801
+        ]
+      },
+      "bareInvalidDirectoryAttempt": {
+        "path": "build/qa/native-ci-recovery-final-primary-bare-2026-11-25.log",
+        "sha256": "a1980c282c60a96429d9a1583daeb49a3c33d11062c6982834d679bce9c043c1",
+        "reportedReapedPids": [
+          97481,
+          97744
+        ]
+      },
+      "bareValidFileOperands": {
+        "path": "build/qa/native-ci-recovery-primary-bare-valid-input-2026-11-25.log",
+        "sha256": "a3e30be6367414d9a328bc7c900a586f7c6e9d47ec6ef88824317bd68ea18941",
+        "reportedReapedPids": [
+          6041,
+          6286,
+          6579
+        ]
+      },
+      "syncReplaySelected": {
+        "path": "build/qa/native-ci-recovery-final-sync-replay-selected-2026-11-25.log",
+        "sha256": "df04ad51e21312b0af122cbe03ff3a72e1d4917bb292f3bae4627f83fed8f002",
+        "reportedReapedPids": [
+          97793,
+          97904,
+          2052
+        ]
+      }
+    }
+  },
+  "cleanup": {
+    "hiddenOrOffscreenPrivateWindows": true,
+    "observedOwnedPidsAbsent": [
+      2052,
+      6041,
+      6286,
+      6579,
+      69157,
+      69326,
+      80281,
+      80326,
+      80463,
+      80938,
+      81088,
+      88308,
+      88458,
+      89523,
+      89801,
+      94267,
+      95760,
+      95771,
+      95958,
+      96764,
+      97481,
+      97744,
+      97793,
+      97904
+    ],
+    "presentPidsNotAttributedToOwnedProcess": [],
+    "shippingAppSessionNotTerminated": true
+  },
+  "filesSha256": {
+    "Sources/TurtleGitMac/RebaseWindow.swift": "b6b0c429240d2fe51cb296e7ac8aaa3f3af9380bc1e0667489098ace6c9bfad1",
+    "docs/qa/blame-revision-focus-native-2026-11-23.swift": "669817fb192eb447958ad9ec1675a8891466c1a61cdf2518615c4c9c43ca7378",
+    "docs/qa/primary-commands-native-2026-10-18.swift": "546c7a8f55ba96fe1dfaafe5e6fc79025a5c0370dd97f623ab852fa6930c2d51",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "8e64f578836e64bafa1f27b74291517a91743f658054c055867cff224fc214d8",
+    "docs/qa/rebase-replay-progress-native-2026-10-14.swift": "c4be9ad81ff2bee5ab0f7a663216fb65c22a829d42da947783eabb47706f733b",
+    "docs/qa/replay-recovery-primary-native-2026-11-23.swift": "49115f31054be00e539ffabfd5d8e1e8bc1729527d7f7d94ac2f3381af030fea",
+    "docs/qa/sync-primary-activation-native-2026-11-23.swift": "aea8dd35601fc68fa980d071753ec0631d861e04cae45673e4fc0f73153d3133",
+    "scripts/test-rebase-source.py": "d4e58b88979ce22bea3c66082d33c40e3892d18943ad4c6a2f5fa2b14aef5e0b",
+    "scripts/test-status-primary-activation.py": "c8102973ed74dce970ef7381346866cfca1ebfda20e401657d7643742f5c1f75"
+  },
+  "limits": [
+    "Local focused results do not certify current full hosted CI, physical Finder, every upstream dialog or broader OS/accessibility acceptance.",
+    "Rebase Add and Sync timeout causes remain unproven despite local passes; hosted diagnostics are improved.",
+    "Signed build58 remains frozen at98d35b8b; the draft fix is later source and is not installed or repackaged.",
+    "No new WMF/EMF capability, renderer build, quality matrix, public binary or Store submission."
+  ]
+}

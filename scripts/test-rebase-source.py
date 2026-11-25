@@ -26,9 +26,12 @@ with tempfile.TemporaryDirectory(prefix='tg-rebase-source-') as temporary:
     editor=root/'build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac'
     for case in args.only or cases:
         for index,git in enumerate(args.git or [Path('/usr/bin/git')]):
-            fixture=folder/(case+str(index));fixture.mkdir();active=env.copy()
+            context=folder/(case+str(index));context.mkdir();fixture=context/'repository';fixture.mkdir();active=env.copy()
+            for name,key in [('home','HOME'),('preferences','CFFIXED_USER_HOME'),('xdg','XDG_CONFIG_HOME'),('temporary','TMPDIR')]:
+                private=context/name;private.mkdir(mode=0o700);active[key]=str(private)+('/' if key=='TMPDIR' else '')
             if args.captures and case=='source' and index==0:active['TURTLEGIT_REBASE_SOURCE_CAPTURE']=str(args.captures.absolute())
             print('Checking Rebase '+case+' with '+str(git),flush=True)
-            result=run_receiver([str(receiver),str(fixture),str(git.absolute()),str(editor),case],cwd=root,env=active,capture_output=True,text=True)
+            sample=root/('build/qa/rebase-source-'+case+'-'+str(index)+'-'+folder.name+'-timeout.sample.txt')
+            result=run_receiver([str(receiver),str(fixture),str(git.absolute()),str(editor),case],cwd=root,env=active,capture_output=True,text=True,timeout_sample=sample)
             print(result.stdout,end='');print(result.stderr,end='');result.check_returncode()
             if 'PASS: Rebase source family case completed' not in result.stdout:raise SystemExit('Receiver exited before final assertions: '+case)

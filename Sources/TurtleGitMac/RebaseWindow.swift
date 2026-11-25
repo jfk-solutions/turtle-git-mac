@@ -2510,6 +2510,8 @@ struct RebaseReferenceRequest {
         guard !containingReferenceBlocked, !revisionFindBlocked, !revisionHistoryBlocked, !retired, pendingConfirmation == nil, confirmation == nil, !busy, !revisionFiles.busy, pickingReference == nil, !pickingCommits, !selectingSplit, action != "start" || canStart else { return }
         let snapshot = plan, draftMessage = amendMessage, previouslyFinished = finished, replayEditor = editorExecutable
         let acceptedMessageEditor = replayMessageEditorID
+        let acceptedStartSession=sessionGeneration,acceptedStartPlanGeneration=planGeneration,acceptedStartIntent=replayIntent
+        let acceptedStartHead=conflictHead,acceptedStartHadStash=hasReplayStash
         let continuationState=state,continuationPaths=checkedConflicts,continuationHead=conflictHead
         let continuationRecovery=fileRecovery,usesCheckedSelection=supportsConflictSelection
         let conflictIndexPolicy=CommitCheckboxIndexPolicy(paths:conflictRows.map(\.path),defaults:messageDefaults)
@@ -2537,6 +2539,9 @@ struct RebaseReferenceRequest {
         let stashMutation=ReplayStashMutationReceipt(),mutationChanged=onChanged
         Task {
             var stashMutationReported=false
+            // Only pre-start Stash/identity questions can decline without ever
+            // submitting a replay. Hooks and Git replay may mutate independently.
+            var inUnstartedReadinessChecks = action == "start"
             defer {if stashMutation.read(),!stashMutationReported {mutationChanged()}}
             var followRecovery = false, followEmpty = false, finishingReplay = false, finishAutomatically=false
             var skippedID = action == "skip" ? state?.stoppedEntryID : nil
@@ -2580,6 +2585,7 @@ struct RebaseReferenceRequest {
                     // author/committer configuration, then runs PreRebase. Cherry
                     // Pick shares the identity check but has no client hook.
                     try await requireReplayIdentity(preparation)
+                    inUnstartedReadinessChecks=false
                     if !snapshot.options.isCherryPick {
                         _ = try await clientHooks.run(.preRebase, repository: repository, access: access, upstream: snapshot.options.upstream, rebasedBranch: snapshot.options.branch, cancellation: preparation, allowContinue: true)
                     }
@@ -2731,7 +2737,27 @@ struct RebaseReferenceRequest {
                 }
                 let inspection=OperationCancellation();replayResultInspection=inspection
                 defer {if replayResultInspection === inspection {replayResultInspection=nil}}
-                do { let actual = try await readSessionValue(conflictIdentity, inspection,repository:repository); guard !retired else { return }; applyConflictSnapshot(actual); recovered = actual.remaining; replayRows = actual.replay; finished = declined ? previouslyFinished : !actual.state.active && (action != "start" || actual.head != snapshot?.branchHash); completedSuccessfully = false; completion = preparation.isCancelled || error is OperationCancellationFailure ? "Replay stopped; review the current state." : "Replay failed; review the current state."; onChanged() }
+                do {
+                    let actual = try await readSessionValue(conflictIdentity, inspection,repository:repository)
+                    guard !retired else { return }
+                    // An inactive snapshot has no persisted replay-message identity.
+                    // Preserve the still-owned draft when a pre-start question was
+                    // declined and the accepted inactive HEAD/plan/editor survived.
+                    // Never carry it into a replaced session, a real replay, a stash
+                    // mutation or a hook; those keep normal snapshot recovery.
+                    let preserveUnstartedDraft = declined && action == "start" && inUnstartedReadinessChecks &&
+                        continuationState?.active != true && !actual.state.active && !actual.fileRecovery && actual.identity == nil &&
+                        !acceptedStartHadStash && !hasReplayStash && !stashMutation.read() &&
+                        GitReferenceName.equal(actual.head,acceptedStartHead) &&
+                        sessionGeneration == acceptedStartSession && planGeneration == acceptedStartPlanGeneration && replayIntent == acceptedStartIntent &&
+                        replayMessageEditorID == acceptedMessageEditor && Data(amendMessage.utf8) == Data(draftMessage.utf8) &&
+                        replayPreparationCancellation === preparation && revisionMenuLog.window === progressOwner &&
+                        !revisionMenuLog.confirmingQuit && progressOwner?.attachedSheet == nil
+                    applyConflictSnapshot(actual,preservingReplayEditor:preserveUnstartedDraft)
+                    recovered = actual.remaining; replayRows = actual.replay
+                    finished = declined ? previouslyFinished : !actual.state.active && (action != "start" || actual.head != snapshot?.branchHash)
+                    completedSuccessfully = false; completion = preparation.isCancelled || error is OperationCancellationFailure ? "Replay stopped; review the current state." : "Replay failed; review the current state."; onChanged()
+                }
                 catch { if !retired { self.error = error.localizedDescription } }
             }
         }

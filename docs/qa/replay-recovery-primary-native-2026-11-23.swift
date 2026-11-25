@@ -5,8 +5,20 @@ import TurtleGitCore
 
 @MainActor enum ReplayRecoveryPrimaryVerification {
     typealias Prior=StatusPrimaryActivationVerification
-    static func require(_ value:Bool,_ message:String)throws {try Prior.require(value,"Replay recovery: "+message)}
-    static func wait(_ message:String,_ ready:()->Bool)async throws {try await Prior.wait(message,ready)}
+    static var stateWitness:()->String={""}
+    static func trace(_ message:String) {SyncPrimaryActivationVerification.trace("REPLAY "+message)}
+    static func require(_ value:Bool,_ message:String)throws {
+        if !value {trace("ASSERTION "+message+" "+stateWitness())}
+        try Prior.require(value,"Replay recovery: "+message)
+    }
+    static func wait(_ message:String,_ ready:()->Bool)async throws {
+        trace("WAIT "+message)
+        do {try await Prior.wait(message,ready);trace("READY "+message)}
+        catch {trace("TIMEOUT "+message+" "+stateWitness());throw error}
+    }
+    static func clickButton(_ button:NSButton) {
+        trace("BUTTON begin "+button.title);button.performClick(nil);trace("BUTTON returned "+button.title)
+    }
     static func views(_ owner:NSWindowController)->[NSView] {Prior.views(owner.window?.contentView)}
     static func configure(_ root:RepositoryModel,_ owner:RebaseWindowController,_ context:Context) {
         root.configureReplayRecoveryInteractions(owner,access:nil)
@@ -68,7 +80,7 @@ import TurtleGitCore
         try await wait("Recovery report not ready for real Return"){window.contentView?.layoutSubtreeIfNeeded();return table.isEnabled && owner.model.recoveryReportAvailable && window.isVisible && !table.isHiddenOrHasHiddenAncestor}
         table.commandKeyWindow={[weak window] in window}
         try require(window.makeFirstResponder(table) && window.firstResponder === table,"Recovery table refused first responder")
-        try require(window.performKeyEquivalent(with:SyncPrimaryActivationVerification.key(window,code:code,flags:flags)),"Default Continue stole report Return")
+        try require(SyncPrimaryActivationVerification.dispatchKey(window,SyncPrimaryActivationVerification.key(window,code:code,flags:flags)),"Default Continue stole report Return")
     }
     @MainActor final class Context {
         let repository:GitRepository,folder:URL,prefs:UserDefaults,suite:String
@@ -117,7 +129,11 @@ import TurtleGitCore
             }
             try recordIndex("setup-baseline",bytes:originalIndex)
         }
-        func own(_ owner:NSWindowController) {owners.append(owner);owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil)}
+        func own(_ owner:NSWindowController) {
+            trace("OPEN begin "+String(describing:type(of:owner)))
+            owners.append(owner);owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil)
+            trace("OPEN returned "+String(describing:type(of:owner)))
+        }
         /// Bounded diagnostics for this private SHA-1 index. Raw bytes remain
         /// authoritative; unsupported versions retain their complete copies.
         func indexFields(_ data:Data)->(semantic:[String],stat:[String],extensions:String)? {
@@ -186,6 +202,7 @@ import TurtleGitCore
             roots.append(root);root.fileComparisonPreferences=prefs;return root
         }
         func cleanup()async throws {
+            trace("CLEANUP begin "+stateWitness())
             owners.forEach{$0.close()};unblock.forEach{$0()};unblock=[];roots.forEach{$0.stopMonitoringForTermination()}
             func liveWindows()->[NSWindow] {
                 NSApp.windows.filter{!baselineWindows.contains(ObjectIdentifier($0)) && ($0.isVisible || $0.attachedSheet != nil || $0.sheetParent != nil)}
@@ -202,6 +219,7 @@ import TurtleGitCore
             // worker is still alive. A timeout is a failed cleanup receipt.
             try require(drained(),"Owned cleanup did not drain; "+details)
             _=try? await repository.abortRebase();prefs.removePersistentDomain(forName:suite)
+            trace("CLEANUP complete")
         }
     }
     static func invoke(_ menu:NSMenu,_ id:String)throws {
@@ -247,7 +265,7 @@ import TurtleGitCore
         let button=try Prior.unwrap(table.view(atColumn:0,row:0,makeIfNecessary:true) as? NSButton,"Native checkbox absent")
         table.commandKeyWindow={[weak window=owner.window] in window};owner.window?.makeFirstResponder(table)
         let space=try SyncPrimaryActivationVerification.key(owner.window!,text:" ",code:49)
-        table.keyDown(with:space);button.performClick(nil)
+        table.keyDown(with:space);clickButton(button)
         try require(model.checkedConflicts==checked && model.recoveryReportAvailable && table.activateSelectedReturn != nil,"Read-only checks disabled row interaction or changed checks")
         model.state=original
         try await wait("Native checkbox did not re-enable in place"){button.isEnabled && table.headerView === header}
@@ -357,7 +375,7 @@ import TurtleGitCore
         try await enter(owner,active);try await wait("Actual source many-diff warning missing"){window.attachedSheet != nil}
         let warning=try Prior.unwrap(window.attachedSheet,"Native warning missing")
         let yes=try Prior.unwrap(Prior.views(warning.contentView).compactMap{$0 as? NSButton}.first{$0.title=="Yes"},"Actual Yes missing")
-        yes.performClick(nil)
+        clickButton(yes)
         try await wait("Actual Root mixed launch did not drain"){!model.busy && !root.hasPendingRepositoryWork}
         try require(delivered==ordered.filter{$0 != c.missing} && paired && nested==0 && warning.sheetParent==nil,"Root reordered/skipped mixed rows or launched before sheet drain")
         try await c.preserved()
@@ -424,7 +442,7 @@ import TurtleGitCore
         let question=try Prior.unwrap(childWindow.attachedSheet,"Resolve question missing")
         try c.recordResolve("quick-No-before-answer",child)
         let no=try Prior.unwrap(Prior.views(question.contentView).compactMap{$0 as? NSButton}.first{$0.title=="No"},"Actual Resolve No missing")
-        no.performClick(nil)
+        clickButton(no)
         try await wait("Declined owned Resolve did not detach"){!model.busy && owner.conflictResolutionController==nil && childWindow.sheetParent==nil && question.sheetParent==nil && window.attachedSheet !== childWindow}
         try c.recordResolve("quick-No-after-drain",child)
         try require(!childWindow.isVisible,"Declined Resolve remained visible after onClosed; controller=\(ObjectIdentifier(child)), window=\(ObjectIdentifier(childWindow))")
@@ -437,7 +455,7 @@ import TurtleGitCore
         let affirmativeQuestion=try Prior.unwrap(affirmativeChild.window?.attachedSheet,"Affirmative Resolve question absent")
         try c.recordResolve("quick-Yes-before-answer",affirmativeChild)
         let resolveYes=try Prior.unwrap(Prior.views(affirmativeQuestion.contentView).compactMap{$0 as? NSButton}.first{$0.title=="Yes"},"Resolve Yes missing")
-        resolveYes.performClick(nil)
+        clickButton(resolveYes)
         try await wait("Actual Resolve operation did not settle"){!affirmativeChild.model.busy && (affirmativeChild.model.success || affirmativeChild.model.error != nil)}
         try require(affirmativeChild.model.success,"Owned quick Resolve failed: "+(affirmativeChild.model.error ?? "unknown"))
         if !affirmativeChild.retired {affirmativeChild.model.closeProgress()}
@@ -492,16 +510,27 @@ import TurtleGitCore
     }
     static func verify(base:URL,git:URL)async throws {
         for cherry in [false,true] {
+            trace("COHORT begin git="+git.path+" cherry=\(cherry)")
             let c=try Context(base:base,git:git,cherry:cherry)
+            stateWitness={ [weak c] in
+                guard let c else{return "context released"}
+                let owners=c.owners.compactMap{$0 as? RebaseWindowController}.map{owner in
+                    let model=owner.model
+                    return "busy=\(model.busy),retired=\(model.retired),tab=\(model.tab),workers=\(model.pendingBatchWorkers),primary=\(model.primaryConflictActivationPending),sheet=\(owner.window?.attachedSheet != nil),error=\(model.error ?? "nil")"
+                }
+                return "owners=\(owners) roots=\(c.roots.map{$0.hasPendingRepositoryWork}) preparations=\(RebaseWindowModel.activePreparationReads) replay=\(RebaseWindowModel.activeReplayOperations) modal=\(NSApp.modalWindow != nil)"
+            }
+            defer{stateWitness={""}}
             var featureError:Error?
             do {try await c.setup(cherry:cherry);try await exercise(c)}
-            catch {featureError=error}
+            catch {featureError=error;trace("FAILED \(error) "+stateWitness())}
             do {try await c.cleanup()}
             catch {
                 if let featureError {try require(false,"Feature failed: \(featureError); cleanup also failed: \(error)")}
                 throw error
             }
             if let featureError {throw featureError}
+            trace("COHORT complete cherry=\(cherry)")
         }
         print("PASS: Rebase/Cherry Pick native mixed recovery Return, real stage/orientation and working-file intent, menus/check policy, owned Resolve and close/Quit drain")
     }

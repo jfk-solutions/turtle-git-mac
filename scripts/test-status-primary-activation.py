@@ -43,6 +43,8 @@ for index, git in enumerate(args.git or [Path('/usr/bin/git'), root/'build/git-r
         selected = subprocess.run(['/usr/bin/xcrun', '--find', 'git'], capture_output=True, text=True, timeout=10)
         if selected.returncode == 0:
             approved.add(str(Path(selected.stdout.strip()).resolve()))
+        phase_log=folder/'phase.log';phase_log.write_text('')
+        environment['TURTLEGIT_STATUS_PRIMARY_PHASE_LOG']=str(phase_log)
         passed = False
         print('Checking native source status primary activation with '+str(git), flush=True)
         try:
@@ -56,6 +58,8 @@ for index, git in enumerate(args.git or [Path('/usr/bin/git'), root/'build/git-r
             if not passed:
                 raise RuntimeError('Status primary activation receiver exited without its final behavioral/cleanup assertion')
         except BaseException:
+            if phase_log.is_file():
+                print('Private selected-activation phase witnesses (last 16384 characters):\n'+phase_log.read_text(errors='replace')[-16384:],flush=True)
             evidence = Path(tempfile.mkdtemp(prefix='status-primary-activation-failed-'+str(index)+'-', dir=root/'build/qa'))
             shutil.copytree(folder, evidence, dirs_exist_ok=True)
             print('Private failed Status primary activation evidence: '+str(evidence), flush=True)

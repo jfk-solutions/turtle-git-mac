@@ -6,19 +6,43 @@ import TurtleGitCore
 @MainActor enum SyncPrimaryActivationVerification {
     typealias Prior=StatusPrimaryActivationVerification
     typealias Context=StatusPrimarySelectionVerification.Context
-    static func require(_ value:Bool,_ message:String)throws {try Prior.require(value,"Sync primary: "+message)}
+    static var stateWitness:()->String={""}
+    static func trace(_ message:String) {
+        let text="SELECTED ACTIVATION: "+message+"\n"
+        fputs(text,stdout);fflush(stdout)
+        if let path=ProcessInfo.processInfo.environment["TURTLEGIT_STATUS_PRIMARY_PHASE_LOG"],
+           let file=FileHandle(forWritingAtPath:path) {
+            file.seekToEndOfFile();file.write(Data(text.utf8));file.closeFile()
+        }
+    }
+    static func require(_ value:Bool,_ message:String)throws {
+        if !value {trace("SYNC ASSERTION "+message+" "+stateWitness())}
+        try Prior.require(value,"Sync primary: "+message)
+    }
+    static func clickButton(_ button:NSButton) {
+        trace("SYNC BUTTON begin "+button.title);button.performClick(nil);trace("SYNC BUTTON returned "+button.title)
+    }
+    static func dispatchKey(_ window:NSWindow,_ event:NSEvent)->Bool {
+        trace("KEY begin code=\(event.keyCode) sheet=\(window.attachedSheet != nil)")
+        let handled=window.performKeyEquivalent(with:event)
+        trace("KEY returned code=\(event.keyCode) handled=\(handled)");return handled
+    }
     static func wait(_ message:String,diagnostic:(()->String)?=nil,_ ready:()->Bool)async throws {
-        do {try await Prior.wait(message,ready)}
-        catch {try require(false,message+(diagnostic.map{"; "+$0()} ?? ""));throw error}
+        trace("SYNC WAIT "+message)
+        do {try await Prior.wait(message,ready);trace("SYNC READY "+message)}
+        catch {try require(false,message+(diagnostic.map{"; "+$0()} ?? "")+" "+stateWitness());throw error}
     }
     static func views(_ owner:NSWindowController)->[NSView] {Prior.views(owner.window?.contentView)}
     static func key(_ window:NSWindow,text:String="\r",code:UInt16=36,flags:NSEvent.ModifierFlags=[])throws->NSEvent {
         try Prior.unwrap(NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:flags,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:code),"Native event missing")
     }
     static func own(_ owner:NSWindowController,_ c:Context) {
+        trace("SYNC OPEN begin "+String(describing:type(of:owner)))
         c.owners.append(owner);owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.showWindow(nil)
+        trace("SYNC OPEN returned "+String(describing:type(of:owner)))
     }
     static func conflicts(_ c:Context)async throws {
+        trace("SYNC CONFLICTS begin")
         let seed=try await c.repository.conflicts(paths:[c.conflict])[0]
         let extras=["extra sync conflict 1.txt","extra sync conflict 2.txt"]
         var records=""
@@ -45,7 +69,7 @@ import TurtleGitCore
         func enter(_ flags:NSEvent.ModifierFlags=[],code:UInt16=36)async throws {
             try await wait("Conflict report not available for native Return"){window.contentView?.layoutSubtreeIfNeeded();return table.isEnabled && window.isVisible && !table.isHiddenOrHasHiddenAncestor && !model.conflictFileActions.busy && model.canUseConflictFiles}
             try require(window.makeFirstResponder(table) && window.firstResponder === table,"Conflict source refused focus")
-            try require(window.performKeyEquivalent(with:key(window,code:code,flags:flags)),"Default Close stole selected conflict Return")
+            try require(dispatchKey(window,key(window,code:code,flags:flags)),"Default Close stole selected conflict Return")
         }
         var warnings:[Int]=[],launches=0,seen:[String]=[]
         model.confirmPrimaryConflictActivation={warnings.append($0);return false}
@@ -109,7 +133,7 @@ import TurtleGitCore
         try await enter();try await wait("Actual affirmative conflict warning absent"){window.attachedSheet != nil}
         let affirmative=try Prior.unwrap(window.attachedSheet,"Affirmative conflict sheet missing")
         let yes=try Prior.unwrap(Prior.views(affirmative.contentView).compactMap{$0 as? NSButton}.first{$0.title=="Yes"},"Actual conflict Yes button absent")
-        yes.performClick(nil)
+        clickButton(yes)
         try await wait("Root conflict launch did not drain"){!model.primaryConflictActivationPending && !root.hasPendingRepositoryWork}
         try require(children==ordered && nested==0 && parentDetached && affirmative.sheetParent==nil && window.attachedSheet !== affirmative,"Root truncated/reordered conflicts or warned twice")
         model.confirmPrimaryConflictActivation=nil
@@ -137,6 +161,7 @@ import TurtleGitCore
         try await c.preserved()
     }
     static func comparisons(_ c:Context)async throws {
+        trace("SYNC COMPARISONS begin")
         let folder=c.root.deletingLastPathComponent().appendingPathComponent("sync-revision-primary",isDirectory:true)
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         let repository=GitRepository(root:folder,executable:c.repository.executable,libgit2Configuration:.init(enabled:false))
@@ -191,11 +216,11 @@ import TurtleGitCore
                 opened.append(file.path);warningDetached = warningDetached && window.attachedSheet==nil
                 endpointsCorrect = endpointsCorrect && captured.from == .revision(base) && captured.to == .revision(head)
             }
-            try require(window.performKeyEquivalent(with:key(window,flags:.shift)),"Revision Return escaped to Close")
+            try require(dispatchKey(window,key(window,flags:.shift)),"Revision Return escaped to Close")
             try await wait("Actual affirmative revision warning absent"){window.attachedSheet != nil}
             let affirmative=try Prior.unwrap(window.attachedSheet,"Affirmative revision sheet missing")
             let yes=try Prior.unwrap(Prior.views(affirmative.contentView).compactMap{$0 as? NSButton}.first{$0.title=="Yes"},"Actual revision Yes button absent")
-            yes.performClick(nil)
+            clickButton(yes)
             try await wait("Revision selected operation did not drain"){!child.hasOwnedPreparation && !child.busy}
             try require(opened==state.rows.map(\.path) && endpointsCorrect && warningDetached && affirmative.sheetParent==nil && window.attachedSheet !== affirmative,"Revision endpoint/order/one-warning parity changed")
             let row=0,column=0,rect=table.frameOfCell(atColumn:column,row:row)
@@ -211,7 +236,7 @@ import TurtleGitCore
             var release:CheckedContinuation<Bool,Never>?
             c.unblock.append{release?.resume(returning:false);release=nil}
             child.confirmManyDiffs={_ in await withCheckedContinuation{release=$0}}
-            try require(window.performKeyEquivalent(with:key(window)),"Held revision Return escaped")
+            try require(dispatchKey(window,key(window)),"Held revision Return escaped")
             try await wait("Revision warning absent"){release != nil}
             state.selection=GitPathSet([paths[0]])
             try require(child.hasOwnedPreparation,"Held warning lost ownership before answer")
@@ -222,7 +247,7 @@ import TurtleGitCore
             try await wait("Revision full selection failed to restore"){state.selection==GitPathSet(paths) && table.contextMenuAvailable()}
             child.confirmManyDiffs=nil
             try require(window.makeFirstResponder(table),"Revision warning source refused focus")
-            try require(window.performKeyEquivalent(with:key(window)),"Native revision warning Return escaped")
+            try require(dispatchKey(window,key(window)),"Native revision warning Return escaped")
             try await wait("Native revision warning absent"){window.attachedSheet != nil}
             let warning=try Prior.unwrap(window.attachedSheet,"Revision warning missing")
             try require(!owner.windowShouldClose(window),"Close bypassed native revision warning")
@@ -231,15 +256,45 @@ import TurtleGitCore
         }
         owner.close()
     }
+    static func cleanup(_ c:Context)async throws {
+        trace("SYNC CLEANUP begin "+stateWitness())
+        c.owners.forEach{$0.close()};c.roots.forEach{$0.stopMonitoringForTermination()}
+        c.unblock.forEach{$0()};c.unblock=[]
+        // The shared status-list cleanup does not count Sync inline workers.
+        // Drain these owners before it restores private HEAD/removes defaults.
+        try await wait("Sync-specific workers/windows before shared cleanup") {
+            SynchronizationWindowModel.activeInlineOperations==0 && SynchronizationWindowController.activeInlineReleases==0 &&
+            c.owners.compactMap{$0 as? SynchronizationWindowController}.allSatisfy{!$0.model.busy && !$0.model.hasPendingInlineWork} &&
+            c.roots.allSatisfy{!$0.hasPendingRepositoryWork} && Prior.drained() &&
+            c.owners.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil && $0.window?.sheetParent==nil}
+        }
+        await c.cleanup();trace("SYNC CLEANUP complete")
+    }
     static func verify(base:URL,git:URL)async throws {
+        trace("SYNC COHORT begin git="+git.path)
         let c=try Context(base:base.appendingPathComponent("sync-primary",isDirectory:true),git:git)
+        stateWitness={ [weak c] in
+            guard let c else{return "context released"}
+            let owners=c.owners.compactMap{$0 as? SynchronizationWindowController}.map{owner in
+                let model=owner.model
+                return "tab=\(model.tab),busy=\(model.busy),inline=\(model.hasPendingInlineWork),primary=\(model.primaryConflictActivationPending),conflictBusy=\(model.conflictFileActions.busy),sheet=\(owner.window?.attachedSheet != nil),error=\(model.error ?? "nil")"
+            }
+            return "inlineOps=\(SynchronizationWindowModel.activeInlineOperations) releases=\(SynchronizationWindowController.activeInlineReleases) roots=\(c.roots.map{$0.hasPendingRepositoryWork}) owners=\(owners) modal=\(NSApp.modalWindow != nil)"
+        }
+        defer{stateWitness={""}}
         do {
             try await c.setup();c.prefs.set(3,forKey:"NumDiffWarning")
             try MergeToolPreferences.load(from:c.prefs).save(to:c.prefs)
             try await conflicts(c);try await comparisons(c)
-            await c.cleanup()
+            try await cleanup(c)
             try await wait("Owned Sync workers did not drain"){SynchronizationWindowModel.activeInlineOperations==0 && SynchronizationWindowController.activeInlineReleases==0 && Prior.drained()}
-        } catch {await c.cleanup();throw error}
+        } catch {
+            let featureError=error
+            trace("SYNC FAILED \(featureError) "+stateWitness())
+            do {try await cleanup(c)}catch {throw Prior.Failure(description:"Sync feature failed: \(featureError); cleanup also failed: \(error)")}
+            throw featureError
+        }
+        trace("SYNC COHORT complete")
         print("PASS: Sync ordered conflict/revision selected Return, real stages and captured Root ownership, one warning, strict event/default-button scope and late-worker drain")
     }
 }
