@@ -29,7 +29,7 @@ See the [user manual](docs/GETTING-STARTED.md) for workflows and
 
 ## Screenshots
 
-![Native Log with revision graph and changed files](docs/site/assets/mac-log-light-2026-10-27.png)
+![Native Log with revision graph and changed files](docs/site/assets/mac-log-light-2026-11-23.png)
 
 [See Commit and dark-mode screenshots](https://jfk-solutions.github.io/turtle-git-mac/#screenshots) or follow the [illustrated Getting Started guide](docs/GETTING-STARTED.md).
 
@@ -47,6 +47,7 @@ The first build prepares pinned runtime dependencies and can take some time.
 See [testing](docs/TESTING.md), [Finder development](docs/SIGNED-FINDER-DEVELOPMENT.md)
 and [distribution](docs/DISTRIBUTION.md) for development and release requirements.
 The website sources are in `docs/site`; see [website maintenance](docs/WEBSITE.md).
+For a supplied local build, follow the [acceptance checklist](docs/LOCAL-TESTING-CHECKLIST.md).
 
 ## Contributing
 

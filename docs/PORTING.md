@@ -1,5 +1,23 @@
 # TurtleGit for Mac — full port tracking
 
+## Local delivery regressions — November 25, 2026
+
+The [affected checkpoint](qa/delivery-regressions-2026-11-25.json) records twelve
+native runs over Log primary activation, working/historical operands, owner
+retirement and reference filtering, using both Git versions. The Log fixture now
+sends actual Shift+Return rather than a TaskLocal override. Reference receiver
+cleanup preserves AppKit-managed window lifetime while retaining exact drain
+assertions. No production source, Core suite or app build was changed for these
+repairs; the current `b3db4ca7` app objects were reused. The historical reference
+SIGSEGV has no stack proving its location, so these passes do not establish its
+cause or a complete hosted result. All fifteen logged owned PIDs are absent.
+
+The [local acceptance checklist](LOCAL-TESTING-CHECKLIST.md) groups the original
+reported journeys for the exact candidate supplied to the owner. Current physical
+Finder, cold-start timing, Dock branding and full visual acceptance remain separate
+from local receiver checks. No installed app or public binary was changed.
+
+
 ## Editor, patch and reference recovery — November 25, 2026
 
 Import's enabled Add command now works during read-only preview loading and keeps

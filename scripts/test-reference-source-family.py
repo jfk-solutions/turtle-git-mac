@@ -46,9 +46,21 @@ private extension NSWindow {
 }
 @main struct ReferenceSourceMain {
  @MainActor static func cleanup() async {
+  let diagnostics=ProcessInfo.processInfo.environment["TURTLEGIT_REFERENCE_LIFETIME_DIAGNOSTICS"] == "1"
+  if diagnostics {FileHandle.standardError.write(Data("REFERENCE CLEANUP: begin\\n".utf8))}
   RemoteManagementOwnedVerification.windows.forEach {$0.close()};RemoteManagementOwnedVerification.windows=[]
-  for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+  for window in NSApp.windows {
+   // AppKit owns release-on-close auxiliary windows. Detach and hide those;
+   // only our ARC-owned windows have an explicit close lifetime here.
+   let arcOwned = !window.isReleasedWhenClosed
+   if diagnostics {FileHandle.standardError.write(Data("REFERENCE CLEANUP: class=\\(type(of:window)) arcOwned=\\(arcOwned) visible=\\(window.isVisible) sheet=\\(window.attachedSheet != nil) parent=\\(window.sheetParent != nil)\\n".utf8))}
+   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)}
+   if arcOwned {window.makeFirstResponder(nil);window.endEditing(for:nil)}
+   window.orderOut(nil)
+   if arcOwned {window.close()}
+  }
   await ReferenceSourceVerification.cleanup()
+  if diagnostics {FileHandle.standardError.write(Data("REFERENCE CLEANUP: drained\\n".utf8))}
  }
  @MainActor static func main() async {
   NSApp.setActivationPolicy(.prohibited)

@@ -13,7 +13,7 @@ import TurtleGitCore
         for _ in 0..<3500 {window?.contentView?.layoutSubtreeIfNeeded();if condition(){return};try await Task.sleep(nanoseconds:10_000_000)}
         throw Failure(description:"Log primary timeout: "+label+" "+diagnostic())
     }
-    static func key(_ window:NSWindow)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!}
+    static func key(_ window:NSWindow)->NSEvent {NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:.shift,timestamp:ProcessInfo.processInfo.systemUptime,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!}
     @MainActor final class Gate<Value> {
         private var reply:CheckedContinuation<Value,Never>?
         var entered:Bool {reply != nil}
@@ -136,7 +136,9 @@ import TurtleGitCore
             let table=try table(),window=try unwrap(owner?.window,"Source window missing")
             try require(table.window === window && table.isEnabled && table.ownerAvailable() && window.isVisible && !table.isHiddenOrHasHiddenAncestor,"Source table lost native admission; "+focusDiagnostic(table,window))
             try require(window.firstResponder===table,"Source table does not own Return; "+focusDiagnostic(table,window))
-            ComparisonToolInvocation.$alternate.withValue(true){table.keyDown(with:LogPrimaryActivationVerification.key(window))}
+            // The native report captures Shift from its actual key event before
+            // asynchronous preparation; a TaskLocal value cannot substitute it.
+            table.keyDown(with:LogPrimaryActivationVerification.key(window))
         }
         func working()async throws {
             let model=try unwrap(owner?.model,"Working Log missing")

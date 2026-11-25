@@ -1,0 +1,95 @@
+{
+  "date": "2026-11-25",
+  "baseline": "b3db4ca74b553495fd44aaee48fa348b996fb1b8",
+  "status": "affected-native-scopes-passed",
+  "source_sha256": {
+    "docs/qa/log-primary-activation-native-2026-11-22.swift": "fce36532ae086dd38b98099b96e3f3a83291a20dea7a95acd5a7a8e05cc02d6d",
+    "scripts/test-reference-source-family.py": "bd54aa7f4f904e4f27dc9aec355e95ba5b7cc603b656644695a9b9e66e72d674"
+  },
+  "scope": [
+    "Actual native Shift+Return before asynchronous Log activation; strict selected operands/repository/preferences/tool capture unchanged.",
+    "Reference receiver cleanup uses public AppKit lifetime policy: detach/order out all, close only ARC-owned windows, preserve no-visible-window/sheet/work drainage."
+  ],
+  "native_runs": 12,
+  "native": [
+    {
+      "name": "log-primary",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-log-primary-activation-batch.py",
+        "--only",
+        "primary",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 37.453,
+      "log": "build/qa/delivery-regressions-log-primary-2026-11-25.log",
+      "sha256": "67a69f029b6f3439a7c35d36231601a135ea49f6232d166aa345ed6ae65ad833"
+    },
+    {
+      "name": "log-operands",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-log-working-comparison-operands.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 45.428,
+      "log": "build/qa/delivery-regressions-log-operands-2026-11-25.log",
+      "sha256": "3d1d3766ec317cb41e78b9bd0cb5702429687134544f85d271eafb05955a39ed"
+    },
+    {
+      "name": "reference-filters",
+      "command": [
+        "/Applications/Xcode.app/Contents/Developer/usr/bin/python3",
+        "scripts/test-reference-source-family.py",
+        "--only",
+        "filters",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "exit": 0,
+      "seconds": 15.633,
+      "log": "build/qa/delivery-regressions-reference-filters-2026-11-25.log",
+      "sha256": "2db0ce5c1b8376a85cb67a5e7ba68e5193f8e238d90a369723ed88fb9fdfa856"
+    }
+  ],
+  "core_and_build": {
+    "rerun": false,
+    "reason": "No production source changed; exact b3db4ca7 app objects reused."
+  },
+  "cleanup": {
+    "owned_logged_pids": [
+      24451,
+      24466,
+      24888,
+      25304,
+      25392,
+      25754,
+      25979,
+      26138,
+      26307,
+      26403,
+      26502,
+      26590,
+      26685,
+      26728,
+      26803
+    ],
+    "currently_present": []
+  },
+  "limitations": [
+    "The hosted reference SIGSEGV has no stack locating the crash; the unsafe blanket cleanup defect is repaired without claiming the historical cause is proven.",
+    "No full hosted pass, shipping signed GUI/Finder or whole-port visual certification."
+  ],
+  "diagnostics": "Optional receiver cleanup diagnostics enabled. Unneeded extra filter-phase logging omitted; original filter fixture assertions/bytes remain exactly those tested.",
+  "hosted_evidence": "Verified d38 history artifact15022797231 and commit artifact15021831540 retained under ignored build/qa/ci-d38-45607932829."
+}
