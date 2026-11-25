@@ -1,0 +1,187 @@
+{
+  "schema": 1,
+  "status": "packaged local signed56; not installed or published",
+  "source_commit": "b3db4ca74b553495fd44aaee48fa348b996fb1b8",
+  "source_input_sha256": "bae0051814201291460f93898db7897810f4d2f4a94959b29ee08974ea0ad6eb",
+  "consumer_repair_commit": "4e78380b726f41700474b0277f8161d0d7fc22f7",
+  "candidate": "/Users/jkuehner/.codex/worktrees/turtlegit-signed56/tortoise-git-mac",
+  "output": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-for-Mac-0.1.0-build56-signed",
+  "identity": {
+    "bundle_identifier": "org.turtlegit.macos",
+    "marketing_version": "0.1.0",
+    "build_number": "56",
+    "peers": {
+      "finder": {
+        "bundle_identifier": "org.turtlegit.macos.finder",
+        "marketing_version": "0.1.0",
+        "build_number": "56"
+      },
+      "cache": {
+        "bundle_identifier": "org.turtlegit.macos.cache",
+        "marketing_version": "0.1.0",
+        "build_number": "56"
+      }
+    }
+  },
+  "signing_team": "A49SCA5S8K",
+  "signing_certificate_sha1": "368185657EAF3B08917601A5447D52FE9B572E46",
+  "main_sha256": "a260e98d77b4ccc667f1ca99b694d7bca6471f4e6e2e7fb019b10e5df44b8c04",
+  "build_attempts": [
+    {
+      "exit_code": 0,
+      "elapsed_seconds": 621.026,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/signed56-final-build-2026-11-25.log",
+      "log_sha256": "c6868439769aac9158a173ad51fc4ba6f401236d6fa3fa2ce8a7090ff9fdeee7"
+    }
+  ],
+  "archive": {
+    "name": "TurtleGit-for-Mac-0.1.0-build56-signed.zip",
+    "sha256": "cf83610a4e27670c36214d6744349f3d6e0c687e2a82b9ba0982391abc99fb17",
+    "bytes": 426838760
+  },
+  "source_archive": {
+    "name": "TurtleGit-for-Mac-source-b3db4ca74b553495fd44aaee48fa348b996fb1b8.tar.gz",
+    "commit": "b3db4ca74b553495fd44aaee48fa348b996fb1b8",
+    "sha256": "d59a3c0581b30f9b961faf8a1bd93801ca8916ff3e852572153d0180e5793b52",
+    "bytes": 207716824,
+    "tracked_blobs": 14869,
+    "directories": 116,
+    "exact_names_blobs_modes_comment": true,
+    "tar_umask": "0002"
+  },
+  "complete_inventory_members": 7493,
+  "passed_scope": [
+    "exact clean b3db source and11 immutable55 runtime-kit copies; current compiler/SDK Metafile package key",
+    "single universal AppStore Apple Development build56",
+    "static deep strict signature, universal architecture/role entitlements, artwork, Help and localization audit",
+    "separate signed local-tools public-Core/Git smoke; accepted cancelled Clone identity and read-only repeated inspection",
+    "original20-image signed sandbox packaging consumer plus AppGroup cleanup",
+    "ZIP extracted bundle complete-inventory/deep-strict roundtrip; exact tracked source archive member/blob/mode/comment validation"
+  ],
+  "retained_failures": [
+    {
+      "file": "signed56-local-tools-consumer-initial-failure-2026-11-25.json",
+      "cause": "Old signed consumer incorrectly expected cancellation after accepted Clone exit0 to discard independent verified identity; corrected tracked consumer4e78380b only, candidate unchanged"
+    },
+    {
+      "file": "signed56-package-preflight-path-failure-2026-11-25.log",
+      "cause": "New evidence receipt wrapper passed string instead of Path; repaired before package assembly, no app/probe repeat"
+    }
+  ],
+  "receipts_sha256": {
+    "signed56-build-command-2026-11-25.json": "d3ea23c93ceb8a2c928048d050828905008a9a40064ed1ad15bfc1473c2339d5",
+    "signed56-final-command-2026-11-25.json": "704caba14db114140c37270f1156cfd450a5166fc636d1f0cf42d042f3fff8f3",
+    "signed56-static-2026-11-25.json": "aa9588f9baa5f4146bcd31ac3b98b4cd6eccec3c06032ba1f073a27ab7c85ee5",
+    "signed56-probe-phase-contracts-repaired-2026-11-25.json": "76786784bd8ecbcc77a2ba7423e8413358085d3892a9c6f59a14664e440b14a4",
+    "signed56-local-tools-consumer-2026-11-25.json": "6f37bd92f595bfb3218ee65d98dfce4379d0b846ea14613d44a951538d2a77d3",
+    "signed56-metafile-consumer-2026-11-25.json": "e5f2124a14110181ebe04aea59806caeebe785cba71388871b105af4e1c1657c",
+    "signed56-package-2026-11-25.json": "4823d3ce69a04b62df4a7228c031ee3e0a2be7644db1bacf72554355a448428e"
+  },
+  "owned_processes": {
+    "observed_helper_and_receiver_and_xcode_pids": [
+      25047,
+      30278,
+      30339,
+      30371,
+      30512,
+      30513,
+      30669,
+      30675,
+      30680,
+      30684,
+      30689,
+      30692,
+      30695,
+      30698,
+      30701,
+      30705,
+      30708,
+      30711,
+      30723,
+      30739,
+      30742,
+      30745,
+      30748,
+      30751,
+      30754,
+      30757,
+      30760,
+      30763,
+      30766,
+      30769,
+      30772,
+      30776,
+      30779,
+      30782,
+      30784,
+      30787,
+      30790,
+      30800,
+      30803,
+      30806,
+      30810,
+      30813,
+      30816,
+      30821,
+      31071,
+      31121,
+      31298
+    ],
+    "all_absent_after_completion": true,
+    "helper_groups": [
+      30339,
+      30371,
+      30512,
+      30680,
+      30684,
+      30689,
+      30692,
+      30695,
+      30698,
+      30701,
+      30705,
+      30708,
+      30711,
+      30723,
+      30739,
+      30742,
+      30745,
+      30748,
+      30751,
+      30754,
+      30757,
+      30760,
+      30763,
+      30766,
+      30769,
+      30772,
+      30776,
+      30779,
+      30782,
+      30784,
+      30787,
+      30790,
+      30800,
+      30803,
+      30806,
+      30810,
+      30813,
+      30816,
+      31121,
+      31298
+    ],
+    "forced_cleanup_needed": false
+  },
+  "candidate_tracked_status_clean": true,
+  "installation": "not performed",
+  "shipping_gui": "not launched",
+  "finder_activation": "not performed",
+  "public_upload_notarization_store_submission": "not performed",
+  "signed55": "read-only cache source; unchanged",
+  "limits": [
+    "No candidate56 physical UI/Finder acceptance",
+    "No full matching-source hosted CI claim",
+    "No full port/visual parity claim",
+    "No installation, Finder activation, public upload, notarization or Store submission by packaging"
+  ]
+}

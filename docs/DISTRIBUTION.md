@@ -3,12 +3,45 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The installed candidate is signed build52;
-signed build55 is packaged separately for local testing from exact committed
-source. The earlier54 package remains preserved; experimental uncommitted work
-is excluded from55.
+signed build56 is packaged separately for local testing from exact committed
+source. Earlier packages remain preserved; deferred uncommitted work is excluded.
 There is no public App Store listing or submitted release. The App Store remains
 a future distribution channel, with full-port acceptance, distribution signing
 and the existing license/Store terms review still open.
+
+## Signed local testing build56
+
+[Build56's record](qa/signed-consolidation-build56-2026-11-25.json) identifies the
+packaged `0.1.0 (56)` local candidate. Installed52 and the earlier packages are
+unchanged. Use the [acceptance checklist](LOCAL-TESTING-CHECKLIST.md) when testing
+this exact candidate; opening an older installed copy does not exercise these fixes.
+
+| Item | Recorded identity |
+| --- | --- |
+| Exact clean app source | `b3db4ca74b553495fd44aaee48fa348b996fb1b8` |
+| Build-input SHA-256 | `bae0051814201291460f93898db7897810f4d2f4a94959b29ee08974ea0ad6eb` |
+| Local ZIP | `build/local-testing/TurtleGit-for-Mac-0.1.0-build56-signed/TurtleGit-for-Mac-0.1.0-build56-signed.zip` |
+| ZIP SHA-256 | `cf83610a4e27670c36214d6744349f3d6e0c687e2a82b9ba0982391abc99fb17` |
+| Matching source archive SHA-256 | `d59a3c0581b30f9b961faf8a1bd93801ca8916ff3e852572153d0180e5793b52` |
+| Signing channel | Apple Development, sandboxed AppStore configuration for local testing |
+
+This candidate includes the subsequent Clone verification, Compare history,
+Log/Settings ownership, picker/conflict and editor-sheet/overflow fixes. Deferred
+HQ interpolation work is excluded. Its single universal app build, strict static
+signing/runtime audit, signed helper checks and ZIP/source round trips pass their
+recorded scopes. All 14,869 tracked source blobs, names, modes and commit metadata
+match the source companion. All 47 recorded build/helper processes exited.
+
+The signed Clone consumer initially expected the superseded cancellation behavior.
+Its separately committed correction, `4e78380b`, checks the current independently
+verified identity and exact HEAD/index/config/worktree. The app remains the exact
+`b3db4ca7` build; the original failed consumer and packaging preflight error are
+retained, and the independent passing image phase was not repeated.
+
+This package is not installed, notarized, publicly uploaded or submitted to the
+Store. Candidate56's shipping UI, physical Finder integration, full matching-source
+hosted CI and broader supported-platform/visual acceptance remain open. The owner
+will test locally before any later publication.
 
 ## Signed local testing build55
 
@@ -158,7 +191,7 @@ acceptance and full upstream dialog parity remain unproven. The package's
 `Evidence` directory and manifest retain its narrower pre-walkthrough scope;
 the linked checkpoint also records the later walkthrough and cleanup.
 
-## Testing the local candidate
+## Testing installed build52
 
 1. Open the installed application and check **About** for `0.1.0 (52)` before
    attributing a result to this candidate. **Build configuration: App Store**

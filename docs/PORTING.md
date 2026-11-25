@@ -1,5 +1,21 @@
 # TurtleGit for Mac — full port tracking
 
+## Signed local candidate56 — November 25, 2026
+
+[Build56](qa/signed-consolidation-build56-2026-11-25.json) packages exact `b3db4ca7`
+with matching source and notices. Its one universal Apple Development build,
+strict static audit, signed helper checks and ZIP/source integrity checks pass.
+The signed Clone consumer was updated separately at `4e78380b` to match bounded
+verification after accepted cancellation; the original failed attempt remains
+recorded. All 47 observed build/helper processes exited. Installed52 and earlier
+packages remain unchanged. [Deployed documentation checks](qa/local-delivery-site-2026-11-25.json)
+returned HTTP200 for the homepage, Getting Started and Privacy, with all seventeen
+unique referenced image assets matching local bytes; browser rendering is not
+certified by those reads. This is a local testing delivery, with
+[owner acceptance](LOCAL-TESTING-CHECKLIST.md), full hosted CI, shipping/physical
+Finder and later licensing/Store gates still open; no public binary was published.
+
+
 ## Local delivery regressions — November 25, 2026
 
 The [affected checkpoint](qa/delivery-regressions-2026-11-25.json) records twelve

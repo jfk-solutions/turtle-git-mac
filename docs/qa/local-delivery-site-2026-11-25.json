@@ -1,0 +1,129 @@
+{
+  "date": "2026-11-25",
+  "scope": "Direct HTTPS availability and returned image bytes; not a rendered-browser or full visual-parity check",
+  "pages_run": {
+    "id": 45617915145,
+    "source": "b3db4ca74b553495fd44aaee48fa348b996fb1b8",
+    "conclusion": "success"
+  },
+  "pages": [
+    {
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/",
+      "status": 200,
+      "bytes": 10068,
+      "sha256": "6379313227a1421f9cb016afa6c5232bbc811dfa2bbe6ee8473ddf62369e8798",
+      "images": 16,
+      "imprint_link": true
+    },
+    {
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/manual/GETTING-STARTED.html",
+      "status": 200,
+      "bytes": 48962,
+      "sha256": "e7b8f084514e3e7d3008f08fb8095e2f992c2aebdfd9b40a769dbdb58b3e0014",
+      "images": 17,
+      "imprint_link": true
+    },
+    {
+      "url": "https://jfk-solutions.github.io/turtle-git-mac/manual/PRIVACY.html",
+      "status": 200,
+      "bytes": 12967,
+      "sha256": "db4dd8f6eca828c0f80032d83f0d9d8d69513d6e701e612acfa1f23543230ed5",
+      "images": 1,
+      "imprint_link": true
+    }
+  ],
+  "unique_image_assets": 17,
+  "assets": {
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/application-icon.png": {
+      "status": 200,
+      "bytes": 73340,
+      "sha256": "7fb4a2d6a49ead46d63bb391164a40cc4397cac7b4c89e47d51e802ac60155b3"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-light-2026-11-23.png": {
+      "status": 200,
+      "bytes": 408272,
+      "sha256": "8e55b7936ea6471a10baf90f812b49f3e334285f692c42d5449425c3a6031932"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-log-dark-2026-11-23.png": {
+      "status": 200,
+      "bytes": 414764,
+      "sha256": "5fed808b783f24f1ce6e666e1ea4578a45f3edd3edafcd75d13e69e32d1a4a05"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-light-2026-11-23.png": {
+      "status": 200,
+      "bytes": 459163,
+      "sha256": "669b9200821595558c59a855674c1363a253748b05bfe6307a5aab42662d2fdc"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-classic-dark-2026-11-23.png": {
+      "status": 200,
+      "bytes": 443158,
+      "sha256": "f3f67f887b8004a15a2eccf4054b40af08ca3a420547ebdfd0cb0b939a322cb0"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-light-2026-11-23.png": {
+      "status": 200,
+      "bytes": 511403,
+      "sha256": "8136ad015eb75294f7a2ba9851af44f41ab5afce2ce98fb1fc5e7c6757236145"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-commit-staging-dark-2026-11-23.png": {
+      "status": 200,
+      "bytes": 522219,
+      "sha256": "b58fa2d28fdfa670cb4ba8a31bd86488d392dc33a7cb79a9cf68ddff1cbdd954"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-light-2026-10-27.png": {
+      "status": 200,
+      "bytes": 394898,
+      "sha256": "1c4660e17d9aa2b87d0a34324699faa3ff0d833304b708cd6d271e2d24dc839d"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-unified-diff-dark-2026-10-27.png": {
+      "status": 200,
+      "bytes": 348520,
+      "sha256": "0b201b41ff910ea810dbc2dc5a56a79c63ca0c6cd883cf362988de0b2ec20338"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-resolve-light-2026-11-23.png": {
+      "status": 200,
+      "bytes": 299028,
+      "sha256": "77685001e22105ebc59eb097493c757bc1ea5b65da21c6b8d241460f551b8fc8"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-resolve-dark-2026-11-23.png": {
+      "status": 200,
+      "bytes": 217116,
+      "sha256": "5d02f058cb47defdb00f479cd2fd6e3eb5d15ae3aa921665998bf15d11a16ec1"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-sync-history-light-2026-11-23.png": {
+      "status": 200,
+      "bytes": 204157,
+      "sha256": "76a50f268355b676d32f0d43abe2329830252d3fed81e20b1c54d19e03824f7c"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-sync-history-dark-2026-11-23.png": {
+      "status": 200,
+      "bytes": 249883,
+      "sha256": "e665caf9e6beab0a5fed6f17c68ec4f6af34e2f975bf97ac52e1c6731144c533"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-sync-conflicts-light-2026-11-23.png": {
+      "status": 200,
+      "bytes": 392503,
+      "sha256": "fa23db0d3f8e5ae0fbbd17a6bd0f370b129175cd750421e54aa48fc8c5e501f7"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-sync-conflicts-dark-2026-11-23.png": {
+      "status": 200,
+      "bytes": 316109,
+      "sha256": "57b594d175d4c07dc7cbb547f3c81592e2d252f6ecfe30eb83e287241e5bb41b"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-compare-compact-light-classic-2026-10-25.png": {
+      "status": 200,
+      "bytes": 765427,
+      "sha256": "358bec7828323603bc6768fe17b794336fbf3fe156c34614458fc202c796b70a"
+    },
+    "https://jfk-solutions.github.io/turtle-git-mac/assets/mac-compare-compact-dark-p4merge-2026-10-25.png": {
+      "status": 200,
+      "bytes": 744447,
+      "sha256": "ec20f333d2aecca28f0fb8f335887bc3d21bfeb55eb149e7f0bdd4c792688d9d"
+    }
+  },
+  "local_asset_sha256_mismatches": [],
+  "raw_receipt": {
+    "path": "build/qa/release-documentation-http-2026-11-25.json",
+    "sha256": "8594d73334be96f6d371e85f8f6550f1e94698556f37dc53e346b746935dec2a"
+  },
+  "readme": "Updated Log image reference to the existing November23 capture used by the deployed homepage."
+}

@@ -1,6 +1,6 @@
 # App Store submission dossier — draft
 
-Listing copy drafted 26 October 2026; local delivery status reviewed 23 November 2026.
+Listing copy drafted 26 October 2026; local delivery status reviewed 25 November 2026.
 
 This is a reviewable preparation artifact, **not an approved listing, signed export,
 license clearance or submission**. No App Store Connect fields were changed. The
@@ -77,6 +77,19 @@ Sources checked on 26 October 2026: [program overview](https://developer.apple.c
 The test app's signing, entitlements and Finder integration still need their own
 measured acceptance; an account answer is not evidence that a particular build
 has passed those checks.
+
+## Prepared local candidate56 — November 25, 2026
+
+[Build56](qa/signed-consolidation-build56-2026-11-25.json) packages the subsequent
+repairs from exact `b3db4ca7` as an Apple Development signed universal local test
+candidate, with matching source and license material. Its static signing/runtime,
+signed helper and ZIP/source checks pass their recorded scopes. The corrected
+Clone consumer is separately pinned to `4e78380b`; the app source is unchanged.
+Installed52 and earlier packages remain intact. Use the
+[local acceptance checklist](LOCAL-TESTING-CHECKLIST.md) for the original reported
+journeys. Candidate56 has not been installed or physically accepted in Finder;
+full hosted CI and later license/Store clearance remain open. No submission or
+public binary upload occurred.
 
 ## Prepared local candidate55 — November 23, 2026
 
