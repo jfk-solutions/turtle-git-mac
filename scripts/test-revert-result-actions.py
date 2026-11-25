@@ -47,7 +47,7 @@ private extension NSWindow {
   default:fatalError("Unknown Revert result case")
   }
   } catch {
-   for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
    let failure=error
    do {try await RevertResultActionsVerification.drain()} catch {throw RevertResultActionsVerification.Failure(description:"\(failure); grouped cleanup failed: \(error)")}
    throw failure

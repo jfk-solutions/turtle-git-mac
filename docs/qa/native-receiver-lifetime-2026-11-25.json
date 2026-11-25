@@ -1,0 +1,129 @@
+{
+  "date": "2026-11-25",
+  "baseline": "acd1d0170d4aa7ae0491e6fe1e6ecf7a14c2b88b",
+  "status": "identified-generic-cleanup-drivers-migrated; focused-contracts-and-integration-passed",
+  "source_sha256": {
+    "scripts/history_recovery_receiver.py": "ece5e1da598fe4eb8cf1d46fcc3d55f6b7926e0840353358ca2d6675bd516b41",
+    "scripts/test-add-backend-native.py": "696bbcd4fdef76d13e6bfcd805164c1503a38a5e6d07f5661e707b4f177520b3",
+    "scripts/test-bisect-source-controls.py": "912023ed825d05db1f34b77607ca8c38af1f1119906d38ca7205ab2e923cec5b",
+    "scripts/test-blame-author-details-native.py": "67a80eeb83351c7e1b73ce93a0235725335c986c7d173ae2c538efa4e35d8567",
+    "scripts/test-blame-pane-interaction.py": "2afa50f6eee4f5b8d39587c7f7a5b2a7a9db36fe58ee31e32306a7ca83491813",
+    "scripts/test-blame-symlink-native.py": "df96ad542206445a9f9fbfbd1651d9fe4cdc78c086e2f3e4584ab2081afd8c80",
+    "scripts/test-branch-tag-plan-family.py": "444a4dab542148121bb6d5262a04346a578011943d0fdbddd465722f7d5cda68",
+    "scripts/test-browser-working-family.py": "de8995ccda0f67b1cff25e55c7806dea87c7f7ba402d9b04dd6d9f56d9f0a243",
+    "scripts/test-clone-checkout-filter-native.py": "8847e5025886f4ab0c8bc0f69eb0f3f3295f95a882c8da9d938c9c85fdd952c1",
+    "scripts/test-commit-index-backend-native.py": "d64dfc2f5169d95cb345c724e37b0927f549c58c549e01ace74a714b7140b25a",
+    "scripts/test-commit-refresh-family.py": "03fd77c8a67425b27190b1ea7366afe286c44fbad921b648ac84108354b853db",
+    "scripts/test-conflict-identity-family.py": "695810604191b824292ceb6a463f46b0ea632f4a8cbdb414645b163deabd6795",
+    "scripts/test-finder-status-policy-native.py": "5c174787ad1abebceb44928c2527fb2760f78b42b79aeb65bd94e3c1dd28ccfd",
+    "scripts/test-format-patch-workflow-native.py": "e052045f2659371bdf5465869f59a2546cfef813ae6511752a931b4f0f8aa7f1",
+    "scripts/test-history-editor-presentation-native.py": "5a458481f7feb1c43239da1d93921fbbb3a5e99d68a2a59b24ba4c3e0ecfea5d",
+    "scripts/test-history-file-context-family.py": "b4eb6b04a9ae1ae1d9995bf3ecc864897b8da42ff9342c577bd724e93f28d1e9",
+    "scripts/test-history-submodule-inspection-native.py": "1adef0db725a7c4e5f19799df1efda87533ba5d768e3038963b8a2eaf87cd5af",
+    "scripts/test-hook-scripts-family.py": "5ab48732f7a2754b2e7a6783dc6c53695b0958b3a9fcd701a945419b40269489",
+    "scripts/test-inline-file-progress-family.py": "f629ac71aada5e10afd4b0aaef2bdcc0f4a066f297197d746905303c1f0d8d54",
+    "scripts/test-libgit2-native.py": "e736eff09cae2519aef5f32ea19495aa859a15898935f9fba3a5e9040ba8f21b",
+    "scripts/test-list-selection-native.py": "e2673636150595dda4e3750cbfd531456ace02525db06bb4435f6786c57279e2",
+    "scripts/test-local-reference-engine.py": "ade614fc95d3a8f205a0d829bc102d013e0ec3119bbcf5f0c1798ac701a9e4b5",
+    "scripts/test-log-primary-activation-batch.py": "9c4d97bc89bb178e0069988e436a6f44fbd0fc6a8b6393231228564816a0eca3",
+    "scripts/test-log-working-conflicts.py": "6b6e472bbece530e06e501dc8bfa249b2699ea522e98fd319c052ebff6c93e3a",
+    "scripts/test-merge-pane-input.py": "43b549daed0bdb8ee05caba21ba503e4ae652f567fde0dcafa40df416f982d9b",
+    "scripts/test-merge-progress-family.py": "623e82eee81e98ab5d52c7e414de1fe72563f5884d0a1d560a117a6a12a57e55",
+    "scripts/test-merge-regex-source.py": "a0e98848936edba4dcd24b3c586a78708db0303d374e49678c01ca98487a527f",
+    "scripts/test-merge-viewport-family.py": "f9680d2869cd8c254d33af618d0193b39e416360f0c8575ed236e0ca2a1360d6",
+    "scripts/test-missing-staged-recovery.py": "57eebd058e10928a3604751b1e17771a63128515562a6c8519d2ed811f524189",
+    "scripts/test-push-clone-workflows.py": "ce98d8e3a32ca5832b0123884b8661f052a51d3659771966c02746eb1914928e",
+    "scripts/test-reference-child-delivery.py": "fd0800686285f8d22c77adb946b9e08b607e8f9b996407d3f74a27f0042114db",
+    "scripts/test-reference-tracking.py": "9bf9b9930eba0903454ee106681dd0f20a8dd23f9ebcd4742fe93656e628fc45",
+    "scripts/test-reflog-lifecycle.py": "abfad7891af1877c2899d4a0c522232548d42d3578df063ba84f305f958b6cc2",
+    "scripts/test-remote-reference-backend-native.py": "804c3948daaaed6231e4417b8724537be1e2cc130184cdb9db933b0107486f59",
+    "scripts/test-repository-creation-results-family.py": "a193e90be91a4b40f9a982a24dad609465aeeb7ff2b45e47418f8a869bafc0f2",
+    "scripts/test-request-pull-workflow-native.py": "ef5cf837da0216bf8302d7aea85696448cc1627f2e3013668a84aa8fb68a833e",
+    "scripts/test-revert-result-actions.py": "7669c57d654dfdaaedc49ca613443632dd8aee0245d9744f6fa62963fc569ef7",
+    "scripts/test-settings-exact-text-native.py": "f6cff28719347e641ea32d416478b77f42d0a73743f7f672343b0c7010e3c673",
+    "scripts/test-settings-teardown-family.py": "133b21b2b521b0271566dfd0753129b7d6cb3e3cfdc92ca374459af9d301e843",
+    "scripts/test-single-commit-native.py": "9d61e8e4a70f38df5660c8c4d37ad5aaa7e5f5fce9acfbe9c04e90ac2f6f070c",
+    "scripts/test-smtp-certificate-native.py": "955841befbe182ea8ba2205e5bdb070b223a1d8fbcb714d8371b61d5efa7801e",
+    "scripts/test-stash-export-progress-family.py": "eff531160569fb3a8a742670be41f1af283fb1d8c3c0102ac78a67c31445591a",
+    "scripts/test-stash-submodule-workflows.py": "2f231901705bd035dc2d44cb1c15acb83b2962cb5ce7db0e91144021e49c5738",
+    "scripts/test-switch-reset-progress-family.py": "44ffa014b1a4c5d6d429f2c18fd0cb9bb8acf8da96509ac125a2d2d5efdee6a0",
+    "scripts/test-switch-source.py": "4aa93520743586b3cf7f12155f5d43e99e1b8502bdeadd8f4f9654b981e0710b",
+    "scripts/test-word-office-family.py": "69e073c08a820b8f065d7d551be1dcb6432a07a58d16b470b3c87d916f08503f",
+    "scripts/native_receiver.py": "09a7deb567c5bc93eaaa677b40acb703535025315c832f072898827944c2c128",
+    "scripts/test-native-owned-window-cleanup.py": "16a440319d9b42c72f5dbd0d450b2184505712bcfe08780367801297c1b94b2a",
+    "docs/qa/native-owned-window-cleanup.swift": "eddd136bda6422d978bbea842b40be60a4806de0fe5b34f0501f14ff31b92671",
+    "docs/qa/native-owned-window-cleanup-native-2026-11-25.swift": "a1b24b9e6b1f9c267640ccd4e351f1e9aafeccef1587eaec68cdd011d9e18eb0"
+  },
+  "migrated_drivers": 46,
+  "cleanup_calls": 70,
+  "implementation": [
+    "Shared receiver-only cleanup deduplicates windows and sheets, retains explicit response codes and actual caller drainage.",
+    "Release-on-close AppKit auxiliaries are hidden/detached rather than explicitly closed or having release policy rewritten.",
+    "Controller closure and requested content-controller teardown remain explicit options, applied only to ARC-owned windows.",
+    "Referenced helper source is included in actual fixture compilation/cache identity; production app sources/build remain untouched."
+  ],
+  "review": "Two independent group reviews found original feature cleanup, counters, waits, predicates and behavioral assertions preserved. All46 use build_receiver; no direct compiler exception.",
+  "process_cache_tests": {
+    "count": 10,
+    "exit": 0,
+    "log": "build/qa/native-receiver-lifetime-contracts-2026-11-25.log",
+    "sha256": "4d385df6dbacfb492e5f99cc928abce72a395339d3f83b68fc9c0b041e34ed89"
+  },
+  "native_runs": 5,
+  "native": [
+    {
+      "scope": "Shared public ownership/controller/content/sheet contract",
+      "runs": 1,
+      "log": "build/qa/native-receiver-lifetime-cleanup-repair-2026-11-25.log",
+      "sha256": "4f9493774d32da63da0a80b1453349ab6f0be4200f188fbb9c480321ea615356"
+    },
+    {
+      "scope": "settings",
+      "runs": 2,
+      "log": "build/qa/native-receiver-lifetime-settings-2026-11-25.log",
+      "sha256": "4d4968d36c976870de9ffff32bcd3e648055ec2a0186e91319bfba09464237d1"
+    },
+    {
+      "scope": "history",
+      "runs": 2,
+      "log": "build/qa/native-receiver-lifetime-history-2026-11-25.log",
+      "sha256": "f8ea52857738ad181cdf012adc2784fd6b6e6625cf28ed62fceca295180172cd"
+    }
+  ],
+  "failed_attempts": [
+    {
+      "log": "build/qa/native-receiver-lifetime-cleanup-2026-11-25.log",
+      "cause": "A duplicate CleanupWindow declaration in the new contract fixture prevented compilation. Removed duplicate; only that fixture was rerun. Other passing checks were retained."
+    }
+  ],
+  "core_and_app_build": {
+    "run": false,
+    "reason": "No production implementation changed; existing Debug objects reused with Mac/Core source bytes matching b3db4ca7."
+  },
+  "cleanup": {
+    "logged_owned_compiler_receiver_pids": [
+      34797,
+      34799,
+      34808,
+      34818,
+      34920,
+      35030,
+      35041,
+      35049,
+      35160,
+      35167
+    ],
+    "currently_present": [],
+    "private_windows": "Offscreen/transparent receiver windows; existing exact feature and paired-sheet drainage assertions retained."
+  },
+  "protected_wip_sha256": {
+    "scripts/test-native-reference-batch.py": "89ee101d363ddfb47cc46146c777ab0a504181b33215d5fdaa63911f86f9d41f",
+    "docs/qa/reflog-capture-native-2026-10-13.swift": "394b8ea4260842d7c63aaad8da0130bd0647e9747b41990fa3a0cdc4f541abd3"
+  },
+  "limitations": [
+    "Focused native passes do not certify every migrated family or establish a complete hosted CI result.",
+    "The source pattern is a proven lifetime hazard, but this migration does not locate every historical SIGSEGV.",
+    "No shipping UI/physical Finder, full visual parity, installation or App Store acceptance implied."
+  ],
+  "delivery": "Signed56, installed52 and earlier packages unchanged. No WMF/EMF source or protected reference-harness work modified."
+}

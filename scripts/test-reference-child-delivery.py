@@ -52,10 +52,7 @@ private extension NSWindow {
   do {switch CommandLine.arguments[4] {
 ''' + ''.join('case "'+case+'":try await '+call+'\n' for case, (_, call) in CASES.items()) + r'''default:throw Failure(description:"Unknown child delivery case")
   }}catch{failure=error}
-  for window in NSApp.windows {
-   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)}
-   window.orderOut(nil);window.close()
-  }
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
   for _ in 0..<3000 {
    let idle = FinderFilesystemWorkflowRelease.activeRetirements==0 &&
     HistorySubmoduleInspectionVerification.drained() && ResolveWindowModel.activeOperations==0 &&

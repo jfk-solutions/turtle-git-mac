@@ -43,11 +43,7 @@ private extension NSWindow {
 }
 @main struct WordOfficeFamilyMain {
  @MainActor static func closeWindows() {
-  for window in NSApp.windows {
-   if let sheet=window.attachedSheet {window.endSheet(sheet,returnCode:.abort);sheet.close()}
-   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)}
-   window.close()
-  }
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
  }
  @MainActor static func drain()async throws {
   for _ in 0..<1500 {

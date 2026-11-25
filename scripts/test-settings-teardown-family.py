@@ -57,7 +57,7 @@ private extension NSWindow {
 @main enum SettingsTeardownMain {
     @MainActor static func drain() async throws {
         ClientHookProcessPool.shared.cancelAll()
-        for window in NSApp.windows { window.contentViewController = nil; window.close() }
+        NativeOwnedWindowCleanup.close(NSApp.windows,clearContentViewControllers:true)
         try await SettingsTeardownVerification.drain()
 
     }

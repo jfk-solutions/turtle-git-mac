@@ -27,7 +27,7 @@ private extension NSWindow {
  struct Failure:Error,CustomStringConvertible {let description:String}
  @MainActor static func drain()async->Bool {
   let comparisons=NSApp.windows.compactMap{$0.delegate as? FileComparisonWindowController}
-  for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)};window.close()}
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
   for _ in 0..<3000 {
    if MergeRegexFilterListController.activeEditors==0,MergeRegexOperations.activeRequests==0,
       FileComparisonWindowModel.activeProjectionChoices==0,FileComparisonWindowModel.activePaneExports==0,

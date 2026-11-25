@@ -59,10 +59,10 @@ private extension NSWindow {
   default:fatalError("Unknown hook scripts case")
   }
   } catch {
-   ClientHookProcessPool.shared.cancelAll();NSApp.windows.forEach{$0.close()}
+   ClientHookProcessPool.shared.cancelAll();NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
    try? await drain();throw error
   }
-  ClientHookProcessPool.shared.cancelAll();NSApp.windows.forEach{$0.close()};try await drain()
+  ClientHookProcessPool.shared.cancelAll();NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try await drain()
   print("PASS: hook scripts native case completed")
  }
 }

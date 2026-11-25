@@ -70,7 +70,7 @@ private extension NSWindow {
 }
 @main struct SwitchSourceMain {
  @MainActor static func drain()async throws {
-  for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
   for _ in 0..<2500 {
    if SwitchWindowModel.activeReads==0 && SwitchProgressWindowModel.activeOperations==0 && SwitchWindowController.activeChildReleases==0 && !NSApp.windows.contains(where:{$0.isVisible || $0.sheetParent != nil || $0.attachedSheet != nil}) {return}
    try await Task.sleep(nanoseconds:10_000_000)

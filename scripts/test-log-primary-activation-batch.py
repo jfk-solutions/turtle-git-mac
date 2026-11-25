@@ -89,7 +89,7 @@ private extension NSWindow {
    try await drain();print("PASS: log primary activation "+mode);fflush(stdout)
   } catch {
    let original=error
-   for window in NSApp.windows {if let controller=window.windowController {controller.close()} else {window.isReleasedWhenClosed=false;window.orderOut(nil);window.close()}}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel,closeControllers:true)
    do {try await drain()} catch {throw NSError(domain:"TurtleGit.LogPrimary.Failure",code:1,userInfo:[NSLocalizedDescriptionKey:String(describing:original)+"; cleanup: "+String(describing:error)])}
    throw original
   }

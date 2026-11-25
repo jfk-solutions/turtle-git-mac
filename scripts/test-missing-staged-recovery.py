@@ -38,7 +38,7 @@ private extension NSWindow {
    try await MissingStagedRecoveryVerification.verify(caseName:ProcessInfo.processInfo.environment["TURTLEGIT_MISSING_STAGED_CASE"]!,root:directory,git:git)
   } catch {
    let originalError=error
-   for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    do {try await MissingStagedRecoveryVerification.drain()} catch {throw MissingStagedRecoveryVerification.Failure(description:"\(originalError); owned cleanup failed: \(error)")}
    throw originalError
   }

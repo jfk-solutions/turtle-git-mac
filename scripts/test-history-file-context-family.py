@@ -133,16 +133,7 @@ private extension NSWindow {
    let original=error
    // Own our controllers, not AppKit's release-on-close auxiliary windows.
    // Preserve feature cancellation/drain behavior without changing that policy.
-   for window in NSApp.windows {
-    let arcOwned = !window.isReleasedWhenClosed
-    if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)}
-    if arcOwned {window.makeFirstResponder(nil);window.endEditing(for:nil)}
-    window.orderOut(nil)
-    if arcOwned {
-     if let controller=window.windowController {controller.close()}
-     else {window.close()}
-    }
-   }
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel,closeControllers:true)
    do {try await waitForDrain()} catch {throw NSError(domain:"TurtleGit.HistoryFileContext.Failure",code:1,userInfo:[NSLocalizedDescriptionKey:String(describing:original)+"; cleanup: "+String(describing:error)])}
    throw original
   }

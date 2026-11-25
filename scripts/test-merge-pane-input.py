@@ -65,7 +65,7 @@ private extension NSWindow {
    try await MergePaneInputVerification.drain()
   } catch {
    let failure=error
-   for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
    do{try await MergePaneInputVerification.drain()}catch{throw MergePaneInputVerification.Failure(description:"\(failure); grouped cleanup: \(error)")}
    throw failure
   }

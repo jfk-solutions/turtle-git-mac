@@ -65,7 +65,7 @@ private extension NSWindow {
    try await SynchronizationVerification.verifySubmodules(root:root,preferences:prefs)
    try await drainRetainedSync()
   } catch {
-   NSApp.windows.forEach{$0.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
    try? await drainRetainedSync()
    throw error
   }

@@ -29,7 +29,7 @@ private extension NSWindow {
   NSApplication.shared.setActivationPolicy(.prohibited)
   let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.bisectRecoveryOrder(_:relativeTo:)))!
   method_exchangeImplementations(original,hidden)
-  defer {method_exchangeImplementations(original,hidden);for window in NSApp.windows {window.close()}}
+  defer {method_exchangeImplementations(original,hidden);NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)}
   try await verifyNativeBisect(executable:URL(fileURLWithPath:CommandLine.arguments[2]))
   print("PASS: Bisect source recovery")
  }

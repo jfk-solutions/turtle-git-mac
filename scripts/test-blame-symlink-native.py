@@ -40,10 +40,10 @@ private extension NSWindow {
   method_exchangeImplementations(normal,hidden);defer{method_exchangeImplementations(normal,hidden)}
   do { try await BlameSymlinkVerification.verify() }
   catch {
-   NSApp.windows.forEach{window in if let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.close()};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    try? await drain();throw error
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try await drain()
  }
 }
 '''

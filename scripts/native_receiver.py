@@ -38,6 +38,13 @@ def build_receiver(root: Path, fixtures: list[Path], directory: Path, *, fixture
         raise ValueError('Unknown native fixture compilation mode: ' + str(fixture_mode))
     fixture_flags = [*fixture_modes[fixture_mode], '-Onone', '-parse-as-library', '-swift-version', '5']
     root = root.resolve(); fixtures = [path.resolve() for path in fixtures]
+    # Keep common receiver-only cleanup in the fixture cache recipe, without
+    # rebuilding the application or adding it to production sources.
+    cleanup = root / 'docs/qa/native-owned-window-cleanup.swift'
+    if cleanup not in fixtures and any('NativeOwnedWindowCleanup.' in path.read_text() for path in fixtures):
+        if not cleanup.is_file():
+            raise RuntimeError('Native receiver cleanup source is missing: ' + str(cleanup))
+        fixtures.append(cleanup)
     products = root / 'build/Build/Products/Debug'
     objects = sorted((root / 'build/Build/Intermediates.noindex/TurtleGitMac.build/Debug/TurtleGitMac.build/Objects-normal' / platform.machine()).glob('*.o'))
     module = products / 'TurtleGitMac.swiftmodule'

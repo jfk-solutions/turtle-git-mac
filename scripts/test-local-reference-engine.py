@@ -49,11 +49,11 @@ private extension NSWindow {
    try await LocalReferenceEngineVerification.verify(root:URL(fileURLWithPath:CommandLine.arguments[1]),git:URL(fileURLWithPath:CommandLine.arguments[2]),helper:URL(fileURLWithPath:CommandLine.arguments[3]),graphLayout:URL(fileURLWithPath:CommandLine.arguments[4]))
   }catch{
    let failure=error
-   NSApp.windows.forEach{window in if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    do{try await drain()}catch{throw LocalReferenceEngineVerification.Failure(description:"\(failure); cleanup: \(error)")}
    throw failure
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try await drain()
   print("PASS: native local-reference engines and owned lifecycle")
  }
 }

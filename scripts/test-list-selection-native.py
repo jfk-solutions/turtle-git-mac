@@ -51,10 +51,10 @@ private extension NSWindow {
     try await ListSelectionVerification.verify(root:root,captureDirectory:capture,captureOnly:CommandLine.arguments[5]=="1")
    }else{try await ListSelectionFamilyVerification.verify(root:root,git:git)}
   }catch{
-   let failure=error;NSApp.windows.forEach{window in if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.close()}
+   let failure=error;NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    do{try await drain()}catch{throw ListSelectionVerification.Failure(description:"\(failure); cleanup: \(error)")};throw failure
   }
-  NSApp.windows.forEach{$0.close()};try await drain();print("PASS: native list selection completed")
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try await drain();print("PASS: native list selection completed")
  }
 }
 '''

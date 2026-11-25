@@ -1,5 +1,23 @@
 # TurtleGit for Mac — full port tracking
 
+## Shared native receiver retirement — November 25, 2026
+
+The [lifetime checkpoint](qa/native-receiver-lifetime-2026-11-25.json) migrates all
+46 identified generic-cleanup drivers (70 calls) to one receiver-only policy.
+AppKit-managed release-on-close auxiliary windows are detached and hidden, while
+ARC-owned windows preserve explicit controller, content and response handling.
+Original feature cancellation, work counters and actual drainage assertions remain.
+This completes the identified driver cleanup batch noted in the prior history
+checkpoint; it does not certify every family or locate every historical crash.
+
+Ten process/cache contracts and five selected native runs pass cumulatively.
+The new helper fixture initially failed to compile because of a duplicate class;
+only that fixture was repeated after repair. All ten logged compiler/receiver
+PIDs are absent. No production source, Core suite or app build changed. Build56,
+installed52 and earlier packages remain unchanged; full hosted and physical/visual
+acceptance remain separate gates. See [receiver lifetime guidance](TESTING.md#native-receiver-window-lifetime).
+
+
 ## History invocation recovery — November 25, 2026
 
 The [checkpoint](qa/history-invocation-recovery-2026-11-25.json) retains four

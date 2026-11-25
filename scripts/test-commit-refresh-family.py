@@ -45,7 +45,7 @@ private extension NSWindow {
   defer {method_exchangeImplementations(order,hidden);method_exchangeImplementations(constrain,offscreen)}
   var failure:Error?
   do {try await '''+entry.group(1)+'''.main()} catch {failure=error}
-  for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)};window.close()}
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
   var drained=false
   for _ in 0..<3000 {
    if CommitWindowModel.activeReloads==0,CommitWindowModel.activeFileOperations==0,

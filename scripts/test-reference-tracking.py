@@ -84,7 +84,7 @@ private extension NSWindow {
   do{try await ReferenceTrackingVerification.verify()}catch{failure=error}
   let controllers=NSApp.windows.compactMap{$0.delegate as? ReferenceBrowserWindowController}
   controllers.forEach{$0.close()}
-  for window in NSApp.windows{if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.orderOut(nil);window.close()}
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
   for _ in 0..<3000 {
    let reads=ReferenceBrowserWindowModel.activeReads==0 && ReferenceBrowserWindowModel.activeComparisons==0 && ReferenceBrowserWindowModel.activeFilters==0
    let mutations=ReferenceBrowserWindowModel.activeRenames==0 && ReferenceBrowserWindowModel.activeMutations==0 && LocalGitCommandProgress.activeOperations==0

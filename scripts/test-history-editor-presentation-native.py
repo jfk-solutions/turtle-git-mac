@@ -36,11 +36,7 @@ private extension NSWindow {
   throw NSError(domain:"History/editor owned work or windows survived cleanup",code:1)
  }
  @MainActor static func closeWindows() {
-  for window in NSApp.windows {
-   if let child=window.attachedSheet {window.endSheet(child,returnCode:.abort);child.close()}
-   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.abort)}
-   window.close()
-  }
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
  }
  @MainActor static func main()async throws {
   NSApplication.shared.setActivationPolicy(.prohibited)

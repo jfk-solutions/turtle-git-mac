@@ -62,10 +62,10 @@ private extension NSWindow {
   default:fatalError("Unknown Browser working case")
   }
   } catch {
-   NSApp.windows.forEach{$0.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
    try? await drain();throw error
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try await drain()
   print("PASS: Browser working native case completed")
  }
 }

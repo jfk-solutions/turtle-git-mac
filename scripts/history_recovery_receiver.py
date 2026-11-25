@@ -58,9 +58,9 @@ private extension NSWindow {
    default:fatalError("Unknown History recovery case")
    }
   } catch {
-   NSApp.windows.forEach{$0.close()};try? await drain();throw error
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try? await drain();throw error
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel);try await drain()
   print("PASS: History recovery native case completed")
  }
 }

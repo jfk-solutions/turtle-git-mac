@@ -56,7 +56,7 @@ private extension NSWindow {
 }
 @main struct RefLogFamilyMain {
  @MainActor static func cleanup()async throws {
-  for window in NSApp.windows {if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)};window.close()}
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
   for _ in 0..<3000 {
    if ReferenceLogWindowModel.activeOwnedOperations==0,ReferenceLogWindowModel.activeRevisionReads==0,
       NSApp.windows.allSatisfy({!$0.isVisible && $0.sheetParent==nil && $0.attachedSheet==nil}) {return}

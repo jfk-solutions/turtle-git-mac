@@ -50,11 +50,11 @@ private extension NSWindow {
    try await SingleCommitVerification.verify(caseName:ProcessInfo.processInfo.environment["TURTLEGIT_SINGLE_COMMIT_CASE"]!,root:URL(fileURLWithPath:CommandLine.arguments[1]),git:URL(fileURLWithPath:CommandLine.arguments[2]),helper:URL(fileURLWithPath:CommandLine.arguments[3]),editor:URL(fileURLWithPath:CommandLine.arguments[4]))
   }catch{
    let failure=error
-   NSApp.windows.forEach{window in if let parent=window.sheetParent{parent.endSheet(window,returnCode:.abort)};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    do{try await drain()}catch{throw SingleCommitVerification.Failure(description:"\(failure); cleanup: \(error)")}
    throw failure
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  NativeOwnedWindowCleanup.close(NSApp.windows);try await drain()
   print("PASS: native single-commit details case completed")
  }
 }

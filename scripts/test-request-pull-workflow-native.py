@@ -61,10 +61,10 @@ private extension NSWindow {
   }
   } catch {
    ExternalToolProcesses.cancelAll()
-   NSApp.windows.forEach{window in if let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil)};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    try? await drain();throw error
   }
-  NSApp.windows.forEach{$0.close()};try await drain()
+  NativeOwnedWindowCleanup.close(NSApp.windows);try await drain()
   print("PASS: Request Pull workflow progress native case completed")
  }
 }

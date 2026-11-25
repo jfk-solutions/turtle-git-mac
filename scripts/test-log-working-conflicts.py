@@ -35,7 +35,7 @@ private extension NSWindow {
   let original=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
   let hidden=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.logWorkingConflictOrder(_:relativeTo:)))!
   method_exchangeImplementations(original,hidden)
-  defer {for window in NSApp.windows {window.close()};method_exchangeImplementations(original,hidden)}
+  defer {NativeOwnedWindowCleanup.close(NSApp.windows);method_exchangeImplementations(original,hidden)}
   try await verifyNativeLogWorkingConflicts(executable:URL(fileURLWithPath:CommandLine.arguments[2]))
   print("PASS: full retained native Log working-conflict family")
  }

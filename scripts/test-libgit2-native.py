@@ -43,7 +43,7 @@ private extension NSWindow {
   method_exchangeImplementations(normal,hidden);defer{method_exchangeImplementations(normal,hidden)}
   do{try await GitLibGit2NativeVerification.main()}
   catch{
-   NSApp.windows.forEach{window in if let sheet=window.attachedSheet{window.endSheet(sheet,returnCode:.abort);sheet.close()};window.close()}
+   NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.abort)
    for _ in 0..<3000 {
     if CloneProgressWindowModel.activeOperations==0 && FetchProgressWindowModel.activeOperations==0 && NSApp.windows.allSatisfy({!$0.isVisible && $0.attachedSheet==nil && $0.sheetParent==nil}) {break}
     try? await Task.sleep(nanoseconds:10_000_000)

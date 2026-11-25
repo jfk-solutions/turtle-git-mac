@@ -37,10 +37,7 @@ private extension NSWindow {
   do { switch CommandLine.arguments[3] {
 '''+''.join('case "'+case+'": try await '+call+'\n' for case,(_,call) in cases.items())+r'''default: fatalError("Unknown conflict identity case")
   }} catch {failure=error}
-  for window in NSApp.windows {
-   if let parent=window.sheetParent {parent.endSheet(window,returnCode:.cancel)}
-   window.orderOut(nil);window.close()
-  }
+  NativeOwnedWindowCleanup.close(NSApp.windows,returnCode:.cancel)
   for _ in 0..<2000 {
    let drained=ResolveWindowModel.activeOperations==0 && RebaseWindowModel.activePreparationReads==0 &&
     RevertProgressWindowModel.activeOperations==0 && RevertProgressWindowController.activeReleases==0 &&

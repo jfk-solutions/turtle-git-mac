@@ -1,5 +1,28 @@
 # Testing TurtleGit for Mac
 
+## Native receiver window lifetime
+
+Generic receiver cleanup uses `NativeOwnedWindowCleanup` from
+`docs/qa/native-owned-window-cleanup.swift`. It hides and detaches AppKit's
+release-on-close auxiliaries, closes only ARC-owned windows, and preserves
+explicit Cancel/Abort responses and optional controller/content teardown.
+Callers still await their actual feature workers and sheet links; the helper
+neither clears operation counters nor declares a workflow drained.
+
+`native_receiver.build_receiver` includes this source only when a fixture uses
+it. Its bytes participate in the fixture cache key alongside the current app
+objects, imported modules, compiler, SDK, architecture and flags. Changes do not
+require a new production app build. Factory-created fixture windows may set their
+own release policy; generic `NSApp.windows` inventories must not rewrite it.
+
+Run `python3 scripts/test-native-owned-window-cleanup.py` for a private offscreen
+contract check of auxiliary ownership, duplicate windows, controller routing,
+content release and actual paired-sheet completion. The
+[grouped migration checkpoint](qa/native-receiver-lifetime-2026-11-25.json)
+records the selected integration checks and their limits. CI continues to run
+the full native families with their original workflow assertions.
+
+
 `scripts/test-merge-ignored.py --only aligned` checks actual three-pane logical
 result counts and locator coordinates, footer resolution followed by one-row
 source/result alternatives, exact neighboring payload preservation, Undo/Redo
