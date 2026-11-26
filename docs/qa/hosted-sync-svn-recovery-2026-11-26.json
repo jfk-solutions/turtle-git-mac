@@ -1,0 +1,50 @@
+{
+  "kind": "TurtleGitSyncSVNCommandRecovery",
+  "base_commit": "2f40b008b708d758c5ef26cd7c369e0f78a4626a",
+  "hosted_run": 45808431864,
+  "status": "passed",
+  "started_utc": "2026-11-26T13:12:44.033984+00:00",
+  "inputs_sha256": {
+    "docs/qa/sync-svn-commands-native-2026-10-18.swift": "8b0a4cebc8f01c48b8638987c549ae569f9287283569f09dac8e8e66c8f53058"
+  },
+  "scope": "Sync/SVN primary command handoffs/questions/automatic close and actual command effects, both Git engines. Reuse accepted2f40app build. Retain all prior hosted primary subcases; no Core/runtime/app rebuild, private owners only.",
+  "results": [
+    {
+      "name": "sync-svn",
+      "command": [
+        "python3",
+        "scripts/test-primary-commands.py",
+        "--only",
+        "syncsvn",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 48.716,
+      "log": "build/qa/ci-sync-svn-repair-2026-11-26-sync-svn.log",
+      "log_sha256": "6987ef59f0dac450844fda7d07a2965305d4a37605cf21a0f97cbd8ef1299807",
+      "reaped_pids": [
+        43961,
+        44178,
+        45020
+      ]
+    }
+  ],
+  "finished_utc": "2026-11-26T13:13:32.773945+00:00",
+  "owned_processes_remaining": [],
+  "hosted_failure": {
+    "run": 45808431864,
+    "source": "48265c54840831bbc900ad100275f0a03742aa59",
+    "job": 139875927025,
+    "step": 274,
+    "artifact": 15120730799,
+    "artifact_sha256": "183f4081c6ee5a3bea2f061c66dab59e9f0067e70a9866175f2f033c1c879983",
+    "failure": "syncsvn/system wait73 visiblefinished SVNRebase window; model busyfalse/errornil"
+  },
+  "repair": "Successful Rebase forces no-errors automatic close. Capture exact factory-owned finished result and closed/sheet-detached lifecycle, actual HEAD fast-forward, information callback and exactly one source fetch; command-authority settlement and strict question/draft/grant/data guards retained.",
+  "app_core_runtime_builds": 0,
+  "native_process_cases": 2,
+  "limitations": "Focused native receiver pass; full hosted primary family and remaining lanes still pending, physical Finder/signed deployment not certified."
+}

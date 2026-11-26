@@ -176,3 +176,22 @@ engines. The first optional screenshot attempt failed at ScreenCaptureKit (-3811
 that failed attempt and its cleanup remain recorded. The existing app build was
 reused for the functional follow-up, with no Core/runtime rebuild. Physical
 screenshots and the complete hosted result remain unverified at this checkpoint.
+
+
+## Sync/SVN command completion follow-up
+
+The primary-command lane progressed through the repaired Bisect cases with both
+Git engines, then its Sync/SVN case waited for a visible finished Rebase window.
+Source Rebase deliberately forces no-errors automatic close: successful completion
+closes that progress owner synchronously after clearing busy state. The fixture
+now captures the exact newly created owner and requires its completed result,
+closed/detached window, real HEAD fast-forward, information callback and exactly
+one accepted source fetch. Other positive/refused commands wait for pending
+command authority as well as workspace busy state; question, draft, permission and
+repository-effect assertions remain intact.
+
+The [Sync/SVN recovery record](qa/hosted-sync-svn-recovery-2026-11-26.json) passes
+the connected family with both Git engines using the already accepted app build.
+It preserves complete owner/question/sheet/worker cleanup. No app/Core/runtime
+rebuild or full Core repeat was needed. The complete hosted primary family and
+remaining lanes still require confirmation.
