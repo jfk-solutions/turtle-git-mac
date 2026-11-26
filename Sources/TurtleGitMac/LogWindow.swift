@@ -4412,19 +4412,19 @@ struct LogDialog: View {
                 }
 
             }.font(.system(size: 12))
-            VSplitView {
-                RevisionTable(model: model, savesColumnLayout: savesColumnLayout).frame(minHeight: 200, idealHeight: 350)
-                HStack(alignment: .top, spacing: 0) {
+            LogPaneSplit(
+                history: AnyView(RevisionTable(model: model, savesColumnLayout: savesColumnLayout)),
+                message: AnyView(HStack(alignment: .top, spacing: 0) {
                     LogMessageView(model: model).frame(maxWidth: .infinity, maxHeight: .infinity)
                     if model.showGravatar { LogGravatarView(loader: model.gravatar) }
-                }.frame(minHeight: 110, idealHeight: 150)
+                }
                     .onChange(of: shortDate) { _ in model.objectWillChange.send() }
                     .onChange(of: relativeTimes) { _ in model.objectWillChange.send() }
-                    .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }
-                LogChangedFileReport(model:model).frame(minHeight:130,idealHeight:180)
+                    .onChange(of: useSystemLocale) { _ in model.objectWillChange.send() }),
+                files: AnyView(LogChangedFileReport(model:model)
                     .background(LogFileDragInteraction(model:model,rows:model.fileTableRows))
-                    .overlay {if model.hidesTooManyFiles {Text("Too many files to display.").foregroundStyle(.secondary).allowsHitTesting(false)}}
-            }
+                    .overlay {if model.hidesTooManyFiles {Text("Too many files to display.").foregroundStyle(.secondary).allowsHitTesting(false)}}))
+            .frame(minHeight: CGFloat(HistoryPaneLayout.minimumHeights.reduce(0,+)) + 2, maxHeight: .infinity)
             .background(LogPaneLayoutBridge(model: model))
             LogInformationBand(text:HistoryLabels.information(model.information))
             HStack(alignment: .center, spacing: 12) {
@@ -5069,9 +5069,96 @@ struct LogHistoryDatePicker:NSViewRepresentable {
     }
 }
 
-/// Attach to the existing SwiftUI VSplitView's AppKit split; keep its delegate,
-/// dragging and keyboard/accessibility implementation. Restore only once after
-/// real bounds exist and persist only on owner close, as SaveSplitterPos does.
+/// Keep the native divider geometry independent of SwiftUI content fitting.
+/// VSplitView re-fits its children when a sheet changes the hosting environment,
+/// even at the same bounds, which moves the Log headers without a divider gesture.
+/// The three existing SwiftUI panes still receive the complete parent environment;
+/// AppKit owns only their frames and its native divider/keyboard/AX interactions.
+private struct LogPaneSplit: NSViewControllerRepresentable {
+    let history: AnyView
+    let message: AnyView
+    let files: AnyView
+    private func panes(_ environment: EnvironmentValues) -> [AnyView] {
+        [history,message,files].map { AnyView($0.environment(\.self,environment)) }
+    }
+    func makeNSViewController(context: Context) -> LogPaneSplitController {
+        LogPaneSplitController(panes:panes(context.environment))
+    }
+    func updateNSViewController(_ controller: LogPaneSplitController, context: Context) {
+        for (host,pane) in zip(controller.hosts,panes(context.environment)) { host.rootView = pane }
+    }
+    static func dismantleNSViewController(_ controller: LogPaneSplitController, coordinator: ()) {
+        controller.split.delegate = nil
+    }
+}
+
+@MainActor private final class LogPaneSplitController: NSViewController, NSSplitViewDelegate {
+    let split = NSSplitView()
+    let hosts: [NSHostingController<AnyView>]
+    private var initialized = false
+    init(panes: [AnyView]) {
+        hosts = panes.map { NSHostingController(rootView:$0) }
+        super.init(nibName:nil,bundle:nil)
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) is not supported") }
+    override func loadView() { view = split }
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        split.isVertical = false; split.dividerStyle = .thin
+        for host in hosts {
+            host.sizingOptions = []
+            addChild(host); split.addArrangedSubview(host.view)
+        }
+        split.delegate = self
+        split.adjustSubviews()
+    }
+    func splitView(_ splitView: NSSplitView, resizeSubviewsWithOldSize oldSize: NSSize) {
+        let available = Double(splitView.bounds.height - splitView.dividerThickness*2)
+        guard available > 0, hosts.count == 3 else { return }
+        let current = hosts.map { Double($0.view.frame.height) }
+        let heights: [Double]
+        if initialized, abs(current.reduce(0,+)-available) < 0.01 {
+            // Same-size sheet/environment/feedback layout must preserve the exact
+            // accepted frames, including native divider rounding at small sizes.
+            heights = current
+        } else {
+            let layout = HistoryPaneLayout(heights:initialized ? current : [350,150,180])
+                ?? HistoryPaneLayout(heights:[350,150,180])!
+            heights = layout.heights(available:available)
+        }
+        apply(heights:heights)
+    }
+    fileprivate func apply(heights: [Double]) {
+        guard heights.count == hosts.count else { return }
+        var y: CGFloat = 0
+        for (index,host) in hosts.enumerated() {
+            // Give the final pane the remainder so fractional resizing cannot
+            // accumulate a gap or change the split's total height.
+            let height = index == 2 ? split.bounds.height-y : CGFloat(heights[index])
+            host.view.frame = NSRect(x:0,y:y,width:split.bounds.width,height:height)
+            y += height + split.dividerThickness
+        }
+        initialized = true
+    }
+    private var minimumHeights: [CGFloat] {
+        let available = Double(max(0,split.bounds.height-split.dividerThickness*2))
+        let minimum = HistoryPaneLayout.minimumHeights
+        let scale = min(1,available/minimum.reduce(0,+))
+        return minimum.map { CGFloat($0*scale) }
+    }
+    func splitView(_ splitView: NSSplitView, constrainMinCoordinate proposedMinimumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
+        guard (0..<2).contains(dividerIndex) else { return proposedMinimumPosition }
+        return dividerIndex == 0 ? minimumHeights[0] : hosts[1].view.frame.minY + minimumHeights[1]
+    }
+    func splitView(_ splitView: NSSplitView, constrainMaxCoordinate proposedMaximumPosition: CGFloat, ofSubviewAt dividerIndex: Int) -> CGFloat {
+        guard (0..<2).contains(dividerIndex) else { return proposedMaximumPosition }
+        return dividerIndex == 0 ? hosts[1].view.frame.maxY-splitView.dividerThickness-minimumHeights[1] : splitView.bounds.height-splitView.dividerThickness-minimumHeights[2]
+    }
+    func splitView(_ splitView: NSSplitView, canCollapseSubview subview: NSView) -> Bool { false }
+}
+
+/// Bind to the owned native split. Restore preferences once after real bounds
+/// exist; persist only on owner close, as upstream SaveSplitterPos does.
 struct LogPaneLayoutBridge: NSViewRepresentable {
     @ObservedObject var model: LogWindowModel
     func makeNSView(context: Context) -> Probe { Probe() }
@@ -5114,8 +5201,12 @@ struct LogPaneLayoutBridge: NSViewRepresentable {
             restored = true
             guard let layout = HistoryPaneLayout.load(defaults:model.colorPreferences) else { return }
             let heights = layout.heights(available:available)
-            split.setPosition(heights[0],ofDividerAt:0)
-            split.setPosition(heights[0] + Double(split.dividerThickness) + heights[1],ofDividerAt:1)
+            if let owner = split.delegate as? LogPaneSplitController {
+                // Restore all three saved proportions atomically: applying the
+                // first divider alone can meet the second pane's current minimum
+                // before the second divider has reached its saved position.
+                owner.apply(heights:heights)
+            }
         }
         func save() {
             guard !retired, let model, !model.isInvalidated, let window, !window.isMiniaturized, let split,

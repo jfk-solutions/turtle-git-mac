@@ -49,14 +49,18 @@ continues through the existing owned picker and its cancellation/close handling.
 
 ## Three-pane layout
 
-The three existing panes remain revision list, message and changed files. A
-noninteractive bridge binds to their actual native horizontal NSSplitView without
-replacing its delegate, keyboard behavior or drag handling. Closing the owner
-records the pane proportions in its supplied preferences. A later Log restores
-those proportions at its actual available height, clamping revision/message/file
-panes to 200/110/130 points. Smaller hypothetical bounds scale those minima to fit;
-the normal window retains its existing minimum size. The source stores unscaled
-splitter coordinates; proportional restoration is the native resize adaptation.
+The three existing panes remain revision list, message and changed files, with
+the same SwiftUI content and parent environment hosted in a native horizontal
+NSSplitView. Its local controller owns pane frames and native dividers; a
+noninteractive bridge restores saved proportions once and saves only on owner
+close. Same-size sheet, feedback and environment updates preserve exact accepted
+pane heights. Actual bounds changes scale current proportions and clamp
+revision/message/file panes to 200/110/130 points. Native divider movement remains
+available and becomes the next accepted layout. Smaller hypothetical bounds scale
+those minima to fit; the normal window retains its existing minimum size. The
+source stores unscaled splitter coordinates; proportional restoration is the
+native resize adaptation. Saved frames restore atomically so applying one divider
+does not temporarily constrain the second pane against its old position.
 
 Minimized windows do not replace the saved layout. Corrupt/nonfinite/zero/negative
 or wrong-version layouts are ignored. The bridge is retired with its hosting view;
@@ -99,3 +103,20 @@ is resolved, nor identify a unique production root cause from the message alone.
 [The shared conditional UI audit](PRIMARY-CONDITIONAL-UI-PARITY.md) records the
 Commit split control, Log control states and Working Tree refresh/cancellation
 follow-up, with focused validation and remaining acceptance kept explicit.
+
+
+## Native sheet geometry follow-up — November 26, 2026
+
+Hosted run 45808431864 caught a seven-point file-header shift at the minimum
+window size when a native sheet attached. The same native split retained its
+bounds, but the previous SwiftUI layout owner changed accepted pane heights
+205/112/133 to its minimum-driven 200/110/140. Earlier feedback phases had already
+kept the original geometry stable. The native split controller removes that
+competing layout owner; an asynchronous correction or relaxed header tolerance
+would still permit a visible jump. The grouped checkpoint retains exact native
+geometry, minimum/large sizes, feedback and patch errors, actual sheets and
+close-time divider restoration. The [batch record](qa/hosted-history-recovery-2026-11-26.json)
+passes one incremental app build and both-engine Log/Reference native cases.
+Optional physical capture failed in ScreenCaptureKit (-3811), so this checkpoint
+does not certify new screenshots or compositor appearance. The original strict
+geometry assertions passed without changing their tolerance.

@@ -1,0 +1,151 @@
+{
+  "kind": "TurtleGitHostedHistoryRecovery",
+  "created_utc": "2026-11-26T12:55:01.204480+00:00",
+  "hosted_baseline": {
+    "run": 45808431864,
+    "source": "48265c54840831bbc900ad100275f0a03742aa59",
+    "job": 139875927137,
+    "artifact": 15118448568,
+    "artifact_sha256": "9334b704eb4d68e6775c972f50a54495289991007206da459ec207c89be1d72f",
+    "failures": {
+      "112": "Log min-size native sheet file header moved7points; split205/112/133 to200/110/140 unchangedbounds",
+      "336": "Standalone Reference Browser native multiple selection/last-selected identity before current native row projection accepted"
+    }
+  },
+  "inputs_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "1e7f345fbf6949c67c678c888773a54b9f1b0004bd19167dcff80be7f5963b28",
+    "docs/qa/reference-standalone-native-2026-10-09.swift": "43cc86a1eda8d891a645f5aae460f394029f332bd758cbfcd399151495d936be",
+    "docs/qa/log-feedback-stability-native-2026-11-22.swift": "553cbeacce931de0781aacdee4d315251b33bb241af87561430d907b098abace",
+    "docs/qa/log-controls-layout-native-2026-10-17.swift": "ba5d23e80fdc2c16c5b6d861c8d7f0662f813da564f37ec0caa1ad6ea92b19bb"
+  },
+  "app_build_and_capture_attempt": {
+    "kind": "TurtleGitLogSheetGeometryFamily",
+    "base_commit": "48265c54840831bbc900ad100275f0a03742aa59",
+    "hosted_source": "48265c54840831bbc900ad100275f0a03742aa59",
+    "hosted_run": 45808431864,
+    "status": "failure recorded; retain unaffected passes",
+    "started_utc": "2026-11-26T12:50:04.182133+00:00",
+    "inputs_sha256": {
+      "Sources/TurtleGitMac/LogWindow.swift": "1e7f345fbf6949c67c678c888773a54b9f1b0004bd19167dcff80be7f5963b28",
+      "docs/qa/log-feedback-stability-native-2026-11-22.swift": "553cbeacce931de0781aacdee4d315251b33bb241af87561430d907b098abace",
+      "docs/qa/log-controls-layout-native-2026-10-17.swift": "ba5d23e80fdc2c16c5b6d861c8d7f0662f813da564f37ec0caa1ad6ea92b19bb"
+    },
+    "scope": "Log native pane stability across feedback, patch preferences, sheets and saved divider behavior. One incremental Debug app build plus connected legacy-log/log both engines. Retain prior Core/native passes, no runtime or installed-user-app changes.",
+    "expected_native_processes": 4,
+    "results": [
+      {
+        "name": "debug-build",
+        "command": [
+          "xcodebuild",
+          "-project",
+          "TurtleGitMac.xcodeproj",
+          "-scheme",
+          "TurtleGitMac",
+          "-configuration",
+          "Debug",
+          "-destination",
+          "platform=macOS",
+          "-derivedDataPath",
+          "build",
+          "-jobs",
+          "4",
+          "CODE_SIGNING_ALLOWED=NO",
+          "build"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 85.95,
+        "log": "build/qa/log-sheet-geometry-family-2026-11-26-debug-build.log",
+        "log_sha256": "0471a0cb6d2550f1407dd2b8b99681938bad56ae702a6d96d7bf2a5907958cb6",
+        "reaped_pids": []
+      },
+      {
+        "name": "log-controls",
+        "command": [
+          "python3",
+          "scripts/test-log-controls-layout.py",
+          "--captures",
+          "build/qa/log-sheet-geometry-captures-2026-11-26",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+        ],
+        "exit_code": 1,
+        "elapsed_seconds": 22.481,
+        "log": "build/qa/log-sheet-geometry-family-2026-11-26-log-controls.log",
+        "log_sha256": "4fa3f61b8748a250d1ca771599d842c2b28aad7f69303640d347ba7ca1987fb4",
+        "reaped_pids": [
+          20134,
+          20144,
+          20242
+        ]
+      }
+    ],
+    "finished_utc": "2026-11-26T12:51:52.648940+00:00",
+    "owned_processes_remaining": [],
+    "native_failure": "Optional ScreenCaptureKit capture failed SCStreamErrorDomain -3811; native family interrupted before completion. App build pass retained."
+  },
+  "grouped_native_check": {
+    "kind": "TurtleGitHistoryNativeRecovery",
+    "base_commit": "48265c54840831bbc900ad100275f0a03742aa59",
+    "hosted_run": 45808431864,
+    "status": "passed",
+    "started_utc": "2026-11-26T12:53:12.181399+00:00",
+    "inputs_sha256": {
+      "docs/qa/reference-standalone-native-2026-10-09.swift": "43cc86a1eda8d891a645f5aae460f394029f332bd758cbfcd399151495d936be"
+    },
+    "scope": "Log pane feedback and persistence both engines (4 processcases), standalone reference native projection/selection both engines (2cases). Reuse passed incremental app build; optional SC capture-3811 recorded separately, physical screenshots unverified. No Core/runtime rebuild, private owners only.",
+    "results": [
+      {
+        "name": "log-controls",
+        "command": [
+          "python3",
+          "scripts/test-log-controls-layout.py",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 57.548,
+        "log": "build/qa/ci-history-native-repair-2026-11-26-log-controls.log",
+        "log_sha256": "b5be4c8c61ae50c235d12319992768411994400f3a93bf179da4727e87abb511",
+        "reaped_pids": [
+          22260,
+          23024,
+          23778,
+          24153
+        ]
+      },
+      {
+        "name": "reference-standalone",
+        "command": [
+          "python3",
+          "scripts/test-reference-menu-targets.py",
+          "--only",
+          "standalone",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 6.866,
+        "log": "build/qa/ci-history-native-repair-2026-11-26-reference-standalone.log",
+        "log_sha256": "a18ff11fc6bb3e7e949f1623bcf8b3954e8a2f2e79b92df40ee1c920c5b91a6e",
+        "reaped_pids": [
+          24558,
+          24625,
+          24718
+        ]
+      }
+    ],
+    "finished_utc": "2026-11-26T12:54:16.660317+00:00",
+    "owned_processes_remaining": []
+  },
+  "local_status": "passed one incremental app build and six native process cases across both Git engines; optional physical capture failed -3811 and is unverified",
+  "behavior_assertions": "Original exact geometry/selected identities/range orientation/menu targets/persistence/cancellation assertions retained; no header tolerance expansion or source action bypass.",
+  "core_runtime_rebuilds": 0,
+  "owned_processes_remaining": [],
+  "remaining": "Full hosted result pending; continue other lanes before next grouped source push. No physical screenshot or all-dialog parity certification."
+}

@@ -156,3 +156,23 @@ the wrapper, so the expected marker never appeared. Both-engine Log checks now
 pass with original range, recents, cancellation and Quit assertions retained. The [batch record](qa/hosted-ci-repair-batch-2026-11-26.json) retains
 source hashes, initial failures and affected checks. A fresh hosted run is still
 required, including checks that the failed grouped editor step did not reach.
+
+
+## Hosted Log geometry and Reference Browser follow-up
+
+The fresh hosted history lane reached two further failures: a seven-point Log
+file-header movement when a native sheet attached at minimum size, and a
+standalone Reference Browser selection check acting before its native rows matched
+the model. Log now gives its three existing panes a native split-view controller
+that keeps same-size accepted heights, supports native divider movement and
+scales/clamps on real size changes. Saved frames restore atomically. The Reference
+fixture waits for the actual enabled native row projection, then exact native and
+model selection/last-selected identity after each operation. Original geometry,
+menu-target, range, clipboard and persistence assertions remain intact.
+
+The [history recovery record](qa/hosted-history-recovery-2026-11-26.json) passes
+one incremental app build and six affected native process cases across both Git
+engines. The first optional screenshot attempt failed at ScreenCaptureKit (-3811);
+that failed attempt and its cleanup remain recorded. The existing app build was
+reused for the functional follow-up, with no Core/runtime rebuild. Physical
+screenshots and the complete hosted result remain unverified at this checkpoint.

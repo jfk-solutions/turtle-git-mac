@@ -7,8 +7,8 @@ import TurtleGitCore
     @MainActor static func find(_ view: NSView) -> NSTableView? {
         if let table=view as? NSTableView,table.accessibilityLabel()=="References" {return table};for child in view.subviews {if let result=find(child){return result}};return nil
     }
-    @MainActor static func wait(_ windows:[NSWindow]=[],_ ready:()->Bool) async throws {
-        for _ in 0..<2000 {windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()};if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Timeout")
+    @MainActor static func wait(_ windows:[NSWindow]=[],phase:String="standalone reference readiness",_ ready:()->Bool) async throws {
+        for _ in 0..<2000 {windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()};if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Timeout: "+phase)
     }
     @MainActor static func main() async { do {try await verify()} catch {fputs("Standalone reference QA failed: \(error)\n",stderr);exit(1)} }
     @MainActor static func verify() async throws {
@@ -31,35 +31,60 @@ import TurtleGitCore
         guard let table=find(owner.window!.contentView!),let menu=table.menu else {throw Failure(message:"Actual native table/menu absent")}
         try require(table.allowsMultipleSelection && owner.model.canFinish,"Standalone selection/empty close gate")
         func row(_ name:String) throws -> Int {guard let index=owner.model.rows.firstIndex(where:{$0.reference.name==GitReferenceName(name)}) else {throw Failure(message:"Missing row "+name)};return index}
+        @MainActor func projection(_ table:NSTableView,_ model:ReferenceBrowserWindowModel)->Bool {
+            guard table.window != nil,table.isEnabled,table.numberOfRows==model.rows.count,
+                  let column=table.tableColumns.firstIndex(where:{$0.identifier.rawValue=="name"}),!table.tableColumns[column].isHidden,
+                  table.selectedRowIndexes==IndexSet(model.rows.indices.filter{model.selection.contains(model.rows[$0].reference.name)}) else{return false}
+            return model.rows.indices.allSatisfy {index in
+                (table.view(atColumn:column,row:index,makeIfNecessary:true) as? NSTableCellView)?.textField?.stringValue==model.text(model.rows[index],column:"name")
+            }
+        }
+        @MainActor func selectionWitness(_ phase:String)->String {
+            let column=table.column(withIdentifier:.init("name"))
+            let native=(0..<table.numberOfRows).map {index in column>=0 ? (table.view(atColumn:column,row:index,makeIfNecessary:true) as? NSTableCellView)?.textField?.stringValue ?? "<missing>":"<no name column>"}
+            return "phase=\(phase),modelRows=\(owner.model.rows.map{$0.reference.name.rawValue}),nativeRows=\(native),nativeSelection=\(Array(table.selectedRowIndexes)),selection=\(owner.model.selection),last=\(String(describing:owner.model.lastSelected)),busy=\(owner.model.busy),enabled=\(table.isEnabled),sameWindow=\(table.window === owner.window)"
+        }
+        @MainActor func chooseNative(_ name:String,extend:Bool=false)async throws {
+            do {
+                try await wait([owner.window!],phase:"current native projection before "+name) {projection(table,owner.model) && table.window === owner.window}
+                let index=try row(name),names:Set<GitReferenceName>=extend ? owner.model.selection.union([GitReferenceName(name)]):[GitReferenceName(name)]
+                let indexes=IndexSet(owner.model.rows.indices.filter{names.contains(owner.model.rows[$0].reference.name)})
+                table.selectRowIndexes(IndexSet(integer:index),byExtendingSelection:extend)
+                try await wait([owner.window!],phase:"native selection delegate "+name) {
+                    projection(table,owner.model) && table.selectedRowIndexes==indexes && owner.model.selection==names && owner.model.lastSelected==GitReferenceName(name)
+                }
+            } catch {print("error: Reference selection "+selectionWitness(name));fflush(stdout);throw error}
+        }
         func refreshMenu(){menu.delegate?.menuNeedsUpdate?(menu)}
         func invoke(_ title:String) throws {
             refreshMenu();guard let entry=menu.items.first(where:{$0.title==title}),let action=entry.action else {throw Failure(message:"Missing menu "+title)}
             try require(entry.isEnabled && entry.image != nil,"Menu enablement/artwork")
             try require(NSApplication.shared.sendAction(action,to:entry.target,from:entry),"Native action dispatch")
         }
-        table.selectRowIndexes(IndexSet(integer:try row("refs/heads/left")),byExtendingSelection:false)
-        table.selectRowIndexes(IndexSet(integer:try row("refs/heads/right")),byExtendingSelection:true)
+        try await chooseNative("refs/heads/left")
+        try await chooseNative("refs/heads/right",extend:true)
         try require(owner.model.selection.count==2 && owner.model.lastSelected=="refs/heads/right" && owner.model.chosen==nil,"Native multiple selection/last-selected identity")
         try invoke("Show log of left..right");try invoke("Show log of left...right")
         try require(logs==["refs/heads/left..refs/heads/right","refs/heads/left...refs/heads/right"],"Canonical source range order")
         var options=HistoryOptions();options.revisionRange=owner.model.range!.history();let actual=try await repo.history(options:options);try require(actual.count==1 && actual.first?.subject=="right","Actual history range query")
         try invoke("Copy ref names");try require(copies.last=="left\nright","Copy displayed source-short order")
         refreshMenu();try require(!menu.items.contains{$0.title=="Select" || $0.title=="Rename" || $0.title=="Delete branch"},"Multi selection leaked single-ref action")
-        owner.model.descending=true;try await wait([owner.window!]){table.selectedRowIndexes.count==2 && (table.view(atColumn:0,row:0,makeIfNecessary:true) as? NSTableCellView)?.textField?.stringValue==owner.model.rows.first?.name}
+        owner.model.descending=true;try await wait([owner.window!],phase:"descending native rows and selected identities"){projection(table,owner.model) && table.selectedRowIndexes==IndexSet(owner.model.rows.indices.filter{owner.model.selection.contains(owner.model.rows[$0].reference.name)}) && table.selectedRowIndexes.count==2}
         try require(owner.model.range?.revision()==logs[0],"Sort changed range orientation")
-        table.selectRowIndexes(IndexSet(integer:try row("refs/heads/right")),byExtendingSelection:false)
-        table.selectRowIndexes(IndexSet(integer:try row("refs/heads/left")),byExtendingSelection:true)
+        try await chooseNative("refs/heads/right")
+        try await chooseNative("refs/heads/left",extend:true)
         try invoke("Show log of right..left");try require(logs.last=="refs/heads/right..refs/heads/left","Reverse last-selected range")
-        owner.model.query="left";owner.model.refilter();try await wait([owner.window!]){table.selectedRowIndexes.count==1}
+        owner.model.query="left";owner.model.refilter();try await wait([owner.window!],phase:"filtered native selected identity"){projection(table,owner.model) && table.selectedRowIndexes==IndexSet(owner.model.rows.indices.filter{owner.model.selection.contains(owner.model.rows[$0].reference.name)}) && table.selectedRowIndexes.count==1}
         try require(owner.model.chosen?.name=="refs/heads/left","Filter retained visible selection")
-        owner.model.query="";owner.model.refilter();try await wait([owner.window!]){table.numberOfRows==owner.model.rows.count}
-        table.selectRowIndexes(IndexSet(integer:try row("refs/heads/right")),byExtendingSelection:false)
+        owner.model.query="";owner.model.refilter();try await wait([owner.window!],phase:"unfiltered native row projection"){projection(table,owner.model)}
+        try await chooseNative("refs/heads/right")
         refreshMenu();try require(!menu.items.contains{$0.title=="Select"},"Standalone offered picker Select")
         owner.model.activateSelection();try require(logs.last=="refs/heads/right" && closes==0 && !owner.model.closed,"Standalone double-click closed browser")
-        table.selectRowIndexes(IndexSet(integer:try row("refs/misc/tree")),byExtendingSelection:false);owner.model.activateSelection();try require(browses==["refs/misc/tree"],"Tree double-click did not browse")
+        try await chooseNative("refs/misc/tree");owner.model.activateSelection();try require(browses==["refs/misc/tree"],"Tree double-click did not browse")
         owner.model.hasChild=true;let count=logs.count;owner.model.logRange(symmetric:false);owner.model.accept();try require(closes==0 && logs.count==count && !owner.windowShouldClose(owner.window!),"Owned child escaped gates");owner.model.hasChild=false
         let picker=ReferenceBrowserWindowController(repository:repo,access:nil,initial:"refs/heads/main",preferences:prefs){_ in};defer {picker.close()}
         picker.model.load();try await wait([picker.window!]){!picker.model.busy && picker.model.snapshot != nil}
+        try await wait([picker.window!],phase:"single-selection picker native projection") {find(picker.window!.contentView!).map{projection($0,picker.model)}==true}
         try require(find(picker.window!.contentView!)?.allowsMultipleSelection==false,"Existing chooser became multiple")
         picker.model.select(["refs/heads/left","refs/heads/right"],last:"refs/heads/right");try require(picker.model.selection.count==1,"Chooser accepted multiple refs");picker.close()
         owner.model.selected=nil;try require(owner.model.canFinish,"Standalone cannot close empty selection");owner.model.accept()
