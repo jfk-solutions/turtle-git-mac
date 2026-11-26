@@ -1112,7 +1112,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-middle
-          path: build/qa/ci-step-failures/middle/
+          path: |
+            build/qa/ci-step-failures/middle/
+            build/qa/rebase-source-*-timeout.sample.txt
           if-no-files-found: ignore
           retention-days: 7
       - name: Native Blame toolbar customization and document ownership

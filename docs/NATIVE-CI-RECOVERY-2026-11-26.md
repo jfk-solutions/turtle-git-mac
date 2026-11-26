@@ -80,4 +80,25 @@ Core source is unchanged; the complete hosted Core pass is
 retained. Local native checks do not prove the older-Git matrix, signed sandbox,
 physical Finder, minimum macOS, complete visual parity or a full green hosted run.
 Build 59 remains the separately installed owner-testing package; it does not contain
-this uncommitted batch. No public binary or App Store submission is included.
+this later repair batch. No public binary or App Store submission is included.
+
+## Hosted follow-up on d2a3691e
+
+[The pushed run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45775158545)
+passed Pages, SVN, app/Finder builds and the earlier Log/RefLog groups. The full
+run is still active. Its Replay lane exposed two later failures:
+
+- Bisect's rejected active Start retained its session, but the fixture demanded
+  Reset availability while the real error sheet could still own admission.
+  Immutable session checks now precede error acknowledgement; Reset must be
+  available after the actual sheet detaches. Both Git engines pass locally.
+- Rebase Add/system timed out during staging in the reopened no-commit Split
+  child. The earlier no-commit commit-recovery phase passed. Its saved process
+  stack was not included by the artifact upload, so the product cause remains
+  unproven. The middle checkpoint now preserves that existing timeout sample
+  alongside the redacted failure reports. No Rebase guard or assertion changed.
+
+The [follow-up record](qa/hosted-native-ci-followup-2026-11-26.json) retains the
+verified artifact identity, 54 workflow-contract checks, two affected Bisect
+process passes and exact cleanup. No app/Core/runtime rebuild was needed. This
+checkpoint does not clear the Rebase timeout or claim a full hosted pass.

@@ -81,7 +81,8 @@ def failure_checkpoint_steps(checkpoint):
          'if':"${{ !cancelled() && steps."+owner+".outputs.present == 'true' }}",
          'uses':'actions/upload-artifact@v4',
          'with':{'name':'ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-'+checkpoint,
-                 'path':'build/qa/ci-step-failures/'+checkpoint+'/',
+                 'path':('build/qa/ci-step-failures/middle/\n'
+                         'build/qa/rebase-source-*-timeout.sample.txt\n') if checkpoint=='middle' else 'build/qa/ci-step-failures/'+checkpoint+'/',
                  'if-no-files-found':'ignore',
                  'retention-days':7}},
     )

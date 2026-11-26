@@ -13,12 +13,24 @@ extension PrimaryCommandsVerification {
         prefs.set(false,forKey:"DownloadAnimation");prefs.set(false,forKey:"ConfirmKillProcess");prefs.set(0,forKey:"AutoCloseGitProgress")
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in true},comparisonMarks:WorkingComparisonMarkStore(storageURL:root.appendingPathComponent("private-marks.json")))
         workspace.requiresRepositoryScope=false;workspace.fileComparisonPreferences=prefs;workspace.notifyFinder={};workspace.commandLineRepositoryPermission={_ in RepositoryAccessLease(url:root)}
-        defer {workspace.stopMonitoringForTermination();for window in NSApp.windows {window.close()}}
+        defer {workspace.stopMonitoringForTermination();NativeOwnedWindowCleanup.close(NSApp.windows)}
         func owners()->[BisectWindowController] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? BisectWindowController}}
         func invoke(_ flags:[String]) {workspace.handleCommandLine(arguments:["--command=bisect"]+flags,currentDirectory:root.path)}
         invoke([]);try await wait {!workspace.busy && owners().first?.model.busy==false}
         let owner=try requireOne(owners()),model=owner.model
-        func acknowledgeError() async throws {model.error=nil;try await wait {owner.window?.attachedSheet==nil}}
+        @MainActor func admissionDiagnostic()->String {
+            var fields:[String]=[]
+            fields.append("workspaceBusy=\(workspace.busy),busy=\(model.busy),pending=\(model.hasPendingWork),picker=\(model.hasPicker)")
+            fields.append("confirmQuit=\(model.confirmingQuit),confirmCancel=\(model.confirmingCancellation),retired=\(model.retired),presentation=\(model.presentationAvailable())")
+            fields.append("active=\(String(describing:model.state?.active)),head=\(String(describing:model.state?.head)),exit=\(String(describing:model.lastExitCode)),reset=\(model.canPerform(.reset))")
+            fields.append("sheet=\(owner.window?.attachedSheet != nil),error=\(String(reflecting:model.error))")
+            return fields.joined(separator:"; ")
+        }
+        @MainActor func acknowledgeError() async throws {
+            model.error=nil
+            do {try await wait {owner.window?.attachedSheet==nil && !model.busy && !model.hasPendingWork}}
+            catch{throw Failure(description:"Bisect error acknowledgement did not detach: "+admissionDiagnostic()+"; "+String(describing:error))}
+        }
         try require(model.error=="Operation unknown or not allowed." && model.state?.active==false && !model.hasStartReview,"Unknown inactive command created a Start review or lost actual state")
         try await acknowledgeError()
         invoke(["--start","--good",hashes[0],"--bad",hashes[7]])
@@ -58,8 +70,14 @@ extension PrimaryCommandsVerification {
         let customBefore=try await repo.bisectState()
         invoke(["--start"]);try await wait {!workspace.busy && !model.busy && model.error != nil}
         state=try await repo.bisectState()
-        try require(state.active && state.log==customBefore.log && state.head==customBefore.head && model.state?.active==true && model.canPerform(.reset),"Rejected active Start lost recoverable state or changed session")
+        let unchanged="active=\(state.active),logEqual=\(state.log==customBefore.log),headEqual=\(state.head==customBefore.head); "+admissionDiagnostic()
+        try require(state.active,"Rejected active Start ended the custom-term session: "+unchanged)
+        try require(state.log==customBefore.log && state.head==customBefore.head,"Rejected active Start changed exact log/HEAD: "+unchanged)
+        try require(model.state?.active==true,"Rejected active Start lost recoverable active model: "+unchanged)
+        // Reset is a recovery action, but the native error sheet still owns
+        // command admission until its acknowledgement has actually detached.
         try await acknowledgeError()
+        try require(model.canPerform(.reset),"Acknowledged active Start refusal did not restore Reset: "+admissionDiagnostic())
         invoke(["--start","--good="+hashes[0],"--bad="+hashes[7],"--skip","--reset","--ref",hashes[2]])
         try await wait {!workspace.busy && !model.busy && model.state?.log.contains("git bisect old "+hashes[2])==true}
         try require(model.state?.goodTerm=="old" && model.state?.badTerm=="new" && model.lastExitCode==0,"Active Start+Good precedence or custom terms were lost")

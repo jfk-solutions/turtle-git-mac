@@ -25,6 +25,14 @@ class MacOSLaneTests(unittest.TestCase):
         return ci.verify(workflow or self.workflow, inventory or self.inventory, self.originals)
     def testCurrentSyntaxAndExactOriginalCoverage(self):
         self.verify()
+    def testRebaseTimeoutStackCannotBeDroppedOrReplaceFailureReports(self):
+        for removed in ['build/qa/rebase-source-*-timeout.sample.txt',
+                        'build/qa/ci-step-failures/middle/']:
+            value=copy.deepcopy(self.workflow)
+            step=next(s for s in value['jobs']['validation']['steps']
+                      if s.get('name')=='Upload redacted CI failures middle')
+            step['with']['path']=step['with']['path'].replace(removed+'\n','')
+            with self.subTest(removed=removed),self.assertRaises(AssertionError):self.verify(value)
     def testEditorReloadCannotReplaceOrDropViewportCoverage(self):
         for mutation in ['omit-reload', 'omit-viewport', 'omit-bundled', 'drop-ready']:
             with self.subTest(mutation=mutation):

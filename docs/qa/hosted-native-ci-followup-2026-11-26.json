@@ -1,0 +1,80 @@
+{
+  "kind": "TurtleGitHostedRecovery",
+  "source_commit": "d2a3691ee42a2b4939dd389948633ae5cbd4b8a5",
+  "hosted_run": 45775158545,
+  "status": "passed",
+  "started_utc": "2026-11-26T09:17:02.947157+00:00",
+  "inputs_sha256": {
+    ".github/workflows/macos.yml": "eb9a1a804eb42c7de1cb11ac953d02471eefbbc73c54f9267323fdb72ac1ec61",
+    "scripts/check-macos-ci-lanes.py": "6acd92df93c0cf3453ae3de13dffe79eb4e49b17cbc5f5b9808f0f129f4c17db",
+    "scripts/test-macos-ci-lanes.py": "d19fc23b4b4e9d5ec02006e318f19166d6800c1a26b16c3a641c24411d0b8688",
+    "docs/qa/bisect-commands-native-2026-10-18.swift": "080c96f80c87e02d0506d2be5a3826685b0b6f5758b062a67b45016d0de8b0dd"
+  },
+  "retained_native_cases": 46,
+  "scope": "Bisect native error-sheet ordering and missing Rebase timeout stack upload. Rebase Split cause remains unproven; no product/Core/runtime changes or repeated Rebase pass claimed.",
+  "results": [
+    {
+      "name": "workflow-contracts",
+      "command": [
+        "python3",
+        "scripts/test-macos-ci-lanes.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 3.724,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/ci-bisect-recovery-2026-11-26-workflow-contracts.log",
+      "log_sha256": "63b66ed11507dddc194b3311d27b783c03861315b6cbaa2a6afe74b6229dc42d",
+      "reaped_pids": []
+    },
+    {
+      "name": "bisect",
+      "command": [
+        "python3",
+        "scripts/test-primary-commands.py",
+        "--only",
+        "bisect",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 54.516,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/ci-bisect-recovery-2026-11-26-bisect.log",
+      "log_sha256": "93a00c15bb1d79910ff08a23ea1391cf1127c8a5c49426d88e79d9b1fbbe079f",
+      "reaped_pids": [
+        69372,
+        69631,
+        71090
+      ]
+    }
+  ],
+  "finished_utc": "2026-11-26T09:18:01.262001+00:00",
+  "local_workflow_contract_tests": 54,
+  "local_native_bisect_process_cases": 2,
+  "app_core_runtime_builds": 0,
+  "owned_processes_remaining": [],
+  "hosted_state": "d2a run still active; Rebase201 and Bisect274 failed; this Bisect repair awaits hosted validation; Rebase cause unproven",
+  "observed_hosted_failures": [
+    {
+      "job": 139757436444,
+      "step": 201,
+      "case": "Rebase Add/system; noCommitSquashSplit waiting after second.moveToStage line434",
+      "cause": "unproven; saved sample not included in prior artifacts"
+    },
+    {
+      "job": 139757436444,
+      "step": 274,
+      "case": "Bisect/system rejected active Start",
+      "repair": "check immutable session first; require Reset only after actual error sheet detaches"
+    }
+  ],
+  "artifact": {
+    "id": 15100729633,
+    "sha256": "1e9e5ec52f1ec44cc8371853ca8c1aa471b3ae73e7d282082bb997e4f9d3ac1b"
+  },
+  "limits": [
+    "No full hosted success claimed.",
+    "Rebase fixture and product code unchanged; no repeat local Rebase pass used as a hosted repair.",
+    "No user app replacement, renderer change or publication."
+  ]
+}
