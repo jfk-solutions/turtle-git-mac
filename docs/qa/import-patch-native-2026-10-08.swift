@@ -51,17 +51,36 @@ import TurtleGitCore
         let folder=root.appendingPathComponent("single-line-navigation");try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
         let a=folder.appendingPathComponent("base"),b=folder.appendingPathComponent("mine")
         try Data("base".utf8).write(to:a);try Data("mine".utf8).write(to:b)
-        let model=FileComparisonWindowModel(comparison:try WorkingFileComparison(base:a,destination:b),permissions:[])
-        model.editorPreferences = .load(from:prefs);model.load();defer {model.retireImageLoader()}
-        for _ in 0..<1000 {if !model.busy && !model.filtering {break};try await Task.sleep(nanoseconds:10_000_000)}
-        precondition(model.error==nil && model.alignment?.rows.count==1)
-        let host=NSHostingView(rootView:FileComparisonEditor(model:model,cells:model.alignment!.rows.map(\.destination),base:false))
-        let window=NSWindow(contentRect:NSRect(x:0,y:0,width:500,height:300),styleMask:[.titled],backing:.buffered,defer:false)
-        window.isReleasedWhenClosed=false;window.contentView=host;defer {window.close()}
-        func text(_ root:NSView)->NSTextView? {if let text=root as? NSTextView{return text};return root.subviews.compactMap {text($0)}.first}
-        for _ in 0..<1000 {host.layoutSubtreeIfNeeded();if let view=text(host),let navigation=view as? MergeLineNavigationProviding,navigation.navigationAllowed {break};try await Task.sleep(nanoseconds:10_000_000)}
-        let view=text(host)!,menu=(view as! ComparisonContextMenuProviding).comparisonContextMenu(defaults:prefs,pasteboard:board)
-        precondition(!menu.item(withTitle:"Go to Line…")!.isEnabled)
+        let owner=FileComparisonWindowController(comparison:try WorkingFileComparison(base:a,destination:b),permissions:[],preferences:prefs,deferInitialLoad:true)
+        defer {owner.close()}
+        guard let window=owner.window else{throw NSError(domain:"Single-line navigation: native owner window missing",code:1)}
+        let model=owner.model
+        window.alphaValue=0;window.setFrameOrigin(NSPoint(x:-20000,y:-20000));window.orderFront(nil)
+        model.beginTransferredDocument()
+        func text(_ root:NSView?)->NSTextView? {
+            guard let root else{return nil}
+            if let text=root as? NSTextView,let scroll=text.enclosingScrollView,
+               model.ownsEditor(scroll,base:false),model.ownsViewport(scroll,base:false) {return text}
+            return root.subviews.compactMap{text($0)}.first
+        }
+        for _ in 0..<1000 {
+            window.contentView?.layoutSubtreeIfNeeded()
+            if !model.busy,!model.filtering,!model.initialNavigationPending,
+               let view=text(window.contentView),let navigation=view as? MergeLineNavigationProviding,
+               navigation.navigationAllowed {break}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        guard model.error==nil,model.alignment?.rows.count==1,
+              !model.busy,!model.filtering,!model.initialNavigationPending,
+              let view=text(window.contentView),view.window === window,
+              let navigation=view as? MergeLineNavigationProviding,navigation.navigationAllowed,
+              let provider=view as? ComparisonContextMenuProviding else {
+            throw NSError(domain:"Single-line navigation native presentation: busy=\(model.busy), filtering=\(model.filtering), initial=\(model.initialNavigationPending), rows=\(String(describing:model.alignment?.rows.count)), visible=\(window.isVisible), text=\(text(window.contentView) != nil), error=\(String(describing:model.error))",code:1)
+        }
+        let menu=provider.comparisonContextMenu(defaults:prefs,pasteboard:board)
+        guard let goToLine=menu.item(withTitle:"Go to Line…"),!goToLine.isEnabled else {
+            throw NSError(domain:"Single-line navigation: actual Go to Line command missing or enabled",code:1)
+        }
     }
     @MainActor static func main() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -177,15 +196,43 @@ import TurtleGitCore
         _ = try await reviewRepo.run(["restore", "--", "long"])
         let scrollController = WorkingTreePatchWindowController(repository: reviewRepo, access: nil, fileAccess: nil, bytes: longBytes, title: "long.patch", preferences: prefs)
         defer { scrollController.close() }
+        // Linked native scrolling requires a live presented editor owner, even
+        // though this private receiver must not display a window to the user.
+        let scrollWindow = scrollController.window!
+        scrollWindow.alphaValue = 0
+        scrollWindow.setFrameOrigin(NSPoint(x: -20000, y: -20000))
+        scrollWindow.orderFront(nil)
         let scrollModel = scrollController.model
+        func currentScrollPanes() -> Bool {
+            guard !scrollModel.busy, let editor = scrollModel.editor,
+                  !editor.filtering, !editor.initialNavigationPending, editor.canScrollViewport,
+                  let left = scrollModel.beforeScroll, let right = scrollModel.afterScroll,
+                  editor.ownsEditor(left, base: true), editor.ownsEditor(right, base: false),
+                  editor.ownsViewport(left, base: true), editor.ownsViewport(right, base: false),
+                  left.window === scrollWindow, right.window === scrollWindow,
+                  let a = left.documentView as? NSTextView,
+                  let b = right.documentView as? NSTextView,
+                  a.window === scrollWindow, b.window === scrollWindow,
+                  !a.isHiddenOrHasHiddenAncestor, !b.isHiddenOrHasHiddenAncestor else { return false }
+            // Check the actual mounted text against the current model projection
+            // without naming the implementation-private native view subclass.
+            for (view, base) in [(a, true), (b, false)] {
+                let cells = editor.displayCells(base: base)
+                let expected = cells.map(\.displayText).joined(separator: "\n") + (cells.isEmpty ? "" : "\n")
+                guard view.string.utf8.elementsEqual(expected.utf8) else { return false }
+            }
+            return a.frame.height > left.contentView.bounds.height + 220 && b.frame.height > right.contentView.bounds.height + 220
+        }
+        func scrollDiagnostic() -> String {
+            let editor = scrollModel.editor
+            return "busy=\(scrollModel.busy), filtering=\(String(describing: editor?.filtering)), pendingInitial=\(String(describing: editor?.initialNavigationPending)), canScroll=\(String(describing: editor?.canScrollViewport)), visible=\(scrollWindow.isVisible), left=\(String(describing: scrollModel.beforeScroll?.contentView.bounds)), right=\(String(describing: scrollModel.afterScroll?.contentView.bounds)), current=\(currentScrollPanes())"
+        }
         for _ in 0..<1000 {
-            scrollController.window?.contentView?.layoutSubtreeIfNeeded()
-            if !scrollModel.busy && scrollModel.editor?.filtering == false,
-               let left = scrollModel.beforeScroll, let right = scrollModel.afterScroll,
-               (left.documentView?.frame.height ?? 0) > left.contentView.bounds.height + 220,
-               (right.documentView?.frame.height ?? 0) > right.contentView.bounds.height + 220 { break }
+            scrollWindow.contentView?.layoutSubtreeIfNeeded()
+            if currentScrollPanes() { break }
             try await Task.sleep(nanoseconds: 10_000_000)
         }
+        guard currentScrollPanes() else { throw NSError(domain: "ImportPatchScrollQA", code: 1, userInfo: [NSLocalizedDescriptionKey: "Native scroll owner did not become ready: " + scrollDiagnostic()]) }
         // Source two-pane EOF repair retains a final empty NoEnding record.
         precondition(!scrollModel.busy && scrollModel.alignment?.rows.count == 121)
         let terminal=scrollModel.alignment!.rows.last!
@@ -198,11 +245,15 @@ import TurtleGitCore
             if leftScroll.contentView.bounds.minY > 0 && abs(leftScroll.contentView.bounds.minY - rightScroll.contentView.bounds.minY) < 1 { break }
             try await Task.sleep(nanoseconds: 5_000_000)
         }
-        precondition(leftScroll.contentView.bounds.minY > 0 && abs(leftScroll.contentView.bounds.minY - rightScroll.contentView.bounds.minY) < 1)
+        guard currentScrollPanes(), scrollModel.beforeScroll === leftScroll, scrollModel.afterScroll === rightScroll,
+              leftScroll.contentView.bounds.minY > 0 && abs(leftScroll.contentView.bounds.minY - rightScroll.contentView.bounds.minY) < 1 else {
+            throw NSError(domain: "ImportPatchScrollQA", code: 2, userInfo: [NSLocalizedDescriptionKey: "Native linked scrolling failed: " + scrollDiagnostic()])
+        }
         scrollModel.navigate(1)
         precondition(scrollModel.difference == 0 && (rightScroll.documentView as! NSTextView).selectedRange().location > 0)
         let unchangedLong = try Data(contentsOf: longPath)
         precondition(unchangedLong == Data(longBefore.utf8))
+        scrollController.close()
         print("PASS: actual hidden aligned before/after text, source Merge colors, line ruler, addition absence, Find bar, linked vertical scrolling and next-difference navigation; real worktree/HEAD/index unchanged by preview. No physical input/screenshot acceptance.")
         let (editRepo, editFiles) = try await fixture(root.appendingPathComponent("edited-review"), git)
         let editBytes = try Data(contentsOf: editFiles[0]) + Data(contentsOf: editFiles[1])
@@ -317,7 +368,13 @@ import TurtleGitCore
             return await withCheckedContinuation { exportPending = $0 }
         }
         let exportedResult = root.appendingPathComponent("saved-result 雪.txt")
-        for target in [URL?.none, exportedResult, root.appendingPathComponent("missing-export-directory/result")] {
+        // Save As legitimately creates missing parent directories. A regular
+        // file in the parent position is a real structural write failure on all
+        // hosts, independent of root privileges or a writable temporary folder.
+        let blockedExportParent = root.appendingPathComponent("blocked-export-parent")
+        let blockedExportBytes = Data("owned export parent sentinel\n".utf8)
+        try blockedExportBytes.write(to: blockedExportParent)
+        for target in [URL?.none, exportedResult, blockedExportParent.appendingPathComponent("result")] {
             exportEditor.export(base: false); precondition(exportEditor.exporting && exportEditor.busy)
             try await waitEdit { exportPending != nil }
             let pending = exportPending!; exportPending = nil; pending.resume(returning: target)
@@ -327,13 +384,36 @@ import TurtleGitCore
         let exportedBytes = try Data(contentsOf: exportedResult)
         let expectedExportBytes = try ComparisonTextEncoding.utf16LEBOM.encode(exportDraft)
         precondition(exportChoices == 3 && exportedBytes == expectedExportBytes)
-        precondition(exportEditor.error != nil && edit.appliedPaths.isEmpty)
+        guard exportEditor.error != nil else {
+            throw NSError(domain:"Import export structural failure did not report an error: choices=\(exportChoices), busy=\(exportEditor.busy), exporting=\(exportEditor.exporting), parentExists=\(FileManager.default.fileExists(atPath:blockedExportParent.path))",code:1)
+        }
+        guard edit.appliedPaths.isEmpty else {throw NSError(domain:"Export applied repository paths: \(edit.appliedPaths)",code:1)}
+        let retainedExportParent = try Data(contentsOf:blockedExportParent)
+        precondition(retainedExportParent == blockedExportBytes,"Failed export changed its regular-file parent")
         let unchangedExportIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index"))
         let unchangedExportHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
         let unchangedExportWork = try Data(contentsOf: editRepo.root.appendingPathComponent("file"))
         precondition(unchangedExportIndex == editIndex && unchangedExportHead == editHead && unchangedExportWork == Data("base\n".utf8))
-        exportEditor.error = nil; exportEditor.changeEncoding(beforeExportEncoding, base: false)
+        exportEditor.error = nil
+        func exportHistoryReady()->Bool {
+            guard edit.editor === exportEditor,!exportEditor.filtering,!exportEditor.initialNavigationPending,
+                  exportEditor.historyActionsAllowed,exportEditor.canTransfer(toBase:false),
+                  let scroll=edit.afterScroll,exportEditor.ownsEditor(scroll,base:false),exportEditor.ownsViewport(scroll,base:false),
+                  scroll.documentView === editedView,editedView.window === editController.window else{return false}
+            let cells=exportEditor.displayCells(base:false)
+            let expected=cells.map(\.displayText).joined(separator:"\n")+(cells.isEmpty ? "":"\n")
+            return editedView.string.utf8.elementsEqual(expected.utf8)
+        }
+        try await waitEdit {exportHistoryReady() && exportEditor.canUndo}
+        // Change Encoding is a real history entry. Export does not add one:
+        // first Undo restores the format, then Undo restores the typed draft.
+        // Restoring encoding by another command here would add another entry.
         exportEditor.undo()
+        try await waitEdit {exportHistoryReady() && exportEditor.encoding(base:false)==beforeExportEncoding}
+        precondition(exportEditor.draftText(base:false)==exportDraft && edit.dirty,"Export format Undo changed the typed draft or savepoint")
+        precondition(exportEditor.canUndo,"Export format Undo lost the preceding text edit")
+        exportEditor.undo()
+        try await waitEdit {exportHistoryReady() && exportEditor.draftText(base:false)==beforeExportText && exportEditor.encoding(base:false)==beforeExportEncoding}
         precondition(exportEditor.draftText(base: false) == beforeExportText, "Export Undo: text=\(String(reflecting: exportEditor.draftText(base: false))) original=\(String(reflecting: beforeExportText)), canUndo=\(exportEditor.canUndo), busy=\(exportEditor.busy), quit=\(exportEditor.confirmingQuit)")
         precondition(!edit.dirty, "Export Undo: encoding=\(String(describing: exportEditor.encoding(base: false))) original=\(beforeExportEncoding), filtering=\(exportEditor.filtering)")
         exportEditor.resetHistory()
@@ -364,7 +444,8 @@ import TurtleGitCore
         precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitEdit { editReply != nil }
         let editedDisk = try Data(contentsOf: editRepo.root.appendingPathComponent("file")), afterEditedIndex = try Data(contentsOf: editRepo.root.appendingPathComponent(".git/index"))
-        precondition(editReply == true && editedDisk == Data("custom\nno final newline".utf8) && editIndex == afterEditedIndex && !edit.dirty)
+        precondition(editReply == true && editedDisk == Data("custom\nno final newline".utf8) && editIndex == afterEditedIndex && !edit.dirty,
+                     "Quit Save outcome: reply=\(String(describing:editReply)),disk=\(String(reflecting:String(decoding:editedDisk,as:UTF8.self))),diskBytes=\(editedDisk as NSData),indexUnchanged=\(editIndex==afterEditedIndex),dirty=\(edit.dirty),busy=\(edit.busy),decision=\(edit.draftDecisionPending),confirmingQuit=\(edit.confirmingQuit),notice=\(String(reflecting:edit.notice)),output=\(String(reflecting:edit.output)),editorText=\(String(reflecting:edit.editor?.draftText(base:false))),editorEncoding=\(String(describing:edit.editor?.encoding(base:false))),editorError=\(String(reflecting:edit.editor?.error)),editorFiltering=\(String(describing:edit.editor?.filtering)),editorChoices=\(String(describing:edit.editor?.hasPendingEditorChoice)),ownerSheet=\(editController.window?.attachedSheet != nil)")
         // The receiver captures the reply; it never terminates NSApplication.
         try await waitEdit { !edit.busy && !edit.editor!.filtering && edit.afterScroll != nil }
         precondition(edit.editor === exportEditor && edit.editor!.draftText(base: false) == "custom\nno final newline" && !edit.dirty && !edit.canSaveDraft)
@@ -378,12 +459,22 @@ import TurtleGitCore
         edit.setEditing(true); try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
         let newEditor = edit.afterScroll!.documentView as! NSTextView
         newEditor.insertText("new edited file\n", replacementRange: NSRange(location: 0, length: (newEditor.string as NSString).length))
-        precondition(edit.dirty); edit.saveDraft(); precondition(edit.busy)
+        // Native rows use LF display separators. Source-created files retain
+        // their default CRLF serialization independently of that display.
+        let newSerialized=edit.editor!.draftText(base:false),newEncoding=edit.editor!.encoding(base:false)!
+        let expectedNewSerialized="new edited file\r\n"
+        precondition(MergeLineEndings.boundaries(in:newSerialized).map(\.style)==[.crlf],"New file lost source default CRLF ending")
+        let expectedNewBytes=try newEncoding.encode(expectedNewSerialized)
+        precondition(edit.dirty && newEditor.string=="new edited file\n" && newSerialized==expectedNewSerialized,
+                     "New-file edit receipt: path=\(String(describing:edit.comparison?.document.destination.path)),nativeText=\(String(reflecting:newEditor.string)),draft=\(String(reflecting:edit.editor?.draftText(base:false))),dirty=\(edit.dirty),encoding=\(String(describing:edit.editor?.encoding(base:false)))")
+        edit.saveDraft(); precondition(edit.busy)
         precondition(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel)
         try await waitEdit { !edit.busy }
         let stagedNew = try await editRepo.run(["show", ":other"]).stdout, stagedOriginal = try await editRepo.run(["show", ":file"]).stdout
         let finalEditHead = try await editRepo.run(["rev-parse", "HEAD"]).stdout
-        precondition(stagedNew == Data("new edited file\n".utf8) && stagedOriginal == Data("base\n".utf8) && finalEditHead == editHead && !edit.dirty)
+        let autoAddDisk=try Data(contentsOf:editRepo.root.appendingPathComponent("other"))
+        precondition(stagedNew == expectedNewBytes && autoAddDisk == expectedNewBytes && stagedOriginal == Data("base\n".utf8) && finalEditHead == editHead && !edit.dirty,
+                     "New-file Auto Add: stagedNew=\(stagedNew as NSData),stagedNewText=\(String(reflecting:String(decoding:stagedNew,as:UTF8.self))),stagedOriginal=\(stagedOriginal as NSData),HEADUnchanged=\(finalEditHead==editHead),disk=\(autoAddDisk as NSData),dirty=\(edit.dirty),busy=\(edit.busy),path=\(String(describing:edit.comparison?.document.destination.path)),encoding=\(String(describing:edit.editor?.encoding(base:false))),editorError=\(String(reflecting:edit.editor?.error)),notice=\(String(reflecting:edit.notice)),output=\(String(reflecting:edit.output)),requiresRefresh=\(edit.requiresRefresh),autoAddPreference=\(MergeEditorPreferences.load(from:prefs).autoAdd),draft=\(String(reflecting:edit.editor?.draftText(base:false))),ownerSheet=\(editController.window?.attachedSheet != nil)")
         _ = try await editRepo.run(["reset", "--hard", "HEAD"])
         edit.refresh(); try await waitEdit { !edit.busy && edit.afterScroll != nil }
         // Refresh preserves the explicitly viewed file. Select the file whose
@@ -393,13 +484,17 @@ import TurtleGitCore
         try await waitEdit { !edit.busy && edit.focusedFile == staleFile.id && edit.afterScroll != nil }
         edit.setEditing(true); try await waitEdit { (edit.afterScroll?.documentView as? NSTextView)?.isEditable == true }
         let staleEditor = edit.afterScroll!.documentView as! NSTextView
+        precondition(MergeLineEndings.boundaries(in:edit.editor!.draftText(base:false)).first?.style == .lf,"Existing source file lost its LF ending before stale-save edit")
         staleEditor.insertText("retained draft\n", replacementRange: NSRange(location: 0, length: (staleEditor.string as NSString).length))
+        let retainedSerialized=edit.editor!.draftText(base:false)
+        precondition(retainedSerialized=="retained draft\n" && MergeLineEndings.boundaries(in:retainedSerialized).map(\.style)==[.lf],"Existing-file native edit did not preserve source LF serialization")
         try Data("external change\n".utf8).write(to: editRepo.root.appendingPathComponent("file"))
         editReply = nil
         try await settleComparisons()
         precondition(quitEdit.applicationShouldTerminate(NSApplication.shared) == .terminateLater)
         try await waitEdit { editReply != nil }
-        precondition(editReply == false && edit.dirty && edit.editor!.draftText(base: false) == "retained draft\n")
+        precondition(editReply == false && edit.dirty && edit.editor!.draftText(base: false) == retainedSerialized,
+                     "Stale Quit Save: reply=\(String(describing:editReply)),dirty=\(edit.dirty),draft=\(String(reflecting:edit.editor?.draftText(base:false))),notice=\(String(reflecting:edit.notice)),output=\(String(reflecting:edit.output))")
         let externalFile = try Data(contentsOf: editRepo.root.appendingPathComponent("file")); precondition(externalFile == Data("external change\n".utf8))
         edit.chooseDraft = { choices += 1; return .discard }; editReply = nil
         try await settleComparisons()
@@ -408,31 +503,120 @@ import TurtleGitCore
         precondition(editReply == true && edit.dirty) // Don’t Save retains draft if another document cancels Quit.
         edit.discardDraft(); precondition(!edit.dirty && !edit.editingEnabled)
         print("PASS: real aligned native editing/Undo/Redo, draft transition locks and Close/Quit Cancel/Save/Don’t Save; edited bytes/no-final-newline saved, existing index/HEAD retained, default Auto Add stages only new result; stale save keeps draft and cancels Quit. Captured replies/injected choices, no physical sheets or app termination.")
+        // The real Quit continuation owns an empty-result sheet too. Ordinary
+        // save admission remains blocked, and a retired owner's late reply
+        // cannot publish the empty draft.
+        @MainActor func emptyQuit(_ name:String,retireWhileQuestion:Bool)async throws {
+            let (repo,files)=try await fixture(root.appendingPathComponent(name),git)
+            let bytes=try Data(contentsOf:files[0])+Data(contentsOf:files[1])
+            let owner=WorkingTreePatchWindowController(repository:repo,access:nil,fileAccess:nil,bytes:bytes,title:name+".patch",preferences:prefs)
+            defer{owner.close()}
+            let child=owner.model
+            owner.window?.alphaValue=0;owner.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));owner.window?.orderFront(nil)
+            func settled(_ condition:()->Bool)async throws {
+                for _ in 0..<2000 {owner.window?.contentView?.layoutSubtreeIfNeeded();if condition(){return};try await Task.sleep(nanoseconds:5_000_000)}
+                preconditionFailure("Empty Quit did not settle: busy=\(child.busy),dirty=\(child.dirty),quit=\(child.confirmingQuit),decision=\(child.draftDecisionPending),notice=\(child.notice),sheet=\(owner.window?.attachedSheet != nil)")
+            }
+            try await settled{!child.busy && child.editor != nil && !child.editor!.filtering && child.afterScroll != nil}
+            child.setEditing(true)
+            try await settled{(child.afterScroll?.documentView as? NSTextView)?.isEditable==true}
+            let native=child.afterScroll!.documentView as! NSTextView
+            native.insertText("",replacementRange:NSRange(location:0,length:native.string.utf16.count))
+            try await settled{child.dirty && child.editor?.filtering==false}
+            let file=repo.root.appendingPathComponent("file"),before=try Data(contentsOf:file),beforeIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
+            var question:NSAlert?,late:((NSApplication.ModalResponse)->Void)?
+            child.presentSaveQuestion={alert,answer in question=alert;late=answer;alert.window.alphaValue=0;alert.window.setFrameOrigin(NSPoint(x:-24000,y:-24000));alert.beginSheetModal(for:owner.window!,completionHandler:answer)}
+            child.chooseDraft={.save}
+            let delegate=TurtleGitApplicationDelegate();var reply:Bool?
+            delegate.replyToTermination={_,allow in reply=allow}
+            try await settleComparisons()
+            precondition(delegate.applicationShouldTerminate(NSApp) == .terminateLater)
+            try await settled{question?.window.sheetParent === owner.window && child.confirmingQuit && child.draftDecisionPending}
+            precondition(child.busy && reply==nil)
+            if retireWhileQuestion {
+                owner.close();late?(.alertFirstButtonReturn);late?(.alertSecondButtonReturn)
+                try await settled{reply != nil && !child.busy && question?.window.sheetParent==nil}
+                precondition(reply==false,"Retired Quit Save accepted a late empty-result choice")
+            } else {
+                let keep=question!.buttons.first{$0.title=="Cancel — Keep Empty File"}!
+                keep.performClick(nil)
+                try await settled{reply != nil && !child.busy && question?.window.sheetParent==nil}
+                precondition(reply==true && !child.dirty,"Owned Quit Save did not honor real keep-empty answer")
+            }
+            let finalIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),finalHead=try await repo.run(["rev-parse","HEAD"]).stdout
+            let disk=try Data(contentsOf:repo.root.appendingPathComponent("file"))
+            precondition(disk==(retireWhileQuestion ? before:Data()),"Empty Quit Save changed the wrong bytes")
+            precondition(finalIndex==beforeIndex && finalHead==head,"Empty Quit Save changed index or refs")
+        }
+        try await emptyQuit("empty-quit-save",retireWhileQuestion:false)
+        try await emptyQuit("empty-quit-retired",retireWhileQuestion:true)
+
         // Exercise ordinary FileSave separately from automatic PatchSave.
         let markRoot = root.appendingPathComponent("marked-save")
         try FileManager.default.createDirectory(at: markRoot, withIntermediateDirectories: true)
         let markBase = markRoot.appendingPathComponent("base"), markMine = markRoot.appendingPathComponent("mine")
         let baseText = "base one\ncommon\nbase two\nend", mineText = "local one\r\ncommon\r\nlocal two\r\nend"
         try Data(baseText.utf8).write(to: markBase)
-        func markedTextView(_ view: NSView) -> NSTextView? {
-            if let text = view as? NSTextView { return text }
-            return view.subviews.compactMap { markedTextView($0) }.first
+        func ownedDestination(_ owner:FileComparisonWindowController)->NSTextView? {
+            guard let window=owner.window else{return nil}
+            func find(_ root:NSView)->NSTextView? {
+                if let view=root as? NSTextView,let scroll=view.enclosingScrollView,
+                   view.window === window,!view.isHiddenOrHasHiddenAncestor,
+                   owner.model.ownsEditor(scroll,base:false),owner.model.ownsViewport(scroll,base:false) {return view}
+                return root.subviews.compactMap{find($0)}.first
+            }
+            return window.contentView.flatMap{find($0)}
+        }
+        func mountedComparison(_ comparison:WorkingFileComparison)async throws->(FileComparisonWindowController,NSTextView) {
+            let owner=FileComparisonWindowController(comparison:comparison,permissions:[],preferences:prefs,deferInitialLoad:true)
+            guard let window=owner.window else{throw NSError(domain:"Comparison native owner missing",code:1)}
+            window.alphaValue=0;window.setFrameOrigin(NSPoint(x:-24000,y:-24000));window.orderFront(nil)
+            let model=owner.model;model.beginTransferredDocument()
+            for _ in 0..<2000 {
+                window.contentView?.layoutSubtreeIfNeeded()
+                if !model.busy,!model.filtering,!model.initialNavigationPending,!model.reloadPositionPending,
+                   !model.lineWrapping.isGeometryPending,model.alignmentSelections.isEmpty,model.selectionRequest==nil,
+                   let view=ownedDestination(owner),let navigation=view as? MergeLineNavigationProviding,navigation.navigationAllowed {
+                    let cells=model.displayCells(base:false),expected=cells.map(\.displayText).joined(separator:"\n")+(cells.isEmpty ? "":"\n")
+                    if model.error==nil,view.string.utf8.elementsEqual(expected.utf8) {
+                        model.activatePane(base:false);model.editingEnabled=true
+                        if view.isEditable,window.makeFirstResponder(view),window.firstResponder === view {return(owner,view)}
+                    }
+                }
+                try await Task.sleep(nanoseconds:5_000_000)
+            }
+            owner.close()
+            throw NSError(domain:"Comparison native presentation failed: busy=\(model.busy),filtering=\(model.filtering),initial=\(model.initialNavigationPending),geometry=\(model.lineWrapping.isGeometryPending),error=\(String(reflecting:model.error))",code:1)
+        }
+        func acknowledgeComparisonError(_ owner:FileComparisonWindowController)async throws {
+            let message=owner.model.error ?? ""
+            for _ in 0..<2000 {
+                if let sheet=owner.window?.attachedSheet,let content=sheet.contentView {
+                    func all(_ root:NSView)->[NSView] {[root]+root.subviews.flatMap{all($0)}}
+                    let children=all(content)
+                    let labels=children.compactMap{$0 as? NSTextField}.map(\.stringValue)
+                    if labels.contains(where:{$0.contains("Comparison failed") || !message.isEmpty && $0.contains(message)}),
+                       let ok=children.compactMap({$0 as? NSButton}).first(where:{$0.title=="OK" && $0.isEnabled}) {
+                        ok.performClick(nil)
+                        for _ in 0..<2000 {
+                            if owner.model.error==nil,sheet.sheetParent==nil,owner.window?.attachedSheet==nil {return}
+                            try await Task.sleep(nanoseconds:5_000_000)
+                        }
+                        break
+                    }
+                }
+                try await Task.sleep(nanoseconds:5_000_000)
+            }
+            throw NSError(domain:"Comparison error sheet did not drain: "+message,code:1)
         }
         for ending in MergeLineEnding.allCases {
             let eol = ending.rawValue
             try Data("base\ntail".utf8).write(to: markBase)
             try Data(("mine" + eol + "tail").utf8).write(to: markMine)
-            let endingModel = FileComparisonWindowModel(comparison: try WorkingFileComparison(base: markBase, destination: markMine), permissions: [])
-            endingModel.editorPreferences = .load(from: prefs); endingModel.load()
-            for _ in 0..<1000 { if !endingModel.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
-            precondition(endingModel.error == nil && endingModel.alignment!.rows.count == 2)
-            let endingHost = NSHostingView(rootView: FileComparisonEditor(model: endingModel, cells: endingModel.alignment!.rows.map(\.destination), base: false))
-            endingHost.frame = NSRect(x: 0, y: 0, width: 500, height: 300); endingHost.layoutSubtreeIfNeeded()
-            let navigationWindow = NSWindow(contentRect: endingHost.frame, styleMask: [.titled], backing: .buffered, defer: false)
-            navigationWindow.isReleasedWhenClosed = false; navigationWindow.contentView = endingHost
-            defer { navigationWindow.close() }
-            let endingView = markedTextView(endingHost)!
-            for _ in 0..<1000 { if endingView.isEditable { break }; try await Task.sleep(nanoseconds: 10_000_000) }
+            let (endingOwner,endingView)=try await mountedComparison(WorkingFileComparison(base:markBase,destination:markMine))
+            defer{endingOwner.close()}
+            let endingModel=endingOwner.model,navigationWindow=endingOwner.window!
+            precondition(endingModel.error==nil && endingModel.alignment!.rows.count==2)
             precondition(endingView.string == "mine\ntail\n")
             let navigation = endingView as! (NSTextView & MergeLineNavigationProviding)
             for _ in 0..<1000 { if navigation.canNavigateToSourceLine { break }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -470,7 +654,7 @@ import TurtleGitCore
             let transferredBytes = try Data(contentsOf: markMine), unchangedBase = try Data(contentsOf: markBase)
             precondition(endingSaved == true && transferredBytes == Data(("base" + eol + "mine" + eol + "tail").utf8))
             precondition(unchangedBase == Data("base\ntail".utf8))
-            endingModel.resetHistory(); withExtendedLifetime(endingHost) {}
+            endingModel.resetHistory();endingOwner.close()
         }
         try Data(baseText.utf8).write(to: markBase)
         print("PASS: all nine line endings through actual native aligned display, insertText, private Undo/Redo, ordinary Save and other-block transfer; exact bytes and unterminated EOF, Base retained. No synthetic input or physical format-menu acceptance.")
@@ -478,13 +662,9 @@ import TurtleGitCore
         for (choice, stale) in markCases {
             try Data(mineText.utf8).write(to: markMine)
             let comparison = try WorkingFileComparison(base: markBase, destination: markMine)
-            let markedModel = FileComparisonWindowModel(comparison: comparison, permissions: [])
-            markedModel.editorPreferences = .load(from: prefs)
-            markedModel.load()
-            for _ in 0..<1000 { if !markedModel.busy { break }; try await Task.sleep(nanoseconds: 10_000_000) }
-            precondition(markedModel.error == nil && markedModel.alignment != nil)
-            let markedHost = NSHostingView(rootView: FileComparisonEditor(model: markedModel, cells: markedModel.alignment!.rows.map(\.destination), base: false))
-            markedHost.frame = NSRect(x: 0, y: 0, width: 500, height: 300); markedHost.layoutSubtreeIfNeeded()
+            let (markedOwner,markedView)=try await mountedComparison(comparison)
+            defer{markedOwner.close()}
+            let markedModel=markedOwner.model
             markedModel.updateAnnotations(.init(marked: [0]), base: false)
             var prompts = 0, savedReply: Bool?
             markedModel.chooseMarkedSave = {
@@ -493,7 +673,7 @@ import TurtleGitCore
                 if stale { try! Data("external writer".utf8).write(to: markMine) }
                 return choice
             }
-            let markHistory = markedTextView(markedHost)!.undoManager!
+            let markHistory = markedView.undoManager!
             markHistory.groupsByEvent = false; markHistory.beginUndoGrouping()
             markedModel.save { savedReply = $0 }
             for _ in 0..<1000 { if savedReply != nil { break }; try await Task.sleep(nanoseconds: 10_000_000) }
@@ -512,6 +692,7 @@ import TurtleGitCore
             precondition(savedReply == (choice != nil && !stale))
             if stale {
                 precondition(markedModel.error != nil && markedModel.dirty)
+                try await acknowledgeComparisonError(markedOwner)
                 markedModel.undo()
                 precondition(markedModel.draftText(base: false) == mineText && markedModel.annotations(base: false).marked == [0])
                 let external = try Data(contentsOf: markMine); precondition(external == Data("external writer".utf8))
@@ -523,7 +704,7 @@ import TurtleGitCore
                 markedModel.redo(); precondition(!markedModel.dirty && markedModel.draftText(base: false) == expected)
             }
             markedModel.resetHistory()
-            withExtendedLifetime(markedHost) {}
+            markedOwner.close()
         }
         print("PASS: ordinary native FileSave marked-block Include/Exclude/Manual-only/Cancel; exact CRLF/no-final-newline bytes, Base retained, Cancel retains marks/draft, Undo/Redo restores policy text and marks, stale writes refused with draft/Undo retained, prompt locks prevent reentry. Injected sheet choices; physical sheets pending.")
         let dropped = ImportPatchWindowModel(repository: repo, access: nil, preferences: prefs)

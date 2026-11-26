@@ -279,6 +279,13 @@ METAFILE_PATH_ADDITIONS = (
 BLAME_SOURCE_NAME = 'Native Blame captured source menus'
 BLAME_SOURCE_ORIGINAL_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
 BLAME_SOURCE_FOCUS_RUN = 'python3 scripts/test-blame-source-menu.py --only commands --only source-menu --only focus --git /usr/bin/git --git build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git'
+# Keep the inventoried viewport command and append the connected Reload cohort.
+# Exact equality still rejects omitted engines, reordered consumers and changes
+# to the existing readiness/cancellation/lane policy.
+EDITOR_VIEWPORT_NAME = 'Compare and Merge all-pane viewport commands'
+EDITOR_VIEWPORT_ORIGINAL_RUN = 'python3 scripts/test-merge-viewport-family.py --git /usr/bin/git --git build/git-runtime/Git/bin/git'
+EDITOR_VIEWPORT_RELOAD_RUN = (EDITOR_VIEWPORT_ORIGINAL_RUN + '\n'
+    'python3 scripts/test-editor-reload-positions.py --git /usr/bin/git --git build/git-runtime/Git/bin/git\n')
 STATUS_CONSUMER_ADDITIONS = (
     ('Native primary command launch family', (SYNC_REPLAY_SELECTED, RESOLVE_OPERANDS),
      'Native invocation-owned progress completion and deferred handoffs'),
@@ -488,6 +495,10 @@ def verify(workflow, inventory, originals):
             require(before.get('run') == BLAME_SOURCE_ORIGINAL_RUN,
                     'Reviewed Blame source-menu baseline command changed')
             expected['run'] = BLAME_SOURCE_FOCUS_RUN
+        if name == EDITOR_VIEWPORT_NAME:
+            require(before.get('run') == EDITOR_VIEWPORT_ORIGINAL_RUN,
+                    'Reviewed editor viewport baseline command changed')
+            expected['run'] = EDITOR_VIEWPORT_RELOAD_RUN
         if expected.get('uses') == 'actions/upload-artifact@v4':
             prior = expected['with']['name']
             require(prior in ARTIFACT_NAMES, 'Unmapped artifact ownership')

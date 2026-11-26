@@ -52,6 +52,15 @@ struct PatchFilePanelVerification {
         try require(model.highlightedFiles==[second] && model.focusedFile==first && model.editor===initialEditor && !model.busy,"Highlight unexpectedly previewed/replaced file")
         let context=coordinator.contextMenu()
         try require(context.items.map(\.title)==["Preview patched file","Patch all files","Patch selected files"] && context.items.allSatisfy{$0.image != nil},"Source context order/icons")
+        // Two visibility changes in one native turn can be coalesced without
+        // dismantling the NSView/coordinator. Its old menu must still expire.
+        let originalGeneration=model.fileListGeneration
+        model.toggleFileList()
+        try require(!coordinator.validateMenuItem(context.items[1]),"Hidden list retained a captured Patch action")
+        model.toggleFileList()
+        send(context.items[1])
+        try require(!coordinator.validateMenuItem(context.items[1]) && !model.busy && model.appliedPaths.isEmpty && model.fileListGeneration==originalGeneration,"Coalesced hide/show revived a captured action or replaced the accepted review")
+        try require(coordinator.contextMenu().items[1].isEnabled,"Current visible native list lost fresh Patch actions")
         let event=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\r",charactersIgnoringModifiers:"\r",isARepeat:false,keyCode:36)!
         window.makeFirstResponder(native);native.keyDown(with:event)
         try await wait{!model.busy && model.focusedFile==second && model.editor?.filtering==false}

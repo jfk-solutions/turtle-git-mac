@@ -3,9 +3,9 @@ import Darwin
 import TurtleGitCore
 
 struct ImportPatchLifecycleVerification {
-    @MainActor static func wait(_ predicate: () -> Bool, line: UInt = #line) async throws {
+    @MainActor static func wait(_ predicate: () -> Bool, line: UInt = #line,diagnostic:()->String = {""}) async throws {
         for _ in 0..<2000 { if predicate() { return }; try await Task.sleep(nanoseconds: 5_000_000) }
-        preconditionFailure("Import lifecycle fixture did not settle at line \(line)")
+        preconditionFailure("Import lifecycle fixture did not settle at line \(line): "+diagnostic())
     }
     @MainActor static func run(root: URL, git: URL) async throws {
         let suite = "TurtleGit.ImportLifecycle." + UUID().uuidString, preferences = UserDefaults(suiteName: suite)!
@@ -54,13 +54,17 @@ struct ImportPatchLifecycleVerification {
             try await wait { FileManager.default.fileExists(atPath: marker.path) }
             let pid = pid_t(try String(contentsOf: marker).trimmingCharacters(in: .newlines))!
             let output = model.output; owner.close()
-            try await wait { kill(pid, 0) == -1 }
-            try await wait { kill(-pid, 0) == -1 && errno == ESRCH }
-            let groupState = kill(-pid, 0), groupError = errno
+            var processState:Int32=0,processError:Int32=0,groupState:Int32=0,groupError:Int32=0
+            // Process termination precedes the owning MainActor task's defer
+            // publication. Require both lifecycle boundaries, not elapsed time.
+            try await wait({
+                processState=kill(pid,0);processError=errno
+                groupState=kill(-pid,0);groupError=errno
+                return processState == -1 && processError == ESRCH && groupState == -1 && groupError == ESRCH &&
+                    model.closed && !model.busy && !model.closing && model.activeCancellation==nil && !model.hasPendingWork && owner.presentationClosed
+            },diagnostic:{"phase=\(phase),pid=\(pid),process=\(processState)/\(processError),group=\(groupState)/\(groupError),closed=\(model.closed),busy=\(model.busy),closing=\(model.closing),token=\(model.activeCancellation != nil),pending=\(model.hasPendingWork),presentationClosed=\(owner.presentationClosed),changes=\(changes),closeReplies=\(closeReplies),unavailable=\(unavailable),error=\(String(reflecting:model.error))"})
             precondition(groupState == -1 && groupError == ESRCH)
-            let state = kill(pid, 0), processError = errno
-            precondition(state == -1 && processError == ESRCH && model.closed && !model.busy && !model.closing && model.activeCancellation == nil)
-            try await Task.sleep(nanoseconds: 100_000_000)
+            precondition(processState == -1 && processError == ESRCH && model.closed && !model.busy && !model.closing && model.activeCancellation == nil)
             precondition(changes == 0 && closeReplies == 0 && unavailable == 0 && model.output == output && model.error == nil && !model.accepted)
             let finalHead = try await original.run(["rev-parse", "HEAD"]).stdout, finalRefs = try await original.run(["show-ref"]).stdout
             let finalIndex = try Data(contentsOf: directory.appendingPathComponent(".git/index")), finalConfig = try Data(contentsOf: directory.appendingPathComponent(".git/config"))
@@ -74,7 +78,8 @@ struct ImportPatchLifecycleVerification {
             var opened = 0; model.showPatch = { _, _, _ in opened += 1 }; model.showReview = { _, _, _ in opened += 1 }
             model.add(files); let ids = Set([model.items[0].id])
             if review { model.reviewPatch(ids) } else { model.viewPatch(ids, alternate: false) }
-            model.invalidate(); try await Task.sleep(nanoseconds: 100_000_000)
+            model.invalidate()
+            try await wait({model.closed && !model.openingViewer && !model.hasPendingWork},diagnostic:{"lateReview=\(review),closed=\(model.closed),opening=\(model.openingViewer),pending=\(model.hasPendingWork),opened=\(opened),error=\(String(reflecting:model.error))"})
             precondition(model.closed && !model.openingViewer && opened == 0 && model.error == nil)
         }
         print("PASS: Import Patch forced closure suppresses delayed patch/review viewer handoffs")

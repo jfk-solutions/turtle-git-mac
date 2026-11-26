@@ -1057,9 +1057,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     @Published private(set) var batchCancelled=false
     private var batchApplying=false
     @Published private(set) var fileListVisible = true
+    private(set) var fileListVisibilityRevision = UUID()
     var canToggleFileList:Bool { !retired && review?.files.isEmpty == false && !confirmingQuit && !draftDecisionPending && window?.attachedSheet == nil }
     func toggleFileList() {
         guard canToggleFileList else {return}
+        // SwiftUI may retain the same native coordinator across a visibility
+        // cycle. Menus captured before hiding must still lose their authority.
+        fileListVisibilityRevision = UUID()
         fileListVisible.toggle()
         if !fileListVisible,let table = window?.firstResponder as? NSTableView,table.identifier?.rawValue == "TurtleGit.Patch.Files",let destination = afterScroll?.documentView {
             window?.makeFirstResponder(destination)
@@ -1134,7 +1138,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         }
     }
     @Published private(set) var busy = false { didSet { updateParentState(); onBusyChanged() } }
-    @Published var confirmingQuit = false { didSet {if confirmingQuit && !oldValue {fileListGeneration=UUID();cancelOperation()};updateParentState() } }
+    private var quitSaveSession=UUID()
+    @Published var confirmingQuit = false { didSet {if confirmingQuit != oldValue {quitSaveSession=UUID()};if confirmingQuit && !oldValue {fileListGeneration=UUID();cancelOperation()};updateParentState() } }
     @Published private(set) var reversed = false
     @Published private(set) var stripCount = 1
     @Published private(set) var comparison: WorkingTreePatchFileComparison?
@@ -1197,9 +1202,18 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     /// Explicit FileSave asks about an empty result and honors Backup. Automatic
     /// PatchSave deliberately uses the Core nil-options policy instead.
-    private func explicitSaveOptions(text:String,path:String,backup:Bool,cancellation:OperationCancellation) async throws -> MergeFileSaveOptions? {
+    private struct QuitDraftSave {
+        let session:UUID,owner:NSWindow,token:OperationCancellation
+    }
+    private func acceptsSaveOptions(_ token:OperationCancellation,quit:QuitDraftSave?) -> Bool {
+        guard !retired else{return false}
+        guard let quit else{return !confirmingQuit}
+        return confirmingQuit && quit.session==quitSaveSession && draftDecisionPending &&
+            quit.owner === window && quit.token === token && operation === token
+    }
+    private func explicitSaveOptions(text:String,path:String,backup:Bool,cancellation:OperationCancellation,quit:QuitDraftSave? = nil) async throws -> MergeFileSaveOptions? {
         try cancellation.check()
-        guard !retired,!confirmingQuit else{throw OperationCancellationFailure.cancelled}
+        guard acceptsSaveOptions(cancellation,quit:quit) else{throw OperationCancellationFailure.cancelled}
         guard text.isEmpty else{return .init(backupOriginal:backup,emptyResult:.keep)}
         guard let window,window.attachedSheet==nil,saveQuestion==nil else{return nil}
         let alert=NSAlert();alert.alertStyle = .warning;alert.messageText="File is empty."
@@ -1215,7 +1229,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         while alert.window.sheetParent != nil || window.attachedSheet === alert.window {try? await Task.sleep(nanoseconds:5_000_000)}
         if saveQuestion === alert {saveQuestion=nil}
         try cancellation.check()
-        guard !retired,!confirmingQuit,response == .alertFirstButtonReturn || response == .alertSecondButtonReturn else{return nil}
+        guard acceptsSaveOptions(cancellation,quit:quit),response == .alertFirstButtonReturn || response == .alertSecondButtonReturn else{return nil}
         return .init(backupOriginal:backup,emptyResult:response == .alertFirstButtonReturn ? .delete:.keep)
     }
     private func dismissSpecialQuestion() {
@@ -1490,8 +1504,8 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
     }
     private struct SavePolicy {let autoAdd:Bool,backup:Bool}
     private func savePolicy()->SavePolicy {.init(autoAdd:MergeEditorPreferences.load(from:preferences).autoAdd,backup:MergeFileSaveOptions.backupEnabled(from:preferences))}
-    private func performSave(_ token: OperationCancellation,policy:SavePolicy) async -> Bool {
-        guard !retired, let comparison, let editor, editor.canEdit(base: false) else { return false }
+    private func performSave(_ token: OperationCancellation,policy:SavePolicy,quit:QuitDraftSave? = nil) async -> Bool {
+        guard acceptsSaveOptions(token,quit:quit),let comparison,let editor,editor.canEdit(base:false) else{return false}
         if editor.savedPaneURL(base: false) != nil {
             let saved = await withCheckedContinuation { continuation in editor.saveReboundResultFromOwner { continuation.resume(returning: $0) } }
             if saved { onChanged("Saved selected pane: " + (editor.savedPaneURL(base: false)?.path ?? "")) }
@@ -1505,7 +1519,7 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         var reported = false
         do {
             try checkAccess()
-            guard let options=try await explicitSaveOptions(text:text,path:comparison.document.destination.path,backup:backup,cancellation:token) else{return false}
+            guard let options=try await explicitSaveOptions(text:text,path:comparison.document.destination.path,backup:backup,cancellation:token,quit:quit) else{return false}
             try ensure(token)
             let saved = try await repository.saveWorkingTreePatchFile(comparison, text: text, encoding: encoding, autoAddNewFiles: autoAdd,options:options, cancellation: token)
             onChanged(saved.output); reported = true
@@ -1530,8 +1544,13 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
         guard !busy, !draftDecisionPending else { return false }
         draftDecisionPending = true; Self.activeOperations += 1
         defer { draftDecisionPending = false; Self.activeOperations -= 1 }
+        let capturedQuit=confirmingQuit ? quitSaveSession:nil,capturedOwner=window
+        let capturedEditor=editor,capturedConflict=conflictEditor
         let choice = await chooseDraft()
-        guard !retired else { return false }
+        guard !retired,editor === capturedEditor,conflictEditor === capturedConflict else{return false}
+        if let capturedQuit {
+            guard confirmingQuit,capturedQuit==quitSaveSession,let capturedOwner,capturedOwner === window else{return false}
+        } else if confirmingQuit {return false}
         switch choice {
         case .cancel: return false
         case .save:
@@ -1539,7 +1558,9 @@ struct ImportPatchSplit: NSViewControllerRepresentable {
             guard let token = begin() else { return false }
             let policy=savePolicy()
             defer { finish(token) }
-            return await performSave(token,policy:policy)
+            let quit=capturedQuit.flatMap {session in capturedOwner.map {QuitDraftSave(session:session,owner:$0,token:token)}}
+            guard !confirmingQuit || quit != nil else{return false}
+            return await performSave(token,policy:policy,quit:quit)
         case .discard:
             if discardImmediately { resetComparisonDraft() }
             return true
@@ -1749,8 +1770,9 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
         private var rendered:[RowState] = []
         private final class Invocation {
             enum Action {case preview,selected,all}
-            let action:Action,ids:Set<Int>,generation:UUID
-            init(_ action:Action,_ ids:Set<Int>,_ generation:UUID) {self.action = action;self.ids = ids;self.generation = generation}
+            let action:Action,ids:Set<Int>,generation:UUID,visibility:UUID
+            weak var table:NSTableView?
+            init(_ action:Action,_ ids:Set<Int>,_ generation:UUID,_ visibility:UUID,_ table:NSTableView?) {self.action = action;self.ids = ids;self.generation = generation;self.visibility=visibility;self.table=table}
         }
         init(_ model:WorkingTreePatchWindowModel) {self.model = model}
         func update() {
@@ -1810,25 +1832,31 @@ struct WorkingTreePatchNativeFileList: NSViewRepresentable {
             NSLayoutConstraint.activate([label.trailingAnchor.constraint(equalTo:cell.trailingAnchor,constant:-4),label.centerYAnchor.constraint(equalTo:cell.centerYAnchor)])
             return cell
         }
-        func selectionShouldChange(in tableView:NSTableView) -> Bool {updating || !retired && model.canHighlightFiles}
+        func selectionShouldChange(in tableView:NSTableView) -> Bool {updating || currentView && tableView === table && model.canHighlightFiles}
         func tableViewSelectionDidChange(_ notification:Notification) {
-            guard !retired,!updating,let table else {return}
+            guard currentView,!updating,let table,(notification.object as? NSTableView) === table else {return}
             model.highlightFiles(Set(table.selectedRowIndexes.compactMap {rows.indices.contains($0) ? rows[$0].id : nil}))
         }
         var selectedIDs:Set<Int> {Set((table?.selectedRowIndexes ?? []).compactMap {rows.indices.contains($0) ? rows[$0].id : nil})}
-        @objc func preview(_ sender:Any?) {guard !retired else {return};model.previewFiles(selectedIDs,generation:model.fileListGeneration)}
+        private var currentView:Bool {
+            guard !retired,model.fileListVisible,let table,let window=model.window else{return false}
+            return table.window === window && table.delegate === self && !table.isHiddenOrHasHiddenAncestor && table.isEnabled
+        }
+        @objc func preview(_ sender:Any?) {guard currentView else {return};model.previewFiles(selectedIDs,generation:model.fileListGeneration)}
         func contextMenu() -> NSMenu {
             let menu = NSMenu();let ids = selectedIDs,generation = model.fileListGeneration
             let commands:[(String,Invocation.Action,MenuIcon)] = [("Preview patched file",.preview,.compare),("Patch all files",.all,.patch),("Patch selected files",.selected,.patch)]
             for (title,action,icon) in commands {
-                let item = NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");item.target = self;item.representedObject = Invocation(action,ids,generation)
+                let item = NSMenuItem(title:title,action:#selector(invoke(_:)),keyEquivalent:"");item.target = self;item.representedObject = Invocation(action,ids,generation,model.fileListVisibilityRevision,table)
                 item.image = MenuPresentationSettings.applicationContextIcons(defaults:model.openPreferences) ? icon.image() : nil
                 item.isEnabled = validateMenuItem(item);menu.addItem(item)
             }
             return menu
         }
         func validateMenuItem(_ item:NSMenuItem) -> Bool {
-            guard !retired,let invocation = item.representedObject as? Invocation,invocation.generation == model.fileListGeneration else {return false}
+            guard currentView,let invocation = item.representedObject as? Invocation,
+                  invocation.table === table,invocation.visibility == model.fileListVisibilityRevision,
+                  invocation.generation == model.fileListGeneration else {return false}
             switch invocation.action {
             case .preview:return model.canPreviewFiles(invocation.ids,generation:invocation.generation)
             case .all:return model.canPatchFiles

@@ -17,7 +17,10 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-patch-panel-') as temporary:
         p=folder/name;p.write_text((root/'docs/qa'/name).read_text().replace('@main ', '',1));sources.append(p)
     main=folder/'PanelMain.swift'
     main.write_text('import AppKit\nimport TurtleGitCore\n@main struct PanelMain { @MainActor static func main() async throws { NSApp.setActivationPolicy(ProcessInfo.processInfo.environment["TURTLEGIT_PATCH_PANEL_CAPTURE"] == nil ? .prohibited : .accessory); switch ProcessInfo.processInfo.environment["TURTLEGIT_PATCH_PANEL_CASE"]! {\n'+''.join('case "'+name+'": try await '+call+'\n' for name,call in cases.items())+'default: fatalError("Unknown patch panel case") };print("PASS: patch panel family case completed") } }\n')
-    binary=build_receiver(root,sources+[main],folder)
+    # Keep the complete related fixture group, but avoid a single WMO frontend
+    # typechecking all eleven sources within the compiler ownership deadline.
+    # native_receiver includes these flags in the fixture cache fingerprint.
+    binary=build_receiver(root,sources+[main],folder,fixture_mode='per-file')
     env=os.environ.copy();env.update(DYLD_FRAMEWORK_PATH=str(root/'build/Build/Products/Debug'),GIT_CONFIG_GLOBAL=os.devnull,GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0')
     for case in args.only or cases:
         for index,git in enumerate([Path('/usr/bin/git')] if case=='menus' else args.git or [Path('/usr/bin/git')]):

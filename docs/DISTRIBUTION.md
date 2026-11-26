@@ -3,8 +3,9 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The latest separately packaged local
-candidate is signed build59. Build58 remains installed from the owner-approved
-handoff; build59 has not been installed.
+candidate is signed build59. It is installed and reopened for owner testing;
+[the installation record](qa/signed59-installed-2026-11-25.json) verifies the
+exact installed package and preserved build58 rollback.
 There is no public App Store listing or submitted release. The App Store remains
 a future channel after owner acceptance, distribution signing and the existing
 license/Store terms review.
@@ -17,7 +18,7 @@ equivalent directory-URL hints. Its one universal signed build, strict static
 audit, fresh sandboxed local-tools/Core/Git phase and complete source/ZIP checks
 pass. The source companion matches all 14,905 tracked blobs and 116 directories;
 copied and extracted applications match all 7,493 complete inventory members.
-The original candidate, package and installed58 remain separately preserved.
+The original candidate, package and previous build58 rollback remain separately preserved.
 
 | Item | Recorded identity |
 | --- | --- |
@@ -32,7 +33,8 @@ Current-source Pages passed; full corrected-source hosted macOS CI and owner/
 physical acceptance remain open. Historical image56 and SSH57 evidence retains
 its explicit component scope, with fresh59 static compatibility checks; neither
 is new59 execution. Later native fixture corrections are a separate checkpoint.
-No new renderer work, installed-app replacement or public submission is included.
+The owner-approved installation has completed. No new renderer work or public
+submission is included.
 The later Compare caret-preservation source repair is not included in build59;
 the next consolidation follows the distinct position-preserving Reload batch.
 

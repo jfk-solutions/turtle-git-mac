@@ -54,7 +54,15 @@ private extension FileComparisonDocument {
         if flags == .control, event.charactersIgnoringModifiers?.lowercased() == "g", let text = firstResponder as? FileComparisonTextView {
             text.goToSourceLine(nil); return true
         }
-        if event.keyCode == 96 { (delegate as? FileComparisonWindowController)?.reloadEditor(nil); return true }
+        if event.keyCode == 96,flags.isEmpty,event.type == .keyDown,
+           let owner=delegate as? FileComparisonWindowController,owner.window === self,model === owner.model,owner.model.window === self,
+           event.window === self || event.window == nil && (owner.editorCommandMenu?.keyWindow() ?? NSApp.keyWindow) === self,
+           NSApp.modalWindow == nil,attachedSheet == nil,(firstResponder as? NSTextView)?.isFieldEditor != true,
+           owner.model.contextCommandsAllowed,!owner.model.filtering {
+            // Reload remains available after a failed first read, before any
+            // native text view exists; its owner and event still must be current.
+            owner.reloadEditor(nil);return true
+        }
         return super.performKeyEquivalent(with: event)
     }
 }
@@ -84,7 +92,7 @@ private extension FileComparisonDocument {
                       NSApp.modalWindow == nil else { return false }
                 return self.model.externalReloadReady
             }, dirty: { [weak model] in model?.dirty == true },
-            reload: { [weak model] in model?.load(discardingDraft: true) },
+            reload: { [weak model] in model?.reload(discardingDraft: true) },
             keep: { [weak model] ids in model?.keepExternalSources(ids) },
             failed: { [weak model] error in model?.externalReloadFailed(error) })
         externalReload = coordinator; model.externalReload = coordinator
@@ -116,11 +124,15 @@ private extension FileComparisonDocument {
     }
     @objc func createPatchFile(_ sender: Any?) { model.createUnifiedPatch() }
     @objc func reloadEditor(_ sender: Any?) {
-        guard !preparingReplacement, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load()
+        guard let window,model.window === window,!closingComparison,NSApp.modalWindow == nil,
+              !preparingReplacement,editorOpenWorkflow == nil,window.attachedSheet == nil,
+              model.contextCommandsAllowed,!model.filtering else{return}
+        model.reload()
     }
     func validateMenuItem(_ item: NSMenuItem) -> Bool {
+        guard let window,model.window === window,!closingComparison,NSApp.modalWindow == nil else{return false}
         if model.imageComparison != nil, item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return model.imageCommandsAllowed && !preparingReplacement && editorOpenWorkflow == nil }
-        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.hasPendingEditorChoice && !model.filtering && !model.confirmingQuit && window?.attachedSheet == nil }
+        if item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:)) { return !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.hasPendingEditorChoice && !model.filtering && !model.confirmingQuit && window.attachedSheet == nil }
         return item.action == #selector(createPatchFile(_:)) && model.canCreateUnifiedPatch
     }
     var onClosed: () -> Void = {}
@@ -614,6 +626,116 @@ private extension FileComparisonDocument {
     // A synchronous native presentation must not restore a selection captured
     // for a document replaced by a reentrant owner callback.
     fileprivate private(set) var nativeDocumentIdentity=UUID()
+    private struct ReloadPanePosition {
+        let value:MergeEditorReloadPosition
+        // Common rows belong to both inputs; nil prefers Mine if they split.
+        let caretOrigin:Bool?,topOrigin:Bool?
+    }
+    @MainActor private final class ReloadPositionRequest {
+        weak var owner: NSWindow?
+        var document: UUID
+        let intent: UUID, reversed: Bool, onePane: Bool, single: Bool
+        let paths: [String]
+        let active: Bool
+        var positions: [Bool:ReloadPanePosition]
+        var acceptedDocument: UUID?
+        var generation: Int?
+        init(model: FileComparisonWindowModel, owner: NSWindow, positions: [Bool:ReloadPanePosition]) {
+            self.owner=owner; document=model.nativeDocumentIdentity; intent=model.reloadIntentEpoch
+            reversed=model.sidesReversed; onePane=model.onePaneActive; single=model.singleFileMode
+            paths=[model.document?.base.path ?? "",model.document?.destination.path ?? ""]
+            active=model.activeBase; self.positions=positions
+        }
+    }
+    private var reloadIntentEpoch=UUID()
+    private var reloadRestoration: ReloadPositionRequest?
+    var reloadPositionPending: Bool { reloadRestoration != nil }
+    private func acceptsReloadScope(_ request: ReloadPositionRequest) -> Bool {
+        guard !retired,let owner=request.owner,owner === window,request.intent==reloadIntentEpoch,
+              request.reversed==sidesReversed,request.onePane==onePaneActive,request.single==singleFileMode,
+              let document else {return false}
+        return zip(request.paths,[document.base.path,document.destination.path]).allSatisfy {$0.utf8.elementsEqual($1.utf8)}
+    }
+    private func acceptsReloadPosition(_ request: ReloadPositionRequest, adopted: Bool = false) -> Bool {
+        acceptsReloadScope(request) && (adopted ? request.acceptedDocument : request.document)==nativeDocumentIdentity
+    }
+    private func reloadCoordinateCells(base:Bool,origin:Bool?) -> [MergeSourceCell] {
+        guard onePaneActive,!base,let combined,let alignment else {return displayCells(base:base)}
+        let preferred=origin ?? false
+        return combined.rows.map { row in
+            let common=row.cell.state.isUnchanged
+            let pair=alignment.rows[row.alignmentRow]
+            let number=(common || row.base==preferred) ? (preferred ? pair.base.lineNumber:pair.destination.lineNumber):nil
+            return MergeSourceCell(text:row.cell.text,lineNumber:number,state:.normal)
+        }
+    }
+    private func captureReloadPosition() -> ReloadPositionRequest? {
+        guard let window,document != nil,imageComparison == nil,!lineWrapping.isGeometryPending else {return nil}
+        var positions:[Bool:ReloadPanePosition]=[:]
+        for (side,scroll) in scrolls where ownsViewport(scroll,base:side) {
+            guard let view=scroll.documentView as? FileComparisonTextView,ownsNativeEditor(view),
+                  view.nativePresentationEpoch==nativePresentationEpoch else {continue}
+            func origin(_ row:Int)->Bool? {
+                guard onePaneActive,!side,let combined,combined.rows.indices.contains(row) else{return nil}
+                let value=combined.rows[row]
+                return value.cell.state.isUnchanged ? nil:value.base
+            }
+            let caretRow=max(0,MergeLineEndings.lineNumber(in:view.string,utf16Offset:view.selectedRange().location)-1)
+            let caretOrigin=origin(caretRow),topOrigin=origin(MergeLocatorScrolling.viewport(scroll).rows.lowerBound)
+            if let caret=MergeEditorReloadPosition.capture(view:view,scroll:scroll,cells:reloadCoordinateCells(base:side,origin:caretOrigin)),
+               let top=MergeEditorReloadPosition.capture(view:view,scroll:scroll,cells:reloadCoordinateCells(base:side,origin:topOrigin)) {
+                positions[side]=ReloadPanePosition(value:.init(line:caret.line,column:caret.column,topLine:top.topLine),caretOrigin:caretOrigin,topOrigin:topOrigin)
+            }
+        }
+        return ReloadPositionRequest(model:self,owner:window,positions:positions)
+    }
+    fileprivate func applyReloadPosition(base: Bool, view: FileComparisonTextView, cells: [MergeSourceCell]) {
+        guard let request=reloadRestoration else {return}
+        guard acceptsReloadPosition(request,adopted:true) else {reloadRestoration=nil;return}
+        guard !busy,!filtering,!lineWrapping.isGeometryPending,request.generation==alignmentGeneration else {return}
+        var panes:[Bool:(FileComparisonTextView,NSScrollView,[MergeSourceCell])]=[:]
+        // One accepted aligned projection owns the whole restore. Wait for all
+        // its native panes, rather than briefly scrolling each independently.
+        for side in request.positions.keys {
+            guard let scroll=scrolls[side],ownsViewport(scroll,base:side),
+                  let native=scroll.documentView as? FileComparisonTextView,ownsNativeEditor(native),
+                  native.nativePresentationEpoch==nativePresentationEpoch,native.blockGeneration==alignmentGeneration,
+                  scroll.contentSize.width>32,scroll.contentSize.height>32 else {return}
+            let projection=displayCells(base:side)
+            let expected=projection.map(\.displayText).joined(separator:"\n")+(projection.isEmpty ? "":"\n")
+            guard native.string.utf8.elementsEqual(expected.utf8) else {return}
+            panes[side]=(native,scroll,projection)
+        }
+        reloadRestoration=nil
+        let wasSynchronizing=synchronizing;synchronizing=true
+        defer{synchronizing=wasSynchronizing;lineWrapping.recordViewportIntent();refreshLocatorViewport()}
+        for (side,(native,scroll,projection)) in panes {
+            guard let position=request.positions[side] else {continue}
+            let caretCells=reloadCoordinateCells(base:side,origin:position.caretOrigin)
+            let topCells=reloadCoordinateCells(base:side,origin:position.topOrigin)
+            let caret=position.value.offsets(in:native,cells:caretCells).caret
+            let top=position.value.offsets(in:native,cells:topCells).top
+            native.presentationDepth += 1
+            native.blockSelection.clear(in:native)
+            native.foldLayout.reveal(selection:NSRange(location:caret,length:0),in:native)
+            native.foldLayout.reveal(selection:NSRange(location:top,length:0),in:native)
+            position.value.restore(in:native,scroll:scroll,cells:topCells)
+            native.setSelectedRange(NSRange(location:caret,length:0))
+            native.presentationDepth -= 1
+        }
+        // Source LoadViews(-1) maps the Right viewport then ScrollAllToLine.
+        // Keep that canonical target row, with native per-pane source carets.
+        let target=panes[false] ?? panes[request.active] ?? panes.values.first
+        if let (_,canonical,_) = target {
+            let y=canonical.contentView.bounds.minY
+            for (_,(_,scroll,_)) in panes {
+                let rect=NSRect(x:-scroll.contentView.contentInsets.left,y:y,width:scroll.contentView.bounds.width,height:scroll.contentView.bounds.height)
+                scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(rect).origin)
+                scroll.reflectScrolledClipView(scroll.contentView)
+            }
+        }
+        if let (native,_,projection)=panes[activeBase] {updateSelection(native.selectedRange(),cells:projection)}
+    }
     var singleFileMode = false
     @Published var nativeToolbarInstalled = false
     @Published private(set) var showToolbar = MergeEditorChrome.visible("Toolbar",defaults:.standard)
@@ -891,11 +1013,12 @@ private extension FileComparisonDocument {
         enum Answer { case save([Bool]), discard, cancel }
         let change: () -> Void
         let preservingProjection:Bool
+        let didSave:()->Void
         var question: NSAlert?
         var answers: [Answer] = []
         var answered = false
         var sheetObserver: NSObjectProtocol?
-        init(_ change: @escaping () -> Void,preservingProjection:Bool=false) { self.change = change;self.preservingProjection=preservingProjection }
+        init(_ change: @escaping () -> Void,preservingProjection:Bool=false,didSave:@escaping ()->Void = {}) { self.change = change;self.preservingProjection=preservingProjection;self.didSave=didSave }
     }
     private var projectionChange: ProjectionChange? {didSet{synchronizeNativeEditors()}}
     private(set) static var activeProjectionChoices = 0
@@ -918,10 +1041,10 @@ private extension FileComparisonDocument {
         cancelDeferredNavigation(); alignmentGeneration += 1; resetHistory()
         load(discardingDraft:true)
     }
-    private func requestProjectionChange(reason: String = "changing comparison options", detail: String = "Changing comparison options reloads the files and clears Undo history.", preservingProjection:Bool=false, _ change: @escaping () -> Void) {
+    private func requestProjectionChange(reason: String = "changing comparison options", detail: String = "Changing comparison options reloads the files and clears Undo history.", preservingProjection:Bool=false, afterSave:@escaping ()->Void = {}, _ change: @escaping () -> Void) {
         guard !retired, !busy, !confirmingQuit, !hasPendingEditorChoice, window?.attachedSheet == nil else { return }
         guard document != nil else { change(); return }
-        let request = ProjectionChange(change,preservingProjection:preservingProjection)
+        let request = ProjectionChange(change,preservingProjection:preservingProjection,didSave:afterSave)
         projectionChange = request; Self.activeProjectionChoices += 1
         guard dirty else { applyProjectionChange(request); return }
         guard let window else { finishProjectionChange(request); return }
@@ -966,7 +1089,7 @@ private extension FileComparisonDocument {
         case .save(let sides):
             save(sides:sides,ownerInitiated:true) { [weak self, weak request] saved in
                 guard let self, let request, self.projectionChange === request else { return }
-                if saved { self.applyProjectionChange(request) } else { self.finishProjectionChange(request) }
+                if saved { request.didSave();self.applyProjectionChange(request) } else { self.finishProjectionChange(request) }
             }
         case .discard: applyProjectionChange(request)
         default: finishProjectionChange(request)
@@ -1647,6 +1770,7 @@ private extension FileComparisonDocument {
     }
     private var historyCaretRequests: [Bool: (generation: Int, caret: HistoryCaret)] = [:]
     func cancelDeferredNavigation() {
+        reloadIntentEpoch=UUID();reloadRestoration=nil
         sourceLineApplied = true; sourceLineSelectionID = nil
         historyCaretRequests = [:]; initialBlockGeneration = nil; pendingLoadNavigation = false
         alignmentSelections = [:]; selectionRequest = nil
@@ -1732,6 +1856,7 @@ private extension FileComparisonDocument {
         externalAttempted = true; viewerSelection = .image
     }
     func retireImageLoader() {
+        reloadIntentEpoch=UUID();reloadRestoration=nil
         externalReload?.retire()
         cancelEditorConfigReads(); editorConfigAccess.retire()
         if let request = projectionChange { finishProjectionChange(request) }
@@ -1847,9 +1972,22 @@ private extension FileComparisonDocument {
         load()
     }
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
+    func reload(discardingDraft:Bool=false) {
+        guard !busy,!hasPendingEditorChoice,!confirmingQuit,!retired,let window,window.attachedSheet == nil else {return}
+        // A failed first read has no old viewport to preserve. Its Retry must
+        // not wait for geometry belonging to an absent native projection.
+        if document == nil {load();return}
+        lineWrapping.prepareForInput()
+        guard !lineWrapping.isGeometryPending else{return}
+        reloadIntentEpoch=UUID();reloadRestoration=nil
+        let position=captureReloadPosition()
+        load(discardingDraft:discardingDraft,inputOverrides:nil,purpose:.reload,position:position)
+    }
     func load(discardingDraft:Bool=false) {load(discardingDraft:discardingDraft,inputOverrides:nil)}
-    private func load(discardingDraft: Bool,inputOverrides proposedOverrides:[Bool:ComparisonTextEncoding]?) {
+    private func load(discardingDraft: Bool,inputOverrides proposedOverrides:[Bool:ComparisonTextEncoding]?,purpose:MergeEditorLoadPurpose = .fresh,position:ReloadPositionRequest? = nil) {
         guard !initialLoadDeferred, !retired, !busy, !hasPendingEditorChoice, !confirmingQuit, window?.attachedSheet == nil else { return }
+        if let position,!acceptsReloadPosition(position) {return}
+        if purpose == .fresh {reloadIntentEpoch=UUID();reloadRestoration=nil}
         let transactional=proposedOverrides != nil
         let overrides=proposedOverrides ?? inputEncodingOverrides
         if !transactional {cancelEditorConfigReads()}
@@ -1861,7 +1999,14 @@ private extension FileComparisonDocument {
             if !loadedPaneMode {onePaneMode=OnePaneFileComparison.defaultEnabled(from:comparisonDefaults);loadedPaneMode=true}
         }
         if dirty && !discardingDraft {
-            requestProjectionChange(reason: "reloading") {}
+            requestProjectionChange(reason: "reloading",preservingProjection:true,afterSave:{ [weak self,weak position] in
+                guard let self,let position,self.acceptsReloadScope(position) else{return}
+                // Save legitimately publishes a new baseline in this same
+                // document. Retarget only its successful owned continuation.
+                position.document=self.nativeDocumentIdentity
+            }) { [weak self] in
+                self?.load(discardingDraft:true,inputOverrides:proposedOverrides,purpose:purpose,position:position)
+            }
             return
         }
         var refreshedOutput=mergeToolOutput
@@ -1871,7 +2016,7 @@ private extension FileComparisonDocument {
         }
         if !transactional {
             externalReload?.reset();reloadCommentProfiles=true
-            generalPreferences = .load(from: comparisonDefaults);pendingLoadNavigation=generalPreferences.firstDifference;initialBlockGeneration=nil
+            generalPreferences = .load(from: comparisonDefaults);pendingLoadNavigation=purpose == .fresh && generalPreferences.firstDifference;initialBlockGeneration=nil
         }
         let session = FileListComparisonSession(window: window, preferences: comparisonDefaults)
         loadSession = session; busy = true; error = nil
@@ -1957,7 +2102,12 @@ private extension FileComparisonDocument {
                 guard !retired,!confirmingQuit,loadSession === session,!transactional || acceptedInputEpoch==paneTabEpoch else{return}
                 originalPaneDocument=original
                 mergeToolOutput=refreshedOutput
+                let restoring=position.flatMap {acceptsReloadPosition($0) ? $0:nil}
                 document = adapted
+                if let restoring {
+                    restoring.acceptedDocument=nativeDocumentIdentity;reloadRestoration=restoring.positions.isEmpty ? nil:restoring
+                    activeBase=restoring.active
+                }
                 if mergeToolInvocation != nil { mergeToolInputs = loadedMergeInputs }
                 paneTargets=recordedTargets
                 inputEncodingOverrides=overrides
@@ -1973,7 +2123,7 @@ private extension FileComparisonDocument {
                 if let images = imageComparison {retainedImageModel?.configureImages(base:images.base,destination:images.destination,force:true)}
                 window?.title=windowTitle
                 drafts = imageComparison == nil ? FileComparisonDrafts(adapted) : nil
-                if !transactional {activeBase = onePaneActive ? false : drafts?.preferredBase ?? false}
+                if !transactional,restoring == nil {activeBase = onePaneActive ? false : drafts?.preferredBase ?? false}
                 updateHistoryState()
                 if let prepared {
                     cancelEditorConfigReads();externalReload?.reset();commentProfiles=prepared.profiles;reloadCommentProfiles=false
@@ -2069,6 +2219,9 @@ private extension FileComparisonDocument {
                         let selection = AlignmentSelection(sourceRange: ranges[min(line, ranges.count) - 1], scroll: true)
                         sourceLineSelectionID = selection.id; selections[false] = selection
                     } else { sourceLineApplied = true }
+                }
+                if let restoration=reloadRestoration,acceptsReloadPosition(restoration,adopted:true) {
+                    restoration.generation=current;selections=[:];pendingLoadNavigation=false;initialBlockGeneration=nil
                 }
                 alignmentSelections = selections
                 if pendingLoadNavigation {
@@ -2418,6 +2571,9 @@ private extension FileComparisonDocument {
         lineWrapping.prepareForInput()
         let targets=viewportScrolls
         guard !targets.isEmpty,!lineWrapping.isGeometryPending else{return}
+        // An accepted explicit View/Scroll owns the viewport, without erasing
+        // unrelated selection or Undo caret requests.
+        reloadIntentEpoch=UUID();reloadRestoration=nil
         synchronizing=true;lineWrapping.beginViewportInput()
         defer {synchronizing=false;lineWrapping.endViewportInput();refreshLocatorViewport()}
         // Each pane advances from its own origin once. Disable ordinary linked
@@ -2644,7 +2800,7 @@ private struct FileComparisonDialog: View {
                 Menu { if !model.onePaneActive { Button("Save left pane as…") { model.saveAs(base: true) } }; Button("Save right pane as…") { model.saveAs(base: false) } } label: { CommandLabel(title: "Save As", icon: .mergeSaveAs) }.disabled(!model.canSavePaneAs)
                 Button { if model.historyActionsAllowed { model.undo() } } label: { Image(nsImage: MenuIcon.mergeUndo.image() ?? NSImage()) }.help("Undo").accessibilityLabel("Undo").disabled(!model.historyActionsAllowed || !model.canUndo)
                 Button { if model.historyActionsAllowed { model.redo() } } label: { Image(nsImage: MenuIcon.mergeRedo.image() ?? NSImage()) }.help("Redo").accessibilityLabel("Redo").disabled(!model.historyActionsAllowed || !model.canRedo)
-                Button { model.load() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
+                Button { model.reload() } label: { CommandLabel(title: "Reload", icon: .mergeReload) }
                 Button { model.navigate(-1) } label: { CommandLabel(title: "Previous difference", icon: .mergePreviousConflict) }.disabled(!model.canNavigateDifference(-1))
                 Button { model.navigate(1) } label: { CommandLabel(title: "Next difference", icon: .mergeNextConflict) }.disabled(!model.canNavigateDifference(1))
                 Button { model.find(.showFindInterface) } label: { CommandLabel(title: "Find", icon: .mergeFind) }.disabled(model.alignment == nil)
@@ -2830,7 +2986,7 @@ struct FileComparisonEditor: NSViewRepresentable {
         }
         model.refreshLocatorHighlights()
         // Run once after layout, including the first representable update.
-        if model.initialNavigationPending || model.hasHistoryCaret(base: base) || model.alignmentSelections[base]?.id != context.coordinator.appliedSelection {
+        if model.initialNavigationPending || model.reloadPositionPending || model.hasHistoryCaret(base: base) || model.alignmentSelections[base]?.id != context.coordinator.appliedSelection {
             context.coordinator.scheduleViewportSelection()
         }
     }
@@ -2917,6 +3073,7 @@ struct FileComparisonEditor: NSViewRepresentable {
                 DispatchQueue.main.async { if model.selectionRequest == caret { model.selectionRequest = nil } }
             }
             model.restoreHistoryCaret(base:base,view:view,cells:cells)
+            model.applyReloadPosition(base:base,view:view,cells:cells)
         }
         @objc func scrolled(_ notification: Notification) { if let scroll { model.scrolled(scroll) } }
         func textView(_ textView: NSTextView, shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?) -> Bool {

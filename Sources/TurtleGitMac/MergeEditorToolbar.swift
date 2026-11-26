@@ -1059,7 +1059,12 @@ extension MergeEditorCommandMenu {
             state:{ [weak model,weak bar,weak window] command in
                 guard let model else { return nil };let enabled = ready()
                 switch command {
-                case .toolbar(let value):guard let state = bar?.menuCommandState(value) else { return nil };return .init(enabled:enabled && state.enabled,checked:state.checked)
+                case .toolbar(let value):
+                    guard let state = bar?.menuCommandState(value) else { return nil }
+                    // Native toolbar ownership already admits these commands
+                    // without a loaded text pane, including first-read Retry.
+                    let independent = value == .open || value == .reload || value == .help
+                    return .init(enabled:(independent || enabled) && state.enabled,checked:state.checked)
                 case .viewport:return .init(enabled:enabled && model.canScrollViewport)
                 case .saveAs:return .init(enabled:enabled && model.sourceMutationsAllowed)
                 case .enableEdit:return .init(enabled:false,checked:text()?.isEditable == true)
@@ -1087,7 +1092,13 @@ extension MergeEditorCommandMenu {
                 case .configureRegex,.settings,.about:return .init(enabled:enabled)
                 }
             },action:{ [weak model,weak bar,weak window] command in
-                guard let model,ready() else { return }
+                guard let model else { return }
+                if !ready() {
+                    switch command {
+                    case .toolbar(.open),.toolbar(.reload),.toolbar(.help):break
+                    default:return
+                    }
+                }
                 switch command {
                 case .toolbar(let value):bar?.performMenuCommand(value)
                 case .viewport(let direction):model.scrollViewport(direction)

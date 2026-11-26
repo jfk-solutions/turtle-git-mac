@@ -1,5 +1,16 @@
 # TurtleGit for Mac — full port tracking
 
+## Current CI recovery — November 26, 2026
+
+Main `483fdcc6` passed hosted Core and SVN; its Pages deployment also passed.
+The native lanes failed. The [recovery batch](NATIVE-CI-RECOVERY-2026-11-26.md)
+covers those reported workflows, the Patch file-list menu lifetime defect and
+the connected [Compare/Merge Reload family](MERGE-RELOAD-POSITION-PARITY.md).
+The [grouped checkpoint](qa/native-ci-recovery-2026-11-26.json) passes 46 affected
+native process cases, retaining unchanged Core/runtime and unrelated passes.
+This is not a complete hosted pass; fresh GitHub CI is the next gate.
+Installed build59 remains the owner-testing package, separate from this batch.
+
 ## Compare presentation and localized workflow recovery — November 25, 2026
 
 The [native presentation repair](qa/compare-native-selection-recovery-2026-11-25.json)
@@ -14,10 +25,9 @@ Core/native repeats. All recorded owned helpers are reaped.
 
 [Signed59](qa/signed-consolidation-build59-2026-11-25.json) is packaged from
 `1ad1d98f`; it includes the Browser/Rebase fixes, but not the later Compare caret
-repair. Installed58 remains unchanged. Both editors still need a distinct
-position-preserving F5/accepted-external Reload purpose, following pinned
-`LoadViews(-1)` while fresh Open/input reinterpretation keeps initial navigation.
-That confirmed end-user workflow is the next related implementation batch.
+repair. The [owner-approved installation](qa/signed59-installed-2026-11-25.json)
+reopened build59 and preserved build58 for rollback. The subsequent Reload
+implementation and its validation limits are recorded in the current batch above.
 Full corrected-source hosted, signed/physical and complete visual acceptance
 remain separate; no new renderer work or public submission was performed.
 

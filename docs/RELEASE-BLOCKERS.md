@@ -1,5 +1,15 @@
 # Local testing and release gates
 
+## Current hosted CI gate — November 26, 2026
+
+[Run 45706913427](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45706913427)
+on main `483fdcc6` passed Core and SVN and failed native lanes. Pages passed
+separately. The [affected recovery batch](NATIVE-CI-RECOVERY-2026-11-26.md) is
+passes its [46 affected native process cases](qa/native-ci-recovery-2026-11-26.json);
+a fresh full hosted pass remains required after push.
+Signed build59 is installed for owner testing. It does not contain this later
+batch. No Store submission or public binary publication has been performed.
+
 ## Compare selection and localized lists — November 25, 2026
 
 The [Compare repair](qa/compare-native-selection-recovery-2026-11-25.json) fixes
@@ -8,8 +18,9 @@ entries now preserve source selections with current owner/document/generation
 guards, while explicit history and navigation retain precedence. One incremental
 Debug build and seven affected native cases pass; unchanged runtime kits and
 unrelated passing cohorts were retained. This later fix is not in signed59 or
-installed58. The separate confirmed F5/external Reload position-preservation
-family in both text editors remains open.
+installed59. The separate [F5/external Reload family](MERGE-RELOAD-POSITION-PARITY.md)
+is implemented in the later batch; its grouped checks and remaining acceptance
+are recorded separately.
 
 [Localized file-list recovery](qa/localized-file-lists-recovery-2026-11-25.json)
 passes six German/French/English file/history processes. Each selection command
@@ -42,7 +53,9 @@ fixture failures are a separate pending batch, not a full hosted or physical pas
 fixes below. Its single universal signed build, strict static checks, fresh
 sandboxed local-tools phase and complete app/source archive round trips pass.
 The package is `build/local-testing/TurtleGit-for-Mac-0.1.0-build59-signed`.
-Installed58 remains untouched; candidate59 has not been installed or published.
+The [owner-approved installation](qa/signed59-installed-2026-11-25.json) has
+completed: build59 is reopened and build58 is preserved for rollback. No public
+publication occurred.
 
 Current `1ad1d98f` Pages deployment passed. Full corrected-source hosted macOS CI
 is pending; the older run's Core lane passed but does not include the Browser

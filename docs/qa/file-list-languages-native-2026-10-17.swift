@@ -31,12 +31,28 @@ struct FileListLanguagesVerification {
         try await wait(window) {probe(window)?.visibleColumns.contains(.status)==before}
     }
     @MainActor static func checkGroups(_ window:NSWindow) async throws {
-        try await wait(window) {
-            let titles=descendants(window.contentView).compactMap {$0 as? FileListGroupHeaders}.flatMap { $0.headings.map(\.title) }
-            return titles.contains(FileListLabels.groupTitle(.modified)) && titles.contains(FileListLabels.groupTitle(.unversioned)) && titles.contains("Modified Files")
+        func currentHeaders()->[FileListGroupHeaders] {
+            descendants(window.contentView).compactMap {$0 as? FileListGroupHeaders}.filter {layer in
+                guard let table=layer.table else{return false}
+                return layer.window === window && table.window === window && !layer.isHiddenOrHasHiddenAncestor && table.numberOfRows==layer.rows.count
+            }
         }
-        let titles=descendants(window.contentView).compactMap {$0 as? FileListGroupHeaders}.flatMap {$0.headings.map(\.title)}
-        if Bundle.main.preferredLocalizations.first=="en" {try require(titles.filter {$0=="Modified Files"}.count==2,"English builtin/changelist groups lost their separate slots")}
+        let expected:Set<StatusListGroup>=[.modified,.unversioned,.changelist("Modified Files")]
+        var accepted:FileListGroupHeaders?
+        do {try await wait(window) {
+            // In English the builtin and literal changelist captions are equal.
+            // Require both semantic rows in the actual current report, rather
+            // than letting one title satisfy two independent readiness checks.
+            accepted=currentHeaders().first {expected.isSubset(of:Set($0.rows.compactMap(\.group)))}
+            return accepted != nil
+        }} catch {
+            let groups=currentHeaders().map{$0.rows.compactMap(\.group)}
+            throw Failure(description:"Localized group projection did not settle: expected=\(expected), actual=\(groups), locale=\(Bundle.main.preferredLocalizations)")
+        }
+        guard let accepted else{throw Failure(description:"Current localized group report missing")}
+        let titles=accepted.headings.map(\.title)
+        try require(titles.contains(FileListLabels.groupTitle(.modified)) && titles.contains(FileListLabels.groupTitle(.unversioned)) && titles.contains("Modified Files"),"Semantic group slots lost their translated or literal captions: \(titles)")
+        if Bundle.main.preferredLocalizations.first=="en" {try require(titles.filter {$0=="Modified Files"}.count==2,"English builtin/changelist groups lost their separate slots: \(titles)")}
     }
     @MainActor static func checkCommitSelection(_ owner:CommitWindowController) async throws {
         let window=owner.window!,model=owner.model,main=NSMenu(title:"Private language commands"),windows=NSMenu(title:"Semantic window owner")

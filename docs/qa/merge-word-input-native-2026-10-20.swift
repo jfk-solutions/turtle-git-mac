@@ -104,7 +104,7 @@ import TurtleGitCore
     }
     static func ownership(_ f:Check.Fixture)async throws {
         let pair=try await f.pair("word owner","alpha.beta__gamma\n","alpha.beta__gamma\n")
-        let view=MergeMarkedWordInterface.panes(in:pair.window?.contentView).first{($0 as? MergeFindProviding)?.mergeFindPaneID==2}!
+        var view=MergeMarkedWordInterface.panes(in:pair.window?.contentView).first{($0 as? MergeFindProviding)?.mergeFindPaneID==2}!
         pair.window?.makeFirstResponder(view);view.setSelectedRange(.init(location:0,length:0));let text=view.string,caret=view.selectedRange()
         pair.model.busy=true;view.moveWordRight(nil);view.deleteWordForward(nil)
         try Check.require(view.string==text && view.selectedRange()==caret,"Busy owner accepted word input");pair.model.busy=false
@@ -113,8 +113,27 @@ import TurtleGitCore
         pair.window!.beginSheet(sheet,completionHandler:{_ in});view.moveWordRight(nil);view.deleteWordForward(nil)
         try Check.require(view.string==text && view.selectedRange()==caret,"Sheet owner accepted word input")
         pair.window!.endSheet(sheet);sheet.close();try await Check.wait{pair.window?.attachedSheet==nil && sheet.sheetParent==nil}
-        pair.model.configureMergeToolReadOnly(true);try await Check.wait{!view.isEditable}
-        view.moveWordRight(nil);try Check.require(view.selectedRange().location==5,"Read-only pane lost source word navigation")
+        pair.model.configureMergeToolReadOnly(true)
+        var readOnly:NSTextView?
+        func witness()->String {
+            let panes=MergeMarkedWordInterface.panes(in:pair.window?.contentView).map { native in
+                "id=\(String(describing:(native as? MergeFindProviding)?.mergeFindPaneID)),window=\(native.window === pair.window),hidden=\(native.isHiddenOrHasHiddenAncestor),editable=\(native.isEditable),allowed=\((native as? MergePaneInputTextView)?.paneInputAllowed == true),selection=\(native.selectedRange()),text=\(String(reflecting:native.string))"
+            }
+            return "busy=\(pair.model.busy),filtering=\(pair.model.filtering),sheet=\(pair.window?.attachedSheet != nil),geometry=\(pair.model.lineWrapping.isGeometryPending),panes=[\(panes.joined(separator:"; "))]"
+        }
+        do {try await Check.wait {
+            pair.window?.contentView?.layoutSubtreeIfNeeded()
+            guard !pair.model.busy,!pair.model.filtering,!pair.model.lineWrapping.isGeometryPending,pair.window?.attachedSheet==nil,
+                  let native=MergeMarkedWordInterface.panes(in:pair.window?.contentView).first(where:{($0 as? MergeFindProviding)?.mergeFindPaneID==2 && !$0.isHiddenOrHasHiddenAncestor && $0.window === pair.window}),
+                  let scroll=native.enclosingScrollView,pair.model.ownsEditor(scroll,base:false),pair.model.ownsViewport(scroll,base:false),
+                  !native.isEditable,(native as? MergePaneInputTextView)?.paneInputAllowed==true else{return false}
+            readOnly=native;return true
+        }}catch{throw Check.Failure(description:"Read-only native admission: "+witness()+"; "+String(describing:error))}
+        guard let current=readOnly else{throw Check.Failure(description:"Read-only editor vanished: "+witness())}
+        view=current
+        try Check.require(view.string==text && view.selectedRange()==caret,"Read-only transition changed source or prior caret: "+witness())
+        try Check.require(pair.window?.makeFirstResponder(view)==true,"Read-only editor did not accept focus: "+witness())
+        view.moveWordRight(nil);try Check.require(view.selectedRange().location==5,"Read-only pane lost source word navigation: "+witness())
         let selection=view.selectedRange();view.deleteWordBackward(nil);try Check.require(view.string==text && view.selectedRange()==selection,"Read-only word delete mutated text")
         pair.close();view.moveWordRight(nil);view.deleteWordBackward(nil)
         try Check.require(view.string==text && view.selectedRange()==selection,"Retired pane accepted stale word input")

@@ -201,7 +201,7 @@ struct MergeTabControls: View {
         }.disabled(!writable).fixedSize().accessibilityLabel("\(label) tab settings: \(settingsTitle)")
     }
 }
-enum TextConflictPaneRole { case theirs, mine, base, result }
+enum TextConflictPaneRole:Hashable { case theirs, mine, base, result }
 private enum MergeSourceSide {
     case mine, theirs
     var icon: MenuIcon { self == .mine ? .mergeUseMine : .mergeUseTheirs }
@@ -231,6 +231,14 @@ private enum MergeSourceSide {
             if event.keyCode == 96 { (delegate as? WorkingTreePatchWindowController)?.reloadEditor(nil); return true }
             return super.performKeyEquivalent(with: event)
         }
+        // Reload remains available after a failed first read, before a native
+        // result editor exists. Text-dependent commands keep their pane gate.
+        if event.type == .keyDown,event.keyCode == 96,event.modifierFlags.intersection([.command,.shift,.control,.option]).isEmpty,
+           event.window === self,NSApp.modalWindow==nil,(firstResponder as? NSTextView)?.isFieldEditor != true,
+           let owner=delegate as? TextConflictWindowController,owner.window === self,owner.model.window === self {
+            let item=NSMenuItem(title:"",action:#selector(TextConflictWindowController.reloadEditor(_:)),keyEquivalent:"")
+            if owner.validateMenuItem(item) {owner.reloadEditor(nil);return true}
+        }
         guard mergedText != nil else { return super.performKeyEquivalent(with: event) }
         if event.modifierFlags.intersection([.command,.shift,.option,.control]) == .command,event.charactersIgnoringModifiers?.lowercased()=="s",let owner=delegate as? TextConflictWindowController {
             owner.model.saveRetainedEditorWork();return true
@@ -257,7 +265,6 @@ private enum MergeSourceSide {
         if modifiers == .command || modifiers == [.command, .shift], event.charactersIgnoringModifiers?.lowercased() == "g" {
             find(modifiers.contains(.shift) ? .previousMatch : .nextMatch); return true
         }
-        if event.keyCode == 96 { (delegate as? TextConflictWindowController)?.reloadEditor(nil); return true }
         return super.performKeyEquivalent(with: event)
     }
     func find(_ action: NSTextFinder.Action) {
@@ -305,8 +312,8 @@ private enum MergeSourceSide {
     func windowDidBecomeKey(_ notification: Notification) { editorCommandMenu?.install();externalReload?.activate() }
     func windowDidResignKey(_ notification: Notification) { editorCommandMenu?.remove() }
     func detachForReplacement() {retireActivationObservers();retireCloseChoice();externalReload?.retire();editorCommandMenu?.retire();editorToolbar?.retire(); model.retire(); model.window = nil }
-    @objc func reloadEditor(_ sender: Any?) { guard !model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window?.attachedSheet == nil else { return }; model.load() }
-    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && !model.externalReloadBlocksCommands && !model.preservingSourceCopies && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
+    @objc func reloadEditor(_ sender: Any?) { guard let window,model.window === window,!model.retired,!model.externalReloadBlocksCommands,!model.preservingSourceCopies,!preparingReplacement, !model.exportingSource, !model.formatPending, editorOpenWorkflow == nil, window.attachedSheet == nil else { return }; model.reload() }
+    func validateMenuItem(_ item: NSMenuItem) -> Bool { (item.action == #selector(openMergeDocument(_:)) || item.action == #selector(reloadEditor(_:))) && window != nil && model.window === window && !model.externalReloadBlocksCommands && !model.preservingSourceCopies && !preparingReplacement && editorOpenWorkflow == nil && !model.busy && !model.preparing && !model.formatPending && !model.confirmingQuit && !model.retired && !model.exportingSource && window?.attachedSheet == nil }
     private(set) var editorToolbar: MergeEditorToolbar?
     private(set) var editorCommandMenu: MergeEditorCommandMenu?
     var showEditorHelp: () -> Void = { TurtleGitHelp.show(.resolve) }
@@ -356,7 +363,7 @@ private enum MergeSourceSide {
 
         let detector=MergeExternalReloadCoordinator(window:window,sources:{[weak model] in model?.externalReloadSources ?? []},permissions:{[weak model] in model?.openPermissions ?? []},ready:{[weak self] in
             guard let self else{return false};return self.model.externalReloadReady && !self.preparingReplacement && self.editorOpenWorkflow==nil
-        },dirty:{[weak model] in model?.hasUnsavedEditorWork==true},reload:{[weak model] in model?.load(discardingDraft:true)},keep:{[weak model] ids in model?.keepExternalSources(ids)},failed:{[weak model] error in model?.error=error.localizedDescription})
+        },dirty:{[weak model] in model?.hasUnsavedEditorWork==true},reload:{[weak model] in model?.reload(discardingDraft:true)},keep:{[weak model] ids in model?.keepExternalSources(ids)},failed:{[weak model] error in model?.error=error.localizedDescription})
         externalReload=detector;model.externalReloadCoordinator=detector
         detector.stateChanged={ [weak model] in guard let model,!model.retired else{return};model.objectWillChange.send() }
         activationObservers.append(NotificationCenter.default.addObserver(forName:NSWindow.didEndSheetNotification,object:window,queue:.main) { [weak self] _ in DispatchQueue.main.async { [weak self] in self?.externalReload?.resume() } })
@@ -964,7 +971,7 @@ private enum MergeSourceSide {
               let window,NSApp.modalWindow==nil else{return false}
         guard window.makeFirstResponder(view),window.firstResponder === view,
               presentationView(role) === view else{return false}
-        refreshPanePresentation();return true
+        supersedeReloadPosition();refreshPanePresentation();return true
     }
     func paneHeaderAction(_ role:TextConflictPaneRole)->()->Bool {
         let identity=headerIdentity(role),preferences=comparisonDefaults,owner=window
@@ -1203,6 +1210,7 @@ private enum MergeSourceSide {
         load(filterName: name)
     }
     func retire() {
+        supersedeReloadPosition()
         pointerRetired = true
         externalReloadCoordinator?.retire()
         let sourceCompletion=sourceSaveCompletion,sheets=sourceExportOwnedSheets;sourceSaveCompletion=nil;sourceExportOwnedSheets=[];sourceCompletion?(false,sheets)
@@ -1278,7 +1286,7 @@ private enum MergeSourceSide {
     @Published var editorPreferences = MergeEditorPreferences.load()
     @Published var editorConfigEnabled: [String: Bool] = [:]
     @Published var editorConfigLoaded: [String: Bool] = [:]
-    @Published var editorConfigLoading: Set<String> = [] {didSet {if editorConfigLoading.isEmpty {externalReloadCoordinator?.resume()}}}
+    @Published var editorConfigLoading: Set<String> = [] {didSet {if editorConfigLoading.isEmpty {externalReloadCoordinator?.resume();scheduleReloadPositionRestore()}}}
     private var editorConfigRequests: [String: UUID] = [:]
     @Published var overwriteMode = false
     private var initialEditorConfigDefault = MergeEditorPreferences.load().enableEditorConfig
@@ -1597,7 +1605,7 @@ private enum MergeSourceSide {
     }
     func scrollViewport(_ direction:MergeViewportScrollCommand) {
         guard canScrollViewport,!synchronizingScroll else{return}
-        lineWrapping.prepareForInput()
+        supersedeReloadPosition();lineWrapping.prepareForInput()
         let targets=viewportScrolls
         guard !targets.isEmpty,!lineWrapping.isGeometryPending else{return}
         synchronizingScroll=true;lineWrapping.beginViewportInput()
@@ -1823,10 +1831,129 @@ private enum MergeSourceSide {
     }
     var initialLoadDeferred = false
     func beginTransferredDocument() { initialLoadDeferred = false; load() }
+    @MainActor private final class ReloadPositionRequest {
+        weak var window:NSWindow?
+        let id=UUID(),navigation:UUID
+        var sources:[Data],document:Int,presentation:Int,input:UUID,generation:Int
+        let positions:[TextConflictPaneRole:MergeEditorReloadPosition],active:TextConflictPaneRole?
+        var acceptedDocument:Int?,acceptedLayout:Int?,acceptedPresentation:Int?,scheduled=false
+        init(window:NSWindow?,navigation:UUID,sources:[Data],document:Int,presentation:Int,input:UUID,generation:Int,positions:[TextConflictPaneRole:MergeEditorReloadPosition],active:TextConflictPaneRole?) {
+            self.window=window;self.navigation=navigation;self.sources=sources;self.document=document;self.presentation=presentation;self.input=input;self.generation=generation;self.positions=positions;self.active=active
+        }
+    }
+    private var reloadPositionRequest:ReloadPositionRequest?
+    var reloadPositionPending:Bool {reloadPositionRequest != nil}
+    private(set) var reloadPositionDisposition="none"
+    private var reloadNavigationIdentity=UUID(),applyingReloadPosition=false
+    private var reloadSourceIdentity:[Data] {
+        var values=[repository.root.path,path]
+        values.append(workingMerge?.baseURL.path ?? "")
+        values.append(sourceTargets[false]?.url.path ?? workingMerge?.theirsURL.path ?? "")
+        values.append(sourceTargets[true]?.url.path ?? workingMerge?.mineURL.path ?? "")
+        values.append(mergedResultTarget?.url.path ?? "")
+        values.append(String(comparisonDefaults.bool(forKey:"TurtleGit.Comparison.CurvedInterface")))
+        values.append(String(showBase));values.append(String(document?.mineStage ?? -1));values.append(String(document?.theirsStage ?? -1))
+        return values.map{Data($0.utf8)}
+    }
+    fileprivate func supersedeReloadPosition(_ reason:String = #function) {
+        guard !applyingReloadPosition else{return}
+        if reloadPositionRequest != nil {reloadPositionDisposition="superseded: "+reason}
+        reloadNavigationIdentity=UUID();reloadPositionRequest=nil
+    }
+    private func captureReloadPosition()->ReloadPositionRequest? {
+        guard let window,!retired else{return nil}
+        var positions:[TextConflictPaneRole:MergeEditorReloadPosition]=[:],active:TextConflictPaneRole?
+        for role in [TextConflictPaneRole.theirs,.mine,.base,.result] {
+            guard let view=presentationView(role),view.window === window,!view.isHiddenOrHasHiddenAncestor,view.mergeSourceRowsReady,
+                  let scroll=view.enclosingScrollView,let position=MergeEditorReloadPosition.capture(view:view,scroll:scroll,cells:view.sourceCells) else{continue}
+            positions[role]=position;if window.firstResponder === view {active=role}
+        }
+        guard !positions.isEmpty else{return nil}
+        return .init(window:window,navigation:reloadNavigationIdentity,sources:reloadSourceIdentity,document:documentRevision,presentation:resultPresentationRevision,input:inputEncodingEpoch,generation:loadGeneration,positions:positions,active:active)
+    }
+    private func acceptsReloadPosition(_ request:ReloadPositionRequest,beforeAdoption:Bool)->Bool {
+        guard reloadPositionRequest === request,!retired,!confirmingQuit,request.window != nil,request.window === window,
+              request.navigation==reloadNavigationIdentity,request.sources==reloadSourceIdentity,request.input==inputEncodingEpoch,request.generation==loadGeneration else{return false}
+        if beforeAdoption {return request.document==documentRevision && request.presentation==resultPresentationRevision}
+        return request.acceptedDocument==documentRevision && request.acceptedLayout==sourceLayoutRevision && request.acceptedPresentation==resultPresentationRevision
+    }
+    private func retargetReloadPositionAfterSave(_ request:ReloadPositionRequest?) {
+        guard let request else{return}
+        guard reloadPositionRequest === request,request.window != nil,request.window === window,
+              request.navigation==reloadNavigationIdentity,request.generation==loadGeneration,
+              request.input==inputEncodingEpoch else{if reloadPositionRequest === request {reloadPositionRequest=nil};return}
+        let current=reloadSourceIdentity
+        // An owned Save As may change the result destination, never silently
+        // substitute another input, source orientation or native pane layout.
+        guard Array(request.sources.prefix(5))==Array(current.prefix(5)),Array(request.sources.suffix(4))==Array(current.suffix(4)) else{supersedeReloadPosition();return}
+        request.document=documentRevision;request.presentation=resultPresentationRevision;request.sources=current
+    }
+    fileprivate func scheduleReloadPositionRestore() {
+        guard let request=reloadPositionRequest,request.acceptedDocument != nil,!request.scheduled else{return}
+        request.scheduled=true
+        DispatchQueue.main.async { [weak self,weak request] in
+            guard let self,let request,self.reloadPositionRequest === request else{return}
+            request.scheduled=false;self.restoreReloadPosition(request)
+        }
+    }
+    private func restoreReloadPosition(_ request:ReloadPositionRequest) {
+        guard acceptsReloadPosition(request,beforeAdoption:false) else{
+            if reloadPositionRequest === request {
+                reloadPositionDisposition="restore refused: owner=\(request.window != nil && request.window === window),nav=\(request.navigation==reloadNavigationIdentity),sources=\(request.sources==reloadSourceIdentity),input=\(request.input==inputEncodingEpoch),generation=\(request.generation)/\(loadGeneration),document=\(String(describing:request.acceptedDocument))/\(documentRevision),layout=\(String(describing:request.acceptedLayout))/\(sourceLayoutRevision),presentation=\(String(describing:request.acceptedPresentation))/\(resultPresentationRevision)"
+                reloadPositionRequest=nil
+            };return
+        }
+        guard !busy,!preparing,!formatPending,!lineWrapping.isGeometryPending,editorConfigLoading.isEmpty,window?.attachedSheet==nil else{return}
+        var panes:[(MergeTextView,NSScrollView,MergeEditorReloadPosition)]=[]
+        for (role,position) in request.positions {
+            guard let view=presentationView(role),view.window === window,!view.isHiddenOrHasHiddenAncestor,view.mergeSourceRowsReady,
+                  let scroll=view.enclosingScrollView,scroll.contentView.bounds.width>0,scroll.contentView.bounds.height>0 else{return}
+            panes.append((view,scroll,position))
+        }
+        reloadPositionRequest=nil;applyingReloadPosition=true;let wasSynchronizing=synchronizingScroll;synchronizingScroll=true
+        defer{lineWrapping.recordViewportIntent();applyingReloadPosition=false;synchronizingScroll=wasSynchronizing;refreshLocatorViewport()}
+        selectionRequest=nil
+        for (view,scroll,position) in panes {
+            let offsets=position.offsets(in:view,cells:view.sourceCells)
+            view.foldLayout.reveal(selection:NSRange(location:offsets.caret,length:0),in:view)
+            view.foldLayout.reveal(selection:NSRange(location:offsets.top,length:0),in:view)
+            position.restore(in:view,scroll:scroll,cells:view.sourceCells)
+            if view.mergeEditable {caret=view.serializedSelection(view.selectedRange()) ?? view.selectedRange()}
+        }
+        // LoadViews(-1) uses Right/Mine as the common vertical anchor.
+        // Logical carets remain pane-specific on Mac, but aligned panes must
+        // not acquire independent reading origins after a changed projection.
+        if let (_,canonical,_)=panes.first(where:{$0.0.presentationRole == .mine && $0.0.p4Pane == nil && $0.0.sourceCells != nil}) {
+            let y=canonical.contentView.bounds.origin.y
+            for (view,scroll,_) in panes where view.p4Pane == nil && view.sourceCells != nil && view.presentationRole != .base {
+                var bounds=scroll.contentView.bounds;bounds.origin=NSPoint(x:-scroll.contentView.contentInsets.left,y:y)
+                scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(bounds).origin);scroll.reflectScrolledClipView(scroll.contentView)
+            }
+        }
+        if let active=request.active,let view=presentationView(active),let window,
+           window.makeFirstResponder(view),window.firstResponder === view {
+            lastNavigationView=view
+            // Publish choice ownership from the restored native caret now;
+            // a queued NSTextView selection notification must not leave the
+            // freshly loaded first conflict temporarily owning menu actions.
+            navigationSelectionChanged(view)
+        }
+        let origins=panes.map {view,scroll,_ in "\(view.presentationRole):x=\(scroll.contentView.bounds.minX),inset=\(scroll.contentView.contentInsets.left),y=\(scroll.contentView.bounds.minY)"}.joined(separator:";")
+        reloadPositionDisposition="restored document=\(documentRevision),layout=\(sourceLayoutRevision),panes=\(origins)"
+    }
+    func reload(discardingDraft:Bool=false) {
+        guard !initialLoadDeferred,!externalReloadBlocksCommands,!preservingSourceCopies,!busy,!preparing,!confirmingQuit,!retired,!formatPending,window?.attachedSheet==nil else{return}
+        guard document != nil else {load(discardingDraft:discardingDraft);return}
+        supersedeReloadPosition();guard let position=captureReloadPosition() else{load(discardingDraft:discardingDraft);return};reloadPositionRequest=position
+        reloadPositionDisposition="captured document=\(position.document),generation=\(position.generation),panes=\(position.positions.count)"
+        load(filterName:regexFilterName,discardingDraft:discardingDraft,purpose:.reload,reloadPosition:position)
+    }
     func load() {load(discardingDraft:false)}
     func load(discardingDraft:Bool) { guard !initialLoadDeferred else { return }; load(filterName: regexFilterName,discardingDraft:discardingDraft) }
-    private func load(filterName: String?,discardingDraft:Bool=false,inputEncodings:MergeInputEncodingOverrides?=nil) {
+    private func load(filterName: String?,discardingDraft:Bool=false,inputEncodings:MergeInputEncodingOverrides?=nil,purpose:MergeEditorLoadPurpose = .fresh,reloadPosition:ReloadPositionRequest?=nil) {
         guard !externalReloadBlocksCommands,!preservingSourceCopies,!busy, !confirmingQuit, !retired, !formatPending, window?.attachedSheet == nil else { return }
+        if case .fresh=purpose {supersedeReloadPosition()}
+        if let reloadPosition,!acceptsReloadPosition(reloadPosition,beforeAdoption:true) {if reloadPositionRequest === reloadPosition {reloadPositionRequest=nil};return}
         let reloadEpoch=inputEncodingEpoch,generationBeforeChoice=loadGeneration,original=resultPresentation,originalEncoding=encoding,originalEnding=resultLineEnding
         if hasUnsavedEditorWork && !discardingDraft {
             let decision: ReloadDecision
@@ -1837,10 +1964,13 @@ private enum MergeSourceSide {
                     switch decision {
                     case .save:self.saveEditorWork { [weak self] saved in
                         guard let self,!self.retired,!self.confirmingQuit,reloadEpoch==self.inputEncodingEpoch,generationBeforeChoice==self.loadGeneration else{return}
-                        if saved {self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings)} else {self.pendingComparisonOptions=nil}
+                        if saved {
+                            self.retargetReloadPositionAfterSave(reloadPosition)
+                            self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings,purpose:purpose,reloadPosition:reloadPosition)
+                        } else {self.pendingComparisonOptions=nil;if self.reloadPositionRequest === reloadPosition {self.reloadPositionRequest=nil}}
                     }
-                    case .discard:self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings)
-                    case .cancel:self.pendingComparisonOptions=nil
+                    case .discard:self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings,purpose:purpose,reloadPosition:reloadPosition)
+                    case .cancel:self.pendingComparisonOptions=nil;if self.reloadPositionRequest === reloadPosition {self.reloadPositionRequest=nil}
                     }
                 };return
             }
@@ -1849,10 +1979,13 @@ private enum MergeSourceSide {
             switch decision {
             case .save: saveEditorWork { [weak self] saved in
                 guard let self,!self.retired,!self.confirmingQuit,reloadEpoch==self.inputEncodingEpoch,generationBeforeChoice==self.loadGeneration else{return}
-                if saved {self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings)} else {self.pendingComparisonOptions=nil}
+                if saved {
+                            self.retargetReloadPositionAfterSave(reloadPosition)
+                            self.load(filterName:filterName,discardingDraft:true,inputEncodings:inputEncodings,purpose:purpose,reloadPosition:reloadPosition)
+                        } else {self.pendingComparisonOptions=nil;if self.reloadPositionRequest === reloadPosition {self.reloadPositionRequest=nil}}
             }; return
             case .discard: break
-            case .cancel: pendingComparisonOptions = nil; return
+            case .cancel: pendingComparisonOptions = nil;if reloadPositionRequest === reloadPosition {reloadPositionRequest=nil}; return
             }
         }
         externalReloadCoordinator?.reset()
@@ -1860,13 +1993,14 @@ private enum MergeSourceSide {
         busy = true; preparing = true
         inputEncodingEpoch=UUID()
         loadGeneration += 1; let generation = loadGeneration, token = OperationCancellation()
+        reloadPosition?.input=inputEncodingEpoch;reloadPosition?.generation=generation
         let requestedInputEncodings=inputEncodings ?? inputEncodingOverrides
         loadCancellation = token; MergeRegexOperations.activeRequests += 1
         Task {
-            defer { busy = false; preparing = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1 }
+            defer { busy = false; preparing = false; loadCancellation = nil; MergeRegexOperations.activeRequests -= 1;scheduleReloadPositionRestore() }
             do {
-                try await reloadDocument(filterName: filterName, cancellation: token, generation: generation,inputEncodings:requestedInputEncodings,regenerateResult:inputEncodings != nil)
-            } catch { if !retired,!confirmingQuit,!token.isCancelled, loadGeneration == generation { pendingComparisonOptions = nil; self.error = error.localizedDescription } }
+                try await reloadDocument(filterName: filterName, cancellation: token, generation: generation,inputEncodings:requestedInputEncodings,regenerateResult:inputEncodings != nil,purpose:purpose,reloadPosition:reloadPosition)
+            } catch {if reloadPositionRequest === reloadPosition,reloadPosition != nil {reloadPositionDisposition="read failed: "+error.localizedDescription;reloadPositionRequest=nil}; if !retired,!confirmingQuit,!token.isCancelled, loadGeneration == generation { pendingComparisonOptions = nil; self.error = error.localizedDescription } }
         }
     }
     struct ReloadPreparation:Sendable {
@@ -1885,7 +2019,7 @@ private enum MergeSourceSide {
     /// with the current dialog generation after the actual worker has drained.
     var prepareReload:@Sendable (@escaping @Sendable () async throws -> ReloadPreparation) async throws -> ReloadPreparation = {try await $0()}
     @Published private(set) var reloadPreparationPending=0
-    private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil,inputEncodings:MergeInputEncodingOverrides = .init(),regenerateResult:Bool=false) async throws {
+    private func reloadDocument(filterName: String?, cancellation: OperationCancellation? = nil, generation: Int? = nil,inputEncodings:MergeInputEncodingOverrides = .init(),regenerateResult:Bool=false,purpose:MergeEditorLoadPurpose = .fresh,reloadPosition:ReloadPositionRequest?=nil) async throws {
         let requested = filterName
         let filter = regexFilters.first { MergeRegexFilters.sameName($0.name,requested) }
         let configuredEngine=engineConfiguration
@@ -1958,6 +2092,7 @@ private enum MergeSourceSide {
         try cancellation?.check()
         guard !retired,!confirmingQuit,generation == nil || generation == loadGeneration else { return }
         guard let comparison = next.mergeSources else { throw SubversionMergeDiffFailure.invalidOutput }
+        let preservePosition=(reloadPosition.map{acceptsReloadPosition($0,beforeAdoption:true)} ?? false) && document?.mineStage==next.mineStage && document?.theirsStage==next.theirsStage
         self.sourceTargets=nextSourceTargets;self.mergedResultTarget=nextResultTarget;inputEncodingOverrides=inputEncodings
         resetResultHistory();resetHistory();canUndo = false;canRedo = false;resultCopySavepoint=nil
         if let invocation = mergeToolInvocation {
@@ -1988,7 +2123,15 @@ private enum MergeSourceSide {
         let ranges = prepared.lineRanges
         let firstChanged = comparison.resultLocator?.states.firstIndex { $0 != .normal && $0 != .filtered && $0 != .empty }
         let difference = firstChanged.flatMap { ranges.indices.contains($0) ? ranges[$0] : nil }
-        selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)
+        if case .fresh=purpose {selectionRequest = generalPreferences.initialTarget(difference: difference, conflict: blocks.first?.range)}
+        if preservePosition,let reloadPosition {
+            reloadPosition.acceptedDocument=documentRevision;reloadPosition.acceptedLayout=sourceLayoutRevision;reloadPosition.acceptedPresentation=resultPresentationRevision
+            reloadPosition.sources=reloadSourceIdentity
+            reloadPositionDisposition="adopted document=\(documentRevision),layout=\(sourceLayoutRevision),panes=\(reloadPosition.positions.count)"
+        } else if let reloadPosition,reloadPositionRequest === reloadPosition {
+            reloadPositionDisposition="adoption refused: scope=\(acceptsReloadPosition(reloadPosition,beforeAdoption:true)),oldDocument=\(reloadPosition.document),newDocument=\(documentRevision),generation=\(reloadPosition.generation)/\(loadGeneration),sources=\(reloadPosition.sources==reloadSourceIdentity)"
+            reloadPositionRequest=nil
+        }
         keptExternalSources=[];keptExternalInputIDs=[]
         await refreshExternalReloadSources()
         reloadEditorConfig()
@@ -3033,7 +3176,7 @@ private struct MergeEditor: NSViewRepresentable {
                 DispatchQueue.main.async { if model.selectionRequest == rawRequest { model.selectionRequest = nil } }
             }
         }
-        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport(); model?.invalidateLineRulers();model?.schedulePanePresentation() }
+        model.lineWrapping.geometryChanged = { [weak model] in model?.refreshLocatorViewport(); model?.invalidateLineRulers();model?.schedulePanePresentation();model?.scheduleReloadPositionRestore() }
         model.lineWrapping.update(scroll, key: label, aligned: sourceCells != nil, enabled: model.wrapLines)
         view.sourceCells = sourceCells; view.sourceLayoutRevision = model.sourceLayoutRevision; view.resultPresentationRevision = model.resultPresentationRevision
         if view.whitespaceRenderer.preferences != model.whitespaceDisplay || view.whitespaceRenderer.removal != (sourceSide == .theirs) || view.whitespaceRenderer.highlightEndings != model.showInlineDiff { view.needsDisplay = true }
@@ -3058,6 +3201,7 @@ private struct MergeEditor: NSViewRepresentable {
         if p4Pane != nil {view.applyP4Colors()}
         model.applySourceChoiceSelection(in: view)
         if editable { model.nativeEditorDidUpdate(view) }
+        model.scheduleReloadPositionRestore()
         if sourceSide == .mine { DispatchQueue.main.async { [weak view, weak model] in guard let view, let model else { return }; model.applyMergeToolInitialLine(view) } }
     }
     func makeCoordinator() -> Coordinator { Coordinator(model: model, editable: editable) }
@@ -3173,7 +3317,7 @@ fileprivate final class MergeTextView: MergePaneInputTextView, MergeLineDiffHove
     var navigationAllowed: Bool { model?.sourceToolsAllowed == true && mergeSourceRowsReady && model?.presentationView(presentationRole) === self }
     private(set) var navigationIntentRevision = 0
     func invalidateNavigationRevision() { navigationIntentRevision &+= 1 }
-    func beginUserNavigation() { guard model?.presentationView(presentationRole) === self else{return};model?.clearSourceChoiceSelection(); model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.selectionRequest = nil }
+    func beginUserNavigation() { guard model?.presentationView(presentationRole) === self else{return};model?.supersedeReloadPosition();model?.clearSourceChoiceSelection(); model?.lineWrapping.prepareForInput(); invalidateNavigationRevision(); model?.selectionRequest = nil }
     override func scrollWheel(with event: NSEvent) {
         // Route through the scroll view's gesture-identity latch exactly once.
         // Calling super here as well would apply native wheel deltas a second time.

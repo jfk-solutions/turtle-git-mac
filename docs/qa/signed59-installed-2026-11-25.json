@@ -1,0 +1,58 @@
+{
+  "schema": 1,
+  "status": "installed and reopened",
+  "owner_authorization": "Install and reopen build 59",
+  "package_record": "signed-consolidation-build59-2026-11-25.json",
+  "build": "59",
+  "source_commit": "1ad1d98fcff11c52f72512f8dc3de9aba75712d2",
+  "source_input_sha256": "631c50d4fc2130699f9df55b0c62f35a020e445fe5d09c4b664d10b82ff47fd7",
+  "main_sha256": "209046479ca68fe7655662aac21f8d777371fae86968a464a76eb0316b00d8c1",
+  "packaged_core_sha256": "8c5354d7a629406d564313eba78f6aa25818cfd06dab43be94ef23e704585b78",
+  "installed": "/Applications/TurtleGit for Mac.app",
+  "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build58-before59-2026-11-25.app",
+  "atomic_exchange": true,
+  "installed_inventory_matches_manifest": true,
+  "rollback_inventory_matches_previous": true,
+  "strict_deep_seal": true,
+  "registration": [
+    {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-u",
+        "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build58-before59-2026-11-25.app"
+      ],
+      "exit_code": 0,
+      "accepted": true,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister",
+        "-f",
+        "/Applications/TurtleGit for Mac.app"
+      ],
+      "exit_code": 0,
+      "accepted": true,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "original_candidate_and_package_unchanged": true,
+  "app_launched": true,
+  "installed_main_pids": [
+    15269
+  ],
+  "native_ui_observation": "Workspace visible, recent repositories retained, Finder cache ready; no permission or unsaved-work dialog",
+  "Finder_Dock_restart": false,
+  "extension_toggles": false,
+  "public_upload": false,
+  "notarization": false,
+  "app_store_submission": false,
+  "installation_receipt_sha256": "64d55e3b29fc1ae7e510e466b2cb431531cdcc4c5d9531720f913fc135de92bc",
+  "limits": [
+    "Initial installed workspace observed only; no repository selected or changed",
+    "Owner workflow testing and full corrected-source hosted CI remain open",
+    "No new physical Finder, minimum-macOS, Intel or complete visual acceptance claim"
+  ]
+}

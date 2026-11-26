@@ -25,9 +25,16 @@ import TurtleGitCore
         let controller = WorkingTreePatchWindowController(repository: repository, access: nil, fileAccess: nil, bytes: bytes, title: "File patches QA", preferences: preferences)
         defer { controller.close() }
         let model = controller.model
+        func require(_ condition:Bool,_ message:String)throws {
+            guard !condition else{return}
+            throw NSError(domain:"File patches: "+message+"; busy=\(model.busy), conflictActive=\(model.conflictOperationActive), canPatch=\(model.canPatchFiles), applied=\(model.appliedPaths.map{String(decoding:$0,as:UTF8.self)}.sorted()), notice=\(model.notice), output=\(model.output)",code:1)
+        }
         func wait() async throws {
-            for _ in 0..<1000 { if !model.busy { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-            model.cancelOperation(); throw NSError(domain: "File patch timeout", code: 1)
+            for _ in 0..<1000 {
+                if !model.busy && !model.conflictOperationActive && model.editor?.busy != true && !model.previewDocument.busy && !model.draftDecisionPending { return }
+                try await Task.sleep(nanoseconds: 10_000_000)
+            }
+            model.cancelOperation(); try require(false,"Owned parent/child operation did not drain")
         }
         try await wait()
         guard let review = model.review else { throw NSError(domain: "Review missing", code: 1) }
@@ -61,9 +68,31 @@ import TurtleGitCore
         for _ in 0..<1000 {if model.conflictEditor?.busy == false && model.conflictEditor?.document != nil {break};try await Task.sleep(nanoseconds:10_000_000)}
         precondition(model.focusedFile == review.files[1].id && model.conflictEditor?.document != nil && model.fileResults[Data("middle.txt".utf8)]?.requiresMerge == true)
         for path in ["a.txt","z.txt"] { let value = try String(contentsOf: root.appendingPathComponent(path)); precondition(value == "after\n") }
+        let completedBeforeRefresh=model.appliedPaths
         try Data("before\n".utf8).write(to: root.appendingPathComponent("middle.txt"))
+        try require(model.canPatchFiles,"Retry unavailable after actual conflict child finished")
         model.patchFiles(all, generation: model.fileListGeneration); try await wait()
-        precondition(model.appliedPaths.count == 3 && !model.canPatchFiles && model.fileResults[Data("middle.txt".utf8)]?.success == true)
+        // This accepted decoded review captured the former conflict bytes. A
+        // changed disk target must not silently become a new mutation receipt.
+        try require(model.appliedPaths==completedBeforeRefresh && model.fileResults[Data("middle.txt".utf8)]?.success==false,"Changed captured target was accepted without Refresh")
+        let refusedMiddle=try Data(contentsOf:root.appendingPathComponent("middle.txt"))
+        try require(refusedMiddle==Data("before\n".utf8),"Refused old review changed the replacement target")
+        let previousCatalog=model.fileListGeneration
+        model.refresh();try await wait()
+        guard let refreshed=model.review,let retry=refreshed.files.first(where:{$0.pathBytes==Data("middle.txt".utf8)}) else {throw NSError(domain:"Refreshed retry file missing",code:1)}
+        try require(model.fileListGeneration != previousCatalog && model.appliedPaths.isEmpty && model.canPatchFiles,"Refresh did not admit a new independent catalog")
+        let refreshedTargets=Set([retry.id]),refreshedGeneration=model.fileListGeneration
+        model.patchFiles(refreshedTargets,generation:previousCatalog)
+        try require(!model.busy && model.appliedPaths.isEmpty,"Old catalog mutation survived Refresh")
+        model.patchFiles(refreshedTargets,generation:refreshedGeneration)
+        try require(model.busy,"Fresh failed-file retry was not admitted")
+        try await wait()
+        try require(model.appliedPaths==[Data("middle.txt".utf8)] && model.fileResults[Data("middle.txt".utf8)]?.success==true,"Fresh retry did not apply exactly the failed file")
+        try require(completedBeforeRefresh.union(model.appliedPaths)==Set(paths.map{Data($0.utf8)}),"Cumulative successful paths did not cover all three files")
+        for path in paths {
+            let value=try Data(contentsOf:root.appendingPathComponent(path))
+            try require(value==Data("after\n".utf8),"Retry changed exact result bytes: "+path)
+        }
         let afterHead = try await repository.run(["rev-parse","HEAD"]).stdout
         let afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         precondition(head == afterHead && index == afterIndex)

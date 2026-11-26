@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
+import Darwin
 import SwiftUI
 import TurtleGitCore
 
@@ -163,7 +164,26 @@ import TurtleGitCore
         try require(result["history header"] != nil && result["file header"] != nil,"Native report headers missing")
         return result
     }
+    static func layoutWitness(_ window:NSWindow)->String {
+        var fields:[String]=[]
+        fields.append("window=\(window.frame),content=\(window.contentLayoutRect),contentFrame=\(String(describing:window.contentView?.frame))")
+        if let model=(window.delegate as? LogWindowController)?.model {
+            fields.append("busy=\(model.busy),loading=\(model.loadingHistory),entries=\(model.entries.count),files=\(model.fileTableRows.count),selected=\(model.selected),selectedFiles=\(model.selectedFiles)")
+            fields.append("patchVisible=\(model.patchPreviewVisible),patchRead=\(model.patchPreviewLoading),patchWrite=\(model.patchPreferenceSaving),patchError=\(String(reflecting:model.patchPreviewError)),preferenceError=\(String(reflecting:model.patchPreferenceError))")
+        }
+        for probe in views(window.contentView).compactMap({$0 as? LogPaneLayoutBridge.Probe}) {
+            fields.append("probe=\(ObjectIdentifier(probe)),restored=\(probe.restored),split=\(String(describing:probe.split.map{ObjectIdentifier($0)}))")
+            if let split=probe.split {
+                fields.append("splitFrame=\(split.frame),bounds=\(split.bounds),divider=\(split.dividerThickness),vertical=\(split.isVertical)")
+                for (index,pane) in split.arrangedSubviews.enumerated() {
+                    fields.append("pane\(index)=\(ObjectIdentifier(pane)),frame=\(pane.frame),intrinsic=\(pane.intrinsicContentSize),fitting=\(pane.fittingSize)")
+                }
+            }
+        }
+        return fields.joined(separator:"; ")
+    }
     static func check(_ label:String,window:NSWindow,baseline:[String:NSRect])async throws {
+        print("LOG FEEDBACK GEOMETRY "+label+" "+layoutWitness(window));fflush(stdout)
         for _ in 0..<8 {
             window.contentView?.layoutSubtreeIfNeeded()
             let next=try geometry(window)
@@ -171,7 +191,7 @@ import TurtleGitCore
             for (key,expected) in baseline {
                 let actual=try unwrap(next[key],"Missing "+key)
                 try require(abs(actual.minX-expected.minX)<=0.5 && abs(actual.minY-expected.minY)<=0.5 && abs(actual.width-expected.width)<=0.5 && abs(actual.height-expected.height)<=0.5,
-                    "\(label) moved \(key): expected=\(expected), actual=\(actual)")
+                    "\(label) moved \(key): expected=\(expected), actual=\(actual); "+layoutWitness(window))
             }
             try await Task.sleep(nanoseconds:15_000_000)
         }
@@ -315,6 +335,7 @@ import TurtleGitCore
                 window.setContentSize(size);window.contentView?.layoutSubtreeIfNeeded()
                 try await wait("settled Log split at "+name,window:window) {(views(window.contentView).compactMap{$0 as? LogPaneLayoutBridge.Probe}.first?.split?.bounds.height ?? 0)>0}
                 let baseline=try await settledGeometry(window)
+                print("LOG FEEDBACK BASELINE "+name+" rectangles=\(baseline) "+layoutWitness(window));fflush(stdout)
                 let usable=window.contentLayoutRect.insetBy(dx:-1,dy:-1)
                 for (key,rect) in baseline {try require(usable.contains(rect),"\(name) clips \(key): bounds=\(rect), usable=\(usable)")}
                 try require(abs(baseline["Log.Information"]!.height-30)<=0.5 && abs(baseline["Log.Feedback"]!.height-24)<=0.5 && abs(baseline["Log.Footer"]!.height-32)<=0.5,"Reserved native band heights differ")

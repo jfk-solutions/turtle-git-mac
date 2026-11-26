@@ -2,14 +2,22 @@ import AppKit
 import SwiftUI
 import TurtleGitCore
 import Darwin
+import ObjectiveC
+
+private extension NSWindow {
+    @objc func imageConflictQAHiddenSheet(_ child:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        child.alphaValue=0;child.setFrameOrigin(NSPoint(x:-24000,y:-24000))
+        imageConflictQAHiddenSheet(child,completionHandler:completionHandler)
+    }
+}
 
 @main struct ImageConflictVerification {
-    struct Failure: Error { let line: UInt }
+    struct Failure: Error,CustomStringConvertible { let line: UInt;var detail:String = "";var description:String {"Image conflict QA \(line): "+detail} }
     static func require(_ value: @autoclosure () -> Bool, line: UInt = #line) throws { if !value() { throw Failure(line: line) } }
     @MainActor static func settle() async throws { for _ in 0..<20 { try await Task.sleep(nanoseconds: 10_000_000) } }
-    @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line) async throws {
+    @MainActor static func wait(_ ready: () -> Bool, line: UInt = #line, diagnostic:()->String = {""}) async throws {
         for _ in 0..<500 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(line: line)
+        throw Failure(line: line,detail:diagnostic())
     }
     static func png(_ color: NSColor) -> Data {
         let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: 80, pixelsHigh: 60, bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0)!
@@ -32,6 +40,10 @@ import Darwin
     }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!
+        let quietMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.imageConflictQAHiddenSheet(_:completionHandler:)))!
+        method_exchangeImplementations(sheetMethod,quietMethod)
+        defer{method_exchangeImplementations(sheetMethod,quietMethod)}
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), git = URL(fileURLWithPath: CommandLine.arguments[2])
         let repo = GitRepository(root: root,executable: git)
         _ = try await repo.run(["init","-b","main"])
@@ -84,14 +96,27 @@ import Darwin
         try key("f",3); try require(controller.model.panes.values.allSatisfy { $0.fit })
         try key("v",9,flags: .command); try await settle()
         func button(_ index: Int) -> NSButton { descendants(host).compactMap { $0 as? NSButton }.filter { $0.title == "Select" }[index] }
+        func selectionWitness(_ index:Int)->String {
+            let sides:[ImageConflictSide]=[.mine,.base,.theirs]
+            let controls=descendants(host).compactMap{$0 as? NSButton}.filter{$0.title=="Select"}
+            let buttonStates=controls.map {control in
+                "enabled=\(control.isEnabled),window=\(control.window === window),hidden=\(control.isHiddenOrHasHiddenAncestor)"
+            }.joined(separator:"; ")
+            return "index=\(index),side=\(sides[index]),busy=\(controller.model.busy),retired=\(controller.model.retired),sheet=\(String(describing:window.attachedSheet)),canSelect=\(controller.model.canSelect(sides[index])),error=\(String(reflecting:controller.model.error)),windowVisible=\(window.isVisible),buttons=[\(buttonStates)]"
+        }
         func click(_ index: Int, line: UInt = #line) async throws {
             // Published operation completion precedes SwiftUI applying the
             // enabled environment to its native buttons. Wait for the actual
             // control, then exercise its target/action without bypassing it.
-            try await wait({ button(index).isEnabled }, line: line)
+            let sides:[ImageConflictSide]=[.mine,.base,.theirs]
+            try await wait({
+                host.layoutSubtreeIfNeeded()
+                let control=button(index)
+                return control.window === window && !control.isHiddenOrHasHiddenAncestor && control.isEnabled && window.attachedSheet==nil && controller.model.canSelect(sides[index])
+            },line:line,diagnostic:{selectionWitness(index)})
             window.orderFront(nil) // Transparent/offscreen, but a live sheet owner.
             button(index).performClick(nil)
-            try require(controller.model.busy, line: line)
+            if !controller.model.busy {throw Failure(line:line,detail:"Native Select did not dispatch: "+selectionWitness(index))}
         }
         func answer(_ title: String, line: UInt = #line) async throws {
             try await wait({ window.attachedSheet != nil }, line: line)
@@ -103,9 +128,11 @@ import Darwin
             try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel)
             sheet.alphaValue = 0
             try require(window.isVisible && sheet.isVisible)
-            guard let answer = descendants(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == title }) else { throw Failure(line: #line) }
-            answer.performClick(nil)
-            try await wait { !controller.model.busy }
+            guard let answerButton = descendants(sheet.contentView!).compactMap({ $0 as? NSButton }).first(where: { $0.title == title }) else { throw Failure(line: #line) }
+            answerButton.performClick(nil)
+            try await wait({!controller.model.busy && window.attachedSheet==nil && sheet.sheetParent==nil},line:line,diagnostic:{
+                "Answered "+title+"; busy=\(controller.model.busy),ownerSheet=\(String(describing:window.attachedSheet)),sheetParent=\(String(describing:sheet.sheetParent)),error=\(String(reflecting:controller.model.error))"
+            })
         }
         var closed = 0; controller.onClosed = { closed += 1 }
         try await click(1)

@@ -398,6 +398,14 @@ are marked separately from the merged result. Saving a retained version does not
 automatically authorize overwriting newer disk contents: use an independent
 <strong>Save As…</strong> copy when the original Save is refused. The separate result/output
 file is protected by Save checks and is not another activation-watched input.</p>
+<p>Choose <strong>File → Reload</strong> or press <strong>F5</strong> to reread the current files. Reload and
+accepted <strong>Load changes</strong> keep your editing position and visible line, with
+aligned panes scrolling together; horizontal scrolling returns to the left.
+Positions beyond a shortened file are clamped to its remaining lines. If you
+have unsaved edits, Reload offers <strong>Save</strong>, <strong>Don’t Save</strong> and <strong>Cancel</strong>. Cancel
+or a failed read/save keeps the current document and position. Opening another
+document or reloading with a different input encoding uses the configured
+first-difference/conflict navigation instead.</p>
 <p>Choose <strong>Apply unified diff</strong> for a patch file and target directory, or select
 <strong>Use Unified Diff from clipboard</strong>. The checkbox follows clipboard format
 availability without reading clipboard text until OK. If clipboard contents

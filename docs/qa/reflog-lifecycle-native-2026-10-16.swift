@@ -94,7 +94,25 @@ import TurtleGitCore
         model.selectReference("refs/heads/topic");try await wait {!model.busy && model.reference=="refs/heads/topic"}
         _ = try await repo.run(["branch","-D","topic"]);model.reload()
         try await wait {!model.busy && model.reference=="HEAD"}
-        try require(!model.names.contains("refs/heads/topic") && views(refreshed.window?.contentView).compactMap{$0 as? NSPopUpButton}.contains{$0.titleOfSelectedItem=="HEAD"},"Vanished ref did not fall back in actual picker")
+        // The model read retires busy before SwiftUI installs the replacement
+        // native picker target/items. Admit its exact current receipt first.
+        @MainActor func pickerState()->String {
+            let states=views(refreshed.window?.contentView).compactMap{$0 as? ReferenceLogReferencePopup}.map {popup in
+                let target=popup.target as? ReferenceLogReferencePickerTarget
+                return "items=\(popup.itemTitles),selected=\(String(describing:popup.titleOfSelectedItem)),enabled=\(popup.isEnabled),attached=\(popup.window === refreshed.window),current=\(target?.context==model.referencePickerContext),retired=\(target?.retired != false)"
+            }
+            return "model=\(model.reference),names=\(model.names),busy=\(model.busy),native=\(states)"
+        }
+        do {try await wait {
+            refreshed.window?.contentView?.layoutSubtreeIfNeeded()
+            return views(refreshed.window?.contentView).compactMap{$0 as? ReferenceLogReferencePopup}.contains {popup in
+                guard let target=popup.target as? ReferenceLogReferencePickerTarget else{return false}
+                return popup.window === refreshed.window && popup.isEnabled && target.model === model && target.popup === popup && !target.retired && target.context==model.referencePickerContext && popup.itemTitles==model.names && popup.titleOfSelectedItem==model.reference
+            }
+        }
+        }catch{throw Failure(description:"Vanished-ref native picker readiness: "+pickerState()+"; "+String(describing:error))}
+        let popups=views(refreshed.window?.contentView).compactMap{$0 as? ReferenceLogReferencePopup}
+        try require(!model.names.contains("refs/heads/topic") && popups.contains{$0.titleOfSelectedItem=="HEAD"},"Vanished ref did not fall back in actual picker: "+pickerState())
         try Data("fail-load".utf8).write(to:mode);model.reload()
         try await wait {!model.busy && model.error?.contains("owned refresh failure")==true}
         try require(model.entries.isEmpty && model.selection.isEmpty,"Failed refresh exposed stale reference rows")

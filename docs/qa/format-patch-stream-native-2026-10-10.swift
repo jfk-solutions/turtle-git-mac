@@ -85,7 +85,9 @@ import TurtleGitCore
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
               printf '%s %s\\n' "$$" "$task_child" > "$0.started"
-              printf 'warning: waiting\\nCreating patches: 42%%\\n'
+              # Git format-patch stdout is exclusively the complete path list.
+              # Progress belongs to stderr; the UI still combines both streams.
+              printf 'warning: waiting\\nCreating patches: 42%%\\n' >&2
               if [ -f "$0.flood" ]; then
                 task_line=0
                 while [ "$task_line" -lt 2048 ]; do printf 'warning: bounded output fixture 雪\\n' >&2; task_line=$((task_line+1)); done
@@ -127,6 +129,12 @@ import TurtleGitCore
             try Data().write(to: release); kill(pids[1], SIGTERM)
             try await wait { !bounded.busy && !bounded.finishScheduled }
             try require(bounded.success && mailCalls == 1 && boundedCallbacks == 1 && attachments.count == 2 && attachments.allSatisfy { FileManager.default.fileExists(atPath: $0.path) && $0.deletingLastPathComponent().path == URL(fileURLWithPath: bounded.directory).resolvingSymlinksInPath().path }, "Full stdout retains both captured attachments despite log truncation")
+            let expectedNames = ["0001-one.patch", "0002-two.patch"]
+            try require(attachments.map(\.lastPathComponent) == expectedNames, "Complete stdout preserves both patch paths in Git order")
+            for (attachment, name) in zip(attachments, expectedNames) {
+                let expected = try Data(contentsOf: URL(fileURLWithPath: real.directory).appendingPathComponent(name))
+                try require(try Data(contentsOf: attachment) == expected, "Captured attachment bytes changed: " + name)
+            }
             try await wait { pids.allSatisfy { kill($0, 0) != 0 } }
             let early = try await model(repository, "never")
             var earlyCalls = 0; early.onOutputChanged = { _ in earlyCalls += 1 }; early.export(); early.invalidate(); try await wait { !early.busy }; early.export()
@@ -136,7 +144,10 @@ import TurtleGitCore
         } catch {
             models.forEach { $0.invalidate() }
             let end = Date().addingTimeInterval(20)
-            while models.contains(where: \.busy) && Date() < end { try? await Task.sleep(nanoseconds: 10_000_000) }
+            while (models.contains(where: \.busy) || ownedPIDs.contains(where: { kill($0, 0) == 0 })) && Date() < end { try? await Task.sleep(nanoseconds: 10_000_000) }
+            if models.contains(where: \.busy) || ownedPIDs.contains(where: { kill($0, 0) == 0 }) {
+                throw NSError(domain: "FormatPatchStreamingQA", code: 2, userInfo: [NSLocalizedDescriptionKey: "Owned streaming cleanup did not drain after \(error); busy=\(models.filter(\.busy).count), live owned PIDs=\(ownedPIDs.filter { kill($0, 0) == 0 })"])
+            }
             throw error
         }
         try await wait { ownedPIDs.allSatisfy { kill($0, 0) != 0 } }

@@ -226,3 +226,65 @@ import TurtleGitCore
         if !retired, requested { DispatchQueue.main.async { [weak self] in self?.resume() } }
     }
 }
+
+/// LoadViews(-1) retains source coordinates; fresh Open and input decoding use
+/// the configured first-difference/conflict navigation instead.
+enum MergeEditorLoadPurpose: Equatable { case fresh, reload }
+
+/// Coordinates deliberately contain no outgoing document UUID. Each editor owns
+/// and validates the request, then retargets this value to its accepted document.
+struct MergeEditorReloadPosition {
+    let line: Int
+    let column: Int
+    let topLine: Int
+
+    @MainActor static func capture(view: NSTextView, scroll: NSScrollView, cells: [MergeSourceCell]? = nil) -> Self? {
+        guard scroll.documentView === view, view.window != nil else { return nil }
+        let ranges = MergeLineEndings.lineRanges(in: view.string)
+        guard !ranges.isEmpty else { return .init(line: 0, column: 0, topLine: 0) }
+        let offset = min(view.selectedRange().location, view.string.utf16.count)
+        let row = max(0, min(ranges.count - 1, MergeLineEndings.lineNumber(in: view.string, utf16Offset: offset) - 1))
+        let top = min(ranges.count - 1, MergeLocatorScrolling.viewport(scroll).rows.lowerBound)
+        func source(_ row: Int) -> Int {
+            guard let cells, !cells.isEmpty else { return row }
+            let index = min(row, cells.count - 1)
+            if cells[index].hasSourceCoordinate, let line = cells[index].lineNumber { return max(0, line - 1) }
+            // Alignment gaps use the nearest real source row, without counting
+            // synthetic display rows as lines in the file.
+            let nearest = cells.indices.filter { cells[$0].hasSourceCoordinate }.min { abs($0-index) < abs($1-index) }
+            return nearest.flatMap { cells[$0].lineNumber }.map { max(0,$0-1) } ?? 0
+        }
+        return .init(line:source(row),column:max(0,offset-ranges[row].location),topLine:source(top))
+    }
+    @MainActor func offsets(in view: NSTextView, cells: [MergeSourceCell]? = nil) -> (caret: Int, top: Int) {
+        let ranges = MergeLineEndings.lineRanges(in:view.string)
+        guard !ranges.isEmpty else { return (0,0) }
+        func row(_ line: Int) -> Int {
+            guard let cells, !cells.isEmpty else { return min(max(0,line),ranges.count-1) }
+            let candidates = cells.indices.filter { cells[$0].hasSourceCoordinate }
+            return min(ranges.count-1,candidates.min { abs((cells[$0].lineNumber ?? 1)-1-line) < abs((cells[$1].lineNumber ?? 1)-1-line) } ?? 0)
+        }
+        let caretRange = ranges[row(line)]
+        let content = (view.string as NSString).substring(with:caretRange)
+        let length = MergeLineEndings.boundaries(in:content).first?.range.location ?? content.utf16.count
+        return (caretRange.location+min(max(0,column),length),ranges[row(topLine)].location)
+    }
+    @MainActor func restore(in view: NSTextView, scroll: NSScrollView, cells: [MergeSourceCell]? = nil) {
+        let offsets = offsets(in:view,cells:cells)
+        view.setSelectedRange(NSRange(location:offsets.caret,length:0))
+        guard let layout=view.layoutManager,let container=view.textContainer else {return}
+        layout.ensureLayout(for:container)
+        let top=min(offsets.top,view.string.utf16.count)
+        let rect:NSRect
+        if top < view.string.utf16.count,layout.numberOfGlyphs>0 {
+            let glyph=min(layout.numberOfGlyphs-1,layout.glyphIndexForCharacter(at:top))
+            rect=layout.lineFragmentRect(forGlyphAt:glyph,effectiveRange:nil)
+        } else {rect=layout.extraLineFragmentRect}
+        // ScrollToChar(0): rulers occupy clip insets, so the native leading
+        // character origin is minus the inset rather than raw clip x == 0.
+        let proposed=NSRect(x:-scroll.contentView.contentInsets.left,y:max(0,rect.minY+view.textContainerOrigin.y),width:scroll.contentView.bounds.width,height:scroll.contentView.bounds.height)
+        scroll.contentView.scroll(to:scroll.contentView.constrainBoundsRect(proposed).origin)
+        scroll.reflectScrolledClipView(scroll.contentView)
+        scroll.verticalRulerView?.needsDisplay=true
+    }
+}

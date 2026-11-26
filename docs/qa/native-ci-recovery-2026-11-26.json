@@ -1,0 +1,791 @@
+{
+  "kind": "TurtleGitNativeCIRecovery",
+  "created_utc": "2026-11-26T07:23:40.349879+00:00",
+  "base_source_commit": "483fdcc616509b17ff7c2836aababe90d4d78d23",
+  "hosted_baseline": {
+    "run": 45706913427,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45706913427",
+    "core": "success",
+    "svn": "success",
+    "native": "failure",
+    "pages": "separate success"
+  },
+  "local_status": "affected grouped workflows passed; fresh full hosted run required",
+  "latest_workflows": {
+    "patch-files-panel": {
+      "name": "patch-files-panel",
+      "exit_code": 0,
+      "elapsed_seconds": 45.627,
+      "expected_native_cases": 4,
+      "log_sha256": "fb904026fb99183280441fee99dd5a11741fe5df1346045c03dc88ddc188e2c6",
+      "reaped_pids": [
+        57075,
+        57091,
+        57626,
+        57803,
+        57942,
+        58104
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-patch-files-panel.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "import-workflow": {
+      "name": "import-workflow",
+      "exit_code": 0,
+      "elapsed_seconds": 157.979,
+      "expected_native_cases": 2,
+      "log_sha256": "07bf3d56d92153cbe7636f38c566a0a7801587bc125dbf2673d21ac2d9bdcc46",
+      "reaped_pids": [
+        4426,
+        5743,
+        9581
+      ],
+      "local_log": "build/qa/ci-import-lifecycle-2026-11-26-import-workflow.log",
+      "journal": "ci-import-lifecycle-2026-11-26"
+    },
+    "reload-compare": {
+      "name": "reload-compare",
+      "exit_code": 0,
+      "elapsed_seconds": 54.347,
+      "expected_native_cases": 2,
+      "log_sha256": "17be9a8e79042cca6cdc5d7b791c3ec53389e91a06745aa172f2b2a99c937a38",
+      "reaped_pids": [
+        50840,
+        50977,
+        51627
+      ],
+      "local_log": "build/qa/ci-final-workflows-2026-11-26-reload-compare.log",
+      "journal": "ci-final-workflows-2026-11-26"
+    },
+    "reload-three-way": {
+      "name": "reload-three-way",
+      "exit_code": 0,
+      "elapsed_seconds": 95.806,
+      "expected_native_cases": 2,
+      "log_sha256": "e2c3c91415937812ae21411bce22d99ea1785365bab47c6e8def8190dbde909b",
+      "reaped_pids": [
+        99658,
+        99738,
+        1583
+      ],
+      "local_log": "build/qa/ci-mounted-workflows-2026-11-26-reload-three-way.log",
+      "journal": "ci-mounted-workflows-2026-11-26"
+    },
+    "word-ownership": {
+      "name": "word-ownership",
+      "exit_code": 0,
+      "elapsed_seconds": 9.525,
+      "expected_native_cases": 2,
+      "log_sha256": "a0d5e6c29f69130d64d2cd6166cc409b78b52c4d5d5b6d3fdf2b6893be5614d3",
+      "reaped_pids": [
+        59990,
+        60060,
+        60115
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-word-ownership.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "image-system-remaining": {
+      "name": "image-system-remaining",
+      "exit_code": 0,
+      "elapsed_seconds": 65.309,
+      "expected_native_cases": 5,
+      "log_sha256": "2bd51eb597fa04613e2d97214ae64f167329173f364e12d2a66d4839b569ae35",
+      "reaped_pids": [
+        98373,
+        98760,
+        99863,
+        1317,
+        1767,
+        2717
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-image-system-remaining.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    "image-bundled": {
+      "name": "image-bundled",
+      "exit_code": 0,
+      "elapsed_seconds": 99.194,
+      "expected_native_cases": 10,
+      "log_sha256": "85db918e47e0f5d9f1f759190059d2fea5cd67f16570ab2beb03c999247926ea",
+      "reaped_pids": [
+        3526,
+        3818,
+        3858,
+        3913,
+        4437,
+        5085,
+        5526,
+        6430,
+        6667,
+        7481
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-image-bundled.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    "log-feedback": {
+      "name": "log-feedback",
+      "exit_code": 0,
+      "elapsed_seconds": 32.325,
+      "expected_native_cases": 2,
+      "log_sha256": "495d8bc9199b75edb80351b8aaaf78257cf19961ca935b74ae6222d2294d9122",
+      "reaped_pids": [
+        60285,
+        60420,
+        60798
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-log-feedback.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "reflog-lifecycle": {
+      "name": "reflog-lifecycle",
+      "exit_code": 0,
+      "elapsed_seconds": 32.904,
+      "expected_native_cases": 2,
+      "log_sha256": "fcd8cc848dbc97b9a080f947b276ad0c13bfad3c0623469d0b0a261153fe2f56",
+      "reaped_pids": [
+        61216,
+        61265,
+        62523
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-reflog-lifecycle.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "commit-scope": {
+      "name": "commit-scope",
+      "exit_code": 0,
+      "elapsed_seconds": 38.065,
+      "expected_native_cases": 2,
+      "log_sha256": "90d334155c53247529447888e0ad965f9a88ab7ec5c284882ebf864054f3e45a",
+      "reaped_pids": [
+        63779,
+        64289,
+        64534
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-commit-scope.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "primary-files": {
+      "name": "primary-files",
+      "exit_code": 0,
+      "elapsed_seconds": 62.498,
+      "expected_native_cases": 2,
+      "log_sha256": "97614ca43b65626ae4e5b199315cc9a2cf2d409917ece25d7986e2263b1fdcce",
+      "reaped_pids": [
+        8324,
+        8840,
+        10532
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-primary-files.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    "settings-handoffs": {
+      "name": "settings-handoffs",
+      "exit_code": 0,
+      "elapsed_seconds": 30.614,
+      "expected_native_cases": 6,
+      "log_sha256": "c0b7ffc346f4fc71e7695f84a41433a4b28a1a7bfe71df6f16cfc8e2ebb0541d",
+      "reaped_pids": [
+        65577,
+        65602,
+        65961,
+        66174,
+        66294,
+        66625,
+        66832
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-settings-handoffs.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "rebase-add": {
+      "name": "rebase-add",
+      "exit_code": 0,
+      "elapsed_seconds": 208.607,
+      "expected_native_cases": 2,
+      "log_sha256": "1bd92389655626377a6b2b41091b3de82cf4e59478850018aaa9d19b10bf1f61",
+      "reaped_pids": [
+        66964,
+        67073,
+        74393
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-rebase-add.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "status-commit": {
+      "name": "status-commit",
+      "exit_code": 0,
+      "elapsed_seconds": 18.093,
+      "expected_native_cases": 2,
+      "log_sha256": "44c9918a533a3cc7abf0b6d6bc3282c457a16a222e4cfaabec06c542c5166ccb",
+      "reaped_pids": [
+        81547,
+        81670,
+        82020
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-status-commit.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    "english-groups": {
+      "name": "english-groups",
+      "exit_code": 0,
+      "elapsed_seconds": 5.266,
+      "expected_native_cases": 1,
+      "log_sha256": "78170c1d9df49e0056cea9ed7cff159856ad608b5a494b9e88cde58c37c2ae7b",
+      "reaped_pids": [
+        82361,
+        82392
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-english-groups.log",
+      "journal": "ci-stabilization-2026-11-26"
+    }
+  },
+  "passed_native_process_cases": 46,
+  "attempts": [
+    {
+      "name": "debug-build",
+      "exit_code": 0,
+      "elapsed_seconds": 74.115,
+      "expected_native_cases": 0,
+      "log_sha256": "d884e5649ac3048413cf74aab56e1e3a4494177f515ca02bd2eea5424b145864",
+      "reaped_pids": [],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-debug-build.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "patch-files-panel",
+      "exit_code": 0,
+      "elapsed_seconds": 45.627,
+      "expected_native_cases": 4,
+      "log_sha256": "fb904026fb99183280441fee99dd5a11741fe5df1346045c03dc88ddc188e2c6",
+      "reaped_pids": [
+        57075,
+        57091,
+        57626,
+        57803,
+        57942,
+        58104
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-patch-files-panel.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 36.467,
+      "expected_native_cases": 2,
+      "log_sha256": "29b9618f1ee2622a72e43f02691dcc4fcd99d83ebdc0af7fe7d77a349ddcebdc",
+      "reaped_pids": [
+        58291,
+        58748
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-import-workflow.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "reload-compare",
+      "exit_code": 1,
+      "elapsed_seconds": 22.219,
+      "expected_native_cases": 2,
+      "log_sha256": "ea9fdf636e1c814421575767e93826e4fe506229958b3808ccea6282806a2f12",
+      "reaped_pids": [
+        59248,
+        59280
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-reload-compare.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 1,
+      "elapsed_seconds": 15.657,
+      "expected_native_cases": 2,
+      "log_sha256": "6ccd1086e03b4383d86b3be95658bc500836ea365330d1b9d502fc1420fe7a7c",
+      "reaped_pids": [
+        59668,
+        59700
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-reload-three-way.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "word-ownership",
+      "exit_code": 0,
+      "elapsed_seconds": 9.525,
+      "expected_native_cases": 2,
+      "log_sha256": "a0d5e6c29f69130d64d2cd6166cc409b78b52c4d5d5b6d3fdf2b6893be5614d3",
+      "reaped_pids": [
+        59990,
+        60060,
+        60115
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-word-ownership.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "image-system-remaining",
+      "exit_code": 1,
+      "elapsed_seconds": 2.227,
+      "expected_native_cases": 5,
+      "log_sha256": "6a8c9c52b509adc578ab19a4f5c11023d4ad760119bd8a183dfc1a855dbca7f2",
+      "reaped_pids": [
+        60191
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-image-system-remaining.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "image-bundled",
+      "exit_code": 1,
+      "elapsed_seconds": 2.295,
+      "expected_native_cases": 10,
+      "log_sha256": "e6e6cb54f97d7275a795b1a437572079a66e1d55f5fba08dad1fe81a236a8fee",
+      "reaped_pids": [
+        60235
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-image-bundled.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "log-feedback",
+      "exit_code": 0,
+      "elapsed_seconds": 32.325,
+      "expected_native_cases": 2,
+      "log_sha256": "495d8bc9199b75edb80351b8aaaf78257cf19961ca935b74ae6222d2294d9122",
+      "reaped_pids": [
+        60285,
+        60420,
+        60798
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-log-feedback.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "reflog-lifecycle",
+      "exit_code": 0,
+      "elapsed_seconds": 32.904,
+      "expected_native_cases": 2,
+      "log_sha256": "fcd8cc848dbc97b9a080f947b276ad0c13bfad3c0623469d0b0a261153fe2f56",
+      "reaped_pids": [
+        61216,
+        61265,
+        62523
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-reflog-lifecycle.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "commit-scope",
+      "exit_code": 0,
+      "elapsed_seconds": 38.065,
+      "expected_native_cases": 2,
+      "log_sha256": "90d334155c53247529447888e0ad965f9a88ab7ec5c284882ebf864054f3e45a",
+      "reaped_pids": [
+        63779,
+        64289,
+        64534
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-commit-scope.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "primary-files",
+      "exit_code": 1,
+      "elapsed_seconds": 21.196,
+      "expected_native_cases": 2,
+      "log_sha256": "e998db5cdea217e774785a4041a8e9c58c03dfe9c2e437985a24e6c50f3c6a4c",
+      "reaped_pids": [
+        64795,
+        65003
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-primary-files.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "settings-handoffs",
+      "exit_code": 0,
+      "elapsed_seconds": 30.614,
+      "expected_native_cases": 6,
+      "log_sha256": "c0b7ffc346f4fc71e7695f84a41433a4b28a1a7bfe71df6f16cfc8e2ebb0541d",
+      "reaped_pids": [
+        65577,
+        65602,
+        65961,
+        66174,
+        66294,
+        66625,
+        66832
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-settings-handoffs.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "rebase-add",
+      "exit_code": 0,
+      "elapsed_seconds": 208.607,
+      "expected_native_cases": 2,
+      "log_sha256": "1bd92389655626377a6b2b41091b3de82cf4e59478850018aaa9d19b10bf1f61",
+      "reaped_pids": [
+        66964,
+        67073,
+        74393
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-rebase-add.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "status-commit",
+      "exit_code": 0,
+      "elapsed_seconds": 18.093,
+      "expected_native_cases": 2,
+      "log_sha256": "44c9918a533a3cc7abf0b6d6bc3282c457a16a222e4cfaabec06c542c5166ccb",
+      "reaped_pids": [
+        81547,
+        81670,
+        82020
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-status-commit.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "english-groups",
+      "exit_code": 0,
+      "elapsed_seconds": 5.266,
+      "expected_native_cases": 1,
+      "log_sha256": "78170c1d9df49e0056cea9ed7cff159856ad608b5a494b9e88cde58c37c2ae7b",
+      "reaped_pids": [
+        82361,
+        82392
+      ],
+      "local_log": "build/qa/ci-stabilization-2026-11-26-english-groups.log",
+      "journal": "ci-stabilization-2026-11-26"
+    },
+    {
+      "name": "debug-build",
+      "exit_code": 0,
+      "elapsed_seconds": 28.266,
+      "expected_native_cases": 0,
+      "log_sha256": "85a7e1233ae5d0fbe575ec1f2cf6223674907bf0141a601bf9df00e18ec7e5b8",
+      "reaped_pids": [],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-debug-build.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 36.882,
+      "expected_native_cases": 2,
+      "log_sha256": "5392814af3a5ffb2482eb9683acd274287f573350db7c35bf93dbc318798ba68",
+      "reaped_pids": [
+        93929,
+        93939,
+        94445
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-import-workflow.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "reload-compare",
+      "exit_code": 1,
+      "elapsed_seconds": 28.734,
+      "expected_native_cases": 2,
+      "log_sha256": "0ed767e7fca09928bd3452ebb99aad512310f41066d00dac92809769bf66431d",
+      "reaped_pids": [
+        94959,
+        94997,
+        95637
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-reload-compare.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 1,
+      "elapsed_seconds": 52.719,
+      "expected_native_cases": 2,
+      "log_sha256": "c210c849ee429622beb5d33c4e834fd742718f4a75e5779e0df78c580b04a410",
+      "reaped_pids": [
+        95698,
+        95730
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-reload-three-way.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "image-system-remaining",
+      "exit_code": 0,
+      "elapsed_seconds": 65.309,
+      "expected_native_cases": 5,
+      "log_sha256": "2bd51eb597fa04613e2d97214ae64f167329173f364e12d2a66d4839b569ae35",
+      "reaped_pids": [
+        98373,
+        98760,
+        99863,
+        1317,
+        1767,
+        2717
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-image-system-remaining.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "image-bundled",
+      "exit_code": 0,
+      "elapsed_seconds": 99.194,
+      "expected_native_cases": 10,
+      "log_sha256": "85db918e47e0f5d9f1f759190059d2fea5cd67f16570ab2beb03c999247926ea",
+      "reaped_pids": [
+        3526,
+        3818,
+        3858,
+        3913,
+        4437,
+        5085,
+        5526,
+        6430,
+        6667,
+        7481
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-image-bundled.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "primary-files",
+      "exit_code": 0,
+      "elapsed_seconds": 62.498,
+      "expected_native_cases": 2,
+      "log_sha256": "97614ca43b65626ae4e5b199315cc9a2cf2d409917ece25d7986e2263b1fdcce",
+      "reaped_pids": [
+        8324,
+        8840,
+        10532
+      ],
+      "local_log": "build/qa/ci-affected-followup-2026-11-26-primary-files.log",
+      "journal": "ci-affected-followup-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 39.233,
+      "expected_native_cases": 2,
+      "log_sha256": "e58c16a4eaf10ad22198db99443db17b73bba92ae61f571ea37cb65a1d65a4d8",
+      "reaped_pids": [
+        48538,
+        49553
+      ],
+      "local_log": "build/qa/ci-final-workflows-2026-11-26-import-workflow.log",
+      "journal": "ci-final-workflows-2026-11-26"
+    },
+    {
+      "name": "reload-compare",
+      "exit_code": 0,
+      "elapsed_seconds": 54.347,
+      "expected_native_cases": 2,
+      "log_sha256": "17be9a8e79042cca6cdc5d7b791c3ec53389e91a06745aa172f2b2a99c937a38",
+      "reaped_pids": [
+        50840,
+        50977,
+        51627
+      ],
+      "local_log": "build/qa/ci-final-workflows-2026-11-26-reload-compare.log",
+      "journal": "ci-final-workflows-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 1,
+      "elapsed_seconds": 22.269,
+      "expected_native_cases": 2,
+      "log_sha256": "ce6841e5ab54e871c32e8c4d70d73adcb64584987a42fddbe260d9d27d8de12a",
+      "reaped_pids": [
+        52495,
+        52547
+      ],
+      "local_log": "build/qa/ci-final-workflows-2026-11-26-reload-three-way.log",
+      "journal": "ci-final-workflows-2026-11-26"
+    },
+    {
+      "name": "debug-build",
+      "exit_code": 0,
+      "elapsed_seconds": 70.62,
+      "expected_native_cases": 0,
+      "log_sha256": "365a0bd5d3b7d6a50715f84759ed4d49b005623cdf13e65f89ce14edb56566d8",
+      "reaped_pids": [],
+      "local_log": "build/qa/ci-quit-save-final-2026-11-26-debug-build.log",
+      "journal": "ci-quit-save-final-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 42.362,
+      "expected_native_cases": 2,
+      "log_sha256": "365b4d8cd727a10c2ccfbc9ad4c89c3ce1157d6b3299499f2e7c01cd7e1e1daf",
+      "reaped_pids": [
+        69234,
+        69259,
+        69912
+      ],
+      "local_log": "build/qa/ci-quit-save-final-2026-11-26-import-workflow.log",
+      "journal": "ci-quit-save-final-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 1,
+      "elapsed_seconds": 29.617,
+      "expected_native_cases": 2,
+      "log_sha256": "3962c04f9ac0a6573f585fd0f5966505284fe3be6990f40fac92358b16b34fad",
+      "reaped_pids": [
+        70708,
+        70789
+      ],
+      "local_log": "build/qa/ci-quit-save-final-2026-11-26-reload-three-way.log",
+      "journal": "ci-quit-save-final-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 54.759,
+      "expected_native_cases": 2,
+      "log_sha256": "167dc80bd12dfa790ad703cc0a371a6664778ee05692a1673be80aa386a9e3d8",
+      "reaped_pids": [
+        77204,
+        78378
+      ],
+      "local_log": "build/qa/ci-last-fixtures-2026-11-26-import-workflow.log",
+      "journal": "ci-last-fixtures-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 1,
+      "elapsed_seconds": 71.896,
+      "expected_native_cases": 2,
+      "log_sha256": "73918ebc1a101695df7ea8512710222429f476d28cf1e20843dc13668f0d6579",
+      "reaped_pids": [
+        79280,
+        79330
+      ],
+      "local_log": "build/qa/ci-last-fixtures-2026-11-26-reload-three-way.log",
+      "journal": "ci-last-fixtures-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 93.199,
+      "expected_native_cases": 2,
+      "log_sha256": "5ac09af131202f9cf6015afe0c208dd98ee5215441a747eeb04142910a68596e",
+      "reaped_pids": [
+        86024,
+        87573
+      ],
+      "local_log": "build/qa/ci-workflow-repair-2026-11-26-import-workflow.log",
+      "journal": "ci-workflow-repair-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 1,
+      "elapsed_seconds": 36.942,
+      "expected_native_cases": 2,
+      "log_sha256": "3da0061f4ec271c2b4a972bcea782f7cd46021e1c8f26028cb3e1438cdd940bb",
+      "reaped_pids": [
+        90240,
+        90353
+      ],
+      "local_log": "build/qa/ci-workflow-repair-2026-11-26-reload-three-way.log",
+      "journal": "ci-workflow-repair-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 1,
+      "elapsed_seconds": 93.621,
+      "expected_native_cases": 2,
+      "log_sha256": "f78e297025f5e8555fe8286289e7985af4b2c0219e507fdb997140b55b651f73",
+      "reaped_pids": [
+        95525,
+        96503
+      ],
+      "local_log": "build/qa/ci-mounted-workflows-2026-11-26-import-workflow.log",
+      "journal": "ci-mounted-workflows-2026-11-26"
+    },
+    {
+      "name": "reload-three-way",
+      "exit_code": 0,
+      "elapsed_seconds": 95.806,
+      "expected_native_cases": 2,
+      "log_sha256": "e2c3c91415937812ae21411bce22d99ea1785365bab47c6e8def8190dbde909b",
+      "reaped_pids": [
+        99658,
+        99738,
+        1583
+      ],
+      "local_log": "build/qa/ci-mounted-workflows-2026-11-26-reload-three-way.log",
+      "journal": "ci-mounted-workflows-2026-11-26"
+    },
+    {
+      "name": "import-workflow",
+      "exit_code": 0,
+      "elapsed_seconds": 157.979,
+      "expected_native_cases": 2,
+      "log_sha256": "07bf3d56d92153cbe7636f38c566a0a7801587bc125dbf2673d21ac2d9bdcc46",
+      "reaped_pids": [
+        4426,
+        5743,
+        9581
+      ],
+      "local_log": "build/qa/ci-import-lifecycle-2026-11-26-import-workflow.log",
+      "journal": "ci-import-lifecycle-2026-11-26"
+    }
+  ],
+  "journal_sha256": {
+    "ci-stabilization-2026-11-26": "23711806ff1dda18e03bc425b7b1d9418e59c778ddaacb4af42ff9263224f905",
+    "ci-affected-followup-2026-11-26": "70cc40783961368836536dce85dfa399db6f4207c0f7b80c7fae51d0816c6751",
+    "ci-final-workflows-2026-11-26": "862dd56ae93173255eae8d7b07ba25f531b47a8f3b33ef15a95eb8a2ebfc0d0c",
+    "ci-quit-save-final-2026-11-26": "430a9dd4667fcb633001cf59822b530fcb7cb87d60019eacbac236816041b472",
+    "ci-last-fixtures-2026-11-26": "a30c3644b1de4ce6cb299625def5bd272b843a96dcd72206e204262f4e64f22d",
+    "ci-workflow-repair-2026-11-26": "abd99ec8fc412c7043dcba157d98ff3e331421242e11b22d205405b741372b6d",
+    "ci-mounted-workflows-2026-11-26": "052b2a0a03409efa3c84b936846478b59c337968ece6090e47c04bcd7dd54d23",
+    "ci-import-lifecycle-2026-11-26": "640afc6baa94be47cc50432c892666e959299b73dcde45f5a0a8f751e8d96436"
+  },
+  "source_and_fixture_sha256": {
+    "Sources/TurtleGitMac/FileComparisonWindow.swift": "611cc628e53fee734b2338bab16ac54812786ae662968b62ec8b3d4e5b217529",
+    "Sources/TurtleGitMac/MergeExternalReload.swift": "1db1a083f746ee07fe3ef29416a851a65ed52c8704a40206242ef916455bba4b",
+    "Sources/TurtleGitMac/TextConflictWindow.swift": "6e4977e5302ecb651f0b7ef80ba866403a2e6d2e6d0700d158e0e8fbc8ec8711",
+    "Sources/TurtleGitMac/MergeEditorToolbar.swift": "d79a3260a02358e221d9e88477d4a47c07881f4a4058f1a8f99740661f2be646",
+    "Sources/TurtleGitMac/ImportPatchWindow.swift": "4f324a4dcaba42859bc0ac46641853404b083cccb30eac697937b3c8c9848cb8",
+    "docs/qa/compare-reload-position-native-2026-11-25.swift": "991e6a97ab6d7e2da9a4e35d0b91026b42e19eaddb193c46ea5bb9b5d4820c14",
+    "docs/qa/three-way-reload-position-native-2026-11-25.swift": "405ea455403ed966864d199ee90e5e449b4bd5b7a03f839bfd73636cb7e505e0",
+    "docs/qa/commit-preferences-native-2026-10-13.swift": "ceee0391abc67a74a26fc5a61e81b288fb725427a4458a4b5d0cd4c3cfd15dae",
+    "docs/qa/format-patch-stream-native-2026-10-10.swift": "7c45a4fe437ac047f8b8c42ec50bac3d403b4793e9ad9691fd8daf228c333bc1",
+    "docs/qa/import-patch-native-2026-10-08.swift": "8af0b90fd433bf18abf43a1730c0170223cda6e69d1e45e05c486d719765f4bc",
+    "docs/qa/patch-recovery-native-2026-10-16.swift": "ea6ffc0fc423c1280aa1df215f5c07a0d7ae59184fa8eb57029f0592069bc151",
+    "docs/qa/patch-file-panel-native-2026-10-16.swift": "28c5e60dbc46840a6f1f24f965a0bc1ee2b5bbc35e5d11255016abc0409bcb49",
+    "docs/qa/file-patches-native-2026-10-13.swift": "44aeb54cd1c4d43b4ac564cf87ccddeaf3f47420fe4a17d80b4f62a0c481884c",
+    "docs/qa/statistics-source-native-2026-10-17.swift": "896f7bfa3f0edb01f6c068446ace5a1fe7ad6a0697814367ab54762a9a414df7",
+    "docs/qa/file-list-languages-native-2026-10-17.swift": "97c5482884efee8ebfc46f30b8486a0d9d00966272debfddef68ac80b691b522",
+    "docs/qa/repository-settings-handoffs-native-2026-10-23.swift": "a88f7ba12f76b860ce4e284035a10c4bddf89b05676d4989bef547a32f99d726",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "30c24364d3dd7b8351121dc7b163d60c87bdcc9fe23464e2f5756736ae37b16b",
+    "docs/qa/status-comparison-operands-native-2026-11-23.swift": "7580ca9e8dc609a07b299159d0b753520b1992d1bf223dac12efd1ccd9f8bd78",
+    "docs/qa/merge-word-input-native-2026-10-20.swift": "3e314ac6c1c97d5991954072268f8d89b6b39a26485341e241758f00a89efb27",
+    "docs/qa/image-conflict-native-2026-10-10.swift": "d29e70d72f356823079ea105e3e280a333855416bda9df3af06e89bd7fcda417",
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "024a620e5c6bb9cc5f4dba54684034a855b8136633f0c73f9c5966463d47ed00",
+    "docs/qa/reflog-lifecycle-native-2026-10-16.swift": "28ad75a71e349d05711e857f749f657ee7a92336c4216c288d0981d3f215b048",
+    "docs/qa/log-feedback-stability-native-2026-11-22.swift": "553cbeacce931de0781aacdee4d315251b33bb241af87561430d907b098abace",
+    "docs/qa/source-file-commands-native-2026-10-18.swift": "3d849b9a0f0a90f2f02d160ad07db1fffca3e758ad6607aecb08f3ad166bc818",
+    "scripts/test-editor-reload-positions.py": "82c839af78d38b119b8f0c89d284e88d377c30335f47e1c240a9e7f413d352a9",
+    "scripts/test-patch-file-panel.py": "2219163c1621e44cc93fc58981e307a0978ac7eb817778595d171dec1f14ff5f",
+    "docs/qa/import-patch-lifecycle-native-2026-10-11.swift": "a7f180b755a68a4c8805d3b36e9570696098804fa775648c84ad2e103c4413b5"
+  },
+  "unchanged_source_files": 496,
+  "unchanged_source_inventory_sha256": "36ecf97321af6164958c9b0aa23fefd2823bf93b807c3b121daa4a7459c6d1eb",
+  "owned_process_cleanup": {
+    "recorded_reaped_pid_count": 98,
+    "remaining": []
+  },
+  "limits": [
+    "One incremental app build and grouped failed/relevant unreached native workflows only. No Core or runtime rebuild.",
+    "Core and SVN hosted passes retained; older2Git binaries unavailable locally, so scoped Commit check uses system+bundled only.",
+    "Retain previously passing statistics2/stream2/preferences1/patch-special2/patch-recovery2 and existing editor7/toolbar1; no unchanged reruns.",
+    "Log geometry, Rebase timeout and missing-origin causes remain unproven until evidence; no blanket failure-repair or fullCI claim.",
+    "No installed user app replacement, public binary, notarization or Store submission.",
+    "All failed attempts retained. Passing unaffected workflows retained without replay.",
+    "No full hosted pass, complete visual parity or complete application certification follows from local passes.",
+    "Installed build59 is a distinct earlier owner-testing package. No replacement, public binary or Store submission in this batch."
+  ]
+}

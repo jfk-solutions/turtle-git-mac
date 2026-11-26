@@ -48,6 +48,7 @@ private final class CommitTemplateBookmarks: RepositoryBookmarkProvider {
         prefs.set(false,forKey:"Autocompletion"); prefs.set(true,forKey:"AutocompleteRemovesExtensions")
         prefs.set("Menlo",forKey:"LogFontName"); prefs.set(24,forKey:"LogFontSize")
         let owner=CommitWindowController(repository:repo,access:nil,defaults:prefs); defer { owner.close() }
+        owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000))
         let model=owner.model
         try require(model.keepChangelists && model.doNotAutoselectSubmodules && !model.formattingEnabled,"Initial controls ignored supplied preferences")
         model.reload(paths:["."])
@@ -65,9 +66,16 @@ private final class CommitTemplateBookmarks: RepositoryBookmarkProvider {
         try require(!prefs.bool(forKey:"Commit.KeepChangelists") && prefs.bool(forKey:"Commit.TemplateNotEdited.Proceed"),"Saved choices escaped owning preferences")
         model.busy=true; model.saveKeepChangelists(true); model.setDoNotAutoselectSubmodules(false)
         try require(!model.keepChangelists && model.doNotAutoselectSubmodules,"Busy preference action was accepted"); model.busy=false
+        let stagedChecks=model.checked,stagedIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
         model.stagingEnabled=true; model.setDoNotAutoselectSubmodules(false)
-        try require(model.doNotAutoselectSubmodules,"Staging-disabled submodule action accepted"); model.stagingEnabled=false
+        try require(!model.doNotAutoselectSubmodules && !prefs.bool(forKey:"Commit.DoNotAutoselectSubmodules") && model.checked==stagedChecks,"Staging submodule policy did not persist independently of selection")
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==stagedIndex,"Staging submodule policy staged or unstaged a gitlink")
+        model.setDoNotAutoselectSubmodules(true)
+        try require(model.doNotAutoselectSubmodules && prefs.bool(forKey:"Commit.DoNotAutoselectSubmodules") && model.checked==stagedChecks,"Staging submodule exclusion changed selected files")
+        try require(try Data(contentsOf:root.appendingPathComponent(".git/index"))==stagedIndex,"Staging submodule exclusion changed index bytes")
+        model.stagingEnabled=false
         let reopened=CommitWindowController(repository:repo,access:nil,defaults:prefs); defer { reopened.close() }
+        reopened.window?.alphaValue=0;reopened.window?.setFrameOrigin(.init(x:-24000,y:-24000))
         try require(!reopened.model.keepChangelists && reopened.model.doNotAutoselectSubmodules && !reopened.model.formattingEnabled,"Reopened dialog did not retain choices")
         reopened.close(); owner.close(); model.saveKeepChangelists(true); model.setDoNotAutoselectSubmodules(false)
         try require(!prefs.bool(forKey:"Commit.KeepChangelists") && prefs.bool(forKey:"Commit.DoNotAutoselectSubmodules"),"Retired dialog changed saved choices")
@@ -76,7 +84,7 @@ private final class CommitTemplateBookmarks: RepositoryBookmarkProvider {
         let afterHead=try await repo.run(["rev-parse","HEAD"]).stdout
         try require(afterHead==head && (try Data(contentsOf:root.appendingPathComponent(".git/index")))==index && (try Data(contentsOf:root.appendingPathComponent("file.swift")))==work,"Control changes mutated HEAD/index/worktree")
         try await templateWorkflows(repo:repo,root:root,prefs:prefs)
-        print("Commit preferences: actual submodule selection, initial/reopened private controls, native editor font/formatting, completion options, warning/Keep choices, busy/staging/retired gates and global/repository preservation passed. Owned windows closed.")
+        print("Commit preferences: actual submodule selection, initial/reopened private controls, native editor font/formatting, completion options, warning/Keep choices, busy/retired gates, staging policy persistence without gitlink/index changes and global/repository preservation passed. Owned windows closed.")
     }
     @MainActor static func templateWorkflows(repo:GitRepository,root:URL,prefs:UserDefaults) async throws {
         let external = root.deletingLastPathComponent().appendingPathComponent("template-"+UUID().uuidString+" 雪.txt")

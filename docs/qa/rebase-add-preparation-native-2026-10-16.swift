@@ -6,6 +6,7 @@ import TurtleGitCore
     struct Failure: LocalizedError, CustomStringConvertible { let description: String; var errorDescription: String? { description } }
     @MainActor static var owners: [RebaseWindowController] = []
     @MainActor static var currentPhase="initial"
+    @MainActor static var cleanupFailures:[String]=[]
     @MainActor static func trace(_ message:String) {
         print("REBASE ADD: "+message);fflush(stdout)
     }
@@ -14,16 +15,21 @@ import TurtleGitCore
         let counters="preparations=\(RebaseWindowModel.activePreparationReads) columns=\(RebaseWindowModel.activeColumnReads) replay=\(RebaseWindowModel.activeReplayOperations) pickers=\(RebaseWindowController.activeCommitPickers)"
         let models=owners.enumerated().map{index,owner in
             let model=owner.model
-            return "owner\(index){busy=\(model.busy),active=\(model.active),retired=\(model.retired),adding=\(model.addingCommits),picking=\(model.pickingCommits),split=\(model.selectingSplit),question=\(model.hasReplayQuestion),sheet=\(owner.window?.attachedSheet != nil),error=\(model.error ?? "nil")}"
+            return "owner\(index){busy=\(model.busy),active=\(model.active),retired=\(model.retired),adding=\(model.addingCommits),picking=\(model.pickingCommits),split=\(model.selectingSplit),question=\(model.hasReplayQuestion),sheet=\(owner.window?.attachedSheet != nil),noCommit=\(String(describing:model.state?.noCommitSquash?.phase)),error=\(model.error ?? "nil")}"
         }.joined(separator:" ")
-        return "phase=\(currentPhase) "+counters+" modal=\(NSApp.modalWindow != nil) "+models
+        let output=owners.last.map{String(reflecting:String($0.model.output.suffix(1024)))} ?? "none"
+        return "phase=\(currentPhase) "+counters+" modal=\(NSApp.modalWindow != nil) "+models+" latestOutput="+output
     }
     static func require(_ value: Bool, _ message: String) throws {
         if !value {fputs("REBASE ADD ASSERTION: "+message+"\n",stderr);fflush(stderr);throw Failure(description:message)}
     }
     @MainActor static func wait(_ ready: () -> Bool, line: Int = #line) async throws {
         trace("WAIT line=\(line) phase="+currentPhase)
-        for _ in 0..<2000 { if ready() {trace("READY line=\(line) phase="+currentPhase);return};try await Task.sleep(nanoseconds:10_000_000) }
+        for iteration in 0..<2000 {
+            if ready() {trace("READY line=\(line) phase="+currentPhase);return}
+            if iteration>0,iteration%500==0 {trace("WAIT heartbeat line=\(line) "+diagnostic())}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
         throw Failure(description:"Add preparation timeout at \(line): "+diagnostic())
     }
     @MainActor static func drain() async throws {
@@ -31,7 +37,7 @@ import TurtleGitCore
     }
     @MainActor static func main() async {
         NSApp.setActivationPolicy(.prohibited)
-        do { try await verify(); owners.forEach { $0.model.retire(); $0.close() }; owners = [] }
+        do { try await verify();try require(cleanupFailures.isEmpty,"Owned cleanup failed: \(cleanupFailures)"); owners.forEach { $0.model.retire(); $0.close() }; owners = [] }
         catch { owners.forEach { $0.model.retire(); $0.close() }; owners = []; fputs("Add preparation failed: \(error)\n", stderr); exit(1) }
     }
     @MainActor static func start(_ model:RebaseWindowModel) {
@@ -487,10 +493,30 @@ import TurtleGitCore
             trace("RETURN "+action+" "+root.lastPathComponent+" "+diagnostic())
         }
         func cleanup()async {
-            for owner in controllers {owner.model.retire();owner.close();owner.model.chooseMainline={_,_ in nil};owner.model.confirmEmptyMessageReview={false}}
+            var sheets:[(NSWindow,NSWindow)]=[]
+            for owner in controllers {
+                owner.model.retire();owner.model.error=nil
+                if let parent=owner.window,let sheet=parent.attachedSheet {
+                    sheets.append((parent,sheet));sheet.isReleasedWhenClosed=false
+                    parent.endSheet(sheet,returnCode:.abort);sheet.orderOut(nil);sheet.close()
+                }
+                owner.close();owner.model.chooseMainline={_,_ in nil};owner.model.confirmEmptyMessageReview={false}
+            }
             while !answers.isEmpty {answer(nil)}
-            try? await drain()
-            try? await wait {CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0}
+            do {
+                try await drain()
+                try await wait {CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0 && controllers.allSatisfy{$0.model.pendingBatchWorkers==0}}
+                try await wait {
+                sheets.allSatisfy{parent,sheet in sheet.sheetParent==nil && parent.attachedSheet !== sheet} &&
+                    controllers.allSatisfy{$0.window?.attachedSheet==nil && $0.window?.isVisible != true}
+                }
+            } catch {
+                let failure="\(root.lastPathComponent): \(error)"
+                cleanupFailures.append(failure);trace("CLEANUP failed owned worker/paired-sheet/window drain: "+failure)
+                // Never abort/reset a disposable Git session while its owned
+                // replay/child work still has not acknowledged retirement.
+                return
+            }
             if (try? await repository.rebaseState().active)==true {_=try? await repository.abortRebase()}
             preferences.removePersistentDomain(forName:suite)
         }

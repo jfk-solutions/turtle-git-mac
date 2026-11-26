@@ -14,12 +14,35 @@ private extension NSWindow {
     static func quote(_ text:String)->String{"'"+text.replacingOccurrences(of:"'",with:"'\"'\"'")+"'"}
     static func own(_ owner:NSWindowController){owner.window?.alphaValue=0;owner.window?.orderFront(nil)}
     static func drained()->Bool{CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activeMetadataOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0 && BlameWindowModel.activeHistoryOperations==0 && RemoteSettingsWindowModel.activeOperations==0 && RemoteSettingsWindowModel.activeRetirements==0 && SettingsTransaction.activeApplications==0 && SettingsTransaction.activeRetirements==0}
+    final class PrivateBookmarks:RepositoryBookmarkProvider,@unchecked Sendable {
+        let paths:Set<String>
+        private let lock=NSLock()
+        private var started=0,stopped=0
+        init(_ urls:[URL]) {paths=Set(urls.map{$0.standardizedFileURL.resolvingSymlinksInPath().path})}
+        private func path(_ url:URL)->String {url.standardizedFileURL.resolvingSymlinksInPath().path}
+        func create(for url:URL)throws->Data {
+            let location=path(url)
+            guard paths.contains(location) else{throw Failure(description:"Bookmark escaped private handoff repositories")}
+            return Data(location.utf8)
+        }
+        func resolve(_ data:Data)throws->ResolvedBookmark {
+            guard let location=String(data:data,encoding:.utf8),paths.contains(location) else{throw Failure(description:"Invalid private handoff bookmark")}
+            return .init(url:URL(fileURLWithPath:location,isDirectory:true),stale:false)
+        }
+        func startAccessing(_ url:URL)->Bool {
+            guard paths.contains(path(url)) else{return false}
+            lock.lock();started+=1;lock.unlock();return true
+        }
+        func stopAccessing(_ url:URL) {lock.lock();stopped+=1;lock.unlock()}
+        var counts:(started:Int,stopped:Int) {lock.lock();defer{lock.unlock()};return(started,stopped)}
+    }
     @MainActor final class Context {
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2])
         let suite="TurtleGit.ContextHandoffs."+UUID().uuidString,prefs:UserDefaults
         let service=SettingsPresentationService.shared
         var workspace:RepositoryModel!,host:NSWindow!,appearance:AppAppearance!,store:RepositoryAccessStore!
         var settingsOpenCount=0
+        var bookmarks:PrivateBookmarks!
         var owners:[NSWindowController]=[],commits:[CommitWindowController]=[],release:[()->Void]=[]
         var a:URL{root.appendingPathComponent("a")};var b:URL{root.appendingPathComponent("b")}
         var revisionHold:URL{root.appendingPathComponent("revision-hold")};var revisionStarted:URL{root.appendingPathComponent("revision-started")}
@@ -36,8 +59,10 @@ private extension NSWindow {
             }
             let script="#!/bin/sh\nfor argument in \"$@\"; do\n if test \"$argument\" = --show-toplevel && test -f "+quote(hold.path)+"; then\n  : > "+quote(started.path)+"\n  while test -f "+quote(hold.path)+"; do /bin/sleep 0.05; done\n fi\n if test \"$argument\" = \"HEAD^{commit}\" && test -f "+quote(revisionHold.path)+"; then\n  : > "+quote(revisionStarted.path)+"\n  while test -f "+quote(revisionHold.path)+"; do /bin/sleep 0.05; done\n fi\ndone\nexec "+quote(git.path)+" \"$@\"\n"
             try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
-            store=try RepositoryAccessStore(storageURL:root.appendingPathComponent("access.json"))
+            bookmarks=PrivateBookmarks([a,b])
+            store=try RepositoryAccessStore(storageURL:root.appendingPathComponent("access.json"),provider:bookmarks)
             workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{[git,wrapper,b] url in GitRepository(root:url,executable:url.standardizedFileURL.resolvingSymlinksInPath().path==b.standardizedFileURL.resolvingSymlinksInPath().path ? wrapper:git,askpass:nil,libgit2Configuration:.init(enabled:false))},snapshotWriter:{_ in false},savedAccessStore:store,cachePersistenceDefaults:prefs,publishCachePersistence:{_ in})
+            workspace.repositoryBookmarkProvider=bookmarks;workspace.requiresRepositoryScope=true
             workspace.fileComparisonPreferences=prefs;workspace.notifyFinder={}
             host=NSWindow(contentRect:.init(x:-24000,y:-24000,width:500,height:300),styleMask:[.titled,.closable],backing:.buffered,defer:false);host.isReleasedWhenClosed=false;host.alphaValue=0;host.orderFront(nil);workspace.workspaceWindow=host
             appearance=AppAppearance(preferences:prefs)
@@ -78,7 +103,19 @@ private extension NSWindow {
         var opened=0;c.workspace.open(c.b){opened+=1};try await wait(c.host){!c.workspace.busy}
         try require(c.workspace.root==c.a && opened==0 && remote.draft.url==draft && !remote.changed.isEmpty,"Open rebound/discarded dirty Settings context")
         try await c.dismissNotice()
-        let saved=try c.store.remember(c.b);c.workspace.openRecent(saved);try await wait(c.host){!c.workspace.busy}
+        // An unsigned receiver cannot mint real app-scope keys. Its injected
+        // authority is limited to these two authored repositories, while the
+        // shipping required-scope and captured-lease contracts remain enabled.
+        let saved=try c.store.remember(c.b),before=c.bookmarks.counts
+        weak var released:RepositoryAccessLease?
+        do {
+            let permission=try c.store.acquire(saved.id,requireSecurityScope:true,updatingRecord:false,recordingOpen:false)
+            released=permission
+            try require(permission.hasSecurityScope && permission.contains(c.b) && !permission.contains(c.a),"Private Recent permission lost its exact repository boundary")
+        }
+        let after=c.bookmarks.counts
+        try require(released==nil && after.started==before.started+1 && after.stopped==before.stopped+1,"Captured private Recent permission did not release exactly once")
+        c.workspace.openRecent(saved);try await wait(c.host){!c.workspace.busy}
         try require(c.workspace.root==c.a && remote.draft.url==draft,"Recent rebound dirty Settings context");try await c.dismissNotice()
         c.workspace.closeRepository();try require(c.workspace.root==c.a && remote.draft.url==draft,"Close Repository cleared dirty Settings owner");try await c.dismissNotice()
         c.workspace.open(c.a){opened+=1};try await wait(c.host){!c.workspace.busy && opened==1}

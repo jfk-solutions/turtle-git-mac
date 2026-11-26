@@ -53,12 +53,11 @@ encoding/patch behavior and existing block/navigation/whitespace/one-pane guards
 One bounded diagnostic and the affected fixture's initial-navigation race remain
 recorded; unrelated passing cohorts and all runtime kits were retained.
 
-This passive selection repair does not yet distinguish user Reload from fresh
-Open. Pinned `OnFileReload` uses `LoadViews(-1)` to retain logical caret/top line,
-whereas fresh Open and input-encoding reinterpretation use configured initial
-navigation. Both native editors still route F5 and accepted external changes
-through generic load; that confirmed position-preserving Reload family remains
-open. The signed59 package and installed58 do not contain this later source fix.
+The subsequent [Reload family](MERGE-RELOAD-POSITION-PARITY.md) distinguishes
+position-preserving F5/accepted external changes from fresh Open and input-encoding
+reinterpretation, following pinned `LoadViews(-1)`. Its grouped native checkpoint
+and remaining acceptance are recorded separately. The signed and installed
+build59 does not contain either later source change.
 
 ## Evidence and remaining work
 

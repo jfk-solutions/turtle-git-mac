@@ -25,6 +25,17 @@ class MacOSLaneTests(unittest.TestCase):
         return ci.verify(workflow or self.workflow, inventory or self.inventory, self.originals)
     def testCurrentSyntaxAndExactOriginalCoverage(self):
         self.verify()
+    def testEditorReloadCannotReplaceOrDropViewportCoverage(self):
+        for mutation in ['omit-reload', 'omit-viewport', 'omit-bundled', 'drop-ready']:
+            with self.subTest(mutation=mutation):
+                value = copy.deepcopy(self.workflow)
+                step = next(s for s in value['jobs']['validation']['steps']
+                            if s.get('name') == ci.EDITOR_VIEWPORT_NAME)
+                if mutation == 'omit-reload': step['run'] = ci.EDITOR_VIEWPORT_ORIGINAL_RUN
+                elif mutation == 'omit-viewport': step['run'] = step['run'].splitlines()[1] + '\n'
+                elif mutation == 'omit-bundled': step['run'] = step['run'].replace(' --git build/git-runtime/Git/bin/git', '')
+                else: step['if'] = step['if'].replace("steps.native_ready.outcome == 'success' && ", '')
+                with self.assertRaises(Exception): self.verify(value)
     def eligible(self, name, lane, outcomes=None, cancelled=False):
         step = next(s for s in self.workflow['jobs']['validation']['steps'] if s.get('name') == name)
         expression = step['if']

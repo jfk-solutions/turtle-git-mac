@@ -136,7 +136,7 @@ private extension NSWindow {
                       probe.rows.compactMap({$0}).map({GitReferenceName($0)})==expected,
                       let table=try? Prior.table(self.owner),table.window === self.owner.window,
                       table.numberOfRows==probe.rows.count,!table.isHiddenOrHasHiddenAncestor,table.isEnabled else{return false}
-                let ready=commit.model.fileListAvailable && !commit.model.busy && !commit.model.fileWorkPending && !commit.model.loadingFileMetadata
+                let ready=commit.model.fileListAvailable && !commit.model.busy && !commit.model.fileWorkPending && !commit.model.loadingFileMetadata && !commit.model.fileListRefresh.hasPendingPosition
                 if ready {accepted=probe};return ready
             }} catch {
                 let probes=Prior.views(owner.window?.contentView).compactMap{$0 as? StatusListPrimaryActionBridge.Probe}
@@ -158,7 +158,7 @@ private extension NSWindow {
                 "count=\($0.numberOfRows),selection=\(Array($0.selectedRowIndexes)),owner=\($0.window === owner.window),hidden=\($0.isHiddenOrHasHiddenAncestor)"
             }
             let states=entries.prefix(24).map{"\(String(reflecting:$0.path)):\($0.index)\($0.worktree),old=\(String(reflecting:$0.originalPath)),hasUnversionedCopy=\($0.hasUnversionedCopy)"}
-            return "OPERAND SOURCE phase=\(phase),kind=\(kind),visible=\(owner.window?.isVisible == true),busy=\(busy),pending=\(pending),amend=\(commit?.model.amend == true),againstHEAD=\(commit?.model.amendDiffToLastCommit == true),hasHead=\(commit?.model.hasHead == true),hasParent=\(commit?.model.hasParent == true),entries=\(states),probes=\(rows),tables=\(tables)"
+            return "OPERAND SOURCE phase=\(phase),kind=\(kind),visible=\(owner.window?.isVisible == true),busy=\(busy),pending=\(pending),positionPending=\(String(describing:commit?.model.fileListRefresh.hasPendingPosition)),form=\(String(reflecting:commit?.model.formReceipt)),menuRevision=\(String(describing:commit?.model.fileReportMenuRevision)),selection=\(String(reflecting:Array(selection))),amend=\(commit?.model.amend == true),againstHEAD=\(commit?.model.amendDiffToLastCommit == true),hasHead=\(commit?.model.hasHead == true),hasParent=\(commit?.model.hasParent == true),entries=\(states),probes=\(rows),tables=\(tables)"
         }
         func select(_ paths:[String])async throws->[String] {
             let bridge=try await Prior.bridge(owner),wanted=GitPathSet(paths),ordered=bridge.rows.compactMap{$0}.filter{wanted.contains($0)}
@@ -174,6 +174,8 @@ private extension NSWindow {
             if let current=try await currentCommitProjection() {bridge=current}
             else {bridge=try await Prior.bridge(owner)}
             let table=try Prior.table(owner),window=owner.window!
+            let nativeSelection=GitPathSet(table.selectedRowIndexes.compactMap{index in bridge.rows.indices.contains(index) ? bridge.rows[index]:nil})
+            try require(nativeSelection==selection && !nativeSelection.isEmpty,"Return model/native selected paths differ; "+diagnostic("selection-admission"))
             bridge.commandKeyWindow={[weak window] in window}
             try require(window.makeFirstResponder(table) && window.firstResponder === table,"Source report refused Return focus")
             try require(Prior.currentReport(owner,bridge),"Return projection retired before dispatch; "+Prior.inputState(owner,bridge))
@@ -183,6 +185,7 @@ private extension NSWindow {
                 receipts.append(receipt)
                 Prior.boundary("operand Return forwarded paths=\(String(reflecting:receipt.paths)),mark=\(String(reflecting:receipt.path)),alternate=\(receipt.alternate),receiptRevision=\(receipt.revision),"+Prior.inputState(self.owner,bridge))
                 forward?(receipt)
+                Prior.boundary("operand Return after forward "+self.activationState())
             }
             defer{bridge.activate=forward}
             Prior.boundary("operand Return begin "+Prior.inputState(owner,bridge)+","+diagnostic("before-Return"))
@@ -190,6 +193,10 @@ private extension NSWindow {
             Prior.boundary("operand Return ended forwarded=\(receipts.count),"+Prior.inputState(owner,bridge)+","+diagnostic("after-Return"))
             try require(receipts.count==1,"Native Return consumed without forwarding one accepted selected-row receipt; "+Prior.inputState(owner,bridge))
             try require(receipts[0].revision==bridge.revision && GitPathSet(receipts[0].paths)==selection,"Native Return forwarded another generation/selected path set; "+diagnostic("forwarded-Return"))
+        }
+        func activationState()->String {
+            let table=try? Prior.table(owner)
+            return "kind=\(kind),busy=\(busy),pending=\(pending),form=\(String(reflecting:commit?.model.formReceipt)),menu=\(String(describing:commit?.model.fileReportMenuRevision)),report=\(String(describing:commit?.model.fileReportRevision)),position=\(String(describing:commit?.model.fileListRefresh.hasPendingPosition)),selection=\(String(reflecting:Array(selection))),native=\(String(describing:table.map{Array($0.selectedRowIndexes)})),sameWindow=\(commit.map{$0.model.comparisonWindow === owner.window} ?? true),visible=\(owner.window?.isVisible == true),sheet=\(owner.window?.attachedSheet != nil)"
         }
         func launch(_ value:StatusListPrimaryActivationSession.Launch?) {commit?.model.onPrimaryFileActivation=value;status?.model.onPrimaryFileActivation=value;revert?.model.onPrimaryFileActivation=value}
         func confirm(_ value:((Int)async->Bool)?) {commit?.model.confirmPrimaryFileActivation=value;status?.model.confirmPrimaryFileActivation=value;revert?.model.confirmPrimaryFileActivation=value}
@@ -270,7 +277,12 @@ private extension NSWindow {
                 }
                 do {
                     try await view.enter()
-                    try await wait("Required absent accepted origin did not refuse") {!view.pending && !view.busy && commit.model.error != nil}
+                    var lastState="",stateCount=0
+                    try await wait("Required absent accepted origin did not refuse") {
+                        let state=view.activationState()
+                        if state != lastState,stateCount<24 {Prior.boundary("missing-origin admission transition "+state);lastState=state;stateCount+=1}
+                        return !view.pending && !view.busy && commit.model.error != nil
+                    }
                     try require(deliveries.isEmpty && commit.window?.isVisible==true,"Missing accepted origin was silently reclassified Added")
                 } catch {
                     let planDescription=accepted.map{plan in

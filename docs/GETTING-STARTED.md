@@ -477,6 +477,15 @@ automatically authorize overwriting newer disk contents: use an independent
 **Save As…** copy when the original Save is refused. The separate result/output
 file is protected by Save checks and is not another activation-watched input.
 
+Choose **File → Reload** or press **F5** to reread the current files. Reload and
+accepted **Load changes** keep your editing position and visible line, with
+aligned panes scrolling together; horizontal scrolling returns to the left.
+Positions beyond a shortened file are clamped to its remaining lines. If you
+have unsaved edits, Reload offers **Save**, **Don’t Save** and **Cancel**. Cancel
+or a failed read/save keeps the current document and position. Opening another
+document or reloading with a different input encoding uses the configured
+first-difference/conflict navigation instead.
+
 Choose **Apply unified diff** for a patch file and target directory, or select
 **Use Unified Diff from clipboard**. The checkbox follows clipboard format
 availability without reading clipboard text until OK. If clipboard contents

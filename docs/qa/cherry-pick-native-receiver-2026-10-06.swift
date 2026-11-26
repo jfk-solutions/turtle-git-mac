@@ -1418,8 +1418,13 @@ import TurtleGitCore
     precondition(model.checkedPathsForCommit.isEmpty && !model.canCommit)
     model.setShowUnversioned(true)
     precondition(model.checkedPathsForCommit == ["inside/unknown"] && model.canCommit)
-    model.showWholeProject = true; precondition(model.checkedPathsForCommit == ["inside/unknown", "outside"])
-    model.showWholeProject = false; model.setShowUnversioned(false); model.checked = cached
+    // Whole Project is an acquisition command: scoped initial reads do not
+    // already contain unrelated unstaged rows for a filter-only property flip.
+    model.setShowWholeProject(true);try await settleCommit(model)
+    precondition(model.showWholeProject && model.checkedPathsForCommit == ["inside/unknown", "outside"],"Whole Project accepted roster: whole=\(model.showWholeProject),busy=\(model.busy),checked=\(model.checkedPathsForCommit),entries=\(model.entries.map(\.path))")
+    model.setShowWholeProject(false);try await settleCommit(model)
+    precondition(!model.showWholeProject && !model.entries.contains{$0.path=="outside"},"Scoped roster did not return after Whole Project")
+    model.setShowUnversioned(false); model.checked = cached
     let config = try Data(contentsOf: root.appendingPathComponent(".git/config"))
     var closed = false, completions = 0
     model.close = { closed = true }; model.onCommitted = { _ in completions += 1 }

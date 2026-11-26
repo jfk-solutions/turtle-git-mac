@@ -37,17 +37,31 @@ extension PrimaryCommandsVerification {
         func windows<T>(_ type:T.Type)->[T] {NSApp.windows.filter(\.isVisible).compactMap {$0.delegate as? T}}
         func invoke(_ args:[String]) {model.handleCommandLine(arguments:args,currentDirectory:root.path)}
         let index=try Data(contentsOf:root.appendingPathComponent(".git/index")),refs=try await repo.run(["show-ref"]).stdout
+        @MainActor func navigated(_ owner:BlameWindowController,to line:Int) async throws {
+            do {
+                try await wait {
+                    owner.window?.contentView?.layoutSubtreeIfNeeded()
+                    return !owner.model.busy && owner.model.error==nil && owner.model.selection==line &&
+                        owner.model.sourceNavigationSerial>0 && owner.model.sourceNavigation==nil &&
+                        owner.model.sourceSearchCaretRow?()==line-1
+                }
+            } catch {
+                throw Failure(description:"Actual Blame navigation did not settle: expected=\(line), revision=\(String(reflecting:owner.model.snapshot?.revision)), selected=\(String(describing:owner.model.selection)), nativeRow=\(String(describing:owner.model.sourceSearchCaretRow?())), pending=\(String(describing:owner.model.sourceNavigation)), serial=\(owner.model.sourceNavigationSerial), error=\(String(reflecting:owner.model.error))")
+            }
+        }
         // Each Blame command has its own viewer; a second command cannot move the first selection.
         invoke(["--command=blame","--path",file.path,"--endrev",base.hash,"--line=2"])
         try await wait {!model.busy && windows(BlameWindowController.self).first?.model.busy == false}
         let blame=try requireOne(windows(BlameWindowController.self))
-        try require(blame.model.snapshot?.revision==base.hash && blame.model.selection==2 && blame.model.sourceNavigation?.line==2,"Blame lost historical revision, source selection or navigation")
+        try await navigated(blame,to:2)
+        try require(blame.model.snapshot?.revision==base.hash && blame.model.selection==2,"Blame lost historical revision or source selection")
         let list=container.appendingPathComponent("blame-paths.txt");try Data((file.path+"\n").utf8).write(to:list)
         model.commandLinePathListPermission={_,_ in RepositoryAccessLease(url:container,provider:bookmarks)}
         invoke(["--command=blame","--pathfile",list.path,"--deletepathfile","--endrev",base.hash,"--line=9999"])
         try await wait {!model.busy && windows(BlameWindowController.self).count==2 && windows(BlameWindowController.self).allSatisfy {!$0.model.busy}}
         let second=windows(BlameWindowController.self).first {$0 !== blame}!
-        try require(blame.model.selection==2 && second.model.selection==3 && !FileManager.default.fileExists(atPath:list.path),"Second Blame retargeted its first window or failed to clamp line")
+        try await navigated(second,to:3)
+        try require(blame.model.selection==2 && blame.model.sourceSearchCaretRow?()==1 && second.model.selection==3 && !FileManager.default.fileExists(atPath:list.path),"Second Blame retargeted its first window or failed to clamp line")
         blame.close();second.close()
         // Repository adoption releases its own busy owner before activating a
         // comparison, then must not clear the comparison's newly acquired owner.
@@ -101,10 +115,17 @@ extension PrimaryCommandsVerification {
         try require(try await repo.run(["ls-files","--error-unmatch","--",addName]).exitCode==0,"File-only Add did not stage its literal name");progress.close()
         _ = try await repo.run(["reset","--",addName]);try await wait {!model.busy}
         try FileManager.default.removeItem(at:file)
+        // Source Add's libgit2 branch uses index_add_bypath and refuses a
+        // missing leaf; its CLI `add -f` branch stages the selected deletion.
+        // This existing success case must explicitly capture that CLI backend.
+        let priorAddBackend=prefs.object(forKey:"UseLibgit2")
+        prefs.set(false,forKey:"UseLibgit2")
         invoke(["--command=add","--path",file.path])
         try await wait {!model.busy && !model.hasPendingRepositoryWork && windows(AddProgressWindowController.self).first?.model.busy == false}
         let deletion=try requireOne(windows(AddProgressWindowController.self))
-        try require(deletion.model.success,"File-only Add did not stage a missing tracked file");deletion.close()
+        try require(!deletion.model.backend.requests(.add) && deletion.model.paths==[path],"Missing-file Add lost captured CLI backend or exact selected path: paths=\(deletion.model.paths),libgit2Add=\(deletion.model.backend.requests(.add))")
+        try require(deletion.model.success,"File-only CLI Add did not stage a missing tracked file: paths=\(deletion.model.paths),busy=\(deletion.model.busy),cancelled=\(deletion.model.cancelled),information=\(deletion.model.information)");deletion.close()
+        if let priorAddBackend {prefs.set(priorAddBackend,forKey:"UseLibgit2")}else{prefs.removeObject(forKey:"UseLibgit2")}
         try require(try await repo.run(["ls-files","-z","--",path]).stdout.isEmpty,"Add failed to stage the selected deletion")
         _ = try await repo.run(["reset","--hard","HEAD"]);try working.write(to:file);try await wait {!model.busy}
         // Actual Rename mutates only on acceptance, through the existing Git plan.
