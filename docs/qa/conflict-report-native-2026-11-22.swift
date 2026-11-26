@@ -199,6 +199,18 @@ import TurtleGitCore
             try await wait("Reset Yes question",window:window){window.attachedSheet != nil}
             try answer(window,"Yes")
             try await wait("Reset Yes default",window:window){window.attachedSheet==nil && !model.reportResetActive && model.reportColumns==ResolveWindowModel.defaultReportColumns}
+            // The accepted model change precedes NSViewRepresentable's native
+            // column update. Observe that exact projection before asserting it.
+            do {
+                try await wait("Reset Yes native default projection",window:window) {
+                    table.window === window && !table.isHiddenOrHasHiddenAncestor &&
+                        visible(table).map{$0.identifier.rawValue}==["check","Path","Extension"]
+                }
+            } catch {
+                let columns=table.tableColumns.map{"\($0.identifier.rawValue):hidden=\($0.isHidden),width=\($0.width)"}
+                print("error: Conflict Reset projection expected=[check,Path,Extension],actual=\(columns),sameWindow=\(table.window === window),hidden=\(table.isHiddenOrHasHiddenAncestor),sheet=\(window.attachedSheet != nil),resetActive=\(model.reportResetActive),modelDefault=\(model.reportColumns==ResolveWindowModel.defaultReportColumns)")
+                fflush(stdout);throw error
+            }
             try require(visible(table).map{$0.identifier.rawValue}==["check","Path","Extension"],"Reset default native order differs")
 
             // Sync exercises the actual non-grouped report with a real saved

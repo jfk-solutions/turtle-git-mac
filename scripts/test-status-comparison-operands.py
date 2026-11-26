@@ -17,7 +17,12 @@ parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=('commit', 'status', 'revert', 'amend-parent', 'amend-HEAD', 'root-amend', 'unborn', 'replay', 'gui'), action='append', help='Run only selected connected cohorts; default runs all')
 args = parser.parse_args()
 root = Path(__file__).resolve().parent.parent
-cleanup_tree = ast.parse((root/'scripts/test-log-file-drags.py').read_text())
+cleanup_source = (root/'scripts/test-log-file-drags.py').read_text()
+old_wrapper = "wrapper = context / 'fixture/held-helper'"
+if cleanup_source.count(old_wrapper) != 1:
+    raise SystemExit('Owned helper cleanup contract changed; inspect exact wrapper admission')
+cleanup_source = cleanup_source.replace(old_wrapper, "wrapper = context / 'repository/primary-prepare-git'", 1)
+cleanup_tree = ast.parse(cleanup_source)
 cleanup = next(item for item in cleanup_tree.body if isinstance(item, ast.FunctionDef) and item.name == 'retire_owned_helpers')
 namespace = dict(os=os, signal=signal, time=time, subprocess=subprocess, Path=Path)
 exec(compile(ast.Module(body=[cleanup], type_ignores=[]), '<owned operand helper cleanup>', 'exec'), namespace)

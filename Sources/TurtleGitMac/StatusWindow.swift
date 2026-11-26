@@ -236,7 +236,7 @@ final class StatusNativeWindow: NSWindow {
     var showsStagedStatus = true
     var clipboard = NSPasteboard.general
     func installEmbeddedFiles(_ rows:[WorkingTreeFile],statistics:GitPathMap<CommitFile>,metadata:GitPathMap<StatusListMetadata>,submodules: some Sequence<String>,hasHead:Bool,rebase:Bool,hasLFS:Bool) { let submodules = GitPathSet(submodules);
-        guard !retired,!busy else {return};menuGeneration = UUID()
+        guard !retired,!busy else {return};invalidateFileMenus()
         files = rows;self.statistics = statistics;fileMetadata = metadata;self.submodules = submodules;hasStatusSnapshot = true
         self.hasHead = hasHead;conflictRebase = rebase;self.hasLFS = hasLFS
         selection.formIntersection(GitPathSet(rows.map(\.id)))
@@ -269,14 +269,18 @@ final class StatusNativeWindow: NSWindow {
     @Published var files: [WorkingTreeFile] = []
     @Published var statistics: GitPathMap<CommitFile> = [:]
     private var menuGeneration = UUID()
+    private var primaryActivationGeneration = UUID()
     private var comparisonEpoch = UUID()
-    func invalidateFileMenus() {menuGeneration = UUID()}
+    /// A focus mark retires ordinary menus; typed activation already captured
+    /// its rows and must survive deferred publication of that same-row focus.
+    func invalidateFileMenuFocus() {menuGeneration = UUID()}
+    func invalidateFileMenus() {menuGeneration = UUID();primaryActivationGeneration = UUID()}
     private var selectedPaths = GitPathSet()
     @Published var nativeFileSelection = Set<String>() {
         didSet {
             guard nativeFileSelection != oldValue else {return}
             selectedPaths = GitPathRowIdentity.paths(nativeFileSelection)
-            menuGeneration = UUID()
+            invalidateFileMenus()
         }
     }
     var selection: GitPathSet {
@@ -287,7 +291,7 @@ final class StatusNativeWindow: NSWindow {
         }
     }
 
-    @Published var sortOrder = [StatusFileSort(column: .path)] {didSet {if !sortOrder.elementsEqual(oldValue,by:{$0.column == $1.column && $0.order == $1.order}) {menuGeneration=UUID()}}}
+    @Published var sortOrder = [StatusFileSort(column: .path)] {didSet {if !sortOrder.elementsEqual(oldValue,by:{$0.column == $1.column && $0.order == $1.order}) {invalidateFileMenus()}}}
     @Published var filter = WorkingTreeFilter()
     @Published var branch = ""
     @Published private(set) var hasHead = false
@@ -521,7 +525,7 @@ final class StatusNativeWindow: NSWindow {
         // These two ChangedDlg controls acquire a fresh Git snapshot. Repainting
         // an old whole-tree cache misses files changed since the last refresh.
         let requiresRefresh = previous.wholeProject != value.wholeProject || previous.showAllStaged != value.showAllStaged || previous.paths != value.paths
-        menuGeneration = UUID(); filter = value
+        invalidateFileMenus(); filter = value
         defaults.set(value.showUnversioned, forKey: "AddBeforeCommit")
         defaults.set(value.showAllStaged, forKey: "ChangedFilesIncludeStaged")
         if !value.paths.isEmpty { defaults.set(value.wholeProject, forKey: wholeProjectKey) }
@@ -585,7 +589,7 @@ final class StatusNativeWindow: NSWindow {
         let repository=self.repository.capturingDiffBackend(preferences:defaults)
         guard !retired, !busy, !confirmingQuit, actionOwnerAvailable() else { return }
         if let embeddedReload {embeddedReload();return}
-        menuGeneration = UUID(); refreshRequested = false
+        invalidateFileMenus(); refreshRequested = false
         let resetPosition = resetPositionOnReload || pendingScope != nil
         if let pendingScope { self.pendingScope = nil; applyScope(pendingScope) }
         let position = fileListRefresh.begin(preferences:defaults,reset:resetPosition,selectedIDs:selection)
@@ -663,7 +667,7 @@ final class StatusNativeWindow: NSWindow {
     }
     /// Source default activation edits a single conflict; an explicit Compare
     /// command always compares the captured paths, independent of that status.
-    var primaryActionRevision:UUID {menuGeneration}
+    var primaryActionRevision:UUID {primaryActivationGeneration}
     func activatePrimaryFile(_ receipt:StatusListPrimaryActionReceipt) {
         guard receipt.revision==primaryActionRevision else{return}
         ComparisonToolInvocation.$alternate.withValue(receipt.alternate) {primaryFileAction(receipt.paths)}
@@ -676,14 +680,14 @@ final class StatusNativeWindow: NSWindow {
             guard ordered.count==ids.count else{return}
             let rows=ordered.map{row in StatusListPrimaryFile(entry:row.file.entry,isDirectory:row.metadata?.isDirectory==true || row.statistics?.isSubmodule==true || submodules.contains(row.id),isSubmodule:row.statistics?.isSubmodule==true || submodules.contains(row.id))}
             let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:defaults,window:parent,amendToParent:false,alternateTool:ComparisonToolInvocation.capture)
-            let sourceOwner=capturePrimarySourceOwner(ordered.map(\.id))
+            let sourceOwner=capturePrimarySourceOwner(ordered.map(\.id)),primaryGeneration=primaryActivationGeneration
             withFileMenu(snapshot) {
                 runOperation("Preparing file comparison…",reportCancellation:false,primaryActivation:true,operation:{[self] token in
                     let epoch=comparisonEpoch,selection=self.selection
                     let records=files.enumerated().compactMap{ids.contains($0.element.id) ? ($0.offset,$0.element.entry):nil}
                     let current:()->Bool = {[weak self,weak parent] in
                         guard let self,let parent,self.comparisonWindow === parent,self.isLive(token),!self.confirmingQuit,!self.unifiedViewerBusy,
-                              self.menuGeneration==snapshot.generation,self.comparisonEpoch==epoch,self.selection==selection,sourceOwner(),
+                              self.primaryActivationGeneration==primaryGeneration,self.comparisonEpoch==epoch,self.selection==selection,sourceOwner(),
                               records.count==rows.count else{return false}
                         return records.allSatisfy{self.files.indices.contains($0.0) && self.files[$0.0].entry==$0.1}
                     }
@@ -863,7 +867,7 @@ final class StatusNativeWindow: NSWindow {
             else { chosen = name }
             guard isLive(token), accepts(snapshot, duringOperation: true) else { return }
             let next = try await repository.assignChangelist(paths: snapshot.entries.map(\.path), name: chosen, cancellation: token)
-            guard isLive(token) else { return }; changelists = next; menuGeneration = UUID()
+            guard isLive(token) else { return }; changelists = next; invalidateFileMenus()
         })
     }
     func groupMenu(_ group: StatusListGroup) -> StatusFileMenuSnapshot {

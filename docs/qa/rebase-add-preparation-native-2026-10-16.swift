@@ -517,8 +517,23 @@ import TurtleGitCore
                 // replay/child work still has not acknowledged retirement.
                 return
             }
-            if (try? await repository.rebaseState().active)==true {_=try? await repository.abortRebase()}
+            do {
+                if try await repository.rebaseState().active {
+                    _=try await repository.abortRebase()
+                    try require(!(try await repository.rebaseState()).active,"Disposable reached session survived cleanup Abort")
+                }
+            } catch {
+                let failure="\(root.lastPathComponent): repository finalization: \(error)"
+                cleanupFailures.append(failure);trace("CLEANUP failed "+failure)
+                return
+            }
             preferences.removePersistentDomain(forName:suite)
+            // Every assertion above still sees the retired owners. Only after
+            // their workers/sheets and disposable session have drained may the
+            // next case stop retaining these closed SwiftUI roots.
+            let released=Set(controllers.map(ObjectIdentifier.init))
+            owners.removeAll{released.contains(ObjectIdentifier($0))}
+            controllers.removeAll()
         }
     }
 }

@@ -1,12 +1,18 @@
 import AppKit
+import Darwin
 import TurtleGitCore
 
 @main struct LogReferenceNavigationVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
-    @MainActor static func wait(_ ready: () -> Bool) async throws {
-        for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds: 10_000_000) }
-        throw Failure(description: "Log reference navigation timeout")
+    @MainActor static var inspect:()->String = {""}
+    @MainActor static func wait(_ ready: () -> Bool,diagnostic:()->String = {""},line:UInt = #line) async throws {
+        print("Log reference WAIT line=\(line)");fflush(stdout)
+        for _ in 0..<2000 {
+            if ready() {print("Log reference READY line=\(line)");fflush(stdout);return}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        throw Failure(description:"Log reference navigation timeout line=\(line): "+inspect()+"; "+diagnostic())
     }
     @MainActor static func descendants(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Log reference navigation failed: \(error)\n", stderr); exit(1) } }
@@ -28,6 +34,21 @@ import TurtleGitCore
         defer { prefs.removePersistentDomain(forName: suite) }
         let controller = LogWindowController(repository: repo, access: nil, labelDefaults: prefs, savesColumnLayout: false, savesGeometry: false), model = controller.model
         defer { controller.close() }
+        controller.window?.alphaValue=0;controller.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));controller.window?.orderFront(nil)
+        var slowDiagnostic:()->String = {"not started"}
+        defer{inspect={""}}
+        inspect={
+            let buttons:[String]
+            if let content=controller.window?.contentView {
+                buttons=descendants(content).compactMap{$0 as? NSButton}.filter{$0.title=="All Branches"}.map{"title=\($0.title),state=\($0.state.rawValue),enabled=\($0.isEnabled),hidden=\($0.isHiddenOrHasHiddenAncestor),owner=\($0.window === controller.window)"}
+            } else {buttons=[]}
+            let picker=controller.startReferencePicker
+            return "busy=\(model.busy),history=\(LogWindowModel.activeHistoryLoads),references=\(LogWindowModel.activeReferenceReads),browserReads=\(ReferenceBrowserWindowModel.activeReads),blocked=\(model.referencePickerBlocked),canChange=\(model.canChangeStartReference),scope=\(model.effectiveReferenceScope),expression=\(String(reflecting:model.referenceExpression)),error=\(String(reflecting:model.error)),invalid=\(model.isInvalidated),ownerVisible=\(controller.window?.isVisible == true),ownerFrame=\(String(describing:controller.window?.frame)),contentBounds=\(String(describing:controller.window?.contentView?.bounds)),ownerSheet=\(controller.window?.attachedSheet != nil),modal=\(NSApp.modalWindow != nil),picker=\(picker != nil),pickerCount=\(LogWindowController.activeReferencePickers),pickerBusy=\(String(describing:picker?.model.busy)),pickerPending=\(picker?.hasPendingWork == true),pickerParent=\(picker?.window?.sheetParent != nil),checkboxes=[\(buttons.joined(separator:"; "))],slow={\(slowDiagnostic())}"
+        }
+        controller.makeStartReferencePicker={repository,access,initial,preferences,choose in
+            let child=ReferenceBrowserWindowController(repository:repository,access:access,initial:initial,preferences:preferences,pickMultiple:true,allowsRangeSelection:true,onChoose:choose)
+            child.window?.alphaValue=0;child.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));return child
+        }
         model.reload(); try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
         try require(model.startReferenceTitle == "main" && model.fetchHeadRevision == base, "Initial reference label/metadata missing")
         // Model settlement precedes SwiftUI's representable update on some SDKs.
@@ -85,7 +106,13 @@ import TurtleGitCore
         picker.model.select(["refs/heads/main", "refs/heads/topic"], last: "refs/heads/main")
         try require(picker.model.pickRangeChoices.count == 3, "Two-ref range choices missing")
         picker.model.acceptRange(1)
-        try await wait { !model.busy && LogWindowModel.activeHistoryLoads == 0 }
+        // The browser intentionally delivers acceptance after its owned sheet
+        // and workers release; idle parent history alone can precede delivery.
+        try await wait({
+            !picker.hasPendingWork && picker.window?.sheetParent==nil && controller.window?.attachedSheet==nil &&
+                !model.referencePickerBlocked && controller.startReferencePicker==nil && LogWindowController.activeReferencePickers==0 &&
+                !model.busy && LogWindowModel.activeHistoryLoads==0 && ReferenceBrowserWindowModel.activeReads==0
+        },diagnostic:{"Accepted picker: blocked=\(model.referencePickerBlocked),picker=\(controller.startReferencePicker != nil),count=\(LogWindowController.activeReferencePickers),childPending=\(picker.hasPendingWork),childParent=\(picker.window?.sheetParent != nil),ownerSheet=\(controller.window?.attachedSheet != nil),busy=\(model.busy),history=\(LogWindowModel.activeHistoryLoads),reads=\(ReferenceBrowserWindowModel.activeReads),range=\(String(describing:model.revisionRange)),error=\(String(reflecting:model.error))"})
         try require(!model.referencePickerBlocked && controller.startReferencePicker == nil && LogWindowController.activeReferencePickers == 0 && model.revisionRange?.to == "refs/heads/topic", "Accepted range was lost during picker close")
         let reopened = HistoryReferenceRecents(root: root, defaults: prefs)
         try require(reopened.entries.first == "refs/heads/main..refs/heads/topic", "Recent picker selection not saved")
@@ -93,19 +120,28 @@ import TurtleGitCore
         var late: ((String?) -> Void)?
         controller.makeStartReferencePicker = { repository, access, initial, preferences, choose in
             late = choose
-            return ReferenceBrowserWindowController(repository: repository, access: access, initial: initial, preferences: preferences, pickMultiple: true, allowsRangeSelection: true, onChoose: choose)
+            let child=ReferenceBrowserWindowController(repository: repository, access: access, initial: initial, preferences: preferences, pickMultiple: true, allowsRangeSelection: true, onChoose: choose)
+            child.window?.alphaValue=0;child.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));return child
         }
         controller.showStartReferencePicker()
         try await wait { controller.startReferencePicker?.model.busy == false && ReferenceBrowserWindowModel.activeReads == 0 }
-        let previous = model.referenceExpression
+        let previous = model.referenceExpression,retiredPicker=controller.startReferencePicker
         controller.close(); let saved = prefs.dictionaryRepresentation(); late?("refs/tags/only-tag")
+        try await wait {retiredPicker?.hasPendingWork != true && retiredPicker?.window?.sheetParent==nil && controller.window?.attachedSheet==nil && ReferenceBrowserWindowModel.activeReads==0 && LogWindowController.activeReferencePickers==0}
         try require(model.isInvalidated && model.referenceExpression == previous && LogWindowController.activeReferencePickers == 0 && prefs.dictionaryRepresentation() as NSDictionary == saved as NSDictionary, "Retired picker changed range/history")
         // A started browser Git read remains owned through forced retirement.
         let wrapper = root.appendingPathComponent("slow-git"), marker = root.appendingPathComponent("browser-started")
         let script = "#!/bin/sh\nif [ \"$4\" = for-each-ref ]; then\n : > \"$3/browser-started\"\n /bin/sleep 30\nfi\nexec \"$TG_REF_REAL_GIT\" \"$@\"\n"
         try Data(script.utf8).write(to: wrapper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: wrapper.path)
         setenv("TG_REF_REAL_GIT", git.path, 1); defer { unsetenv("TG_REF_REAL_GIT") }
-        let slow = ReferenceBrowserWindowModel(repository: GitRepository(root: root, executable: wrapper), access: nil, initial: "HEAD", preferences: prefs)
+        // This cancellation case must exercise its owned CLI wrapper. The
+        // normal browser cases above keep their selected/default backend.
+        let slowSuite="TurtleGit.LogReferences.SlowCLI."+UUID().uuidString
+        let slowPreferences=UserDefaults(suiteName:slowSuite)!
+        slowPreferences.set(false,forKey:"UseLibgit2")
+        defer{slowPreferences.removePersistentDomain(forName:slowSuite)}
+        let slow = ReferenceBrowserWindowModel(repository: GitRepository(root: root, executable: wrapper), access: nil, initial: "HEAD", preferences: slowPreferences)
+        slowDiagnostic={"marker=\(FileManager.default.fileExists(atPath:marker.path)),busy=\(slow.busy),pending=\(slow.hasPendingWork),snapshot=\(slow.snapshot != nil),error=\(String(reflecting:slow.error)),reads=\(ReferenceBrowserWindowModel.activeReads)"}
         slow.load(); try await wait { FileManager.default.fileExists(atPath: marker.path) }
         slow.invalidate()
         try require(ReferenceBrowserWindowModel.activeReads > 0 && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel, "Retired browser read lost Quit guard")

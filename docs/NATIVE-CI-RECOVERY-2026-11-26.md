@@ -102,3 +102,57 @@ The [follow-up record](qa/hosted-native-ci-followup-2026-11-26.json) retains the
 verified artifact identity, 54 workflow-contract checks, two affected Bisect
 process passes and exact cleanup. No app/Core/runtime rebuild was needed. This
 checkpoint does not clear the Rebase timeout or claim a full hosted pass.
+
+## Cancellation and test-context isolation follow-up
+
+The hosted Core suite completed 3,536 tests with three skips and one failure.
+Its cancellation test observed an empty PID-marker file before the helper's
+`printf` wrote its two fields. Helpers now publish a complete marker by atomic
+rename. The same rev-parse/push/stash branches require two distinct positive live
+PIDs, exact owned process-group membership, cancellation/reaping and unchanged
+stash/index/remote references. Early failures still cancel and await their work.
+
+The Rebase fixture also retained every earlier context's closed controllers in
+its diagnostic array. Successfully cleaned contexts now release only their own
+controllers after worker, paired-sheet, window and repository cleanup is verified.
+Failed cleanup retains its owners and records the failure. This is a concrete
+test-lifetime repair; it does not establish the hosted Split timeout's cause.
+
+The [grouped check](qa/hosted-cancellation-recovery-2026-11-26.json) passes the
+five-test Core family and Rebase Add/Split with both Git engines. No full Core
+suite was repeated. Later failures from the same hosted run are addressed below.
+
+
+## Accepted action and native-control lifecycle batch
+
+The completed Commit lane exposed a product race: deferred focus bookkeeping
+rotated the same epoch used by an already admitted Return comparison. Commit and
+Revert now distinguish focus-sensitive menu receipts from primary-action
+receipts. Semantic changes still retire both; exact selected rows, staging,
+settings, source ownership, cancellation and window guards are preserved.
+
+One incremental app build passed. All nine accepted-operands cohorts then passed
+with both Git engines, including held Git reads, an actual focus update after
+Return, stale-menu refusal, semantic selection cancellation and the missing-copy
+origin error. The first native attempt exposed a fixture error-sheet omission;
+the follow-up acknowledges the actual owned cancellation sheet before continuing.
+
+Three additional fixture corrections retain their behavioral assertions:
+
+- Bisect word navigation waits for its accepted form and actual enabled native
+  fields before obtaining the field editors.
+- Conflict-table Reset waits for the exact native column projection after the
+  model accepts defaults, then checks the original native order.
+- Statistics dispatches one real AX increment and requires model/AX value two,
+  no pending draft, and exactly two included/two skipped authors. The native
+  selector's reported Boolean is diagnostic: hosted AppKit returned false after
+  already applying the action. No second action or fallback retries it.
+
+These three workflow families pass with both Git engines. Log likewise waits
+for its captured reference picker's accepted callback after native sheet and
+worker release. Its held-read cancellation scenario explicitly selects CLI in
+a dedicated private preference suite: default libgit2 reference reads bypassed
+the wrapper, so the expected marker never appeared. Both-engine Log checks now
+pass with original range, recents, cancellation and Quit assertions retained. The [batch record](qa/hosted-ci-repair-batch-2026-11-26.json) retains
+source hashes, initial failures and affected checks. A fresh hosted run is still
+required, including checks that the failed grouped editor step did not reach.

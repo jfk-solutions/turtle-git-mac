@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 import AppKit
 import ObjectiveC
+import SwiftUI
 import TurtleGitCore
 
 private extension NSWindow {
@@ -22,14 +23,46 @@ private extension NSWindow {
         var copySourceOverride:String?
         var head="",parent="",owners:[NSWindowController]=[],roots:[RepositoryModel]=[],unblock:[()->Void]=[]
         var expectedIndex=Data(),expectedHead=Data(),files:[String:Data]=[:],links:[String:String]=[:]
-        init(base:URL,git:URL)throws {
+        let preparationHold:URL?,preparationEntered:URL?
+        init(base:URL,git:URL,gatePreparation:Bool=false)throws {
             folder=base.standardizedFileURL;try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
-            repo=GitRepository(root:folder,executable:git,libgit2Configuration:.init(enabled:false))
+            var executable=git
+            if gatePreparation {
+                // Outside the Git root: the test gate must not change status.
+                let wrapper=folder.deletingLastPathComponent().appendingPathComponent("primary-prepare-git")
+                let hold=wrapper.appendingPathExtension("hold"),entered=wrapper.appendingPathExtension("entered")
+                preparationHold=hold;preparationEntered=entered
+                func quote(_ text:String)->String {"'"+text.replacingOccurrences(of:"'",with:"'\\''")+"'"}
+                let script="""
+                #!/bin/sh
+                for argument in "$@"; do
+                  if [ "$argument" = 'HEAD^{commit}' ] && [ -f \(quote(hold.path)) ]; then
+                    # Keep an owned private descriptor for timeout cleanup.
+                    exec 7< \(quote(hold.path))
+                    printf 'entered\\n' > \(quote(entered.path))
+                    while [ -f \(quote(hold.path)) ]; do /bin/sleep .01; done
+                    exec 7<&-
+                    break
+                  fi
+                done
+                exec \(quote(git.path)) "$@"
+                """
+                try Data(script.utf8).write(to:wrapper);try FileManager.default.setAttributes([.posixPermissions:0o700],ofItemAtPath:wrapper.path)
+                executable=wrapper
+            } else {preparationHold=nil;preparationEntered=nil}
+            repo=GitRepository(root:folder,executable:executable,libgit2Configuration:.init(enabled:false))
             suite="TurtleGit.StatusOperands."+UUID().uuidString;prefs=UserDefaults(suiteName:suite)!
             for key in ["HintStagingMode","HintHierarchicalConfig","Commit.SkipCancelConfirmation","AddBeforeCommit"] {prefs.set(true,forKey:key)}
             for key in ["UseLibgit2","EnableGravatar","TurtleGit.Commit.GitGuiInterface","SelectFilesForCommit"] {prefs.set(false,forKey:key)}
             prefs.set(3,forKey:"NumDiffWarning")
         }
+        func holdPreparation()throws {
+            guard let preparationHold,let preparationEntered else{throw NSError(domain:"OperandGate",code:1)}
+            try? FileManager.default.removeItem(at:preparationEntered)
+            try Data("held".utf8).write(to:preparationHold)
+        }
+        var preparationIsHeld:Bool {preparationEntered.map{FileManager.default.fileExists(atPath:$0.path)} ?? false}
+        func releasePreparation() {if let preparationHold {try? FileManager.default.removeItem(at:preparationHold)}}
         var wanted:[String] {[added,deleted,renamed,copied,modified,link]}
         func setup(initial:Bool=false,rootCommit:Bool=false)async throws {
             _=try await repo.run(["init","--template=","-b","main"])
@@ -76,7 +109,7 @@ private extension NSWindow {
             for(path,target)in links {try require(try FileManager.default.destinationOfSymbolicLink(atPath:folder.appendingPathComponent(path).path)==target,"Comparison followed/replaced symlink")}
         }
         func cleanup()async throws {
-            owners.forEach{$0.close()};unblock.forEach{$0()};unblock=[];roots.forEach{$0.stopMonitoringForTermination()}
+            releasePreparation();owners.forEach{$0.close()};unblock.forEach{$0()};unblock=[];roots.forEach{$0.stopMonitoringForTermination()}
             try await wait("Owned operand windows/workers did not drain") {Prior.drained() && SubmoduleDiffWindowModel.activeReads==0 && SubmoduleDiffWindowController.activeReleases==0 && roots.allSatisfy{!$0.hasPendingRepositoryWork} && owners.allSatisfy{$0.window?.isVisible != true && $0.window?.attachedSheet==nil}}
             prefs.removePersistentDomain(forName:suite)
         }
@@ -194,6 +227,11 @@ private extension NSWindow {
             try require(receipts.count==1,"Native Return consumed without forwarding one accepted selected-row receipt; "+Prior.inputState(owner,bridge))
             try require(receipts[0].revision==bridge.revision && GitPathSet(receipts[0].paths)==selection,"Native Return forwarded another generation/selected path set; "+diagnostic("forwarded-Return"))
         }
+        func focusBinding()throws->Binding<String?> {
+            if let commit {return Binding(get:{commit.model.focusedFiles["checkbox"]},set:{commit.model.focusedFiles["checkbox"]=$0})}
+            let probe=Prior.views(owner.window?.contentView).compactMap{$0 as? CommitFileInteraction.Probe}.first{$0.window === self.owner.window && !$0.isHiddenOrHasHiddenAncestor && $0.focusedPath != nil}
+            return try Prior.unwrap(probe?.focusedPath,"Current Revert native focus binding absent")
+        }
         func activationState()->String {
             let table=try? Prior.table(owner)
             return "kind=\(kind),busy=\(busy),pending=\(pending),form=\(String(reflecting:commit?.model.formReceipt)),menu=\(String(describing:commit?.model.fileReportMenuRevision)),report=\(String(describing:commit?.model.fileReportRevision)),position=\(String(describing:commit?.model.fileListRefresh.hasPendingPosition)),selection=\(String(reflecting:Array(selection))),native=\(String(describing:table.map{Array($0.selectedRowIndexes)})),sameWindow=\(commit.map{$0.model.comparisonWindow === owner.window} ?? true),visible=\(owner.window?.isVisible == true),sheet=\(owner.window?.attachedSheet != nil)"
@@ -220,7 +258,7 @@ private extension NSWindow {
         }
     }
     static func ordinary(base:URL,git:URL,kind:Kind,amend:Bool=false,againstHEAD:Bool=false,initial:Bool=false,rootCommit:Bool=false)async throws {
-        let c=try Context(base:base,git:git)
+        let c=try Context(base:base,git:git,gatePreparation:!amend && !initial && (kind == .commit || kind == .revert))
         var source:Surface?
         do {
             try await c.setup(initial:initial,rootCommit:rootCommit)
@@ -268,6 +306,75 @@ private extension NSWindow {
             try await wait("Explicit accepted comparison did not drain"){!view.pending && !view.busy && !root.hasPendingRepositoryWork}
             let explicit=try Prior.unwrap(accepted,"Explicit menu did not use typed accepted rows")
             try await verifyDeliveries(deliveries,plan:explicit,repository:c.repo,expectedBase:explicit.base,symlinkTarget:initial ? "initial-target":"target-new.txt")
+            if !amend,!initial,(kind == .commit || kind == .revert) {
+                // Hold the real accepted-base Git read, then deliver the late
+                // native focus publication without changing highlighted rows.
+                _=try await view.select([c.modified]);try await view.ready()
+                let focus=try view.focusBinding()
+                deliveries=[];accepted=nil;try c.holdPreparation();try await view.enter()
+                try await wait("Primary focus regression did not reach held accepted-base read"){c.preparationIsHeld && view.pending && view.busy}
+                var staleLog:(()->Void)?,logCalls=0,menuBefore:UUID?
+                if let commit=view.commit {
+                    let snapshot=commit.model.fileMenu([c.modified]);menuBefore=snapshot.generation;try require(snapshot.commands.contains(.log),"Focus regression ordinary Log unavailable")
+                    let old=commit.model.onFileLog;commit.model.onFileLog={_ in logCalls+=1}
+                    staleLog={commit.model.fileAction(.log,snapshot:snapshot);commit.model.onFileLog=old}
+                } else if let commands=view.revert?.model.commands {
+                    let snapshot=commands.fileMenu([c.modified]);menuBefore=snapshot.generation;try require(snapshot.commands.contains(.log),"Revert ordinary Log unavailable")
+                    let old=commands.onAction;commands.onAction={_,_ in logCalls+=1}
+                    staleLog={commands.fileAction(.log,snapshot:snapshot);commands.onAction=old}
+                }
+                let primaryBefore=view.commit?.model.filePrimaryActionRevision ?? view.revert!.model.commands.primaryActionRevision
+                let before=focus.wrappedValue,newFocus=GitReferenceName.equal(before ?? "",c.copied) ? c.modified:c.copied
+                focus.wrappedValue=newFocus
+                try require(!GitReferenceName.equal(before ?? "",focus.wrappedValue),"Deferred focus witness did not change actual native focus")
+                let menuAfter=view.commit?.model.fileReportMenuRevision ?? view.revert!.model.commands.fileMenu([c.modified]).generation
+                try require(menuBefore != menuAfter,"Changed focus did not retire ordinary menu receipt")
+                Prior.boundary("focus bookkeeping changed kind=\(kind),before=\(String(reflecting:before)),after=\(String(reflecting:focus.wrappedValue)),primary=\(primaryBefore),menuBefore=\(String(describing:menuBefore)),menuAfter=\(menuAfter)")
+                let primaryAfter=view.commit?.model.filePrimaryActionRevision ?? view.revert!.model.commands.primaryActionRevision
+                try require(primaryBefore==primaryAfter,"Focus changed the purpose-specific primary epoch")
+                c.releasePreparation()
+                try await wait("Focus-only bookkeeping cancelled accepted primary action"){!view.pending && !view.busy && !root.hasPendingRepositoryWork}
+                let focusedPlan=try Prior.unwrap(accepted,"Focus-only bookkeeping retired primary plan")
+                try require(deliveries.count==1 && deliveries[0].file.path==c.modified,"Focus-only bookkeeping lost exact accepted comparison")
+                try await verifyDeliveries(deliveries,plan:focusedPlan,repository:c.repo,expectedBase:focusedPlan.base)
+                try await wait("Focus regression child sheet did not detach"){view.owner.window?.attachedSheet==nil}
+                staleLog?();try require(logCalls==0,"Ordinary menu survived changed focus after operation drain")
+                // A genuine highlighted-selection change must still retire the
+                // same held request; the purpose epoch is no blanket bypass.
+                _=try await view.select([c.modified]);deliveries=[];accepted=nil
+                try c.holdPreparation();try await view.enter()
+                try await wait("Semantic control did not reach held base read"){c.preparationIsHeld && view.pending && view.busy}
+                if let commit=view.commit {commit.model.selection=GitPathSet([c.copied])}
+                else {view.revert?.model.highlighted=GitPathSet([c.copied])}
+                c.releasePreparation()
+                try await wait("Semantic mutation did not retire accepted primary work"){!view.pending && !view.busy && !root.hasPendingRepositoryWork}
+                try require(accepted==nil && deliveries.isEmpty && view.owner.window?.isVisible==true,"Changed selected rows escaped primary receipt retirement")
+                // Process cancellation may publish its real operation error.
+                // Acknowledge the exact owned native alert before the next
+                // action rather than clearing the model behind its sheet.
+                let cancellationError=view.commit?.model.error ?? view.revert?.model.commands.error
+                if cancellationError != nil {
+                    var cancellationSheet:NSWindow?,okay:NSButton?
+                    try await wait("Semantic cancellation error acknowledgement unavailable") {
+                        guard let sheet=view.owner.window?.attachedSheet,
+                              sheet.sheetParent === view.owner.window,
+                              let button=Prior.views(sheet.contentView).compactMap({$0 as? NSButton}).first(where:{$0.title=="OK" && $0.isEnabled}) else{return false}
+                        cancellationSheet=sheet;okay=button;return true
+                    }
+                    let sheet=try Prior.unwrap(cancellationSheet,"Cancellation alert lost its exact owner")
+                    let button=try Prior.unwrap(okay,"Cancellation alert lost its native OK")
+                    try require(view.owner.window?.attachedSheet === sheet && button.window === sheet,"Cancellation alert ownership changed before acknowledgement")
+                    Prior.boundary("semantic cancellation acknowledged kind=\(kind),error=\(String(reflecting:cancellationError))")
+                    button.performClick(nil)
+                    try await wait("Semantic cancellation alert did not physically detach") {
+                        sheet.sheetParent==nil && !sheet.isVisible && view.owner.window?.attachedSheet==nil &&
+                            view.commit?.model.error==nil && view.revert?.model.commands.error==nil &&
+                            !view.pending && !view.busy
+                    }
+                }
+                try require(accepted==nil && deliveries.isEmpty && view.owner.window?.attachedSheet==nil && view.owner.window?.isVisible==true,"Acknowledging cancellation changed primary outcome or source ownership")
+                try await c.preserved()
+            }
             if kind == .commit,!amend,!initial,let commit=view.commit {
                 deliveries=[];accepted=nil;c.copySourceOverride="absent accepted copy source.txt"
                 commit.model.reload(paths:["."]);try await view.ready();_ = try await view.select([c.copied])
@@ -294,7 +401,13 @@ private extension NSWindow {
                         return "base=\(plan.base),count=\(plan.selectedCount),ownerCurrent=\(plan.ownerIsCurrent()),sameWindow=\(plan.window === commit.window),actions=\(actions)"
                     } ?? "none"
                     let delivered=deliveries.prefix(24).map{"path=\(String(reflecting:$0.file.path)),action=\($0.file.action),old=\(String(reflecting:$0.file.oldPath)),from=\($0.snapshot.from),to=\($0.snapshot.to)"}
-                    print("MISSING ORIGIN: reloadedRow=\(reloadedRow.map(describeRow) ?? "absent"),acceptedPlan=\(planDescription),error=\(String(reflecting:commit.model.error)),pending=\(view.pending),busy=\(view.busy),sheet=\(commit.window?.attachedSheet != nil),visible=\(commit.window?.isVisible == true),sourceClosed=\(!commit.model.messageFocusAvailable),fileListAvailable=\(commit.model.fileListAvailable),reportRevision=\(commit.model.fileReportRevision),menuRevision=\(commit.model.fileReportMenuRevision),deliveries=\(delivered),boundaries=\(Prior.inputBoundaries)")
+                    // Keep essential refusal facts separate from verbose event
+                    // boundaries so the bounded CI collector retains them.
+                    print("error: MISSING ORIGIN ROW "+(reloadedRow.map(describeRow) ?? "absent"))
+                    print("error: MISSING ORIGIN PLAN "+planDescription)
+                    print("error: MISSING ORIGIN STATE error=\(String(reflecting:commit.model.error)),pending=\(view.pending),busy=\(view.busy),sheet=\(commit.window?.attachedSheet != nil),visible=\(commit.window?.isVisible == true),sourceClosed=\(!commit.model.messageFocusAvailable),fileListAvailable=\(commit.model.fileListAvailable)")
+                    print("error: MISSING ORIGIN RECEIPTS report=\(commit.model.fileReportRevision),menu=\(commit.model.fileReportMenuRevision),focus=\(commit.model.focusedFiles),deliveries=\(delivered)")
+                    for boundary in Prior.inputBoundaries {print("MISSING ORIGIN BOUNDARY "+boundary)}
                     print(view.diagnostic("missing-origin-failure"));fflush(stdout)
                     throw error
                 }

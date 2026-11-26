@@ -1,0 +1,63 @@
+{
+  "kind": "TurtleGitCancellationRecovery",
+  "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+  "hosted_run": 45775158545,
+  "status": "passed",
+  "started_utc": "2026-11-26T09:34:02.436809+00:00",
+  "inputs_sha256": {
+    "Tests/TurtleGitCoreTests/HistoryReferenceDeletionTests.swift": "50e735c189c7af5899cc0f5c19f1da7127682d85d47f491df1fbbc25750fc8b2",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "67e0325a4e9206fd51d887980a5885314019b17f809fa4943e87d5d33f9f2921"
+  },
+  "scope": "Focused HistoryReferenceDeletion Core family plus Rebase Add/Split both engines; atomic PID receipts and retired context release. Rebase hosted434 timeout cause unproven. No full Core suite, renderer/runtime work or user app replacement.",
+  "results": [
+    {
+      "name": "history-reference-core",
+      "command": [
+        "swift",
+        "test",
+        "--filter",
+        "HistoryReferenceDeletionTests"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 35.678,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/ci-cancellation-recovery-2026-11-26-history-reference-core.log",
+      "log_sha256": "08376b24c19a590b6d7a7151e466808e4b80cb8af43856ff444a4930796d588b",
+      "reaped_pids": []
+    },
+    {
+      "name": "rebase-add",
+      "command": [
+        "python3",
+        "scripts/test-rebase-source.py",
+        "--only",
+        "add",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 216.077,
+      "log": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/qa/ci-cancellation-recovery-2026-11-26-rebase-add.log",
+      "log_sha256": "72f8e45b883767206ca8c34774051844f1bb87162d3eb68068b0e6f56bd64aed",
+      "reaped_pids": [
+        89937,
+        90054,
+        97183
+      ]
+    }
+  ],
+  "finished_utc": "2026-11-26T09:38:14.245256+00:00",
+  "core_tests_passed": 5,
+  "native_rebase_process_cases": 2,
+  "owned_processes_remaining": [],
+  "hosted_core_result": {
+    "run": 45775158545,
+    "tests": 3536,
+    "skipped": 3,
+    "failures": 1,
+    "failure": "HistoryReferenceDeletionTests PID marker payload count0; atomic fixture receipt repair passes focused family locally"
+  },
+  "rebase_scope": "Retired per-context test controller release after verified cleanup; original hosted434 timeout cause remains unproven; timeout stack upload correction retained in local a24b5238.",
+  "remaining": "Later Commit and native-control failures repaired in hosted-ci-repair-batch-2026-11-26.json; fresh full hosted pass still required."
+}

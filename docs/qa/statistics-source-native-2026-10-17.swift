@@ -212,7 +212,7 @@ extension StatisticsNativeVerification {
         guard element.accessibilityAttributeNames().contains(attribute) else{return (nil,"no enabled interface")}
         return ((element.accessibilityAttributeValue(attribute) as? NSNumber)?.boolValue,"advertised AXEnabled")
     }
-    @MainActor static func sourceAXIncrement(_ element:NSObject)->(delivered:Bool,diagnostic:String) {
+    @MainActor static func sourceAXIncrement(_ element:NSObject)->(attempted:Bool,diagnostic:String) {
         let selector=NSSelectorFromString("accessibilityPerformIncrement")
         let action=NSAccessibility.Action(rawValue:"AXIncrement")
         let names=element.accessibilityActionNames()
@@ -220,14 +220,17 @@ extension StatisticsNativeVerification {
         let diagnostic="node=\(type(of:element)), modern=\(element.responds(to:selector)), actions=\(names.map(\.rawValue)), enabled=\(String(describing:enabled))"
         // SwiftUI lightweight AX nodes can expose the named NSObject action
         // interface rather than the newer optional protocol selector. Dispatch
-        // one actual advertised action; a rejected modern action stays rejected.
+        // one actual advertised action without retrying through another interface.
+        // Older AppKit can return false after SwiftUI has already applied it;
+        // delivery is established by the exact model, AX and graph postconditions.
         guard element.responds(to:selector) else {
             guard names.contains(action) else{return (false,diagnostic+", route=none")}
             element.accessibilityPerformAction(action)
             return (true,diagnostic+", route=named AXIncrement")
         }
         typealias Callback = @convention(c)(AnyObject,Selector)->Bool
-        return (unsafeBitCast(element.method(for:selector),to:Callback.self)(element,selector),diagnostic+", route=protocol increment")
+        let reported=unsafeBitCast(element.method(for:selector),to:Callback.self)(element,selector)
+        return (true,diagnostic+", route=protocol increment, reported=\(reported)")
     }
     @MainActor static func verifyCutoffFamily(repository:GitRepository,root:URL)async throws {
         func require(_ value:Bool,_ message:String)throws {if !value {throw NSError(domain:"Statistics cutoff: "+message,code:1)}}
@@ -285,8 +288,9 @@ extension StatisticsNativeVerification {
             }
             guard let actual=slider() else{throw NSError(domain:"Statistics AX slider retired before action",code:1)}
             let action=sourceAXIncrement(actual)
-            try require(action.delivered,"Actual AX slider increment was not delivered: "+action.diagnostic+", authors=\(model.authorsShown), canInteract=\(model.canInteract)")
+            try require(action.attempted,"Actual AX slider increment interface unavailable: "+action.diagnostic+", authors=\(model.authorsShown), canInteract=\(model.canInteract)")
             try await sourceWait {model.authorsShown==2 && model.authorLimitDraft==nil && (slider().flatMap{sourceAX($0,"accessibilityValue") as? NSNumber})?.intValue==2}
+            try require(model.graph!.includedAuthors.count==2 && model.graph!.skippedAuthors.count==2,"Actual AX increment did not publish exact graph cutoff: "+action.diagnostic)
             print("Statistics actual AX slider action: "+action.diagnostic+"; committed authors=2, no draft")
             model.selectStyle(.pie)
             try require(model.authorsShown==4 && model.graph!.includedAuthors.count==4,"Style redraw retained reduced author cutoff")

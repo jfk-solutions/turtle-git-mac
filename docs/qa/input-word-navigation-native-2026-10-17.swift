@@ -27,13 +27,13 @@ private struct InputFields:View {
     struct Failure:Error,CustomStringConvertible {let description:String}
     static func require(_ value:Bool,_ message:String)throws {if !value {throw Failure(description:message)}}
     @MainActor static func views(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(views)}
-    @MainActor static func wait(_ window:NSWindow?,line:UInt = #line,_ ready:()->Bool) async throws {
+    @MainActor static func wait(_ window:NSWindow?,line:UInt = #line,diagnostic:()->String = {""},_ ready:()->Bool) async throws {
         for _ in 0..<1500 {window?.contentView?.layoutSubtreeIfNeeded();if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(description:"Input word wait at \(line)")
+        throw Failure(description:"Input word wait at \(line): "+diagnostic())
     }
     @MainActor static func editor(_ field:NSTextField)throws->NSTextView {
         field.selectText(nil)
-        guard let text=field.currentEditor() as? NSTextView else {throw Failure(description:"Missing editor for "+(field.accessibilityLabel() ?? "field"))}
+        guard let text=field.currentEditor() as? NSTextView else {throw Failure(description:"Missing editor for "+(field.accessibilityLabel() ?? "field")+"; enabled=\(field.isEnabled),editable=\(field.isEditable),selectable=\(field.isSelectable),hidden=\(field.isHiddenOrHasHiddenAncestor),window=\(String(describing:field.window)),sheet=\(field.window?.attachedSheet != nil),firstResponder=\(String(describing:field.window?.firstResponder)),delegate=\(String(describing:field.delegate))")}
         return text
     }
     @MainActor static func invoke(_ field:NSTextField,_ text:NSTextView,_ command:String)->Bool {
@@ -103,10 +103,26 @@ private struct InputFields:View {
         // The actual Bisect good/bad controls share mode 2, without starting Bisect.
         let bisect=BisectWindowController(repository:repo,access:nil,preferences:prefs);defer {bisect.close()}
         bisect.window!.alphaValue=0;bisect.window!.orderFront(nil)
-        try await wait(bisect.window) {!bisect.model.busy && views(bisect.window!.contentView!).compactMap{$0 as? NSComboBox}.count>=2}
-        for combo in views(bisect.window!.contentView!).compactMap({$0 as? NSComboBox}) {
+        var revisionFields:[NSComboBox]=[]
+        func bisectWitness()->String {
+            let fields=views(bisect.window!.contentView!).compactMap{$0 as? NSComboBox}.map {field in
+                "id=\(String(describing:field.identifier)),enabled=\(field.isEnabled),editable=\(field.isEditable),selectable=\(field.isSelectable),hidden=\(field.isHiddenOrHasHiddenAncestor),owner=\(field.window === bisect.window),editor=\(field.currentEditor() != nil)"
+            }
+            return "busy=\(bisect.model.busy),pending=\(bisect.model.hasPendingWork),canPick=\(bisect.model.canPickRevision),state=\(String(describing:bisect.model.state)),error=\(String(reflecting:bisect.model.error)),sheet=\(bisect.window?.attachedSheet != nil),fields=[\(fields.joined(separator:"; "))]"
+        }
+        try await wait(bisect.window,diagnostic:{bisectWitness()}) {
+            guard bisect.model.canPickRevision,!bisect.model.busy,!bisect.model.hasPendingWork,
+                  bisect.window?.attachedSheet==nil else{return false}
+            let fields=views(bisect.window!.contentView!).compactMap{$0 as? NSComboBox}
+            guard fields.count==2,fields.allSatisfy({$0.window === bisect.window && !$0.isHiddenOrHasHiddenAncestor && $0.isEnabled && $0.isEditable && $0.isSelectable && $0.delegate != nil}) else{return false}
+            revisionFields=fields;return true
+        }
+        for combo in revisionFields {
+            let context=bisect.model.formContext
             let text=try editor(combo);text.setSelectedRange(.init(location:0,length:0))
-            try require(invoke(combo,text,"moveWordRight:"),"Bisect revision word command missing")
+            try require(combo.currentEditor() === text && text.window === bisect.window,"Bisect native field editor lost actual owner: "+bisectWitness())
+            try require(invoke(combo,text,"moveWordRight:"),"Bisect revision word command missing: "+bisectWitness())
+            try require(bisect.model.formContext==context,"Word navigation replaced the accepted Bisect form receipt")
         }
         bisect.close();window.close()
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout

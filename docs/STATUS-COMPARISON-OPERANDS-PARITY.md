@@ -194,3 +194,22 @@ builder only to its working sentinel, preserving historical/current-version and
 parent-working meanings. Their grouped evidence is separate from the original
 four-consumer checkpoint. These corrections do not certify every shared status
 control state, copied-row discovery, external tool or physical acceptance case.
+
+## Deferred native focus bookkeeping — November 26, 2026
+
+Commit and Revert primary activation now retain a purpose-specific action epoch.
+A deferred native focus-mark update invalidates ordinary context menus but keeps
+an already accepted Return plan current. Existing semantic invalidators rotate
+both epochs; exact selected rows, staging records, settings, source ownership,
+window and cancellation checks remain in force. Ordinary menus still validate
+their focus-sensitive receipt.
+
+The existing accepted-operands native fixture adds a controlled real Git base-read
+gate for Commit and Revert. It changes the actual focus binding after Return
+admission, checks the original comparison and subsequent stale-menu refusal after
+work drains, and checks cancellation after a genuine selected-row change. The
+missing-copy-origin refusal keeps its exact accepted-row and delivery assertions,
+with compact separate diagnostic lines. The grouped checkpoint passes all nine
+cohorts with both system and bundled Git after one incremental app build. The
+selected-row cancellation case acknowledges its actual owned error sheet before
+starting the next command. This focused pass does not certify all hosted lanes.

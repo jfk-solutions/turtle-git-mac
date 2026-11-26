@@ -1,0 +1,388 @@
+{
+  "kind": "TurtleGitHostedCIRepairBatch",
+  "hosted_baseline": {
+    "run": 45775158545,
+    "commit": "d2a3691ee42a2b4939dd389948633ae5cbd4b8a5",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45775158545"
+  },
+  "status": "affected grouped checks passed; fresh full hosted CI required",
+  "inputs_sha256": {
+    "Sources/TurtleGitMac/CommitWindow.swift": "5284b6098dcb81a409fc32537a855ecb7d324ff1bb54f3f19944e2d752414c2a",
+    "Sources/TurtleGitMac/StatusWindow.swift": "8b49e4333d5fdce68a571e20de54f7bf525a6d8abb04f3ef1bef97d68c13c828",
+    "Sources/TurtleGitMac/RevertWindow.swift": "a88aa565ff93831941e208eff00ce95b85f2f2e4fe1760995ac7d6324a8840a2",
+    "Tests/TurtleGitCoreTests/HistoryReferenceDeletionTests.swift": "50e735c189c7af5899cc0f5c19f1da7127682d85d47f491df1fbbc25750fc8b2",
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "67e0325a4e9206fd51d887980a5885314019b17f809fa4943e87d5d33f9f2921",
+    "docs/qa/status-comparison-operands-native-2026-11-23.swift": "0561411c6be736795c77a799e9af228878a5b13cff220d8a46a0eb580b9b52aa",
+    "scripts/test-status-comparison-operands.py": "f8dd2ac8733209aae8f7121d10e3429ec4b2b5f16e36cab5246cc458ec2935c3",
+    "docs/qa/input-word-navigation-native-2026-10-17.swift": "955f1d6fdd914455b6f3fe7b9c880f8102b2227fccd68084866d156a924cd403",
+    "docs/qa/conflict-report-native-2026-11-22.swift": "98bd717a484156afa7e6776be4a381874b766f204e59ea6f231cd6e0cdb30951",
+    "docs/qa/statistics-source-native-2026-10-17.swift": "b2c8f5609c44650f092d59e5d1e5c0ae7d45d9b557f864351dd5b4ca1752d967",
+    "docs/qa/log-reference-navigation-native-2026-10-14.swift": "87ebf3de1669ce715fc87bc07bbe3f0074b7bc8641c359ff8d71cc89f9029990"
+  },
+  "checkpoints": {
+    "ci-cancellation-recovery": {
+      "kind": "TurtleGitCancellationRecovery",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_run": 45775158545,
+      "status": "passed",
+      "started_utc": "2026-11-26T09:34:02.436809+00:00",
+      "inputs_sha256": {
+        "Tests/TurtleGitCoreTests/HistoryReferenceDeletionTests.swift": "50e735c189c7af5899cc0f5c19f1da7127682d85d47f491df1fbbc25750fc8b2",
+        "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "67e0325a4e9206fd51d887980a5885314019b17f809fa4943e87d5d33f9f2921"
+      },
+      "scope": "Focused HistoryReferenceDeletion Core family plus Rebase Add/Split both engines; atomic PID receipts and retired context release. Rebase hosted434 timeout cause unproven. No full Core suite, renderer/runtime work or user app replacement.",
+      "results": [
+        {
+          "name": "history-reference-core",
+          "command": [
+            "swift",
+            "test",
+            "--filter",
+            "HistoryReferenceDeletionTests"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 35.678,
+          "log": "build/qa/ci-cancellation-recovery-2026-11-26-history-reference-core.log",
+          "log_sha256": "08376b24c19a590b6d7a7151e466808e4b80cb8af43856ff444a4930796d588b",
+          "reaped_pids": []
+        },
+        {
+          "name": "rebase-add",
+          "command": [
+            "python3",
+            "scripts/test-rebase-source.py",
+            "--only",
+            "add",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 216.077,
+          "log": "build/qa/ci-cancellation-recovery-2026-11-26-rebase-add.log",
+          "log_sha256": "72f8e45b883767206ca8c34774051844f1bb87162d3eb68068b0e6f56bd64aed",
+          "reaped_pids": [
+            89937,
+            90054,
+            97183
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T09:38:14.245256+00:00"
+    },
+    "primary-focus-family": {
+      "kind": "TurtleGitPrimaryFocusFamily",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_source": "d2a3691ee42a2b4939dd389948633ae5cbd4b8a5",
+      "hosted_run": 45775158545,
+      "status": "failure recorded; retain unaffected passes",
+      "started_utc": "2026-11-26T10:37:21.642967+00:00",
+      "inputs_sha256": {
+        "Sources/TurtleGitMac/CommitWindow.swift": "5284b6098dcb81a409fc32537a855ecb7d324ff1bb54f3f19944e2d752414c2a",
+        "Sources/TurtleGitMac/StatusWindow.swift": "8b49e4333d5fdce68a571e20de54f7bf525a6d8abb04f3ef1bef97d68c13c828",
+        "Sources/TurtleGitMac/RevertWindow.swift": "a88aa565ff93831941e208eff00ce95b85f2f2e4fe1760995ac7d6324a8840a2",
+        "docs/qa/status-comparison-operands-native-2026-11-23.swift": "7c5b040bb61f49f6d4e696ff55297ec7717ba1a5a276e40e2b4dc5592ea3063e",
+        "scripts/test-status-comparison-operands.py": "f8dd2ac8733209aae8f7121d10e3429ec4b2b5f16e36cab5246cc458ec2935c3"
+      },
+      "scope": "Commit/Revert typed primary comparison authority separated from deferred focus-only menu bookkeeping. One incremental Debug app build and connected nine-cohort/two-engine operand family. Retain focused Core5/Rebase2/Bisect2; no full Core/runtime build or installed-user-app change.",
+      "expected_native_processes": 2,
+      "expected_connected_cohort_executions": 18,
+      "results": [
+        {
+          "name": "debug-build",
+          "command": [
+            "xcodebuild",
+            "-project",
+            "TurtleGitMac.xcodeproj",
+            "-scheme",
+            "TurtleGitMac",
+            "-configuration",
+            "Debug",
+            "-destination",
+            "platform=macOS",
+            "-derivedDataPath",
+            "build",
+            "-jobs",
+            "4",
+            "CODE_SIGNING_ALLOWED=NO",
+            "build"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 59.001,
+          "log": "build/qa/primary-focus-family-2026-11-26-debug-build.log",
+          "log_sha256": "603886645ca8bcda498b6ce83a14daed792d105ce092f6b4e21b3d7ae964614c",
+          "reaped_pids": []
+        },
+        {
+          "name": "accepted-operands",
+          "command": [
+            "python3",
+            "scripts/test-status-comparison-operands.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 15.713,
+          "log": "build/qa/primary-focus-family-2026-11-26-accepted-operands.log",
+          "log_sha256": "33869ec4b659fa4165201a75aceaa3566f890e097bc07c6c7b1b57cf62f1540e",
+          "reaped_pids": [
+            44016,
+            44028,
+            44132
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T10:38:36.415694+00:00"
+    },
+    "primary-focus-recheck": {
+      "kind": "TurtleGitPrimaryFocusFamily",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_source": "d2a3691ee42a2b4939dd389948633ae5cbd4b8a5",
+      "hosted_run": 45775158545,
+      "status": "passed",
+      "started_utc": "2026-11-26T10:57:47.956681+00:00",
+      "inputs_sha256": {
+        "docs/qa/status-comparison-operands-native-2026-11-23.swift": "0561411c6be736795c77a799e9af228878a5b13cff220d8a46a0eb580b9b52aa"
+      },
+      "scope": "Commit/Revert typed primary comparison authority separated from deferred focus-only menu bookkeeping. Reuse passed incremental Debug app build; repaired native cancellation-sheet acknowledgement and connected nine-cohort/two-engine operand family. Retain focused Core5/Rebase2/Bisect2; no full Core/runtime build or installed-user-app change.",
+      "expected_native_processes": 2,
+      "expected_connected_cohort_executions": 18,
+      "results": [
+        {
+          "name": "accepted-operands",
+          "command": [
+            "python3",
+            "scripts/test-status-comparison-operands.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 73.579,
+          "log": "build/qa/primary-focus-recheck-2026-11-26-accepted-operands.log",
+          "log_sha256": "1325564055d59faad68144a121da99c1e02478a2a1f49bb3d0010b5131b3dd5c",
+          "reaped_pids": [
+            52442,
+            52536,
+            54551
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T10:59:01.561523+00:00",
+      "journal_correction": "Follow-up runner retained the original two-command cardinality after removing the already-passed build. Native command exit0 and all18 cohort passes retained; no test repeated.",
+      "owned_processes_remaining": []
+    },
+    "ci-native-controls": {
+      "kind": "TurtleGitNativeControlsRecovery",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_run": 45775158545,
+      "status": "passed",
+      "started_utc": "2026-11-26T10:59:17.738130+00:00",
+      "inputs_sha256": {
+        "docs/qa/input-word-navigation-native-2026-10-17.swift": "955f1d6fdd914455b6f3fe7b9c880f8102b2227fccd68084866d156a924cd403",
+        "docs/qa/conflict-report-native-2026-11-22.swift": "98bd717a484156afa7e6776be4a381874b766f204e59ea6f231cd6e0cdb30951",
+        "docs/qa/statistics-source-native-2026-10-17.swift": "b2c8f5609c44650f092d59e5d1e5c0ae7d45d9b557f864351dd5b4ca1752d967"
+      },
+      "scope": "Native controls fixtures: actual Bisect input admission, exact Conflict Reset projection and Statistics single AX action/model+AX+graph cutoff. Both Git engines; reuse accepted app build, no Core/runtime rebuild or installed-user-app change.",
+      "results": [
+        {
+          "name": "word-input",
+          "command": [
+            "python3",
+            "scripts/test-input-word-navigation.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 3.148,
+          "log": "build/qa/ci-native-controls-2026-11-26-word-input.log",
+          "log_sha256": "60c166daeaf01f21a35076a64c68d1f282dc5ce18e947586e9030395c1f8a720",
+          "reaped_pids": [
+            56872,
+            56894,
+            56935
+          ]
+        },
+        {
+          "name": "conflict-report",
+          "command": [
+            "python3",
+            "scripts/test-history-feedback-conflict-batch.py",
+            "--only",
+            "conflict-report",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 16.405,
+          "log": "build/qa/ci-native-controls-2026-11-26-conflict-report.log",
+          "log_sha256": "93c9d73577e469c0a00786fb01fe1b64e54de557b5830e98dce4401e03d97d31",
+          "reaped_pids": [
+            56995,
+            57087,
+            57273
+          ]
+        },
+        {
+          "name": "statistics",
+          "command": [
+            "python3",
+            "scripts/test-statistics-dialog.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 23.745,
+          "log": "build/qa/ci-native-controls-2026-11-26-statistics.log",
+          "log_sha256": "f4eec2924d70aac1240716138f7f5826df8f47d41cae41534f5d3fb7c1ac70d8",
+          "reaped_pids": [
+            57507,
+            57545,
+            57815
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T11:00:01.158384+00:00",
+      "owned_processes_remaining": []
+    },
+    "ci-log-picker": {
+      "kind": "TurtleGitLogPickerRecovery",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_run": 45775158545,
+      "status": "failures recorded; passing scope retained",
+      "started_utc": "2026-11-26T11:00:50.691430+00:00",
+      "inputs_sha256": {
+        "docs/qa/log-reference-navigation-native-2026-10-14.swift": "06f0ed77062813b459174b9eba9e88c3881f80b73494fcbe81764d95ac174779"
+      },
+      "scope": "Log revision picker fixture waits accepted callback and actual paired-sheet release for exact captured child. BothGit; reuse app build; accepted cache driver, protected main driver untouched. No Core/runtime build.",
+      "results": [
+        {
+          "name": "log-picker",
+          "command": [
+            "python3",
+            "scripts/test-native-reference-groups.py",
+            "--only",
+            "log-reference-navigation",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 55.366,
+          "log": "build/qa/ci-log-picker-2026-11-26-log-picker.log",
+          "log_sha256": "8bf7fc45cc3404a965c0368076124b4df868ca201d75cacdccd44b81b581cdd4",
+          "reaped_pids": [
+            58995,
+            59061
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T11:01:46.103008+00:00",
+      "owned_processes_remaining": []
+    },
+    "ci-log-picker-diagnostic": {
+      "kind": "TurtleGitLogPickerRecovery",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_run": 45775158545,
+      "status": "failures recorded; passing scope retained",
+      "started_utc": "2026-11-26T11:04:16.164062+00:00",
+      "inputs_sha256": {
+        "docs/qa/log-reference-navigation-native-2026-10-14.swift": "77de1afe65b9ecb9dc52346c63f0f907678c775f35b69efaea9be81d9f3aa79e"
+      },
+      "scope": "Log revision picker fixture waits accepted callback and actual paired-sheet release for exact captured child. BothGit; reuse app build; accepted cache driver, protected main driver untouched. No Core/runtime build.",
+      "results": [
+        {
+          "name": "log-picker",
+          "command": [
+            "python3",
+            "scripts/test-native-reference-groups.py",
+            "--only",
+            "log-reference-navigation",
+            "--git",
+            "/usr/bin/git"
+          ],
+          "exit_code": 1,
+          "elapsed_seconds": 49.021,
+          "log": "build/qa/ci-log-picker-diagnostic-2026-11-26-log-picker.log",
+          "log_sha256": "79ecc9929660004ce47c3b7bd7641f5ce2d49c5972b81e6830d698d82e9a4909",
+          "reaped_pids": [
+            62944,
+            62976
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T11:05:05.260879+00:00",
+      "owned_processes_remaining": []
+    },
+    "ci-log-picker-final": {
+      "kind": "TurtleGitLogPickerRecovery",
+      "base_commit": "a24b52384de44b913f4e5d30aefe69134c201826",
+      "hosted_run": 45775158545,
+      "status": "passed",
+      "started_utc": "2026-11-26T11:10:50.293013+00:00",
+      "inputs_sha256": {
+        "docs/qa/log-reference-navigation-native-2026-10-14.swift": "87ebf3de1669ce715fc87bc07bbe3f0074b7bc8641c359ff8d71cc89f9029990"
+      },
+      "scope": "Log revision picker fixture waits accepted callback and actual paired-sheet release for exact captured child. BothGit; reuse app build; accepted cache driver, protected main driver untouched. No Core/runtime build.",
+      "results": [
+        {
+          "name": "log-picker",
+          "command": [
+            "python3",
+            "scripts/test-native-reference-groups.py",
+            "--only",
+            "log-reference-navigation",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+          ],
+          "exit_code": 0,
+          "elapsed_seconds": 38.131,
+          "log": "build/qa/ci-log-picker-final-2026-11-26-log-picker.log",
+          "log_sha256": "d73ce822223800336002c3cc9532118344efb06b8edf44faae851376008810f2",
+          "reaped_pids": [
+            69962,
+            69995,
+            70968
+          ]
+        }
+      ],
+      "finished_utc": "2026-11-26T11:11:28.483736+00:00",
+      "owned_processes_remaining": []
+    }
+  },
+  "limits": [
+    "A local pass does not certify a full hosted pass or all upstream dialogs.",
+    "Rebase hosted Split timeout cause remains unproven; cleaned context retention locally and retained stack upload for recurrence.",
+    "No full Core rerun, Metafile changes, user app replacement or Store submission."
+  ],
+  "attempt_notes": [
+    "Initial primary app build passed. First native attempt reached semantic selected-row cancellation, then failed because its actual Operation cancelled error sheet was not acknowledged before the next action. Fixture now acknowledges the exact owned sheet; all18cohorts pass.",
+    "Followup private runner initially reported failure despite native exit0 because it retained a two-command cardinality after the already-passed build was removed. Journal correction recorded; no test rerun.",
+    "Log first repair passed acceptance/late callback gates in a diagnostic run, but final held-browser marker never appeared: snapshot already succeeded and no reads remained. The diagnostic identifies the actual stalled marker wait; failed evidence retained.",
+    "Held browser cancellation used default libgit2 reference backend, bypassing the CLI wrapper. Its dedicated private preference suite now explicitly selects CLI only for that scenario; both-engine Log checks pass, prior backend cases retained."
+  ],
+  "local_scope": {
+    "core_tests": 5,
+    "accepted_operand_cohort_executions": 18,
+    "native_control_process_cases": 6,
+    "log_picker_process_cases": 2,
+    "retained_rebase_process_cases": 2,
+    "retained_bisect_process_cases": 2,
+    "incremental_app_builds": 1,
+    "full_core_reruns": 0
+  },
+  "owned_processes_remaining": []
+}

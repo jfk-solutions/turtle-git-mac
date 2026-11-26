@@ -103,7 +103,8 @@ final class HistoryReferenceDeletionTests: XCTestCase {
               /bin/sleep 30 &
               child=$!
               trap 'kill "$child" 2>/dev/null; wait "$child" 2>/dev/null; exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$child" > "$0.started"
+              printf '%s %s\\n' "$$" "$child" > "$0.started.$$"
+              /bin/mv -f "$0.started.$$" "$0.started"
               wait "$child"
             fi
             exec \(quote(direct.executable.path)) "$@"
@@ -120,12 +121,37 @@ final class HistoryReferenceDeletionTests: XCTestCase {
                 } catch OperationCancellationFailure.cancelled {}
                   catch is GitCommandCancellationFailure { XCTAssertTrue(token.isCancelled) }
             }
-            let deadline = Date().addingTimeInterval(10)
-            while !FileManager.default.fileExists(atPath: marker.path) && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
-            guard FileManager.default.fileExists(atPath: marker.path) else { token.cancel(); _ = try? await work.value; XCTFail("No live helper"); return }
-            let pids = try String(contentsOf: marker).split(whereSeparator: { $0.isWhitespace }).compactMap { Int32($0) }
-            token.cancel(); try await work.value
-            XCTAssertEqual(pids.count, 2); XCTAssertTrue(pids.allSatisfy { kill($0, 0) != 0 })
+            // Cancel through the runner even if marker reading/assertion
+            // preparation fails, so an unpublished helper is never orphaned.
+            defer{token.cancel()}
+            do {
+                let deadline = Date().addingTimeInterval(10)
+                while !FileManager.default.fileExists(atPath:marker.path) && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+                guard FileManager.default.fileExists(atPath:marker.path) else {
+                    token.cancel();_ = try? await work.value;XCTFail("No live helper for "+stage);return
+                }
+                // The final name is published by same-directory rename only
+                // after both PID fields have been written completely.
+                let payload=try String(contentsOf:marker)
+                let fields=payload.split(whereSeparator:{$0.isWhitespace}),pids=fields.compactMap{Int32($0)}
+                guard fields.count==2,pids.count==2,pids.allSatisfy({$0>0}),pids[0] != pids[1] else {
+                    token.cancel();_ = try? await work.value;XCTFail("Invalid owned PID receipt for "+stage+": "+String(reflecting:payload));return
+                }
+                XCTAssertEqual(kill(pids[0],0),0,"Wrapper was not live at "+stage)
+                XCTAssertEqual(kill(pids[1],0),0,"Held child was not live at "+stage)
+                XCTAssertEqual(getpgid(pids[0]),pids[0],"Wrapper did not own its process group")
+                XCTAssertEqual(getpgid(pids[1]),pids[0],"Held child did not belong to its wrapper")
+                token.cancel();try await work.value
+                func gone(_ pid:pid_t)->Bool {kill(pid,0) == -1 && errno==ESRCH}
+                let reapDeadline=Date().addingTimeInterval(10)
+                while !(pids.allSatisfy{gone($0)} && gone(-pids[0])) && Date()<reapDeadline {try await Task.sleep(nanoseconds:10_000_000)}
+                XCTAssertEqual(pids.count,2)
+                XCTAssertTrue(pids.allSatisfy{gone($0)},"Owned wrapper/child did not reap for "+stage)
+                XCTAssertTrue(gone(-pids[0]),"Owned process group survived cancellation for "+stage)
+            } catch {
+                token.cancel();work.cancel();_ = try? await work.value
+                throw error
+            }
         }
         let retainedStash = try await direct.referenceLog("refs/stash"); XCTAssertEqual(retainedStash, stash)
         XCTAssertEqual(index, try Data(contentsOf: root.appendingPathComponent(".git/index")))

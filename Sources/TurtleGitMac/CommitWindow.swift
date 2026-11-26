@@ -844,9 +844,9 @@ import TurtleGitCore
     let access: RepositoryAccessLease?
     lazy var clientHooks = ClientHookSession(preferences: dialogDefaults)
     @Published var conflictRebase = false
-    @Published var entries: [StatusEntry] = [] { didSet {fileReportRevision=UUID(); if entries != oldValue { fileMenuGeneration = UUID(); guiFileListGeneration = UUID(); providerDraftChanged() } } }
+    @Published var entries: [StatusEntry] = [] { didSet {fileReportRevision=UUID(); if entries != oldValue { invalidateFileMenuReceipts(); guiFileListGeneration = UUID(); providerDraftChanged() } } }
     @Published var indexFlagFiles:[WorkingTreeFile] = []{didSet{fileReportRevision=UUID()}}
-    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet {fileReportRevision=UUID(); fileMenuGeneration = UUID();guiFileListGeneration = UUID() } }
+    @Published var restoreCopies: GitPathMap<WorkingFileRestoreCopy> = [:] { didSet {fileReportRevision=UUID(); invalidateFileMenuReceipts();guiFileListGeneration = UUID() } }
     var restoreWorkingCopy:((WorkingFileRestoreCopy,OperationCancellation?)async throws->Void)?
     enum RestoreChoice { case restore, keep, cancel }
     var chooseRestoreCopies: (Bool, @escaping (RestoreChoice) -> Void) -> Void = { _, choose in choose(.keep) }
@@ -953,7 +953,7 @@ import TurtleGitCore
         if stagingState(entry) == .mixed { return "Partially staged" }
         return entry.actionCaption
     }
-    @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } } }
+    @Published var stagingEnabled = false { didSet { if stagingEnabled != oldValue { invalidateFileMenuReceipts();guiFileListGeneration = UUID();retireFormReceipts() } } }
     @Published var viewingPatch = false
     var readCommitIdentity:((OperationCancellation)async throws->ReplayUserIdentity)?
     var repairCommitIdentity:(OperationCancellation)async->Bool={_ in false}
@@ -1074,7 +1074,7 @@ import TurtleGitCore
     }
     private var persistedStaging: Bool?
     @Published var partialMode: Bool?
-    @Published var stagedDiff = true { didSet { if stagedDiff != oldValue { fileMenuGeneration = UUID() } } }
+    @Published var stagedDiff = true { didSet { if stagedDiff != oldValue { invalidateFileMenuReceipts() } } }
     private var hasLoaded = false
     static private(set) var activeFileDrops = 0
     var readDroppedURL: (NSItemProvider) async throws -> URL = CommitFileURLReader.read
@@ -1160,7 +1160,7 @@ import TurtleGitCore
         didSet {
             guard nativeFileSelection != oldValue else {return}
             selectedPaths = GitPathRowIdentity.paths(nativeFileSelection)
-            fileMenuGeneration = UUID()
+            invalidateFileMenuReceipts()
         }
     }
     var selection: GitPathSet {
@@ -1171,7 +1171,7 @@ import TurtleGitCore
         }
     }
 
-    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet {fileReportRevision=UUID(); if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { fileMenuGeneration = UUID() } } }
+    @Published var fileMetadata: GitPathMap<StatusListMetadata> = [:] { didSet {fileReportRevision=UUID(); if fileMetadata.mapValues({ $0.isDirectory }) != oldValue.mapValues({ $0.isDirectory }) { invalidateFileMenuReceipts() } } }
     @Published var hasLFS = false
     @Published var lfsOwners:GitPathMap<String> = [:]{didSet{fileReportRevision=UUID()}}
     @Published var lfsLockedPaths = GitPathSet()
@@ -1201,9 +1201,9 @@ import TurtleGitCore
     }
     var availableFileColumns: Set<StatusListColumn> { Set(StatusListColumn.allCases).subtracting(hasLFS ? [] : [.lfsOwner]) }
     var visibleFileColumns: [StatusListColumn] { fileColumns.order.filter { fileColumns.visible.contains($0) && availableFileColumns.contains($0) } }
-    @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileReportRevision=UUID();fileMenuGeneration = UUID();refreshRequiredFileMetadata() } } }
-    @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { fileMenuGeneration = UUID() } } }
-    @Published var changelists = GitChangelists() { didSet {fileReportRevision=UUID(); if changelists != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
+    @Published var fileSortOrder = [CommitFileSort(column: .path)] { didSet { if !fileSortOrder.elementsEqual(oldValue, by: { $0.column == $1.column && $0.order == $1.order }) { fileReportRevision=UUID();invalidateFileMenuReceipts();refreshRequiredFileMetadata() } } }
+    @Published var focusedFiles: [String: String] = [:] { didSet { if focusedFiles.mapValues({ GitReferenceName($0) }) != oldValue.mapValues({ GitReferenceName($0) }) { invalidateFileMenuReceipts(focusOnly:true) } } }
+    @Published var changelists = GitChangelists() { didSet {fileReportRevision=UUID(); if changelists != oldValue { invalidateFileMenuReceipts();guiFileListGeneration = UUID() } } }
     @Published var changelistsLoaded = false
     @Published var keepChangelists = false { didSet { if keepChangelists != oldValue { providerDraftChanged() } } }
     @Published var creatingChangelist = false
@@ -1519,10 +1519,10 @@ import TurtleGitCore
     @Published var authorDate = Date() { didSet { if authorDate != oldValue { providerDraftChanged() } } }
     @Published var resetAuthorDate = false {didSet{if resetAuthorDate != oldValue{retireFormReceipts()}}}
     @Published var messageOnly = false {
-        didSet { if messageOnly != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } }
+        didSet { if messageOnly != oldValue { invalidateFileMenuReceipts();guiFileListGeneration = UUID();retireFormReceipts() } }
     }
     @Published var doNotAutoselectSubmodules = false {didSet{if doNotAutoselectSubmodules != oldValue{guiFileListGeneration=UUID();retireFormReceipts()}}}
-    @Published var submodules = GitPathSet() { didSet {fileReportRevision=UUID(); if submodules != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID() } } }
+    @Published var submodules = GitPathSet() { didSet {fileReportRevision=UUID(); if submodules != oldValue { invalidateFileMenuReceipts();guiFileListGeneration = UUID() } } }
     @Published var setAuthor = false {didSet{if setAuthor != oldValue{formOptionValueChanged(.author)}}}
     @Published var author = "" { didSet { if !GitReferenceName.equal(author, oldValue) { providerDraftChanged() } } }
     @Published private(set) var loadingAuthorIdentity = false
@@ -1558,7 +1558,7 @@ import TurtleGitCore
     var queryCommitAuthor: ((Bool, OperationCancellation) async throws -> String?)?
     var queryCommitAuthorDate: ((OperationCancellation) async throws -> Date?)?
     var queryAmendMessage: ((OperationCancellation) async throws -> String?)?
-    @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { fileMenuGeneration = UUID();guiFileListGeneration = UUID();retireFormReceipts() } } }
+    @Published var showUnversioned = true { didSet { if showUnversioned != oldValue { invalidateFileMenuReceipts();guiFileListGeneration = UUID();retireFormReceipts() } } }
     private let unversionedDefaults: UserDefaults
     var messageEditorPreferences: UserDefaults { dialogDefaults }
     private let dialogDefaults: UserDefaults
@@ -1810,7 +1810,7 @@ import TurtleGitCore
         guard stagingEnabled else { reload(); return }
         guard messageFocusAvailable, !busy, !pendingReloadCancel else { return }
         let position = fileListRefresh.begin(preferences:dialogDefaults,selectedIDs:selection)
-        fileMenuGeneration = UUID(); busy = true; stagingStateNeedsRefresh = true
+        invalidateFileMenuReceipts(); busy = true; stagingStateNeedsRefresh = true
         Self.activeFileOperations += 1;pendingFileOperations += 1
         let token = OperationCancellation(); reloadCancellation = token
         setReloadPhase(.changes, token: token)
@@ -1851,7 +1851,15 @@ import TurtleGitCore
     private(set) var pendingFileOperations=0
     var fileWorkPending:Bool {pendingFileOperations>0}
     private var fileMenuGeneration = UUID()
+    private var primaryFileActionGeneration = UUID()
+    /// Menus include the current focus mark. Accepted primary actions already
+    /// own their ordered rows, so deferred focus bookkeeping only retires menus.
+    private func invalidateFileMenuReceipts(focusOnly:Bool=false) {
+        fileMenuGeneration=UUID()
+        if !focusOnly {primaryFileActionGeneration=UUID()}
+    }
     var fileReportMenuRevision:UUID {fileMenuGeneration}
+    var filePrimaryActionRevision:UUID {primaryFileActionGeneration}
     struct FileMenuSnapshot {
         let status: StatusFileMenuSnapshot
         let gitGui: Bool
@@ -2330,7 +2338,7 @@ import TurtleGitCore
         let repository=self.repository.capturingDiffBackend(preferences:dialogDefaults)
         guard messageFocusAvailable, !issueProviderBusy, !busy, !pendingReloadCancel, !unversionedPromptVisible else { return }
         unversionedPromptPending=false;fileListReadError=nil;fileListReadCancelled=false
-        fileMenuGeneration = UUID(); busy = true
+        invalidateFileMenuReceipts(); busy = true
         let requestedScope = paths.map { $0.contains(".") ? [] : $0 } ?? scopePaths
         let scopedPreference=dialogDefaults.bool(forKey:CommitScopePreference.key(root:repository.root))
         let requestedWholeProject=wholeProject ?? (paths == nil ? showWholeProject:requestedScope.isEmpty || scopedPreference)
@@ -2869,7 +2877,7 @@ import TurtleGitCore
         if issueProviderPreflightPending {providerCommitAttemptTask?.cancel()}
         if let progress=commitProgress { progress.invalidate();if !progress.busy { progress.choose(nil) } }
         issueProviderGeneration = UUID(); issueProviderBusy = false; cancelProviderIssues()
-        fileMenuGeneration = UUID(); fileOperationToken?.cancel();cancelRevert?(); cancelChangelist()
+        invalidateFileMenuReceipts(); fileOperationToken?.cancel();cancelRevert?(); cancelChangelist()
         diffSession?.cancel(); diffSession = nil
         retireCommitIdentitySettings();retireDetachedChildren();clientHooks.retire(); submoduleLog.retire();fileListRefresh.retire()
         reloadCancellation?.cancel(); reloadTask?.cancel(); lfsOwnerCancellation?.cancel()
@@ -2986,7 +2994,7 @@ import TurtleGitCore
         if let launch=onPrimaryFileActivation,let parent=comparisonWindow {
             let intent=StatusListPrimaryActivationSession.Intent(repository:repository,preferences:dialogDefaults,window:parent,amendToParent:amendToParent,alternateTool:alternate)
             let rows=ordered.map {entry in StatusListPrimaryFile(entry:entry,isDirectory:fileMetadata[entry.id]?.isDirectory==true || submodules.contains(entry.id),isSubmodule:submodules.contains(entry.id) || statistics[entry.id]?.isSubmodule==true)}
-            let acceptedSelection=selection,acceptedGuiStaged=guiStaged
+            let acceptedSelection=selection,acceptedGuiStaged=guiStaged,acceptedPrimaryGeneration=primaryFileActionGeneration
             let records=entries.enumerated().compactMap{ids.contains($0.element.id) ? ($0.offset,$0.element,stagingState($0.element).rawValue):nil}
             withFileMenu(snapshot) {
                 runFileOperation("Preparing file comparison…",primaryActivation:true,operation:{[self] token,captured in
@@ -2994,7 +3002,7 @@ import TurtleGitCore
                     let current:()->Bool = {[weak self,weak parent] in
                         guard let self,let parent,self.comparisonWindow === parent,self.gitGuiInterface==presentation,self.formRevision==form,self.selection==acceptedSelection,
                               self.guiStaged==acceptedGuiStaged,
-                              self.isFileOperationLive(token),!self.confirmingQuit,self.fileMenuGeneration==captured.generation,
+                              self.isFileOperationLive(token),!self.confirmingQuit,self.primaryFileActionGeneration==acceptedPrimaryGeneration,
                               captured.guiList==nil || guiGeneration==self.guiFileListGeneration,
                               records.count==ordered.count else{return false}
                         // Poll only accepted rows, never rebuild an all-files

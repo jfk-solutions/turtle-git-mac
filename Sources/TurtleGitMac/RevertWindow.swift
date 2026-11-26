@@ -506,7 +506,7 @@ private struct RevertDialog:View {
     private var focusedPath:String? {focusedIdentity?.rawValue}
     private var focusBinding:Binding<String?> {Binding(get:{focusedIdentity?.rawValue},set:{
         let next = $0.map {GitReferenceName($0)}
-        if next != focusedIdentity {focusedIdentity = next;model.commands.invalidateFileMenus()}
+        if next != focusedIdentity {focusedIdentity = next;model.commands.invalidateFileMenuFocus()}
     })}
     private func fileCommand(_ command:StatusFileCommand,snapshot:StatusFileMenuSnapshot)->some View {
         Button {model.commands.fileAction(command,snapshot:snapshot,permanently:NSEvent.modifierFlags.contains(.shift))} label:{CommandLabel(title:command.rawValue,icon:command.icon)}
