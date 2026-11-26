@@ -81,7 +81,12 @@ import TurtleGitCore
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null;wait "$task_child" 2>/dev/null;exit 143' TERM INT
-              printf '%s %s\\n' "$$" "$task_child" > "$3/bisect-ready"
+              # Publish both owned PIDs together; existence must not expose an empty redirect.
+              task_receipt="$3/bisect-ready.$$"
+              if ! printf '%s %s\\n' "$$" "$task_child" > "$task_receipt" || ! /bin/mv -f "$task_receipt" "$3/bisect-ready"; then
+                /bin/rm -f "$task_receipt"
+                kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 1
+              fi
               wait "$task_child"
             fi
             exec '\(git.path.replacingOccurrences(of:"'",with:"'\\''"))' "$@"

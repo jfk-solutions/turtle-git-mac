@@ -1,0 +1,106 @@
+{
+  "kind": "TurtleGitNativeReferenceGroupContinuation",
+  "created_utc": "2026-11-26T14:46:49.546046+00:00",
+  "base_commit": "95ff93290cd363fdd9c239ed6c6a8c0165f755c5",
+  "inputs_sha256": {
+    "scripts/test-native-reference-groups.py": "87924435ad32def2ca63993450597c589b7c5323e16602b4195ae6f240988406",
+    "scripts/test-native-reference-groups-contracts.py": "6f1f5a6badb7d049c6cd4064c15dbde8f7ceb9c0c25c3e10c4b8642e33b3601b"
+  },
+  "scope": "Continue independent compilation/runtime groups and engines after a safe failed group, preserve final failure and ordering, stop if private owned helper cleanup is unproved. Protected main driver untouched.",
+  "checks": {
+    "ci-reference-group-aggregation": {
+      "kind": "TurtleGitReferenceGroupAggregation",
+      "started_utc": "2026-11-26T14:39:13.622612+00:00",
+      "status": "passed",
+      "base_commit": "95ff93290cd363fdd9c239ed6c6a8c0165f755c5",
+      "inputs_sha256": {
+        "scripts/test-native-reference-groups.py": "87924435ad32def2ca63993450597c589b7c5323e16602b4195ae6f240988406",
+        "scripts/test-native-reference-groups-contracts.py": "282279896ff4990ed1639f76de4848e61382af153dca97bc3e198e162dc35743"
+      },
+      "protected_main_driver": "Not read/run/copied; contracts use accepted cache with exact committed48265 driver baseline",
+      "scope": "One Python contract checkpoint for independent group failure aggregation and strict owned helper cleanup. No native execution/app/Core/runtime build or installed user app changes.",
+      "exit_code": 0,
+      "elapsed_seconds": 3.642,
+      "log": "build/qa/ci-reference-group-aggregation-2026-11-26-contracts.log",
+      "log_sha256": "96837be2ae8acbdf4884990d34fa2785aa148960454e13ed0d04ca22a472fd33",
+      "finished_utc": "2026-11-26T14:39:17.283436+00:00"
+    },
+    "ci-reference-group-real-cleanup": {
+      "kind": "TurtleGitReferenceGroupRealCleanup",
+      "started_utc": "2026-11-26T14:42:54.807691+00:00",
+      "status": "passed",
+      "source_sha256": "6f1f5a6badb7d049c6cd4064c15dbde8f7ceb9c0c25c3e10c4b8642e33b3601b",
+      "runner_sha256": "87924435ad32def2ca63993450597c589b7c5323e16602b4195ae6f240988406",
+      "scope": "One added real macOS owned sleep process/new PGID/deleted Unicode-newline cwd/reaping check. Retain17 earlier contract passes. No native app or Core/runtime build.",
+      "command": [
+        "python3",
+        "scripts/test-native-reference-groups-contracts.py",
+        "ReferenceGroupContracts.test_real_deleted_unicode_newline_cwd_helper_drains"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 1.374,
+      "log": "build/qa/ci-reference-group-real-cleanup-2026-11-26.log",
+      "log_sha256": "614ffb3cc08a9e15356370879c495dd4321dadbe3e5a066e938c9a31de054a18",
+      "finished_utc": "2026-11-26T14:42:56.189804+00:00"
+    },
+    "ci-reference-group-native-check": {
+      "kind": "TurtleGitReferenceGroupNativeCheck",
+      "started_utc": "2026-11-26T14:44:16.306643+00:00",
+      "status": "passed",
+      "runner_sha256": "87924435ad32def2ca63993450597c589b7c5323e16602b4195ae6f240988406",
+      "scope": "One affected native group through newly changed runner/private context/real cleanup. Existing app build, system Git only; retains10 prior native and17+1 contracts. No app/Core/runtime build or broad suite repeat.",
+      "command": [
+        "python3",
+        "scripts/test-native-reference-groups.py",
+        "--only",
+        "log-column-layout",
+        "--git",
+        "/usr/bin/git",
+        "--results",
+        "build/qa/ci-reference-group-native-check-2026-11-26-groups.json"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 9.756,
+      "log": "build/qa/ci-reference-group-native-check-2026-11-26.log",
+      "log_sha256": "169ecc50cc1285a2917570f86994b59f3ff14538c63f08bd1e14e9430010d95f",
+      "groups": {
+        "groups": [
+          {
+            "engine": "/usr/bin/git",
+            "group": 1,
+            "run": [
+              "log-column-layout"
+            ],
+            "compile": [
+              "log-column-layout"
+            ],
+            "include": [],
+            "compile_only": false,
+            "status": "passed",
+            "returncode": 0,
+            "private_context": "/private/var/folders/tf/fh6_rx752nn6465rzwf_0ccx9st0sb/T/turtlegit-group-native-check-hgrjy5i4/temporary/turtlegit-reference-group-ewyghdkt",
+            "fallback_helper_cleanup": false,
+            "cleanup_complete": true,
+            "seconds": 9.295
+          }
+        ],
+        "total_groups": 1,
+        "passed_groups": 1,
+        "failed_groups": 0,
+        "complete": true
+      },
+      "finished_utc": "2026-11-26T14:44:26.078346+00:00"
+    }
+  },
+  "contract_scope": "17 initial contracts and one subsequently added real macOS deleted Unicode/newline cwd/new-PGID/termination/reaping integration check. Unchanged earlier contracts retained; no full contract repeat.",
+  "native_scope": "One previously validated Log column group through changed real runner/private TMPDIR/cleanup, systemGit only; receiver reused without app build. Earlier10 native process cases retained.",
+  "owned_native_receivers_reaped": [
+    42579
+  ],
+  "owned_processes_remaining": [],
+  "limitations": [
+    "Only outer groups continue; cases after a failure inside the protected delegated driver can remain unexecuted. Group totals are not case-pass counts.",
+    "Cleanup never signals unknown/unapproved/reused identities; unresolved ownership retains context and stops continuation.",
+    "No full hosted CI/all-dialog/signed deployment verdict; no new app/Core/runtime builds."
+  ]
+}

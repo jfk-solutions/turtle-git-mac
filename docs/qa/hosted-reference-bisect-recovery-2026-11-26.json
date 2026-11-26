@@ -1,0 +1,140 @@
+{
+  "kind": "TurtleGitReferenceBisectNativeRecovery",
+  "created_utc": "2026-11-26T14:31:43.262285+00:00",
+  "hosted_baseline": {
+    "run": 45808431864,
+    "source": "48265c54840831bbc900ad100275f0a03742aa59"
+  },
+  "browser_failure_observations": {
+    "observed_utc": "2026-11-26T14:16:47.827380+00:00",
+    "run": 45808431864,
+    "source": "48265c54840831bbc900ad100275f0a03742aa59",
+    "authority": "Rendered GitHub completed-step DOM in existing signed-in Chrome profile; agent-owned temporary tab closed immediately after reading.",
+    "limitations": "Complete job ZIP/final failure artifacts pending; browser excerpt is specific failure evidence, not full job verdict. GitHub log connector returned Transport closed; earlier replay API download stale.",
+    "failures": [
+      {
+        "job": 139875927025,
+        "step": 388,
+        "case": "retained-bisect/system",
+        "message": "main/cherry-pick-native-receiver-2026-10-06.swift:273: Precondition failed",
+        "line_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45808431864/job/139875927025#step:388:183",
+        "owned_receiver_reaped": 95698,
+        "prior_scope": "Other connected Switch/Reset/Bisect cases through bisect-lifecycle passed both engines; generated source line must be mapped through driver extraction."
+      },
+      {
+        "job": 139875927357,
+        "step": 305,
+        "case": "log-column-layout/system",
+        "message": "Log columns failed: Column checkbox did not use private preferences",
+        "line_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45808431864/job/139875927357#step:305:183",
+        "owned_receiver_reaped": 38409,
+        "prior_scope": "log-progressive-rows/log-history-stream/log-metadata passed; grouped driver stopped in group3/12."
+      }
+    ]
+  },
+  "repair_assessment": {
+    "retained_bisect": "Generated273 maps exactly to baseline source2592 compound no-new-request/error assertion. Fixture lacked stable cached-menu admission boundary before external ref mutation; no product defect established. Explicit accepted reload/read drain and enabled unmarked Good menu now precede same strict handoff/error assertion.",
+    "pid_receipts": "Three related Reset/Bisect two-PID writers publish full same-directory temporary payload by atomic rename, retaining all existing ownership/effect assertions. Source-proven race, not identified as the actual388 failure.",
+    "log_columns": "Fixture invoked old String-based toggle with current private typed ColumnCommand receipt. Dispatch actual fresh menu target/action; retain exact private/global preference oracle. Native Reset buttons/paired-sheet release and actual persisted adjusted-width input retained."
+  },
+  "grouped_native_check": {
+    "kind": "TurtleGitConnectedOperationsRecovery",
+    "base_commit": "95ff93290cd363fdd9c239ed6c6a8c0165f755c5",
+    "hosted_run": 45808431864,
+    "status": "passed",
+    "started_utc": "2026-11-26T14:19:39.139197+00:00",
+    "inputs_sha256": {
+      "docs/qa/reset-operation-native-2026-10-18.swift": "66a208b7ab09752068990ca92e771a3a16e4a1bbe6a3612d5f2bcbdfce4b2a3c",
+      "docs/qa/reset-progress-native-2026-10-08.swift": "7ca50865862eadb915ba0f93d095dfcfeb6f9b29bff897bd2afc6f095639a397",
+      "docs/qa/bisect-operation-native-2026-10-18.swift": "342ea1ac9ddaf8e4d7a901b57e50b015d57311db3afbb44e4b0b6e61402d3233",
+      "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "c3f6ae4008ccf39e5c654cce45081142977c10fa537aa2466a484fc702fbf235",
+      "docs/qa/log-column-layout-native-2026-10-13.swift": "cc64264678b659460406342daafb4a41129f3a6f11f8ac72793b9635f2763a38"
+    },
+    "scope": "Connected Reset/Bisect atomic process receipts, deterministic stale-menu admission, and Log column native menu/reset/persistence. Four connected operation cases plus Log columns, bothGit (10 processes). Retain22 unaffected hosted operation cases. Reuse accepted2f40app; no app/Core/runtime build or userapp replacement.",
+    "results": [
+      {
+        "name": "switch-reset-bisect",
+        "command": [
+          "python3",
+          "scripts/test-switch-reset-bisect-workflows.py",
+          "--only",
+          "reset",
+          "--only",
+          "bisect",
+          "--only",
+          "reset-progress",
+          "--only",
+          "retained-bisect",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 168.205,
+        "log": "build/qa/ci-connected-operations-2026-11-26-switch-reset-bisect.log",
+        "log_sha256": "b504d7bfe259f9f0aa6593b4454cc741c06b8a039e9a5739ad1028573dd7184c",
+        "reaped_pids": [
+          11914,
+          12378,
+          12577,
+          12752,
+          13172,
+          13606,
+          14014,
+          14414,
+          17444
+        ]
+      },
+      {
+        "name": "log-columns",
+        "command": [
+          "python3",
+          "scripts/test-native-reference-groups.py",
+          "--only",
+          "log-column-layout",
+          "--git",
+          "/usr/bin/git",
+          "--git",
+          "<accepted-build>/build/Build/Products/Debug/TurtleGitMac.app/Contents/Helpers/Git/bin/git"
+        ],
+        "exit_code": 0,
+        "elapsed_seconds": 15.361,
+        "log": "build/qa/ci-connected-operations-2026-11-26-log-columns.log",
+        "log_sha256": "f2932226261bc831d81ce4b585fdd9d1de6cdd3e4aeda8a0905f01f749110561",
+        "reaped_pids": [
+          20484,
+          20520,
+          20806
+        ]
+      }
+    ],
+    "finished_utc": "2026-11-26T14:22:42.791956+00:00",
+    "owned_processes_remaining": []
+  },
+  "native_process_cases": 10,
+  "retained_unaffected_hosted_connected_process_cases": 22,
+  "app_core_runtime_builds": 0,
+  "accepted_app_source_sha256": {
+    "Sources/TurtleGitMac/LogWindow.swift": "1e7f345fbf6949c67c678c888773a54b9f1b0004bd19167dcff80be7f5963b28"
+  },
+  "owned_processes_remaining": [],
+  "limitations": [
+    "No full hosted pass claimed. Final failure artifacts retrieved and digest-verified; they match specific earlier rendered-step failures.",
+    "No physical screenshot, all-dialog parity or signed deployment certification."
+  ],
+  "final_failure_artifacts": [
+    {
+      "artifact": 15128201023,
+      "sha256": "255c6c0fb98455756facc234096856b5293c61666e7ec8c032ff7619fea32f52",
+      "report": "895234a5-e207-41d2-960c-a7911b5bcf19.txt",
+      "report_sha256": "3b09df8907826cda0073e2acb0181cdeff4b898b8b35a5083431945fe4842c65"
+    },
+    {
+      "artifact": 15128555525,
+      "sha256": "3b79e6460bfb6fca1fa0573593c6d2b8893f0179694b2b9e527b1dca7388d483",
+      "report": "afbf05d0-7730-4187-87cf-467e7f6e8772.txt",
+      "report_sha256": "e2a1508e2b13074ff558b62cde5e228fbacb33b94cb3110e440381910de8fcd9"
+    }
+  ]
+}

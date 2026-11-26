@@ -2587,9 +2587,28 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     try await waitPicker { bisectPicker.model.entries.first { $0.hash == hashes[6] }?.references.contains { $0.name == "refs/bisect/bad" } == true }
     precondition(bisectPicker.model.entries.first { $0.hash == hashes[6] }?.references.contains { $0.name == "refs/bisect/bad" } == true)
     bisectPicker.close(); precondition(bisectPicker.model.isInvalidated)
+    // A Bisect completion schedules coalesced observer reloads. The cached-menu
+    // experiment starts after an explicit accepted reload cancels that pending
+    // refresh; otherwise the old HEAD predicate can settle before a later
+    // projection retires the action or sees the external mark before admission.
+    try await waitLog { LogWindowModel.activeHistoryLoads == 0 && LogWindowModel.activeReferenceReads == 0 && LogWindowModel.activeActionReads == 0 }
+    guard log.reload(acceptedBackend:nil) else {throw BisectRecoveryCheckFailure(description:"Stale Bisect menu could not establish its owned Log reload")}
+    try await waitLog { LogWindowModel.activeHistoryLoads == 0 && LogWindowModel.activeReferenceReads == 0 && LogWindowModel.activeActionReads == 0 }
     log.selected = [hashes[4]]
+    let retainedGood=menuItem(.good)
+    func staleBisectDiagnostic(_ phase:String)->String {
+        let chosen=log.revisions.map {entry in "\(entry.hash):\(entry.references.map(\.name))"}
+        return "Stale Bisect menu \(phase): requests=\(requests.count),error=\(String(describing:log.error)),busy=\(log.busy),history=\(log.loadingHistory),invalidated=\(log.isInvalidated),quit=\(log.confirmingQuit),active=\(log.bisectActive),canGood=\(log.canBisect(.good)),selected=\(log.selected),chosen=\(chosen),nativeRows=\(table.numberOfRows),nativeSelection=\(table.selectedRowIndexes),cachedEnabled=\(String(describing:retainedGood?.isEnabled)),cachedAction=\(String(describing:retainedGood?.action)),historyReads=\(LogWindowModel.activeHistoryLoads),referenceReads=\(LogWindowModel.activeReferenceReads),actionReads=\(LogWindowModel.activeActionReads)"
+    }
+    guard requests.count == 5,log.error == nil,log.canBisect(.good),retainedGood?.isEnabled == true,retainedGood?.image != nil,
+          log.revisions.first?.hash == hashes[4],log.revisions.first?.references.contains(where:{$0.name.hasPrefix("refs/bisect/")}) == false else {
+        throw BisectRecoveryCheckFailure(description:staleBisectDiagnostic("cached admission"))
+    }
     _ = try await repo.run(["update-ref", "refs/bisect/skip-" + hashes[4], hashes[4]])
-    coordinator.bisectGood(); try await waitLog(); precondition(requests.count == 5 && log.error != nil)
+    guard log.canBisect(.good),log.selected == [hashes[4]] else {throw BisectRecoveryCheckFailure(description:staleBisectDiagnostic("external mark admission"))}
+    coordinator.bisectGood()
+    try await waitLog { LogWindowModel.activeActionReads == 0 }
+    guard requests.count == 5,log.error != nil else {throw BisectRecoveryCheckFailure(description:staleBisectDiagnostic("fresh marked-ref refusal"))}
     reopened.model.perform(.reset); try await wait(reopened.model)
     try await waitLog { !log.bisectActive && log.entries.first { $0.isHead }?.hash == hashes[7] }
     precondition(!log.bisectActive && log.entries.first { $0.isHead }?.hash == hashes[7])

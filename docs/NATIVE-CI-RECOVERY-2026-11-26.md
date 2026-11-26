@@ -195,3 +195,43 @@ the connected family with both Git engines using the already accepted app build.
 It preserves complete owner/question/sheet/worker cleanup. No app/Core/runtime
 rebuild or full Core repeat was needed. The complete hosted primary family and
 remaining lanes still require confirmation.
+
+
+## Retained Bisect and native Log column follow-up
+
+Completed-step browser logs, later confirmed by digest-verified final artifacts,
+identified retained Bisect's compound stale-mark assertion (generated line273,
+baseline source line2592) and Log's private column-preference assertion. The
+Bisect fixture now establishes an accepted reload and enabled unmarked cached Good
+menu before changing the external reference, retaining exact no-new-handoff/error
+checks. No product defect was established from the old compound assertion. Three
+related Reset/Bisect two-PID writers also publish complete receipts atomically;
+these source-proven races were not identified as that failure's cause.
+
+Log's column fixture now invokes the actual one-use header item target/action,
+instead of passing its new typed command to the old String-based toggle method.
+Real owned Reset answers, native projection, private/global preferences and saved
+width inputs remain asserted. The [native batch record](qa/hosted-reference-bisect-recovery-2026-11-26.json)
+passes eight affected connected operation cases and two Log column cases across
+both Git engines. The existing app build was reused; unaffected hosted cases were
+retained.
+
+## Independent group failure collection
+
+The editor runner previously stopped at the first failed compilation/runtime
+group, hiding later independent groups and the remaining Git engine. It now keeps
+execution order and exact failures, continues only after verified private helper
+cleanup, and returns nonzero if any group fails. Each group has a retained private
+TMPDIR. Cleanup requires exact approved executable and private-resource evidence,
+handles NUL-delimited Unicode/newline/deleted paths, revalidates process lifetime
+before individual signals, and refuses continuation for unknown or surviving
+owners. Fallback cleanup of a leaked helper also remains a failure. Delegated
+native assertions and the existing delegated driver are unchanged. Cases after a failure
+inside that delegated invocation may still be unreached; reported totals describe
+groups rather than successful cases.
+
+The [orchestration record](qa/native-reference-group-continuation-2026-11-26.json)
+retains 17 contract passes, one added real detached-helper/deleted-cwd cleanup
+pass, and one actual native Log column group through the updated runner. No
+additional app/Core/runtime build or broad native suite was run. These records
+support the affected local changes; a fresh hosted run is still required.
