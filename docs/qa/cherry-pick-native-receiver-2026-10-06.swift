@@ -76,6 +76,15 @@ import TurtleGitCore
     print("Actual native Split: multiline Edit host, first parent-based full Commit selection, post-action guard, automatic remaining-part dialog, Cancel/reopened normal part, metadata identity and final Continue/future replay passed. Sheets and answers injected; no displayed gestures.")
 }
 @MainActor func verifyNativeRecoveryFiles(_ repo: GitRepository, editor: URL?) async throws {
+    func recoveryReady(_ owner:RebaseWindowModel,_ phase:String,allowError:Bool=false) async throws {
+        let deadline=Date().addingTimeInterval(30)
+        while (owner.busy || owner.revisionFiles.busy || owner.pendingBatchWorkers>0 || RebaseWindowModel.activePreparationReads>0 || RebaseWindowModel.activeReplayOperations>0) && Date()<deadline {
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        precondition(!owner.busy && !owner.revisionFiles.busy && owner.pendingBatchWorkers==0 && RebaseWindowModel.activePreparationReads==0 && RebaseWindowModel.activeReplayOperations==0,
+            "Recovery phase did not drain: \(phase),busy=\(owner.busy),files=\(owner.revisionFiles.busy),workers=\(owner.pendingBatchWorkers),reads=\(RebaseWindowModel.activePreparationReads),replays=\(RebaseWindowModel.activeReplayOperations),split=\(owner.selectingSplit),error=\(String(describing:owner.error))")
+        if !allowError {precondition(owner.error==nil,"Recovery phase failed: \(phase): \(owner.error ?? "none")")}
+    }
     let path = "native recovery 雪\n.txt", clean = "native-recovery-clean.txt"
     try Data("base-recovery\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "recovery base")
     let base = try await repo.rebaseCommit("HEAD")
@@ -87,9 +96,12 @@ import TurtleGitCore
     try Data("from-onto\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: "recovery onto")
     let destination = try await repo.rebaseCommit("HEAD")
     let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor
-    model.load(cherryPick: [source.hash]); try await settle(model); model.setAction(.edit, ids: [source.hash]); model.request("start")
+    defer{model.retire()}
+    model.load(cherryPick: [source.hash]); try await recoveryReady(model,"initial load")
+    precondition(model.canStart);model.setAction(.edit, ids: [source.hash]);model.request("start")
     let deadline = Date().addingTimeInterval(30)
     while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    try await recoveryReady(model,"stopped conflict",allowError:true)
     precondition(!model.busy && model.error != nil && model.fileRecovery && model.tab == 0 && !model.canSplit)
     model.error = nil
     precondition(model.primaryActionTitle == "Commit")
@@ -97,23 +109,47 @@ import TurtleGitCore
     let host = NSHostingView(rootView: RebaseConflictFiles(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1000, height: 300); host.layoutSubtreeIfNeeded()
     guard let table = findTable(host) else { fatalError("Actual Conflict Files table unavailable") }
     precondition(table.numberOfRows == 2 && table.tableColumns.count == 6)
-    model.compareConflicts([path]); try await settle(model); precondition(model.conflictPatch?.contains("base-recovery") == true); model.conflictPatch = nil
-    var edited: [String] = [], resolve: ResolveWindowModel?
-    model.onConflictAction = { action, paths in
-        if action == .editConflict { edited = paths; return }
-        let receiver = ResolveWindowModel(repository: repo, access: nil, paths: paths, quick: action.resolveChoice); resolve = receiver
+    // A single regular stage-1 entry now hands off its real typed document,
+    // rather than the aggregate legacy patch used for multiple conflicts.
+    let conflict=model.conflicts[0],stageBase=conflict.stages.first{$0.number==1}!
+    let compareHead=try await repo.run(["rev-parse","HEAD"]).stdout
+    let compareIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+    let compareWorking=try Data(contentsOf:repo.root.appendingPathComponent(path))
+    var baseComparisons:[ConflictBaseComparison]=[],baseChoices:[Bool]=[]
+    model.onConflictBaseComparison={baseComparisons.append($0);baseChoices.append(ComparisonToolInvocation.capture)}
+    ComparisonToolInvocation.$alternate.withValue(true){model.compareConflicts([path])}
+    try await recoveryReady(model,"typed stage-1 comparison")
+    precondition(baseComparisons.count==1 && baseChoices==[true] && model.conflictPatch==nil && ComparisonToolInvocation.alternate==nil)
+    let prepared=baseComparisons[0]
+    precondition(prepared.entry==conflict && prepared.snapshot.root.path.utf8.elementsEqual(repo.root.path.utf8) && prepared.snapshot.files.map(\.path)==[path])
+    precondition(prepared.document.base.bytes==Data("base-recovery\n".utf8) && prepared.document.base.revision == .revision(stageBase.object) && prepared.document.base.mode==stageBase.mode)
+    precondition(prepared.document.destination.bytes==compareWorking && prepared.document.destination.revision == .workingTree && prepared.document.destination.path.utf8.elementsEqual(path.utf8))
+    let comparedHead=try await repo.run(["rev-parse","HEAD"]).stdout
+    let comparedIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index")),comparedWorking=try Data(contentsOf:repo.root.appendingPathComponent(path))
+    precondition(comparedHead==compareHead && comparedIndex==compareIndex && comparedWorking==compareWorking)
+    var edited: [String] = [], editDeliveries=0, resolutionDeliveries:[RepositoryAction]=[], resolve: ResolveWindowModel?
+    defer{resolve?.invalidate()}
+    model.onConflictAction = { [weak model] action, paths in
+        guard let model else{return}
+        if action == .editConflict { editDeliveries += 1;edited = paths; return }
+        resolutionDeliveries.append(action)
+        precondition(paths==[path] && action == .resolveTheirs,"Conflict resolution lost captured command/path")
+        let receiver = ResolveWindowModel(repository: repo, access: nil, paths: paths, quick: action.resolveChoice,preferences:model.columnPreferences); resolve = receiver
         receiver.confirm = { [weak receiver] choice, entries in DispatchQueue.main.async { receiver?.apply(entries, using: choice) } }
-        receiver.onChanged = { _ in model.refreshState() }; receiver.load()
+        receiver.onChanged = { [weak model] _ in model?.refreshState() }; receiver.load()
     }
-    model.conflictAction(.editConflict, ids: [path]); precondition(edited == [path])
-    edited = []; model.conflictAction(.editConflict, ids: [path, clean]); precondition(edited.isEmpty)
+    model.conflictAction(.editConflict, ids: [path]);try await recoveryReady(model,"captured single Edit delivery")
+    precondition(edited == [path] && editDeliveries==1 && resolutionDeliveries.isEmpty)
+    edited = []; model.conflictAction(.editConflict, ids: [path, clean]);try await recoveryReady(model,"refused multi-row Edit")
+    precondition(edited.isEmpty && editDeliveries==1 && resolutionDeliveries.isEmpty)
     model.conflictAction(.resolveTheirs, ids: [path])
     let resolvedDeadline = Date().addingTimeInterval(30)
-    while (!model.conflicts.isEmpty || model.busy || resolve?.busy == true) && Date() < resolvedDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
-    precondition(resolve?.error == nil && model.error == nil && model.conflicts.isEmpty && model.fileRecovery && !model.canSplit)
+    while (resolve==nil || !model.conflicts.isEmpty || model.busy || resolve?.busy == true || ResolveWindowModel.activeOperations>0) && Date() < resolvedDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    try await recoveryReady(model,"resolved refresh")
+    precondition(resolutionDeliveries==[.resolveTheirs] && resolve != nil && ResolveWindowModel.activeOperations==0 && resolve?.busy==false && resolve?.error == nil && model.error == nil && model.conflicts.isEmpty && model.fileRecovery && !model.canSplit)
     precondition(Set(model.conflictRows.map(\.path)) == [path, clean])
     let resolvedText = try String(contentsOf: repo.root.appendingPathComponent(path), encoding: .utf8); precondition(resolvedText == "from-replay\n")
-    let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.load(); try await settle(reopened)
+    let reopened = RebaseWindowModel(repository: repo, access: nil);defer{reopened.retire()}; reopened.editorExecutable = editor; reopened.load(); try await recoveryReady(reopened,"resolved reopen")
     precondition(reopened.fileRecovery && !reopened.canSplit && Set(reopened.conflictRows.map(\.path)) == [path, clean])
     precondition(reopened.checkedConflicts == [path, clean])
     var children: [CommitWindowModel] = []
@@ -134,11 +170,12 @@ import TurtleGitCore
     reopened.amendMessage = "Native checked recovery\n\n# Conflicts:\n#\tfile\n"
     var hints = 0; reopened.confirmConflictHints = { hints += 1; return false }
     let beforeHints = try await repo.rebaseCommit("HEAD"), beforeHintIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
-    reopened.request("continue"); try await settle(reopened)
-    let afterHints = try await repo.rebaseCommit("HEAD"); precondition(hints == 1 && afterHints.hash == beforeHints.hash && children.isEmpty && reopened.tab == 1)
+    precondition(reopened.canContinueReplay);reopened.request("continue"); try await recoveryReady(reopened,"declined raw conflict hints")
+    let afterHints = try await repo.rebaseCommit("HEAD"); precondition(hints == 1 && afterHints.hash == beforeHints.hash && children.isEmpty && reopened.tab == 0)
+    precondition(reopened.amendMessage=="Native checked recovery\n\n# Conflicts:\n#\tfile\n" && reopened.fileRecovery && !reopened.selectingSplit)
     let afterHintIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout; precondition(afterHintIndex == beforeHintIndex)
     reopened.confirmConflictHints = { hints += 1; return true }
-    reopened.request("continue"); try await settle(reopened)
+    precondition(reopened.canContinueReplay);reopened.request("continue"); try await recoveryReady(reopened,"approved checked recovery")
     precondition(hints == 2)
     let opening = Date().addingTimeInterval(30)
     while children.isEmpty && Date() < opening { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -147,37 +184,52 @@ import TurtleGitCore
     precondition(partial.subject == "Native checked recovery" && partial.message.contains("# Conflicts:") && partialFiles.map(\.path) == [path])
     let first = children[0]; try await settleCommit(first)
     precondition(first.amend && !first.amendToParent && first.replaySplit?.conflictRecovery == true)
-    first.cancel(); try await settle(reopened)
+    first.cancel(); try await recoveryReady(reopened,"cancelled recovery amendment")
     let restored = RebaseWindowModel(repository: repo, access: nil); restored.editorExecutable = editor; installRecovery(restored)
-    restored.load(); try await settle(restored); precondition(restored.state?.split?.conflictRecovery == true)
-    restored.request("continue"); try await settle(restored)
+    defer{restored.retire()}
+    restored.load(); try await recoveryReady(restored,"reopened amendment"); precondition(restored.state?.split?.conflictRecovery == true)
+    precondition(restored.canContinueReplay);restored.request("continue"); try await recoveryReady(restored,"reopened amendment child")
     let nextOpening = Date().addingTimeInterval(30)
     while children.count < 2 && Date() < nextOpening { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(children.count == 2); let next = children[1]; try await settleCommit(next)
     next.stagingEnabled = false; next.checked = [clean]; next.message = "Native complete recovery"; next.commit()
-    try await settleCommit(next); try await settle(restored)
+    try await settleCommit(next); try await recoveryReady(restored,"completed amendment child")
     let closing = Date().addingTimeInterval(30)
     while restored.selectingSplit && Date() < closing { try await Task.sleep(nanoseconds: 10_000_000) }
-    try await settle(restored); precondition(restored.active && restored.state?.isEditPause == true && restored.tab == 1)
+    try await recoveryReady(restored,"applied Edit review"); precondition(restored.active && restored.state?.isEditPause == true && restored.tab == 1)
     let beforeSplitCancel = try await repo.rebaseCommit("HEAD"), beforeSplitIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
-    restored.splitCommit = true; restored.request("continue"); try await settle(restored)
+    restored.splitCommit = true;precondition(restored.canContinueReplay);restored.request("continue"); try await recoveryReady(restored,"unstarted Split child")
     precondition(children.count == 3 && restored.selectingSplit)
     let cancelledSplit = children[2]; try await settleCommit(cancelledSplit)
     precondition(cancelledSplit.amendToParent && cancelledSplit.replaySplit?.parts == 0 && cancelledSplit.replaySplit?.conflictRecoveryReturn != nil)
-    cancelledSplit.cancel(); try await settle(restored)
+    cancelledSplit.cancel(); try await recoveryReady(restored,"cancelled unstarted Split")
     let afterSplitCancel = try await repo.rebaseCommit("HEAD"), afterSplitIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
     precondition(afterSplitCancel.hash == beforeSplitCancel.hash && afterSplitIndex == beforeSplitIndex && restored.state?.isEditPause == true)
-    let afterCancel = RebaseWindowModel(repository: repo, access: nil); afterCancel.editorExecutable = editor; afterCancel.load(); try await settle(afterCancel)
+    let afterCancel = RebaseWindowModel(repository: repo, access: nil);defer{afterCancel.retire()}; afterCancel.editorExecutable = editor; afterCancel.load(); try await recoveryReady(afterCancel,"reopened cancelled Split")
     precondition(afterCancel.state?.split?.conflictRecovery == true && afterCancel.state?.isEditPause == true && afterCancel.canSplit && !afterCancel.splitCommit)
-    afterCancel.amendMessage = "Native recovery Edit approved"; afterCancel.request("continue"); try await settle(afterCancel)
+    afterCancel.amendMessage = "Native recovery Edit approved";precondition(afterCancel.canContinueReplay);afterCancel.request("continue"); try await recoveryReady(afterCancel,"final Edit approval")
     precondition(afterCancel.finished && !afterCancel.active && !afterCancel.fileRecovery)
     let complete = try await repo.rebaseCommit("HEAD"), completeFiles = try await repo.files(in: complete)
     precondition(complete.parents == partial.parents && Set(completeFiles.map(\.path)) == [path, clean] && complete.subject == "Native recovery Edit approved")
     let preserved = try await repo.rebaseCommit(destination.hash); precondition(preserved.subject == "recovery onto")
     let ancestor = try await repo.run(["merge-base", "--is-ancestor", base.hash, "HEAD"]); precondition(ancestor.exitCode == 0)
-    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, original base diff, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Conflict-hint Abort leaves HEAD/index and child selection unchanged; Ignore continues. Applied conflict Edit survives unstarted Split Cancel with unchanged HEAD/index and reopened multiline approval. Sheets/editor/confirmation routing injected.")
+    precondition(RebaseWindowModel.activePreparationReads==0 && RebaseWindowModel.activeReplayOperations==0 && ResolveWindowModel.activeOperations==0)
+    print("Actual Conflict Files: six-column checkbox native table with conflicted/clean rows, typed stage-1 base/working byte comparison with captured tool and unchanged HEAD/index/worktree, single Edit route, actual quick Resolve replayed-side semantics and refresh, resolved-row retention/reopening, Split blocked before application checked-file commit, unchecked retention, amendment sheet Cancel/reopening, applied Edit approval and final Continue passed. Conflict-hint Abort retains Files phase, draft, HEAD/index and child selection; Ignore continues. Applied conflict Edit survives unstarted Split Cancel with unchanged HEAD/index and reopened multiline approval. Sheets/editor/confirmation routing injected; owned model/read lifetimes drained.")
 }
 @MainActor func verifyNativeSquashConflict(_ repo: GitRepository, editor: URL?) async throws {
+    func receipt(_ value:RebaseWindowModel)->String {
+        "busy=\(value.busy),revisionBusy=\(value.revisionFiles.busy),pending=\(value.pendingBatchWorkers),canStart=\(value.canStart),canContinue=\(value.canContinueReplay),active=\(value.active),finished=\(value.finished),tab=\(value.tab),stopped=\(String(reflecting:value.state?.stoppedEntryID)),action=\(String(reflecting:value.state?.stoppedAction)),squash=\(String(reflecting:value.state?.squashMessage)),error=\(String(reflecting:value.error))"
+    }
+    func ready(_ value:RebaseWindowModel,_ action:String,_ phase:String) async throws {
+        let deadline=Date().addingTimeInterval(30)
+        func admitted()->Bool { !value.busy && !value.revisionFiles.busy && value.pendingBatchWorkers==0 && (action == "edit" ? value.editable:action == "start" ? value.canStart:value.canContinueReplay) }
+        while !admitted() && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(admitted(),"\(phase) admission: "+receipt(value))
+    }
+    func request(_ value:RebaseWindowModel,_ action:String,_ phase:String) async throws {
+        try await ready(value,action,phase);value.request(action)
+        precondition(value.busy,"\(phase) request refused: "+receipt(value))
+    }
     let preference = UserDefaults.standard.object(forKey: "SquashDate")
     defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
     for policy in [RebaseSquashDate.first, .latest, .current] {
@@ -195,7 +247,9 @@ import TurtleGitCore
         let destination = try await repo.rebaseCommit("HEAD")
         UserDefaults.standard.set(policy.rawValue, forKey: "SquashDate")
         let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }
-        model.load(cherryPick: [last.hash, first.hash]); try await settle(model); model.setAction(.squash, ids: [last.hash]); model.request("start")
+        model.load(cherryPick: [last.hash, first.hash]); try await settle(model);try await ready(model,"edit","Conflict Squash plan")
+        model.setAction(.squash, ids: [last.hash]);precondition(model.plan?.entries.map(\.action)==[.pick,.squash],"Conflict Squash action refused: "+receipt(model))
+        try await request(model,"start","Conflict Squash start")
         let deadline = Date().addingTimeInterval(30)
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy && model.error != nil && model.state?.stoppedAction == .squash && model.fileRecovery && !model.canSplit && model.primaryActionTitle == "Continue")
@@ -205,15 +259,15 @@ import TurtleGitCore
         try Data("resolved group\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path])
         let recovered = RebaseWindowModel(repository: repo, access: nil); recovered.editorExecutable = editor; recovered.confirmConflictHints = { true }; recovered.load(); try await settle(recovered)
         precondition(recovered.primaryActionTitle == "Continue" && Set(recovered.conflictRows.map(\.path)) == [path, firstPath])
-        recovered.request("continue"); try await settle(recovered)
+        try await request(recovered,"continue","Reopened conflict Squash Continue"); try await settle(recovered)
         precondition(recovered.state?.squashMessage != nil && recovered.tab == 1 && recovered.primaryActionTitle == "Commit")
         precondition(recovered.amendMessage.contains("First conflict group") && recovered.amendMessage.contains("Last conflict group") && recovered.amendMessage.contains("# literal first") && recovered.amendMessage.contains("# literal last"))
         let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.confirmConflictHints = { true }; approval.load(); try await settle(approval)
         precondition(approval.primaryActionTitle == "Commit" && approval.state?.squashMessage?.datePolicy == policy)
         let host = NSHostingView(rootView: RebaseDialog(model: approval)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
         let before = Date().addingTimeInterval(-2), approved = "Native resolved group " + tag + "\n\nUnicode 雪\n# retained approval\n"
-        approval.amendMessage = approved; approval.request("continue"); try await settle(approval)
-        precondition(approval.finished && approval.primaryActionTitle == "Done")
+        approval.amendMessage = approved; try await request(approval,"continue","Conflict Squash approval"); try await settle(approval)
+        precondition(approval.finished && approval.primaryActionTitle == "Done","Conflict Squash approval outcome: "+receipt(approval))
         let combined = try await repo.rebaseCommit("HEAD")
         precondition(combined.parents == [destination.hash] && combined.author == first.author && combined.email == first.email && combined.message == approved)
         if policy == .first { precondition(combined.date == first.date) }
@@ -224,6 +278,19 @@ import TurtleGitCore
     print("Actual native Squash conflict: whole-group file list, Unicode/newline path, Continue/Commit/Done captions, staged resolution and repeated reopening, multiline/literal-comment approval, first author and first/latest/current dates passed. Hidden hosted views; prompt answers injected.")
 }
 @MainActor func verifyNativeEmptySquash(_ repo: GitRepository, editor: URL?, repeatedConflicts: Bool = false) async throws {
+    func receipt(_ value:RebaseWindowModel)->String {
+        "busy=\(value.busy),revisionBusy=\(value.revisionFiles.busy),pending=\(value.pendingBatchWorkers),canStart=\(value.canStart),canContinue=\(value.canContinueReplay),active=\(value.active),finished=\(value.finished),tab=\(value.tab),stopped=\(String(reflecting:value.state?.stoppedEntryID)),action=\(String(reflecting:value.state?.stoppedAction)),squash=\(String(reflecting:value.state?.squashMessage)),error=\(String(reflecting:value.error))"
+    }
+    func ready(_ value:RebaseWindowModel,_ action:String,_ phase:String) async throws {
+        let deadline=Date().addingTimeInterval(30)
+        func admitted()->Bool { !value.busy && !value.revisionFiles.busy && value.pendingBatchWorkers==0 && (action == "edit" ? value.editable:action == "start" ? value.canStart:value.canContinueReplay) }
+        while !admitted() && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(admitted(),"\(phase) admission: "+receipt(value))
+    }
+    func request(_ value:RebaseWindowModel,_ action:String,_ phase:String) async throws {
+        try await ready(value,action,phase);value.request(action)
+        precondition(value.busy,"\(phase) request refused: "+receipt(value))
+    }
     _ = try await repo.run(["config", "rebase.updateRefs", "true"])
     let preference = UserDefaults.standard.object(forKey: "SquashDate")
     defer { if let preference { UserDefaults.standard.set(preference, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") } }
@@ -250,12 +317,15 @@ import TurtleGitCore
         let destination = try await repo.rebaseCommit("HEAD")
         UserDefaults.standard.set(1, forKey: "SquashDate")
         let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }
-        model.load(cherryPick: repeatedConflicts ? [future.hash, last.hash, middle.hash, first.hash] : [future.hash, last.hash, first.hash]); try await settle(model); model.setAction(.squash, ids: repeatedConflicts ? [middle.hash, last.hash] : [last.hash]); model.request("start")
+        model.load(cherryPick: repeatedConflicts ? [future.hash, last.hash, middle.hash, first.hash] : [future.hash, last.hash, first.hash]); try await settle(model);try await ready(model,"edit","Empty Squash plan "+name)
+        model.setAction(.squash, ids: repeatedConflicts ? [middle.hash, last.hash] : [last.hash])
+        precondition(model.plan?.entries.map(\.action)==(repeatedConflicts ? [.pick,.squash,.squash,.pick]:[.pick,.squash,.pick]),"Empty Squash actions refused: "+receipt(model))
+        try await request(model,"start","Empty Squash start "+name)
         let deadline = Date().addingTimeInterval(30)
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy && model.error != nil && model.state?.stoppedAction == .squash); model.error = nil
-        try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); model.refreshState(); try await settle(model)
-        model.request("continue")
+        try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]);try await ready(model,"continue","Empty Squash refresh "+name); model.refreshState(); try await settle(model)
+        try await request(model,"continue","Empty Squash resolution "+name)
         if repeatedConflicts {
             let secondDeadline = Date().addingTimeInterval(30)
             while model.busy && Date() < secondDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -264,8 +334,8 @@ import TurtleGitCore
             model.error = nil
             let second = RebaseWindowModel(repository: repo, access: nil); second.editorExecutable = editor; second.confirmConflictHints = { true }; second.load(); try await settle(second)
             precondition(second.state?.stoppedEntryID == last.hash && second.fileRecovery && !second.supportsConflictSelection)
-            try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); second.refreshState(); try await settle(second)
-            second.request("continue"); try await settle(second); precondition(second.state?.squashMessage != nil && second.primaryActionTitle == "Commit")
+            try Data("destination empty conflict\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]);try await ready(second,"continue","Repeated Empty Squash refresh "+name); second.refreshState(); try await settle(second)
+            try await request(second,"continue","Repeated Empty Squash resolution "+name); try await settle(second); precondition(second.state?.squashMessage != nil && second.primaryActionTitle == "Commit")
         } else { try await settle(model); precondition(model.state?.squashMessage != nil && model.primaryActionTitle == "Commit") }
         let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.confirmConflictHints = { true }; approval.load(); try await settle(approval)
         if repeatedConflicts {
@@ -280,12 +350,12 @@ import TurtleGitCore
             return choice
         }
         let before = try await repo.rebaseCommit("HEAD"), index = try await repo.run(["ls-files", "--stage", "-z"]).stdout
-        approval.amendMessage = "Native approved empty " + name; approval.request("continue"); try await settle(approval)
-        precondition(prompts == 1)
+        approval.amendMessage = "Native approved empty " + name; try await request(approval,"continue","Empty Squash approval "+name); try await settle(approval)
+        precondition(prompts == 1,"Empty Squash decision count "+name+": prompts=\(prompts),"+receipt(approval))
         if choice == .cancel {
             let after = try await repo.rebaseCommit("HEAD"), currentIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
             precondition(approval.active && approval.tab == 1 && approval.amendMessage == "Native approved empty " + name && after.hash == before.hash && currentIndex == index)
-            approval.chooseEmptyResult = { prompts += 1; return .commit }; approval.request("continue"); try await settle(approval); precondition(prompts == 2)
+            approval.chooseEmptyResult = { prompts += 1; return .commit }; try await request(approval,"continue","Cancelled Empty Squash Commit "+name); try await settle(approval); precondition(prompts == 2)
         }
         var completed = approval
         if choice == .skip {
@@ -294,9 +364,9 @@ import TurtleGitCore
             let retry = RebaseWindowModel(repository: repo, access: nil); retry.editorExecutable = editor; retry.load(); try await settle(retry)
             precondition(retry.primaryActionTitle == "Continue" && retry.state?.squashMessage?.skipBaseHead == destination.hash)
             retry.chooseEmptyResult = { preconditionFailure("Approved Skip must not ask again") }
-            retry.request("continue"); try await settle(retry); completed = retry
+            try await request(retry,"continue","Persisted Empty Squash Skip "+name); try await settle(retry); completed = retry
         }
-        precondition(completed.finished && !completed.active)
+        precondition(completed.finished && !completed.active,"Empty Squash outcome "+name+": "+receipt(completed))
         let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^")
         precondition(head.subject == "Future after " + name)
         if choice == .skip { precondition(head.parents == [destination.hash]) }
@@ -331,14 +401,15 @@ import TurtleGitCore
         _ = try await repo.run(["branch", stem + "-future-ref", "HEAD"]); _ = try await repo.run(["checkout", "target"])
         try Data("destination reference\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); _ = try await repo.commit(message: stem + " destination")
         let destination = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", stem]); _ = try await repo.run(["config", "rebase.updateRefs", "true"]); _ = try await repo.run(["config", "rebase.abbreviateCommands", choice == .skip ? "true" : "false"])
-        let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.confirmConflictHints = { true }; model.load(upstream: "target"); try await settle(model)
-        model.setAction(.squash, ids: [last.hash]); model.request("start"); precondition(model.confirmation != nil); model.confirmation = nil; model.execute("start")
+        let model = RebaseWindowModel(repository: repo, access: nil); defer {model.retire()}; model.editorExecutable = editor; model.confirmConflictHints = { true }; model.load(upstream: "target"); try await settle(model)
+        model.setAction(.squash, ids: [last.hash]); model.request("start"); precondition(model.confirmation != nil && model.pendingConfirmation != nil)
+        model.answerConfirmation(model.pendingConfirmation!, proceed: true)
         let deadline = Date().addingTimeInterval(30)
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
         precondition(!model.busy && model.error != nil && model.state?.currentStep == 3 && model.state?.total == 4 && model.state?.stoppedEntryID == last.hash); model.error = nil
         try Data("destination reference\n".utf8).write(to: repo.root.appendingPathComponent(path)); try await repo.stage([path]); model.refreshState(); try await settle(model)
         model.request("continue"); try await settle(model); precondition(model.state?.squashMessage?.latestDate == last.date)
-        let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.confirmConflictHints = { true }; reopened.load(); try await settle(reopened)
+        let reopened = RebaseWindowModel(repository: repo, access: nil); defer {reopened.retire()}; reopened.editorExecutable = editor; reopened.confirmConflictHints = { true }; reopened.load(); try await settle(reopened)
         precondition(reopened.primaryActionTitle == "Commit" && reopened.state?.currentStep == 3)
         let host = NSHostingView(rootView: RebaseDialog(model: reopened)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
         reopened.amendMessage = stem + " approved"; reopened.chooseEmptyResult = { choice }; reopened.request("continue"); try await settle(reopened); precondition(reopened.finished)
@@ -359,15 +430,16 @@ import TurtleGitCore
     let first = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-repeat-first-ref", first.hash])
     try Data("second reference\n".utf8).write(to: repo.root.appendingPathComponent(secondPath)); try await repo.stage([secondPath]); _ = try await repo.commit(message: "Native original second")
     let second = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-repeat-second-ref", second.hash]); _ = try await repo.run(["config", "rebase.updateRefs", "true"])
-    let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.load(upstream: "target"); try await settle(model)
+    let model = RebaseWindowModel(repository: repo, access: nil); defer {model.retire()}; model.editorExecutable = editor; model.load(upstream: "target"); try await settle(model)
     model.addCommits([first.hash]); try await settle(model)
     let duplicate = first.hash + ":1"; precondition(Set(model.entries.map(\.id)) == [first.hash, second.hash, duplicate])
     model.setAction(.skip, ids: [duplicate]); model.selection = [duplicate]; model.move(up: false, toEnd: true)
     model.setAction(.edit, ids: [first.hash]); model.selection = [first.hash]; model.move(up: true, toEnd: true)
     precondition(model.plan?.entries.map(\.id) == [duplicate, second.hash, first.hash])
-    model.request("start"); precondition(model.confirmation != nil); model.confirmation = nil; model.execute("start"); try await settle(model)
+    model.request("start"); precondition(model.confirmation != nil && model.pendingConfirmation != nil)
+    model.answerConfirmation(model.pendingConfirmation!, proceed: true); try await settle(model)
     precondition(model.state?.isEditPause == true && model.state?.currentStep == 3 && model.state?.stoppedEntryID == first.hash)
-    let reopened = RebaseWindowModel(repository: repo, access: nil); reopened.editorExecutable = editor; reopened.load(); try await settle(reopened)
+    let reopened = RebaseWindowModel(repository: repo, access: nil); defer {reopened.retire()}; reopened.editorExecutable = editor; reopened.load(); try await settle(reopened)
     precondition(reopened.selection == [first.hash] && reopened.state?.stoppedEntryID == first.hash)
     reopened.amendMessage = "Native approved original occurrence"; reopened.request("continue"); try await settle(reopened); precondition(reopened.finished)
     let head = try await repo.rebaseCommit("HEAD"), parent = try await repo.rebaseCommit("HEAD^"), firstRef = try await repo.rebaseCommit("native-repeat-first-ref"), secondRef = try await repo.rebaseCommit("native-repeat-second-ref")
@@ -381,10 +453,11 @@ import TurtleGitCore
     let retained = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["branch", "native-retained-ref", retained.hash]); _ = try await repo.run(["checkout", "target"])
     _ = try await repo.run(["cherry-pick", "--no-commit", equivalent.hash]); _ = try await repo.commit(message: "Native upstream equivalent identity")
     let destination = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "native-omitted-reference-source"]); _ = try await repo.run(["config", "rebase.updateRefs", "true"])
-    let omitted = RebaseWindowModel(repository: repo, access: nil); omitted.editorExecutable = editor; omitted.load(upstream: "target"); try await settle(omitted)
-    precondition(omitted.plan?.entries.first?.action == .skip); omitted.setAction(.edit, ids: [retained.hash]); omitted.request("start"); precondition(omitted.confirmation != nil); omitted.confirmation = nil; omitted.execute("start"); try await settle(omitted)
+    let omitted = RebaseWindowModel(repository: repo, access: nil); defer {omitted.retire()}; omitted.editorExecutable = editor; omitted.load(upstream: "target"); try await settle(omitted)
+    precondition(omitted.plan?.entries.first?.action == .skip); omitted.setAction(.edit, ids: [retained.hash]); omitted.request("start"); precondition(omitted.confirmation != nil && omitted.pendingConfirmation != nil)
+    omitted.answerConfirmation(omitted.pendingConfirmation!, proceed: true); try await settle(omitted)
     precondition(omitted.state?.isEditPause == true && omitted.state?.currentStep == 2 && omitted.state?.stoppedEntryID == retained.hash && omitted.output.contains("skipped previously applied commit"))
-    let approval = RebaseWindowModel(repository: repo, access: nil); approval.editorExecutable = editor; approval.load(); try await settle(approval); approval.amendMessage = "Native approved retained source"; approval.request("continue"); try await settle(approval); precondition(approval.finished)
+    let approval = RebaseWindowModel(repository: repo, access: nil); defer {approval.retire()}; approval.editorExecutable = editor; approval.load(); try await settle(approval); approval.amendMessage = "Native approved retained source"; approval.request("continue"); try await settle(approval); precondition(approval.finished)
     let completed = try await repo.rebaseCommit("HEAD"), omittedRef = try await repo.rebaseCommit("native-equivalent-ref"), retainedRef = try await repo.rebaseCommit("native-retained-ref")
     precondition(completed.parents == [destination.hash] && retainedRef.hash == completed.hash && omittedRef.hash == equivalent.hash)
     _ = try await repo.run(["config", "--unset", "rebase.updateRefs"]); _ = try await repo.run(["checkout", "target"])
@@ -445,7 +518,7 @@ import TurtleGitCore
     precondition(ExportWindowModel.directoryScope(root: repo.root, paths: [scopeDirectory]) == scopeDirectory)
     precondition(ExportWindowModel.directoryScope(root: repo.root, paths: [scopeDirectory, "."]) == "")
     try FileManager.default.removeItem(at: repo.root.appendingPathComponent(scopeDirectory))
-    let controller = ExportWindowController(repository: repo, access: nil, revision: "HEAD")
+    let controller = ExportWindowController(repository: repo, access: nil, revision: "HEAD"); defer {controller.close()}; controller.window?.alphaValue = 0
     let controllerDeadline = Date().addingTimeInterval(30)
     while controller.model.busy && Date() < controllerDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(!controller.model.busy && controller.model.error == nil && controller.model.target == .head)
@@ -458,7 +531,10 @@ import TurtleGitCore
     while controller.model.busy && Date() < branchDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(!controller.model.busy && controller.model.error == nil && controller.model.target == .branch)
     var exportClosed = false; controller.onClosed = { exportClosed = true }; controller.close()
-    precondition(exportClosed)
+    // onClosed intentionally follows the real child/picker/native detach drain.
+    let exportCloseDeadline = Date().addingTimeInterval(30)
+    while (!exportClosed || controller.hasPendingWork || exportWindow.sheetParent != nil || exportWindow.attachedSheet != nil) && Date() < exportCloseDeadline { try await Task.sleep(nanoseconds:10_000_000) }
+    precondition(exportClosed && !controller.hasPendingWork && exportWindow.sheetParent == nil && exportWindow.attachedSheet == nil && !exportWindow.isVisible, "Export close did not drain its exact native owner")
     print("Native Export controller: hidden real dialog, HEAD/Branch presets, root/subdirectory scope normalization, busy-close guard and owned-window cleanup passed.")
     print("Native Log Export icon/handoff, tag/hash presets, ZIP creation and overwrite Cancel/Replace passed.")
     coordinator.mergeRevision(); try await wait(); precondition(log.error == nil && merges == ["refs/tags/integration-tag"])
@@ -524,7 +600,7 @@ import TurtleGitCore
 }
 
 @MainActor func verifyNativeRebaseMenus(_ repo: GitRepository, editor: URL?, revisions: [LogEntry]) async throws {
-    let model = RebaseWindowModel(repository: repo, access: nil); model.editorExecutable = editor; model.load(cherryPick: revisions.map(\.hash)); try await settle(model)
+    let model = RebaseWindowModel(repository: repo, access: nil); defer {model.retire()}; model.editorExecutable = editor; model.load(cherryPick: revisions.map(\.hash)); try await settle(model)
     let log = model.revisionMenuLog, one = Set([revisions[0].hash]), pair = Set([revisions[1].hash, revisions[2].hash])
     let board = NSPasteboard(name: .init("org.turtlegit.qa.rebase." + UUID().uuidString)); log.clipboard = board; defer { board.releaseGlobally() }
     var compared: [(ComparisonRevision, ComparisonRevision)] = [], routed: [String] = [], patch: FormatPatchPreset?, diff: Data?, alternate = false, noteChanged = false
@@ -535,8 +611,101 @@ import TurtleGitCore
     let excluded = ["Reset current branch to this…", "Switch/Checkout to this…", "Revert change by this commit", "Cherry Pick this commit…"]
     precondition(!RebaseRevisionCommand.allCases.contains { excluded.contains($0.rawValue) })
     let host = NSHostingView(rootView: RebaseDialog(model: model)); host.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); host.layoutSubtreeIfNeeded(); precondition(host.fittingSize.width > 0)
-    for command in [RebaseRevisionCommand.log, .browse, .branch, .tag, .push] { model.performRevisionMenu(command, ids: one) }
-    precondition(routed == ["log ", "browse ", "branch ", "tag ", "push "].map { $0 + revisions[0].hash })
+    @MainActor func menuReady(_ phase:String, for owner:RebaseWindowModel? = nil) async throws {
+        let target=owner ?? model
+        let deadline=Date().addingTimeInterval(30)
+        while (!target.revisionMenuAvailable || target.loadingColumnMetadata || target.pendingBatchWorkers>0) && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(target.revisionMenuAvailable && !target.loadingColumnMetadata && target.pendingBatchWorkers==0,
+            "Rebase menu admission did not settle: phase=\(phase), busy=\(target.busy), columns=\(target.loadingColumnMetadata), workers=\(target.pendingBatchWorkers), error=\(target.error ?? "none")")
+    }
+    try await menuReady("initial reference catalog")
+    let pushRow = model.revisionHistoryCommit(revisions[0])
+    precondition(pushRow.hash == revisions[0].hash)
+    let initialBranch=pushRow.references.first {$0.kind == .localBranch}
+    let initialTag=pushRow.references.first {$0.kind == .tag || $0.kind == .annotatedTag}
+    let initialLabel=initialBranch?.name ?? initialTag?.name
+    let ordinaryPushVisible=initialLabel != nil
+    let initialPushTarget=initialLabel.map {$0.hasSuffix("^{}") ? String($0.dropLast(3)):$0} ?? pushRow.hash
+    // GitLogListBase2207: ordinary Push requires a local branch/tag label;
+    // only the extended menu exposes an otherwise unlabelled commit hash.
+    for command in [RebaseRevisionCommand.log, .browse, .branch, .tag] { model.performRevisionMenu(command, ids: one) }
+    let beforeOrdinaryPush=routed
+    precondition(model.canPerformRevisionMenu(.push,ids:one)==ordinaryPushVisible && model.canPerformRevisionMenu(.push,ids:one,extended:true))
+    if ordinaryPushVisible { model.performRevisionMenu(.push,ids:one) }
+    else {
+        model.performRevisionMenu(.push,ids:one)
+        precondition(routed==beforeOrdinaryPush,"Ordinary unlabelled Push bypassed visibility")
+        model.performRevisionMenu(.push,ids:one,alternate:true)
+    }
+    let expectedRoutes = ["log ", "browse ", "branch ", "tag "].map { $0 + pushRow.hash } + ["push "+initialPushTarget]
+    precondition(routed.count == expectedRoutes.count && zip(routed,expectedRoutes).allSatisfy { pair in pair.0.utf8.elementsEqual(pair.1.utf8) }, "Rebase row handoff order/targets changed: expected=\(expectedRoutes), actual=\(routed)")
+    // Create only uniquely named private labels, reload the real owned catalog,
+    // and independently assert the pinned branch-before-tag-before-hash order
+    // (GitLogListAction ID_PUSH965). No target helper computes these expectations.
+    let pushSuffix="native-menu-雪-"+UUID().uuidString
+    let privateBranch="refs/heads/"+pushSuffix,privateTag="refs/tags/"+pushSuffix
+    let beforePushRefs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
+    let beforePushHead=try await repo.run(["rev-parse","HEAD"]).stdout
+    let beforePushIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
+    // An existing history row can legitimately be labelled main. Author a new
+    // unreachable commit object instead; commit-tree changes no ref or index.
+    let pushParent=String(decoding:beforePushHead,as:UTF8.self).trimmingCharacters(in:.newlines)
+    let pushHash=try await repo.run(["commit-tree",pushParent+"^{tree}","-p",pushParent],input:Data((pushSuffix+"\n").utf8)).text.trimmingCharacters(in:.newlines)
+    precondition(pushHash != pushParent && !pushHash.isEmpty)
+    let pushModel=RebaseWindowModel(repository:repo,access:nil);defer{pushModel.retire()}
+    pushModel.editorExecutable=editor;pushModel.load(cherryPick:[pushHash]);try await settle(pushModel)
+    try await menuReady("dedicated Push object catalog",for:pushModel)
+    precondition(pushModel.entries.count==1 && pushModel.entries[0].commit.hash.utf8.elementsEqual(pushHash.utf8))
+    let pushIDs=Set([pushModel.entries[0].id])
+    pushModel.selection=pushIDs;try await menuReady("captured unlabelled popup",for:pushModel)
+    precondition(pushModel.revisionHistoryCommit(pushModel.entries[0].commit).references.isEmpty,"New private commit unexpectedly acquired a reference")
+    var pushDeliveries:[String]=[];pushModel.revisionMenuLog.onPush={pushDeliveries.append($0)}
+    precondition(!pushModel.canPerformRevisionMenu(.push,ids:pushIDs) && pushModel.canPerformRevisionMenu(.push,ids:pushIDs,extended:true))
+    pushModel.performRevisionMenu(.push,ids:pushIDs);precondition(pushDeliveries.isEmpty)
+    pushModel.performRevisionMenu(.push,ids:pushIDs,alternate:true)
+    precondition(pushDeliveries.count==1 && pushDeliveries[0].utf8.elementsEqual(pushHash.utf8),"Extended unlabelled private Push lost exact commit hash")
+    let oldPushPopup=pushModel.captureRevisionMenu(pushIDs)!
+    @MainActor func refreshPushLabels(_ expected:[String],_ phase:String) async throws {
+        pushModel.refreshRevisionHistoryContext();try await menuReady(phase,for:pushModel)
+        let actual=pushModel.revisionHistoryCommit(pushModel.entries[0].commit).references.map(\.name)
+        let order: (String,String)->Bool = {$0.utf8.lexicographicallyPrecedes($1.utf8)}
+        precondition(actual.map{Data($0.utf8)}.sorted(by:{$0.lexicographicallyPrecedes($1)}) == expected.sorted(by:order).map{Data($0.utf8)},
+            "Private Push catalog mismatch: phase=\(phase), expected=\(expected), actual=\(actual)")
+    }
+    do {
+        let absent=String(repeating:"0",count:pushHash.count)
+        _ = try await repo.run(["update-ref",privateTag,pushHash,absent])
+        _ = try await repo.run(["update-ref",privateBranch,pushHash,absent])
+        try await refreshPushLabels([privateBranch,privateTag],"branch and tag labels")
+        precondition(!oldPushPopup(),"A retained unlabelled popup survived a real reference-catalog replacement")
+        let branchCount=pushDeliveries.count,freshPush=pushModel.captureRevisionMenu(pushIDs)!
+        precondition(pushModel.canPerformRevisionMenu(.push,ids:pushIDs) && freshPush() && !freshPush())
+        pushModel.performRevisionMenu(.push,ids:pushIDs)
+        precondition(pushDeliveries.count==branchCount+1 && pushDeliveries.last!.utf8.elementsEqual(privateBranch.utf8),"Ordinary labelled Push lost exact branch priority")
+        _ = try await repo.run(["update-ref","-d",privateBranch,pushHash])
+        try await refreshPushLabels([privateTag],"tag-only label")
+        let tagCount=pushDeliveries.count
+        precondition(pushModel.canPerformRevisionMenu(.push,ids:pushIDs))
+        pushModel.performRevisionMenu(.push,ids:pushIDs)
+        precondition(pushDeliveries.count==tagCount+1 && pushDeliveries.last!.utf8.elementsEqual(privateTag.utf8),"Ordinary labelled Push lost exact tag fallback")
+        _ = try await repo.run(["update-ref","-d",privateTag,pushHash])
+        try await refreshPushLabels([],"private label removal")
+        let hashCount=pushDeliveries.count
+        precondition(!pushModel.canPerformRevisionMenu(.push,ids:pushIDs) && pushModel.canPerformRevisionMenu(.push,ids:pushIDs,extended:true))
+        pushModel.performRevisionMenu(.push,ids:pushIDs);precondition(pushDeliveries.count==hashCount)
+        pushModel.performRevisionMenu(.push,ids:pushIDs,alternate:true)
+        precondition(pushDeliveries.count==hashCount+1 && pushDeliveries.last!.utf8.elementsEqual(pushHash.utf8),"Extended Push lost exact unlabelled hash fallback")
+        let expectedPushDeliveries=[pushHash,privateBranch,privateTag,pushHash]
+        precondition(pushDeliveries.count==expectedPushDeliveries.count && zip(pushDeliveries,expectedPushDeliveries).allSatisfy {pair in pair.0.utf8.elementsEqual(pair.1.utf8)},"Controlled Push callback order/literal targets changed")
+    } catch {
+        _ = try? await repo.run(["update-ref","-d",privateBranch,pushHash])
+        _ = try? await repo.run(["update-ref","-d",privateTag,pushHash])
+        throw error
+    }
+    let afterPushRefs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
+    let afterPushHead=try await repo.run(["rev-parse","HEAD"]).stdout
+    let afterPushIndex=try await repo.run(["ls-files","--stage","-z"]).stdout
+    precondition(afterPushRefs==beforePushRefs && afterPushHead==beforePushHead && afterPushIndex==beforePushIndex,"Push fixture labels/callbacks changed refs/HEAD/index after exact cleanup")
     model.performRevisionMenu(.compare, ids: one); precondition(compared.last?.0 == .revision(revisions[0].parents[0]) && compared.last?.1 == .revision(revisions[0].hash))
     model.performRevisionMenu(.workingTree, ids: one); precondition(compared.last?.0 == .revision(revisions[0].hash) && compared.last?.1 == .workingTree)
     model.performRevisionMenu(.compare, ids: pair); precondition(compared.last?.0 == .revision(revisions[2].hash) && compared.last?.1 == .revision(revisions[1].hash))
@@ -562,7 +731,7 @@ import TurtleGitCore
     precondition(!log.loadingNote && log.error == nil && log.noteRequest != nil)
     log.noteText = "Native Rebase menu note 雪"; log.saveNote()
     let saveDeadline = Date().addingTimeInterval(30)
-    while log.savingNote && Date() < saveDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
+    while (log.savingNote || !noteChanged) && Date() < saveDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
     let stored = try await repo.editableCommitNote(revision: root.hash), after = try await repo.rebaseCommit("HEAD"), afterIndex = try await repo.run(["ls-files", "--stage", "-z"]).stdout
     precondition(log.noteError == nil && log.noteRequest == nil && noteChanged && stored.text.contains("Native Rebase menu note 雪") && after.hash == before.hash && afterIndex == index)
     for exact in ["\n # literal note 雪  \n\n", ""] {
@@ -582,11 +751,11 @@ import TurtleGitCore
     model.performRevisionMenu(.hashes, ids: duplicate); precondition(board.string(forType: .string) == root.hash + "\n" + root.hash)
     _ = try await repo.run(["checkout", "main"]); _ = try await repo.run(["commit", "--allow-empty", "-m", "Native menu active Edit"])
     let edit = try await repo.rebaseCommit("HEAD"); _ = try await repo.run(["checkout", "target"])
-    let active = RebaseWindowModel(repository: repo, access: nil); active.editorExecutable = editor; active.load(cherryPick: [edit.hash]); try await settle(active); active.setAction(.edit, ids: [edit.hash]); active.request("start"); try await settle(active)
+    let active = RebaseWindowModel(repository: repo, access: nil); defer {active.retire()}; active.editorExecutable = editor; active.load(cherryPick: [edit.hash]); try await settle(active); active.setAction(.edit, ids: [edit.hash]); active.request("start"); try await settle(active)
     active.revisionMenuLog.onCompare = { compared.append(($0, $1)) }
     precondition(active.active && !active.editable && active.canPerformRevisionMenu(.compare, ids: [edit.hash]))
     active.performRevisionMenu(.compare, ids: [edit.hash]); precondition(compared.last?.1 == .revision(edit.hash)); active.execute("abort"); try await settle(active)
-    let progress = RebaseWindowModel(repository: repo, access: nil); progress.editorExecutable = editor
+    let progress = RebaseWindowModel(repository: repo, access: nil); defer {progress.retire()}; progress.editorExecutable = editor
     progress.load(cherryPick: [edit.hash]); try await settle(progress)
     progress.addCommits([edit.hash, edit.hash]); try await settle(progress)
     let progressIDs = progress.plan!.entries.map(\.id)
@@ -607,12 +776,12 @@ import TurtleGitCore
     reopened.execute("continue"); try await settle(reopened)
     precondition(reopened.finished && !reopened.active && reopened.entries.count == 3)
     precondition(reopened.replayRows.allSatisfy { $0.progress == .completed })
-    let skipLast = RebaseWindowModel(repository: repo, access: nil); skipLast.editorExecutable = editor
+    let skipLast = RebaseWindowModel(repository: repo, access: nil); defer {skipLast.retire()}; skipLast.editorExecutable = editor
     skipLast.load(cherryPick: [edit.hash]); try await settle(skipLast); skipLast.setAction(.edit, ids: [edit.hash])
     skipLast.execute("start"); try await settle(skipLast); precondition(skipLast.active)
     skipLast.execute("skip"); try await settle(skipLast)
     precondition(skipLast.finished && skipLast.entries.count == 1 && skipLast.entries[0].action == .skip && skipLast.entries[0].progress == .completed)
-    let completed = RebaseWindowModel(repository: repo, access: nil); completed.editorExecutable = editor
+    let completed = RebaseWindowModel(repository: repo, access: nil); defer {completed.retire()}; completed.editorExecutable = editor
     var completionRoutes: [String] = [], completionClosed = 0, mailPreset: FormatPatchPreset?
     completed.close = { completionClosed += 1 }
     completed.onCompletedLog = { completionRoutes.append("log") }
@@ -631,6 +800,7 @@ import TurtleGitCore
     completed.performCompletionAction(.mail); precondition(completionRoutes.last == "mail" && completionClosed == 3)
     precondition(mailPreset?.selection == .range(from: completed.options.upstream, to: completed.options.branch))
     let patchController = FormatPatchWindowController(repository: repo, access: nil, preset: mailPreset, sendMail: true)
+    defer {patchController.close()}; patchController.window?.alphaValue = 0
     precondition(patchController.model.sendMail && patchController.model.mode == .from)
     let patchDeadline = Date().addingTimeInterval(30)
     while patchController.model.busy && Date() < patchDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -647,24 +817,51 @@ import TurtleGitCore
     precondition(skipLast.completionActions.isEmpty) // Cherry Pick does not add upstream's Rebase-only buttons.
     _ = try await repo.run(["commit", "--allow-empty", "-m", "Native completion context recovery"])
     let contextCommit = try await repo.rebaseCommit("HEAD")
-    let contextModel = RebaseWindowModel(repository: repo, access: nil); contextModel.editorExecutable = editor
-    contextModel.completionAfterFetch = true; contextModel.completionAutoStart = true
+    let contextModel = RebaseWindowModel(repository: repo, access: nil); defer {contextModel.retire()}; contextModel.editorExecutable = editor
+    @MainActor func contextReceipt(_ target:RebaseWindowModel)->String {
+        let phase="active=\(target.active), finished=\(target.finished), success=\(target.completedSuccessfully), busy=\(target.busy), workers=\(target.pendingBatchWorkers), error=\(target.error ?? "none")"
+        let flags="afterFetch=\(target.completionAfterFetch), autoStart=\(target.completionAutoStart), ontoEnabled=\(target.ontoEnabled), force=\(target.options.force)"
+        let targets="branch=\(target.options.branch), upstream=\(target.options.upstream), onto=\(target.options.onto), stopped=\(target.state?.stoppedEntryID ?? "none")"
+        return [phase,flags,targets,"session=\(String(describing:target.state?.session))"].joined(separator:"; ")
+    }
     contextModel.load(upstream: "main"); try await settle(contextModel)
     contextModel.ontoEnabled = true; contextModel.options.onto = "main"; contextModel.options.force = true; contextModel.reloadPlan(); try await settle(contextModel)
     let contextPlanDeadline = Date().addingTimeInterval(30)
     while contextModel.plan == nil && Date() < contextPlanDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(contextModel.plan != nil && contextModel.canStart, contextModel.error ?? "Context fixture plan did not load")
+    try await menuReady("context plan before accepted intent",for:contextModel)
     contextModel.setAction(.edit, ids: [contextCommit.hash]); let originalOptions = contextModel.options
+    // load(autoStart:false) deliberately leaves the plan editable and resets
+    // that invocation flag. Capture the intended after-Fetch session only after
+    // the final load/plan setup, without triggering a premature automatic Start.
+    contextModel.completionAfterFetch = true; contextModel.completionAutoStart = true
+    precondition(!contextModel.active && contextModel.canStart && contextModel.plan?.entries.first(where:{$0.id==contextCommit.hash})?.action == .edit,
+        "Context Edit plan was not accepted before Start: "+contextReceipt(contextModel))
     contextModel.execute("start"); try await settle(contextModel)
-    precondition(contextModel.active && contextModel.state?.session?.afterFetch == true, "Context fixture active=\(contextModel.active), origin=\(String(describing: contextModel.state?.session?.afterFetch)), canStart=\(contextModel.canStart), error=\(String(describing: contextModel.error)), output=\(contextModel.output), entries=\(String(describing: contextModel.plan?.entries.map { $0.action.rawValue }))")
-    let restored = RebaseWindowModel(repository: GitRepository(root: repo.root, executable: repo.executable), access: nil); restored.editorExecutable = editor
+    precondition(contextModel.active && contextModel.state?.isEditPause == true && contextModel.state?.stoppedEntryID == contextCommit.hash,
+        "Context Start did not retain the exact Edit occurrence: "+contextReceipt(contextModel))
+    guard let acceptedContext=contextModel.state?.session else {preconditionFailure("Context session metadata missing: "+contextReceipt(contextModel))}
+    precondition(acceptedContext.afterFetch && acceptedContext.autoStart && acceptedContext.branch == originalOptions.branch && acceptedContext.upstream == "main" && acceptedContext.onto == "main" && acceptedContext.force,
+        "Accepted context metadata differs from submitted flags/options: "+contextReceipt(contextModel))
+    precondition(acceptedContext.preserveMerges == originalOptions.preserveMerges && acceptedContext.addCherryPickedFrom == originalOptions.addCherryPickedFrom)
+    let restored = RebaseWindowModel(repository: GitRepository(root: repo.root, executable: repo.executable), access: nil); defer {restored.retire()}; restored.editorExecutable = editor
+    var restoredCloses=0;restored.close={restoredCloses += 1}
     restored.load(); try await settle(restored)
-    precondition(restored.active && restored.completionAfterFetch && restored.completionAutoStart && restored.ontoEnabled && restored.options.force)
-    precondition(restored.options.branch == originalOptions.branch && restored.options.upstream == "main" && restored.options.onto == "main")
+    try await menuReady("reopened captured session",for:restored)
+    precondition(restored.active && restored.completionAfterFetch && restored.completionAutoStart && restored.ontoEnabled && restored.options.force,
+        "Reopened context flags differ: "+contextReceipt(restored))
+    precondition(restored.options.branch == originalOptions.branch && restored.options.upstream == "main" && restored.options.onto == "main",
+        "Reopened context targets differ: "+contextReceipt(restored))
+    precondition(restored.state?.isEditPause == true && restored.state?.stoppedEntryID == contextCommit.hash && restoredCloses==0,
+        "Reopened context lost the accepted Edit or closed prematurely: "+contextReceipt(restored))
     restored.execute("continue"); try await settle(restored)
-    precondition(restored.finished && restored.completionActions == [.log, .push, .mail, .rebase])
+    try await menuReady("automatic context completion",for:restored)
+    precondition(restored.finished && restored.completedSuccessfully && restored.completionActions == [.log, .push, .mail, .rebase] && restoredCloses==1,
+        "Restored auto-start session did not complete/close exactly once: "+contextReceipt(restored))
     restored.performCompletionAction(.rebase); try await settle(restored)
-    precondition(restored.options.upstream == "main" && restored.completionAfterFetch && restored.completionAutoStart && !restored.finished)
+    try await menuReady("Rebase completion handoff",for:restored)
+    precondition(restored.options.upstream == "main" && restored.completionAfterFetch && restored.completionAutoStart && !restored.finished && restoredCloses==1,
+        "Rebase completion lost its exact refreshed context/owner: "+contextReceipt(restored))
     print("Actual native session context: after-Fetch/auto-start, branch/upstream/onto, reopened Edit, successful completion commands and restarted chooser recovered from Git metadata passed.")
     print("Actual native Rebase completion: successful direct/after-Fetch commands, busy/unsuccessful/Cherry Pick guards, Log/Push/mail range handoffs, close ordering, mail-enabled native Format Patch controller, unchanged HEAD/index and restart/reset passed. Hidden views/windows; no mail sent.")
     print("Actual native replay rows: completed/current/pending occurrences, Pick/Skip/Edit actions, reopened ordering/numbering, completed-row clipboard inspection and finished retained list passed. Hidden hosted view.")
@@ -2997,7 +3194,8 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
         if let savedSquashDate { UserDefaults.standard.set(savedSquashDate, forKey: "SquashDate") } else { UserDefaults.standard.removeObject(forKey: "SquashDate") }
         for window in NSApp.windows { precondition(!window.isVisible); window.close() }
     }
-    let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    let retainedReplayRoot = (ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REPLAY_SELECTION_ONLY"] == "1" || ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REBASE_MENUS_ONLY"] == "1") ? ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_DEFERRED_ROOT"]:nil
+    let root = retainedReplayRoot.map {URL(fileURLWithPath:$0)} ?? FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
     defer { try? FileManager.default.removeItem(at: root) }
     let git = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_TEST_GIT"] ?? "/usr/bin/git")
@@ -3020,6 +3218,10 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     _ = try await repo.run(["merge", "--no-ff", "--no-edit", "side"])
     let merge = try await repo.rebaseCommit("HEAD")
     _ = try await repo.run(["checkout", "-b", "target", parent.hash])
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REBASE_MENUS_ONLY"] == "1" {
+        try await verifyNativeRebaseMenus(repo,editor:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"),revisions:[merge,parent,side,base])
+        print("PASS: Rebase revision menus, captured references and completion family");return
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_LOG_INTEGRATION_ONLY"] == "1" {
         var failure:Error?
         do {try await verifyLogIntegration(repo,revisions:[merge,parent,side,base],editor:URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))}
@@ -3045,24 +3247,28 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
         try await verifyListInteraction(repo,revisions:[merge.hash,parent.hash,side.hash,base.hash])
         print("PASS: Rebase list actions and Preserve family");return
     }
-    try await verifyNativeBisect(executable: repo.executable)
-    try await verifyNativeLogWorkingConflicts(executable: repo.executable)
-    try await verifyNativeLogDeferredRefresh(executable: repo.executable)
-    try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
-    try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
-    try await verifyNativeLogSubmodule(executable: repo.executable)
-    try await verifyNativeLogDelete(executable: repo.executable)
-    try await verifyNativeLogIgnore(executable: repo.executable)
-    try await verifyNativeLogAddModes(executable: repo.executable)
-    try await verifyNativeLogHistoryWalk(executable: repo.executable)
-    try await verifyNativeCommitVisibleSelection(executable: repo.executable)
-    try await verifyNativeSharedUnversionedPreference(executable: repo.executable)
-    try await verifyNativeLogLabelVisibility(executable: repo.executable)
-    try await verifyNativeLogUnrelatedPaths(executable: repo.executable)
-    try await verifyNativeLogPatchPreview(executable: repo.executable)
-    try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
-    try await verifyNativeLogRevertFlags(executable: repo.executable)
-    try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
+    // The full CI path keeps every family. A focused recovery run omits only
+    // unrelated Log/Commit/Bisect prefixes whose completed passes are retained.
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REPLAY_SELECTION_ONLY"] != "1" {
+        try await verifyNativeBisect(executable: repo.executable)
+        try await verifyNativeLogWorkingConflicts(executable: repo.executable)
+        try await verifyNativeLogDeferredRefresh(executable: repo.executable)
+        try await verifyNativeLogUnifiedViewerRouting(executable: repo.executable)
+        try await verifyNativeLogParentWorkingComparison(executable: repo.executable)
+        try await verifyNativeLogSubmodule(executable: repo.executable)
+        try await verifyNativeLogDelete(executable: repo.executable)
+        try await verifyNativeLogIgnore(executable: repo.executable)
+        try await verifyNativeLogAddModes(executable: repo.executable)
+        try await verifyNativeLogHistoryWalk(executable: repo.executable)
+        try await verifyNativeCommitVisibleSelection(executable: repo.executable)
+        try await verifyNativeSharedUnversionedPreference(executable: repo.executable)
+        try await verifyNativeLogLabelVisibility(executable: repo.executable)
+        try await verifyNativeLogUnrelatedPaths(executable: repo.executable)
+        try await verifyNativeLogPatchPreview(executable: repo.executable)
+        try await verifyNativeLogWorkingAddCommit(executable: repo.executable)
+        try await verifyNativeLogRevertFlags(executable: repo.executable)
+        try await verifyLogIntegration(repo, revisions: [merge, parent, side, base], editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"))
+    }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_MENUS_ONLY"] == "1" { try await verifyNativeRebaseMenus(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac"), revisions: [merge, parent, side, base]); return }
     try await verifyListInteraction(repo, revisions: [merge.hash, parent.hash, side.hash, base.hash])
 
@@ -3111,22 +3317,58 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     precondition(model.plan!.options.addCherryPickedFrom && UserDefaults.standard.bool(forKey: preference))
     model.selection = [merge.hash]; model.move(up: false)
     precondition(model.entries.map(\.id) == [side.hash, merge.hash]); model.move(up: true)
-    model.setAction(.squash, ids: [side.hash]); precondition(!model.canStart)
+    precondition(model.entries.map(\.id) == [merge.hash,side.hash] && model.plan!.entries.map(\.id)==[side.hash,merge.hash])
+    // RebaseDlg367 refuses Squash on the oldest execution row. The public
+    // action setter preserves that complete plan instead of making it invalid.
+    let beforeRefusedSquash=String(reflecting:model.plan),beforeRefusedSelection=model.selection
+    precondition(!model.revisionActionChoices([side.hash]).contains(.squash))
+    model.setAction(.squash,ids:[side.hash])
+    precondition(String(reflecting:model.plan)==beforeRefusedSquash && model.selection==beforeRefusedSelection && model.canStart,"Oldest Squash changed the accepted plan/order/selection or disabled a valid start")
+    // A non-oldest merge is a valid Squash target in Cherry Pick. Reordering
+    // that real action to the oldest position exercises canStart's defensive
+    // guard through public actions, without injecting a malformed plan.
+    precondition(model.revisionActionChoices([merge.hash]).contains(.squash))
+    model.setAction(.squash,ids:[merge.hash])
+    precondition(model.plan!.entries.map(\.action)==[.pick,.squash] && model.entries.map(\.id)==[merge.hash,side.hash] && model.canStart)
+    model.move(up:false)
+    precondition(model.entries.map(\.id)==[side.hash,merge.hash] && model.plan!.entries.first?.id==merge.hash && model.plan!.entries.first?.action == .squash && !model.canStart,"Oldest Squash introduced by reordering did not block Start")
+    model.move(up:true)
+    precondition(model.entries.map(\.id)==[merge.hash,side.hash] && model.plan!.entries.map(\.action)==[.pick,.squash] && model.canStart,"Restoring legal Squash order did not restore Start")
     model.setAction(.skip, ids: [side.hash]); model.setAction(.edit, ids: [merge.hash]); precondition(model.canStart)
+    precondition(model.plan!.entries.map(\.id)==[side.hash,merge.hash] && model.plan!.entries.map(\.action)==[.skip,.edit] && model.selection==beforeRefusedSelection)
     let dialog = NSHostingView(rootView: RebaseDialog(model: model)); dialog.frame = NSRect(x: 0, y: 0, width: 1040, height: 720); dialog.layoutSubtreeIfNeeded()
     precondition(dialog.fittingSize.width > 0 && model.isCherryPick && TurtleGitHelp.topic(dialog:model.operationTitle) == .cherryPick)
-    var prompted = 0
+    var prompted = 0,questionDecision:RebaseMainlineDecision?,questionIndex:Data?
+    let changesBeforeParentCancel=changed
     model.chooseMainline = { commit, choices in
         prompted += 1; precondition(commit.hash == merge.hash && choices.count == 2)
+        precondition(choices.map(\.hash)==merge.parents && choices.map(\.number)==[1,2])
         precondition(choices[0].title.contains("Main native parent") && choices[1].title.contains("Side native parent"))
+        questionDecision=model.state?.mainlineDecision
+        questionIndex=try? Data(contentsOf:root.appendingPathComponent(".git/index"))
         return nil
     }
     model.request("start"); try await settle(model)
-    precondition(prompted == 1 && !model.active && !model.finished && model.confirmation == nil)
+    // RebaseDlg2115 asks only when this occurrence is reached. Cancel preserves
+    // that durable active checkpoint rather than rolling the replay back to an
+    // unstarted draft; its skipped predecessor must not be submitted again.
+    guard let cancelledParent=questionDecision,let cancelledIndex=questionIndex else {throw NSError(domain:"NativeCherryPickCheckpoint",code:1,userInfo:[NSLocalizedDescriptionKey:"Reached parent question did not capture its actual checkpoint/index"])}
+    let cancelledState=try await repo.rebaseState()
+    let cancelReceipt="prompts=\(prompted),active=\(model.active),finished=\(model.finished),decision=\(String(reflecting:model.state?.mainlineDecision)),selection=\(model.selection),changes=\(changed),pending=\(model.pendingBatchWorkers),error=\(String(reflecting:model.error))"
+    precondition(prompted==1 && model.active && !model.finished && model.confirmation==nil && !model.canStart && model.pendingBatchWorkers==0,"Reached parent Cancel lost resumable ownership: "+cancelReceipt)
+    precondition(cancelledParent.entryID==merge.hash && cancelledParent.commit==merge.hash && cancelledParent.requestedAction == .edit && cancelledParent.step==2 && cancelledParent.parents==merge.parents && cancelledParent.head==parent.hash,"Reached parent question changed occurrence/action/order/HEAD: "+cancelReceipt)
+    precondition(cancelledState.mainlineDecision==cancelledParent && model.state?.mainlineDecision==cancelledParent && model.selection==[merge.hash] && changed==changesBeforeParentCancel+1,"Parent Cancel changed its checkpoint or repeated session-change callback: "+cancelReceipt)
+    let afterParentCancelIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+    precondition(afterParentCancelIndex==cancelledIndex,"Parent Cancel changed the reached index")
     let unchanged = try await repo.rebaseCommit("HEAD"); precondition(unchanged.hash == parent.hash)
-    model.chooseMainline = { _, _ in prompted += 1; return 1 }
-    model.request("start"); try await settle(model)
-    precondition(prompted == 2 && model.active && !model.finished && changed == 1)
+    let changesBeforeParentContinue=changed
+    model.chooseMainline = { commit, choices in
+        prompted += 1;precondition(commit.hash==merge.hash && choices.map(\.hash)==merge.parents && choices.map(\.number)==[1,2])
+        precondition(model.state?.mainlineDecision==cancelledParent,"Continue replaced the reached parent receipt")
+        return 1
+    }
+    model.request("continue"); try await settle(model)
+    precondition(prompted==2 && model.active && !model.finished && model.state?.mainlineDecision==nil && changed==changesBeforeParentContinue+1,"Accepted parent continuation did not settle exactly once: prompts=\(prompted),changes=\(changed),error=\(String(reflecting:model.error))")
     precondition(model.state?.isCherryPick == true && model.state?.stoppedCommit == merge.hash)
     let picked = try await repo.rebaseCommit("HEAD")
     precondition(picked.message.contains("(cherry picked from commit " + merge.hash + ")"))
@@ -3209,27 +3451,85 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     draftModel.addCommits([empty.hash]); try await settle(draftModel)
     precondition(draftModel.plan?.hasAddedCommits == true && draftModel.entries.first?.commit.hash == empty.hash && draftModel.canStart)
     print("Actual draft Add: enabled without upstream/plan, newest-first draft rows/IDs/actions/order, Cancel/Preserve guards, invalid-reference drafts, valid-reference rebuild and Add during pending reload passed.")
+    func replayReceipt(_ value:RebaseWindowModel,_ prompts:Int)->String {
+        "prompts=\(prompts),canStart=\(value.canStart),canContinue=\(value.canContinueReplay),busy=\(value.busy),revisionBusy=\(value.revisionFiles.busy),pending=\(value.pendingBatchWorkers),active=\(value.active),finished=\(value.finished),state=\(String(reflecting:value.state).prefix(2500)),confirmation=\(String(reflecting:value.confirmation)),error=\(String(reflecting:value.error))"
+    }
+    func admitReplayPlanEdit(_ value:RebaseWindowModel) async throws {
+        let deadline=Date().addingTimeInterval(30)
+        while (!value.editable || value.pendingBatchWorkers != 0) && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(value.editable && value.pendingBatchWorkers==0,"Squash plan edit not available: "+replayReceipt(value,0))
+    }
+    func admitReplayRequest(_ value:RebaseWindowModel,_ action:String,_ phase:String) async throws {
+        let deadline=Date().addingTimeInterval(30)
+        func ready()->Bool { !value.busy && !value.revisionFiles.busy && value.pendingBatchWorkers==0 && (action == "start" ? value.canStart:value.canContinueReplay) }
+        while !ready() && Date()<deadline {try await Task.sleep(nanoseconds:10_000_000)}
+        precondition(ready(),"\(phase) request not available: "+replayReceipt(value,0))
+        value.request(action)
+        precondition(value.busy,"\(phase) available request was not admitted: "+replayReceipt(value,0))
+    }
     let beforeEmpty = try await repo.rebaseCommit("HEAD")
     let emptyPatch = RebaseWindowModel(repository: repo, access: nil); emptyPatch.editorExecutable = model.editorExecutable
     var emptyPrompts = 0; emptyPatch.chooseEmptyResult = { emptyPrompts += 1; return .cancel }
     emptyPatch.load(cherryPick: [side.hash]); try await settle(emptyPatch)
-    emptyPatch.request("start")
+    try await admitReplayRequest(emptyPatch,"start","Empty Cancel start")
     let emptyDeadline = Date().addingTimeInterval(30)
     while emptyPatch.busy && Date() < emptyDeadline { try await Task.sleep(nanoseconds: 10_000_000) }
     precondition(!emptyPatch.busy && emptyPatch.error == nil && emptyPatch.active && emptyPrompts == 1)
     precondition(emptyPatch.state?.conflicts.isEmpty == true && emptyPatch.state?.stoppedCommit == side.hash)
     precondition(emptyPatch.selection == [side.hash])
-    emptyPatch.chooseEmptyResult = { emptyPrompts += 1; return .skip }; emptyPatch.request("continue"); try await settle(emptyPatch)
+    emptyPatch.chooseEmptyResult = { emptyPrompts += 1; return .skip }; try await admitReplayRequest(emptyPatch,"continue","Empty Skip continuation"); try await settle(emptyPatch)
     precondition(emptyPatch.finished && !emptyPatch.active)
     let afterEmpty = try await repo.rebaseCommit("HEAD"); precondition(afterEmpty.hash == beforeEmpty.hash)
     precondition(emptyPrompts == 2)
     let keepEmpty = RebaseWindowModel(repository: repo, access: nil); keepEmpty.editorExecutable = model.editorExecutable
     var keepPrompts = 0; keepEmpty.chooseEmptyResult = { keepPrompts += 1; return .commit }
-    keepEmpty.load(cherryPick: [side.hash]); try await settle(keepEmpty); keepEmpty.request("start"); try await settle(keepEmpty)
-    precondition(keepEmpty.finished && !keepEmpty.active && keepPrompts == 1)
+    var emptyAmendFailures:[RebaseCleanCommitFailure]=[]
+    keepEmpty.chooseCleanCommitFailure={ failure in emptyAmendFailures.append(failure);return .retry }
+    keepEmpty.load(cherryPick: [side.hash]); try await settle(keepEmpty); try await admitReplayRequest(keepEmpty,"start","Empty Commit start"); try await settle(keepEmpty)
+    // RebaseDlg's original-message commit may be empty, but its subsequent
+    // attribution amendment has no --allow-empty. Default Retry returns to the
+    // durable editor with that first commit retained; Continue must not create
+    // the original commit twice. Ignore accepts the failed amendment, not its text.
+    guard let emptyPhase=keepEmpty.state?.conflictMessage else {
+        throw NSError(domain:"NativeCherryPickCheckpoint",code:2,userInfo:[NSLocalizedDescriptionKey:"Empty Commit did not retain its message phase: "+replayReceipt(keepEmpty,keepPrompts)])
+    }
+    let originalEmpty=try await repo.rebaseCommit("HEAD"),originalEmptyFiles=try await repo.files(in:originalEmpty)
+    let emptyIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+    let emptyRetryState=try await repo.rebaseState()
+    precondition(keepEmpty.active && !keepEmpty.finished && keepEmpty.state?.isEditPause == true && keepPrompts==1 && emptyAmendFailures.count==1,"Empty Commit Retry outcome: "+replayReceipt(keepEmpty,keepPrompts))
+    precondition(emptyPhase.phase == .pending && emptyPhase.needsAmend && emptyPhase.requestedAction == .pick && emptyPhase.entryID==side.hash && emptyPhase.originalCommit==side.hash && emptyPhase.beforeHead==beforeEmpty.hash && emptyPhase.head==originalEmpty.hash && emptyRetryState.conflictMessage==emptyPhase)
+    precondition(emptyPhase.originalMessage==side.message && emptyPhase.rawMessage==keepEmpty.amendMessage && emptyPhase.rawMessage.contains("(cherry picked from commit "+side.hash+")"))
+    precondition(originalEmpty.parents==[beforeEmpty.hash] && originalEmptyFiles.isEmpty && originalEmpty.author==side.author && originalEmpty.email==side.email && originalEmpty.date==side.date && originalEmpty.message==side.message)
+    let firstEmptyFailure=emptyAmendFailures[0]
+    precondition(firstEmptyFailure.head==originalEmpty.hash && firstEmptyFailure.exitCode != 0 && firstEmptyFailure.command.contains("--amend") && firstEmptyFailure.command.contains("--only") && !firstEmptyFailure.command.contains("--allow-empty"))
+    keepEmpty.chooseCleanCommitFailure={ failure in
+        precondition(failure.head==originalEmpty.hash && failure.message==firstEmptyFailure.message && failure.exitCode != 0 && failure.command.contains("--amend") && !failure.command.contains("--allow-empty"))
+        emptyAmendFailures.append(failure);return .ignore
+    }
+    try await admitReplayRequest(keepEmpty,"continue","Empty Commit message Retry/Ignore");try await settle(keepEmpty)
+    precondition(keepEmpty.finished && !keepEmpty.active && keepPrompts == 1 && emptyAmendFailures.count==2,"Empty Commit Ignore outcome: "+replayReceipt(keepEmpty,keepPrompts))
     let keptEmpty = try await repo.rebaseCommit("HEAD"), keptFiles = try await repo.files(in: keptEmpty)
-    precondition(keptEmpty.parents == [beforeEmpty.hash] && keptFiles.isEmpty && keptEmpty.author == side.author && keptEmpty.date == side.date)
-    print("Actual empty-patch choices: automatic Commit/Skip/Cancel receiver, Cancel leaves HEAD unchanged and replay recoverable, Skip retains target HEAD, Commit keeps empty source message/author/date and finishes. Prompt answers injected.")
+    let afterEmptyIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+    precondition(keptEmpty.hash==originalEmpty.hash && afterEmptyIndex==emptyIndex && keptEmpty.message==side.message)
+    precondition(keptEmpty.parents == [beforeEmpty.hash] && keptFiles.isEmpty && keptEmpty.author == side.author && keptEmpty.email==side.email && keptEmpty.date == side.date)
+    let beforeDirectEmpty=try await repo.rebaseCommit("HEAD")
+    let beforeDirectIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+    let directEmpty=RebaseWindowModel(repository:repo,access:nil);directEmpty.editorExecutable=model.editorExecutable
+    var directPrompts=0
+    directEmpty.chooseEmptyResult={directPrompts+=1;return .commit}
+    directEmpty.chooseCleanCommitFailure={_ in preconditionFailure("Unchanged empty-commit message must not require a secondary amendment")}
+    directEmpty.load(cherryPick:[side.hash]);try await settle(directEmpty);try await admitReplayPlanEdit(directEmpty)
+    let savedDirectAttribution=directEmpty.options.addCherryPickedFrom
+    directEmpty.options.addCherryPickedFrom=false;directEmpty.updateAttribution()
+    precondition(directEmpty.plan?.options.addCherryPickedFrom==false && !UserDefaults.standard.bool(forKey:preference))
+    try await admitReplayRequest(directEmpty,"start","Unchanged-message Empty Commit");try await settle(directEmpty)
+    precondition(directEmpty.finished && !directEmpty.active && directPrompts==1,"Unchanged-message Empty Commit outcome: "+replayReceipt(directEmpty,directPrompts))
+    let directCommit=try await repo.rebaseCommit("HEAD"),directFiles=try await repo.files(in:directCommit)
+    let afterDirectIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"))
+    precondition(directCommit.parents==[beforeDirectEmpty.hash] && directFiles.isEmpty && directCommit.message==side.message && directCommit.author==side.author && directCommit.email==side.email && directCommit.date==side.date && afterDirectIndex==beforeDirectIndex)
+    directEmpty.options.addCherryPickedFrom=savedDirectAttribution;directEmpty.updateAttribution()
+    precondition(UserDefaults.standard.bool(forKey:preference)==savedDirectAttribution)
+    print("Actual empty-patch choices: Cancel retains HEAD/recovery, Skip retains target HEAD, unchanged-message Commit finishes with exact empty source metadata; attribution amendment Retry/Continue/Ignore retains the original empty commit and index without duplicating it. Decisions injected.")
 
     _ = try await repo.run(["checkout", "-b", "native-squash-source"])
     var squashCommits: [LogEntry] = []
@@ -3244,8 +3544,11 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     let squash = RebaseWindowModel(repository: repo, access: nil); squash.editorExecutable = model.editorExecutable
     squash.load(cherryPick: squashCommits.reversed().map(\.hash)); try await settle(squash)
     precondition(squash.plan?.options.squashDate == .latest)
-    squash.setAction(.squash, ids: [squashCommits[1].hash]); squash.request("start"); try await settle(squash)
-    precondition(squash.active && !squash.finished && squash.state?.squashMessage != nil && squash.tab == 1 && squash.error == nil)
+    try await admitReplayPlanEdit(squash)
+    squash.setAction(.squash, ids: [squashCommits[1].hash])
+    precondition(squash.plan?.entries.map(\.action)==[.pick,.squash],"Squash action was not accepted: "+replayReceipt(squash,0))
+    try await admitReplayRequest(squash,"start","Squash start"); try await settle(squash)
+    precondition(squash.active && !squash.finished && squash.state?.squashMessage != nil && squash.tab == 1 && squash.error == nil,"Squash initial pause: "+replayReceipt(squash,0))
     precondition(squash.amendMessage.contains("Squash one") && squash.amendMessage.contains("Squash two") && squash.amendMessage.contains("# literal source 雪"))
     precondition(squash.selection == [squashCommits[1].hash])
     let splitDateState = try await repo.beginRebaseSplit()
@@ -3266,12 +3569,19 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     guard let editor = findEditor(squashHost) else { fatalError("Actual multiline squash editor unavailable") }
     precondition(editor.string == squashReopened.amendMessage)
     let approved = "Native combined 雪\n\n# literal approved\nDetails"
-    squashReopened.amendMessage = approved; squashReopened.request("continue"); try await settle(squashReopened)
-    precondition(squashReopened.finished && !squashReopened.active)
+    squashReopened.amendMessage = approved; try await admitReplayRequest(squashReopened,"continue","Squash approval"); try await settle(squashReopened)
+    precondition(squashReopened.finished && !squashReopened.active,"Squash Continue outcome: "+replayReceipt(squashReopened,0))
     let combined = try await repo.rebaseCommit("HEAD")
     precondition(combined.author == squashCommits[0].author && combined.email == squashCommits[0].email && combined.date == squashCommits[1].date)
-    let approvedText = try await repo.run(["log", "-1", "--format=%B"]).text
-    precondition(approvedText == approved + "\n")
+    // Pretty-format %B adds its own record terminator. Verify the committed
+    // object payload itself, preserving every Unicode/comment/trailing byte.
+    let approvedObject=try await repo.run(["cat-file","commit",combined.hash]).stdout
+    guard let bodyBoundary=approvedObject.range(of:Data([10,10])) else {
+        throw NSError(domain:"NativeCherryPickCheckpoint",code:3,userInfo:[NSLocalizedDescriptionKey:"Combined commit has no raw header/body boundary: bytes=\(approvedObject.count)"])
+    }
+    let approvedBody=approvedObject.subdata(in:bodyBoundary.upperBound..<approvedObject.count)
+    let expectedApprovedBody=Data((approved+"\n").utf8)
+    precondition(approvedBody==expectedApprovedBody,"Squash raw message mismatch: expectedBytes=\(expectedApprovedBody.count),actualBytes=\(approvedBody.count),actual=\(String(reflecting:String(decoding:approvedBody,as:UTF8.self).prefix(512)))")
     print("Actual native squash: Advanced SquashDate captured, editor pause without error alert, original selected identity, reopened Cherry Pick/multiline editor, exact Unicode/comment message approval, first author/latest date and Continue passed.")
     try await verifyNativeSplit(repo, editor: model.editorExecutable)
     try await verifyNativeRecoveryFiles(repo, editor: model.editorExecutable)
@@ -3281,6 +3591,7 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
     try await verifyNativeSquashReferenceUpdates(repo, editor: model.editorExecutable)
     try await verifyNativeRepeatedAndOmittedReferences(repo, editor: model.editorExecutable)
     try await verifyNativeRebaseMenus(repo, editor: model.editorExecutable, revisions: [merge, parent, side, base])
+    print("PASS: Cherry Pick selection, mainline, draft Add and replay recovery family")
 
 
 

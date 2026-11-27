@@ -26,13 +26,59 @@ class MacOSLaneTests(unittest.TestCase):
     def testCurrentSyntaxAndExactOriginalCoverage(self):
         self.verify()
     def testRebaseTimeoutStackCannotBeDroppedOrReplaceFailureReports(self):
-        for removed in ['build/qa/rebase-source-*-timeout.sample.txt',
-                        'build/qa/ci-step-failures/middle/']:
+        paths=['build/qa/ci-step-failures/middle/',
+               'build/qa/rebase-source-*-timeout.sample.txt',
+               'build/qa/rebase-source-add-failed-*/stdout.log',
+               'build/qa/rebase-source-add-failed-*/stderr.log',
+               'build/qa/rebase-source-add-failed-*/failure.json']
+        step=next(s for s in self.workflow['jobs']['validation']['steps']
+                  if s.get('name')=='Upload redacted CI failures middle')
+        self.assertEqual(step['with']['path'].splitlines(),paths)
+        for removed in paths:
             value=copy.deepcopy(self.workflow)
             step=next(s for s in value['jobs']['validation']['steps']
                       if s.get('name')=='Upload redacted CI failures middle')
             step['with']['path']=step['with']['path'].replace(removed+'\n','')
             with self.subTest(removed=removed),self.assertRaises(AssertionError):self.verify(value)
+    def testNativeRunnerContractsKeepAllThreeExactCommandsAndCoreAdmission(self):
+        steps=self.workflow['jobs']['validation']['steps']
+        index=next(i for i,step in enumerate(steps) if step.get('name')==ci.NATIVE_RUNNER_CONTRACT_NAME)
+        self.assertEqual(steps[index], {'name':ci.NATIVE_RUNNER_CONTRACT_NAME, 'if':"matrix.lane == 'core'",
+            'run':"python3 scripts/test-native-reference-groups-contracts.py\npython3 scripts/test-native-reference-batch-contracts.py\npython3 scripts/test-switch-reset-bisect-workflows-contracts.py\n"})
+        self.assertEqual(steps[index-1]['name'],'Pinned native translation labels')
+        self.assertEqual(steps[index+1]['name'],'Native receiver cache and process ownership contracts')
+        original=next(record for record in self.inventory['steps'] if record['id']=='original-004')
+        self.assertEqual(original['name'],'Native reference group coverage contracts')
+        self.assertEqual(original['lane'],'core')
+        self.assertEqual(self.originals[4]['run'],'python3 scripts/test-native-reference-groups-contracts.py')
+        self.verify()
+
+    def testNativeRunnerContractsRejectDroppedChangedReorderedOrWeakenedCoverage(self):
+        commands=['python3 scripts/test-native-reference-groups-contracts.py',
+                  'python3 scripts/test-native-reference-batch-contracts.py',
+                  'python3 scripts/test-switch-reset-bisect-workflows-contracts.py']
+        for command in commands:
+            for mutation in ['drop-command','replace-command','duplicate-command']:
+                value=copy.deepcopy(self.workflow)
+                step=next(step for step in value['jobs']['validation']['steps'] if step.get('name')==ci.NATIVE_RUNNER_CONTRACT_NAME)
+                replacement='' if mutation=='drop-command' else ('true\n' if mutation=='replace-command' else command+'\n'+command+'\n')
+                step['run']=step['run'].replace(command+'\n',replacement)
+                with self.subTest(command=command,mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+        for mutation in ['old-name','reorder','missing-step','duplicate-step','moved-step','wrong-lane','ready-gate','implicit-success','continue','extra-env']:
+            value=copy.deepcopy(self.workflow);steps=value['jobs']['validation']['steps']
+            index=next(i for i,step in enumerate(steps) if step.get('name')==ci.NATIVE_RUNNER_CONTRACT_NAME);step=steps[index]
+            if mutation=='old-name':step['name']=ci.NATIVE_RUNNER_CONTRACT_ORIGINAL_NAME
+            if mutation=='reorder':step['run']='\n'.join(reversed(commands))+'\n'
+            if mutation=='missing-step':steps.pop(index)
+            if mutation=='duplicate-step':steps.insert(index+1,copy.deepcopy(step))
+            if mutation=='moved-step':steps.insert(index+1,steps.pop(index))
+            if mutation=='wrong-lane':step['if']="matrix.lane == 'editors'"
+            if mutation=='ready-gate':step['if']="matrix.lane == 'core' && steps.native_ready.outcome == 'success'"
+            if mutation=='implicit-success':step['if']="success() && matrix.lane == 'core'"
+            if mutation=='continue':step['continue-on-error']=True
+            if mutation=='extra-env':step['env']={'UNREVIEWED':'value'}
+            with self.subTest(mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+
     def testEditorReloadCannotReplaceOrDropViewportCoverage(self):
         for mutation in ['omit-reload', 'omit-viewport', 'omit-bundled', 'drop-ready']:
             with self.subTest(mutation=mutation):
@@ -867,6 +913,7 @@ class MacOSLaneTests(unittest.TestCase):
             if mutation=='duplicate':changed.insert(index+1,copy.deepcopy(step))
             if mutation=='moved':changed.insert(index-1,changed.pop(index))
             if mutation=='command':step['run']='true'
+            if mutation=='reorder-commands':step['run']='\n'.join(reversed(commands))+'\n'
             if mutation=='ready-gate':step['if']=step['if'].replace("matrix.lane == 'core'","steps.native_ready.outcome == 'success'")
             if mutation=='wrong-lane':step['if']=step['if'].replace("'core'","'editors'")
             if mutation=='no-cancel':step['if']=step['if'].replace('!cancelled()','true')

@@ -354,3 +354,60 @@ also waits for both actual worker counters before checking post-read cleanup.
 All failed attempts remain recorded. Owned compilers/receivers were reaped and
 independently absent at each checkpoint. The full corrected-source hosted run
 remains required; no installed-app update or full local Core rerun was made.
+
+
+## Last Distribution receiver and workflow contracts — November 27
+
+The old run completed with one further Distribution failure, step 453, at the
+initial Cherry Pick oldest-Squash assertion. Pinned `RebaseDlg.cpp`:367 refuses that
+action; the native setter correctly leaves its valid plan intact. The fixture
+now checks exact refusal, legal non-oldest Squash, public reordering to an
+invalid first-Squash plan, and restoration before the original mainline flow.
+
+Subsequent checks exposed obsolete preflight-parent expectations. The current
+[reached-parent contract](REBASE-MAINLINE-PARITY.md) preserves an active durable
+checkpoint on Cancel and resumes it through Continue. The updated fixture checks
+that exact occurrence, parent ordering, HEAD/index and once-per-phase callbacks.
+Empty Commit also follows the documented
+[two-phase message contract](REBASE-CONFLICT-MESSAGE-PARITY.md): an original
+empty commit can succeed while its attribution amendment fails without
+`--allow-empty`. Explicit Retry/Continue/Ignore preserves the original empty
+commit; a separate no-attribution case verifies ordinary successful Empty
+Commit. Both retain exact message, author, date, parent, tree and index checks.
+Squash approval now checks the immutable raw commit body rather than Git's
+pretty-output separator. The retained failed repository independently proved
+that the approved 48-byte body was already correct while formatted output had
+one extra LF.
+
+The related Recovery helper uses the actual typed stage-1 Base comparison,
+including captured alternate-tool routing, and waits for actual menu workers.
+Reference starts consume their real confirmation receipt. Menu Push separately
+checks ordinary label eligibility and extended hash routing through actual
+private branch/tag catalogs. Source data, stale/one-use admission, cancellation,
+notes, export ownership and completion checks remain. A focused complete replay
+family retains all later Split/recovery/Squash/reference/menu helpers; the full
+CI default still runs every original prefix and assertion. Previously completed
+unrelated prefixes are retained during local recovery.
+
+The first corrected-source run 46027551147 (source `24525833`) stopped at its strict workflow contract:
+the reviewed middle diagnostic upload gained three Add receipts, but its exact
+checker still expected two paths. The checker now requires all five and permits
+only the exact three-command Core contract augmentation, retaining the immutable
+original inventory, owner, order and conditions. All original 54 contract tests
+plus two related negative contracts pass. The changed Log integration passes
+with system and bundled Git. See the [late recovery record](qa/hosted-distribution-selection-recovery-2026-11-27.json)
+for failed attempts, final native scope and remaining hosted gate. No additional
+app/Core/runtime build or installed build 60 update is part of this follow-up.
+
+
+The final local checkpoint passes the complete bundled-Git replay-selection
+family. System-Git passes for the unchanged connected pre-menu families are
+retained; the final Rebase menu and Log integration families separately pass
+with both Git engines. This is the actual union of local coverage, not a claim
+of a new complete System-Git run or full hosted acceptance. The last menu
+fixtures use a separately authored unreferenced commit and real CAS-guarded
+branch/tag catalogs, rather than assuming an existing row lacks labels. They
+also set session auto-start intent after the final load/setup and verify the
+exact stored/reopened metadata and automatic-close count. All owned compiler
+and receiver processes were reaped and independently absent. No further local
+suite or application build is needed before the corrected-source hosted run.

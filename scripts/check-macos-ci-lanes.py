@@ -52,6 +52,15 @@ APP_BUILD_EVIDENCE = {
         'retention-days': 7,
     },
 }
+# Reviewed expansion of original-004: the immutable pre-split inventory and
+# original command remain pinned. Only this exact native-runner contract step
+# gains the two related ownership/compilation contracts, still Core-only.
+NATIVE_RUNNER_CONTRACT_ORIGINAL_NAME = 'Native reference group coverage contracts'
+NATIVE_RUNNER_CONTRACT_ORIGINAL_RUN = 'python3 scripts/test-native-reference-groups-contracts.py'
+NATIVE_RUNNER_CONTRACT_NAME = 'Native reference coverage and failure ownership contracts'
+NATIVE_RUNNER_CONTRACT_RUN = ('python3 scripts/test-native-reference-groups-contracts.py\n'
+                              'python3 scripts/test-native-reference-batch-contracts.py\n'
+                              'python3 scripts/test-switch-reset-bisect-workflows-contracts.py\n')
 CI_STEP_LOG_ENV = {'BASH_ENV': '${{ github.workspace }}/scripts/ci-step-log.sh'}
 CI_STEP_LOG_CONTRACT = {
     'name':'CI step log capture and bounded failure contracts',
@@ -82,7 +91,10 @@ def failure_checkpoint_steps(checkpoint):
          'uses':'actions/upload-artifact@v4',
          'with':{'name':'ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-'+checkpoint,
                  'path':('build/qa/ci-step-failures/middle/\n'
-                         'build/qa/rebase-source-*-timeout.sample.txt\n') if checkpoint=='middle' else 'build/qa/ci-step-failures/'+checkpoint+'/',
+                         'build/qa/rebase-source-*-timeout.sample.txt\n'
+                         'build/qa/rebase-source-add-failed-*/stdout.log\n'
+                         'build/qa/rebase-source-add-failed-*/stderr.log\n'
+                         'build/qa/rebase-source-add-failed-*/failure.json\n') if checkpoint=='middle' else 'build/qa/ci-step-failures/'+checkpoint+'/',
                  'if-no-files-found':'ignore',
                  'retention-days':7}},
     )
@@ -480,6 +492,11 @@ def verify(workflow, inventory, originals):
             if position > app_index and lane != 'core' and ('run' in before or name == STORE_AUDIT):
                 require('if' not in before, 'Unreviewed conditional consumer: ' + name)
                 expected['if'] = collection_condition(name, lane)
+        if name == NATIVE_RUNNER_CONTRACT_ORIGINAL_NAME:
+            require(before.get('run') == NATIVE_RUNNER_CONTRACT_ORIGINAL_RUN and lane == 'core',
+                    'Reviewed native runner contract baseline command/owner changed')
+            expected['name'] = NATIVE_RUNNER_CONTRACT_NAME
+            expected['run'] = NATIVE_RUNNER_CONTRACT_RUN
         if name in COLLECTION_IDS:
             expected['id'] = COLLECTION_IDS[name]
         if name == APP_BUILD_NAME:

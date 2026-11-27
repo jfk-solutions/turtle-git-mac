@@ -1,0 +1,182 @@
+{
+  "kind": "TurtleGitLateDistributionSelectionRecovery",
+  "date": "2026-11-27",
+  "base_commit": "24525833b9fb0384a74174e8dbc9d48cb4371ff1",
+  "status": "focused-recovery-passed-full-corrected-source-hosted-pending",
+  "hosted_failure": {
+    "run": 45995227210,
+    "source": "da754caa25f9f8a09923d13a2a4c1875f0f789ad",
+    "job": 140493322243,
+    "step": 453,
+    "log_sha256": "63903377b0d4290ae5054e64ecf444218ec7e5eb5491d481d43f2ce31a560ba6",
+    "failure": "Complete receiver first system-Git case refused obsolete oldest-Squash assertion at original source3114. Other three Git engines not reached."
+  },
+  "source_review": "Pinned RebaseDlg.cpp367 skips Squash for last display row (oldest execution commit). Native setAction2248 refuses first execution row; canStart1711 still rejects an actual reordered first Squash. No product change.",
+  "repairs": [
+    "Require forbidden action to preserve complete plan and selection while keeping Start enabled.",
+    "Exercise legal non-oldest Squash; move it to first execution row and preserve original meaningful Start refusal; restore order, then original Skip/Edit and full mainline flow.",
+    "Local complete replay-selection family retains list interactions, mainline, duplicate/draft Add, empty results, squash/editor and all later Split/Recovery/Reference/menu helpers. Default CI still runs every original prefix and uses original full-family timeout.",
+    "Migrate Mainline Cancel to exact durable reached occurrence/HEAD/index receipt and Continue with once-per-phase callbacks; preserve Edit/reopen flow.",
+    "Await actual native request/edit readiness and retain all final outcomes; original Empty compound cause was later proved to be secondary amendment, not readiness.",
+    "Exercise attribution-empty original Commit then explicit failed amendment Retry/Continue/Ignore, preserving original empty commit and index; separately exercise ordinary successful Empty Commit without attribution, restoring the preference afterward.",
+    "Validate immutable Squash commit body from cat-file at captured hash, splitting its first raw header/body LF-LF separator and retaining exact approved UTF8+LF bytes. Do not trim comments or normalize Unicode.",
+    "Consume actual Start confirmation receipts, never clear confirmation fields to bypass pending ownership.",
+    "Push tests use fully settled row catalogs plus a separately authored unreferenced immutable object; ordinary refusal/extended hash, CAS-absent real private branch/tag priority, stale/one-use receipts and exact refs/HEAD/index cleanup are independent of prior helper history.",
+    "Configure intended session autoStart after load/plan setup, then validate exact persisted/reopened context, Edit, automatic close count and completion handoff.",
+    "Focused rebase-menus runtime reuses the exact helper and common authored baseline; default CI is unchanged. Reviewed root/private-context routing changes independently reconstruct the previously frozen main body when removed."
+  ],
+  "configuration_followup": {
+    "run": 46027551147,
+    "job": 140610986324,
+    "step": 3,
+    "log_sha256": "70f427a3a780784adb06a2c48c111639186469f84a53a1a6d8ea9e23b067c742",
+    "failure": "Exact middle upload mapping omitted three new retained Add diagnostic paths; immutable inventory also needs exact reviewed three-command Core-step augmentation.",
+    "repair": "Keep immutable baseline and strict ownership, guards, order and artifacts; require exact five paths and exact three-command expansion only.",
+    "check": "56 lane contract tests passed, all original54 plus2; 2.604seconds"
+  },
+  "inputs_sha256": {
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "96069a72067d77ee30a6a35bf5a9b8790a6062888a7eb44a14a76d1ce370aeca",
+    "scripts/check-cherry-pick-native.py": "1cf859e8d80d434e4b17272d6e854f05949b83ce01e00cf81484202ef15981a2",
+    "scripts/check-macos-ci-lanes.py": "987823683d0cf7a2806ed8a0333c84c3a7b12b8ceec7d04db213c4edd0d93a87",
+    "scripts/test-macos-ci-lanes.py": "dd0fc515a95d0f5dbd79d9e7fc87f0068015b5f65b6122e7ee01ddfae5a7ea22"
+  },
+  "native_check": {
+    "engines": [
+      "system",
+      "bundled"
+    ],
+    "status": "passed",
+    "log": "build/qa/ci-distribution453-replay-bundled11-2026-11-27.log",
+    "new_app_core_runtime_builds": 0,
+    "scope": "Complete bundled-Git replay-selection family; all System-Git pre-menu families retained from prior completed checkpoints; current full Rebase menu and Log integration families passed with both engines.",
+    "owned_pids_independently_absent": [
+      54371
+    ]
+  },
+  "limits": [
+    "Full corrected-source hosted workflow and four-Git default receiver remain required.",
+    "Prior completed native/core passes are retained; no local full Core or unrelated native rerun.",
+    "Installed build60 unchanged; no signed deployment or physical integration claim."
+  ],
+  "failed_local_attempts": [
+    {
+      "log": "build/qa/ci-distribution453-replay-selection-2026-11-27.log",
+      "failure": "Obsolete preflight Mainline Cancel oracle3146 after valid action checks; source reached checkpoint preserves active session.",
+      "owned_pids_independently_absent": [
+        36916,
+        36936,
+        37590
+      ]
+    },
+    {
+      "log": "build/qa/ci-distribution453-replay-selection2-2026-11-27.log",
+      "failure": "Later Empty Commit compound3269; outcome components not captured.",
+      "owned_pids_independently_absent": [
+        45899,
+        46519
+      ]
+    },
+    {
+      "log": "build/qa/ci-distribution453-replay-selection3-2026-11-27.log",
+      "failure": "Actual idle active pending conflictMessage after original empty commit; attribution amendment failed and default Retry returned to pending editor. Not a Start-admission failure.",
+      "owned_pids_independently_absent": [
+        53241,
+        53766
+      ],
+      "retained_repo_head": "5ada914f8a33d3937e88033341a9d51f15b94346",
+      "retained_repo_parent": "3baf9b19816c84d6787184a72c50885e756a339a",
+      "retained_repo_message": "Side native parent\n"
+    },
+    {
+      "log": "build/qa/ci-distribution453-replay-selection4-2026-11-27.log",
+      "failure": "After all Empty/attribution RetryIgnore/successful plain Empty/Squash approval and metadata checks passed, old pretty-format message assertion counted an extra Git output terminator. Raw immutable commit body already exactly matches approved UTF8+LF.",
+      "owned_pids_independently_absent": [
+        60485,
+        61058
+      ],
+      "raw_message_proof": {
+        "raw_bytes": 48,
+        "expected_bytes": 48,
+        "pretty_bytes": 49,
+        "raw_exact": true,
+        "pretty_equals_raw_plus_LF": true
+      }
+    },
+    {
+      "log": "build/qa/ci-distribution453-replay-selection5-2026-11-27.log",
+      "failure": "After complete main body and Split passed, Recovery Files expected obsolete aggregate conflictPatch instead of current typed single stage1 Base comparison.",
+      "owned_pids_independently_absent": [
+        67161,
+        67682
+      ]
+    },
+    {
+      "log": "build/qa/ci-distribution453-tail6-replay-selection-2026-11-27.log",
+      "failure": "Typed Base comparison passed; later immediate Edit callback assertion ran before actual asynchronous captured file-menu worker delivered callback.",
+      "owned_pids_independently_absent": [
+        81727,
+        82233
+      ]
+    },
+    {
+      "log": "build/qa/ci-distribution453-replay-selection7-2026-11-27.log",
+      "failure": "All preceding System-Git Replay/recovery/reference families passed; ordinary Push expected for a not-yet-labelled selected row was not admitted.",
+      "owned_pids_independently_absent": [
+        91096,
+        91622
+      ]
+    },
+    {
+      "log": "build/qa/ci-distribution453-replay-selection8-2026-11-27.log",
+      "failure": "Assumed original selected merge was unlabelled; actual settled catalog could legitimately contain main branch. Dedicated authored unreferenced object replaces that assumption.",
+      "owned_pids_independently_absent": [
+        16650,
+        17107
+      ]
+    },
+    {
+      "log": "build/qa/ci-distribution453-menus9-2026-11-27.log",
+      "failure": "All Push/catalog/note/export/menu cases passed; final context fixture set autoStart before load(), which reset it to default false. Persisted JSON independently proved afterFetch/onto/force correct and autoStart false.",
+      "owned_pids_independently_absent": [
+        42064,
+        42581
+      ]
+    }
+  ],
+  "retained_passes": [
+    {
+      "check": "log-integration",
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "status": "passed",
+      "seconds": 20.742823541999996,
+      "log": "build/qa/ci-distribution453-tail6-log-integration-2026-11-27.log",
+      "owned_pids_independently_absent": [
+        87256,
+        87995
+      ]
+    },
+    {
+      "check": "rebase-menus",
+      "engines": [
+        "system",
+        "bundled"
+      ],
+      "status": "passed",
+      "log": "build/qa/ci-distribution453-menus10-2026-11-27.log",
+      "owned_pids_independently_absent": [
+        49122,
+        49639,
+        51554
+      ]
+    }
+  ],
+  "system_scope_limit": "No additional complete System-Git end-to-end replay repetition after the final menu-only fix; the current menu family passed independently with both engines and the earlier connected System-Git prefix passes are retained.",
+  "reviewed_runtime_routing": {
+    "previous_main_sha256": "da9034f15608c8436734a235522a04b1d6d85ddb4cdbfa3639433af6f46429b7",
+    "current_main_sha256": "96edb765f20a6fb63ac815bc5c216c7d9ff53ab6980c404a58b902ad68c39ba7",
+    "proof": "Removing only the new focused-menu call and restoring its private-root predicate exactly reproduces the previously frozen main body. Default CI modes explicitly clear both focused flags."
+  }
+}
