@@ -672,6 +672,7 @@ import TurtleGitCore
 }
 @MainActor func verifyListInteraction(_ repo: GitRepository, revisions: [String]) async throws {
     let model = RebaseWindowModel(repository: repo, access: nil)
+    defer {model.retire()}
     model.load(cherryPick: revisions); try await settle(model)
     let original = model.entries.map(\.id), snapshot = model.plan!
     precondition(original.count == 4)
@@ -719,11 +720,56 @@ import TurtleGitCore
     precondition(probe.observe(event("s", number: 0)) != nil)
     precondition(probe.observe(event("z")) != nil)
     model.busy = true; precondition(probe.observe(event("s")) != nil); model.busy = false
-    model.options.preserveMerges = true; precondition(probe.observe(event("s")) != nil); model.options.preserveMerges = false
+    // Pinned RebaseDlg::SetControlEnable keeps choosing-mode action menu
+    // bits, Up/Down and drag enabled with Preserve; only Add is disabled.
+    // Exercise a real Preserve Rebase load, not an impossible Preserve+Cherry
+    // Pick flag combination or a blanket keyboard refusal left from early porting.
+    let unchangedHead=try await repo.run(["rev-parse","HEAD"]).stdout
+    let unchangedIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+    model.load(upstream:revisions.last!,preserveMerges:true,force:true);try await settle(model)
+    // Choose the captured merge tip through the ordinary branch-plan input;
+    // the focused receiver starts on target, which has only one replay commit.
+    // Force is an actual supported Rebase input: an ancestor upstream otherwise
+    // makes this up-to-date branch hide its replay rows (model.entries).
+    model.chooseBranch(revisions[0]);try await settle(model)
+    var preserveTable:NSTableView?,preserveProbe:RebaseListInteraction.Probe?
+    let preserveDeadline=Date().addingTimeInterval(30)
+    repeat {
+        host.layoutSubtreeIfNeeded();preserveTable=findTable(host);preserveProbe=findRebaseProbe(host)
+        if model.editable && !model.loadingPlan && preserveTable?.numberOfRows == model.entries.count && preserveProbe?.model === model {break}
+        try await Task.sleep(nanoseconds:10_000_000)
+    } while Date()<preserveDeadline
+    guard let preserveTable,let preserveProbe,model.editable,!model.loadingPlan,model.options.preserveMerges,model.options.force,!model.isCherryPick,
+          preserveTable.numberOfRows == model.entries.count,model.entries.count>2 else {
+        throw NSError(domain:"NativePreserveList",code:1,userInfo:[NSLocalizedDescriptionKey:"Preserve list not ready: entries=\(model.entries.count),nativeRows=\(String(describing:preserveTable?.numberOfRows)),editable=\(model.editable),loading=\(model.loadingPlan),preserve=\(model.options.preserveMerges),cherryPick=\(model.isCherryPick),error=\(String(describing:model.error))"])
+    }
+    precondition(window.makeFirstResponder(preserveTable))
+    let preserveRows=Array(model.entries.indices.filter {$0 != model.entries.count-1 && model.entries[$0].commit.parents.count == 1}.prefix(2))
+    precondition(!preserveRows.isEmpty && model.entries.contains{$0.commit.parents.count>1},"Preserve fixture needs a merge and an ordinary pending row")
+    preserveTable.selectRowIndexes(IndexSet(preserveRows),byExtendingSelection:false)
+    let preserveIDs=Set(preserveRows.map {model.entries[$0].id})
+    func preserveAction(_ key:String,_ action:RebaseAction) {
+        precondition(preserveProbe.observe(event(key)) == nil)
+        precondition(model.selection==preserveIDs && model.entries.filter{preserveIDs.contains($0.id)}.allSatisfy{$0.action==action})
+    }
+    preserveAction("s",.skip);preserveAction("e",.edit);preserveAction("p",.pick)
+    preserveAction(" ",.skip);preserveAction("q",.squash);preserveAction("p",.pick)
+    precondition(!model.canAdd && model.canDragRows)
+    let beforePreserveMove=model.entries.map(\.id)
+    let moveUp=model.canMove(up:true,toEnd:true)
+    precondition(model.canMove(up:moveUp,toEnd:true))
+    precondition(preserveProbe.observe(event(moveUp ? "u":"d",flags:.shift)) == nil)
+    let selectedPreserve=beforePreserveMove.filter{preserveIDs.contains($0)},otherPreserve=beforePreserveMove.filter{!preserveIDs.contains($0)}
+    precondition(model.entries.map(\.id)==(moveUp ? selectedPreserve+otherPreserve:otherPreserve+selectedPreserve) && model.selection==preserveIDs)
+    for flags:NSEvent.ModifierFlags in [.command,.control,.option] {precondition(preserveProbe.observe(event("s",flags:flags)) != nil)}
+    precondition(preserveProbe.observe(event("s",number:0)) != nil)
+    model.busy=true;precondition(preserveProbe.observe(event("s")) != nil);model.busy=false
+    let preserveHead=try await repo.run(["rev-parse","HEAD"]).stdout,preserveIndex=try Data(contentsOf:repo.root.appendingPathComponent(".git/index"))
+    precondition(preserveHead==unchangedHead && preserveIndex==unchangedIndex)
     let field = NSTextField(frame: NSRect(x: 0, y: 0, width: 100, height: 25)); host.addSubview(field)
-    precondition(window.makeFirstResponder(field)); precondition(probe.observe(event("s")) != nil)
+    precondition(window.makeFirstResponder(field)); precondition(preserveProbe.observe(event("s")) != nil)
     precondition(!window.isVisible)
-    print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy/Preserve guards passed. Events injected; no displayed keyboard acceptance.")
+    print("Actual Rebase list interaction: contiguous/noncontiguous moves, boundary no-op, stable end moves, selection IDs, action cycles, P/S/Q/E/Space/Shift-U, table focus and modifier/window/busy guards; actual Preserve Rebase load retains actions, movement and drag while disabling Add, with unchanged HEAD/index passed. Events injected; no displayed keyboard acceptance.")
 }
 @MainActor func verifyNativeLogRevertFlags(executable: URL) async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("turtlegit-log-flags-" + UUID().uuidString)
@@ -1345,16 +1391,29 @@ import TurtleGitCore
     let outside = model.files.first { $0.path == "unrelated" }!, inside = model.files.first { $0.path == "folder/file" }!, renamed = model.files.first { $0.path == "renamed-outside" }!
     precondition(renamed.oldPath == "folder/old :(glob)* 雪\n" && !model.grayFile(renamed))
     func rgb(_ color: Color) -> [Int] {
-        let value = NSColor(color).usingColorSpace(.sRGB)!
-        return [value.redComponent,value.greenComponent,value.blueComponent].map { Int(($0 * 255).rounded()) }
+        // NSApp.appearance does not establish a drawing appearance for this
+        // unhosted dynamic NSColor conversion. Resolve the declared light-mode
+        // palette explicitly, as an actual Aqua text cell does when drawing.
+        var channels:[Int]=[]
+        NSAppearance(named:.aqua)!.performAsCurrentDrawingAppearance {
+            let value=NSColor(color).usingColorSpace(.sRGB)!
+            channels=[value.redComponent,value.greenComponent,value.blueComponent].map {Int(($0*255).rounded())}
+        }
+        return channels
     }
-    precondition(model.grayFile(outside) && model.fileForeground(outside, selected: false) == .secondary && rgb(model.fileForeground(inside, selected: false)) == [0,50,160])
-    precondition(rgb(model.fileForeground(renamed, selected: false)) == [0,0,255] && model.fileForeground(outside, selected: true) == .primary)
+    func requireColor(_ condition:Bool,_ phase:String)throws {
+        guard condition else {
+            let diagnostic="\(phase): inside=\(rgb(model.fileForeground(inside,selected:false))),renamed=\(rgb(model.fileForeground(renamed,selected:false))),renameAction=\(renamed.action),renameRole=\(String(describing:model.fileStatusTextRole(renamed))),renameOld=\(String(describing:renamed.oldPath)),grayRename=\(model.grayFile(renamed)),selectedPrimary=\(model.fileForeground(outside,selected:true) == .primary),storedModified=\(String(describing:defaults.object(forKey:StatusTextRole.modified.preferenceKey))),storedRenamed=\(String(describing:defaults.object(forKey:StatusTextRole.renamed.preferenceKey))),appAppearance=\(String(describing:NSApp.appearance?.name))"
+            throw NSError(domain:"NativeLogPathColors",code:1,userInfo:[NSLocalizedDescriptionKey:diagnostic])
+        }
+    }
+    try requireColor(model.grayFile(outside) && model.fileForeground(outside, selected: false) == .secondary && rgb(model.fileForeground(inside, selected: false)) == [0,50,160],"Default Modified/unrelated colors")
+    try requireColor(rgb(model.fileForeground(renamed, selected: false)) == [0,0,255] && model.fileForeground(outside, selected: true) == .primary,"Default Rename/selected colors")
     let colors = StatusColorSettingsModel(preferences: defaults)
     colors.set(.modified, rgb: [3,127,249]); colors.set(.renamed, rgb: [10,20,30]); colors.apply()
-    precondition(rgb(model.fileForeground(inside, selected: false)) == [3,127,249])
-    precondition(rgb(model.fileForeground(renamed, selected: false)) == [10,20,30])
-    precondition(model.fileForeground(outside, selected: false) == .secondary && model.fileForeground(inside, selected: true) == .primary)
+    try requireColor(rgb(model.fileForeground(inside, selected: false)) == [3,127,249],"Applied Modified color")
+    try requireColor(rgb(model.fileForeground(renamed, selected: false)) == [10,20,30],"Applied Rename color")
+    try requireColor(model.fileForeground(outside, selected: false) == .secondary && model.fileForeground(inside, selected: true) == .primary,"Applied unrelated/selected colors")
     let revisions = model.entries.map(\.hash), selection = model.selected
     model.fileTableSelection.wrappedValue = Set(([outside.id]).map(GitPathRowIdentity.encode))
     precondition(model.fileSelectionMark == outside.id)
@@ -2982,6 +3041,10 @@ private final class NativeDeferredProjectionGate:@unchecked Sendable {
         print("PASS: Log integration source targets, moved-ref refresh and ownership family");return
     }
     if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REFERENCE_ONLY"] == "1" { try await verifyNativeSquashReferenceUpdates(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); try await verifyNativeRepeatedAndOmittedReferences(repo, editor: URL(fileURLWithPath: FileManager.default.currentDirectoryPath).appendingPathComponent(".build/debug/TurtleGitMac")); return }
+    if ProcessInfo.processInfo.environment["TURTLEGIT_NATIVE_REBASE_LIST_ONLY"] == "1" {
+        try await verifyListInteraction(repo,revisions:[merge.hash,parent.hash,side.hash,base.hash])
+        print("PASS: Rebase list actions and Preserve family");return
+    }
     try await verifyNativeBisect(executable: repo.executable)
     try await verifyNativeLogWorkingConflicts(executable: repo.executable)
     try await verifyNativeLogDeferredRefresh(executable: repo.executable)

@@ -27,7 +27,7 @@ focus.add_argument('--references-only',action='store_true',help='Run only native
 focus.add_argument('--menus-only',action='store_true',help='Run only native Rebase revision-menu fixtures.')
 focus.add_argument('--commit-selection-only',action='store_true',help='Run only native Commit visible-selection and full-index fixtures.')
 focus.add_argument('--log-paths-only',action='store_true',help='Run only native Log path/filter/status-color fixtures.')
-focus.add_argument('--only',choices=['log-deferred-refresh','log-submodule','log-add-modes','log-history-labels','log-revert-flags','log-integration'],help='Run one complete native workflow family.')
+focus.add_argument('--only',choices=['rebase-list','log-deferred-refresh','log-submodule','log-add-modes','log-history-labels','log-revert-flags','log-integration'],help='Run one complete native Rebase or Log workflow family.')
 args=parser.parse_args()
 root=Path(__file__).resolve().parent.parent
 products=root/'build/Build/Products/Debug'
@@ -115,7 +115,7 @@ for index,git in enumerate(gits):
         environment.update(DYLD_FRAMEWORK_PATH=str(products),HOME=str(directory/'home'),CFFIXED_USER_HOME=str(directory/'preferences'),
                            TMPDIR=str(directory/'temporary')+'/',XDG_CONFIG_HOME=str(directory/'xdg'),GIT_CONFIG_GLOBAL=str(config),
                            GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',TURTLEGIT_TEST_GIT=str(git.resolve()))
-        flags={'TURTLEGIT_NATIVE_REFERENCE_ONLY':args.references_only,'TURTLEGIT_NATIVE_MENUS_ONLY':args.menus_only,
+        flags={'TURTLEGIT_NATIVE_REBASE_LIST_ONLY':args.only=='rebase-list','TURTLEGIT_NATIVE_REFERENCE_ONLY':args.references_only,'TURTLEGIT_NATIVE_MENUS_ONLY':args.menus_only,
                'TURTLEGIT_NATIVE_COMMIT_SELECTION_ONLY':args.commit_selection_only,'TURTLEGIT_NATIVE_LOG_PATHS_ONLY':args.log_paths_only,
                'TURTLEGIT_NATIVE_LOG_DEFERRED_REFRESH_ONLY':args.only=='log-deferred-refresh',
                'TURTLEGIT_NATIVE_LOG_SUBMODULE_ONLY':args.only=='log-submodule',
@@ -138,9 +138,9 @@ for index,git in enumerate(gits):
             (directory/'receiver.stdout.log').write_text(result.stdout);(directory/'receiver.stderr.log').write_text(result.stderr)
             print(result.stdout,end='');print(result.stderr,end='')
             result.check_returncode()
-            focused_markers={'log-deferred-refresh':'PASS: Log deferred refresh family','log-submodule':'PASS: Log submodule history family','log-add-modes':'PASS: Log Add modes family','log-history-labels':'PASS: Log history labels and native projections family','log-revert-flags':'PASS: Log working-file Revert and flags family','log-integration':'PASS: Log integration source targets, moved-ref refresh and ownership family'}
+            focused_markers={'rebase-list':'PASS: Rebase list actions and Preserve family','log-deferred-refresh':'PASS: Log deferred refresh family','log-submodule':'PASS: Log submodule history family','log-add-modes':'PASS: Log Add modes family','log-history-labels':'PASS: Log history labels and native projections family','log-revert-flags':'PASS: Log working-file Revert and flags family','log-integration':'PASS: Log integration source targets, moved-ref refresh and ownership family'}
             passed=args.only is None or focused_markers[args.only] in result.stdout
-            if not passed:raise RuntimeError('Focused Log receiver exited before final assertions/cleanup')
+            if not passed:raise RuntimeError('Focused native receiver exited before final assertions/cleanup')
             results.append(dict(case=args.only or 'default',git=str(git),returncode=result.returncode,passed=True,timeout_seconds=timeout))
             (root/'build/qa/cherry-pick-native-results.json').write_text(json.dumps(results,indent=2)+'\n')
         except BaseException:

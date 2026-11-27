@@ -1,0 +1,75 @@
+{
+  "kind": "TurtleGitDistributionNativeRecovery",
+  "date": "2026-11-27",
+  "base_commit": "2ede5f9012f28196d4a8a009e7d04e7d0095c8bb",
+  "status": "focused-pass-hosted-pending",
+  "hosted_failure": {
+    "run": 45808431864,
+    "source": "48265c54840831bbc900ad100275f0a03742aa59",
+    "job": 139875927003,
+    "step": 453,
+    "artifact": 15136999567,
+    "artifact_sha256": "77fcd9febd439d880100ae6410a422b65ac29b51da799582a58780ca95a06082",
+    "failure": "Obsolete Preserve-mode S-refusal assertion at baseline source722"
+  },
+  "source_review": "Pinned RebaseDlg.cpp811–858 and1843–1866 permit choosing-mode actions/movement/drag with Preserve; only Add disabled. Native implementation already matches. Real Force Preserve plan uses public branch choice.",
+  "inputs_sha256": {
+    "docs/qa/cherry-pick-native-receiver-2026-10-06.swift": "6ce254596c0d17db707c18600def09c3e9684317b7ea7c18a5743d24c4df00d3",
+    "scripts/check-cherry-pick-native.py": "63d9e205b9867830a480d4612a44d98dfe09dfab4f705c14a96bfb549f721ad2"
+  },
+  "checks": [
+    {
+      "status": "failed-default",
+      "log": "build/qa/ci-distribution453-repair-2026-11-27.log",
+      "sha256": "85c355daa718df989cc3f88acb48f5506e41b2e836a0416121916a56bbaca43d",
+      "reaped_pids": [
+        60712,
+        61283
+      ]
+    },
+    {
+      "status": "failed-fixture-setup",
+      "log": "build/qa/ci-distribution453-rebase-list-2026-11-27.log",
+      "sha256": "e58e36e1dd46a5586a963580f7eadd1285140651905b97d3d4fda480341691b7",
+      "reaped_pids": [
+        73088,
+        73608
+      ]
+    },
+    {
+      "status": "passed-both-git",
+      "log": "build/qa/ci-distribution453-log-paths-2026-11-27.log",
+      "sha256": "19a450b1aac0dc56fafc847b0f7c2a44fec12503b3b00c19248c64b944025139",
+      "reaped_pids": [
+        73872,
+        74033
+      ]
+    },
+    {
+      "status": "passed-both-git",
+      "log": "build/qa/ci-distribution453-rebase-list-repair2-2026-11-27.log",
+      "sha256": "f228c33627ef06cdb949841e2c8df59e7fd3a0c531c6f13acf134ef384f4e548",
+      "reaped_pids": [
+        75785,
+        76322,
+        76578
+      ]
+    }
+  ],
+  "passed_native_process_cases": 4,
+  "app_core_runtime_builds": 0,
+  "owned_processes_remaining": [],
+  "limitations": "Affected Rebase list/Preserve and Log path/color families with system and bundled Git; actual native controls, injected events and private settings/repositories. No physical drag/keyboard or new signed install. Failed full default did not certify full receiver; fresh hosted four-Git suite required.",
+  "prior_hosted_distribution_gates": {
+    "444": "success",
+    "445": "success",
+    "446": "success",
+    "447": "skipped",
+    "448": "skipped",
+    "449": "skipped",
+    "450": "success",
+    "451": "success",
+    "452": "success",
+    "453": "failure"
+  }
+}

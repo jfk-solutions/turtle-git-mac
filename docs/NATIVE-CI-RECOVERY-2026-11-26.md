@@ -235,3 +235,38 @@ retains 17 contract passes, one added real detached-helper/deleted-cwd cleanup
 pass, and one actual native Log column group through the updated runner. No
 additional app/Core/runtime build or broad native suite was run. These records
 support the affected local changes; a fresh hosted run is still required.
+
+
+## Distribution Preserve-mode list follow-up
+
+The final Distribution artifact identifies source line 722: the fixture expected
+Preserve mode to refuse the S action. Pinned `RebaseDlg::SetControlEnable`
+(lines 1843–1866) keeps choosing-mode action menu bits, Up/Down and dragging
+enabled; Preserve disables Add. Its key handler (lines 811–858) follows those
+menu bits. The native implementation already matches this behavior.
+
+The fixture now loads an actual Preserve Rebase plan instead of combining
+Cherry Pick with a directly changed Preserve flag. It exercises native-table
+selection, S/E/P/Space/Q actions, stable-identity end movement, Add refusal and
+drag admission, preserving modifier/window/busy/text-field guards and exact
+HEAD/index bytes. The separate retained-Bisect correction remains intact.
+The first default local attempt stopped earlier at Log path colors. Explicit
+Aqua drawing appearance fixes the unhosted dynamic color conversion while
+retaining exact default/configured RGB assertions. A first focused Preserve
+attempt then exposed an up-to-date fixture plan; the corrected input uses the
+supported Force Rebase option and public branch choice. Both failed attempts
+remain recorded, with owned compiler/receiver cleanup.
+
+Validation uses the existing accepted app; no product/Core/runtime rebuild is
+required. The full hosted four-Git-version check remains the release gate.
+
+Final metadata for the previous hosted run confirms the unsigned universal
+App Store candidate audit, built-framework Revision Graph, packaged SSH lookup,
+encrypted SSH-key cleanup and older-Git runtime preparation all passed. The
+remaining Distribution failure is the Preserve-mode fixture described above;
+this does not certify App Store submission or signed deployment.
+
+The [Distribution recovery record](qa/hosted-distribution-recovery-2026-11-27.json)
+retains both failed attempts and four focused process passes across system and
+bundled Git. Compilers and receivers were reaped and independently absent; all
+other prior passes are retained. The full hosted run remains pending.
