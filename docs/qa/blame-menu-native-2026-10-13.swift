@@ -13,9 +13,9 @@ private extension NSWindow {
 @main struct BlameMenuVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
-    @MainActor static func wait(line:Int = #line,_ condition:@escaping ()->Bool) async throws {
+    @MainActor static func wait(line:Int = #line,diagnostic:@escaping ()->String={""},_ condition:@escaping ()->Bool) async throws {
         for _ in 0..<1000 { if condition() { return };try await Task.sleep(nanoseconds:10_000_000) }
-        throw Failure(description:"Blame menu did not settle at \(line)")
+        throw Failure(description:"Blame menu did not settle at \(line): \(diagnostic())")
     }
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch {
@@ -257,12 +257,31 @@ private extension NSWindow {
         prefs.set(profile,forKey:"Blame.PaneLayout")
         model.setPanePlacement(.log,.bottom)
         try require(!model.panesAreTabbed && model.paneLayout.properties == .right,"Moving a tab did not separate its group")
-        try await wait { root.contentView?.layoutSubtreeIfNeeded();return descendants(root.contentView!).contains{$0 is BlamePaneCaptionButton} }
-        let caption=descendants(root.contentView!).compactMap{$0 as? BlamePaneCaptionButton}.first{$0.pane == .log}!
+        @MainActor func logCaption(in views:[NSView],window:NSWindow)->BlamePaneCaptionButton? {
+            views.compactMap{$0 as? BlamePaneCaptionButton}.first {
+                $0.pane == .log && $0.model === model && $0.window === window && !$0.isHiddenOrHasHiddenAncestor && $0.isEnabled
+            }
+        }
+        @MainActor func captionState(_ phase:String,_ host:NSWindow?)->String {
+            var views=host?.contentView.map(descendants) ?? []
+            views += host?.titlebarAccessoryViewControllers.flatMap{descendants($0.view)} ?? []
+            let captions=views.compactMap{$0 as? BlamePaneCaptionButton}.map{"\($0.pane):current=\($0.model === model),attached=\($0.window === host),hidden=\($0.isHiddenOrHasHiddenAncestor),enabled=\($0.isEnabled)"}
+            return "phase=\(phase),layout=\(model.paneLayout),canFind=\(model.canFind),visible=\(host?.isVisible == true),captions=\(captions)"
+        }
+        try await wait(diagnostic:{captionState("docked Log caption",root)}) { root.contentView?.layoutSubtreeIfNeeded();return logCaption(in:descendants(root.contentView!),window:root) != nil }
+        guard let caption=logCaption(in:descendants(root.contentView!),window:root) else {
+            throw Failure(description:"Current docked Log caption missing: layout=\(model.paneLayout),canFind=\(model.canFind),captions=\(descendants(root.contentView!).compactMap{$0 as? BlamePaneCaptionButton}.map{"\($0.pane):current=\($0.model === model),attached=\($0.window === root),hidden=\($0.isHiddenOrHasHiddenAncestor),enabled=\($0.isEnabled)"})")
+        }
         try require(caption.model === model && caption.accessibilityPerformPress(),"Native pane caption accessibility action unavailable")
         try require(model.paneLayout.log == .floating && owner.floatingPaneWindow(.log) != nil,"Native caption failed to float")
-        try await wait { owner.floatingPaneWindow(.log)?.titlebarAccessoryViewControllers.forEach{$0.view.layoutSubtreeIfNeeded()};return owner.floatingPaneWindow(.log)?.titlebarAccessoryViewControllers.flatMap{descendants($0.view)}.contains{$0 is BlamePaneCaptionButton} == true }
-        let accessory=owner.floatingPaneWindow(.log)!.titlebarAccessoryViewControllers.flatMap{descendants($0.view)}.compactMap{$0 as? BlamePaneCaptionButton}.first!
+        try await wait(diagnostic:{captionState("floating Log caption",owner.floatingPaneWindow(.log))}) {
+            guard let floating=owner.floatingPaneWindow(.log) else{return false}
+            floating.titlebarAccessoryViewControllers.forEach{$0.view.layoutSubtreeIfNeeded()}
+            return logCaption(in:floating.titlebarAccessoryViewControllers.flatMap{descendants($0.view)},window:floating) != nil
+        }
+        guard let floating=owner.floatingPaneWindow(.log),let accessory=logCaption(in:floating.titlebarAccessoryViewControllers.flatMap{descendants($0.view)},window:floating) else {
+            throw Failure(description:"Current floating Log caption missing: layout=\(model.paneLayout),canFind=\(model.canFind)")
+        }
         try require(accessory.accessibilityPerformPress() && model.paneLayout.log == .bottom,"Floating titlebar caption did not dock")
         let payload=model.paneDragData(.log),point=NSPoint(x:root.frame.minX-40,y:root.frame.maxY-40),layout=model.paneLayout
         try require(!model.finishPaneDrag(payload,at:point,outsideWorkspace:true,cancelled:true,operation:[]) && !model.finishPaneDrag(payload,at:point,outsideWorkspace:false,cancelled:false,operation:[]) && !model.finishPaneDrag(payload,at:point,outsideWorkspace:true,cancelled:false,operation:.move) && model.paneLayout==layout,"Cancelled/inside/handled drag floated pane")

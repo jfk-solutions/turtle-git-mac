@@ -94,7 +94,14 @@ def failure_checkpoint_steps(checkpoint):
                          'build/qa/rebase-source-*-timeout.sample.txt\n'
                          'build/qa/rebase-source-add-failed-*/stdout.log\n'
                          'build/qa/rebase-source-add-failed-*/stderr.log\n'
-                         'build/qa/rebase-source-add-failed-*/failure.json\n') if checkpoint=='middle' else 'build/qa/ci-step-failures/'+checkpoint+'/',
+                         'build/qa/rebase-source-add-failed-*/failure.json\n') if checkpoint=='middle' else (
+                         'build/qa/ci-step-failures/final/\n'
+                         'build/qa/statistics-decode-family-*/failed-graph.emf\n'
+                         'build/qa/statistics-decode-family-*/failure.json\n'
+                         'build/qa/statistics-decode-authors-*/failed-graph.emf\n'
+                         'build/qa/statistics-decode-authors-*/failure.json\n'
+                         'build/qa/statistics-decode-graph-*/failed-graph.emf\n'
+                         'build/qa/statistics-decode-graph-*/failure.json\n') if checkpoint=='final' else 'build/qa/ci-step-failures/'+checkpoint+'/',
                  'if-no-files-found':'ignore',
                  'retention-days':7}},
     )

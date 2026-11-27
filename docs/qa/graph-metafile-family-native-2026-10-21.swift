@@ -27,6 +27,33 @@ actor GraphMetafileWriteGate {
 }
 
 @MainActor @main enum GraphMetafileFamilyVerification {
+    struct GraphDecodeFailure:Error,CustomStringConvertible {let description:String}
+    static func graphDecodeFailure(_ data:Data,context:String,started:TimeInterval,helper:URL?,error:Error)->GraphDecodeFailure {
+        let elapsed=ProcessInfo.processInfo.systemUptime-started
+        let attributes=helper.flatMap{try? FileManager.default.attributesOfItem(atPath:$0.path)} ?? [:]
+        var artifact="not configured"
+        var report:[String:Any]=["context":context,"input_bytes":data.count,"decoder_timeout_seconds":15,"elapsed_seconds":elapsed,
+            "helper":helper?.path ?? "unavailable","helper_size":String(describing:attributes[.size] ?? "unavailable"),
+            "helper_modified":String(describing:attributes[.modificationDate] ?? "unavailable"),"error":String(reflecting:error),
+            "diagnostic_limit":"Complete thrown diagnostic retained. Decoder private stdout/stderr are removed internally before timeout reaches this caller."]
+        if let path=ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_FAILURE_ARTIFACTS"] {
+            let folder=URL(fileURLWithPath:path,isDirectory:true)
+            do {
+                guard data.count<=MetafileImageDecoder.maximumInputBytes else{throw NSError(domain:"Graph diagnostic input exceeds decoder's bounded input allowance",code:1)}
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+                let payload=folder.appendingPathComponent("failed-graph.emf"),receipt=folder.appendingPathComponent("failure.json")
+                try data.write(to:payload,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:payload.path)
+                report["payload"]=payload.lastPathComponent
+                try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys,.prettyPrinted]).write(to:receipt,options:.atomic)
+                try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:receipt.path)
+                artifact=folder.path
+            } catch {artifact="retention failed: "+String(reflecting:error)}
+        }
+        let message="Graph decoder failed: context=\(context),bytes=\(data.count),elapsed=\(String(format:"%.3f",elapsed)),timeout=15,helper=\(helper?.path ?? "unavailable"),error=\(String(reflecting:error)),evidence=\(artifact)"
+        fputs(message+"\n",stderr);fflush(stderr)
+        return GraphDecodeFailure(description:message)
+    }
+
     struct Failure:Error,LocalizedError {let message:String;var errorDescription:String?{message}}
     struct Record {let type:Int,offset:Int,size:Int}
     static func require(_ condition:Bool,_ message:String,line:Int = #line)throws {if !condition{throw Failure(message:"\(line): "+message)}}
@@ -115,7 +142,12 @@ actor GraphMetafileWriteGate {
     static func decoded(_ bytes:Data,name:String)async throws->DecodedMetafile {
         // One real bundled conversion; retain thrown diagnostics instead of hiding
         // a timeout behind a nil ComparisonImage result or retrying the decoder.
-        let svg=try await Task.detached(priority:.userInitiated){try MetafileImageDecoder.convert(bytes)}.value
+        let started=ProcessInfo.processInfo.systemUptime,helper=try? MetafileImageDecoder.executable()
+        print("GRAPH DECODE BEGIN "+name+" bytes=\(bytes.count) helper=\(helper?.path ?? "unavailable")");fflush(stdout)
+        let svg:Data?
+        do {svg=try await Task.detached(priority:.userInitiated){try MetafileImageDecoder.convert(bytes)}.value}
+        catch {throw graphDecodeFailure(bytes,context:name,started:started,helper:helper,error:error)}
+        print("GRAPH DECODE END "+name+" elapsed=\(String(format:"%.3f",ProcessInfo.processInfo.systemUptime-started))");fflush(stdout)
         let converted=try unwrap(svg,"Decoder did not recognize EMF "+name)
         let final=try unwrap(ComparisonImage(bytes:converted)?.pixels,"Bundled helper SVG did not render "+name)
         let sourceSVG=try prePictureSVG(converted)

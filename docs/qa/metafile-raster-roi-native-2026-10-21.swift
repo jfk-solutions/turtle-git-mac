@@ -5,9 +5,9 @@ import TurtleGitCore
 @MainActor enum MetafileRasterROIVerification {
     struct Failure:Error,LocalizedError {let message:String;var errorDescription:String?{message}}
     static func require(_ value:Bool,_ message:String,line:Int = #line)throws{if !value{throw Failure(message:"\(line): "+message)}}
-    static func wait(line:Int = #line,_ ready:()->Bool)async throws {
+    static func wait(line:Int = #line,details:@autoclosure ()->String = "",_ ready:()->Bool)async throws {
         for _ in 0..<3000{if ready(){return};try await Task.sleep(nanoseconds:10_000_000)}
-        throw Failure(message:"Raster workflow did not settle at \(line)")
+        throw Failure(message:"Raster workflow did not settle at \(line): "+details())
     }
     static func views(_ view:NSView?)->[NSView]{guard let view else{return []};return [view]+view.subviews.flatMap{views($0)}}
     static func drained()->Bool{FileListComparisonSession.activeOperations==0 && ImageConflictWindowModel.activeOperations==0 && ImageComparisonViewModel.activeFileReads==0 && ImageLoadWindowController.activeReleases==0}
@@ -102,7 +102,10 @@ import TurtleGitCore
         guard let document=try await repo.imageConflictDocument(path:"drawing.emf") else{throw Failure(message:"ROP conflict did not dispatch to image consumer")}
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,index=try Data(contentsOf:directory.appendingPathComponent(".git/index")),working=try Data(contentsOf:file)
         let owner=context.track(ImageConflictWindowController(repository:repo,access:nil,document:document,preferences:context.prefs))
-        try await wait{owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.images.count==3 && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==3}
+        let helper=(try? MetafileImageDecoder.executable().path) ?? "unavailable"
+        // Keep the original single decode-and-mount budget; evaluate components
+        // only on refusal, without another wait or a second decode attempt.
+        try await wait(details:"busy=\(owner.model.busy),missing=\(ImageConflictSide.allCases.filter{owner.model.images[$0]==nil}.map(\.rawValue)),views=\(views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count),decoding=\(owner.model.decoding),retired=\(owner.model.retired),error=\(String(reflecting:owner.model.error)),helper=\(helper)"){owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.images.count==3 && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==3}
         try require(ImageConflictSide.allCases.allSatisfy{owner.model.canSelect($0)},"One Boolean metafile stage is not selectable")
         try gray(owner.model.panes[.base]?.currentImage(base:true),[(12,12,102),(36,12,236),(12,44,85),(52,44,153)],"Conflict base")
         try gray(owner.model.panes[.theirs]?.currentImage(base:true),[(10,10,255),(11,10,0),(16,16,255),(36,12,170),(42,42,255),(43,42,0)],"Conflict theirs")

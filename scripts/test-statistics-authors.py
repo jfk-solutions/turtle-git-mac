@@ -25,6 +25,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-statistics-authors-') as temp
         env.update(GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
                    CFFIXED_USER_HOME=str(home), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp),
                    DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'))
+        env['TURTLEGIT_STATISTICS_FAILURE_ARTIFACTS'] = str(root / 'build/qa' / ('statistics-decode-authors-' + str(index) + '-' + directory.name))
         if args.artifacts:
             env['TURTLEGIT_STATISTICS_AUTHOR_ARTIFACTS'] = str(args.artifacts.resolve() / ('engine-' + str(index)))
         print('Checking Statistics author identities with ' + str(git), flush=True)

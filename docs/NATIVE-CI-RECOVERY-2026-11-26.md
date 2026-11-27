@@ -439,3 +439,62 @@ build's 501 App/Core Swift sources match the current source; no product rebuild
 or local full Core rerun was needed. Complete corrected-source hosted acceptance
 remains required. No application/Core change, new metafile work or installed-app
 update is included in this correction.
+
+## Editor, Finder recovery and graph decoder follow-up — November 27
+
+The same diagnostic run completes the History/References, Core,
+Commit/Repository and Settings/Finder lanes successfully, but reports additional
+failures in the editor and image lanes. The pending intermediate Rebase-only
+run was cancelled so the next complete run can include these related repairs.
+The [follow-up record](qa/hosted-editor-image-statistics-recovery-2026-11-27.json)
+distinguishes actual hosted failures, local checkpoints and unresolved causes.
+
+Patch Panel exhausted its existing 300-second compiler deadline before runtime.
+Compilation now uses cohesive cached groups, retaining every complete original
+fixture body, default case, Git ordering, assertion and deadline. Six offline
+contracts and all eight affected native case/engine executions pass locally.
+
+The grouped reference report contains three failed cases: unsigned Finder grant
+transfer, Finder watches and Blame pane menus. The grant worker now uses actual
+non-app-scoped Foundation bookmarks consistent with its existing unsigned test
+scope. Blame waits for the exact current attached Log caption before its native
+accessibility action, rather than admitting another pane and force-unwrapping a
+missing Log caption. Both repaired cases pass locally with owned cleanup.
+
+The remaining watch failure reproduced after linked-worktree administration
+permission was revoked. Recovery installed a replacement session, returned
+before its scheduled first read, and reported success. The subsequent failed
+read then restarted immediate recovery, repeatedly replacing the session and
+hiding the stable permission error. Restoration now awaits that exact
+replacement's first collection under the same owner and cancellation token, so
+the real result controls the existing bounded retry backoff. The original
+permission, cached-roster, lease and 20-second checks remain in place.
+
+The affected image cases pass locally after reconstructing and verifying the
+exact committed runtime kit, including its complete source, renderer, resources,
+licenses and native linkage. The old validation cache's different recipe is
+retained separately. These passes establish the focused local behavior; they
+do not prove why the hosted decoder previously omitted an image. No renderer
+feature is added. The unchanged combined ROI wait budget now reports whether
+decoding or native pane mounting is incomplete.
+
+Three Statistics consumers previously reported an otherwise bare decoder
+timeout. Diagnostics now identify the exact graph, format, helper and elapsed
+operation, and preserve the generated failing input plus metadata. The final
+hosted failure artifact includes only those exact generated files alongside
+the existing redacted reports, never private repository/home trees. Decoder
+and receiver deadlines, independent graph/vector/pixel assertions, and the six
+already-passing Statistics export cases are retained. Complete corrected-source
+hosted acceptance remains required; installed build 60 is unchanged.
+
+The final local checkpoint passes the failed Finder watch family after its
+single product repair, retaining the earlier grant and Blame passes. All nine
+Statistics receiver cases pass: the original default dialog family with system
+Git, authors with both engines, and all graph Statistics/Revision/ownership
+cases with both engines. The 82 decoded graph payloads complete within the
+unchanged 15-second operation deadline (maximum locally 0.558 seconds). This
+does not reproduce or establish a fix for the hosted decoder timeouts. The
+incremental Debug build, 57 exact workflow contracts and dialog-coverage
+reconciliation pass. All observed owned compiler/receiver processes are reaped
+and independently absent. No repeated full Core suite or unaffected native
+families are part of this checkpoint.

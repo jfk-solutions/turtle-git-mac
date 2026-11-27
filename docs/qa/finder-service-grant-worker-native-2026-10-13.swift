@@ -1,17 +1,31 @@
 import AppKit
 import TurtleGitCore
+// Unsigned receiver: retain real Foundation bookmark bytes and restart
+// resolution without requesting the signed application's app-scope key.
+private struct ServiceGrantFoundationBookmarks:RepositoryBookmarkProvider {
+    func create(for url:URL) throws -> Data {
+        try url.bookmarkData(options:[],includingResourceValuesForKeys:nil,relativeTo:nil)
+    }
+    func resolve(_ data:Data) throws -> ResolvedBookmark {
+        var stale=false
+        let url=try URL(resolvingBookmarkData:data,options:[.withoutUI,.withoutImplicitStartAccessing],relativeTo:nil,bookmarkDataIsStale:&stale)
+        return ResolvedBookmark(url:url,stale:stale)
+    }
+    func startAccessing(_ url:URL)->Bool {false}
+    func stopAccessing(_ url:URL) {}
+}
 @main struct FinderServiceGrantWorker {
     @MainActor static func main() async {
         do {
             let folder=URL(fileURLWithPath:CommandLine.arguments[1])
             let request=try JSONDecoder().decode(FinderServiceAuthorization.self,from:Data(contentsOf:folder.appendingPathComponent("transfer.json")))
             let registryURL=folder.appendingPathComponent("receiver-private/grants.json")
-            let registry=try FinderServicePermissionStore(url:registryURL)
+            let registry=try FinderServicePermissionStore(url:registryURL,provider:ServiceGrantFoundationBookmarks())
             var installed:[FinderServicePersistentAccess]?=try registry.install(request,requireSecurityScope:false)
             guard installed?.count==1 else { throw FinderServiceAuthorizationFailure.invalidRequest }
             let expectedID=installed![0].id,expectedRoot=installed![0].root
             installed=nil
-            let restarted=try FinderServicePermissionStore(url:registryURL)
+            let restarted=try FinderServicePermissionStore(url:registryURL,provider:ServiceGrantFoundationBookmarks())
             do {
             let restored=try restarted.restore(requireSecurityScope:false)
             guard restored.accesses.count==1,restored.failures.isEmpty,expectedID==restored.accesses[0].id,expectedRoot.path==restored.accesses[0].root.path else { throw FinderServiceAuthorizationFailure.invalidRequest }

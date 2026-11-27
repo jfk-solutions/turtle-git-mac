@@ -850,6 +850,21 @@ class MacOSLaneTests(unittest.TestCase):
             self.assertEqual(expected[1]['with']['if-no-files-found'],'ignore')
         self.verify()
 
+    def testFinalDiagnosticsKeepExactGeneratedGraphPayloadsWithoutPrivateTrees(self):
+        expected=['build/qa/ci-step-failures/final/']+[
+            'build/qa/statistics-decode-'+family+'-*/'+name
+            for family in ['family','authors','graph'] for name in ['failed-graph.emf','failure.json']]
+        step=ci.failure_checkpoint_steps('final')[1]
+        self.assertEqual(step['with']['path'].splitlines(),expected)
+        for mutation in ['missing-payload','private-tree','broad-graph-root','unrelated-source']:
+            value=copy.deepcopy(self.workflow)
+            actual=next(s for s in value['jobs']['validation']['steps'] if s.get('name')==step['name'])
+            if mutation=='missing-payload':actual['with']['path']='\n'.join(expected[:-1])+'\n'
+            elif mutation=='private-tree':actual['with']['path']+='build/qa/statistics-decode-*/**\n'
+            elif mutation=='broad-graph-root':actual['with']['path']='build/qa/**\n'
+            else:actual['with']['path']+='Sources/**\n'
+            with self.subTest(mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
+
     def testFailureDiagnosticsRejectEnvironmentControlArtifactAndPlacementDrift(self):
         for mutation in ['missing','other-path','extra-env','root-env']:
             value=copy.deepcopy(self.workflow)

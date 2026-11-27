@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "status": "Local implementation and grouped validation complete; corrected-source hosted CI acceptance remains required.",
+  "baseline_commit": "72ba2c2f847d9db10a548dca6c105b5e9eb6207a",
+  "diagnostic_run": {
+    "id": 46041091755,
+    "source_commit": "382535b720d40f43da72518fb9f1fb9e425b42b7",
+    "observed_utc": "2026-11-27T21:09:16.820779+00:00",
+    "completed_successful_lanes": [
+      "svn-runtime",
+      "history-references",
+      "core",
+      "settings-finder",
+      "commit-repository"
+    ],
+    "remaining_active_lane": "distribution",
+    "failed_steps": [
+      201,
+      305,
+      319,
+      169,
+      170,
+      426,
+      435,
+      436
+    ]
+  },
+  "cancelled_intermediate_run": {
+    "id": 46057105232,
+    "source_commit": "72ba2c2f847d9db10a548dca6c105b5e9eb6207a",
+    "reason": "Cancelled while pending after the still-running diagnostic source revealed further failures; combine related repairs before another full hosted run.",
+    "rebase_add_repair": "hosted-rebase-add-cohort-recovery-2026-11-27.json",
+    "pages_run": {
+      "id": 46057105210,
+      "conclusion": "success"
+    }
+  },
+  "artifacts": [
+    {
+      "id": 15230729841,
+      "name": "editor final diagnostic reports",
+      "sha256": "54c9f122f6c7b87a8aba583715543d2c2da49a6de57e15c7d31de3e6bc4cc84e"
+    },
+    {
+      "id": 15231806422,
+      "name": "image and Statistics final diagnostic reports",
+      "sha256": "2f18d31f844e2539b0428ad746357bdaac5de1767fd7f5c423085de3f93465a4"
+    },
+    {
+      "id": 15232190253,
+      "name": "Statistics export receipt (all six passed despite artifact name)",
+      "sha256": "91f8c5a9fd0a5886f046561c7b9e1ba52c3212b2e0b9e4d75fe2d8f8161ce65d"
+    }
+  ],
+  "patch_panel": {
+    "hosted_failure": "Step 319: compiler deadline (300 seconds), before runtime cases.",
+    "repair": "Three cohesive cached compiler groups retain all ten complete original fixture bodies and all default cases; selected CI group compiles seven related bodies once.",
+    "offline_contracts": {
+      "passed": 6,
+      "seconds": 0.272
+    },
+    "native_checkpoint": {
+      "cases": [
+        "special",
+        "recovery",
+        "panel",
+        "files"
+      ],
+      "engines": [
+        "system Git",
+        "bundled Git"
+      ],
+      "passed": 8,
+      "compiler_and_receiver_deadlines_seconds": 300,
+      "owned_pids_reaped_and_independently_absent": [
+        27310,
+        27438,
+        27818,
+        28190,
+        28357,
+        28500,
+        28639,
+        28789,
+        28966
+      ],
+      "log_sha256": "90db7f8cd9bc5f30ef74f4eb3226677be0b79fc90e993da81e489619d78e7c7a",
+      "app_core_source_closure": "501 Swift files byte-identical to the authoritative isolated source before copying only the frozen fixture driver and offline contracts.",
+      "scope_limit": "Focused local grouped pass only; no full Core rerun or application rebuild; complete corrected-source hosted acceptance remains required."
+    }
+  },
+  "finder_and_blame": {
+    "actual_failed_cases": [
+      "finder-service-grants",
+      "finder-watches",
+      "blame-menus"
+    ],
+    "source_backed_fixture_repairs": [
+      "The unsigned Finder grant worker requested an app-scope key despite requireSecurityScope:false; inject real non-app-scoped Foundation bookmarks while retaining actual transfer, persistence and fresh-store restoration.",
+      "Blame waited for any pane caption then force-unwrapped the Log caption; wait for the exact live current enabled attached Log caption before the unchanged native accessibility action."
+    ],
+    "finder_watches": "Initial linked-worktree .git permission-denial wait timed out with pending work; product cause not proven. Preserve original 20-second predicate and add bounded state transitions plus guaranteed owned shutdown.",
+    "checkpoint": {
+      "watch_repair": "PASS",
+      "seconds": 18.964,
+      "retained_passes": [
+        "finder-service-grants",
+        "blame-menus"
+      ],
+      "owned_pids_reaped_and_absent": [
+        40048,
+        40127,
+        40234
+      ],
+      "cleanup_complete": true,
+      "private_context_removed": true,
+      "log_sha256": "0fcff5de50e0835e139cb1605f3550943f400641f40bf99c548f8fafa7fa8383",
+      "assertions": "Original missing-admin/grant/revocation/dedup/events/moved/restoration/remove/Quit/late-read/scope-balance assertions retained."
+    },
+    "initial_grouped_checkpoint": {
+      "grants": "PASS",
+      "blame-menus": "PASS",
+      "finder-watches": "Reproduced revoked-admin-permission timeout, pending=1, scopeStarts=142, scopeStops=139",
+      "owned_pids_reaped_and_absent": [
+        30075,
+        30104,
+        30199,
+        30347,
+        31914
+      ],
+      "cleanup_complete": true,
+      "fallback_cleanup": false
+    },
+    "product_repair": {
+      "path": "Sources/TurtleGitMac/FinderWatchedRepositories.swift",
+      "sha256": "b1143ec4e46d92848d68e82dcf644509e9be06a7ec640d64130c558edb9e776e",
+      "cause": "Replacement session was reported recovered before its delayed first collection. Its later failure restarted immediate recovery and reset the failed session repeatedly.",
+      "change": "Await the exact replacement session first collection under the restoration owner/token; retain existing failure state and 0/1/3/10-second retry backoff.",
+      "native_budget": "Original 20-second predicates unchanged."
+    },
+    "build": {
+      "initial": "Finder source compilation succeeded, embedding failed closed because the owned cache runtime pin still referenced its old kit recipe.",
+      "repair": "Backed up and reconciled only the three stale owned-cache recipe inputs from the authoritative isolated source; main-worktree foreign changes untouched.",
+      "result": "Incremental Debug build succeeded",
+      "log_sha256": "e7fb987148f7a8d689aab70757e80f825516c127d5813271bfb920276845f292",
+      "core_framework_binary_unchanged": true
+    }
+  },
+  "images_and_statistics": {
+    "actual_failures": [
+      "169: ROI conflict/system Git did not reach the combined decoded-image/native-mount predicate; both consumer engines passed.",
+      "170: all four scanline cases passed; high-depth consumer/system Git passed; bundled consumer completed without its required destination image; conflict cases were not reached.",
+      "426, 435, 436: Statistics consumers reported timedOut on paths using the existing bounded metafile decoder; exact payload/helper cause remains unproven."
+    ],
+    "retained_passes": "Statistics export step 427: all six format/selection/ownership cases passed.",
+    "local_environment_blocker": "The old validation cache runtime manifest disagreed with three committed recipe inputs. Reconstruct and verify the exact committed runtime closure before affected image checks; do not use unrelated main-worktree renderer changes.",
+    "checkpoint": "Affected image and Statistics grouped local checkpoints passed; hosted acceptance pending.",
+    "scope": "Reported errors only; no new WMF/EMF features, no removed pixel/vector/ownership assertions and no enlarged operation deadlines.",
+    "image_checkpoint": {
+      "result": "5 PASS",
+      "runtime_cache_key": "701f216860f4b38eaacc1871cd3f4181ca8855a3a0e784040ef3c4927bb730a1",
+      "helper_sha256": "7a8f9a6afd5310fcec5908254043b2bee54425e64a199e3554e9c8fe4bb398be",
+      "renderer_sha256": "b2e81e072433b2dd0febcfd6b05a2a1ce5c59c725e380156dfc24d3c21aa243b",
+      "cases": [
+        "ROI conflict/system Git",
+        "ROI conflict/bundled Git",
+        "high-depth consumers/bundled Git",
+        "high-depth conflict/system Git",
+        "high-depth conflict/bundled Git"
+      ],
+      "command_seconds": [
+        8.106438875198364,
+        10.145385980606079,
+        7.884677886962891
+      ],
+      "owned_pids_reaped_and_independently_absent": [
+        32329,
+        32394,
+        32574,
+        32725,
+        32753,
+        32956,
+        33147
+      ],
+      "runtime_framework_inventories_unchanged": true,
+      "limit": "Exact committed runtime established meaningful focused local passes; hosted swallowed decoder cause remains unproven. Original assertions and one combined ROI wait budget remain."
+    },
+    "statistics_checkpoint": {
+      "result": "9 receiver cases PASS",
+      "scope": [
+        "426 default family/system Git",
+        "435 authors/system and bundled Git",
+        "436 complete statistics/revision/ownership family/system and bundled Git"
+      ],
+      "commands": [
+        {
+          "argv": [
+            "python3",
+            "scripts/test-statistics-dialog.py"
+          ],
+          "elapsed_seconds": 16.876522415999997,
+          "returncode": 0,
+          "log_sha256": "eba2bd10fe07b15ce869dddecc9510e29a123e648e8f63c06a9488c0eb9c469d",
+          "owned_reaped_pids": [
+            40966,
+            40978,
+            41022
+          ],
+          "owned_pids_still_present": []
+        },
+        {
+          "argv": [
+            "python3",
+            "scripts/test-statistics-authors.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "elapsed_seconds": 51.067708333,
+          "returncode": 0,
+          "log_sha256": "e5e676c3683284844bcfa5f16c113c208c9943696cf4c2d9629e66e4de1e566a",
+          "owned_reaped_pids": [
+            41362,
+            41396,
+            41968
+          ],
+          "owned_pids_still_present": []
+        },
+        {
+          "argv": [
+            "python3",
+            "scripts/test-graph-metafile-family.py",
+            "--git",
+            "/usr/bin/git",
+            "--git",
+            "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+          ],
+          "elapsed_seconds": 94.712882958,
+          "returncode": 0,
+          "log_sha256": "f8b9bc69ef66a29da5d6348544d1f2f94d5b50551a4852dc9ee52782daa7c4c9",
+          "owned_reaped_pids": [
+            42553,
+            42591,
+            43333,
+            44077,
+            44418,
+            44745,
+            45081
+          ],
+          "owned_pids_still_present": []
+        }
+      ],
+      "runtime_unchanged": true,
+      "app_unchanged": true,
+      "helper_sha256": "7a8f9a6afd5310fcec5908254043b2bee54425e64a199e3554e9c8fe4bb398be",
+      "runtime_scope": "Unbundled receiver standalone runtime; embedded signed launcher not executed",
+      "decoded_graph_payloads": 82,
+      "maximum_local_decode_seconds": 0.558,
+      "original_decode_deadline_seconds": 15,
+      "limit": "No hosted timeout reproduced locally. Exact input/helper diagnostics are retained for the corrected-source hosted run; this does not prove a hosted renderer cause or signed packaged acceptance."
+    }
+  },
+  "installed_application": "Build 60 unchanged; no Store publication or new installed-app acceptance claim.",
+  "workflow_contracts": {
+    "passed": 57,
+    "seconds": 1.899,
+    "preservation": "All original inventory, cancellation, placement, runtime ownership and failure aggregation contracts retained. Final payload additions are exactly generated fixture graph and metadata files; broad private/source trees rejected."
+  },
+  "source_changes": "One product file (Finder recovery ownership); fixture/compiler/diagnostic changes preserve original runtime and behavior assertions. No renderer feature changes, translated UI literal changes, or bundled Help guide changes."
+}

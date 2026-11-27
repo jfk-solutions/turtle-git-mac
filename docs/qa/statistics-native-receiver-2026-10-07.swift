@@ -8,6 +8,42 @@ import ImageIO
 import PDFKit
 
 @main struct StatisticsNativeVerification {
+    struct GraphDecodeFailure:Error,CustomStringConvertible {let description:String}
+    static func graphDecodeFailure(_ data:Data,context:String,started:TimeInterval,helper:URL?,error:Error)->GraphDecodeFailure {
+        let elapsed=ProcessInfo.processInfo.systemUptime-started
+        let attributes=helper.flatMap{try? FileManager.default.attributesOfItem(atPath:$0.path)} ?? [:]
+        var artifact="not configured"
+        var report:[String:Any]=["context":context,"input_bytes":data.count,"decoder_timeout_seconds":15,"elapsed_seconds":elapsed,
+            "helper":helper?.path ?? "unavailable","helper_size":String(describing:attributes[.size] ?? "unavailable"),
+            "helper_modified":String(describing:attributes[.modificationDate] ?? "unavailable"),"error":String(reflecting:error),
+            "diagnostic_limit":"Complete thrown diagnostic retained. Decoder private stdout/stderr are removed internally before timeout reaches this caller."]
+        if let path=ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_FAILURE_ARTIFACTS"] {
+            let folder=URL(fileURLWithPath:path,isDirectory:true)
+            do {
+                guard data.count<=MetafileImageDecoder.maximumInputBytes else{throw NSError(domain:"Graph diagnostic input exceeds decoder's bounded input allowance",code:1)}
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+                let payload=folder.appendingPathComponent("failed-graph.emf"),receipt=folder.appendingPathComponent("failure.json")
+                try data.write(to:payload,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:payload.path)
+                report["payload"]=payload.lastPathComponent
+                try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys,.prettyPrinted]).write(to:receipt,options:.atomic)
+                try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:receipt.path)
+                artifact=folder.path
+            } catch {artifact="retention failed: "+String(reflecting:error)}
+        }
+        let message="Graph decoder failed: context=\(context),bytes=\(data.count),elapsed=\(String(format:"%.3f",elapsed)),timeout=15,helper=\(helper?.path ?? "unavailable"),error=\(String(reflecting:error)),evidence=\(artifact)"
+        fputs(message+"\n",stderr);fflush(stderr)
+        return GraphDecodeFailure(description:message)
+    }
+    static func decodeGraphMetafile(_ data:Data,context:String)throws->Data? {
+        let started=ProcessInfo.processInfo.systemUptime,helper=try? MetafileImageDecoder.executable()
+        print("GRAPH DECODE BEGIN "+context+" bytes=\(data.count) helper=\(helper?.path ?? "unavailable")");fflush(stdout)
+        do {
+            let svg=try MetafileImageDecoder.convert(data)
+            print("GRAPH DECODE END "+context+" elapsed=\(String(format:"%.3f",ProcessInfo.processInfo.systemUptime-started))");fflush(stdout)
+            return svg
+        } catch {throw graphDecodeFailure(data,context:context,started:started,helper:helper,error:error)}
+    }
+
     @MainActor static func wait(_ model: StatisticsWindowModel) async throws {
         let deadline = Date().addingTimeInterval(30)
         while model.busy && Date() < deadline { try await Task.sleep(nanoseconds: 10_000_000) }
@@ -83,7 +119,7 @@ import PDFKit
         if source.namespace(forPrefix:"")?.stringValue != namespace {source.addNamespace(XMLNode.namespace(withName:"",stringValue:namespace) as! XMLNode)}
         return XMLDocument(rootElement:source).xmlData(options:[])
     }
-    static func verifyMetafile(_ data:Data,size:CGSize)throws->CGImage {
+    static func verifyMetafile(_ data:Data,size:CGSize,context:String)throws->CGImage {
         func word(_ offset:Int)->UInt32 {
             precondition(offset>=0 && offset+4<=data.count,"Truncated EMF field")
             return (0..<4).reduce(UInt32(0)){$0 | UInt32(data[offset+$1]) << ($1*8)}
@@ -101,7 +137,7 @@ import PDFKit
             records+=1;last=type;offset+=length
         }
         precondition(last==14 && records==Int(word(52)) && fills>1 && strokes>0 && rasters==0,"Graph is not vector paths and outlined labels")
-        guard let svg=try MetafileImageDecoder.convert(data),let image=ComparisonImage(bytes:svg)?.pixels else {preconditionFailure("Actual bundled EMF decoder refused exported graph")}
+        guard let svg=try decodeGraphMetafile(data,context:context),let image=ComparisonImage(bytes:svg)?.pixels else {preconditionFailure("Actual bundled EMF decoder refused exported graph")}
         let sourceSVG=try prePictureSVG(svg)
         guard let sourceImage=sourceSVG==svg ? image:ComparisonImage(bytes:sourceSVG)?.pixels else{preconditionFailure("Retained pre-Picture graph SVG did not render")}
         precondition(sourceImage.width==image.width && sourceImage.height==image.height,"Pre-Picture graph canvas changed")
@@ -172,7 +208,7 @@ import PDFKit
                         precondition(document.string?.contains("Statistics QA") == true, "PDF lost graph labels in style \(style.rawValue): \(document.string ?? "")")
                     } else {
                         let image:CGImage
-                        if format == .wmf || format == .emf {image=try verifyMetafile(data,size:CGSize(width:640,height:360))}
+                        if format == .wmf || format == .emf {image=try verifyMetafile(data,size:CGSize(width:640,height:360),context:"family/\(model.metric.rawValue)/\(style.rawValue)/\(format.rawValue)/dark=\(dark)")}
                         else {
                             guard let source=CGImageSourceCreateWithData(data as CFData,nil),let decoded=CGImageSourceCreateImageAtIndex(source,0,nil) else {preconditionFailure("Invalid raster")}
                             precondition(CGImageSourceGetType(source) as String? == format.contentType.identifier && decoded.width==640 && decoded.height==360)

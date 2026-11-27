@@ -82,6 +82,7 @@ for case in args.only or ['consumers', 'conflict']:
                                CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(scratch) + '/')
             print('Checking high-depth bitmap ' + case + ' with ' + str(git), flush=True)
             completed = False
+            result = None
             try:
                 result = run_receiver([str(receiver), str(fixture), str(git.absolute()),
                                        str(root / 'Tests/TurtleGitCoreTests/Fixtures/Metafile'), case],
@@ -95,6 +96,16 @@ for case in args.only or ['consumers', 'conflict']:
                 result.check_returncode()
                 if not completed:
                     raise SystemExit('High-depth bitmap receiver exited before completion')
+            except BaseException as failure:
+                evidence = Path(tempfile.mkdtemp(prefix='metafile-high-depth-failed-' + case + '-' + str(index) + '-', dir=root / 'build/qa'))
+                shutil.copytree(context, evidence / 'context', symlinks=True)
+                for stream in ['stdout', 'stderr']:
+                    payload = getattr(result, stream, None) if result is not None else getattr(failure, stream, None)
+                    if payload is not None:
+                        (evidence / (stream + '.log')).write_bytes(payload if isinstance(payload, bytes) else payload.encode())
+                (evidence / 'failure.json').write_text(json.dumps(dict(case=case, git=str(git.absolute()), error=str(failure)[:4096], returncode=getattr(result, 'returncode', None)), indent=2) + '\n')
+                print('Retained high-depth failure evidence: ' + str(evidence), flush=True)
+                raise
             finally:
                 sample = context / 'timeout.sample.txt'
                 if sample.is_file():

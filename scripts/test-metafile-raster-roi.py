@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Grouped new raster ROI/checkpoint WMF/EMF native comparison and conflict consumers."""
 import argparse
+import json
 import os
 from pathlib import Path
 import signal
+import shutil
 import subprocess
 import time
 import tempfile
@@ -103,6 +105,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-raster-native-') as temporary
                        XDG_CONFIG_HOME=str(xdg), TMPDIR=str(private_tmp) + '/', TURTLEGIT_RASTER_ROI_CASE=case)
             print('Checking ROI metafile ' + case + ' with ' + str(git), flush=True)
             completed = False
+            result = None
             try:
                 result = run_receiver([str(receiver), str(directory), str(git.absolute()),
                                        str(root / 'Tests/TurtleGitCoreTests/Fixtures/Metafile')], cwd=root, env=env,
@@ -111,6 +114,16 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-raster-native-') as temporary
                 if 'PASS: ROI metafile native case completed' not in result.stdout:
                     raise SystemExit('ROI metafile receiver exited before completion: ' + case)
                 completed = True
+            except BaseException as failure:
+                evidence = Path(tempfile.mkdtemp(prefix='metafile-raster-roi-failed-' + case + '-' + str(index) + '-', dir=root / 'build/qa'))
+                shutil.copytree(directory, evidence / 'context', symlinks=True)
+                for stream in ['stdout', 'stderr']:
+                    payload = getattr(result, stream, None) if result is not None else getattr(failure, stream, None)
+                    if payload is not None:
+                        (evidence / (stream + '.log')).write_bytes(payload if isinstance(payload, bytes) else payload.encode())
+                (evidence / 'failure.json').write_text(json.dumps(dict(case=case, git=str(git.absolute()), error=str(failure)[:4096], returncode=getattr(result, 'returncode', None)), indent=2) + '\n')
+                print('Retained ROI failure evidence: ' + str(evidence), flush=True)
+                raise
             finally:
                 cleaned = retire_owned_metafile_helpers(directory, approved)
                 if completed and cleaned:

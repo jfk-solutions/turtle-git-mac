@@ -102,6 +102,8 @@ private extension NSWindow {
                 owner.model.load()
                 try await wait {owner.window?.contentView?.layoutSubtreeIfNeeded();return !owner.model.busy && owner.model.document != nil && views(owner.window?.contentView).filter{$0 is ImageComparisonScrollView}.count==2}
                 try require(owner.model.viewerSelection == .image && owner.window?.title.hasSuffix("TurtleGitIDiff")==true,"New records did not route to actual native IDiff: "+(owner.model.error ?? "none"))
+                let helper=(try? MetafileImageDecoder.executable().path) ?? "unavailable"
+                try require(owner.model.imageComparison?.base != nil && owner.model.imageComparison?.destination != nil,"Completed high-depth decode omitted image: left=\(leftName),right=\(rightName),explicit=\(explicit),base=\(owner.model.imageComparison?.base != nil),destination=\(owner.model.imageComparison?.destination != nil),busy=\(owner.model.busy),error=\(String(reflecting:owner.model.error)),helper=\(helper)")
                 try pixels(owner.model.imageComparison?.base,leftPixels,leftName);try pixels(owner.model.imageComparison?.destination,rightPixels,rightName)
                 try require(owner.model.document?.base.bytes==c.inputs[left] && owner.model.document?.destination.bytes==c.inputs[right],"Native view replaced original EMF bytes with PNG")
                 owner.close();try await wait{drained()}

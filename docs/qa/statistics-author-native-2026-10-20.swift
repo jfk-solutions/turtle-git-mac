@@ -18,6 +18,42 @@ private actor StatisticsAuthorWriteGate {
 }
 
 @main struct StatisticsAuthorNativeVerification {
+    struct GraphDecodeFailure:Error,CustomStringConvertible {let description:String}
+    static func graphDecodeFailure(_ data:Data,context:String,started:TimeInterval,helper:URL?,error:Error)->GraphDecodeFailure {
+        let elapsed=ProcessInfo.processInfo.systemUptime-started
+        let attributes=helper.flatMap{try? FileManager.default.attributesOfItem(atPath:$0.path)} ?? [:]
+        var artifact="not configured"
+        var report:[String:Any]=["context":context,"input_bytes":data.count,"decoder_timeout_seconds":15,"elapsed_seconds":elapsed,
+            "helper":helper?.path ?? "unavailable","helper_size":String(describing:attributes[.size] ?? "unavailable"),
+            "helper_modified":String(describing:attributes[.modificationDate] ?? "unavailable"),"error":String(reflecting:error),
+            "diagnostic_limit":"Complete thrown diagnostic retained. Decoder private stdout/stderr are removed internally before timeout reaches this caller."]
+        if let path=ProcessInfo.processInfo.environment["TURTLEGIT_STATISTICS_FAILURE_ARTIFACTS"] {
+            let folder=URL(fileURLWithPath:path,isDirectory:true)
+            do {
+                guard data.count<=MetafileImageDecoder.maximumInputBytes else{throw NSError(domain:"Graph diagnostic input exceeds decoder's bounded input allowance",code:1)}
+                try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true,attributes:[.posixPermissions:0o700])
+                let payload=folder.appendingPathComponent("failed-graph.emf"),receipt=folder.appendingPathComponent("failure.json")
+                try data.write(to:payload,options:.atomic);try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:payload.path)
+                report["payload"]=payload.lastPathComponent
+                try JSONSerialization.data(withJSONObject:report,options:[.sortedKeys,.prettyPrinted]).write(to:receipt,options:.atomic)
+                try FileManager.default.setAttributes([.posixPermissions:0o600],ofItemAtPath:receipt.path)
+                artifact=folder.path
+            } catch {artifact="retention failed: "+String(reflecting:error)}
+        }
+        let message="Graph decoder failed: context=\(context),bytes=\(data.count),elapsed=\(String(format:"%.3f",elapsed)),timeout=15,helper=\(helper?.path ?? "unavailable"),error=\(String(reflecting:error)),evidence=\(artifact)"
+        fputs(message+"\n",stderr);fflush(stderr)
+        return GraphDecodeFailure(description:message)
+    }
+    static func decodeGraphMetafile(_ data:Data,context:String)throws->Data? {
+        let started=ProcessInfo.processInfo.systemUptime,helper=try? MetafileImageDecoder.executable()
+        print("GRAPH DECODE BEGIN "+context+" bytes=\(data.count) helper=\(helper?.path ?? "unavailable")");fflush(stdout)
+        do {
+            let svg=try MetafileImageDecoder.convert(data)
+            print("GRAPH DECODE END "+context+" elapsed=\(String(format:"%.3f",ProcessInfo.processInfo.systemUptime-started))");fflush(stdout)
+            return svg
+        } catch {throw graphDecodeFailure(data,context:context,started:started,helper:helper,error:error)}
+    }
+
     static let composed = "\u{00e9}lodie"
     static let decomposed = "e\u{0301}lodie"
     @MainActor static func require(_ value: Bool, _ message: String, line: Int = #line) throws {
@@ -143,7 +179,7 @@ private actor StatisticsAuthorWriteGate {
                         if type==62 {fills+=1};if type==81 || type==114 {rasters+=1};last=type;offset+=length
                     }
                     try require(last==14 && fills>1 && rasters==0,"Author graph lost vector shapes/outlined labels")
-                    guard let svg=try MetafileImageDecoder.convert(data),let decoded=ComparisonImage(bytes:svg)?.pixels else {throw StatisticsGraphExportFailure.encoding}
+                    guard let svg=try decodeGraphMetafile(data,context:"authors/\(graph.metric.rawValue)/\(style.rawValue)/\(format.rawValue)"),let decoded=ComparisonImage(bytes:svg)?.pixels else {throw StatisticsGraphExportFailure.encoding}
                     try require(decoded.width==naturalWidth && decoded.height==naturalHeight,"Author EMF natural allocation changed: expected\(naturalWidth)x\(naturalHeight),actual\(decoded.width)x\(decoded.height),bounds=[\(word(8)),\(word(12)),\(word(16)),\(word(20))],frame=[\(word(24)),\(word(28)),\(word(32)),\(word(36))],device=[\(word(72)),\(word(76))],metric=\(graph.metric),style=\(style),encodedBytes=\(data.count)")
                     image=decoded
                 } else {

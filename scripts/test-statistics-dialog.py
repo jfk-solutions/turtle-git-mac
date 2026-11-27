@@ -31,6 +31,7 @@ with tempfile.TemporaryDirectory(prefix='turtlegit-statistics-native-') as tempo
                            XDG_CONFIG_HOME=str(context / 'xdg'), TMPDIR=str(scratch) + '/',
                            GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0')
         environment.pop('TURTLEGIT_STATISTICS_SOURCE_CAPTURE', None)
+        environment['TURTLEGIT_STATISTICS_FAILURE_ARTIFACTS'] = str(root / 'build/qa' / ('statistics-decode-family-' + str(index) + '-' + directory.name))
         if args.captures and index == 0:
             environment['TURTLEGIT_STATISTICS_SOURCE_CAPTURE'] = str(args.captures.resolve())
         print('Checking ' + str(git), flush=True)

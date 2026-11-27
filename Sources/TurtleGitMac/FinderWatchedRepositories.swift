@@ -323,7 +323,17 @@ struct FinderWatchRow:Identifiable {
                     }
                     guard try permissions.reloadPreserving(request.record),
                           try permissions.adoptAuthority(authority,from:request) else{continue}
-                    installAuthority(request.record.id, lease: authority.primary, additional: authority.additional)
+                    // Resolving a bookmark does not prove the repository's
+                    // external administration is authorized or readable. Finish
+                    // this replacement's first collection before reporting a
+                    // successful recovery. Otherwise the delayed collector can
+                    // fail after the retry owner exits, repeatedly replacing
+                    // the session and restarting immediate recovery instead of
+                    // retaining its error and the existing bounded backoff.
+                    installAuthority(request.record.id, lease: authority.primary, additional: authority.additional, scheduleInitial: false)
+                    if let replacement = sessions[request.record.id] {
+                        try await collect(replacement, cancellation: cancellation)
+                    }
                 } catch {
                     guard active, !cancellation.isCancelled else { return }
                     if permissions.repositories.first(where:{$0.id==request.record.id})==request.record,

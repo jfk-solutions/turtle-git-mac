@@ -1688,7 +1688,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-final
-          path: build/qa/ci-step-failures/final/
+          path: |
+            build/qa/ci-step-failures/final/
+            build/qa/statistics-decode-family-*/failed-graph.emf
+            build/qa/statistics-decode-family-*/failure.json
+            build/qa/statistics-decode-authors-*/failed-graph.emf
+            build/qa/statistics-decode-authors-*/failure.json
+            build/qa/statistics-decode-graph-*/failed-graph.emf
+            build/qa/statistics-decode-graph-*/failure.json
           if-no-files-found: ignore
           retention-days: 7
   build-and-test:

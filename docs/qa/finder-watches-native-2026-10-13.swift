@@ -20,10 +20,35 @@ import TurtleGitCore
     }
     static func require(_ condition:Bool,_ message:String) throws { if !condition { throw Failure(description:message) } }
     @MainActor static var state:()->String={""}
-    @MainActor static func wait(line:Int = #line,_ ready:()->Bool) async throws {
-        for _ in 0..<2000 { if ready() { return };try await Task.sleep(nanoseconds:10_000_000) };throw Failure(description:"Finder watch timeout at \(line): \(state())")
+    @MainActor static var owners:[FinderWatchManager]=[]
+    @MainActor static var phase="initial"
+    @MainActor static var traceCount=0
+    @MainActor static let traceOrigin=ProcessInfo.processInfo.systemUptime
+    @MainActor static func trace(_ message:String) {
+        guard traceCount<40 else{return};traceCount += 1
+        print("FINDER WATCH elapsed=\(String(format:"%.3f",ProcessInfo.processInfo.systemUptime-traceOrigin)) phase=\(phase) \(message)");fflush(stdout)
     }
-    @MainActor static func main() async { do { try await verify() } catch { fputs("Finder watches failed: \(error)\n",stderr);exit(1) } }
+    @MainActor static func wait(line:Int = #line,_ ready:()->Bool) async throws {
+        var previous=""
+        for iteration in 0..<2000 {
+            if ready() {trace("READY line=\(line)");return}
+            let current=owners.map{owner in "busy=\(owner.busy),pending=\(owner.pendingOperations),recovery=\(owner.recoveryPending),error=\(owner.error ?? "nil"),rows=\(owner.rows.map{"\($0.name):\($0.status)"})"}.joined(separator:"; ")
+            if current != previous {trace("WAIT line=\(line) iteration=\(iteration) "+current);previous=current}
+            try await Task.sleep(nanoseconds:10_000_000)
+        }
+        throw Failure(description:"Finder watch timeout at \(line),phase=\(phase): \(state())")
+    }
+    @MainActor static func shutdownOwned() async {
+        owners.forEach{$0.retire()}
+        for owner in owners {await owner.shutdown()}
+        let drained=owners.allSatisfy{$0.pendingOperations==0 && !$0.recoveryPending}
+        print("FINDER WATCH owned shutdown drained=\(drained),owners=\(owners.count)");fflush(stdout)
+        owners=[]
+    }
+    @MainActor static func main() async {
+        do {try await verify();await shutdownOwned()}
+        catch {fputs("Finder watches failed: \(error)\n",stderr);fflush(stderr);await shutdownOwned();exit(1)}
+    }
     @MainActor static func verify() async throws {
         // Expected cache keys and saved-watch identities use the repository's
         // standardized, resolved private container, not an argv /var alias.
@@ -42,11 +67,13 @@ import TurtleGitCore
         func snapshot() -> FinderSnapshot? { guard let data=try? Data(contentsOf:cache.url) else { return nil };return try? JSONDecoder().decode(FinderSnapshot.self,from:data) }
         var notifications=0
         func manager(_ executable:URL = engine) -> FinderWatchManager {
-            FinderWatchManager(permissions:permissions,cache:cache,requireScope:true,scopeProvider:provider,repositoryFactory:{ GitRepository(root:$0,executable:executable) },registeredRootsURL:registeredURL,notify:{ notifications += 1 })
+            let owner=FinderWatchManager(permissions:permissions,cache:cache,requireScope:true,scopeProvider:provider,repositoryFactory:{ GitRepository(root:$0,executable:executable) },registeredRootsURL:registeredURL,notify:{ notifications += 1 })
+            owners.append(owner);return owner
         }
         let first=manager()
-        state={ "expectedContainer=\(folder.path),saved=\(permissions.repositories.map(\.lastKnownPath)),cache=\(String(describing:snapshot()?.roots)),rows=\(first.rows.map{String(describing:$0)}),pending=\(first.pendingOperations)" }
+        state={ "expectedContainer=\(folder.path),saved=\(permissions.repositories.map(\.lastKnownPath)),cache=\(String(describing:snapshot()?.roots)),rows=\(first.rows.map{String(describing:$0)}),pending=\(first.pendingOperations),busy=\(first.busy),recovery=\(first.recoveryPending),error=\(first.error ?? "nil"),scopeStarts=\(provider.successfulStarts),scopeStops=\(provider.stops)" }
         defer{state={""}}
+        phase="initial two watches"
         await first.add(repositories[0].root);await first.add(repositories[1].root)
         try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } && snapshot()?.roots.count==2 }
         try require(first.rows.count==2 && notifications>=2,"Add/publication")
@@ -59,12 +86,14 @@ import TurtleGitCore
             withExtendedLifetime(received) {}
         }
         let linkedRoot=folder.appendingPathComponent("Linked Watch")
+        phase="linked watch missing admin permission"
         _ = try await repositories[0].run(["worktree","add","-b","linked-watch",linkedRoot.path])
         await first.add(linkedRoot)
         guard let linkedID=permissions.repositories.first(where:{$0.lastKnownPath.utf8.elementsEqual(linkedRoot.path.utf8)})?.id else {
             throw Failure(description:"Linked watch registration lost exact captured path: expected=\(linkedRoot.path),saved=\(permissions.repositories.map(\.lastKnownPath)),rows=\(first.rows.map{String(describing:$0)}),pending=\(first.pendingOperations)")
         }
         try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status.contains(".git")==true }
+        phase="linked watch granted admin permission"
         await first.changePermission(linkedID,url:repositories[0].root.appendingPathComponent(".git"))
         try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status=="Updated" }
         do {
@@ -72,11 +101,14 @@ import TurtleGitCore
             try require(request.version==2 && accesses.first { $0.id==linkedID }?.additionalScopes.count==1,"External scope missing from IPC")
         }
         let extra=first.additionalPermissions(linkedID).first!
+        phase="linked watch revoked admin permission"
         await first.changePermission(linkedID,removing:extra.id)
         try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status.contains(".git")==true }
+        phase="linked watch removal"
         await first.remove(linkedID)
         try await wait { first.pendingOperations==0 && first.rows.count==2 }
         let originalIDs=Set(first.rows.map(\.id))
+        phase="duplicate and external edit"
         await first.add(repositories[0].root);try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } }
         try require(Set(first.rows.map(\.id))==originalIDs,"Duplicate Add created another watcher")
         try Data("changed\n".utf8).write(to:repositories[0].root.appendingPathComponent("file"))
@@ -90,10 +122,12 @@ import TurtleGitCore
             window.isReleasedWhenClosed=false;window.title="Watched Repositories – TurtleGit"
             window.contentViewController=NSHostingController(rootView:FinderWatchedRepositoriesPage(manager:first));window.setContentSize(NSSize(width:900,height:500));window.contentView?.layoutSubtreeIfNeeded();try await capture(window);window.close()
         }
+        phase="initial publisher shutdown"
         await first.shutdown()
         try require(try registered().entries.count==2,"Publisher shutdown erased explicit registered command context")
         try require(FinderSnapshot.readLive(from:cache.url)?.roots.isEmpty==true,"Durable command hint retained live badge authority after shutdown")
         let moved=folder.appendingPathComponent("Moved Project A");try FileManager.default.moveItem(at:repositories[0].root,to:moved);provider.moves[repositories[0].root.path]=moved
+        phase="moved watch restoration"
         let relaunched=manager();relaunched.restore()
         try await wait { relaunched.pendingOperations==0 && relaunched.rows.count==2 && relaunched.rows.allSatisfy { $0.status=="Updated" } && snapshot()?.roots.contains(moved.path)==true }
         try require(!snapshot()!.roots.contains(repositories[0].root.path) && permissions.repositories.first { $0.id==aID }?.lastKnownPath==moved.path,"Moved root retained ghost cache/lost identity")
@@ -104,12 +138,14 @@ import TurtleGitCore
         let removedRegistered=try registered()
         try require(removedRegistered.entries.count==1 && !removedRegistered.entries.contains(where:{$0.id==aID}),"Remove retained obsolete registered command context")
         await relaunched.shutdown()
+        phase="denied scope restoration"
         provider.available=false;let denied=manager();denied.restore()
         try await wait {denied.pendingOperations==0 && denied.rows.first?.status.contains("unavailable")==true}
         try require(denied.rows.first?.status.contains("unavailable")==true && permissions.repositories.count==1,"Failed scope discarded row")
         await denied.shutdown();provider.available=true
         func quote(_ value:String) -> String { "'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'" }
         for phase in ["remove","quit"] {
+            self.phase="held worker "+phase
             if permissions.repositories.isEmpty { _ = try permissions.remember(repositories[1].root) }
             let helper=folder.appendingPathComponent("slow-watch-"+phase),marker=URL(fileURLWithPath:helper.path+".ready")
             let script="""

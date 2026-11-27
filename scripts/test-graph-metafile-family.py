@@ -82,6 +82,7 @@ for case in args.only or ['statistics', 'revision', 'ownership']:
             environment.update(DYLD_FRAMEWORK_PATH=str(root / 'build/Build/Products/Debug'),
                                GIT_CONFIG_GLOBAL=str(config), GIT_CONFIG_NOSYSTEM='1', GIT_CONFIG_COUNT='0',
                                HOME=str(preferences), CFFIXED_USER_HOME=str(preferences), XDG_CONFIG_HOME=str(xdg), TMPDIR=str(scratch) + '/')
+            environment['TURTLEGIT_STATISTICS_FAILURE_ARTIFACTS'] = str(root / 'build/qa' / ('statistics-decode-graph-' + case + '-' + str(index) + '-' + context.name))
             print('Checking graph metafile ' + case + ' with ' + str(git), flush=True)
             completed = False
             try:
