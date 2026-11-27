@@ -1,0 +1,231 @@
+{
+  "source_commit": "382535b720d40f43da72518fb9f1fb9e425b42b7",
+  "run_id": 46041091755,
+  "job_id": 140649356704,
+  "step": 201,
+  "artifact_id": 15226811260,
+  "artifact_zip_sha256": "f29f919b00b215faf3e27cdee87499c33653b75ad2f9d04356532ea45f012591",
+  "artifact_files_sha256": {
+    "ci-step-failures/middle/58b5470e-85db-4420-86da-93335ed14356.txt": "d1d4a8a83b810e9a8bb93c4a46560f511e635854600c63bc26c47c3b18b08464",
+    "ci-step-failures/middle/summary.json": "33820dea170a6638fb88176c5fa3be8aac38b37d8f0ac5b05af5f387b85f82dc",
+    "rebase-source-add-0-tg-rebase-source-31i9nx62-timeout.sample.txt": "a9e062708348f04d23f5f5decbb1229b9604cf5a5a42f5f46934c71fc8959469",
+    "rebase-source-add-failed-0-f86c_48u/failure.json": "4fc053042828750f3fbaa8cb52fb42f72d775b99b596e4db80f95458e20fbb26",
+    "rebase-source-add-failed-0-f86c_48u/stderr.log": "0419c5debb2d1ae2bfaf0653f28fb28e58b995c572437935271148acbdfb21ca",
+    "rebase-source-add-failed-0-f86c_48u/stdout.log": "4da0d1c2f68e3f19982443df281c4fa36e03fb3cc4205df38ec59b5780acce35"
+  },
+  "failure": {
+    "case": "add",
+    "git": "/usr/bin/git",
+    "error": "TimeoutExpired(['/Users/runner/work/turtle-git-mac/turtle-git-mac/build/qa/native-receivers/linked/8911d19c7d74c2e3c94af2e64d170aad886995cdc5527aa4510c9c3b8d489080/receiver-aca662c3457512b9bbabe144d903bfd90af544c209655f787d65e03e52dee874', '/var/folders/20/jp1_0n3n7kndh6rnbqb5344m0000gn/T/tg-rebase-source-31i9nx62/add0/repository', '/usr/bin/git', '/Users/runner/work/turtle-git-mac/turtle-git-mac/build/Build/Products/Debug/TurtleGitMac.app/Contents/MacOS/TurtleGitMac', 'add'], 300)",
+    "receiver_timeout_seconds": 300,
+    "native_wait_iterations": 2000,
+    "native_wait_sleep_seconds": 0.01,
+    "timeout_sample": "/Users/runner/work/turtle-git-mac/turtle-git-mac/build/qa/rebase-source-add-0-tg-rebase-source-31i9nx62-timeout.sample.txt",
+    "timeout_sample_exists": true,
+    "private_context": "context",
+    "receiver_cleanup": "run_receiver finally completed before exception reached case driver"
+  },
+  "phase_timeline": [
+    {
+      "elapsed_seconds": -0.0,
+      "phase": "initial repository and plan setup"
+    },
+    {
+      "elapsed_seconds": 5.324,
+      "phase": "held Add cancellation, failure and immutable retry"
+    },
+    {
+      "elapsed_seconds": 8.048,
+      "phase": "open cancellation picker"
+    },
+    {
+      "elapsed_seconds": 10.451,
+      "phase": "finish cancellation picker"
+    },
+    {
+      "elapsed_seconds": 10.48,
+      "phase": "open acceptance picker"
+    },
+    {
+      "elapsed_seconds": 12.442,
+      "phase": "finish acceptance picker"
+    },
+    {
+      "elapsed_seconds": 14.076,
+      "phase": "open refused picker"
+    },
+    {
+      "elapsed_seconds": 22.333,
+      "phase": "start reached-mainline held read"
+    },
+    {
+      "elapsed_seconds": 27.803,
+      "phase": "cancel reached-mainline held read"
+    },
+    {
+      "elapsed_seconds": 27.803,
+      "phase": "release cancelled reached-mainline held read"
+    },
+    {
+      "elapsed_seconds": 31.519,
+      "phase": "open reached-mainline sheet"
+    },
+    {
+      "elapsed_seconds": 35.105,
+      "phase": "cancel reached-mainline sheet"
+    },
+    {
+      "elapsed_seconds": 38.45,
+      "phase": "reopen reached-mainline sheet"
+    },
+    {
+      "elapsed_seconds": 41.755,
+      "phase": "close reached-mainline owner"
+    },
+    {
+      "elapsed_seconds": 43.047,
+      "phase": "reachedOrdering"
+    },
+    {
+      "elapsed_seconds": 87.41,
+      "phase": "repeatedReachedSkip"
+    },
+    {
+      "elapsed_seconds": 118.821,
+      "phase": "reachedOwnership"
+    },
+    {
+      "elapsed_seconds": 145.665,
+      "phase": "noCommitSquashRecovery"
+    },
+    {
+      "elapsed_seconds": 145.665,
+      "phase": "no-commit Squash commit"
+    },
+    {
+      "elapsed_seconds": 175.666,
+      "phase": "no-commit Squash abort"
+    },
+    {
+      "elapsed_seconds": 202.488,
+      "phase": "no-commit Squash conflict"
+    },
+    {
+      "elapsed_seconds": 238.027,
+      "phase": "noCommitSquashSplit"
+    }
+  ],
+  "last_completed_wait": {
+    "elapsed_seconds": 297.503,
+    "line": 452
+  },
+  "last_pending_wait": {
+    "elapsed_seconds": 297.503,
+    "line": 454,
+    "condition": "!next.busy && next.finished",
+    "process_budget_seconds_remaining": 2.497
+  },
+  "diagnosis_limit": "Cumulative 300-second process budget expires while final Split workflow is progressing; does not establish a stuck native or product operation. Original per-wait budget is 2000 iterations x0.01 seconds.",
+  "repair_scope": "Independently owned process cohorts, full original Add coverage and original 300-second process/20-second native waiter budgets; combined receiver compiled once.",
+  "validation_status": "passed locally; full corrected-source hosted run remains required",
+  "independent_review": {
+    "agent": "blame_menu_continuation",
+    "result": "No actionable blocker in cohort split; all six original helper calls retained across four cohorts; one combined compilation and original case/engine/cohort order.",
+    "sample_interpretation": "AppKit main thread idle while worker still enters continueRebaseOwned/rebasePath/Git process polling and publishNoCommitGroup; no stuck product step proven."
+  },
+  "implementation": {
+    "cohorts": [
+      "preparation",
+      "reached",
+      "no-commit-recovery",
+      "no-commit-split"
+    ],
+    "original_helper_order": [
+      "verifyPreparation",
+      "reachedOrdering",
+      "repeatedReachedSkip",
+      "reachedOwnership",
+      "noCommitSquashRecovery",
+      "noCommitSquashSplit"
+    ],
+    "single_combined_receiver_compilation": true,
+    "all_original_assertions_retained": true,
+    "receiver_timeout_seconds": 300,
+    "native_wait_iterations": 2000,
+    "native_wait_sleep_seconds": 0.01,
+    "default_driver": "all original cases, each requested Git, every Add cohort in original order",
+    "standalone_fixture": "absent cohort environment executes all original families",
+    "failure_behavior": "original fail-fast with owned process reaping and complete cohort-tagged evidence; no continuation through unverified cleanup"
+  },
+  "validation": {
+    "offline_contracts": {
+      "command": "python3 scripts/test-rebase-source-contracts.py",
+      "tests": 5,
+      "exit_code": 0,
+      "elapsed_seconds": 0.143
+    },
+    "native": {
+      "started_utc": "2026-11-27T19:23:57.014050+00:00",
+      "cwd": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+      "args": [
+        "python3",
+        "-u",
+        "scripts/test-rebase-source.py",
+        "--only",
+        "add",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/Build/Products/Debug/TurtleGitMac.app/Contents/Resources/TurtleGitRuntimes/Git/bin/git"
+      ],
+      "log": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/qa/ci-rebase-add-cohorts-both-git-2026-11-27.log",
+      "source_commit": "382535b720d40f43da72518fb9f1fb9e425b42b7 plus cohort repair",
+      "fixture_sha256": "5f3b8b235094eef2fd6f29c39f7970fcc6fdefdf6250ae31303d7bf8e728077b",
+      "driver_sha256": "bc3c0000e489b3a14875d611cd97cf4ea730bae2c1086341f402da98df85f788",
+      "status": "passed",
+      "driver_pid": 2345,
+      "exit_code": 0,
+      "elapsed_seconds": 234.344463,
+      "finished_utc": "2026-11-27T19:27:51.359107+00:00"
+    },
+    "cohort_passes": [
+      "preparation",
+      "reached",
+      "no-commit-recovery",
+      "no-commit-split",
+      "preparation",
+      "reached",
+      "no-commit-recovery",
+      "no-commit-split"
+    ],
+    "native_final_markers": 8,
+    "log_sha256": "2e6624c473a95e6fd42811aac79c1c8d2d3ff6800747d17930dccbb47a7a9d33",
+    "owned_pids_reaped_and_independently_absent": [
+      2345,
+      2395,
+      2594,
+      3743,
+      6143,
+      8539,
+      10081,
+      11072,
+      13395,
+      15697
+    ],
+    "process_check_stdout": "",
+    "app_core_source_closure_byte_matches": 501,
+    "product_changes": false,
+    "app_core_build_repeated": false,
+    "full_core_suite_repeated_locally": false
+  },
+  "files_sha256": {
+    "docs/qa/rebase-add-preparation-native-2026-10-16.swift": "5f3b8b235094eef2fd6f29c39f7970fcc6fdefdf6250ae31303d7bf8e728077b",
+    "scripts/test-rebase-source.py": "bc3c0000e489b3a14875d611cd97cf4ea730bae2c1086341f402da98df85f788",
+    "scripts/test-rebase-source-contracts.py": "44b46a59ef05a6e421d9a7a7d3037d2247b199030e3438cd5c8e01185d4ae3d8"
+  },
+  "remaining_limits": [
+    "Complete corrected-source hosted CI remains required.",
+    "Local focused pass does not certify signed deployment, physical Finder, every upstream dialog or App Store release.",
+    "Installed build60 remains unchanged; no publication or new metafile work."
+  ]
+}

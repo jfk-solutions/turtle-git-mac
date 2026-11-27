@@ -411,3 +411,31 @@ also set session auto-start intent after the final load/setup and verify the
 exact stored/reopened metadata and automatic-close count. All owned compiler
 and receiver processes were reaped and independently absent. No further local
 suite or application build is needed before the corrected-source hosted run.
+
+## Rebase Add cumulative receiver deadline — November 27
+
+Run [46041091755](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46041091755),
+source `382535b7`, passes the complete History/References lane and the previously
+failed primary-command and Sync file-activation checkpoints. The complete run
+is still active. Rebase step 201 fails in the system-Git Add receiver.
+
+The middle diagnostic artifact `15226811260` preserves its complete stdout,
+stderr, timeout receipt and process sample. The receiver reaches the last Split
+workflow at 238.027 seconds. Its final staging wait completes at 297.503 seconds;
+the following finish wait then has only 2.497 seconds before the existing
+300-second process deadline. Earlier native waits continue completing, and the
+sample does not establish a hung product operation. This is evidence of an
+insufficient cumulative process budget for the combined fixture, not evidence
+that the application needs a larger operation timeout.
+
+The recovery separates independent Add workflow cohorts into owned receiver
+processes while retaining one combined receiver compilation, all original Git
+and native assertions, the 300-second process limit and each original native
+wait limit. The [grouped recovery checkpoint](qa/hosted-rebase-add-cohort-recovery-2026-11-27.json)
+passes all four cohorts with system and bundled Git: eight owned receivers in
+234.344 seconds, plus five offline execution/isolation contracts. All owned
+compiler/receiver processes are reaped and independently absent. The cached
+build's 501 App/Core Swift sources match the current source; no product rebuild
+or local full Core rerun was needed. Complete corrected-source hosted acceptance
+remains required. No application/Core change, new metafile work or installed-app
+update is included in this correction.

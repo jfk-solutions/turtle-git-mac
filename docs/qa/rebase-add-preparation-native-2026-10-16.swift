@@ -72,6 +72,33 @@ private extension NSWindow {
         let hiddenSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.rebaseAddHiddenSheet(_:completionHandler:)))!
         method_exchangeImplementations(order,hiddenOrder);method_exchangeImplementations(sheetMethod,hiddenSheet)
         defer {method_exchangeImplementations(sheetMethod,hiddenSheet);method_exchangeImplementations(order,hiddenOrder)}
+        let cohorts=["preparation","reached","no-commit-recovery","no-commit-split"]
+        let requested=ProcessInfo.processInfo.environment["TURTLEGIT_REBASE_ADD_COHORT"]
+        guard requested == nil || cohorts.contains(requested!) else{throw Failure(description:"Unknown Add cohort: "+requested!)}
+        do {
+            for cohort in requested.map({[$0]}) ?? cohorts {
+                phase("cohort "+cohort)
+                switch cohort {
+                case "preparation":try await verifyPreparation()
+                case "reached":try await reachedOrdering();try await repeatedReachedSkip();try await reachedOwnership()
+                case "no-commit-recovery":try await noCommitSquashRecovery()
+                case "no-commit-split":try await noCommitSquashSplit()
+                default:preconditionFailure("Validated Add cohort disappeared")
+                }
+                try await drain()
+                try require(cleanupFailures.isEmpty,"Owned cleanup failed: \(cleanupFailures)")
+                try await wait {owners.isEmpty && RebaseWindowController.activeCommitPickers==0 && CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0}
+                print("PASS: Rebase Add cohort "+cohort);fflush(stdout)
+            }
+        } catch {
+            owners.forEach{$0.model.retire();$0.close()}
+            try? await drain()
+            throw error
+        }
+        if let requested {print("PASS: owned Rebase Add cohort \(requested); Git \(CommandLine.arguments[2])")}
+        else {print("PASS: owned Add/draft/picker and reached Cherry Pick merge-parent recovery; cancellation, ordered empty review, repeated Skip, reopen, stale answer and forced close; Git \(CommandLine.arguments[2])")}
+    }
+    @MainActor static func verifyPreparation() async throws {
         phase("initial repository and plan setup")
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repo.run(["init", "-b", "main"])
@@ -233,14 +260,11 @@ private extension NSWindow {
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterIndex = try await repo.run(["write-tree"]).stdout
         let afterState = try await repo.rebaseState()
         try require(afterHead == originalHead && afterIndex == originalIndex && !afterState.active, "Preparation changed Git state")
-        owners.forEach { $0.model.retire(); $0.close() }; owners = []; try await drain()
-        try await reachedOrdering()
-        try await repeatedReachedSkip()
-        try await reachedOwnership()
-        try await noCommitSquashRecovery()
-        try await noCommitSquashSplit()
+        let preparationOwners=owners
+        preparationOwners.forEach { $0.model.retire(); $0.close() };try await drain()
+        try await wait {preparationOwners.allSatisfy{$0.model.pendingBatchWorkers==0 && $0.window?.isVisible != true && $0.window?.attachedSheet==nil && $0.window?.sheetParent==nil}}
+        owners=[]
         try require(RebaseWindowController.activeCommitPickers == 0, "Picker counter leaked")
-        print("PASS: owned Add/draft/picker and reached Cherry Pick merge-parent recovery; cancellation, ordered empty review, repeated Skip, reopen, stale answer and forced close; Git \(CommandLine.arguments[2])")
     }
 
     @MainActor static func reachedOrdering()async throws {
