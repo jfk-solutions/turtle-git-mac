@@ -1,0 +1,87 @@
+{
+  "kind": "TurtleGitSignedConsolidatedLocalCandidate",
+  "date": "2026-11-27",
+  "source_commit": "da754caa25f9f8a09923d13a2a4c1875f0f789ad",
+  "source_input_sha256": "b3f9ff4c8b17d1100bf0e79a5c744f0cec9d12fa251c15a69643b4a57c8b94b7",
+  "version": "0.1.0",
+  "build": "60",
+  "team": "A49SCA5S8K",
+  "main_sha256": "141438232dbbed6250c00738f7037ba3420b3873661b589b1109d2ce5fc34b29",
+  "packaged_core_sha256": "9b3ebc3ecb93d32ad0bd7481cb7a68f71dae80c693c7183689bff7fb2eb93257",
+  "static": {
+    "strict_deep_seal": true,
+    "universal_owned_components": 8,
+    "compiled_locales": 38,
+    "exact_help_source_files": 104,
+    "source_and_runtime_inputs_unchanged": true
+  },
+  "fresh_signed_local_tools": {
+    "passed": true,
+    "native_ui_executed": false,
+    "private_probe_root_removed": true,
+    "observed_owned_pids_absent": [
+      11006,
+      11211,
+      10905,
+      95188
+    ]
+  },
+  "package": {
+    "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build60-signed",
+    "archive": {
+      "name": "TurtleGit-for-Mac-0.1.0-build60-signed.zip",
+      "sha256": "a6c11f35596be14f0ffcba6969822e97d35a3e4d93d63e3253980d527d5cc623",
+      "bytes": 427191589
+    },
+    "source_archive": {
+      "name": "TurtleGit-for-Mac-source-da754caa25f9f8a09923d13a2a4c1875f0f789ad.tar.gz",
+      "commit": "da754caa25f9f8a09923d13a2a4c1875f0f789ad",
+      "sha256": "da22bbae105aab084afb6b603b6bdafcce82e1f164d47d5ded9c66590f3cc0b0",
+      "bytes": 207984354,
+      "tracked_blobs": 14924,
+      "directories": 116,
+      "exact_names_blobs_modes_comment": true,
+      "tar_umask": "0002"
+    },
+    "complete_inventory_members": 7493,
+    "copied_and_extracted_complete_inventory_equal": true,
+    "source_copy_and_zip_roundtrip_deep_strict": true
+  },
+  "receipts": {
+    "signed60-build-command-2026-11-27.json": {
+      "path": "build/qa/signed60-build-command-2026-11-27.json",
+      "sha256": "d72d09818963a3115b4e8473d9487d5bc70e0abc3e1af8293e3a20b65a7ada78"
+    },
+    "signed60-final-command-2026-11-27.json": {
+      "path": "build/qa/signed60-final-command-2026-11-27.json",
+      "sha256": "6f6626cec006d80f0ec75e9120fe71373ffaa69a3c933ba41e916a276c644dba"
+    },
+    "signed60-static-2026-11-27.json": {
+      "path": "build/qa/signed60-static-2026-11-27.json",
+      "sha256": "a3b25c9b3dff655dd56c24a6f37c00311bb334d5727047edc93f4383a75e0dda"
+    },
+    "signed60-local-tools-consumer-2026-11-27.json": {
+      "path": "build/qa/signed60-local-tools-consumer-2026-11-27.json",
+      "sha256": "4ef63160f9ea27db93d5227d9d2cd40a8a7af73919186a6431ccf726d92439af"
+    },
+    "signed60-local-tools-phase-contract-2026-11-27.json": {
+      "path": "build/qa/signed60-local-tools-phase-contract-2026-11-27.json",
+      "sha256": "c7999718a48861ebb1b71d34e1bee76683fc9cee9b14a6dda40daa87df437b37"
+    },
+    "signed60-final-retained57-ssh-component-binding-2026-11-27.json": {
+      "path": "build/qa/signed60-final-retained57-ssh-component-binding-2026-11-27.json",
+      "sha256": "ff65633dc7cf13dc35694fc4aa2a7ed7ce8e89e437f3fffce5a7974005731935"
+    }
+  },
+  "installation": {
+    "status": "installed while closed; not launched",
+    "receipt": "build/qa/signed60-installed-2026-11-27.json",
+    "sha256": "c4af350dc91e56d8e9bb51adad82f034ffb3b63a26bf7ee2da2897ed29c597ae",
+    "rollback_build": "59"
+  },
+  "hosted_ci": {
+    "run": 45995227210,
+    "status": "running; infrastructure download retry pending"
+  },
+  "limitations": "Scoped local signed public-Core/Git smoke and static/package audits; no fresh shipping GUI, physical Finder, permission prompt or image-rendering execution. Historical image/SSH evidence retains component-limited scope. Not notarized or submitted to App Store."
+}

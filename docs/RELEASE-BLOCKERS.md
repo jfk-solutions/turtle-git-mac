@@ -1,14 +1,25 @@
 # Local testing and release gates
 
-## Current hosted CI gate — November 26, 2026
+## Current hosted CI gate — November 27, 2026
 
-[Run 45706913427](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45706913427)
-on main `483fdcc6` passed Core and SVN and failed native lanes. Pages passed
-separately. The [affected recovery batch](NATIVE-CI-RECOVERY-2026-11-26.md) is
-passes its [46 affected native process cases](qa/native-ci-recovery-2026-11-26.json);
-a fresh full hosted pass remains required after push.
-Signed build59 is installed for owner testing. It does not contain this later
-batch. No Store submission or public binary publication has been performed.
+[Run 45995227210](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45995227210)
+validates app/runtime source `da754caa` and is still running. Pages and SVN passed;
+app/Finder compilation and SwiftPM preparation passed in the four initially
+active lanes. Commit/repository failed before tests because GitHub's artifact
+listing timed out. The single-job retry must wait for the active workflow to
+finish; passing lanes will be retained. No full current hosted pass is claimed.
+
+[Build60](qa/signed-consolidation-build60-2026-11-27.json) includes the later
+native/editor/Log source repairs and is [installed](qa/signed-consolidation-build60-installation-2026-11-27.json)
+for owner testing. Its universal signed build, static/resource checks, bounded
+signed local-tools check and complete app/source ZIP verification pass. Build59
+is preserved for rollback. No user session was closed, and the app was not
+launched during installation. Current owner/physical acceptance and full CI
+remain open. No Store submission or public binary publication has occurred.
+
+The dated sections below preserve checkpoint history, including statements
+about what earlier builds did not yet include. They are superseded by build60
+only for its explicitly included source changes and measured acceptance scope.
 
 ## Compare selection and localized lists — November 25, 2026
 

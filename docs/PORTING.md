@@ -1,15 +1,30 @@
 # TurtleGit for Mac — full port tracking
 
-## Current CI recovery — November 26, 2026
+## Current testing candidate and CI — November 27, 2026
 
-Main `483fdcc6` passed hosted Core and SVN; its Pages deployment also passed.
-The native lanes failed. The [recovery batch](NATIVE-CI-RECOVERY-2026-11-26.md)
-covers those reported workflows, the Patch file-list menu lifetime defect and
-the connected [Compare/Merge Reload family](MERGE-RELOAD-POSITION-PARITY.md).
-The [grouped checkpoint](qa/native-ci-recovery-2026-11-26.json) passes 46 affected
-native process cases, retaining unchanged Core/runtime and unrelated passes.
-This is not a complete hosted pass; fresh GitHub CI is the next gate.
-Installed build59 remains the owner-testing package, separate from this batch.
+[Signed build60](qa/signed-consolidation-build60-2026-11-27.json) is installed
+for the next owner launch. Its exact app/runtime source is `da754caa`; the
+[installation record](qa/signed-consolidation-build60-installation-2026-11-27.json) preserves
+build59 for rollback and records that no user session was terminated or app
+launched. The single universal build, strict signatures/role entitlements,
+frozen Help/localization resources, bounded signed public-Core/Git check and
+complete app/source archive round trips pass.
+
+Build60 includes the post59 Compare/three-way caret and Reload fixes,
+Commit/Working Tree/Revert primary-action authority, Import Patch Quit/Save
+continuation, initial-read editor commands and stable Log pane geometry. No
+new renderer work is included. Earlier dated records below retain their
+original scope and are superseded by this candidate only for included behavior.
+
+[Hosted run 45995227210](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45995227210)
+is still running against `da754caa`. Pages and SVN passed; the four initially
+active lanes passed app/Finder and SwiftPM preparation. Commit/repository stopped
+before testing on a GitHub artifact-list request timeout; GitHub refuses its
+single-job retry while the workflow is active. The [recovery record](NATIVE-CI-RECOVERY-2026-11-26.md)
+retains the prior failures and affected local repairs. A complete current hosted
+pass remains required; neither this candidate nor the coverage ledger certifies
+all dialogs or physical Finder/visual acceptance. No public release, notarization
+or App Store submission has been performed.
 
 ## Compare presentation and localized workflow recovery — November 25, 2026
 

@@ -3,12 +3,39 @@
 *A macOS fork of TortoiseGit*
 
 Local testing comes before publication. The latest separately packaged local
-candidate is signed build59. It is installed and reopened for owner testing;
-[the installation record](qa/signed59-installed-2026-11-25.json) verifies the
-exact installed package and preserved build58 rollback.
+candidate is signed build60. It is installed for the next owner launch;
+[the installation record](qa/signed-consolidation-build60-installation-2026-11-27.json) verifies
+the exact installed package, closed-session update and preserved build59 rollback.
 There is no public App Store listing or submitted release. The App Store remains
 a future channel after owner acceptance, distribution signing and the existing
 license/Store terms review.
+
+## Signed local testing build60 — November 27, 2026
+
+[Build60's record](qa/signed-consolidation-build60-2026-11-27.json) identifies
+`0.1.0 (60)` from exact clean source `da754caa`. It includes the post59
+Compare/three-way caret and Reload repairs, Commit/Working Tree/Revert accepted
+primary actions, initial-read editor commands, Import Patch Quit/Save continuation
+and stable native Log pane geometry. Core and runtime source components are
+unchanged from59; no new renderer functionality is included.
+
+One universal signed build, strict static architecture/team/role-seal checks,
+exact frozen Help and 38 compiled locale resources, a fresh bounded signed
+public-Core/Git phase and complete copied/extracted app/source ZIP verification
+pass. The source companion matches 14,924 tracked blobs and 116 directories.
+The local package is `build/local-testing/TurtleGit-for-Mac-0.1.0-build60-signed`.
+Its ZIP SHA-256 is `a6c11f35596be14f0ffcba6969822e97d35a3e4d93d63e3253980d527d5cc623`;
+the matching source archive SHA-256 is
+`da22bbae105aab084afb6b603b6bdafcce82e1f164d47d5ded9c66590f3cc0b0`.
+
+The [current hosted run](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/45995227210)
+is still running, with an infrastructure-failed lane awaiting retry. Owner and
+physical acceptance remain separate. Historical image56 and SSH57 evidence keeps
+its explicit component scope, with fresh60 static compatibility checks; it is
+not new60 image/permission execution or main/Core binary equivalence. The installed
+app was not launched, no user process was terminated, and no public upload,
+notarization or Store submission was performed. The dated records below retain
+their original outcomes and are superseded only for the same scope.
 
 ## Signed local testing build59
 

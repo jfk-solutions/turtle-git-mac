@@ -1,0 +1,17 @@
+{
+  "kind": "TurtleGitClosedSessionLocalInstall",
+  "utc": "2026-11-27T12:37:38.965962+00:00",
+  "source_commit": "da754caa25f9f8a09923d13a2a4c1875f0f789ad",
+  "version": "0.1.0",
+  "build": "60",
+  "target": "/Applications/TurtleGit for Mac.app",
+  "main_sha256": "141438232dbbed6250c00738f7037ba3420b3873661b589b1109d2ce5fc34b29",
+  "rollback": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-build59-before60-2026-11-27.app",
+  "rollback_main_sha256": "209046479ca68fe7655662aac21f8d777371fae86968a464a76eb0316b00d8c1",
+  "strict_deep_seal": true,
+  "owner_main_closed_before_and_after_staging": true,
+  "user_processes_terminated": false,
+  "app_launched": false,
+  "hosted_ci": "still running; not claimed green",
+  "public_release": false
+}
