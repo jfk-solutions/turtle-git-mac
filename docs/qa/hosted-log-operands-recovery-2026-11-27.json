@@ -1,0 +1,101 @@
+{
+  "kind": "TurtleGitLogComparisonNativeRecovery",
+  "date": "2026-11-27",
+  "base_commit": "e3046c732c5774d42ff40e3c96b786c8e04cd63b",
+  "status": "affected-native-family-pass-hosted-pending",
+  "hosted_failure": {
+    "run": 45995227210,
+    "source": "da754caa25f9f8a09923d13a2a4c1875f0f789ad",
+    "job": 140493322112,
+    "step": 283,
+    "artifact": 15199089959,
+    "artifact_sha256": "309baff78702f7841c7158e03125dee770fe8d9de9d1bdc408197837390f7293",
+    "case": "rename/bundled",
+    "failed_receiver_reaped": 18688,
+    "failure": "native selected IDs/readiness timeout before fixture first-responder request; native/model count4/4 did not prove row identity projection"
+  },
+  "source_review": "Coordinator maps native indexes through its rendered rows while selectedFiles intersects current visible file IDs. Same-count rename permitted fixture premature selection. NSTextView and AttributeGraph warnings alone did not prove product focus regression.",
+  "repair": "Before one native selection, require current data-source/model identity, original delegate beneath selection-policy proxy, exact native Path tooltip UTF8/group projection and native/model selection reconciliation. Keep existing exact IDs/indexes, focus/Return, captured operands, backend, bytes, cancellation and owner assertions; expand failure witnesses.",
+  "inputs_sha256": {
+    "docs/qa/log-primary-activation-native-2026-11-22.swift": "3059447f21e21394c306b86ece82b70b411fd5a2e1870311bdee17df3c638216"
+  },
+  "results": [
+    {
+      "name": "operands",
+      "command": [
+        "python3",
+        "scripts/test-log-working-comparison-operands.py",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 43.675,
+      "log": "build/qa/ci-log283-repair2-operands-2026-11-27.log",
+      "log_sha256": "cf33d5e1e74a62f3972ffa6134d6944f4a7d1807c1722e325decc76f7164195b"
+    },
+    {
+      "name": "primary",
+      "command": [
+        "python3",
+        "scripts/test-log-primary-activation-batch.py",
+        "--only",
+        "primary",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "build/git-runtime/Git/bin/git"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 35.591,
+      "log": "build/qa/ci-log283-repair2-primary-2026-11-27.log",
+      "log_sha256": "0f7cc911b567b9e4f0c2dba4cfce455f58d44da3c103c42def34b3890b588a43"
+    }
+  ],
+  "native_process_cases": 10,
+  "failed_local_attempt": "First new guard incorrectly cast the legitimate selection-policy delegate proxy. It failed before selection; fixed to authoritative data source plus originalDelegate identity. Receiver61392/compiler61278 reaped; failed evidence retained.",
+  "evidence": [
+    {
+      "path": "build/qa/ci-log283-repair-operands-2026-11-27.log",
+      "sha256": "59fdd71663ed00ac4fe08f47d57258834053910e543a114416d759ca967583ae"
+    },
+    {
+      "path": "build/qa/ci-log283-repair2-operands-2026-11-27.log",
+      "sha256": "cf33d5e1e74a62f3972ffa6134d6944f4a7d1807c1722e325decc76f7164195b"
+    },
+    {
+      "path": "build/qa/ci-log283-repair2-primary-2026-11-27.log",
+      "sha256": "0f7cc911b567b9e4f0c2dba4cfce455f58d44da3c103c42def34b3890b588a43"
+    },
+    {
+      "path": "build/qa/ci-log283-repair-family-2026-11-27.json",
+      "sha256": "73fd5cbde485addbf27c78b983aeb224487d6e901ae31e3a23408d9a605c6fde"
+    },
+    {
+      "path": "build/qa/ci-log283-repair-family2-2026-11-27.json",
+      "sha256": "097920d0fd621cec6e4293c8bcd59725df71612854ba96e7e29665b91cf95d65"
+    }
+  ],
+  "owned_processes_reaped_and_independently_absent": [
+    61278,
+    61392,
+    64029,
+    64084,
+    64454,
+    64786,
+    65049,
+    65284,
+    65448,
+    65595,
+    65745,
+    65910,
+    65989,
+    66653
+  ],
+  "owned_processes_remaining": [],
+  "app_core_runtime_builds": 0,
+  "product_sources_changed": false,
+  "installed60": "unchanged; no new app build/install",
+  "limits": "Focused8 comparison and2primary native process cases with bothGit; retained unaffected conflict/image groups. Fresh hosted check required; no new physical/visual/Finder claim."
+}

@@ -110,9 +110,38 @@ import TurtleGitCore
             try Data("<<<<<<< mine\nmine\n=======\ntheirs\n>>>>>>> theirs\n".utf8).write(to:root.appendingPathComponent(path))
         }
         func table()throws->LogChangedFileNativeTable {try unwrap(views(owner?.window?.contentView).compactMap{$0 as? LogChangedFileNativeTable}.first,"Actual Log file report missing")}
-        func focusDiagnostic(_ table:LogChangedFileNativeTable,_ window:NSWindow)->String {
+        func nativeProjection(_ table:LogChangedFileNativeTable,_ model:LogWindowModel)->Bool {
+            let rows=model.fileTableRows
+            guard let coordinator=table.dataSource as? LogChangedFileReport.Coordinator,coordinator.model === model,
+                  NativeListSelection.originalDelegate(of:table) === coordinator,
+                  table.numberOfRows==rows.count,
+                  let column=table.tableColumns.firstIndex(where:{$0.identifier.rawValue==StatusListColumn.path.rawValue}),
+                  !table.tableColumns[column].isHidden else{return false}
+            for (index,row) in rows.enumerated() {
+                guard coordinator.tableView(table,isGroupRow:index)==(row.file==nil) else{return false}
+                let expected=row.file.map{model.changedFileText($0,column:.path)} ?? row.header ?? ""
+                let view=table.view(atColumn:column,row:index,makeIfNecessary:true)
+                    ?? (row.file==nil ? coordinator.tableView(table,viewFor:nil,row:index):nil)
+                let field=(view as? NSTableCellView)?.textField ?? view as? NSTextField
+                // The path field's tooltip is its exact unflattened source text,
+                // even when newline/tab glyphs are flattened in the rendered cell.
+                guard let actual=field?.toolTip,actual.utf8.elementsEqual(expected.utf8) else{return false}
+            }
+            return true
+        }
+        func focusDiagnostic(_ table:LogChangedFileNativeTable,_ window:NSWindow,expectedIDs:GitPathSet?=nil)->String {
             let responder=window.firstResponder.map{String(reflecting:type(of:$0))} ?? "nil"
-            return "responder=\(responder), currentTable=\((try? self.table()) === table), attached=\(table.window === window), visible=\(window.isVisible), hidden=\(table.isHiddenOrHasHiddenAncestor), enabled=\(table.isEnabled), ownerAvailable=\(table.ownerAvailable()), inspect=\(owner?.model.canInspectHistory == true), rows=\(table.numberOfRows)/\(owner?.model.fileTableRows.count ?? -1), selection=\(table.selectedRowIndexes), sheet=\(window.attachedSheet != nil), modal=\(NSApp.modalWindow != nil)"
+            let model=owner?.model,column=table.tableColumns.firstIndex{$0.identifier.rawValue==StatusListColumn.path.rawValue}
+            let rendered=(0..<min(table.numberOfRows,12)).map {row->String in
+                let view=column.flatMap{table.view(atColumn:$0,row:row,makeIfNecessary:false)}
+                let field=(view as? NSTableCellView)?.textField ?? view as? NSTextField
+                return "\(row):text=\(String(describing:field?.stringValue)),pathUTF8=\(Data((field?.toolTip ?? "").utf8).base64EncodedString())"
+            }
+            let expected=model?.fileTableRows.prefix(12).map {row in "idUTF8=\(Data(row.rawID.utf8).base64EncodedString()),path=\(String(describing:row.file?.path)),action=\(String(describing:row.file?.action)),header=\(String(describing:row.header))"} ?? []
+            let delegate=table.delegate.map{String(reflecting:type(of:$0))} ?? "nil"
+            let original=NativeListSelection.originalDelegate(of:table).map{String(reflecting:type(of:$0))} ?? "nil"
+            let dataSource=table.dataSource.map{String(reflecting:type(of:$0))} ?? "nil"
+            return "responder=\(responder), currentTable=\((try? self.table()) === table), attached=\(table.window === window), visible=\(window.isVisible), hidden=\(table.isHiddenOrHasHiddenAncestor), enabled=\(table.isEnabled), ownerAvailable=\(table.ownerAvailable()), inspect=\(model?.canInspectHistory == true), rows=\(table.numberOfRows)/\(model?.fileTableRows.count ?? -1), selection=\(table.selectedRowIndexes), selectedIDs=\(Array(model?.selectedFiles ?? [])), expectedIDs=\(String(describing:expectedIDs)), delegate=\(delegate), originalDelegate=\(original), dataSource=\(dataSource), projection=\(model.map{nativeProjection(table,$0)} ?? false), expectedRows=\(expected), nativeRows=\(rendered), sheet=\(window.attachedSheet != nil), modal=\(NSApp.modalWindow != nil)"
         }
         func select(_ ids:GitPathSet)async throws {
             let model=try unwrap(owner?.model,"Source Log missing"),table=try table(),window=try unwrap(owner?.window,"Source window missing")
@@ -120,15 +149,21 @@ import TurtleGitCore
                 owner?.window === window && !model.isInvalidated && !model.busy && model.canInspectHistory &&
                 (try? self.table()) === table && table.window === window && window.isVisible &&
                 !table.isHiddenOrHasHiddenAncestor && table.isEnabled && table.ownerAvailable() &&
-                table.numberOfRows==model.fileTableRows.count
+                nativeProjection(table,model)
             }
-            // Row count/model settlement may precede AppKit's actual enable
-            // update. Never send Return through a table that refused focus.
-            try await wait("rendered source rows and native admission",window:window,diagnostic:{self.focusDiagnostic(table,window)}){ready()}
+            // Equal counts do not establish a current rename/filter projection.
+            // Wait for the actual native path cells and model-to-native selection
+            // reconciliation before selecting ONCE; selecting a retained index
+            // against old rows can publish a path absent from the new model.
+            try await wait("rendered source rows and native admission",window:window,diagnostic:{self.focusDiagnostic(table,window,expectedIDs:ids)}) {
+                let rows=model.fileTableRows
+                let selected=IndexSet(rows.indices.filter{rows[$0].file != nil && model.selectedFiles.contains(rows[$0].rawID)})
+                return ready() && table.selectedRowIndexes==selected
+            }
             let rows=model.fileTableRows,indexes=IndexSet(rows.indices.filter{rows[$0].file != nil && ids.contains(rows[$0].rawID)})
             try require(indexes.count==ids.count,"Native selected occurrence missing")
             table.selectRowIndexes(indexes,byExtendingSelection:false)
-            try await wait("native selected IDs and readiness",window:window,diagnostic:{self.focusDiagnostic(table,window)}){ready() && model.selectedFiles==ids && table.selectedRowIndexes==indexes}
+            try await wait("native selected IDs and readiness",window:window,diagnostic:{self.focusDiagnostic(table,window,expectedIDs:ids)}){ready() && model.selectedFiles==ids && table.selectedRowIndexes==indexes}
             try require(window.makeFirstResponder(table),"Source window rejected native table focus; "+focusDiagnostic(table,window))
             try await wait("native first-responder ownership",window:window,diagnostic:{self.focusDiagnostic(table,window)}){ready() && window.firstResponder === table}
         }

@@ -270,3 +270,26 @@ The [Distribution recovery record](qa/hosted-distribution-recovery-2026-11-27.js
 retains both failed attempts and four focused process passes across system and
 bundled Git. Compilers and receivers were reaped and independently absent; all
 other prior passes are retained. The full hosted run remains pending.
+
+
+## Native Log comparison selection follow-up — November 27
+
+The fresh hosted run passed the earlier Log geometry step112, then failed
+step283 in bundled-Git rename selection. Its bounded, digest-verified artifact
+shows a timeout before the fixture requested table focus: equal row counts did
+not establish the native table's current rename projection. The first-responder
+name and AttributeGraph warnings alone did not prove a product focus defect.
+
+The shared fixture now waits for the actual data-source/model and forwarded
+delegate identities, exact native path bytes/group slots and model/native
+selection reconciliation before selecting once. Existing Return, selected IDs,
+captured operand, backend, bytes, cancellation and owner assertions remain.
+The first new guard incorrectly assumed an unwrapped delegate; that failed
+attempt remains recorded and is corrected without bypassing the selection proxy.
+
+The [Log comparison recovery record](qa/hosted-log-operands-recovery-2026-11-27.json)
+passes eight comparison and two primary-activation native process cases across
+system and bundled Git. Existing app objects were reused; no product/Core/runtime
+build, installed60 update or broader local suite was required. Owned compilers
+and receivers were reaped and independently absent. The current hosted run is
+still collecting results; corrected-source hosted acceptance remains pending.
