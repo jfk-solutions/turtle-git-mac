@@ -11,6 +11,8 @@ import Darwin
         try await wait { ownedOwners.allSatisfy { $0.commitProgress?.busy != true } }
         for model in ownedOwners { model.commitProgress?.choose(nil) }
         try await wait { ownedOwners.allSatisfy { !$0.busy } && CommitWindowModel.activeCommitPreflights==0 }
+        ownedOwners.forEach{$0.invalidateForClose()}
+        try await wait {ownedOwners.allSatisfy{!$0.fileWorkPending} && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0}
         ownedOwners.removeAll()
     }
     @MainActor static func wait(_ condition: @escaping () -> Bool) async throws {
@@ -45,6 +47,7 @@ import Darwin
             let value = CommitWindowModel(repository: repo, access: nil, unversionedDefaults: preferences, dialogDefaults: preferences)
             ownedOwners.append(value); value.reload(paths: ["."]); try await wait { !value.busy && value.changelistsLoaded }
             value.message = "progress message"; value.checked = ["a 雪"]
+            try await wait {value.canCommit}
             return value
         }
         let unresolvedRepo=try await fixture("unresolved-preflight")
@@ -55,6 +58,7 @@ import Darwin
         _ = try await unresolvedRepo.run(["update-index","--index-info"],input:Data(stages.utf8));try Data("unresolved working text\n".utf8).write(to:unresolvedRepo.root.appendingPathComponent("b"))
         let conflictStages=try await unresolvedRepo.run(["ls-files","--unmerged","-z"]).stdout,conflictHead=try await unresolvedRepo.run(["rev-parse","HEAD"]).stdout
         let sheetOwner=CommitWindowController(repository:unresolvedRepo,access:nil,defaults:preferences);defer { sheetOwner.close() };ownedOwners.append(sheetOwner.model)
+        sheetOwner.window?.alphaValue=0;sheetOwner.window?.setFrameOrigin(.init(x:-24000,y:-24000))
         sheetOwner.model.reload(paths:["."]);try await wait { !sheetOwner.model.busy && sheetOwner.model.changelistsLoaded }
         sheetOwner.model.message="Inspect conflicts";sheetOwner.model.checked=["a 雪"];sheetOwner.model.commit()
         try await wait { sheetOwner.preflightAlert != nil && sheetOwner.window?.attachedSheet != nil }
@@ -63,12 +67,26 @@ import Darwin
         sheetOwner.window!.endSheet(conflictAlert.window,returnCode:.alertFirstButtonReturn);conflictAlert.window.orderOut(nil)
         try await wait { !sheetOwner.model.busy && CommitWindowModel.activeCommitPreflights==0 }
         try require(sheetOwner.model.selection==["b"] && sheetOwner.model.focusedFiles["checkbox"]=="b","OK did not focus first conflict")
+        let afterOKStages=try await unresolvedRepo.run(["ls-files","--unmerged","-z"]).stdout,afterOKHead=try await unresolvedRepo.run(["rev-parse","HEAD"]).stdout
+        try require(afterOKStages==conflictStages && afterOKHead==conflictHead,"Conflict OK changed original stages/HEAD")
         sheetOwner.close()
-        let ignored=try await owner(unresolvedRepo);ignored.confirmUnresolvedConflicts={ _,reply in reply(true) }
+        let ignored=try await owner(unresolvedRepo);var ignoredQuestions:[[String]]=[]
+        ignored.confirmUnresolvedConflicts={ paths,reply in ignoredQuestions.append(paths);reply(true) }
         var ignoredSuccess=0;ignored.onCommitted={ _ in ignoredSuccess += 1 };ignored.commit()
         try await wait { !ignored.busy && CommitWindowModel.activeCommitPreflights==0 }
         let committedChecked=try await unresolvedRepo.run(["show","HEAD:a 雪"]).stdout,remainingStages=try await unresolvedRepo.run(["ls-files","--unmerged","-z"]).stdout
-        try require(ignoredSuccess==1 && committedChecked==Data("selected\n".utf8) && remainingStages==conflictStages,"Ignore lost selection/unmerged index")
+        // Pinned CommitDlg.cpp1284–1299 resets all unchecked non-Added/
+        // non-Renamed/non-Unversioned rows, including U, to HEAD; its libgit2
+        // branch1211–1234 mirrors this. Ignore continues
+        // the checked commit; it does not restore unchecked conflict stages.
+        let resetIndex=try await unresolvedRepo.run(["ls-files","--stage","-z","--","b"]).stdout
+        let committedUnchecked=try await unresolvedRepo.run(["show","HEAD:b"]).stdout
+        let expectedUnchecked=Data(("100644 "+blobs[0]+" 0\tb\0").utf8)
+        try require(ignoredQuestions==[["b"]],"Ignore did not acknowledge exactly the accepted unresolved path")
+        try require(ignoredSuccess==1,"Ignore did not commit exactly once: count=\(ignoredSuccess),error=\(String(reflecting:ignored.error)),busy=\(ignored.busy),progress=\(String(describing:ignored.commitProgress?.currentWork))")
+        try require(committedChecked==Data("selected\n".utf8),"Ignore lost exact checked commit bytes")
+        try require(remainingStages.isEmpty,"Classic unchecked U reset retained unmerged entries: bytes=\(remainingStages.count)")
+        try require(resetIndex==expectedUnchecked && committedUnchecked==Data("base\n".utf8),"Classic unchecked U reset changed HEAD/index blob: expected=\(String(reflecting:String(decoding:expectedUnchecked,as:UTF8.self))),actual=\(String(reflecting:String(decoding:resetIndex,as:UTF8.self)))")
         try require(try Data(contentsOf:unresolvedRepo.root.appendingPathComponent("b"))==Data("unresolved working text\n".utf8),"Ignore rewrote conflict working bytes")
         let tagRepo=try await fixture("tag-collision"),tagged=try await owner(tagRepo)
         _ = try await tagRepo.run(["tag","topic"])

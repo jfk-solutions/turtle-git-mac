@@ -28,16 +28,23 @@ import TurtleGitCore
         settings.edit(.url) { $0.url = root.path }; try require(settings.draft.name == "origin" && settings.originHint == nil,"URL autofill/hint lifetime")
         settings.confirm = { _ in (true,false) }; settings.save(); try await wait { !settings.busy && RemoteSettingsWindowModel.activeOperations == 0 }
         _ = try await repo.run(["config","branch.main.remote","origin"]); _ = try await repo.run(["config","branch.main.merge","refs/heads/main"])
-        let history = "TurtleGit.Sync." + root.path + ".urls", otherHistory = "TurtleGit.Sync." + root.path + "/other.urls"
+        // Synchronization persistence belongs to the captured actor's lexical
+        // root, not the possibly unstandardized process-argument URL spelling.
+        let history = "TurtleGit.Sync." + repo.root.path + ".urls", otherHistory = "TurtleGit.Sync." + repo.root.path + "/other.urls"
+        let argumentHistory="TurtleGit.Sync."+root.path+".urls"
+        if argumentHistory != history {prefs.set(["untouched invocation spelling"],forKey:argumentHistory)}
+        func historyWitness()->String {"inputRoot=\(root.absoluteString),capturedRoot=\(repo.root.absoluteString),history=\(history),values=\(String(describing:prefs.stringArray(forKey:history))),other=\(String(describing:prefs.stringArray(forKey:otherHistory))),selected=\(String(describing:settings.selected)),draft=\(settings.draft.name),busy=\(settings.busy),operations=\(RemoteSettingsWindowModel.activeOperations),error=\(String(describing:settings.error))"}
         let url = "https://example.invalid/origin", caseName = "Origin"
         prefs.set(["origin",caseName,url,"unchanged"],forKey:history); prefs.set(["origin"],forKey:otherHistory)
         settings.edit(.name) { $0.name = "renamed" }; settings.rename(); try await wait { !settings.busy && RemoteSettingsWindowModel.activeOperations == 0 }
-        try require(settings.error == nil && prefs.stringArray(forKey:history) == [caseName,url,"unchanged"] && prefs.stringArray(forKey:otherHistory) == ["origin"],"Rename history cleanup crossed case/URL/repository")
+        try require(settings.error == nil && prefs.stringArray(forKey:history) == [caseName,url,"unchanged"] && prefs.stringArray(forKey:otherHistory) == ["origin"],"Rename history cleanup crossed case/URL/repository: "+historyWitness())
+        if argumentHistory != history {try require(prefs.stringArray(forKey:argumentHistory)==["untouched invocation spelling"],"Rename changed unrelated invocation-spelling history")}
         prefs.set(["renamed",caseName,url],forKey:history)
         let push = PushWindowModel(repository:repo,access:nil,preferences:prefs); defer { push.invalidate() }; push.load(); try await wait { !push.busy && PushWindowModel.activePreparationReads == 0 }
         push.options.destination = "typed-branch"; push.options.force = true; push.options.pushOption = "native-choice"; push.options.submodules = .onDemand
         settings.remove(); try await wait { !settings.busy && RemoteSettingsWindowModel.activeOperations == 0 }
-        try require(settings.error == nil && prefs.stringArray(forKey:history) == [caseName,url],"Remove did not prune exact renamed history")
+        try require(settings.error == nil && prefs.stringArray(forKey:history) == [caseName,url],"Remove did not prune exact renamed history: "+historyWitness())
+        if argumentHistory != history {try require(prefs.stringArray(forKey:argumentHistory)==["untouched invocation spelling"],"Remove changed unrelated invocation-spelling history")}
         _ = try await repo.run(["remote","add","replacement",root.path]); _ = try await repo.run(["config","branch.main.remote","replacement"])
         push.refreshRemoteCatalog(); try await wait { !push.busy && PushWindowModel.activePreparationReads == 0 }
         try require(push.remotes == ["replacement"] && push.options.remote == "replacement" && push.options.destination == "typed-branch" && push.options.force && push.options.pushOption == "native-choice" && push.options.submodules == .onDemand,"Catalog refresh reset Push draft")

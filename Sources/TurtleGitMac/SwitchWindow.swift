@@ -339,7 +339,8 @@ extension UserDefaults {
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !confirmingQuit, !invalidated, !finished, pickerTarget == .commit else { return }
-        if let entry { selectCustomRevision(entry.hash); defaults(); referenceFocusRequest += 1 }; finishPicker()
+        // CChooseVersion::OnBnClickedChooseVersion uses SetWindowText, not AddString.
+        if let entry { commitRevision = entry.hash; defaults(); referenceFocusRequest += 1 }; finishPicker()
     }
     var close: () -> Void = {}
     var onSwitched: (String) -> Void = { _ in }

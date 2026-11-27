@@ -158,7 +158,8 @@ struct ResetChooserDraft: Equatable {
                 self.commitPickerRequest = nil
                 let accepted = !self.model.confirmingQuit && self.model.formContext == context
                 self.model.finishCommitPicker()
-                if accepted,let entry { self.model.chooser.selectCustomRevision(entry.hash) }
+                // CChooseVersion::OnBnClickedChooseVersion uses SetWindowText, not AddString.
+                if accepted,let entry { self.model.chooser.commitRevision = entry.hash }
             }
             self.drainSheetResult()
         }, preferences, revision.isEmpty ? nil : revision)

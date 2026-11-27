@@ -74,11 +74,21 @@ import TurtleGitCore
             let quoted="'"+git.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
             let script="""
             #!/bin/sh
-            task_match=false
-            for task_argument in "$@"; do
-              if [ "$task_argument" = '\(stage)' ]; then task_match=true; fi
-            done
-            if [ "$task_match" = true ] && [ -f "$0.pause" ]; then
+            qa_git_matches() {
+              while [ "$#" -gt 0 ]; do
+                case "$1" in
+                  -c|-C|--git-dir|--work-tree|--namespace|--config-env)
+                    [ "$#" -ge 2 ] || return 2; shift 2 ;;
+                  -c?*|-C?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) shift ;;
+                  --no-pager|--paginate|--bare|--no-replace-objects|--literal-pathspecs|--no-literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|--no-lazy-fetch) shift ;;
+                  --) shift; break ;;
+                  -*) return 2 ;;
+                  *) break ;;
+                esac
+              done
+              [ "${1-}" = '\(stage)' ]
+            }
+            if qa_git_matches "$@" && [ -f "$0.pause" ]; then
               /bin/sleep 30 &
               task_child=$!
               trap 'kill "$task_child" 2>/dev/null; wait "$task_child" 2>/dev/null; exit 143' TERM INT
@@ -89,7 +99,10 @@ import TurtleGitCore
             exec \(quoted) "$@"
             """
             try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-            let closing=ReferenceBrowserWindowController(repository:GitRepository(root:client,executable:helper),access:nil,initial:target,preferences:prefs){_ in};var ids:[Int32]=[]
+            let heldSuite=suite+".held-"+stage,heldPrefs=UserDefaults(suiteName:heldSuite)!
+            defer {heldPrefs.removePersistentDomain(forName:heldSuite);heldPrefs.synchronize()}
+            heldPrefs.set(false,forKey:"UseLibgit2")
+            let closing=ReferenceBrowserWindowController(repository:GitRepository(root:client,executable:helper,libgit2Configuration:.init(enabled:false)),access:nil,initial:target,preferences:heldPrefs){_ in};var ids:[Int32]=[]
             defer {closing.close();for pid in ids where kill(pid,0)==0 {_ = kill(pid,SIGTERM)}}
             closing.model.confirmDeletion={_ in true};closing.model.load();try await wait([closing.window!]){!closing.model.busy && closing.model.chosen != nil}
             try Data().write(to:pause);closing.model.deleteChosen();try await wait{FileManager.default.fileExists(atPath:marker.path)}

@@ -23,21 +23,35 @@ import TurtleGitCore
         let helper=root.appendingPathComponent("stream-git"), marker=root.appendingPathComponent("ready"), release=root.appendingPathComponent("release")
         let script = #"""
         #!/bin/sh
-        if [ "$4" = worktree ] && [ "$5" = "$TG_WORKTREE_MATCH" ]; then
+        qa_git_matches() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree|--namespace|--config-env)
+                [ "$#" -ge 2 ] || return 2; shift 2 ;;
+              -c?*|-C?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) shift ;;
+              --no-pager|--paginate|--bare|--no-replace-objects|--literal-pathspecs|--no-literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|--no-lazy-fetch) shift ;;
+              --) shift; break ;;
+              -*) return 2 ;;
+              *) break ;;
+            esac
+          done
+          [ "${1-}" = worktree ] && [ "${2-}" = "$TG_WORKTREE_MATCH" ]
+        }
+        if qa_git_matches "$@"; then
           printf 'Work: 10%%\rWork: 35%%\r\nUnicode '
           printf '\351\233'; /bin/sleep 0.06; printf '\252\n'
           printf 'warning: private fixture\n' >&2
           if [ "$TG_WORKTREE_BIG" = 1 ]; then
             row=0; while [ "$row" -lt 32 ]; do printf '%1024s\n' X; row=$((row+1)); done
           fi
-          : > "$3/ready"
-          while [ ! -e "$3/release" ]; do /bin/sleep 0.05; done
+          : > "$TG_WORKTREE_ROOT/ready"
+          while [ ! -e "$TG_WORKTREE_ROOT/release" ]; do /bin/sleep 0.05; done
         fi
         exec "$TG_WORKTREE_GIT" "$@"
         """#
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-        setenv("TG_WORKTREE_GIT",git.path,1)
-        defer { unsetenv("TG_WORKTREE_GIT");unsetenv("TG_WORKTREE_MATCH");unsetenv("TG_WORKTREE_BIG") }
+        setenv("TG_WORKTREE_GIT",git.path,1);setenv("TG_WORKTREE_ROOT",root.path,1)
+        defer { unsetenv("TG_WORKTREE_ROOT");unsetenv("TG_WORKTREE_GIT");unsetenv("TG_WORKTREE_MATCH");unsetenv("TG_WORKTREE_BIG") }
         let wrapped=GitRepository(root:root,executable:helper)
         @MainActor func gate(_ command:String,big:Bool=false) { try? FileManager.default.removeItem(at:marker);try? FileManager.default.removeItem(at:release);setenv("TG_WORKTREE_MATCH",command,1);setenv("TG_WORKTREE_BIG",big ? "1":"0",1) }
         @MainActor func live(_ text:String,_ busy:Bool) throws { try require(busy && text.contains("Unicode 雪") && text.contains("Work: 35%") && !text.contains("Work: 10%"),"Live CR/UTF-8 output missing");try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,"Quit lost live worktree ownership") }

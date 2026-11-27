@@ -11,7 +11,7 @@ import TurtleGitCore
     }
     @MainActor static func main()async{do{try await verify()}catch{fputs("Finder transfer failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify()async throws{
-        let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
+        let root=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true).standardizedFileURL,git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Finder Transfer"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")]{_ = try await repo.run(["config",key,value])}
         let folder=root.appendingPathComponent("target 雪",isDirectory:true);try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
@@ -26,7 +26,16 @@ import TurtleGitCore
             routed.append(request)
             precondition(repository.root.path==workspace.root?.path && lease.contains(folder))
         }
-        for (action,sources) in [(RepositoryAction.pasteCopy,[source]),(.pasteMove,[tracked])]{let request=FinderRequest(action:action,paths:[folder],sources:sources);workspace.handle(request.url!);try await wait{!workspace.busy && routed.last?.action==action};try require(routed.last?.paths.map(\.path)==[folder.path] && routed.last?.sources.map(\.path)==sources.map(\.path),"Captured transfer route changed folder or sources")}
+        for (action,sources) in [(RepositoryAction.pasteCopy,[source]),(.pasteMove,[tracked])] {
+            let request=FinderRequest(action:action,paths:[folder],sources:sources)
+            // Adopt GitRepository's standardized ancestor, retaining each literal
+            // filename (including Unicode/newline) and the original source order.
+            let expectedFolder=repo.root.appendingPathComponent(folder.lastPathComponent,isDirectory:true)
+            try require(request.paths.map{Data($0.path.utf8)}==[Data(expectedFolder.path.utf8)] && request.sources.map{Data($0.path.utf8)}==sources.map{Data($0.path.utf8)},"Authored Finder request changed literal destination/source bytes")
+            let previousCount=routed.count
+            workspace.handle(request.url!);try await wait{!workspace.busy && routed.count==previousCount+1}
+            try require(routed.last?.action==action && routed.last?.paths.map{Data($0.path.utf8)}==request.paths.map{Data($0.path.utf8)} && routed.last?.sources.map{Data($0.path.utf8)}==request.sources.map{Data($0.path.utf8)},"Captured transfer route changed folder or sources: action=\(String(describing:routed.last?.action)),expected=\(action),paths=\(String(reflecting:routed.last?.paths.map(\.path))),expectedPaths=\(String(reflecting:request.paths.map(\.path))),sources=\(String(reflecting:routed.last?.sources.map(\.path))),expectedSources=\(String(reflecting:request.sources.map(\.path))),error=\(String(reflecting:workspace.error))")
+        }
         let after=try await repo.run(["ls-files","--stage","-z"]).stdout;try require(before==after,"Request delivery mutated index")
         let suite="TurtleGit.FinderTransfer."+UUID().uuidString,prefs=UserDefaults(suiteName:suite)!;defer{prefs.removePersistentDomain(forName:suite)};prefs.set(false,forKey:"ConfirmKillProcess")
         ProgressActionLog.install(store:ActionLogStore(storageURL:outside.appendingPathComponent("actions.log")),preferences:prefs)

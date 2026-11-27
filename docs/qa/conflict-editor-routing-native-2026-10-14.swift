@@ -30,7 +30,7 @@ import TurtleGitCore
             do { _ = try await repo.run(["merge","--no-edit","side"]);throw Failure(description:"Expected conflict") } catch is GitFailure {}
             return repo
         }
-        @MainActor func owner() -> NSWindow { let window=NSWindow(contentRect:NSRect(x:0,y:0,width:400,height:200),styleMask:[.titled,.closable],backing:.buffered,defer:false);window.isReleasedWhenClosed=false;window.orderFront(nil);return window }
+        @MainActor func owner() -> NSWindow { let window=NSWindow(contentRect:NSRect(x:0,y:0,width:400,height:200),styleMask:[.titled,.closable],backing:.buffered,defer:false);window.isReleasedWhenClosed=false;window.alphaValue=0;window.setFrameOrigin(NSPoint(x:-24000,y:-24000));window.orderFront(nil);return window }
         let text=try await fixture("text"),image=try await fixture("image",image:true),deleted=try await fixture("delete",deleted:true)
         let module="module",hash=try await text.run(["rev-parse","HEAD"]).text.trimmingCharacters(in:.newlines)
         let records=(1...3).map { "160000 \(hash) \($0)\t\(module)\0" }.joined();_ = try await text.run(["update-index","-z","--index-info"],input:Data(records.utf8))

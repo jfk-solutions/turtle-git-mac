@@ -28,9 +28,16 @@ import TurtleGitCore
         if [ -f "$root/slow-$phase" ]; then : > "$root/started-$phase"; /bin/sleep 30; fi
         if [ -f "$root/fail-$phase" ]; then printf '%s failed' "$phase" >&2; exit 9; fi
         """.write(to:script,atomically:true,encoding:.utf8)
-        func hook(_ type:ClientHookType,_ phase:String)->ClientHook { ClientHook(type:type,path:root.path,command:"/bin/sh '"+script.path+"' "+phase+" '%root%'",show:false) }
+        func hook(_ type:ClientHookType,_ phase:String)->ClientHook { ClientHook(type:type,path:repo.root.path,command:"/bin/sh '"+script.path+"' "+phase+" '%root%'",show:false) }
         let globals=[hook(.prePush,"pre"),hook(.postPush,"post")]
         prefs.set(try ClientHookConfiguration.serialize(globals),forKey:"hooks")
+        // Hook scopes belong to the captured Git repository, whose lexical root
+        // may differ from the argv spelling (for example /var vs /private/var).
+        let configured=ClientHookConfiguration.parse(prefs.string(forKey:"hooks") ?? "")
+        for expected in globals {
+            try require(ClientHookConfiguration.selected(type:expected.type,workingTree:repo.root,hooks:configured)==expected,
+                "Private hook scope did not select exact configured hook: input=\(root.path),captured=\(repo.root.path),type=\(expected.type)")
+        }
         func events()->[String] { ((try? String(contentsOf:root.appendingPathComponent("events"))) ?? "").split(separator:"\n").map(String.init) }
         func make()->SynchronizationWindowModel {
             let value=SynchronizationWindowModel(repository:repo,access:nil,preferences:prefs);value.localBranch="main";value.remote="origin";value.remoteBranch="main";return value
@@ -40,7 +47,8 @@ import TurtleGitCore
             let before=events().count;model.push(action,shift:false)
             try await wait { !model.busy && SynchronizationWindowModel.activePushWorkflows==0 && ClientHookProcessPool.shared.activeScripts==0 }
             try require(model.commandSucceeded && model.error==nil,"Direct Push mode failed: "+(model.error ?? "unknown"))
-            try require(Array(events().dropFirst(before))==["pre","post"],"Direct mode skipped/duplicated hooks")
+            let actualEvents=Array(events().dropFirst(before))
+            try require(actualEvents==["pre","post"],"Direct mode skipped/duplicated hooks: action=\(action),events=\(actualEvents),input=\(root.path),captured=\(repo.root.path),output=\(model.commandOutput),error=\(String(describing:model.error))")
         }
         try Data().write(to:root.appendingPathComponent("fail-pre"))
         model.clientHooks.continueAfterFailure={ _ in false }

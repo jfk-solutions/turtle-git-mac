@@ -4500,30 +4500,68 @@ struct LogDialog: View {
     var focusFileRow:(Int)->Void = {_ in}
     var activateSelection:()->Void = {}
     var ownerAvailable:()->Bool = {false}
+    var navigationProjection:()->[Data] = {[]}
+    private var endpointRange:(anchor:Int,focus:Int,selection:IndexSet,projection:[Data])?
+    override func mouseDown(with event:NSEvent) {endpointRange=nil;super.mouseDown(with:event)}
+    override func otherMouseDown(with event:NSEvent) {endpointRange=nil;super.otherMouseDown(with:event)}
+    override func viewDidMoveToWindow() {endpointRange=nil;super.viewDidMoveToWindow()}
     func ownsKeyboard(_ event:NSEvent)->Bool {
         guard ownerAvailable(),let window,event.window===window,commandKeyWindow()===window,window.firstResponder===self,
               window.isVisible,!isHiddenOrHasHiddenAncestor,isEnabled,window.attachedSheet==nil,NSApp.modalWindow==nil else{return false}
         return true
     }
     override func performKeyEquivalent(with event:NSEvent)->Bool {
-        guard ownsKeyboard(event) else{return false};return super.performKeyEquivalent(with:event)
+        guard ownsKeyboard(event) else{endpointRange=nil;return false}
+        if ![115,119].contains(event.keyCode) {endpointRange=nil}
+        return super.performKeyEquivalent(with:event)
     }
     override func accessibilityPerformShowMenu()->Bool {
+        endpointRange=nil
         guard ownerAvailable(),window?.isVisible==true,!isHiddenOrHasHiddenAncestor else{return false}
         return super.accessibilityPerformShowMenu()
     }
     override func backdropRect(in viewport:NSRect)->NSRect? {nil}
     override func menu(for event:NSEvent)->NSMenu? {
+        endpointRange=nil
         guard fileRow(row(at:convert(event.locationInWindow,from:nil))) else{return nil}
         return super.menu(for:event)
     }
     override func keyDown(with event:NSEvent) {
-        guard ownsKeyboard(event) else{return}
-        if [36,76].contains(event.keyCode),event.modifierFlags.intersection([.command,.control,.option]).isEmpty {
+        guard ownsKeyboard(event) else{endpointRange=nil;return}
+        let plainModifiers=event.modifierFlags.intersection([.command,.control,.option]).isEmpty
+        if [36,76].contains(event.keyCode),plainModifiers {
+            endpointRange=nil
             ComparisonToolInvocation.$alternate.withValue(event.modifierFlags.contains(.shift)) {activateSelection()}
             return
         }
-        let navigation=[125,126,115,119].contains(event.keyCode) && event.modifierFlags.intersection([.command,.control,.option]).isEmpty
+        if [115,119].contains(event.keyCode),plainModifiers {
+            // AppKit Home/End only scroll the viewport. The source report's
+            // file-list navigation also selects/focuses the endpoint, skipping
+            // the nonselectable parent headings used by merged revisions.
+            let forward=event.keyCode==115
+            var destination=forward ? 0:numberOfRows-1
+            while (0..<numberOfRows).contains(destination),!fileRow(destination) {destination += forward ? 1:-1}
+            guard (0..<numberOfRows).contains(destination) else{endpointRange=nil;return}
+            let projection=navigationProjection()
+            if event.modifierFlags.contains(.shift) {
+                let anchor:Int
+                if let range=endpointRange,range.projection==projection,range.selection==selectedRowIndexes,
+                   focusedFileRow()==range.focus,fileRow(range.anchor) {anchor=range.anchor}
+                else {anchor=focusedFileRow().flatMap{fileRow($0) ? $0:nil} ?? selectedRowIndexes.first(where:fileRow) ?? destination}
+                let proposed=IndexSet((min(anchor,destination)...max(anchor,destination)).filter(fileRow))
+                selectRowIndexes(proposed,byExtendingSelection:false)
+                focusFileRow(destination)
+                endpointRange=(anchor,destination,selectedRowIndexes,projection)
+            } else {
+                endpointRange=nil
+                selectRowIndexes(IndexSet(integer:destination),byExtendingSelection:false)
+                focusFileRow(destination)
+            }
+            scrollRowToVisible(destination)
+            return
+        }
+        endpointRange=nil
+        let navigation=[125,126].contains(event.keyCode) && plainModifiers
         let anchor=focusedFileRow() ?? selectedRowIndexes.first
         super.keyDown(with:event)
         guard navigation,numberOfRows>0 else{return}
@@ -4601,6 +4639,7 @@ struct LogChangedFileReport:NSViewRepresentable {
             let header=LogChangedFileHeader(frame:NSRect(x:0,y:0,width:0,height:24));header.fitColumn={[weak self] column,useDefault in self?.fitColumn(column,useDefault:useDefault)==true};table.headerView=header
             table.floatsGroupRows=false
             table.ownerAvailable={[weak self] in self?.available==true}
+            table.navigationProjection={[weak self] in self?.rows.map{Data($0.rawID.utf8)} ?? []}
             table.commandKeyWindow={[weak self] in (self?.table.window as? LogHistoryWindow)?.commandKeyWindow() ?? NSApp.keyWindow}
             table.activateSelection={[weak self] in self?.activateSelection()}
             fileMenu.delegate=self;fileMenu.autoenablesItems=false;headerMenu.delegate=self;headerMenu.autoenablesItems=false;table.menu=fileMenu;table.headerView?.menu=headerMenu

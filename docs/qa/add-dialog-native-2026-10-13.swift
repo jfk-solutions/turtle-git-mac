@@ -26,6 +26,11 @@ import TurtleGitCore
         model.includeIgnored = true; try await model.read(); precondition(model.entries.contains { $0.path == ignored } && !model.checked.contains(ignored))
         model.checked.insert(ignored)
         let receiver = AddFileTable.Coordinator(model: model), scroll = receiver.make()
+        let fileWindow=NSWindow(contentRect:NSRect(x:0,y:0,width:720,height:360),styleMask:[.titled],backing:.buffered,defer:false)
+        fileWindow.isReleasedWhenClosed=false;fileWindow.alphaValue=0
+        fileWindow.setFrameOrigin(NSPoint(x:-24000,y:-24000));fileWindow.contentView=scroll;model.primaryWindow=fileWindow
+        defer {receiver.retire();fileWindow.contentView=nil;fileWindow.close()}
+        precondition(receiver.table.window === fileWindow && !fileWindow.isVisible)
         precondition(receiver.table.tableColumns.map(\.title) == ["", "Path", "Extension", "Modification date", "Size"])
         precondition(receiver.numberOfRows(in: receiver.table) == 3 && scroll.documentView === receiver.table)
         precondition((receiver.table as? NativeWatermarkTable)?.watermarkImage != nil)
@@ -45,7 +50,9 @@ import TurtleGitCore
             let color = pixels.colorAt(x: x, y: y)!.usingColorSpace(.deviceRGB)!
             return color.alphaComponent > 0.1 && color.alphaComponent < 0.9 && abs(color.redComponent - color.blueComponent) > 0.1
         } })
-        try pixels.representation(using: .png, properties: [:])!.write(to: URL(fileURLWithPath: "/tmp/turtlegit-add-background-128.png"))
+        let artworkURL=folder.deletingLastPathComponent().appendingPathComponent("add-background-"+UUID().uuidString+".png")
+        defer {try? FileManager.default.removeItem(at:artworkURL)}
+        try pixels.representation(using: .png, properties: [:])!.write(to:artworkURL)
         let index = receiver.rows.firstIndex { $0.path == unchecked }!
         let checkbox = receiver.tableView(receiver.table, viewFor: receiver.table.tableColumns[0], row: index) as! NSButton
         precondition(checkbox.identifier?.rawValue == unchecked && checkbox.state == .off)
@@ -57,7 +64,7 @@ import TurtleGitCore
         model.highlighted = [file, unchecked]; receiver.refresh()
         let displayed = receiver.selectedRows.map(\.path)
         precondition(receiver.clipboardText("relative") == displayed.joined(separator: "\n") + "\n")
-        precondition(receiver.clipboardText("full") == displayed.map { folder.appendingPathComponent($0).path }.joined(separator: "\n") + "\n")
+        precondition(receiver.clipboardText("full") == displayed.map { repo.root.appendingPathComponent($0).path }.joined(separator: "\n") + "\n")
         precondition(receiver.clipboardText("names") == displayed.map { ($0 as NSString).lastPathComponent }.joined(separator: "\n") + "\n")
         precondition(receiver.clipboardText("ext") == ".txt\n.txt\n")
         precondition(receiver.clipboardText("all").hasPrefix("Path\tExtension"))
@@ -126,15 +133,51 @@ import TurtleGitCore
         precondition(receiver.clipboardText("relative").isEmpty && opened.count == 3 && menu.items.filter { !$0.isSeparatorItem }.allSatisfy { !$0.isEnabled })
         model.confirmingQuit = false
         var accepted: [String] = [], closed = 0
-        model.onAccepted = { accepted = $0 }; model.close = { closed += 1 }; model.apply()
-        precondition(Set(accepted) == [file, ignored] && closed == 1)
-        let progress = AddProgressWindowModel(repository: repo, access: nil, paths: accepted)
-        let progressTable = AddProgressTable.Coordinator(model: progress), progressScroll = progressTable.make()
-        precondition(progressTable.table.tableColumns.map(\.title) == ["Action", "Path"])
-        precondition(progressTable.table.watermarkImage != nil && progressScroll.documentView === progressTable.table)
-        precondition(progressTable.numberOfRows(in: progressTable.table) == accepted.count)
+        model.onAccepted = { accepted = $0 }; model.close = { closed += 1 }
+        // OK retires an accepted dialog's actions. Exercise acceptance on an
+        // equivalent separate owner; the remaining menu workflows represent a
+        // still-open dialog, rather than reviving that accepted owner.
+        let accepting=AddWindowModel(repository:repo,access:nil,defaults:preferences)
+        defer{accepting.invalidate()}
+        accepting.includeIgnored=model.includeIgnored;accepting.setScope(["."])
+        try await accepting.read()
+        precondition(Set(accepting.entries.map(\.path))==Set(model.entries.map(\.path)))
+        accepting.checked=model.checked;accepting.onAccepted=model.onAccepted;accepting.close=model.close
+        accepting.apply()
+        precondition(Set(accepted) == [file, ignored] && closed == 1 && !accepting.canApply && model.canApply)
+        let progress = AddProgressWindowModel(repository: repo, access: nil, paths: accepted, preferences: preferences)
+        // Add now hosts the shared native progress report. Exercise the actual
+        // wrapper rather than a removed Add-specific coordinator implementation.
+        let progressHost=NSHostingView(rootView:AddProgressTable(model:progress))
+        let progressWindow=NSWindow(contentRect:NSRect(x:-24000,y:-24000,width:720,height:220),styleMask:[],backing:.buffered,defer:false)
+        progressWindow.isReleasedWhenClosed=false;progressWindow.alphaValue=0;progressWindow.contentView=progressHost
+        defer {progressWindow.contentView=nil;progressWindow.close()}
+        func progressViews(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap{progressViews($0)}}
+        var progressTable:FileOperationProgressNativeTable?
+        let progressDeadline=Date().addingTimeInterval(20)
+        repeat {
+            progressHost.layoutSubtreeIfNeeded()
+            progressTable=progressViews(progressHost).compactMap{$0 as? FileOperationProgressNativeTable}.first
+            if progressTable?.numberOfRows==progress.progress.rows.count {break}
+            try await Task.sleep(nanoseconds:10_000_000)
+        } while Date()<progressDeadline
+        guard let progressTable,let progressScroll=progressTable.enclosingScrollView else {throw NSError(domain:"AddProgressNativeMount",code:1)}
+        precondition(progressTable.tableColumns.map(\.title) == ["Action", "Path"])
+        precondition(progressTable.watermarkImage != nil && progressScroll.documentView === progressTable)
+        precondition(progress.progress.rows.isEmpty && progressTable.numberOfRows == 0 && progressTable.dataSource?.numberOfRows?(in:progressTable)==0)
+        precondition(!progressWindow.isVisible)
         var finishes = 0; progress.onFinished = { _, success in precondition(success); finishes += 1 }
         await progress.run(); precondition(progress.success && !progress.busy && finishes == 1)
+        let completedDeadline=Date().addingTimeInterval(20)
+        while progressTable.numberOfRows != progress.progress.rows.count && Date()<completedDeadline {
+            progressHost.layoutSubtreeIfNeeded();try await Task.sleep(nanoseconds:10_000_000)
+        }
+        // The shared report records command, actual Added receipts and finish,
+        // rather than speculative pending file rows before the command starts.
+        precondition(progress.progress.rows.first?.kind == .command && progress.progress.rows.last?.kind == .finished)
+        let addedRows=progress.progress.rows.filter{$0.kind == .file}
+        precondition(addedRows.count == accepted.count && Set(addedRows.map(\.path)) == Set(accepted) && addedRows.allSatisfy{$0.action == "Added"})
+        precondition(progressTable.numberOfRows == progress.progress.rows.count && progressTable.numberOfRows == accepted.count+2)
         await progress.run(); precondition(finishes == 1)
         let staged = try await repo.run(["diff", "--cached", "--name-only", "-z"]).stdout.split(separator: 0).map { String(decoding: $0, as: UTF8.self) }
         precondition(Set(staged) == [file, ignored])
@@ -320,7 +363,15 @@ import TurtleGitCore
         let unbornRepo = GitRepository(root: unbornFolder, executable: repo.executable); _ = try await unbornRepo.run(["init", "-b", "main"])
         try Data("first\n".utf8).write(to: unbornFolder.appendingPathComponent("first.txt")); try await unbornRepo.stage(["first.txt"])
         let unbornModel = AddWindowModel(repository: unbornRepo, access: nil, defaults:preferences); unbornModel.setScope(["first.txt"]); try await unbornModel.read(); unbornModel.highlighted = ["first.txt"]
-        let unbornReceiver = AddFileTable.Coordinator(model: unbornModel); _ = unbornReceiver.make()
+        let unbornReceiver = AddFileTable.Coordinator(model: unbornModel),unbornScroll=unbornReceiver.make()
+        // Positive native command eligibility requires this exact auxiliary
+        // report to have its own owner, just like the main Add report above.
+        let unbornWindow=NSWindow(contentRect:NSRect(x:-24000,y:-24000,width:720,height:360),styleMask:[.titled],backing:.buffered,defer:false)
+        unbornWindow.isReleasedWhenClosed=false;unbornWindow.alphaValue=0
+        unbornWindow.contentView=unbornScroll;unbornModel.primaryWindow=unbornWindow
+        defer{unbornReceiver.retire();unbornModel.invalidate();unbornWindow.contentView=nil;unbornWindow.close()}
+        precondition(unbornReceiver.table.window === unbornWindow && unbornScroll.documentView === unbornReceiver.table && !unbornWindow.isVisible)
+        precondition(unbornReceiver.rows.map(\.path)==["first.txt"] && unbornReceiver.table.numberOfRows==1)
         precondition(unbornReceiver.canCompareBase && !unbornModel.hasHead && !unbornReceiver.canUnifiedDiff && unbornModel.startUnifiedDiff(paths: ["first.txt"]) == nil)
         let history = try await repo.history(options: historyOptions)
         precondition(!history.isEmpty)
@@ -333,14 +384,25 @@ import TurtleGitCore
         model.confirmingQuit = true; receiver.showLog(); receiver.blame(); receiver.compareBase(); receiver.compareTwo()
         precondition(logged.count == 1 && blamed.count == 1 && baseComparisons.count == 1 && pairs.count == 1); model.confirmingQuit = false
         _ = try await repo.run(["mv", "--", ".gitignore", "renamed-ignore.txt"])
-        model.setScope(["renamed-ignore.txt"]); try await model.read(); model.highlighted = ["renamed-ignore.txt"]; receiver.refresh()
-        precondition(receiver.oldLogPath == ".gitignore"); receiver.showOldLog(); precondition(logged.last == ".gitignore")
+        // A destination-only Git pathspec intentionally reports Added because
+        // its source lies outside the query. Include the parent query to obtain
+        // actual rename provenance, plus the direct file to retain Add's tracked
+        // file eligibility. This is the supported mixed folder/file scope.
+        let renameScope=[".","renamed-ignore.txt"]
+        model.setScope(renameScope); try await model.read(); model.highlighted = ["renamed-ignore.txt"]; receiver.refresh()
+        func renameDiagnostic()->String {
+            "scope=\(renameScope),mark=\(String(describing:model.selectionMark)),highlighted=\(model.highlighted),rows=\(receiver.selectedRows.map{String(describing:$0)}),oldLog=\(String(describing:receiver.oldLogPath)),compare=\(receiver.canCompareBase),ignore=\(receiver.canIgnore),delete=\(receiver.canDelete),owner=\(receiver.table.window === fileWindow),error=\(String(describing:model.error))"
+        }
+        precondition(receiver.oldLogPath == ".gitignore","Rename old-path roster lost source: "+renameDiagnostic())
+        receiver.showOldLog(); precondition(logged.last == ".gitignore","Rename Log callback lost captured source: "+renameDiagnostic())
         historyOptions.paths = [logged.last!]
         let oldHistory = try await repo.history(options: historyOptions); precondition(!oldHistory.isEmpty)
-        model.setScope(["renamed-ignore.txt", copyPath]); try await model.read(); model.highlighted = ["renamed-ignore.txt", copyPath]
-        model.selectionMark = copyPath; precondition(!receiver.canCompareBase && receiver.canIgnore && receiver.canDelete)
-        model.selectionMark = "renamed-ignore.txt"; precondition(receiver.canCompareBase && !receiver.canIgnore && !receiver.canDelete)
-        model.setScope(["renamed-ignore.txt", copyPath]); try await model.read()
+        model.setScope([".","renamed-ignore.txt", copyPath]); try await model.read(); model.highlighted = ["renamed-ignore.txt", copyPath]
+        model.selectionMark = copyPath; receiver.refresh()
+        precondition(!receiver.canCompareBase && receiver.canIgnore && receiver.canDelete,"Untracked marked-row command gates changed: "+renameDiagnostic())
+        model.selectionMark = "renamed-ignore.txt"; receiver.refresh()
+        precondition(receiver.canCompareBase && !receiver.canIgnore && !receiver.canDelete,"Renamed marked-row command gates changed: "+renameDiagnostic())
+        model.setScope([".","renamed-ignore.txt", copyPath]); try await model.read()
         model.highlighted = ["renamed-ignore.txt", copyPath]; receiver.refresh()
         let retainedFile = folder.appendingPathComponent("renamed-ignore.txt")
         let renamedWorkingBytes = try Data(contentsOf: retainedFile)
@@ -416,14 +478,24 @@ import TurtleGitCore
         var revertRequests: [[AddDialogEntry]] = [], revertWorkers: [RevertProgressWindowModel] = [], revertClosed = 0
         model.onRevertRequest = { revertRequests.append($0) }
         model.onRevert = { entries, done in
-            let progress = RevertProgressWindowModel(repository: repo, access: nil, entries: entries, amend: false, againstHead: false, autoCloseSuccess: true)
+            // Match RepositoryModel's actual Add handoff: fresh validation owns
+            // the same immutable query scope and accepted confirmation policy.
+            // A global status can enrich M-only scoped rows with unrelated
+            // copy/rename action metadata and correctly fail exact equality.
+            let invocationPaths=model.invocationPaths
+            let policy=model.pendingRevertPolicy ?? .load(from:preferences)
+            let progress = RevertProgressWindowModel(repository: repo, access: nil, entries: entries, amend: false, againstHead: false, autoCloseSuccess: true, preferences:preferences,policy:policy,paths:invocationPaths)
             progress.onFinished = { _, succeeded in done(succeeded) }; progress.close = { revertClosed += 1 }
             revertWorkers.append(progress); progress.start(); return { progress.cancel() }
         }
         defer { for progress in revertWorkers { for url in progress.trashedFiles { try? FileManager.default.removeItem(at: url) } } }
         func waitForRevert() async throws {
-            for _ in 0..<300 { if !model.busy { break }; try await Task.sleep(nanoseconds: 50_000_000) }
-            precondition(!model.busy && !model.reverting)
+            for _ in 0..<300 {
+                if !model.busy && !model.reverting && AddWindowModel.activeOperations==0 && RevertProgressWindowModel.activeOperations==0 {break}
+                try await Task.sleep(nanoseconds:50_000_000)
+            }
+            precondition(!model.busy && !model.reverting && AddWindowModel.activeOperations==0 && RevertProgressWindowModel.activeOperations==0,
+                "Revert owner did not drain: busy=\(model.busy),reverting=\(model.reverting),addWorkers=\(AddWindowModel.activeOperations),revertWorkers=\(RevertProgressWindowModel.activeOperations),error=\(String(describing:model.error))")
         }
         let revertAdded = "revert-added.bin", revertAddedBytes = Data([0, 254, 13, 10])
         try revertAddedBytes.write(to: folder.appendingPathComponent(revertAdded)); try await repo.stage([revertAdded])
@@ -470,8 +542,17 @@ import TurtleGitCore
         let afterNoBytes = try Data(contentsOf: folder.appendingPathComponent(".gitignore")); precondition(!model.busy && afterNoBytes == beforeRevertBytes && model.checked == noChecks)
         model.confirmingQuit = true; receiver.revertItem(); precondition(!model.beginRevertConfirmation(revertRequests.last!)); model.confirmingQuit = false
         let unrelatedRevertIndex = try await repo.run(["show", ":" + restorePath]).stdout
-        precondition(model.beginRevertConfirmation(revertRequests.last!)); model.finishRevertConfirmation(accepted: true); try await waitForRevert()
-        let revertedIgnore = try Data(contentsOf: folder.appendingPathComponent(".gitignore")); precondition(revertedIgnore == Data("*.log\n".utf8) && !model.entries.contains { $0.path == ".gitignore" } && !model.checked.contains(".gitignore"))
+        let successfulRevertRows=revertRequests.last!,successfulRevertChecks=model.checked
+        precondition(model.beginRevertConfirmation(successfulRevertRows)); model.finishRevertConfirmation(accepted: true); try await waitForRevert()
+        let revertedIgnore = try Data(contentsOf: folder.appendingPathComponent(".gitignore"))
+        let successfulRevertWorker=revertWorkers.last!
+        let revertedIgnoreRows=model.entries.filter{$0.path == ".gitignore"}
+        let revertReceipt="scope=\(String(describing:successfulRevertWorker.invocationPaths)),captured=\(successfulRevertRows.map{String(describing:$0)}),current=\(revertedIgnoreRows.map{String(describing:$0)}),checksBefore=\(successfulRevertChecks),checksAfter=\(model.checked),failed=\(successfulRevertWorker.failed),cancelled=\(successfulRevertWorker.cancelled),workerBusy=\(successfulRevertWorker.busy),addWorkers=\(AddWindowModel.activeOperations),revertWorkers=\(RevertProgressWindowModel.activeOperations),workerInformation=\(String(reflecting:successfulRevertWorker.information)),workerOutput=\(String(reflecting:successfulRevertWorker.commandOutput.suffix(1024))),closed=\(revertClosed),bytes=\(revertedIgnore.base64EncodedString()),expected=\(Data("*.log\n".utf8).base64EncodedString()),restores=\(model.restoreCopies.keys),trash=\(successfulRevertWorker.trashedFiles.map(\.path)),error=\(String(describing:model.error))"
+        precondition(revertedIgnore == Data("*.log\n".utf8),"Successful Revert restored wrong exact bytes: "+revertReceipt)
+        // finishRevert explicitly removes clean non-added captured rows; a
+        // later explicit scoped read below independently reintroduces them.
+        precondition(revertedIgnoreRows.isEmpty,"Successful Revert retained captured clean row: "+revertReceipt)
+        precondition(!model.checked.contains(".gitignore"),"Successful Revert retained captured check: "+revertReceipt)
         let trashedIgnore = try Data(contentsOf: revertWorkers.last!.trashedFiles[0]); precondition(trashedIgnore == beforeRevertBytes && revertClosed == 2 && model.restoreCopies[".gitignore"] != nil)
         let unrelatedAfterRevert = try await repo.run(["show", ":" + restorePath]).stdout; precondition(unrelatedAfterRevert == unrelatedRevertIndex)
         try await model.read(); model.highlighted = [".gitignore"]; model.selectionMark = ".gitignore"; receiver.refresh()

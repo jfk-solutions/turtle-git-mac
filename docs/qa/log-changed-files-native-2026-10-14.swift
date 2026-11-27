@@ -32,6 +32,24 @@ import TurtleGitCore
         controller.window?.contentView?.layoutSubtreeIfNeeded()
         try await wait {views(controller.window!.contentView!).compactMap{$0 as? LogChangedFileNativeTable}.contains{$0.numberOfRows==model.fileTableRows.count}}
         let table=views(controller.window!.contentView!).compactMap{$0 as? LogChangedFileNativeTable}.first!
+        func nativeProjectionReady()->Bool {
+            guard let coordinator=table.dataSource as? LogChangedFileReport.Coordinator,coordinator.model === model,
+                NativeListSelection.originalDelegate(of:table) === coordinator,table.window === controller.window,
+                table.numberOfRows==model.fileTableRows.count,
+                let column=table.tableColumns.firstIndex(where:{$0.identifier.rawValue==StatusListColumn.path.rawValue}) else{return false}
+            for (index,row) in model.fileTableRows.enumerated() {
+                guard coordinator.tableView(table,isGroupRow:index)==(row.file==nil) else{return false}
+                let expected=row.file.map{model.changedFileText($0,column:.path)} ?? row.header ?? ""
+                let native=table.view(atColumn:column,row:index,makeIfNecessary:true)
+                    ?? (row.file==nil ? coordinator.tableView(table,viewFor:nil,row:index):nil)
+                let field=(native as? NSTableCellView)?.textField ?? native as? NSTextField
+                // Exact source text remains in the path tooltip, including
+                // literal newlines; duplicate paths retain their parent rows.
+                guard field?.toolTip?.utf8.elementsEqual(expected.utf8)==true else{return false}
+            }
+            return table.ownerAvailable() && table.isEnabled
+        }
+        try await wait {nativeProjectionReady()}
         try require(table.tableColumns.count==5 && table.tableColumns.allSatisfy{StatusListColumn.defaultColumns.map(\.rawValue).contains($0.identifier.rawValue)},"Log file table semantic identity/columns missing")
         func headings()throws->[NSTextField] {
             let rows=model.fileTableRows
@@ -70,13 +88,47 @@ import TurtleGitCore
         guard let nativeHeader=table.headerView as? LogChangedFileHeader else{throw Failure(description:"Owned native divider handler missing")}
         try require(nativeHeader.fitDivider(atNativeIndex:pathIndex,useDefault:false),"Native divider content fit refused")
         try require(nativeHeader.fitDivider(atNativeIndex:pathIndex,useDefault:true),"Native Shift fit refused");try require(model.changedFileColumns.widths[.path] == nil,"Shift fit did not clear adjusted width")
+        // Sort/selection/layout publication precedes the native representable
+        // update. Admit one real key only after its exact source projection.
+        try await wait {nativeProjectionReady()}
         // Inject native keys at the actual table; group slots must be skipped.
-        controller.window!.makeFirstResponder(table)
+        // The prohibited private receiver cannot become the user's key app.
+        // Exercise the actual table's key admission against its exact test owner.
+        table.commandKeyWindow = { [weak window=controller.window] in window }
+        try require(controller.window!.makeFirstResponder(table) && controller.window!.firstResponder === table,"Changed-file native focus was not admitted")
         model.focusedChangedFile=nil
         let home=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:"\u{f729}",charactersIgnoringModifiers:"\u{f729}",isARepeat:false,keyCode:115)!
-        table.keyDown(with:home);try require(table.selectedRow==1 && model.focusedChangedFile==model.fileTableRows[1].rawID,"Home landed on a parent heading")
+        try require(table.ownsKeyboard(home),"Changed-file Home was not admitted by exact native owner")
+        table.keyDown(with:home);try require(table.selectedRowIndexes==IndexSet(integer:1) && model.selectedFiles==GitPathSet([model.fileTableRows[1].rawID]) && model.focusedChangedFile==model.fileTableRows[1].rawID,"Home landed on a parent heading: row=\(table.selectedRow),selected=\(table.selectedRowIndexes),focus=\(String(reflecting:model.focusedChangedFile))")
         let end=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:"\u{f72b}",charactersIgnoringModifiers:"\u{f72b}",isARepeat:false,keyCode:119)!
-        table.keyDown(with:end);try require(table.selectedRow==table.numberOfRows-1,"End did not find final file row")
+        table.keyDown(with:end);try require(table.selectedRowIndexes==IndexSet(integer:table.numberOfRows-1) && model.focusedChangedFile==model.fileTableRows.last!.rawID,"End did not select/focus final file row")
+        func navigationKey(_ code:UInt16,_ text:String,shift:Bool=false)->NSEvent {
+            NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:shift ? [.shift]:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,characters:text,charactersIgnoringModifiers:text,isARepeat:false,keyCode:code)!
+        }
+        let fileIndexes=IndexSet(model.fileTableRows.indices.filter{model.fileTableRows[$0].file != nil})
+        table.keyDown(with:navigationKey(115,"\u{f729}",shift:true))
+        try require(table.selectedRowIndexes==fileIndexes && model.selectedFiles.count==fileIndexes.count && model.focusedChangedFile==model.fileTableRows[1].rawID,"Shift-Home lost endpoint range or selected a parent heading")
+        await Task.yield();try await wait{nativeProjectionReady()}
+        table.keyDown(with:navigationKey(119,"\u{f72b}",shift:true))
+        try require(table.selectedRowIndexes==IndexSet(integer:table.numberOfRows-1) && model.focusedChangedFile==model.fileTableRows.last!.rawID,"Shift-End did not retain original range anchor across native repaint")
+        table.keyDown(with:navigationKey(115,"\u{f729}",shift:true))
+        let currentHeaderPoint=table.convert(NSPoint(x:10,y:table.rect(ofRow:headerRow).midY),to:nil)
+        let currentHeaderEvent=NSEvent.mouseEvent(with:.rightMouseDown,location:currentHeaderPoint,modifierFlags:[],timestamp:0,windowNumber:controller.window!.windowNumber,context:nil,eventNumber:2,clickCount:1,pressure:1)!
+        try require(table.menu(for:currentHeaderEvent)==nil,"Parent heading admitted a pointer menu during endpoint range")
+        table.keyDown(with:navigationKey(119,"\u{f72b}",shift:true))
+        try require(table.selectedRowIndexes==fileIndexes && model.focusedChangedFile==model.fileTableRows.last!.rawID,"Pointer menu refusal revived the preceding endpoint range anchor")
+        table.keyDown(with:home)
+        let nextFile=fileIndexes.dropFirst().first!
+        table.keyDown(with:navigationKey(125,"\u{f701}"))
+        try require(table.selectedRowIndexes==IndexSet(integer:nextFile) && model.focusedChangedFile==model.fileTableRows[nextFile].rawID,"Down did not skip parent headings/select next file")
+        table.keyDown(with:end)
+        let previousFile=fileIndexes.dropLast().last!
+        table.keyDown(with:navigationKey(126,"\u{f700}"))
+        try require(table.selectedRowIndexes==IndexSet(integer:previousFile) && model.focusedChangedFile==model.fileTableRows[previousFile].rawID,"Up did not skip parent headings/select previous file")
+        let blockedSelection=table.selectedRowIndexes,blockedFocus=model.focusedChangedFile
+        model.confirmingQuit=true;table.keyDown(with:home)
+        try require(table.selectedRowIndexes==blockedSelection && model.focusedChangedFile==blockedFocus,"Blocked owner admitted endpoint navigation")
+        model.confirmingQuit=false
         // Both reset decisions and retired late approval are owned by the model.
         var accepted=0;let before=model.changedFileColumns
         model.resetChangedFileColumns(choose:{false},accepted:{accepted += 1});try await wait {!model.resettingChangedFileColumns};try require(model.changedFileColumns == before && accepted == 0,"No reset changed layout")
@@ -86,6 +138,9 @@ import TurtleGitCore
         try await wait {reply != nil};let saved=model.changedFileColumns;controller.close();reply?(true)
         try await wait {!model.changedFileColumnWorkPending}
         try require(model.changedFileColumns==saved && accepted==1 && table.dataSource==nil && nativeHeader.fitColumn==nil && !table.accessibilityPerformShowMenu(),"Retired reset or queued native presentation published")
+        let closedSelection=model.selectedFiles,closedFocus=model.focusedChangedFile
+        table.keyDown(with:home)
+        try require(model.selectedFiles==closedSelection && model.focusedChangedFile==closedFocus,"Closed native report accepted a queued endpoint key")
         reopened.invalidate()
         let after=try await repo.run(["rev-parse","HEAD"]).stdout,afterIndex=try Data(contentsOf:root.appendingPathComponent(".git/index"));try require(after == head && afterIndex == index,"List-only workflow changed HEAD/index")
         print("Log changed files: full-width parent headers, exact parent IDs, numeric per-group sorting, native column mask/order/visibility/widths/reopen/fit/reset, injected Home/End, copy ordering/column/header refusal, light/dark and retired reset/overlay fencing passed. Private prefs/clipboard; owned Log closed; HEAD/index preserved.")

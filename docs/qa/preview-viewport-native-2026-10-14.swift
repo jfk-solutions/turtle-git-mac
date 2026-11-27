@@ -56,15 +56,44 @@ import TurtleGitCore
         let first = root.appendingPathComponent("left.txt"), second = root.appendingPathComponent("right.txt")
         let lines = (0..<200).map { "line \($0)" }; var modified = lines; modified[150] = "changed line 150"
         try Data((lines.joined(separator: "\n") + "\n").utf8).write(to: first); try Data((modified.joined(separator: "\n") + "\n").utf8).write(to: second)
-        let comparison = FileComparisonWindowController(comparison: try WorkingFileComparison(base: first, destination: second), permissions: [], preferences: prefs); defer { comparison.close() }
-        var panes: [Bool: NSScrollView] = [:]; comparison.model.onRegisterScroll = { panes[$1] = $0 }
-        comparison.window!.setContentSize(NSSize(width: 1000, height: 620)); comparison.window!.contentView?.layoutSubtreeIfNeeded()
-        comparison.model.load(); try await wait { !comparison.model.busy && !comparison.model.filtering && comparison.model.alignment != nil && panes.count == 2 }
-        comparison.window!.contentView?.layoutSubtreeIfNeeded()
-        try await wait { comparison.model.alignmentSelections.isEmpty && panes.values.allSatisfy { $0.contentView.bounds.minY > 100 } }
+        let comparison = FileComparisonWindowController(comparison: try WorkingFileComparison(base: first, destination: second), permissions: [], preferences: prefs, deferInitialLoad: true); defer { comparison.close() }
+        guard let comparisonWindow=comparison.window else {throw Failure.assertion("Comparison window missing")}
+        // Native viewport navigation needs a mounted current presentation. Keep
+        // this owned window transparent and offscreen while allowing AppKit layout.
+        comparisonWindow.alphaValue=0;comparisonWindow.setFrameOrigin(NSPoint(x:-12000,y:-12000))
+        comparisonWindow.setContentSize(NSSize(width:1000,height:620));comparisonWindow.orderFront(nil)
+        comparisonWindow.contentView?.layoutSubtreeIfNeeded()
+        func currentPanes() -> [Bool:NSScrollView]? {
+            let model=comparison.model,(left,right)=model.connectionEditors()
+            guard !model.busy,!model.filtering,model.alignment != nil,
+                  let left,let right,model.ownsEditor(left,base:true),model.ownsViewport(left,base:true),
+                  model.ownsEditor(right,base:false),model.ownsViewport(right,base:false) else{return nil}
+            let panes:[Bool:NSScrollView]=[true:left,false:right]
+            for (side,scroll) in panes {
+                guard scroll.window === comparisonWindow,!scroll.isHiddenOrHasHiddenAncestor,
+                      let view=scroll.documentView as? NSTextView,!view.isHiddenOrHasHiddenAncestor else{return nil}
+                let cells=model.displayCells(base:side),expected=cells.map(\.displayText).joined(separator:"\n")+(cells.isEmpty ? "":"\n")
+                guard view.string.utf8.elementsEqual(expected.utf8),scroll.contentSize.width>32,scroll.contentSize.height>32 else{return nil}
+            }
+            return panes
+        }
+        func viewportState() -> String {
+            let model=comparison.model,(left,right)=model.connectionEditors()
+            return "visible=\(comparisonWindow.isVisible),deferred=\(model.initialLoadDeferred),document=\(model.document != nil),alignment=\(model.alignment != nil),busy=\(model.busy),filtering=\(model.filtering),initialPending=\(model.initialNavigationPending),selections=\(model.alignmentSelections.count),left=\(String(describing:left?.contentView.bounds)),right=\(String(describing:right?.contentView.bounds)),ownedLeft=\(left.map{model.ownsEditor($0,base:true)&&model.ownsViewport($0,base:true)} ?? false),ownedRight=\(right.map{model.ownsEditor($0,base:false)&&model.ownsViewport($0,base:false)} ?? false),error=\(String(describing:model.error))"
+        }
+        comparison.model.beginTransferredDocument()
+        do {try await wait {comparisonWindow.contentView?.layoutSubtreeIfNeeded();return currentPanes() != nil}}
+        catch {throw Failure.assertion("Comparison native viewport admission failed: \(viewportState()); \(error)")}
+        do {try await wait {
+            comparisonWindow.contentView?.layoutSubtreeIfNeeded()
+            guard let panes=currentPanes() else{return false}
+            return !comparison.model.initialNavigationPending && comparison.model.alignmentSelections.isEmpty && panes.values.allSatisfy{$0.contentView.bounds.minY>100}
+        }} catch {throw Failure.assertion("Initial difference navigation did not settle: \(viewportState()); \(error)")}
+        guard let panes=currentPanes() else {throw Failure.assertion("Current comparison panes disappeared: \(viewportState())")}
         try require(panes.values.allSatisfy { $0.contentSize.width > 32 && $0.contentSize.height > 32 }, "Comparison consumed navigation before viewport existed")
-        comparison.window!.setContentSize(NSSize(width: 840, height: 500)); comparison.window!.contentView?.layoutSubtreeIfNeeded(); await Task.yield()
-        try require(panes.values.allSatisfy { $0.contentView.bounds.minY > 100 }, "Resize lost initial navigation")
+        comparisonWindow.setContentSize(NSSize(width:840,height:500));comparisonWindow.contentView?.layoutSubtreeIfNeeded();await Task.yield()
+        guard let resizedPanes=currentPanes() else {throw Failure.assertion("Resize retired native comparison panes: \(viewportState())")}
+        try require(resizedPanes.values.allSatisfy { $0.contentView.bounds.minY > 100 }, "Resize lost initial navigation: \(viewportState())")
         let afterHead = try await repo.run(["rev-parse", "HEAD"]).stdout, afterIndex = try Data(contentsOf: root.appendingPathComponent(".git/index")), afterBytes = try Data(contentsOf: file)
         try require(head == afterHead && index == afterIndex && bytes == afterBytes, "Preview changed repository data")
     }

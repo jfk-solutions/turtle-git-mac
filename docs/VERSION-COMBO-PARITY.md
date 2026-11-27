@@ -61,9 +61,10 @@ refreshes the catalog even on Cancel, preserving canonical branch/tag/custom
 reference identity. The shared native coordinator now supplies the revision
 before constructing Log, with private preferences and the owner's appearance and
 opacity. Switch, Create Branch/Tag and New Worktree now configure the same shared
-production Log commands as Merge and Reset. Accepted hashes enter the editable
-session choices; source ChooseVersion does not load/save a persistent version
-history here, so native choices remain session-scoped.
+production Log commands as Merge and Reset. That checkpoint added accepted hashes
+to editable session choices; the November 27 correction below restores the
+source text-only behavior. ChooseVersion does not load/save a persistent version
+history here.
 
 One request owns its pending return until both child retirement and actual sheet
 detachment. Duplicate, refused, obsolete and retired callbacks cannot replace a
@@ -74,7 +75,8 @@ options. Catalog results also validate their initiating selection draft after
 Git returns. Cancel still refreshes catalogs for an unchanged draft.
 
 Export participates in the same chooser handoff, retaining its target, destination
-and whole-project selection; accepted commits also enter its session choices.
+and whole-project selection. Its former insertion of accepted commits into session
+choices is superseded by the November 27 correction below.
 Merge/Export catalog reads and Create Branch/Tag metadata now keep global Quit/access
 ownership until settlement after forced owner close, matching the existing
 shared Switch reader. This is a workflow handoff improvement; it does not prove
@@ -95,3 +97,27 @@ The reference control receives one focus request. Existing native fixtures now
 create a reference after opening the picker and require it in the parent catalog
 after Cancel; their draft, stale-callback and retirement assertions remain.
 Validation is recorded in the recovery checkpoint, not inferred from this code.
+
+
+## Log selection history correction — November 27, 2026
+
+The grouped CI repair reached the version-combo assertion and exposed a product
+regression introduced by the later shared picker handoffs. Pinned
+`ChooseVersion.h` lines 96–118 assigns the selected Log hash with `SetWindowText`;
+`SelectRef` lines 198–204 separately inserts an unclassified programmatic
+reference with `AddString`. `CGitSwitchDlg::OnVersionChanged` only updates defaults.
+These paths must preserve that distinction.
+
+Switch, Merge and Export now assign the accepted Log hash without appending it
+to session choices. Branch/Tag and Worktree inherit the shared Switch chooser
+behavior; Reset's separate accepted Log callback follows the same rule. Existing
+one-use return, target/draft checks, retirement, defaults and focus guards remain.
+Programmatic custom reference selections continue to enter the session list.
+The six-consumer combo fixture retains its original text-only assertion and adds
+exact unchanged-choice checks for the other consumers. Actual Branch and Export
+picker returns retain their cancellation, stale-draft and Git-data assertions
+while requiring the exact preexisting choice lists.
+
+Validation is pending the combined repair checkpoint. This source change does
+not alter Core or bundled runtimes and does not certify every physical picker
+interaction or the complete upstream dialog inventory.

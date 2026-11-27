@@ -19,12 +19,15 @@ import TurtleGitCore
         func stopAccessing(_ url:URL) { stops += 1 }
     }
     static func require(_ condition:Bool,_ message:String) throws { if !condition { throw Failure(description:message) } }
+    @MainActor static var state:()->String={""}
     @MainActor static func wait(line:Int = #line,_ ready:()->Bool) async throws {
-        for _ in 0..<2000 { if ready() { return };try await Task.sleep(nanoseconds:10_000_000) };throw Failure(description:"Finder watch timeout at \(line)")
+        for _ in 0..<2000 { if ready() { return };try await Task.sleep(nanoseconds:10_000_000) };throw Failure(description:"Finder watch timeout at \(line): \(state())")
     }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Finder watches failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
-        let folder=URL(fileURLWithPath:CommandLine.arguments[1]),engine=URL(fileURLWithPath:CommandLine.arguments[2]),provider=Bookmarks()
+        // Expected cache keys and saved-watch identities use the repository's
+        // standardized, resolved private container, not an argv /var alias.
+        let folder=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL.resolvingSymlinksInPath(),engine=URL(fileURLWithPath:CommandLine.arguments[2]),provider=Bookmarks()
         let registry=folder.appendingPathComponent("private/watch-repositories.json"),permissions=try RepositoryAccessStore(storageURL:registry,provider:provider)
         let cache=FinderSnapshotStore(url:folder.appendingPathComponent("shared/status.json"))
         let registeredURL=folder.appendingPathComponent("shared/registered-roots.json")
@@ -42,6 +45,8 @@ import TurtleGitCore
             FinderWatchManager(permissions:permissions,cache:cache,requireScope:true,scopeProvider:provider,repositoryFactory:{ GitRepository(root:$0,executable:executable) },registeredRootsURL:registeredURL,notify:{ notifications += 1 })
         }
         let first=manager()
+        state={ "expectedContainer=\(folder.path),saved=\(permissions.repositories.map(\.lastKnownPath)),cache=\(String(describing:snapshot()?.roots)),rows=\(first.rows.map{String(describing:$0)}),pending=\(first.pendingOperations)" }
+        defer{state={""}}
         await first.add(repositories[0].root);await first.add(repositories[1].root)
         try await wait { first.pendingOperations==0 && first.rows.allSatisfy { $0.status=="Updated" } && snapshot()?.roots.count==2 }
         try require(first.rows.count==2 && notifications>=2,"Add/publication")
@@ -56,7 +61,9 @@ import TurtleGitCore
         let linkedRoot=folder.appendingPathComponent("Linked Watch")
         _ = try await repositories[0].run(["worktree","add","-b","linked-watch",linkedRoot.path])
         await first.add(linkedRoot)
-        let linkedID=permissions.repositories.first { $0.lastKnownPath==linkedRoot.path }!.id
+        guard let linkedID=permissions.repositories.first(where:{$0.lastKnownPath.utf8.elementsEqual(linkedRoot.path.utf8)})?.id else {
+            throw Failure(description:"Linked watch registration lost exact captured path: expected=\(linkedRoot.path),saved=\(permissions.repositories.map(\.lastKnownPath)),rows=\(first.rows.map{String(describing:$0)}),pending=\(first.pendingOperations)")
+        }
         try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status.contains(".git")==true }
         await first.changePermission(linkedID,url:repositories[0].root.appendingPathComponent(".git"))
         try await wait { first.pendingOperations==0 && first.rows.first { $0.id==linkedID }?.status=="Updated" }

@@ -293,3 +293,64 @@ system and bundled Git. Existing app objects were reused; no product/Core/runtim
 build, installed60 update or broader local suite was required. Owned compilers
 and receivers were reaped and independently absent. The current hosted run is
 still collecting results; corrected-source hosted acceptance remains pending.
+
+
+## Combined reference and replay recovery — November 27, 2026
+
+Run 45995227210 passed the complete Core, Settings/Finder and Images/Documents
+lanes. The Commit lane failed while downloading its artifact, before executing
+native tests. History failed in step 283 (covered above); Editors failed only its
+grouped reference step 305. Replay failures 201, 274, 275 and 388 were investigated
+using the actual failure artifacts or expanded hosted log. The current run still
+contains the old source, so local recovery does not make that run green.
+
+The reference batch updates source-backed native fixtures together: canonical
+captured repository identities, current native report coordinators, one-use menu
+ownership, actual sheet dismissal, settled asynchronous publication, and private
+CLI selection only where a test intentionally intercepts a CLI process. It keeps
+normal backend coverage, byte-exact operands/index/HEAD checks and cancellation
+assertions. Failed cases now continue only after verified owned-process cleanup;
+unknown ownership stops the batch. Three offline contract groups cover that
+continuation, complete case inventory and compiler grouping.
+
+Three product corrections accompany those fixture repairs. ChooseVersion Log
+handoffs set the selected hash without appending it to custom revision history,
+as pinned ChooseVersion distinguishes SetWindowText from SelectRef/AddString.
+Log changed-file Home/End select and focus endpoint files, with guarded Shift
+ranges across native repaint. Working-file Delete can complete an unknown
+retained-copy classification from fresh status, while preserving every other
+exact status fact and rejecting changes to known classifications. The latter
+was reproduced: the commit read omitted ignored inventory but fresh Delete
+inspection classified the same retained local copy as ignored.
+
+Replay Add acknowledges the actual owned conflict error sheet before Continue,
+without changing Rebase state or conflict bytes. Historical graph-export checks
+validate the real enhanced-metafile record stream for the existing WMF/EMF
+aliases; no image renderer behavior changed. Held Cat checks intercept their
+intended CLI backend. Switch/Reset/Bisect receiver compilation is grouped by
+its three related workflow families, retaining all 15 cases and their original
+per-compiler timeout. Its original failure was compiler timeout, not a runtime
+workflow failure. Sync/Replay retains its existing timeout and gains bounded
+owned-state diagnostics; its original hosted timeout is not explained by a local
+pass alone.
+
+Completed local checkpoints retain all earlier passes. Add preparation, primary
+historical commands, Sync/Replay, version-picker lifecycle and Reset picker pass
+with both Git executables. All 15 Switch/Reset/Bisect cases pass with both Git
+executables. Further validation is restricted to the remaining actual failures
+and the new Core/Log changes. See the [combined recovery record](qa/hosted-reference-family-recovery-2026-11-27.json)
+for exact scope, failed attempts and limits. Installed build 60 is unchanged;
+corrected-source full hosted acceptance and release delivery remain pending.
+
+
+The final affected checkpoints pass native changed-file endpoint navigation,
+three-pane ending/menu/Undo/Redo behavior, replay file menus/mutations, Blame
+file-open/atomic auxiliary MRU, and the entire Add/restoration/Revert/index-flag
+workflow with both Git executables. Fourteen focused WorkingFileDeleteTests
+also pass. Add's final stale Revert rejection was caused by its fixture omitting
+the captured invocation paths and policy that production already forwards;
+correcting that handoff preserves the exact stale-selection guard. The fixture
+also waits for both actual worker counters before checking post-read cleanup.
+All failed attempts remain recorded. Owned compilers/receivers were reaped and
+independently absent at each checkpoint. The full corrected-source hosted run
+remains required; no installed-app update or full local Core rerun was made.

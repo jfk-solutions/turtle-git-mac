@@ -253,7 +253,8 @@ import TurtleGitCore
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated, !confirmingQuit, pickerTarget == .commit else { return }
-        if let entry { selectCustomRevision(entry.hash); referenceFocusRequest += 1 }
+        // CChooseVersion::OnBnClickedChooseVersion uses SetWindowText, not AddString.
+        if let entry { commitRevision = entry.hash; referenceFocusRequest += 1 }
         finishPicker()
     }
     private var historyHandled = false

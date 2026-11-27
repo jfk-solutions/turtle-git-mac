@@ -32,7 +32,8 @@ import TurtleGitCore
         model.reload(); try await settled(model)
         let head = try await repo.run(["rev-parse", "HEAD"]).stdout, index = try Data(contentsOf: root.appendingPathComponent(".git/index"))
         let single = model.fileMenu(["one"]), missing = model.fileMenu(["two"]), rename = model.fileMenu([renamed])
-        try require(single.commands.contains(.openWith) && missing.commands.contains(.blame) && !missing.commands.contains(.open), "Source tracked/missing gates diverged")
+        // Pinned GitStatusListCtrl.cpp1869 excludes Added/Deleted from Blame.
+        try require(single.commands.contains(.openWith) && single.commands.contains(.blame) && !missing.commands.contains(.blame) && !missing.commands.contains(.open), "Source tracked/missing gates diverged")
         var logs: [String] = []; model.onFileLog = { logs.append($0) }; model.fileAction(.oldNameLog, snapshot: rename)
         try require(logs == ["old"], "Renamed history lost original name")
         model.selection = ["one"]; model.fileAction(.log, snapshot: single)

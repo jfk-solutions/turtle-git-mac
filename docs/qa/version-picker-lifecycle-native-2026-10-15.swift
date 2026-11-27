@@ -118,10 +118,11 @@ private extension NSWindow {
         let branchLog = branch.commitPicker!; branch.model.useHead = true; branchLog.model.select([base]); branchLog.model.accept()
         try await wait { branch.model.chooser.pickerTarget == nil && branch.window?.attachedSheet == nil }
         try require(branch.model.chooser.commitRevision == next && branchCommands == 1 && branch.model.chooser.pickerTarget == nil, "Branch HEAD change did not invalidate old base choice")
+        let branchChoicesBeforeLog = branch.model.chooser.commitChoices
         branch.model.useHead = false; branch.model.chooser.browse(.commit); try await wait { branch.commitPicker?.model.busy == false && branch.commitPicker?.model.entries.count == 2 }
         branch.commitPicker?.model.select([base]); branch.commitPicker?.model.accept()
         try await wait { branch.model.chooser.pickerTarget == nil && branch.window?.attachedSheet == nil }
-        try require(branch.model.chooser.commitRevision == base && branch.model.chooser.commitChoices.contains(base), "Branch accepted base missing from session choices")
+        try require(branch.model.chooser.commitRevision == base && branch.model.chooser.commitChoices == branchChoicesBeforeLog, "Branch Log result changed session choices")
 
         let worktree = WorktreeCreateWindowController(repository: repo, access: nil, preferences: preferences)
         defer { worktree.close() }
@@ -146,9 +147,10 @@ private extension NSWindow {
         try require(export.model.commit == next, "Changed Export destination consumed old revision")
         export.model.onBrowsePicker?(.commit)
         try await wait { export.commitPicker?.model.busy == false && export.commitPicker?.model.entries.count == 2 }
+        let exportChoicesBeforeLog = export.model.commitChoices
         export.commitPicker?.model.select([base]); export.commitPicker?.model.accept()
         try await wait { export.model.pickerTarget == nil && export.model.canEditForm && export.window?.attachedSheet == nil }
-        try require(export.model.commit == base && export.model.commitChoices.contains(base), "Export accepted revision missing from session choices")
+        try require(export.model.commit == base && export.model.commitChoices == exportChoicesBeforeLog, "Export Log result changed session choices")
         export.close()
         try await wait { ExportWindowModel.activeReads == 0 && SwitchWindowModel.activeReads == 0 && MergeWindowModel.activeReads == 0 && BranchTagWindowModel.activeReads == 0 && WorktreeCreateWindowModel.activeOperations == 0 && LogWindowModel.activeHistoryLoads == 0 && ReferenceBrowserWindowModel.activeReads == 0 }
         try require(try Data(contentsOf: root.appendingPathComponent(".git/index")) == index && Data(contentsOf: root.appendingPathComponent(".git/config")) == config, "Picker workflows wrote index/config")

@@ -1,6 +1,17 @@
 import AppKit
+import ObjectiveC
 import Darwin
 import TurtleGitCore
+
+
+private extension NSWindow {
+    @objc func quietBlameFindOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;quietBlameFindOrder(mode,relativeTo:number)
+    }
+    @objc func quietBlameFindSheet(_ child:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        child.alphaValue=0;quietBlameFindSheet(child,completionHandler:completionHandler)
+    }
+}
 
 @main struct BlameFindVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
@@ -20,6 +31,14 @@ import TurtleGitCore
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Blame Find failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
+        // Keep native modeless children and real sheet edges while suppressing
+        // every test-owned window's pixels; parent alpha is not inherited.
+        let orderMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let quietOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietBlameFindOrder(_:relativeTo:)))!
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!
+        let quietSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietBlameFindSheet(_:completionHandler:)))!
+        method_exchangeImplementations(orderMethod,quietOrder);method_exchangeImplementations(sheetMethod,quietSheet)
+        defer {method_exchangeImplementations(sheetMethod,quietSheet);method_exchangeImplementations(orderMethod,quietOrder)}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),repo=GitRepository(root:root,executable:URL(fileURLWithPath:CommandLine.arguments[2]))
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Find QA"),("user.email","find@example.invalid"),("core.hooksPath","/dev/null"),("commit.gpgsign","false")] { _ = try await repo.run(["config",key,value]) }

@@ -1,0 +1,334 @@
+{
+  "schema": 1,
+  "date": "2026-11-27",
+  "workflow_run": 45995227210,
+  "source": "da754caa25f9f8a09923d13a2a4c1875f0f789ad",
+  "job_id": 140493322164,
+  "step": 305,
+  "status": "all-known-failure-repairs-locally-passed-corrected-source-hosted-run-pending",
+  "hosted_scope": "System Git: groups1,2,12 passed; groups3\u201311 failed, each delegated group may stop before later cases. These are not feature-completion counts.",
+  "failure_observation": "build/qa/ci-da754caa-editors305-browser-observation-2026-11-27.json",
+  "repairs": [
+    {
+      "original_group": 3,
+      "case": "reflog-reference-deletion",
+      "cause": "Consumed popup sibling reused after Abort; fresh one-use native popup required"
+    },
+    {
+      "original_group": 4,
+      "case": "add-dialog",
+      "cause": "Removed wrapper Coordinator API; mount actual shared native report and verify operation receipts"
+    },
+    {
+      "original_group": 5,
+      "case": "remote-management-family",
+      "cause": "History namespace must follow captured canonical repository URL"
+    },
+    {
+      "original_group": 6,
+      "case": "history-workflows",
+      "cause": "Held --stdin gate intercepted replacement detail commands; claim original gate once"
+    },
+    {
+      "original_group": 7,
+      "case": "file-drop-transfer",
+      "cause": "Physical captured destination identity differs from raw NSURL directory hint"
+    },
+    {
+      "original_group": 8,
+      "case": "git-properties",
+      "cause": "Captured repository/context identity differs from raw invocation URL metadata"
+    },
+    {
+      "original_group": 9,
+      "case": "statistics-workflow",
+      "cause": "Grouped compilation omitted source-support extension required by standalone receiver"
+    },
+    {
+      "original_group": 10,
+      "case": "commit-progress",
+      "cause": "Unchecked U reset oracle contradicted pinned classic CommitDlg index reset"
+    },
+    {
+      "original_group": 11,
+      "case": "working-tree-file-menu",
+      "cause": "Deleted/Missing Blame expectation contradicted pinned source menu gate"
+    }
+  ],
+  "additional_local_failure": {
+    "case": "merge-source",
+    "original_group": 3,
+    "cause": "Previously unreached native scrolling assertion used an unshown owner; source pointer admission requires visible attached settled panes.",
+    "repair": "Use private preferences and transparent offscreen ordered owner; retain exact scroll/clipboard/ending/data assertions."
+  },
+  "validation": {
+    "plan": "Retain hosted groups1,2,12; run original groups3\u201311 with system Git using accepted app objects. Repair and recheck only actual failures.",
+    "log": "build/qa/ci-editors305-repair-groups-2026-11-27.log",
+    "results": "build/qa/ci-editors305-repair-groups-2026-11-27.json",
+    "app_core_runtime_rebuild": "two incremental Debug app builds: shared ChooseVersion family, then Core retained-copy authorization and Log endpoints; no runtime changes",
+    "status": "all-known-failure-repairs-locally-passed-corrected-source-hosted-run-pending",
+    "reference_cases": 61,
+    "retained_passes": "All hosted successful lanes and original reference groups1,2,12; all successful local reference cases retained; only actual failures rechecked",
+    "checkpoint_record": "build/qa/ci-repair-checkpoint-2026-11-27.json",
+    "core_focused": {
+      "class": "WorkingFileDeleteTests",
+      "tests": 14,
+      "failures": 0,
+      "seconds": 5.023
+    }
+  },
+  "limits": [
+    "Corrected-source full hosted acceptance remains pending",
+    "Installed build60 remains unchanged",
+    "Local focused native passes do not prove physical Finder integration, full dialog parity or signed deployment",
+    "Sync/Replay original hosted timeout remains unexplained by local pass alone",
+    "No WMF/EMF renderer feature changes"
+  ],
+  "first_local_checkpoint": {
+    "original_groups": [
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "passed_original_groups": [
+      5
+    ],
+    "failed_original_groups": [
+      3,
+      4,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11
+    ],
+    "all_group_cleanup_complete": true,
+    "owned_compiler_receiver_ids_reaped_and_independently_absent": 50,
+    "results": "build/qa/ci-editors305-repair-groups-2026-11-27.json",
+    "log": "build/qa/ci-editors305-repair-groups-2026-11-27.log"
+  },
+  "follow_on_repairs": [
+    {
+      "case": "version-combo",
+      "kind": "product-source-correction",
+      "cause": "Later Log handoffs incorrectly appended accepted hashes; pinned ChooseVersion distinguishes SetWindowText from SelectRef AddString.",
+      "sources": [
+        "SwitchWindow.swift",
+        "MergeWindow.swift",
+        "ExportWindow.swift",
+        "ResetWindow.swift"
+      ],
+      "covered_consumers": [
+        "Switch",
+        "Merge",
+        "Branch/Tag",
+        "Worktree",
+        "Reset",
+        "Export"
+      ]
+    },
+    {
+      "case": "history-workflows",
+      "kind": "fixture",
+      "cause": "Forced invalidation deliberately suppresses busy publication; require retired host and drained real workers/PID instead, retaining live idle assertions."
+    },
+    {
+      "case": "file-drop-transfer",
+      "kind": "fixture",
+      "cause": "Use actual Root-delivered Move/Copy controllers and exact repository actors; global window discovery with raw URL metadata missed valid handoff."
+    },
+    {
+      "case": "partial-patch",
+      "kind": "fixture",
+      "cause": "Source-ordered captured -C,-M gives Added; separate supported independent-read -M,-C copy path retains real copy assertions."
+    },
+    {
+      "case": "batch-delete",
+      "kind": "fixture",
+      "cause": "CLI branch cancellation gate cannot intercept the default libgit2 local delete; use private CLI setting only for authored forced-process cases."
+    },
+    {
+      "case": "credential-settings",
+      "kind": "runner-environment",
+      "cause": "Local caller GIT_CONFIG_COUNT was10; strip inherited Git config and use private per-case preferences/config outside each repository."
+    },
+    {
+      "case": "working-tree-file-menu",
+      "kind": "fixture",
+      "cause": "Exact callback operands use captured standardized repo.root, not raw invocation URL directory metadata; assert exact count and chosen application."
+    },
+    {
+      "case": "rebase-conflict-menus",
+      "kind": "fixture-lifecycle",
+      "cause": "Native sheet admission resumes only after both AppKit parent/child sheet links and owned worker counters have drained, beyond the model callback."
+    },
+    {
+      "case": "blame-file-open",
+      "kind": "fixture-injection-identity",
+      "cause": "Author metadata failure keys under canonical private authority root; prove actual intended auxiliary bookmark creation failure before asserting exact atomic MRU receipt."
+    },
+    {
+      "case": "merge-source",
+      "kind": "fixture-source-oracle",
+      "cause": "Formatting converts aligned visible records while unresolved conflict payload serializations remain exact; check both independently, fresh native admission and full Undo/Redo."
+    },
+    {
+      "case": "add-dialog",
+      "kind": "fixture-native-owner",
+      "cause": "Every positive native report, including unborn auxiliary, requires actual mounted coordinator and primary owner; acceptance uses separate fresh model instead of reusing retired accepted actions."
+    },
+    {
+      "case": "add-dialog Revert",
+      "kind": "fixture-captured-scope",
+      "cause": "Shipping RepositoryModel forwards invocationPaths and pendingRevertPolicy. Fixture omitted paths, so global A/R/C projection enriched M metadata while original scoped Add read did not; full-equality stale guard refused correctly. Preserve exact path scope/policy and wait actual worker drain; no additional Core change."
+    }
+  ],
+  "product_corrections": [
+    {
+      "family": "ChooseVersion",
+      "behavior": "Log text-only hash handoff must not append custom revision history",
+      "native_both_git": "version-picker lifecycle and Reset picker passed"
+    },
+    {
+      "family": "Log changed files",
+      "behavior": "Home/End singleton selection and focus; Shift ranges validate projection and anchor ownership",
+      "validation": "combined Debug build and native changed-file endpoint checks passed with system and bundled Git"
+    },
+    {
+      "family": "Working file Delete",
+      "behavior": "Complete only unknown retained-copy classification; keep all other exact status facts and known classification guards",
+      "validation": "14 focused Core tests and full native replay file mutation/menu cases passed with system and bundled Git"
+    }
+  ],
+  "completed_grouped_checkpoints": [
+    {
+      "checkpoint": 2,
+      "passes_both_git": [
+        "version-lifecycle",
+        "reset-picker",
+        "sync-replay"
+      ],
+      "owned_pids_independently_absent": 37
+    },
+    {
+      "checkpoint": 3,
+      "passes_both_git": [
+        "rebase-add-preparation"
+      ],
+      "owned_pids_independently_absent": 20
+    },
+    {
+      "checkpoint": 4,
+      "reference_cases_completed": 61,
+      "reference_passes": 46,
+      "reference_failures": 15,
+      "passes_both_git": [
+        "primary-history-commands"
+      ],
+      "owned_pids_independently_absent": 70
+    },
+    {
+      "checkpoint": 5,
+      "reference_passes": 8,
+      "reference_failures": 7,
+      "switch_reset_bisect_cases": 15,
+      "switch_reset_bisect_git_engines": 2,
+      "switch_reset_bisect_result": "passed",
+      "owned_compiler_receiver_pids_independently_absent_with_delete_diagnostic": 53
+    },
+    {
+      "checkpoint": 6,
+      "reference_cases_completed": 7,
+      "reference_passes": [
+        "version-combo",
+        "log-changed-files",
+        "finder-events",
+        "merge"
+      ],
+      "reference_failures": [
+        "merge-source",
+        "add-dialog",
+        "rebase-conflict-menus"
+      ],
+      "owned_compiler_receiver_pids_reaped_and_independently_absent": 8,
+      "cleanup_complete": true
+    },
+    {
+      "checkpoint": 7,
+      "passes_both_git": [
+        "merge-source",
+        "rebase-conflict-menus",
+        "blame-file-open"
+      ],
+      "remaining_failure_both_git": "add-dialog rename-origin expectation",
+      "additional_pass": "log-changed-files bundled Git; system case retained from checkpoint6",
+      "owned_compiler_receiver_pids_reaped_and_independently_absent": 11,
+      "cleanup_complete": true,
+      "reference_phase_seconds": 308.052377208,
+      "bundled_log_seconds": 9.523752541
+    },
+    {
+      "checkpoint": 8,
+      "cases": [
+        "add-dialog"
+      ],
+      "git_engines": [
+        "system",
+        "bundled"
+      ],
+      "result": "failed in later Revert compound at generated line537 after rename/marked gates passed",
+      "owned_compiler_receiver_pids_reaped_and_independently_absent": 3,
+      "cleanup_complete": true
+    },
+    {
+      "checkpoint": 9,
+      "cases": [
+        "add-dialog"
+      ],
+      "git_engines": [
+        "system",
+        "bundled"
+      ],
+      "result": "failed with exact receipt: Revert refused mismatched fresh global scope, left bytes/index unchanged, no Trash, both worker counters0",
+      "owned_compiler_receiver_pids_reaped_and_independently_absent": 3,
+      "cleanup_complete": true
+    },
+    {
+      "checkpoint": 10,
+      "cases": [
+        "add-dialog"
+      ],
+      "git_engines": [
+        "system",
+        "bundled"
+      ],
+      "result": "passed full actual native Add workflow, including restoration/Revert/cancellation/stale/index flags",
+      "owned_compiler_receiver_pids_reaped_and_independently_absent": 3,
+      "cleanup_complete": true
+    }
+  ],
+  "current_affected_checkpoint": {
+    "checkpoint": 10,
+    "status": "passed with both Git executables",
+    "remaining_gate": "full corrected-source hosted workflow"
+  },
+  "implementation_input_sha256": {
+    "Sources/TurtleGitCore/WorkingFileDelete.swift": "eba065f6ad95965493cfeee10a1b5310eb676950a1b10dfc80ae88922d2ad0e2",
+    "Sources/TurtleGitMac/ExportWindow.swift": "36421166c160ec189278d2c5aa9e3b687715a786eade4416f773696c58724fd1",
+    "Sources/TurtleGitMac/LogWindow.swift": "517a72858e4dce8698389725b2067fb528dea6fba1ac2848cef2106cf3f58f8b",
+    "Sources/TurtleGitMac/MergeWindow.swift": "13c50cbb67fe7fb57245b7b08554380db26f38c8e9b507a51bdc791848879059",
+    "Sources/TurtleGitMac/ResetWindow.swift": "48fa9957ad88eaf610b69a731be3afcbe5f2e2cfc3bb23e0272fd242a8069dff",
+    "Sources/TurtleGitMac/SwitchWindow.swift": "3dbae47dc022cb0ee800bce860efd514cbe22918ead36fb3375c5f598bf6c276",
+    "Tests/TurtleGitCoreTests/WorkingFileDeleteTests.swift": "e44994632c1c19f3f2dbaeec07b73e46a4d7007195d8839b45f851879af9956b",
+    "scripts/test-native-reference-batch.py": "b3532114ac3183768a49ff38fa8df9b346cfa1466d9c2f18cc630bf7bf26aa6e",
+    "scripts/test-rebase-source.py": "8f0983b24189dde28821ecf58e8caf7c174e852518196476ecc469612c742ae1",
+    "scripts/test-switch-reset-bisect-workflows.py": "707f0720c6c8e95b0b037ef5b188f85577edc207dce4205abe19fbbed1af3158"
+  }
+}

@@ -172,7 +172,10 @@ private extension NSWindow {
             context.refresh()
             try require(context.encoding?.id == codec.id, "Encoding check state did not follow selected codec")
         }
-        context.setEncoding(nil); try await wait { !model.busy }; context.refresh()
+        context.setEncoding(nil)
+        // Snapshot completion precedes the native representable/text update.
+        try await wait { !model.busy && !model.syntaxWorking && model.sourceEncoding == nil && source()?.string == text }
+        context.refresh()
         try require(source()?.string == text, "Automatic encoding did not restore Unicode text")
         model.openingDocument=true;context.refresh();let before=model.showToolbar
         context.perform(.toolbar);context.setEncoding(.utf16LE);try require(model.sourceEncoding == nil && !context.available && model.showToolbar==before,"Busy menu mutated a blocked owner")

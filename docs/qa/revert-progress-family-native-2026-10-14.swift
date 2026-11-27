@@ -72,14 +72,17 @@ import TurtleGitCore
                 guard let value=String(data:field,encoding:.utf8) else{throw Failure(description:"Protected restore argv is not exact UTF-8")}
                 actual.append(value)
             }
-            let expected=["--literal-pathspecs","-C",root.path,"-c","core.precomposeunicode=false","restore","--source="+head.trimmingCharacters(in:.newlines),"--staged","--worktree","--pathspec-from-file=-","--pathspec-file-nul"]
-            try require(actual.map{Data($0.utf8)}==expected.map{Data($0.utf8)},"Protected restore changed exact global options, command or NUL pathspec framing: "+phase)
+            // GitRepository.commandInvocation uses its captured standardized root,
+            // never the invocation URL's original directory/alias spelling.
+            let expected=["--literal-pathspecs","-C",repo.root.path,"-c","core.precomposeunicode=false","restore","--source="+head.trimmingCharacters(in:.newlines),"--staged","--worktree","--pathspec-from-file=-","--pathspec-file-nul"]
+            try require(actual.map{Data($0.utf8)}==expected.map{Data($0.utf8)},"Protected restore changed exact global options, command or NUL pathspec framing: "+phase+"; invocationRoot="+String(reflecting:root.path)+"; capturedRoot="+String(reflecting:repo.root.path)+"; expected="+String(reflecting:expected)+"; actual="+String(reflecting:actual))
             try require(input.count<=65_536 && input==Data((path+"\0").utf8),"Protected restore lost its exact literal selected-name packet: "+phase)
         }
         prefs.set(true, forKey: "ConfirmKillProcess")
         let slow = RevertProgressWindowController(repository: GitRepository(root: root, executable: helper), access: nil, entries: missing, amend: false, againstHead: false, autoCloseSuccess: false, preferences: prefs); defer { try? Data().write(to: release); slow.close() }
         var answer: CheckedContinuation<Bool, Never>?, finished = 0
         defer{answer?.resume(returning:false);answer=nil}
+        try require(slow.model.repository.root.path.utf8.elementsEqual(repo.root.path.utf8),"Protected cancel owner changed captured repository path")
         slow.model.confirmCancellation = { await withCheckedContinuation { answer = $0 } }; slow.model.onFinished = { _, _ in finished += 1 }
         slow.model.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) && slow.model.commandOutput.contains("Restore: 80%") }
         try verifyReceipt("cancel")
@@ -90,7 +93,7 @@ import TurtleGitCore
         // Forced retirement retains a pending operation and rejects late result callbacks.
         try FileManager.default.removeItem(at: marker); try FileManager.default.removeItem(at: release); try FileManager.default.removeItem(at: file)
         setenv("TG_REVERT_PHASE","retire",1)
-        let lateEntries = try await repo.status().filter { ![FileState.untracked, .ignored].contains($0.state) }, late = RevertProgressWindowController(repository: GitRepository(root: root, executable: helper), access: nil, entries: lateEntries, amend: false, againstHead: false, autoCloseSuccess: false, preferences: prefs); defer { try? Data().write(to: release); late.close() }; var lateFinished = 0; late.model.onFinished = { _, _ in lateFinished += 1 }; late.model.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) };try verifyReceipt("retire"); late.close(); let frozen = late.model.commandOutput
+        let lateEntries = try await repo.status().filter { ![FileState.untracked, .ignored].contains($0.state) }, late = RevertProgressWindowController(repository: GitRepository(root: root, executable: helper), access: nil, entries: lateEntries, amend: false, againstHead: false, autoCloseSuccess: false, preferences: prefs); defer { try? Data().write(to: release); late.close() }; var lateFinished = 0; late.model.onFinished = { _, _ in lateFinished += 1 }; late.model.start(); try await wait { FileManager.default.fileExists(atPath: marker.path) };try require(late.model.repository.root.path.utf8.elementsEqual(repo.root.path.utf8),"Protected retirement owner changed captured repository path");try verifyReceipt("retire"); late.close(); let frozen = late.model.commandOutput
         try require(late.model.retired && RevertProgressWindowModel.activeOperations > 0, "Forced closure lost protected lifetime"); try Data().write(to: release); try await wait { RevertProgressWindowModel.activeOperations == 0 }; try require(lateFinished == 0 && late.model.commandOutput == frozen, "Retired result published")
         let after = try await repo.run(["rev-parse", "HEAD"]).text; try require(head == after, "Revert changed HEAD")
         try await verifyPolicies(root:root,git:git)

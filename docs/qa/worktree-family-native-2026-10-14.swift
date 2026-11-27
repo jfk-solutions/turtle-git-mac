@@ -18,7 +18,7 @@ struct WorktreeTestScopes: RepositoryBookmarkProvider {
     }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
-        let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true)
+        let folder = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true).standardizedFileURL.standardizedFileURL
         let root = folder.appendingPathComponent("main")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let git = URL(fileURLWithPath: CommandLine.arguments[2])
@@ -221,7 +221,21 @@ struct WorktreeTestScopes: RepositoryBookmarkProvider {
         let wrapper = folder.appendingPathComponent("delayed-git"), started = folder.appendingPathComponent("started")
         try """
         #!/bin/sh
-        if [ "$4" = worktree ] && [ "$5" = remove ]; then
+        qa_git_matches() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree|--namespace|--config-env)
+                [ "$#" -ge 2 ] || return 2; shift 2 ;;
+              -c?*|-C?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) shift ;;
+              --no-pager|--paginate|--bare|--no-replace-objects|--literal-pathspecs|--no-literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|--no-lazy-fetch) shift ;;
+              --) shift; break ;;
+              -*) return 2 ;;
+              *) break ;;
+            esac
+          done
+          [ "${1-}" = worktree ] && [ "${2-}" = remove ]
+        }
+        if qa_git_matches "$@"; then
             : > "$(/usr/bin/dirname "$0")/started"
             /bin/sleep 30
         fi
@@ -290,7 +304,21 @@ struct WorktreeTestScopes: RepositoryBookmarkProvider {
         let wrapper=folder.appendingPathComponent("late-metadata")
         try """
         #!/bin/sh
-        if [ "$4" = branch ]; then
+        qa_git_matches() {
+          while [ "$#" -gt 0 ]; do
+            case "$1" in
+              -c|-C|--git-dir|--work-tree|--namespace|--config-env)
+                [ "$#" -ge 2 ] || return 2; shift 2 ;;
+              -c?*|-C?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) shift ;;
+              --no-pager|--paginate|--bare|--no-replace-objects|--literal-pathspecs|--no-literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|--no-lazy-fetch) shift ;;
+              --) shift; break ;;
+              -*) return 2 ;;
+              *) break ;;
+            esac
+          done
+          [ "${1-}" = branch ]
+        }
+        if qa_git_matches "$@"; then
             : > "$0.started"
             /bin/sleep 30
         fi

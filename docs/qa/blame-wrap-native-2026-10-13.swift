@@ -3,9 +3,9 @@ import TurtleGitCore
 
 @main struct BlameWrapVerification {
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
-    @MainActor static func wait(line:Int = #line,_ ready:()->Bool) async throws {
+    @MainActor static func wait(line:Int = #line, phase:String = "", diagnostic:()->String = { "" },_ ready:()->Bool) async throws {
         for _ in 0..<1000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
-        throw NSError(domain:"Blame wrap did not settle at \(line)",code:1)
+        throw NSError(domain:"Blame wrap did not settle at \(line)",code:1,userInfo:[NSLocalizedDescriptionKey:"phase=\(phase), \(diagnostic())"])
     }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Blame wrap failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
@@ -23,17 +23,34 @@ import TurtleGitCore
         let controller=BlameWindowController(repository:repo,access:nil,path:"wrap.cpp",revision:"HEAD",options:GitBlameOptions(),preferences:prefs)
         defer { controller.close() }
         let model=controller.model,window=controller.window!
+        let originalKeyOwner=controller.commandKeyWindow
+        controller.commandKeyWindow={window}
+        defer{controller.commandKeyWindow=originalKeyOwner}
+        // Native copy/context now require an actual current owner. Keep it
+        // ordered but invisible/offscreen; deliberate capture alone reveals it.
+        window.alphaValue=0;window.setFrameOrigin(.init(x:-24000,y:-24000));window.orderFront(nil)
         window.setContentSize(NSSize(width:1250,height:800));window.contentView?.layoutSubtreeIfNeeded()
         func editor()->NSTextView? { descendants(window.contentView!).compactMap { $0 as? NSTextView }.first { $0.accessibilityLabel()=="Blame source text" } }
         func margin()->NSTableView? { descendants(window.contentView!).compactMap { $0 as? NSTableView }.first { $0.tableColumns.contains { $0.identifier.rawValue=="original" } } }
-        try await wait { !model.busy && !model.syntaxWorking && model.syntaxError==nil && editor()?.string==text && margin()?.numberOfRows==lines.count }
+        try await wait { window.contentView?.layoutSubtreeIfNeeded();return controller.commandsAvailable && model.canFind && !model.busy && !model.syntaxWorking && model.syntaxError==nil && editor()?.string==text && margin()?.numberOfRows==lines.count }
         let view=editor()!,table=margin()!,source=text as NSString,scroll=view.enclosingScrollView!
+        @MainActor func navigationState()->String {
+            let admission="commands=\(controller.commandsAvailable), canFind=\(model.canFind), busy=\(model.busy), sheet=\(window.attachedSheet != nil)"
+            let native="current=\(editor() === view), range=\(view.selectedRange()), responder=\(String(describing:window.firstResponder))"
+            let sourceState="selection=\(String(describing:model.selection)), caretRow=\(String(describing:model.sourceSearchCaretRow?())), sourceVersion=\(model.sourceVersion), navigation=\(String(describing:model.sourceNavigation))"
+            let selectedText=model.selectedSourceText?() ?? "<unavailable>"
+            let textState="selectedUTF16=\(selectedText.utf16.count), prefix=\(String(selectedText.prefix(96)).debugDescription)"
+            let geometry="viewport=\(scroll.contentView.bounds), row2=\(table.rect(ofRow:1)), row3=\(table.rect(ofRow:2))"
+            return [admission,native,sourceState,textState,geometry].joined(separator:"; ")
+        }
         let originalHeight=table.rect(ofRow:1).height
         precondition(!model.wrapLongLines && scroll.hasHorizontalScroller)
+        precondition(window.makeFirstResponder(view) && window.firstResponder === view)
         let selected=source.range(of:"Unicode 雪🦎");view.setSelectedRange(selected)
         model.setWrapLongLines(true)
         try await wait { !scroll.hasHorizontalScroller && table.rect(ofRow:1).height > originalHeight*2 }
         precondition(view.selectedRange()==selected && view.string==text && !view.isEditable && prefs.bool(forKey:"Blame.WrapLongLines"))
+        try await wait {window.contentView?.layoutSubtreeIfNeeded();return editor() === view && margin() === table && controller.commandsAvailable && model.copyWindowAvailable(window)}
         precondition(view.writeSelection(to:clipboard,types:[.string]) && clipboard.string(forType:.string)=="Unicode 雪🦎")
         func glyphRect(_ range:NSRange)->NSRect {
             let glyphs=view.layoutManager!.glyphRange(forCharacterRange:range,actualCharacterRange:nil)
@@ -47,18 +64,30 @@ import TurtleGitCore
         precondition(view.selectedRange()==selected)
         do { try await wait { abs(glyphRect(third).minY-table.rect(ofRow:2).minY)<1 } } catch { fputs("Alignment geometry: source=\(glyphRect(third)) row1=\(table.rect(ofRow:1)) row2=\(table.rect(ofRow:2)) spacing=\(table.intercellSpacing)\n",stderr);throw error }
         // A pointer on a continuation fragment addresses the same logical line.
+        // Retain the actual source menu route without entering physical tracking
+        // in this private transparent receiver.
+        var contextPresentations=0
+        model.presentSourceMenu={menu,_,_ in contextPresentations+=1;menu.delegate?.menuDidClose?(menu)}
         let y=table.rect(ofRow:1).minY+originalHeight*1.5
         let point=view.convert(NSPoint(x:20,y:y),to:nil)
         let event=NSEvent.mouseEvent(with:.rightMouseDown,location:point,modifierFlags:[],timestamp:0,windowNumber:window.windowNumber,context:nil,eventNumber:1,clickCount:1,pressure:1)!
         view.rightMouseDown(with:event);precondition(model.selection==2)
-        // Finish the hidden context lookup before capture makes the window visible.
-        try await wait { !model.loadingParents }
-        model.goToLine(3);try await wait { model.selectedSourceText?()==lines[2] }
+        // Finish the owned context lookup before subsequent navigation/capture.
+        try await wait { !model.loadingParents && contextPresentations==1 }
+        model.goToLine(3);try await wait(phase:"Go To third logical line",diagnostic:navigationState) { model.selectedSourceText?()==lines[2] && model.selection==3 && model.sourceNavigation==nil }
+        // Pinned DoSearch uses the actual source caret; Previous starts two
+        // zero-based rows earlier (BlameView643 / BlameData400). From line3 it
+        // correctly finds our first comment, which also contains "wrapping".
+        // Start at line4 to exercise the intended wrapped long line exactly.
+        model.goToLine(4)
+        try await wait(phase:"Previous Find actual native caret",diagnostic:navigationState) {
+            editor() === view && model.selectedSourceText?()==lines[3] && model.selection==4 && model.sourceSearchCaretRow?()==3 && model.sourceNavigation==nil
+        }
         model.find="wrapping";model.findLine(previous:true)
-        try await wait { model.selectedSourceText?()==lines[1]+"\n" }
+        try await wait(phase:"Previous Find whole long line",diagnostic:navigationState) { model.selection==2 && model.selectedSourceText?()==lines[1]+"\n" && model.sourceNavigation==nil }
         // Logical row navigation must use variable pixel offsets after wrapping.
         model.scrollSourceRowToTop?(2)
-        try await wait { model.firstVisibleSourceRow?()==2 && abs(scroll.contentView.bounds.minY-table.rect(ofRow:2).minY)<1 }
+        try await wait(phase:"Wrapped logical row scroll anchor",diagnostic:navigationState) { model.firstVisibleSourceRow?()==2 && abs(scroll.contentView.bounds.minY-table.rect(ofRow:2).minY)<1 }
         let anchor=model.firstVisibleSourceRow?()
         window.setContentSize(NSSize(width:1250,height:800));window.contentView?.layoutSubtreeIfNeeded()
         try await wait { table.rect(ofRow:1).height < wide+1 }
@@ -83,6 +112,7 @@ import TurtleGitCore
         print("Blame wrap: actual word-wrapped TextKit rows and aligned metadata, narrow/wide resize, source range/private clipboard, continuation context, Go To/Find, logical scroll anchor, light/dark, persisted off/default and no-wrap restoration passed. HEAD/index/file bytes retained; owned window retired.")
     }
     @MainActor static func capture(_ window:NSWindow) async throws {
+        window.alphaValue=1
         NSApplication.shared.setActivationPolicy(.accessory)
         let output=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/qa/blame-wrap-captures-2026-10-13")
         try FileManager.default.createDirectory(at:output,withIntermediateDirectories:true)

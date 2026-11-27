@@ -4,6 +4,10 @@ import TurtleGitCore
 @main struct SVNAuthenticationVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
     static func require(_ value: Bool, _ message: String) throws { if !value { throw Failure(description: message) } }
+    @MainActor static func wait(line: UInt = #line, _ ready: () -> Bool) async throws {
+        for _ in 0..<2000 { if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }
+        throw Failure(description:"SVN authentication owner drain timeout at line \(line)")
+    }
     @MainActor static func main() async { do { try await verify() } catch { fputs("SVN authentication native failed: \(error)\n", stderr); exit(1) } }
     @MainActor static func verify() async throws {
         let realm = "<https://fixture.invalid> private realm", request = GitSVNAuthenticationPrompt(kind: .credentials, realm: realm, username: "default", maySave: true)
@@ -29,12 +33,17 @@ import TurtleGitCore
         let fixture = URL(fileURLWithPath: ProcessInfo.processInfo.environment["TURTLEGIT_CERTIFICATE_FIXTURE"]!)
         let data = try Data(contentsOf: fixture), full = GitSVNAuthenticationPrompt(kind: .trust, realm: realm, maySave: true, failures: 8, hostname: "turtlegit.example.invalid", issuer: "fixture", fingerprint: "SVN", certificate: data.base64EncodedString())
         var responses = 0
-        let inspecting = GitSVNPromptWindowController(prompt: full, icon: MenuIcon.certificate.image()) { _ in responses += 1 }; defer { inspecting.close() }
+        let inspecting = GitSVNPromptWindowController(prompt: full, icon: MenuIcon.certificate.image()) { _ in responses += 1 }; defer { inspecting.close() }; inspecting.window?.alphaValue = 0
+        let makeViewer = inspecting.makeCertificateViewer
+        inspecting.makeCertificateViewer = { details in
+            let child = makeViewer(details); child.window?.alphaValue = 0
+            child.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000)); return child
+        }
         inspecting.window?.contentView?.layoutSubtreeIfNeeded(); try require(inspecting.sha1.stringValue.contains("49:5F:7D") && inspecting.sha256.stringValue.contains("1D:48:06") && MenuIcon.certificate.image() != nil, "Dual fingerprint fields/original icon absent")
         inspecting.openCertificate(); guard let viewer = inspecting.certificateViewer else { throw Failure(description: "Owned certificate details absent") }
         viewer.window?.contentView?.layoutSubtreeIfNeeded(); try require(!viewer.text.isEditable && viewer.text.isSelectable && viewer.text.string.contains("TurtleGit public fixture"), "Certificate viewer is not read-only or lost fields")
         inspecting.trustTemporary(); try require(responses == 0, "Trust accepted behind owned viewer")
-        viewer.close(); try require(inspecting.certificateViewer == nil && inspecting.window?.attachedSheet == nil, "Viewer did not release owner")
+        viewer.close(); try require(viewer.retired && inspecting.certificateViewer == nil, "Viewer did not retire its exact owner"); try await wait { viewer.window?.sheetParent == nil && inspecting.window?.attachedSheet == nil }; try require(inspecting.certificateViewer == nil && inspecting.window?.attachedSheet == nil, "Viewer did not release owner")
         inspecting.openCertificate(); let closing = inspecting.certificateViewer; inspecting.close(); try require(responses == 1 && inspecting.certificateViewer == nil && closing?.window?.isVisible != true, "Parent close left viewer or failed to reject")
         var cancelled = 0; let password = GitSVNPromptWindowController(prompt: GitSVNAuthenticationPrompt(kind: .secret, realm: realm)) { answer in if answer == nil { cancelled += 1 } }; password.password.stringValue = "not published"; password.close(); try require(cancelled == 1 && password.password.stringValue.isEmpty, "Password forced close leaked response or secret field")
         print("PASS native SVN prompts: combined/secure fields and save flag, once-only response and secret clearing, default Reject/temporary/permanent policy, forced rejection, private certificate copy/source preservation and password cancellation. Owned windows closed.")

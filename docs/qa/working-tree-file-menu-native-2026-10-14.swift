@@ -31,14 +31,18 @@ import TurtleGitCore
         let single = model.fileMenu(["one"]), rename = model.fileMenu([renamed]), missing = model.fileMenu(["two"]), unknown = model.fileMenu([untracked])
         try require(single.commands.contains(.blame) && single.commands.contains(.openWith) && single.commands.contains(.editor), "Modified file commands missing")
         try require(rename.commands.contains(.oldNameLog) && rename.commands.contains(.blame), "Rename commands missing")
-        try require(missing.commands.contains(.delete) && missing.commands.contains(.blame) && !missing.commands.contains(.open) && !missing.commands.contains(.export), "Missing row gates differ")
+        // Pinned GitStatusListCtrl.cpp1869 excludes source Deleted (and working
+        // Added) from Blame. A physical Missing row carries Deleted here.
+        try require(missing.commands.contains(.delete) && !missing.commands.contains(.blame) && !missing.commands.contains(.open) && !missing.commands.contains(.export), "Missing row gates differ")
         try require(!unknown.commands.contains(.log) && !unknown.commands.contains(.blame) && unknown.commands.contains(.delete), "Unversioned gates differ")
         var logs: [[String]] = [], blames: [String] = [], pairs: [[String]] = []
         model.onAction = { action, paths in if action == .log { logs.append(paths) } }
         model.onBlame = { blames.append($0) }; model.onCompareTwoFiles = { pairs.append($0) }
         model.fileAction(.oldNameLog, snapshot: rename); model.fileAction(.blame, snapshot: missing)
+        try require(blames.isEmpty,"Deleted/Missing source-action row bypassed Blame refusal")
+        model.fileAction(.blame,snapshot:single)
         model.fileAction(.compareTwo, snapshot: model.fileMenu(["one", "two"]))
-        try require(logs == [["old"]] && blames == ["two"] && Set(pairs.first ?? []) == ["one", "two"], "File history/Blame/pair routing lost exact paths")
+        try require(logs == [["old"]] && blames == ["one"] && Set(pairs.first ?? []) == ["one", "two"], "File history/Blame/pair routing lost exact paths")
         var opened: [(URL, URL?)] = [], edited: [URL] = []
         let application = root.appendingPathComponent("Injected.app")
         model.openWorkingFile = { opened.append(($0, $1)) }; model.openAlternativeEditor = { edited.append($0) }
@@ -47,7 +51,18 @@ import TurtleGitCore
             model.fileAction(command, snapshot: single)
             try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
         }
-        try require(opened.count == 2 && opened[0].0 == root.appendingPathComponent("one") && opened[0].1 == nil && opened[1].1 == application && edited == [root.appendingPathComponent("one")], "Open/editor application routing failed")
+        // Status.fileAction builds this URL from its captured repository actor,
+        // whose root is standardized at construction, not from the invocation
+        // URL's directory-bit/alias spelling.
+        let capturedFile=repo.root.appendingPathComponent("one")
+        let openedWitness=opened.map{$0.0.absoluteString+" app="+($0.1?.absoluteString ?? "nil")}
+        let editedWitness=edited.map(\.absoluteString)
+        let routing="inputRoot=\(root.absoluteString),capturedRoot=\(repo.root.absoluteString),expected=\(capturedFile.absoluteString),opened=\(openedWitness),edited=\(editedWitness),error=\(String(reflecting:model.error))"
+        try require(model.repository === repo,"Open/editor changed captured repository actor")
+        try require(opened.count==2,"Open/Open With callback count differs: "+routing)
+        try require(opened[0].0==capturedFile && opened[0].1==nil,"Open lost exact captured file/application: "+routing)
+        try require(opened[1].0==capturedFile && opened[1].1==application,"Open With lost exact captured file/selected application: "+routing)
+        try require(edited==[capturedFile],"Editor lost exact captured file: "+routing)
         let folder = root.appendingPathComponent("export-output"); try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         model.chooseExportFolder = { folder }; model.fileAction(.export, snapshot: rename)
         try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
@@ -70,10 +85,10 @@ import TurtleGitCore
         try require(confirmations.count == 1 && confirmations[0].0 == [untracked] && confirmations[0].1 && !FileManager.default.fileExists(atPath: root.appendingPathComponent(untracked).path), "Confirmed deletion failed")
         try require(try Data(contentsOf: root.appendingPathComponent(".git/index")) == index, "Unversioned deletion changed unrelated staged rename")
         let stale = model.fileMenu(["one"]); model.selection = ["two"]; model.selection = ["one"]
-        model.fileAction(.blame, snapshot: stale); try require(blames == ["two"], "Selection-away/return revived stale menu")
+        model.fileAction(.blame, snapshot: stale); try require(blames == ["one"], "Selection-away/return revived stale menu")
         let beforeRefresh = model.fileMenu(["one"]); model.reload()
         try await wait { !model.busy && StatusWindowModel.activeOperations == 0 }
-        model.fileAction(.blame, snapshot: beforeRefresh); try require(blames == ["two"], "Refresh revived stale menu")
+        model.fileAction(.blame, snapshot: beforeRefresh); try require(blames == ["one"], "Refresh revived stale menu")
         var applicationReply: CheckedContinuation<URL?, Never>?
         model.chooseApplication = { await withCheckedContinuation { applicationReply = $0 } }
         model.fileAction(.openWith, snapshot: model.fileMenu(["one"]))

@@ -41,6 +41,20 @@ extension GitRepository {
         try validateConflicts(conflicts,using:.current,cancellation:cancellation)
         return try deleteWorkingFileSelection(selected,selectionMark:mark,permanently:permanently,cancellation:cancellation,missingConflict:true)
     }
+    /// Dialogs which omit ignored rows can still authorize an index-deleted
+    /// file's retained local copy, without knowing whether that copy is ignored.
+    /// Complete only that missing derived classification; all other accepted
+    /// status facts, including every known classification, remain exact guards.
+    private func acceptedWorkingFileDeleteEntry(_ accepted:StatusEntry,current:StatusEntry?)->Bool {
+        guard let current else{return false}
+        if accepted == current {return true}
+        guard accepted.index == "D",accepted.hasUnversionedCopy,accepted.unversionedCopyState == nil,
+              current.index == "D",current.hasUnversionedCopy,
+              current.unversionedCopyState == .ignored || current.unversionedCopyState == .untracked else{return false}
+        var completed=accepted
+        completed.unversionedCopyState=current.unversionedCopyState
+        return completed == current
+    }
     private func deleteWorkingFileSelection(_ selected:[StatusEntry],selectionMark:StatusEntry?,permanently:Bool,cancellation:OperationCancellation?,missingConflict:Bool)throws->WorkingFileDeleteResult {
         try cancellation?.check()
         guard !selected.isEmpty, Set(selected.map(\.path)).count == selected.count,
@@ -48,8 +62,8 @@ extension GitRepository {
             throw GitFailure(arguments: ["delete"], code: 1, message: "Select unversioned, ignored or missing paths to delete.")
         }
         let current = Dictionary(try status(refreshIndex: false, cancellation: cancellation).map { ($0.path, $0) }, uniquingKeysWith: { _, last in last })
-        guard selected.allSatisfy({ current[$0.path] == $0 }),
-              selectionMark.map({ current[$0.path] == $0 }) ?? true else {
+        guard selected.allSatisfy({ acceptedWorkingFileDeleteEntry($0,current:current[$0.path]) }),
+              selectionMark.map({ acceptedWorkingFileDeleteEntry($0,current:current[$0.path]) }) ?? true else {
             throw GitFailure(arguments: ["delete"], code: 1, message: "The selected files changed. Refresh before deleting.")
         }
         let manager = FileManager.default

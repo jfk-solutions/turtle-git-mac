@@ -5,9 +5,15 @@ import TurtleGitCore
 @main struct BlameFileOpenVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
-    @MainActor static func wait(_ condition:@escaping ()->Bool) async throws {
+    @MainActor static func wait(line:UInt = #line, _ condition:@escaping ()->Bool) async throws {
         for _ in 0..<1500 { if condition() { return };try await Task.sleep(nanoseconds:10_000_000) }
-        throw Failure(description:"Blame File Open did not settle")
+        throw Failure(description:"Blame File Open did not settle at line \(line)")
+    }
+    // MRU records resolve the repository/parent boundary, never the lexical
+    // leaf (which may itself be a symbolic link). Preserve that exact policy.
+    static func expectedFile(_ file:URL)->String {
+        file.deletingLastPathComponent().standardizedFileURL.resolvingSymlinksInPath()
+            .appendingPathComponent(file.lastPathComponent).standardizedFileURL.path
     }
     final class Provider:RepositoryBookmarkProvider {
         var starts=0,stops=0,moves:[String:URL]=[:]
@@ -93,9 +99,14 @@ import TurtleGitCore
         try require(owner.model===second && history.entries.count==2 && second.error != nil,"Failed Git open changed document/MRU or lost real Git error")
         let gitError=second.error;second.onLoaded?()
         try require(second.error==gitError,"Recent persistence retry cleared genuine Git error")
-        owner.openRecent(history.entries.first { $0.lastKnownFile==files[0].path }!)
+        let firstLocation=expectedFile(files[0])
+        guard let firstRecent=history.entries.first(where: { $0.lastKnownFile.utf8.elementsEqual(firstLocation.utf8) }) else {
+            throw Failure(description:"Exact first recent document absent: expected=\(firstLocation.debugDescription), records=\(history.entries.map { ($0.path,$0.lastKnownFile) }), currentRoot=\(owner.model.repository.root.path), busy=\(owner.model.busy), opening=\(owner.model.openingDocument), error=\(owner.model.error ?? "none")")
+        }
+        try require(firstRecent.path.utf8.elementsEqual(files[0].lastPathComponent.utf8),"Recent canonical leaf changed its raw relative path")
+        owner.openRecent(firstRecent)
         try await wait { owner.model !== second && !owner.model.syntaxWorking }
-        try require(owner.model.repository.root.resolvingSymlinksInPath().path==repos[0].root.resolvingSymlinksInPath().path && history.entries.first?.lastKnownFile==files[0].path,"Recent-file routing failed")
+        try require(owner.model.repository.root.resolvingSymlinksInPath().path==repos[0].root.resolvingSymlinksInPath().path && history.entries.first?.id==firstRecent.id && history.entries.first?.lastKnownFile.utf8.elementsEqual(firstLocation.utf8)==true,"Recent-file routing failed")
         let beforeRetire=owner.model
         let retiredLoaded=beforeRetire.onLoaded,rememberedBeforeClose=provider.creates,recordsBeforeClose=history.entries.map(\.id)
         owner.openDocument();let late=fileReply;owner.close();late?(files[1])
@@ -161,7 +172,7 @@ import TurtleGitCore
             let entry=history.entries[0],moved=folder.appendingPathComponent("moved-scope")
             provider.moves[repos[0].root.path]=moved
             let (restoredRoot,restoredFile,lease)=try history.acquire(entry,requireScope:true)
-            try require(restoredRoot==moved && restoredFile==moved.appendingPathComponent(entry.path),"Moved scope did not retain relative file")
+            try require(restoredRoot.standardizedFileURL.resolvingSymlinksInPath().path.utf8.elementsEqual(moved.standardizedFileURL.resolvingSymlinksInPath().path.utf8) && restoredFile.path.utf8.elementsEqual(expectedFile(moved.appendingPathComponent(entry.path)).utf8),"Moved scope did not retain relative file")
             try history.remember(root:restoredRoot,path:entry.path,lease:lease,replacing:entry.id)
             try require(history.entries.count==4 && history.entries.first?.id==entry.id,"Moved recent duplicated its registration")
         }
@@ -224,9 +235,10 @@ private struct BlameAuthorityVerification {
     @MainActor static func wait(_ condition:@escaping ()->Bool)async throws {try await BlameFileOpenVerification.wait(condition)}
     final class Provider:RepositoryBookmarkProvider {
         var version=0,unavailable=Set<String>(),inactive=Set<String>(),failCreate:String?
-        var active=[String:Int]()
+        var active=[String:Int](),createAttempts=[String](),createFailures=[String]()
         func create(for url:URL)throws->Data {
-            if url.path==failCreate {throw Failure(description:"Injected auxiliary bookmark failure")}
+            createAttempts.append(url.path)
+            if url.path==failCreate {createFailures.append(url.path);throw Failure(description:"Injected auxiliary bookmark failure")}
             return Data(("v\(version)\0"+url.path).utf8)
         }
         func resolve(_ data:Data)throws->ResolvedBookmark {
@@ -242,7 +254,11 @@ private struct BlameAuthorityVerification {
     }
     @MainActor static func verify(folder:URL,engine:URL,preferences:UserDefaults,regexExecutable:URL)async throws {
         try FileManager.default.createDirectory(at:folder,withIntermediateDirectories:true)
-        let main=folder.appendingPathComponent("main"),linked=folder.appendingPathComponent("linked"),external=folder.appendingPathComponent("external")
+        // Metadata preflight canonicalizes git/common/object folders. Author all
+        // private authorities and failure keys in that same exact namespace;
+        // a /var alias must not silently bypass the intended injected error.
+        let fixtureRoot=folder.standardizedFileURL.resolvingSymlinksInPath()
+        let main=fixtureRoot.appendingPathComponent("main"),linked=fixtureRoot.appendingPathComponent("linked"),external=fixtureRoot.appendingPathComponent("external")
         try FileManager.default.createDirectory(at:main,withIntermediateDirectories:true)
         let repo=GitRepository(root:main,executable:engine)
         _ = try await repo.run(["init","-b","main"])
@@ -255,7 +271,7 @@ private struct BlameAuthorityVerification {
         try (objects.path+"\n").write(to:common.appendingPathComponent("objects/info/alternates"),atomically:true,encoding:.utf8)
         let initialRefs=try await repo.run(["for-each-ref","--format=%(refname) %(objectname)"]).stdout
         let initialIndex=try Data(contentsOf:common.appendingPathComponent("index"))
-        let calls=folder.appendingPathComponent("git-calls"),helper=folder.appendingPathComponent("record-git")
+        let calls=fixtureRoot.appendingPathComponent("git-calls"),helper=fixtureRoot.appendingPathComponent("record-git")
         func quote(_ value:String)->String {"'"+value.replacingOccurrences(of:"'",with:"'\\''")+"'"}
         try ("#!/bin/sh\nprintf 'git\\n' >> "+quote(calls.path)+"\nexec "+quote(engine.path)+" \"$@\"\n").write(to:helper,atomically:true,encoding:.utf8)
         try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
@@ -269,16 +285,25 @@ private struct BlameAuthorityVerification {
         try require(required.map(\.kind)==[.gitDirectory,.commonDirectory,.objectDirectory],"Linked worktree/common/alternate grants were not independently discovered")
         let linkedIndex=required[0].folder.appendingPathComponent("index"),initialLinkedIndex=try Data(contentsOf:required[0].folder.appendingPathComponent("index"))
         try require(prepared.snapshot.path.utf8.elementsEqual(path.utf8) && prepared.snapshot.contents==contents && !prepared.access.contains(common) && prepared.access.permits(common) && prepared.access.permits(objects),"Composite grant widened primary or lost exact source")
-        let archive=folder.appendingPathComponent("recent.json"),history=try BlameRecentDocuments(url:archive,provider:provider)
+        let archive=fixtureRoot.appendingPathComponent("recent.json"),history=try BlameRecentDocuments(url:archive,provider:provider)
         try history.remember(root:linked,path:path,lease:prepared.access)
         let entry=history.entries[0],original=try Data(contentsOf:archive)
         try require(entry.relatedBookmarks?.count==3,"MRU did not persist exact live metadata scopes")
-        provider.failCreate=objects.path
+        let auxiliaryPaths=prepared.access.permittedFolders(requireSecurityScope:true).filter { !RepositoryAccessLease.pathIsContained($0,by:prepared.access.url) }.map(\.path)
+        try require(auxiliaryPaths.count==3 && auxiliaryPaths.last?.utf8.elementsEqual(objects.path.utf8)==true,"Authored object failure is not the final exact auxiliary grant: \(auxiliaryPaths)")
+        provider.createAttempts=[];provider.createFailures=[];provider.failCreate=objects.path
         var failed=false
         do {try history.remember(root:linked,path:path,lease:prepared.access)} catch {failed=true}
         provider.failCreate=nil
         let afterFailure=try Data(contentsOf:archive)
-        try require(failed && afterFailure==original && history.entries[0].id==entry.id && history.entries[0].relatedBookmarks==entry.relatedBookmarks,"Partial auxiliary save changed atomic MRU receipt")
+        try require(failed && provider.createAttempts==auxiliaryPaths && provider.createFailures==[objects.path],
+            "Exact auxiliary failure was not injected: failed=\(failed), expected=\(auxiliaryPaths), attempted=\(provider.createAttempts), failures=\(provider.createFailures)")
+        try require(afterFailure==original,"Partial auxiliary save changed exact archive bytes: before=\(original.count), after=\(afterFailure.count)")
+        try require(history.entries.count==1,"Partial auxiliary save changed MRU roster")
+        let unchanged=history.entries[0]
+        try require(unchanged.id==entry.id && unchanged.bookmark==entry.bookmark,"Partial auxiliary save changed MRU identity/primary bookmark")
+        try require(unchanged.relatedBookmarks==entry.relatedBookmarks && unchanged.rootComponents==entry.rootComponents,"Partial auxiliary save changed MRU auxiliary/root receipt")
+        try require(unchanged.path.utf8.elementsEqual(entry.path.utf8) && unchanged.lastKnownFile.utf8.elementsEqual(entry.lastKnownFile.utf8),"Partial auxiliary save changed exact lexical MRU path")
         let restored=try BlameRecentDocuments(url:archive,provider:provider),(_,file,restoredScope)=try restored.acquire(restored.entries[0],requireScope:true)
         var unexpectedPrompt=false
         let reopened=try await opener.prepare(file:file,scope:restoredScope,options:GitBlameOptions(),regexExecutable:regexExecutable,chooseMetadataFolder:{_,_ in unexpectedPrompt=true;return nil})
@@ -293,7 +318,7 @@ private struct BlameAuthorityVerification {
         // must obtain dependencies before Git, renew the record and retain ID.
         var oldRecords=try JSONSerialization.jsonObject(with:original) as! [[String:Any]]
         oldRecords[0].removeValue(forKey:"relatedBookmarks")
-        let oldArchive=folder.appendingPathComponent("old-recent.json")
+        let oldArchive=fixtureRoot.appendingPathComponent("old-recent.json")
         try JSONSerialization.data(withJSONObject:oldRecords).write(to:oldArchive)
         let oldHistory=try BlameRecentDocuments(url:oldArchive,provider:provider),oldEntry=oldHistory.entries[0]
         provider.version=1

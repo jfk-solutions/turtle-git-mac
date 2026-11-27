@@ -160,6 +160,16 @@ import TurtleGitCore
     }
     @MainActor static func verifyAddIgnoreDelete(owner:RebaseWindowController,repo:GitRepository,root:URL,path:String,conflict:String) async throws {
         let model=owner.model,file=root.appendingPathComponent(path),index=root.appendingPathComponent(".git/index")
+        func lifecycle(_ phase:String,child:NSWindow?=nil)->String {
+            "phase=\(phase),busy=\(model.busy),pending=\(model.pendingBatchWorkers),replayQuestion=\(model.hasReplayQuestion),parentSheet=\(String(describing:owner.window?.attachedSheet)),childParent=\(String(describing:child?.sheetParent)),childSheet=\(String(describing:child?.attachedSheet)),ignoreOwned=\(owner.conflictIgnoreWindow != nil),addOwned=\(owner.conflictAddWindow != nil),error=\(String(reflecting:model.error))"
+        }
+        func idle(_ phase:String,child:NSWindow?=nil) async throws {
+            do {try await wait {
+                !model.busy && model.pendingBatchWorkers==0 && !model.hasReplayQuestion &&
+                owner.conflictAddWindow==nil && owner.conflictIgnoreWindow==nil &&
+                owner.window?.attachedSheet==nil && child?.sheetParent==nil && child?.attachedSheet==nil
+            }} catch {throw Failure(description:"Replay mutation lifetime did not drain: \(lifecycle(phase,child:child)); \(error)")}
+        }
         let head=try await repo.run(["rev-parse","HEAD"]).stdout,stages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
         // Deleted-from-index paths with an unversioned copy remain visible in
         // the source's versioned replay filter and can be re-added.
@@ -173,28 +183,39 @@ import TurtleGitCore
         try require(add.success && !add.allowsCommit && owner.window?.attachedSheet===owner.conflictAddWindow?.window,"Replay Add missing progress sheet or exposes Commit")
         let added=try await repo.run(["ls-files","--stage","--",path]).text
         try require(added.hasPrefix("100755 ") && Data(contentsOf:file)==Data("re-add bytes\n".utf8),"Executable Add changed bytes or lost index mode")
-        add.close();try await wait {!model.busy && owner.conflictAddWindow==nil && RebaseWindowModel.activePreparationReads==0}
+        let addSheet=owner.conflictAddWindow?.window
+        add.close();try await idle("Add acknowledgement",child:addSheet)
+        try require(RebaseWindowModel.activePreparationReads==0,"Add acknowledgement retained preparation read")
         // A missing versioned row offers Ignore; the real options sheet writes
         // the private exclude destination without touching replay history.
         try FileManager.default.removeItem(at:file);model.refreshState();try await wait {!model.busy}
         let missing=model.conflictFileMenu([path]);try require(model.canIgnoreConflictFiles(missing) && model.canConflictFileCommand(.delete,menu:missing),"Missing-row Ignore/Delete gates wrong")
         var ignore:IgnoreWindowModel?;owner.configureConflictIgnore={ignore=$0}
         model.ignoreConflictFiles(missing,action:.ignore,paths:[path]);try await wait {ignore != nil}
-        guard let ignore else {throw Failure(description:"Owned Ignore dialog missing")}
+        guard let ignore,let ignoredOwner=owner.conflictIgnoreWindow,ignoredOwner.model === ignore,let ignoredSheet=ignoredOwner.window else {throw Failure(description:"Owned Ignore dialog missing")}
         let exclude=root.appendingPathComponent(".git/info/exclude"),before=try Data(contentsOf:exclude)
         ignore.options.destination = .exclude
         // Changing selected status while the sheet is open must refuse Apply.
         try Data("changed while asking\n".utf8).write(to:file)
         ignore.apply();try await wait {!ignore.busy && IgnoreWindowModel.activeOperations==0}
         try require(ignore.error != nil && Data(contentsOf:exclude)==before,"Stale Ignore sheet wrote rules")
-        ignore.error=nil;ignore.close();try await wait {!model.busy && owner.conflictIgnoreWindow==nil}
-        try FileManager.default.removeItem(at:file);model.refreshState();try await wait {!model.busy}
+        ignore.error=nil
+        do {try await wait {ignoredSheet.attachedSheet==nil}}
+        catch {throw Failure(description:"Stale Ignore error sheet did not detach: \(lifecycle("stale Ignore error dismissal",child:ignoredSheet)); \(error)")}
+        ignore.close();try await idle("stale Ignore close",child:ignoredSheet)
+        try FileManager.default.removeItem(at:file);model.refreshState();try await idle("fresh missing-file snapshot")
         var actualIgnore:IgnoreWindowModel?;owner.configureConflictIgnore={actualIgnore=$0}
-        model.ignoreConflictFiles(model.conflictFileMenu([path]),action:.ignore,paths:[path]);try await wait {actualIgnore != nil}
-        actualIgnore?.options.destination = .exclude;actualIgnore?.apply()
-        try await wait {actualIgnore?.busy==false && IgnoreWindowModel.activeOperations==0}
-        try require(actualIgnore?.error==nil,"Replay Ignore failed: "+(actualIgnore?.error ?? ""))
-        try await wait {!model.busy && owner.conflictIgnoreWindow==nil}
+        let actualMenu=model.conflictFileMenu([path])
+        try require(model.canIgnoreConflictFiles(actualMenu),"Fresh missing-file Ignore was not admitted: \(lifecycle("before actual Ignore"))")
+        model.ignoreConflictFiles(actualMenu,action:.ignore,paths:[path])
+        do {try await wait {actualIgnore != nil}}
+        catch {throw Failure(description:"Fresh actual Ignore was not presented: \(lifecycle("actual Ignore presentation")); \(error)")}
+        guard let actualIgnore,let actualOwner=owner.conflictIgnoreWindow,actualOwner.model === actualIgnore,let actualSheet=actualOwner.window else {throw Failure(description:"Actual Ignore owner identity missing")}
+        try require(actualSheet.sheetParent === owner.window && owner.window?.attachedSheet === actualSheet,"Actual Ignore paired sheet ownership missing")
+        actualIgnore.options.destination = .exclude;actualIgnore.apply()
+        try await wait {!actualIgnore.busy && IgnoreWindowModel.activeOperations==0}
+        try require(actualIgnore.error==nil,"Replay Ignore failed: "+(actualIgnore.error ?? ""))
+        try await idle("actual Ignore success",child:actualSheet)
         let ignored=try await repo.run(["check-ignore","--no-index","-q","--",path],literalPathspecs:false,successfulExitCodes:0...1)
         try require(ignored.exitCode==0 && Data(contentsOf:exclude) != before,"Replay Ignore did not write an effective literal rule")
         // Native Delete defaults to No, and refusal preserves exact index.
@@ -203,7 +224,7 @@ import TurtleGitCore
         try await wait {model.hasReplayQuestion && owner.window?.attachedSheet != nil}
         let question=owner.window!.attachedSheet!;try require(question.defaultButtonCell?.title=="No","Delete must default to No")
         owner.window!.endSheet(question,returnCode:.alertFirstButtonReturn);question.orderOut(nil)
-        try await wait {!model.busy};try require(try Data(contentsOf:index)==beforeDelete,"Declined Delete changed index")
+        try await idle("Delete No",child:question);try require(try Data(contentsOf:index)==beforeDelete,"Declined Delete changed index")
         // Yes after external status change is refused before the backend.
         var answer:CheckedContinuation<Bool,Never>?
         model.confirmConflictDeletion={_,_ in await withCheckedContinuation {answer=$0}}
@@ -221,7 +242,14 @@ import TurtleGitCore
         let trashMenu=model.conflictFileMenu([path]);try require(model.canAddConflictFiles(trashMenu) && model.canConflictFileCommand(.delete,menu:trashMenu),"Deleted local copy lost Add/Delete")
         model.deleteConflictFiles(trashMenu,permanently:false);try await wait {!model.busy}
         let trash=model.conflictDeletionResult?.trashedFiles ?? [];defer {for copy in trash {try? FileManager.default.removeItem(at:copy)}}
-        try require(trash.count==1 && Data(contentsOf:trash[0])==Data("recoverable replay copy\n".utf8) && !FileManager.default.fileExists(atPath:file.path),"Replay Delete lost recoverable Trash bytes")
+        let recovered=try trash.count==1 && Data(contentsOf:trash[0])==Data("recoverable replay copy\n".utf8) && !FileManager.default.fileExists(atPath:file.path)
+        if !recovered {
+            func rowState(_ rows:[StatusEntry])->[String] {rows.filter{GitReferenceName.equal($0.path,path)}.map{row in
+                "XY=\(String([row.index,row.worktree])),copy=\(row.hasUnversionedCopy),copyState=\(String(describing:row.unversionedCopyState)),actions=\(String(describing:row.sourceActions?.rawValue)),origin=\(String(reflecting:row.reportingOriginalPath))"
+            }}
+            let current=try await repo.status(refreshIndex:false)
+            throw Failure(description:"Replay Delete lost recoverable Trash bytes: error=\(String(reflecting:model.error)),resultRemoved=\(String(reflecting:model.conflictDeletionResult?.removedPaths)),resultIndex=\(String(reflecting:model.conflictDeletionResult?.removedIndexPaths)),trash=\(String(reflecting:trash.map(\.path))),fileExists=\(FileManager.default.fileExists(atPath:file.path)),captured=\(rowState(trashMenu.rows)),current=\(rowState(current)),busy=\(model.busy),pending=\(model.pendingBatchWorkers)")
+        }
         let finalHead=try await repo.run(["rev-parse","HEAD"]).stdout,finalStages=try await repo.run(["ls-files","--unmerged","-z"]).stdout
         try require(finalHead==head && finalStages==stages && model.active && model.conflicts.contains {$0.path==conflict},"File mutation actions advanced replay or changed unrelated stages")
         // Closing an owned Add during suspended validation retires the child;
@@ -335,7 +363,7 @@ import TurtleGitCore
         _ = try await repo.abortRebase()
     }
     @MainActor static func verify() async throws {
-        let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
+        let root=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true).standardizedFileURL,git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         if ProcessInfo.processInfo.environment["TURTLEGIT_REPLAY_MESSAGE_ONLY"] == "1" {
             try await verifyReplayMessages(root:root,git:git);return
         }
@@ -375,16 +403,21 @@ import TurtleGitCore
         model.conflictFileCommand(.log,menu:menu);try await wait { !model.busy };try require(logged == path,"File Log lost captured path")
         model.conflictFileCommand(.blame,menu:menu);try await wait { !model.busy };try require(blame?.0 == path && blame?.1 == String(decoding:head,as:UTF8.self).trimmingCharacters(in:.newlines),"Blame lost captured HEAD/path")
         model.conflictFileCommand(.compareTwo,menu:all);try await wait { !model.busy };try require(pair == all.paths,"Pair comparison changed selected order")
-        model.conflictFileCommand(.editor,menu:menu);try await wait { !model.busy };try require(edited.map(\.path) == [file.path],"Alternative editor lost path")
+        // conflictLocation is rooted in the accepted repository URL; compare
+        // literal leaf bytes beneath that same standardized ancestor.
+        let acceptedFile=repo.root.appendingPathComponent(path).standardizedFileURL
+        try require(model.canConflictFileCommand(.editor,menu:menu),"Alternative editor refused current captured menu before dispatch")
+        model.conflictFileCommand(.editor,menu:menu);try await wait { !model.busy }
+        try require(edited.map{Data($0.path.utf8)}==[Data(acceptedFile.path.utf8)] && model.error==nil,"Alternative editor lost path: actual=\(String(reflecting:edited.map(\.path))),expected=\(String(reflecting:acceptedFile.path)),error=\(String(reflecting:model.error)),pending=\(model.pendingBatchWorkers)")
         try require(!model.canConflictFileCommand(.blame,menu:model.conflictFileMenu(Set([clean]))) && !model.canConflictFileCommand(.reveal,menu:all),"Added Blame/multiple Explore gates differ from source")
-        model.conflictFileCommand(.reveal,menu:menu);try await wait { !model.busy };try require(reveal.map(\.path) == [file.path],"Reveal did not preserve selected file")
+        model.conflictFileCommand(.reveal,menu:menu);try await wait { !model.busy };try require(reveal.map{Data($0.path.utf8)} == [Data(acceptedFile.path.utf8)],"Reveal did not preserve selected file")
         // Open With retains menu selection even when highlight changes while its
         // picker awaits a reply, then revalidates the stopped replay.
         var release:(()->Void)?
         model.chooseConflictApplication={ await withCheckedContinuation { continuation in release={continuation.resume(returning:root.appendingPathComponent("Fake.app"))} } }
         model.conflictFileCommand(.openWith,menu:menu);try await wait { release != nil }
         model.selectedConflicts=GitPathSet([clean]);release?();try await wait { !model.busy }
-        try require(opened.map(\.path) == [file.path],"Open With redirected to later highlight")
+        try require(opened.map{Data($0.path.utf8)} == [Data(acceptedFile.path.utf8)],"Open With redirected to later highlight")
         let exported=root.appendingPathComponent("export");try FileManager.default.createDirectory(at:exported,withIntermediateDirectories:true)
         model.chooseConflictExport={exported};model.conflictFileCommand(.export,menu:all);try await wait { !model.busy }
         try require(try Data(contentsOf:exported.appendingPathComponent(path)) == working && Data(contentsOf:exported.appendingPathComponent(clean)) == Data("clean applied\n".utf8),"Export did not preserve selected working bytes")

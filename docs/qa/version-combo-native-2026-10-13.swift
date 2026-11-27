@@ -57,8 +57,9 @@ import TurtleGitCore
         switching.model.load(); try await wait { !switching.model.busy && !switching.model.references.isEmpty }
         try require(switching.model.commitChoices == ["HEAD~1"], "Initial custom revision in Switch session")
         switching.model.selectCustomRevision("refs/notes/雪"); switching.model.options.target = .commit
+        let switchChoicesBeforeLog = switching.model.commitChoices
         try require(switching.model.beginPicker(.commit), "Commit picker gate"); switching.model.acceptCommitSelection(entry)
-        try require(switching.model.commitRevision == entry.hash && !switching.model.commitChoices.contains(entry.hash), "Source Log SetWindowText does not insert history")
+        try require(switching.model.commitRevision == entry.hash && switching.model.commitChoices == switchChoicesBeforeLog && !switching.model.commitChoices.contains(entry.hash), "Source Log SetWindowText does not insert history")
         let merge = MergeWindowController(repository: repository, access: nil, preferences: prefs)
         merge.model.selectCustomRevision("HEAD~1"); merge.model.target = .commit
         let branch = BranchTagWindowController(repository: repository, access: nil, isTag: false, preferences: prefs)
@@ -69,6 +70,25 @@ import TurtleGitCore
         reset.model.chooser.selectCustomRevision("HEAD~1"); reset.model.chooser.options.target = .commit
         let export = ExportWindowController(repository: repository, access: nil, revision: "HEAD~1", preferences: prefs)
         try await wait { !export.model.busy }
+        merge.model.load()
+        branch.model.chooser.load(); worktree.model.chooser.load(); reset.model.chooser.load()
+        try await wait { merge.model.canEditForm && !branch.model.chooser.busy && !worktree.model.chooser.busy && !reset.model.chooser.busy && export.model.canEditForm }
+        merge.model.selectCustomRevision("HEAD~1"); merge.model.target = .commit
+        for chooser in [branch.model.chooser,worktree.model.chooser,reset.model.chooser] {
+            chooser.selectCustomRevision("HEAD~1");chooser.options.target = .commit
+        }
+        func verifyLogTextOnly(_ model: any VersionPickerModel, choices: () -> [String]) throws {
+            let before = choices()
+            try require(model.beginPicker(.commit), "Native consumer commit picker was not admitted: \(type(of:model)), revision=\(model.commitRevision), error=\(String(reflecting:model.error))")
+            model.acceptCommitSelection(entry)
+            try require(model.commitRevision == entry.hash && choices() == before, "Log selection changed exact session choices")
+        }
+        try verifyLogTextOnly(merge.model, choices: { merge.model.commitChoices })
+        try verifyLogTextOnly(branch.model.chooser, choices: { branch.model.chooser.commitChoices })
+        try verifyLogTextOnly(worktree.model.chooser, choices: { worktree.model.chooser.commitChoices })
+        try verifyLogTextOnly(reset.model.chooser, choices: { reset.model.chooser.commitChoices })
+        export.model.target = .commit
+        try verifyLogTextOnly(export.model, choices: { export.model.commitChoices })
         let windows: [(NSWindowController,String)] = [(switching,"Switch commit revision"),(merge,"Merge commit revision"),(branch,"Base commit revision"),(worktree,"Base commit revision"),(reset,"Reset commit revision"),(export,"Export commit revision")]
         defer { windows.forEach { $0.0.close() } }
         for (owner,label) in windows {

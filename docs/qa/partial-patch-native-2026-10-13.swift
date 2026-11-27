@@ -252,8 +252,10 @@ import TurtleGitCore
         let renameRemaining = try await repo.run(["ls-files", "-z", "--", renameNew]).stdout
         try require(renameIndex == Data(renameBefore.utf8) && renameRemaining.isEmpty && lifecycleModel.error == nil, "Native rename unstage failed")
         try require((try Data(contentsOf: root.appendingPathComponent(renameNew))) == Data(renameWorking.utf8) && !FileManager.default.fileExists(atPath: root.appendingPathComponent(renameOld).path), "Native rename unstage changed working paths")
-        // A porcelain Added row can be a copied diff row. The Commit-owned
-        // preview must include its statistics source and retain the whole-file gate.
+        // The default captured source read deliberately uses -C before -M:
+        // its accepted Added row/statistics must remain Added. Separately retain
+        // copy-consumer coverage through the supported independent-read seam,
+        // whose real stagingFiles invocation uses -M before -C.
         let copyRoot = root.appendingPathComponent("copy-scope")
         try FileManager.default.createDirectory(at: copyRoot, withIntermediateDirectories: true)
         let copyRepo = GitRepository(root: copyRoot, executable: engine, diffDetection: .init(percentage: 30))
@@ -266,8 +268,31 @@ import TurtleGitCore
         try await copyRepo.stage(["source", "target"])
         let copyController = CommitWindowController(repository: copyRepo, access: nil, defaults: prefs)
         defer { copyController.close() }
+        let copyIndex = try Data(contentsOf: copyRoot.appendingPathComponent(".git/index"))
+        let copyHead = try await copyRepo.run(["rev-parse", "HEAD"]).stdout
         copyController.model.reload(); try await wait { !copyController.model.busy }
-        try require(copyController.model.entries.first { $0.path == "target" }?.originalPath == nil && copyController.model.stagedStatistics["target"]?.oldPath == "source", "Copy fixture did not exercise the porcelain/statistics distinction")
+        let capturedTarget = copyController.model.entries.first { $0.path == "target" }
+        let capturedStatistics = copyController.model.stagedStatistics["target"]
+        try require(copyController.model.error == nil && capturedTarget?.index == "A" && capturedTarget?.originalPath == nil && capturedTarget?.comparisonAction == "A" && capturedStatistics?.action == "A" && capturedStatistics?.oldPath == nil,
+                    "Captured source copy candidate lost Added semantics: XY=\(String(describing: capturedTarget.map { String($0.index) + String($0.worktree) })), action=\(String(describing: capturedTarget?.comparisonAction)), statistics=\(String(describing: capturedStatistics?.action))/\(String(describing: capturedStatistics?.oldPath)), error=\(String(describing: copyController.model.error))")
+        copyController.model.selection = ["target"]; copyController.model.showPartial(true)
+        try await wait { copyController.partial?.model.busy == false && copyController.partial?.model.document.files.isEmpty == false }
+        guard let capturedPreview = copyController.partial else { throw Failure(description: "Captured Added preview owner absent") }
+        try require(capturedPreview.model.error == nil && capturedPreview.model.document.files.contains { $0.header.contains { $0.hasPrefix("new file mode ") } && !$0.header.contains { $0.hasPrefix("copy from ") } }, "Captured Added preview invented a copy origin")
+        capturedPreview.close(); try await wait { copyController.partial == nil }
+        // This explicitly exercises the production legacy callback seam, not a
+        // fabricated C row: status and both statistics are still real Git reads.
+        copyController.model.queryCommitStatus = { amend, token in
+            try await copyRepo.commitDialogStatus(amendToParent: amend, cancellation: token, refreshIndex: false)
+        }
+        copyController.model.reload(); try await wait { !copyController.model.busy }
+        let legacyTarget = copyController.model.entries.first { $0.path == "target" }
+        let legacyStatistics = copyController.model.stagedStatistics["target"]
+        // Git preserves the similarity score in the status token (e.g. C100).
+        let copyAction = legacyStatistics?.action ?? ""
+        let copyScore = copyAction.dropFirst()
+        let validCopyAction = copyAction.first == "C" && !copyScore.isEmpty && copyScore.utf8.allSatisfy { (48...57).contains($0) } && Int(copyScore).map { (0...100).contains($0) } == true
+        try require(copyController.model.error == nil && legacyTarget?.index == "A" && legacyTarget?.originalPath == nil && validCopyAction && legacyStatistics?.oldPath == "source", "Independent-read copy fixture did not exercise porcelain/statistics distinction: XY=\(String(describing: legacyTarget.map { String($0.index) + String($0.worktree) })), statistics=\(String(describing: legacyStatistics?.action))/\(String(describing: legacyStatistics?.oldPath)), error=\(String(describing: copyController.model.error))")
         copyController.model.selection = ["target"]; copyController.model.showPartial(true)
         var copyModel: PatchWindowModel?
         try await wait {
@@ -275,6 +300,9 @@ import TurtleGitCore
             return copyModel != nil && copyModel?.busy == false
         }
         try require(copyModel!.document.files.contains { $0.header.contains { $0.hasPrefix("copy from ") } && !$0.supportsPartialChanges } && !copyModel!.canApplyHunks && !copyModel!.canApplyLines, "Commit copy preview lost its source or allowed partial staging")
+        try require(try Data(contentsOf: copyRoot.appendingPathComponent(".git/index")) == copyIndex && Data(contentsOf: copyRoot.appendingPathComponent("target")) == copyBytes && Data(contentsOf: copyRoot.appendingPathComponent("source")) == Data((String(decoding: copyBytes, as: UTF8.self) + "source extra\n").utf8), "Copy previews changed index or working bytes")
+        let finalCopyHead = try await copyRepo.run(["rev-parse", "HEAD"]).stdout
+        try require(finalCopyHead == copyHead, "Copy previews changed HEAD")
         copyController.close()
         try await verifyLegacy(root:root,engine:engine,prefs:prefs)
         print("Partial patch: source Staging/Unstaging menu gates and bottom Find/case/no-wrap boundaries, exact rendering and original-byte export; real line stage/hunk unstage, unrelated index preservation, superseded/cancelled/retired reads closed-mutation Quit/parent gates and owned process reaping passed.")

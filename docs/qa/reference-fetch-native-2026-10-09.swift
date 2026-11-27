@@ -7,8 +7,9 @@ import TurtleGitCore
     @MainActor static func find(_ view: NSView) -> NSTableView? {
         if let result=view as? NSTableView, result.accessibilityLabel()=="References" { return result }; for child in view.subviews { if let result=find(child) { return result } }; return nil
     }
-    @MainActor static func wait(_ windows:[NSWindow]=[], _ ready:()->Bool) async throws {
-        for _ in 0..<2000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(message:"Timeout")
+    @MainActor static var phase = "setup"
+    @MainActor static func wait(_ windows:[NSWindow]=[], file:StaticString=#filePath, line:UInt=#line, _ ready:()->Bool) async throws {
+        for _ in 0..<2000 { windows.forEach { $0.contentView?.layoutSubtreeIfNeeded() }; if ready() { return }; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(message:"Timeout at \(file):\(line); phase=\(phase)")
     }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Fetch QA failed: \(error)\n",stderr); exit(1) } }
     @MainActor static func verify() async throws {
@@ -31,6 +32,7 @@ import TurtleGitCore
         owner.presentFetch={parent,child in parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible }
         var configured=0, changes=0
         owner.model.configureFetch={ child in configured += 1; child.model.onChanged={ _ in changes += 1 }; child.presentFetchProgress={parent,child in parent.makeFirstResponder(nil); return !parent.isVisible && !child.isVisible } }
+        phase="default-backend browser load"
         owner.model.load(); try await wait([owner.window!]) { !owner.model.busy && owner.model.snapshot != nil }
         guard let table=find(owner.window!.contentView!),let menu=table.menu else { throw Failure(message:"Native table missing") }
         try await wait([owner.window!]) { table.selectedRow >= 0 }; menu.delegate?.menuNeedsUpdate?(menu)
@@ -42,14 +44,17 @@ import TurtleGitCore
         try require(configured==1 && !child.model.isPull && child.model.options.remote=="origin" && !child.model.options.arbitraryURL && !child.model.options.allRemotes,"Remote preset/configuration differs")
         try require(owner.model.hasChild && !owner.windowShouldClose(owner.window!) && TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Owner close/Quit escaped")
         owner.showFetch(); owner.showCreateBranch(); owner.showMerge(); owner.showSwitch(); try require(owner.fetchDialog === child && configured==1,"Competing action escaped")
+        phase="default-backend actual Fetch"
         child.model.fetch()
         try await wait([child.window!]) { child.fetchProgressController?.model.busy==false }
         guard let progress=child.fetchProgressController else { throw Failure(message:"Progress missing") }
         try require(progress.model.success && changes==1 && owner.model.hasChild && child.model.fetchProgress != nil,"Result ownership escaped")
         let fetched=try await repo.run(["rev-parse",ref]).text.trimmingCharacters(in:.newlines); try require(fetched==next,"Local fetch did not update remote ref")
+        phase="default-backend Fetch acknowledgement"
         progress.close(); try await wait([owner.window!]) { owner.fetchDialog==nil && !owner.model.hasChild && !owner.model.busy }
         try require(owner.model.snapshot?.references.first(where:{$0.name.rawValue==ref})?.hash==next,"Browser did not refresh after acknowledgement")
         for reject in [false,true] {
+            phase="default-backend cancel/reject \(reject)"
             let choice=owner.model.snapshot!.initialSelection(ref); owner.model.setFolder(choice.folder); owner.model.selected=choice.reference
             if reject { owner.presentFetch={ _,_ in false } }; owner.showFetch()
             if !reject { guard let cancel=owner.fetchDialog else { throw Failure(message:"Cancel child missing") }; try await wait([cancel.window!]) { !cancel.model.busy }; cancel.model.cancel() }
@@ -60,7 +65,24 @@ import TurtleGitCore
             let helper=root.appendingPathComponent("slow-"+stage), marker=URL(fileURLWithPath:helper.path+".started"), pause=URL(fileURLWithPath:helper.path+".pause"), quoted="'"+git.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
             let script="""
             #!/bin/sh
-            if [ "${4-}" = '\(stage)' ] && [ -f "$0.pause" ]; then
+            # Inspect a function-local copy; exec below receives exact original argv.
+            qa_git_command() {
+              while [ "$#" -gt 0 ]; do
+                case "$1" in
+                  -c|-C|--git-dir|--work-tree|--namespace|--config-env)
+                    [ "$#" -ge 2 ] || return 2
+                    shift 2 ;;
+                  -c?*|-C?*|--git-dir=*|--work-tree=*|--namespace=*|--config-env=*) shift ;;
+                  --no-pager|--paginate|--bare|--no-replace-objects|--literal-pathspecs|--no-literal-pathspecs|--glob-pathspecs|--noglob-pathspecs|--icase-pathspecs|--no-optional-locks|--no-lazy-fetch) shift ;;
+                  --) shift; [ "$#" -gt 0 ] || return 2; printf '%s' "$1"; return ;;
+                  -*) return 2 ;;
+                  *) printf '%s' "$1"; return ;;
+                esac
+              done
+              return 2
+            }
+            qa_command=$(qa_git_command "$@") || qa_command=''
+            if [ "$qa_command" = '\(stage)' ] && [ -f "$0.pause" ]; then
               printf 'owned Fetch work\\n'
               /bin/sleep 30 &
               task_child=$!
@@ -72,7 +94,12 @@ import TurtleGitCore
             exec \(quoted) "$@"
             """
             try Data(script.utf8).write(to:helper); try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
-            let closing=ReferenceBrowserWindowController(repository:GitRepository(root:client,executable:helper),access:nil,initial:ref,preferences:prefs) { _ in }; var ids:[Int32]=[]
+            // This authored held-process boundary must execute the wrapper.
+            // Ordinary Fetch above/below continues using the normal backend.
+            let stageSuite=suite+".held-"+stage,stagePrefs=UserDefaults(suiteName:stageSuite)!
+            defer {stagePrefs.removePersistentDomain(forName:stageSuite);stagePrefs.synchronize()}
+            stagePrefs.set(false,forKey:"UseLibgit2");stagePrefs.set(0,forKey:"AutoCloseGitProgress");stagePrefs.set(false,forKey:"ConfirmKillProcess")
+            let closing=ReferenceBrowserWindowController(repository:GitRepository(root:client,executable:helper,libgit2Configuration:.init(enabled:false)),access:nil,initial:ref,preferences:stagePrefs) { _ in }; var ids:[Int32]=[]
             func cleanupFailure() async {
                 closing.close()
                 if ids.isEmpty, let text = try? String(contentsOf:marker) { ids = text.split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) } }
@@ -84,28 +111,36 @@ import TurtleGitCore
             }
             do {
             closing.presentFetch={parent,_ in parent.makeFirstResponder(nil); return true}; closing.model.configureFetch={ child in child.presentFetchProgress={parent,_ in parent.makeFirstResponder(nil); return true} }
+            phase="held \(stage): browser metadata load"
             closing.model.load(); try await wait([closing.window!]) { !closing.model.busy }
             if stage=="remote" { try Data().write(to:pause) }
+            phase="held \(stage): Fetch child creation"
             closing.showFetch(); guard let active=closing.fetchDialog else { throw Failure(message:"Active Fetch missing") }
             var outcome:FetchProgressWindowModel?, lateAnswer:((Bool)->Void)?, late=0
             active.model.onChanged={ _ in late += 1 }
             if stage=="fetch" {
-                try await wait([active.window!]) { !active.model.busy }; try Data().write(to:pause); active.model.fetch()
+                phase="held fetch: child metadata load"
+                try await wait([active.window!]) { !active.model.busy }; try Data().write(to:pause)
+                phase="held fetch: transport progress creation";active.model.fetch()
                 try await wait { active.fetchProgressController != nil }; outcome=active.fetchProgressController!.model
-                prefs.set(true,forKey:"ConfirmKillProcess"); outcome!.confirmCancellation={ lateAnswer=$0 }
+                stagePrefs.set(true,forKey:"ConfirmKillProcess"); outcome!.confirmCancellation={ lateAnswer=$0 }
             }
+            phase="held \(stage): wrapper marker"
             try await wait { FileManager.default.fileExists(atPath:marker.path) }
             ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap { Int32($0) }; try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Owned process not live: \(ids)")
             outcome?.cancel(); closing.close(); let frozen=outcome?.rawOutput
             lateAnswer?(true); outcome?.perform(.fetch)
+            phase="held \(stage): close/cancel child process drain"
             try await wait { ids.allSatisfy{kill($0,0) != 0} }; try await Task.sleep(nanoseconds:100_000_000)
             try require(closing.fetchDialog==nil && !closing.model.hasChild && !active.model.busy && active.model.closed && active.model.error==nil && late==0 && outcome?.rawOutput==frozen,"Closed Fetch published late result")
-            prefs.set(false,forKey:"ConfirmKillProcess")
+            stagePrefs.set(false,forKey:"ConfirmKillProcess")
             } catch { await cleanupFailure(); throw error }
         }
         let standalone=FetchWindowController(repository:repo,access:nil,preferences:prefs); defer { standalone.close() }
         standalone.presentFetchProgress={parent,_ in parent.makeFirstResponder(nil); return true}
+        phase="default-backend standalone metadata"
         standalone.model.load(remote:"origin"); try await wait([standalone.window!]) { !standalone.model.busy }; standalone.model.fetch()
+        phase="default-backend standalone actual Fetch"
         try await wait([standalone.window!]) { standalone.fetchProgressController?.model.busy==false }
         try require(TurtleGitApplicationDelegate().applicationShouldTerminate(NSApplication.shared) == .terminateCancel,"Standalone Fetch result escaped Quit guard")
         standalone.model.cancel(); try require(standalone.model.closed && standalone.fetchProgressController==nil,"Standalone acknowledgement retained child")

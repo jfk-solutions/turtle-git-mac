@@ -1,11 +1,30 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func quietFileTransferOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;quietFileTransferOrder(mode,relativeTo:number)
+    }
+    @objc func quietFileTransferSheet(_ child:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        child.alphaValue=0;quietFileTransferSheet(child,completionHandler:completionHandler)
+    }
+}
+
 @main struct FileTransferVerification {
     struct Failure: Error, CustomStringConvertible {let description: String}
     static func require(_ condition: Bool,_ message: String) throws {if !condition {throw Failure(description:message)}}
     @MainActor static func wait(_ condition: ()->Bool) async throws {for _ in 0..<2500 {if condition(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(description:"File transfer timeout")}
     @MainActor static func main() async {do {try await verify()}catch{fputs("File transfer failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
+        // Keep native modeless children and real sheet edges while suppressing
+        // every test-owned window's pixels; parent alpha is not inherited.
+        let orderMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let quietOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietFileTransferOrder(_:relativeTo:)))!
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!
+        let quietSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietFileTransferSheet(_:completionHandler:)))!
+        method_exchangeImplementations(orderMethod,quietOrder);method_exchangeImplementations(sheetMethod,quietSheet)
+        defer {method_exchangeImplementations(sheetMethod,quietSheet);method_exchangeImplementations(orderMethod,quietOrder)}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Copy QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] {_ = try await repo.run(["config",key,value])}

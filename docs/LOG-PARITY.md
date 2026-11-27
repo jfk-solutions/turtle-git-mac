@@ -3087,3 +3087,24 @@ The full-dialog receiver retains the font, row-height, autosizing and unchanged
 selection/check assertions, with separate diagnostics. The [grouped checkpoint](qa/history-browser-recovery-2026-11-08.json) passes the
 affected reference, font and rollup receivers with both Git executables after
 recorded fixture repairs. No broader font or complete dialog parity claim is made.
+
+
+## Changed-file endpoint navigation correction — November 27, 2026
+
+The grouped native check exposed that AppKit Home/End scroll without replacing
+an existing multi-selection. Pinned `LogDlg.cpp`308 uses the Windows status-list
+control for changed files; the port's stated file-navigation contract also moves
+selection and focus while skipping parent headings.
+
+The native report now handles both endpoints explicitly. Plain Home/End selects
+one file; Shift retains its original anchor across native repaint, filters parent
+headings, and validates the ordered parent-specific row identities before reusing
+that anchor. Pointer input, other keys and retired/blocked owners cannot revive
+an obsolete range. Up/Down retain their native movement and file-focus tracking.
+The related fixture covers all four keys, endpoint range shrink/extend, actual
+native/model selection and focus, repaint, blocked and closed owners, retaining
+layout, copy and exact repository-byte assertions. The combined Debug build
+and affected native changed-file checks pass with system and bundled Git.
+All owned compiler/receiver processes were reaped and independently absent.
+This does not certify all Log behaviors or corrected-source hosted acceptance;
+no bundled runtime behavior changed.

@@ -5,6 +5,8 @@ from native_receiver import run_receiver as run_compiler
 import ast
 from contextlib import ExitStack
 import hashlib
+import importlib.util
+import json
 import os
 from pathlib import Path
 import platform
@@ -149,6 +151,59 @@ CASES = {
     'utility-captures': 'UtilityDialogCapture',
     'issue-captures': 'IssueTrackerCapture',
 }
+def run_owned_reference_case(receiver, close_receiver, drain_failure):
+    """Reap the launched leader before inspecting any failed-case descendants."""
+    timed_out = False
+    try:
+        try:
+            code = receiver.wait(timeout=300)
+        except subprocess.TimeoutExpired:
+            timed_out = True
+            code = None
+    finally:
+        # Also runs for KeyboardInterrupt and unexpected wait errors, which must
+        # propagate rather than becoming independent test failures.
+        close_receiver(receiver)
+        print('Owned receiver reaped: ' + str(receiver.pid), flush=True)
+    row = dict(returncode=receiver.returncode if timed_out else code,
+               timeout=timed_out, cleanup_complete=True)
+    if timed_out or code:
+        try:
+            row['fallback_helper_cleanup'] = drain_failure()
+        except Exception as error:
+            row.update(cleanup_complete=False, cleanup_error=str(error))
+    return row
+
+
+def run_reference_plan(engines, cases, run_case):
+    """Continue only independent cases whose failed predecessor fully drained."""
+    results = []
+    for index, git in enumerate(engines):
+        for case in cases or [case for case in CASES if case not in ['working-tree-lfs', 'primary-dialog-captures', 'finder-service-grant-worker', 'finder-watches-captures', 'finder-publication-worker', 'issue-captures', 'utility-captures', 'blame-captures', 'blame-wrap-captures', 'repository-browser-table-captures']]:
+            row = dict(engine=str(git), case=case, **run_case(index, git, case))
+            results.append(row)
+            failed = row['timeout'] or row['returncode'] != 0
+            if failed:
+                print('Reference case failed: ' + json.dumps(row, sort_keys=True), flush=True)
+            if not row['cleanup_complete']:
+                print('Stopping reference continuation: failed ownership cleanup.', flush=True)
+                return results
+    return results
+
+
+def failed_reference_cleanup(root, git, executable, contexts):
+    # Import the reviewed cleanup implementation without running its CLI/main.
+    spec = importlib.util.spec_from_file_location('reference_batch_cleanup', root / 'scripts/test-native-reference-groups.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    images = module.approved_images(root, git)
+    images.add(str(executable.resolve()))  # Includes fixture-launched workers.
+    drained = False
+    for context in contexts:
+        drained = module.cleanup_group(context.resolve(), images) or drained
+    return drained
+
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git', type=Path, action='append')
 parser.add_argument('--only', choices=CASES, action='append')
@@ -182,6 +237,13 @@ with ExitStack() as fixture_lifetimes, tempfile.TemporaryDirectory(prefix='Turtl
         if case == 'working-tree-lfs':
             source.write_text(source.read_text() + '\nstruct WorkingTreeLFSVerification {\n    @MainActor static func main() async {\n        do { try await LFSLocksVerification.main() }\n        catch { fputs("Working Tree LFS regression failed: \(error)\\n", stderr); exit(1) }\n    }\n}\n')
         sources.append(source)
+    if 'statistics-workflow' in compiled_cases:
+        # Match the standalone Statistics receiver's complete source family:
+        # its main fixture calls helpers in this companion extension.
+        statistics_support = root / 'docs/qa/statistics-source-native-2026-10-17.swift'
+        statistics_source = directory / 'StatisticsSourceSupport.swift'
+        statistics_source.write_text('@testable import TurtleGitMac\n#sourceLocation(file: '+json.dumps(str(statistics_support))+', line: 1)\n'+statistics_support.read_text())
+        sources.append(statistics_source)
     askpass_window = directory / 'GitAskpassWindow.swift'
     askpass_window.write_text('import TurtleGitCore\n' + (root / 'Sources/TurtleGitGitAskpass/PromptWindow.swift').read_text())
     sources.append(askpass_window)
@@ -249,26 +311,40 @@ with ExitStack() as fixture_lifetimes, tempfile.TemporaryDirectory(prefix='Turtl
     if args.compile_only:
         print('Reference compile-only complete: ' + ', '.join(compiled_cases), flush=True)
         raise SystemExit(0)
-    environment = os.environ.copy()
-    environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_NOSYSTEM='1')
+    # Never inherit caller Git configuration (including command-scope helpers),
+    # repository overrides or credentials into disposable fixture repositories.
+    environment = {key: value for key, value in os.environ.items() if not key.startswith('GIT_')}
+    environment.update(DYLD_FRAMEWORK_PATH=str(products), GIT_CONFIG_GLOBAL=os.devnull,
+                       GIT_CONFIG_SYSTEM=os.devnull, GIT_CONFIG_NOSYSTEM='1',
+                       GIT_CONFIG_COUNT='0', GIT_CONFIG_PARAMETERS='')
     for key in ['GIT_AUTHOR_NAME', 'GIT_AUTHOR_EMAIL', 'GIT_COMMITTER_NAME', 'GIT_COMMITTER_EMAIL']:
         environment.pop(key, None)
-    for index, git in enumerate(args.git or [Path('/usr/bin/git')]):
-        for case in args.only or [case for case in CASES if case not in ['working-tree-lfs', 'primary-dialog-captures', 'finder-service-grant-worker', 'finder-watches-captures', 'finder-publication-worker', 'issue-captures', 'utility-captures', 'blame-captures', 'blame-wrap-captures', 'repository-browser-table-captures']]:
-            # Unix-domain agent sockets have a platform path-length limit.
-            fixture = Path(fixture_lifetimes.enter_context(tempfile.TemporaryDirectory(prefix='tg-ssh-', dir='/tmp'))) if case == 'ssh-coordinator' else directory / (str(index) + '-' + case)
-            fixture.mkdir(exist_ok=True)
-            command = [str(executable), str(fixture), str(git.absolute()), case]
-            print('Checking ' + case + ' with ' + str(git), flush=True)
-            case_environment = environment.copy()
-            if case == 'svn-authentication': case_environment['TURTLEGIT_CERTIFICATE_FIXTURE'] = str(root / 'Tests/TurtleGitCoreTests/Fixtures/Certificates/server.der')
-            if case in ['settings-family', 'network-settings', 'credential-settings', 'issue-tracker-settings', 'issue-captures']:
-                case_environment['GIT_CONFIG_GLOBAL'] = str(fixture / 'global.config')
-                case_environment['XDG_CONFIG_HOME'] = str(fixture / 'xdg')
-            receiver = subprocess.Popen(command, cwd=root, env=case_environment, start_new_session=True)
-            try:
-                code = receiver.wait(timeout=300)
-                if code: raise subprocess.CalledProcessError(code, command)
-            finally:
-                cleanup['close_receiver'](receiver)
-                print('Owned receiver reaped: ' + str(receiver.pid), flush=True)
+    def execute_case(index, git, case):
+        # Unix-domain agent sockets have a platform path-length limit.
+        fixture = Path(fixture_lifetimes.enter_context(tempfile.TemporaryDirectory(prefix='tg-ssh-', dir='/tmp'))) if case == 'ssh-coordinator' else directory / (str(index) + '-' + case)
+        fixture.mkdir(exist_ok=True)
+        command = [str(executable), str(fixture), str(git.absolute()), case]
+        print('Checking ' + case + ' with ' + str(git), flush=True)
+        case_environment = environment.copy()
+        private_environment = directory / ('.environment-' + str(index) + '-' + case)
+        for name in ['home', 'preferences', 'xdg', 'temporary']:
+            (private_environment / name).mkdir(parents=True, mode=0o700, exist_ok=True)
+        case_environment.update(HOME=str(private_environment / 'home'),
+                                CFFIXED_USER_HOME=str(private_environment / 'preferences'),
+                                XDG_CONFIG_HOME=str(private_environment / 'xdg'),
+                                TMPDIR=str((fixture / 'temporary') if case == 'ssh-coordinator' else (private_environment / 'temporary')) + os.sep)
+        if case == 'ssh-coordinator': (fixture / 'temporary').mkdir(mode=0o700, exist_ok=True)
+        if case == 'svn-authentication': case_environment['TURTLEGIT_CERTIFICATE_FIXTURE'] = str(root / 'Tests/TurtleGitCoreTests/Fixtures/Certificates/server.der')
+        if case in ['settings-family', 'network-settings', 'credential-settings', 'issue-tracker-settings', 'issue-captures']:
+            case_environment['GIT_CONFIG_GLOBAL'] = str(fixture / 'global.config')
+            case_environment['XDG_CONFIG_HOME'] = str(fixture / 'xdg')
+        receiver = subprocess.Popen(command, cwd=root, env=case_environment, start_new_session=True)
+        contexts = [directory]
+        if case == 'ssh-coordinator': contexts.append(fixture)
+        return run_owned_reference_case(receiver, cleanup['close_receiver'],
+            lambda: failed_reference_cleanup(root, git, executable, contexts))
+    results = run_reference_plan(args.git or [Path('/usr/bin/git')], args.only, execute_case)
+    failures = [row for row in results if row['timeout'] or row['returncode'] != 0 or not row['cleanup_complete']]
+    if failures:
+        print('Reference batch failures (' + str(len(failures)) + '): ' + json.dumps(failures, sort_keys=True), flush=True)
+        raise SystemExit(1)

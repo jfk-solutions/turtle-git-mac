@@ -267,7 +267,8 @@ enum ExportArchiveChoice:Int,CaseIterable {
     }
     func acceptCommitSelection(_ entry: LogEntry?) {
         guard !invalidated,!confirmingQuit, pickerTarget == .commit else { return }
-        if let entry { selectCustomRevision(entry.hash) }; finishPicker()
+        // CChooseVersion::OnBnClickedChooseVersion uses SetWindowText, not AddString.
+        if let entry { commit = entry.hash }; finishPicker()
     }
     var presentationPreferences: UserDefaults { preferences }
     private let preferences: UserDefaults

@@ -59,8 +59,16 @@ import TurtleGitCore
         try require(prompts == [names[0]] && changes == 0, "Abort changed references")
         phase = "partial All"; print("Phase:", phase)
         model.confirmReferenceDeletion = { prompts.append($0.name); return $0.name == "refs/heads/b" ? .abort : .delete }
-        prompts = []; try invoke(deletion.item(withTitle: "All")!); try await settle(owner)
-        try require(prompts == ["refs/heads/a","refs/heads/b"] && changes == 1, "All did not stop on Abort or refresh partial deletion")
+        // Every popup is one-use, even when its first accepted command is Abort.
+        // Retaining a sibling All item must not revive that consumed receipt.
+        prompts=[];try invoke(deletion.item(withTitle:"All")!);try await settle(owner)
+        try require(prompts.isEmpty && changes==0,"Consumed named-reference popup accepted a sibling All action")
+        let currentMenu=native.owner!.menu()
+        guard let currentDeletion=currentMenu.item(withTitle:"Delete branch/tag")?.submenu,
+              let all=currentDeletion.item(withTitle:"All") else {throw Failure(description:"Fresh named-reference popup lost All after Abort")}
+        try require(currentDeletion.items.map(\.title)==names+["All"] && currentDeletion.items.allSatisfy{$0.image != nil},"Fresh deletion popup changed captured names/icons")
+        try invoke(all);try await settle(owner)
+        try require(prompts == ["refs/heads/a","refs/heads/b"] && changes == 1, "All did not stop on Abort or refresh partial deletion: prompts=\(prompts),changes=\(changes),busy=\(model.busy),error=\(String(describing:model.error)),selection=\(model.selection),names=\(model.referenceDeletionCandidates(model.selection))")
         let afterAbort = try await repo.run(["show-ref"]).text
         try require(!afterAbort.contains("refs/heads/a") && afterAbort.contains("refs/heads/b") && afterAbort.contains("refs/tags/release"), "All Abort deleted later names")
         native.selectRowIndexes(IndexSet(integer: 0), byExtendingSelection: false)

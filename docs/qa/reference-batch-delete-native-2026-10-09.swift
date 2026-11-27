@@ -5,7 +5,7 @@ import TurtleGitCore
     struct Failure: Error { let message:String }
     static func require(_ value:Bool,_ message:String) throws {if !value {throw Failure(message:message)}}
     @MainActor static func find(_ view:NSView) -> NSTableView? {if let table=view as? NSTableView,table.accessibilityLabel()=="References" {return table};for child in view.subviews {if let result=find(child){return result}};return nil}
-    @MainActor static func wait(_ windows:[NSWindow]=[],_ ready:()->Bool) async throws {for _ in 0..<2000 {windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()};if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Timeout")}
+    @MainActor static func wait(_ windows:[NSWindow]=[],line:UInt = #line,_ ready:()->Bool) async throws {for _ in 0..<2000 {windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()};if ready(){return};try await Task.sleep(nanoseconds:10_000_000)};throw Failure(message:"Timeout at line \(line)")}
     @MainActor static func main() async {do {try await verify()} catch {fputs("Batch deletion QA failed: \(error)\n",stderr);exit(1)}}
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
@@ -61,6 +61,9 @@ import TurtleGitCore
         let kept=["refs/heads/keep/one","refs/heads/keep/two"]
         try await choose(kept);try invoke("Delete 2 branches");try await wait{answer != nil};owner.close();let late=answer;answer=nil;late?.resume(returning:true);try await Task.sleep(nanoseconds:100_000_000)
         let afterLate=try await repo.referenceBrowser();try require(afterLate.references.contains{$0.name==GitReferenceName(kept[0])} && afterLate.references.contains{$0.name==GitReferenceName(kept[1])},"Late Yes deleted closed batch")
+        // These cancellation witnesses hold actual CLI argv. Normal deletion
+        // above retains the default backend; force CLI only for this process family.
+        prefs.set(false,forKey:"UseLibgit2")
         for stage in ["check-ref-format","branch","push"] {
             let names=stage=="push" ? ["refs/remotes/zeta/keep/one","refs/remotes/zeta/keep/two"] : kept
             let helper=root.appendingPathComponent("slow-"+stage),marker=URL(fileURLWithPath:helper.path+".started"),pause=URL(fileURLWithPath:helper.path+".pause"),quoted="'"+git.path.replacingOccurrences(of:"'",with:"'\\''")+"'"
@@ -84,6 +87,8 @@ import TurtleGitCore
             let closing=ReferenceBrowserWindowController(repository:GitRepository(root:client,executable:helper),access:nil,initial:"refs",preferences:prefs,picking:false){_ in};var ids:[Int32]=[]
             defer {closing.close();for pid in ids where kill(pid,0)==0 {_ = kill(pid,SIGTERM)}}
             closing.model.load();try await wait([closing.window!]){!closing.model.busy && closing.model.snapshot != nil};closing.model.select(Set(names.map { GitReferenceName($0) }),last:GitReferenceName(names.last!));closing.model.confirmDeletion={_ in true}
+            try require(!closing.model.captureRemoteBackend().enabled,"Forced CLI cancellation used another backend")
+            print("Checking batch forced cleanup: "+stage);fflush(stdout)
             try Data().write(to:pause);closing.model.deleteChosen();try await wait{FileManager.default.fileExists(atPath:marker.path)}
             ids=try String(contentsOf:marker).split(whereSeparator:{$0.isWhitespace}).compactMap{Int32($0)};try require(ids.count==2 && ids.allSatisfy{kill($0,0)==0},"Live batch process absent")
             closing.close();let error=closing.model.error;try await wait{ids.allSatisfy{kill($0,0) != 0}};try await Task.sleep(nanoseconds:100_000_000)

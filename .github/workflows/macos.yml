@@ -111,9 +111,12 @@ jobs:
         run: |
           python3 scripts/test-localizations.py
           python3 scripts/build-localizations.py
-      - name: Native reference group coverage contracts
+      - name: Native reference coverage and failure ownership contracts
         if: matrix.lane == 'core'
-        run: python3 scripts/test-native-reference-groups-contracts.py
+        run: |
+          python3 scripts/test-native-reference-groups-contracts.py
+          python3 scripts/test-native-reference-batch-contracts.py
+          python3 scripts/test-switch-reset-bisect-workflows-contracts.py
       - name: Native receiver cache and process ownership contracts
         if: matrix.lane == 'core'
         run: python3 scripts/test-native-receiver.py
@@ -1115,6 +1118,9 @@ jobs:
           path: |
             build/qa/ci-step-failures/middle/
             build/qa/rebase-source-*-timeout.sample.txt
+            build/qa/rebase-source-add-failed-*/stdout.log
+            build/qa/rebase-source-add-failed-*/stderr.log
+            build/qa/rebase-source-add-failed-*/failure.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Native Blame toolbar customization and document ownership

@@ -1,5 +1,15 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func quietInputDialogsOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;quietInputDialogsOrder(mode,relativeTo:number)
+    }
+    @objc func quietInputDialogsSheet(_ child:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        child.alphaValue=0;quietInputDialogsSheet(child,completionHandler:completionHandler)
+    }
+}
 
 @main struct InputDialogsVerification {
     struct Failure: Error { let message: String }
@@ -13,6 +23,12 @@ import TurtleGitCore
         catch { fputs("FAIL Input: \(error)\n", stderr); exit(1) }
     }
     @MainActor static func run() async throws {
+        let orderMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let quietOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietInputDialogsOrder(_:relativeTo:)))!
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!
+        let quietSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietInputDialogsSheet(_:completionHandler:)))!
+        method_exchangeImplementations(orderMethod,quietOrder);method_exchangeImplementations(sheetMethod,quietSheet)
+        defer{method_exchangeImplementations(sheetMethod,quietSheet);method_exchangeImplementations(orderMethod,quietOrder)}
         NSApplication.shared.setActivationPolicy(.prohibited)
         let suite = "TurtleGit.Input.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
@@ -41,9 +57,13 @@ import TurtleGitCore
         var retiredCloses = 0; retired.onClosed = { retiredCloses += 1 }; retired.save()
         try await wait { continuation != nil }
         retired.close()
-        try require(InputWindowController.activeSaves == 1 && retiredCloses == 1, "Retired operation remains counted")
+        // onClosed is delivered only after the held write and any native
+        // sheet ownership drain, not merely after its visual owner retires.
+        try require(InputWindowController.activeSaves == 1 && retired.hasPendingWork && retiredCloses == 0 && retired.window?.isVisible == false &&
+            TurtleGitApplicationDelegate().applicationShouldTerminate(NSApp) == .terminateCancel,
+            "Retired operation lost worker/permission ownership or closed callback ran early: active=\(InputWindowController.activeSaves),pending=\(retired.hasPendingWork),closed=\(retiredCloses)")
         continuation?.resume(); continuation = nil
-        try await wait { InputWindowController.activeSaves == 0 }
+        try await wait { InputWindowController.activeSaves == 0 && !retired.hasPendingWork && retiredCloses == 1 }
         try require(!retired.saved && retiredCloses == 1, "Late result is fenced")
 
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))

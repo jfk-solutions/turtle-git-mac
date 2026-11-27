@@ -6,7 +6,9 @@ import TurtleGitCore
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
     @MainActor static func main() async { do { try await verify() } catch { fputs("Service grant failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
-        let folder=URL(fileURLWithPath:CommandLine.arguments[1]),engine=URL(fileURLWithPath:CommandLine.arguments[2]),root=folder.appendingPathComponent("repository")
+        // Expected cache keys and saved-watch identities use the repository's
+        // standardized, resolved private container, not an argv /var alias.
+        let folder=URL(fileURLWithPath:CommandLine.arguments[1]).standardizedFileURL.resolvingSymlinksInPath(),engine=URL(fileURLWithPath:CommandLine.arguments[2]),root=folder.appendingPathComponent("repository")
         try FileManager.default.createDirectory(at:root,withIntermediateDirectories:true)
         let repo=GitRepository(root:root,executable:engine);_ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","Grant QA"),("user.email","grant@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
@@ -25,7 +27,8 @@ import TurtleGitCore
                 try require(worker.isRunning,"Runtime receiver exited before cache update")
                 try await Task.sleep(nanoseconds:10_000_000)
             }
-            throw Failure(description:"Separate runtime cache update timeout")
+            let snapshot=(try? Data(contentsOf:folder.appendingPathComponent("status.json"))).flatMap{try? JSONDecoder().decode(FinderSnapshot.self,from:$0)}
+            throw Failure(description:"Separate runtime cache update timeout: expectedRoot=\(root.path),expectedFile=\(root.appendingPathComponent("file").path),state=\(state),workerPID=\(worker.processIdentifier),running=\(worker.isRunning),actualRoots=\(String(describing:snapshot?.roots)),actualStates=\(String(describing:snapshot?.states))")
         }
         try await awaitState(.normal)
         try Data("external runtime edit\n".utf8).write(to:root.appendingPathComponent("file"))

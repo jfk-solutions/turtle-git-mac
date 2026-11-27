@@ -28,7 +28,8 @@ import TurtleGitCore
         let originalIndex=try Data(contentsOf:root.appendingPathComponent(".git/index")),head=try await repo.run(["rev-parse","HEAD"]).stdout
         let chooser=DeleteConflictWindowController(repository:repo,access:nil,path:path,preferences:prefs)
         defer { chooser.close() }
-        chooser.configureComparison={ $0.openExternalComparison={ _,_,_,_ in false } }
+        chooser.window?.alphaValue=0
+        chooser.configureComparison={ $0.window?.alphaValue=0;$0.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));$0.openExternalComparison={ _,_,_,_ in false } }
         chooser.model.load()
         do { try await wait { !chooser.model.busy && (chooser.model.details != nil || chooser.model.error != nil) } }
         catch { throw Failure(description:"Initial Delete read did not settle: active \(chooser.model.operation.active), busy \(chooser.model.busy), error \(chooser.model.error ?? "none")") }
@@ -68,7 +69,7 @@ import TurtleGitCore
         try Data(script.utf8).write(to:helper);try FileManager.default.setAttributes([.posixPermissions:0o755],ofItemAtPath:helper.path)
         setenv("TG_CONFLICT_GIT",git.path,1);defer { unsetenv("TG_CONFLICT_GIT") }
         let slow=DeleteConflictWindowController(repository:GitRepository(root:root,executable:helper),access:nil,path:path,preferences:prefs)
-        defer { slow.close() }
+        defer { slow.close() };slow.window?.alphaValue=0
         slow.model.load();try await wait { !slow.model.busy && slow.model.details != nil };slow.model.resolve(deleting:false)
         try await wait { FileManager.default.fileExists(atPath:marker.path) && slow.model.operation.output.contains("Unicode 雪") }
         try require(slow.model.operation.output.contains("Work: 35%") && !slow.model.operation.output.contains("Work: 10%"),"Delete progress did not normalize CR output")
@@ -96,14 +97,14 @@ import TurtleGitCore
         _ = try await parent.run(["switch","main"]);_ = try await parent.run(["update-index","--cacheinfo","160000,"+mine+",module"]);_ = try await parent.commit(message:"mine link")
         do { _ = try await parent.run(["merge","--no-edit","side"]);throw Failure(description:"Expected gitlink conflict") } catch is GitFailure {}
         let links=try await parent.run(["ls-files","--stage","-z"]).stdout,parentHead=try await parent.run(["rev-parse","HEAD"]).stdout
-        let late=SubmoduleConflictWindowController(repository:parent,access:nil,path:"module",preferences:prefs)
+        let late=SubmoduleConflictWindowController(repository:parent,access:nil,path:"module",preferences:prefs);late.window?.alphaValue=0
         var answer:((NSApplication.ModalResponse)->Void)?;late.sheets.present={_,_,reply in answer=reply;return true}
         late.model.load();try await wait { !late.model.busy && late.model.details != nil };late.model.choose(late.model.details!.theirs)
         try await wait { answer != nil && late.model.operation.hasQuestion };late.close();answer?(.alertFirstButtonReturn);answer?(.alertFirstButtonReturn)
         try await Task.sleep(nanoseconds:100_000_000)
         let afterLate=try await parent.run(["ls-files","--stage","-z"]).stdout;try require(afterLate == links,"Retired Use this affirmative mutated gitlink")
         let sub=SubmoduleConflictWindowController(repository:parent,access:nil,path:"module",preferences:prefs)
-        defer { sub.close() }
+        defer { sub.close() };sub.window?.alphaValue=0
         sub.model.confirmChoice={true};sub.model.load();try await wait { !sub.model.busy && sub.model.details != nil }
         var childLog="";sub.model.onLog={ _,revision in childLog=revision };sub.model.log(sub.model.details!.base);try await wait { !sub.model.busy }
         try require(childLog == mine,"Initialized Base child Log did not use checkout HEAD")

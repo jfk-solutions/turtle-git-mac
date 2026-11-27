@@ -209,11 +209,23 @@ import TurtleGitCore
         model.entries[row].references=[];model.bare=true;update(extended:true)
         try require(item("svnDCommitFromHistory:")==nil,"Bare menu exposed SVN DCommit");model.bare=false
         choose(entries[1].hash)
+        // Direct menu construction above exercises captured commands, but a
+        // real keyboard popup additionally requires the current native revision
+        // projection after the preceding reference/bare-state mutations.
+        do {try await wait {
+            coordinator.model === model && coordinator.table === table && table.window === window &&
+                coordinator.renderedProjection == model.historyProjectionEpoch &&
+                coordinator.renderedEntries.map(\.hash) == model.entries.map(\.hash) &&
+                table.numberOfRows == model.entries.count && model.selected == [entries[1].hash] &&
+                table.selectedRowIndexes == IndexSet(model.entries.indices.filter { model.selected.contains(model.entries[$0].hash) }) &&
+                table.contextMenuAvailable()
+        }} catch {throw Failure(description:"Keyboard popup admission projection=\(coordinator.renderedProjection == model.historyProjectionEpoch),rendered=\(coordinator.renderedEntries.map(\.hash)),expected=\(model.entries.map(\.hash)),nativeSelection=\(table.selectedRowIndexes),selection=\(model.selected),available=\(table.contextMenuAvailable()),owner=\(table.window === window),inspect=\(model.canInspectHistory); \(error)")}
         var popups=0,anchor=NSPoint.zero,popupTitles:[String]=[]
         table.presentContextMenu={popup,point,_ in coordinator.menuNeedsUpdate(popup);popups += 1;anchor=point;popupTitles=leaves(popup).map(\.title)}
         table.contextReference=(row:table.selectedRow,name:"refs/heads/not-a-keyboard-target")
         let f10=NSEvent.keyEvent(with:.keyDown,location:.zero,modifierFlags:[.shift,.function],timestamp:0,windowNumber:window.windowNumber,context:nil,characters:"\u{f70d}",charactersIgnoringModifiers:"\u{f70d}",isARepeat:false,keyCode:109)!
-        try require(table.performKeyEquivalent(with:f10) && popups==1 && table.contextReference==nil && table.contextExtendedMenu && table.row(at:anchor)==table.selectedRow && popupTitles.contains("Show log…"),"Shift-F10 menu anchor/mode/target failed")
+        let handledF10=table.performKeyEquivalent(with:f10)
+        try require(handledF10 && popups==1 && table.contextReference==nil && table.contextExtendedMenu && table.row(at:anchor)==table.selectedRow && popupTitles.contains("Show log…"),"Shift-F10 menu anchor/mode/target failed: handled=\(handledF10),popups=\(popups),reference=\(String(describing:table.contextReference)),extended=\(table.contextExtendedMenu),anchor=\(anchor),anchorRow=\(table.row(at:anchor)),selectedRow=\(table.selectedRow),titles=\(popupTitles),available=\(table.contextMenuAvailable())")
         try require(table.accessibilityPerformShowMenu() && popups==2 && !table.contextExtendedMenu && !popupTitles.contains("Show log…"),"Accessibility context menu inherited Shift or label hit")
         for key in [\LogWindowModel.busy,\.findBlocked,\.orderingBlocked,\.referencePickerBlocked] {
             model[keyPath:key]=true;try require(!table.showKeyboardContextMenu() && !table.accessibilityPerformShowMenu(),"Blocked owner opened keyboard context menu");model[keyPath:key]=false
@@ -484,13 +496,16 @@ import TurtleGitCore
         try require(patches.last?.range(of: Data("+working only".utf8)) != nil, "Followed working-row patch lost filename/content")
         controller.close()
         func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
-        let helper = root.appendingPathComponent(".git/slow-follow"), gate = root.appendingPathComponent(".git/follow-gate"), ready = root.appendingPathComponent(".git/follow-ready")
+        let helper = root.appendingPathComponent(".git/slow-follow"), gate = root.appendingPathComponent(".git/follow-gate"), ready = root.appendingPathComponent(".git/follow-ready"), claim=root.appendingPathComponent(".git/follow-claimed")
         let script = """
         #!/bin/sh
         if [ -f \(quote(gate.path)) ]; then
           for argument in "$@"; do
-            if [ "$argument" = --stdin ]; then
-              echo $$ > \(quote(ready.path))
+            if [ "$argument" = --stdin ] && /bin/mkdir \(quote(claim.path)) 2>/dev/null; then
+              # Hold exactly the accepted comparison. A replacement selection
+              # starts legitimate --stdin metadata work after cancelling it.
+              printf '%s\\n' "$$" > \(quote(ready.path))".$$"
+              /bin/mv \(quote(ready.path))".$$" \(quote(ready.path))
               while :; do /bin/sleep 0.02; done
             fi
           done
@@ -499,7 +514,7 @@ import TurtleGitCore
         """
         try Data(script.utf8).write(to: helper); try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
         for mode in ["selection", "requested", "forced"] {
-            try? FileManager.default.removeItem(at: gate); try? FileManager.default.removeItem(at: ready)
+            try? FileManager.default.removeItem(at: gate); try? FileManager.default.removeItem(at: ready);try? FileManager.default.removeItem(at:claim)
             let child = try await owner(helper); defer { child.close() }
             var opened = 0; child.model.onFollowedFileComparison = { _, _ in opened += 1 }
             child.model.select([tip, birth]); try await wait { !child.model.loadingActions && LogWindowModel.activeActionReads == 0 }
@@ -510,7 +525,21 @@ import TurtleGitCore
             if mode == "selection" { child.model.select([rename]) }
             else if mode == "requested" { child.window?.performClose(nil) }
             else { child.close() }
-            try await wait { !child.model.busy && FileListComparisonSession.activeOperations == 0 }
+            // A forced close retires the hosting tree immediately. The model's
+            // followed-read defer deliberately stops publishing busy once it is
+            // invalidated; that retained presentation flag is not a worker.
+            // Requested close must still publish idle before closing itself.
+            do {try await wait {
+                let ownerSettled: Bool
+                if mode == "forced" {
+                    ownerSettled = child.model.isInvalidated && child.window?.isVisible == false &&
+                        child.window?.attachedSheet == nil && child.window?.contentViewController == nil
+                } else { ownerSettled = !child.model.busy }
+                return ownerSettled && !child.model.loadingHistory && !child.model.loadingActions &&
+                    LogWindowModel.activeActionReads == 0 && FileListComparisonSession.activeOperations == 0 &&
+                    kill(pid, 0) == -1 && errno == ESRCH
+            }}
+            catch {throw Failure(description:"Follow cancellation mode=\(mode),pid=\(pid),pidLive=\(kill(pid,0)==0),busy=\(child.model.busy),history=\(child.model.loadingHistory),actions=\(child.model.loadingActions),actionReads=\(LogWindowModel.activeActionReads),sessions=\(FileListComparisonSession.activeOperations),invalidated=\(child.model.isInvalidated),selected=\(child.model.selected),opened=\(opened),error=\(String(describing:child.model.error)); \(error)")}
             try require(opened == 0 && child.model.error == nil && kill(pid, 0) == -1 && errno == ESRCH, "Cancelled follow read published a late viewer/error or leaked Git")
             if mode != "selection" { try require(child.model.isInvalidated, "Requested/forced follow Close did not settle") }
             child.close()

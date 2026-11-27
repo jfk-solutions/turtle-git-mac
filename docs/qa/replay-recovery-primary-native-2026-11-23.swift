@@ -12,8 +12,20 @@ import TurtleGitCore
         try Prior.require(value,"Replay recovery: "+message)
     }
     static func wait(_ message:String,_ ready:()->Bool)async throws {
-        trace("WAIT "+message)
-        do {try await Prior.wait(message,ready);trace("READY "+message)}
+        let started=ProcessInfo.processInfo.systemUptime
+        trace("WAIT "+message+" "+stateWitness())
+        var lastState="",stateCount=0
+        do {
+            try await Prior.wait(message) {
+                let value=ready()
+                if !value,message.localizedCaseInsensitiveContains("resolve"),stateCount<8 {
+                    let state=stateWitness()
+                    if state != lastState {trace("WAIT STATE "+message+" "+state);lastState=state;stateCount+=1}
+                }
+                return value
+            }
+            trace("READY "+message+" elapsed="+String(format:"%.3f",ProcessInfo.processInfo.systemUptime-started))
+        }
         catch {trace("TIMEOUT "+message+" "+stateWitness());throw error}
     }
     static func clickButton(_ button:NSButton) {
@@ -28,6 +40,7 @@ import TurtleGitCore
             // Track the actual owned controller for failure cleanup without
             // showWindow/orderFront: its source alone presents the sheet.
             context?.owners.append(child)
+            trace("owned Resolve created "+SyncPrimaryActivationVerification.resolveWitness(child))
             try? context?.recordResolve("created-\(context?.owners.count ?? 0)",child)
         }
     }
@@ -449,7 +462,9 @@ import TurtleGitCore
         try require(try Data(contentsOf:c.folder.appendingPathComponent(".git/index"))==before,"Declined quick Resolve mutated index")
         let resolved=c.conflict
         _=try await select([resolved],owner,active)
+        trace("quick-Yes dispatch before "+stateWitness())
         try invoke(model.conflictReportMenu([resolved],mark:resolved,column:.path),"Rebase.Files.resolve.current")
+        trace("quick-Yes dispatch returned "+stateWitness())
         try await wait("Actual affirmative quick Resolve absent"){owner.conflictResolutionController?.window?.attachedSheet != nil}
         let affirmativeChild=try Prior.unwrap(owner.conflictResolutionController,"Affirmative quick Resolve missing")
         let affirmativeQuestion=try Prior.unwrap(affirmativeChild.window?.attachedSheet,"Affirmative Resolve question absent")
@@ -516,7 +531,8 @@ import TurtleGitCore
                 guard let c else{return "context released"}
                 let owners=c.owners.compactMap{$0 as? RebaseWindowController}.map{owner in
                     let model=owner.model
-                    return "busy=\(model.busy),retired=\(model.retired),tab=\(model.tab),workers=\(model.pendingBatchWorkers),primary=\(model.primaryConflictActivationPending),sheet=\(owner.window?.attachedSheet != nil),error=\(model.error ?? "nil")"
+                    let source="busy=\(model.busy),retired=\(model.retired),tab=\(model.tab),workers=\(model.pendingBatchWorkers),primary=\(model.primaryConflictActivationPending),sheet=\(owner.window?.attachedSheet != nil),selected=\(Array(model.selectedConflicts)),conflicts=\(model.conflicts.map(\.path)),error=\(model.error ?? "nil")"
+                    return source+" "+SyncPrimaryActivationVerification.resolveWitness(owner.conflictResolutionController)
                 }
                 return "owners=\(owners) roots=\(c.roots.map{$0.hasPendingRepositoryWork}) preparations=\(RebaseWindowModel.activePreparationReads) replay=\(RebaseWindowModel.activeReplayOperations) modal=\(NSApp.modalWindow != nil)"
             }

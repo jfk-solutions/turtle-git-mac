@@ -7,8 +7,10 @@ import TurtleGitCore
     typealias Prior=StatusPrimaryActivationVerification
     typealias Context=StatusPrimarySelectionVerification.Context
     static var stateWitness:()->String={""}
+    static let traceOrigin=ProcessInfo.processInfo.systemUptime
     static func trace(_ message:String) {
-        let text="SELECTED ACTIVATION: "+message+"\n"
+        let origin=traceOrigin,now=ProcessInfo.processInfo.systemUptime
+        let text="SELECTED ACTIVATION: "+message+" [t="+String(format:"%.3f",now-origin)+"s uptime="+String(format:"%.3f",now)+"]\n"
         fputs(text,stdout);fflush(stdout)
         if let path=ProcessInfo.processInfo.environment["TURTLEGIT_STATUS_PRIMARY_PHASE_LOG"],
            let file=FileHandle(forWritingAtPath:path) {
@@ -28,9 +30,17 @@ import TurtleGitCore
         trace("KEY returned code=\(event.keyCode) handled=\(handled)");return handled
     }
     static func wait(_ message:String,diagnostic:(()->String)?=nil,_ ready:()->Bool)async throws {
-        trace("SYNC WAIT "+message)
-        do {try await Prior.wait(message,ready);trace("SYNC READY "+message)}
+        let started=ProcessInfo.processInfo.systemUptime
+        trace("SYNC WAIT "+message+" "+stateWitness())
+        do {try await Prior.wait(message,ready);trace("SYNC READY "+message+" elapsed="+String(format:"%.3f",ProcessInfo.processInfo.systemUptime-started))}
         catch {try require(false,message+(diagnostic.map{"; "+$0()} ?? "")+" "+stateWitness());throw error}
+    }
+    static func resolveWitness(_ child:ResolveWindowController?)->String {
+        guard let child else{return "resolve=nil"}
+        let window=child.window,model=child.model
+        let identity=String(describing:ObjectIdentifier(child))
+        let buttons=Prior.views(window?.attachedSheet?.contentView).compactMap{$0 as? NSButton}.filter{!$0.isHiddenOrHasHiddenAncestor}.prefix(4).map{String(reflecting:$0.title)+":enabled=\($0.isEnabled)"}
+        return "resolve=\(identity),retired=\(child.retired),active=\(model.active),busy=\(model.busy),question=\(model.hasQuestion),success=\(model.success),visible=\(window?.isVisible == true),parent=\(window?.sheetParent != nil),sheet=\(window?.attachedSheet != nil),buttons=\(buttons),error=\(String(reflecting:model.error.map{String($0.prefix(512))}))"
     }
     static func views(_ owner:NSWindowController)->[NSView] {Prior.views(owner.window?.contentView)}
     static func key(_ window:NSWindow,text:String="\r",code:UInt16=36,flags:NSEvent.ModifierFlags=[])throws->NSEvent {
@@ -279,7 +289,8 @@ import TurtleGitCore
                 let model=owner.model
                 return "tab=\(model.tab),busy=\(model.busy),inline=\(model.hasPendingInlineWork),primary=\(model.primaryConflictActivationPending),conflictBusy=\(model.conflictFileActions.busy),sheet=\(owner.window?.attachedSheet != nil),error=\(model.error ?? "nil")"
             }
-            return "inlineOps=\(SynchronizationWindowModel.activeInlineOperations) releases=\(SynchronizationWindowController.activeInlineReleases) roots=\(c.roots.map{$0.hasPendingRepositoryWork}) owners=\(owners) modal=\(NSApp.modalWindow != nil)"
+            let children=c.owners.compactMap{$0 as? ResolveWindowController}.suffix(3).map{resolveWitness($0)}
+            return "resolveChildren=\(children) inlineOps=\(SynchronizationWindowModel.activeInlineOperations) releases=\(SynchronizationWindowController.activeInlineReleases) roots=\(c.roots.map{$0.hasPendingRepositoryWork}) owners=\(owners) modal=\(NSApp.modalWindow != nil)"
         }
         defer{stateWitness={""}}
         do {

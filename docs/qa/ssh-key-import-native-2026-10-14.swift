@@ -11,7 +11,7 @@ import TurtleGitCore
         throw NSError(domain:"KeyImportFixture",code:1,userInfo:[NSLocalizedDescriptionKey:"Timed out waiting for owned import"])
     }
     @MainActor static func verify() async throws {
-        let root=URL(fileURLWithPath:CommandLine.arguments[1])
+        let root=URL(fileURLWithPath:CommandLine.arguments[1],isDirectory:true).standardizedFileURL
         let app=URL(fileURLWithPath:FileManager.default.currentDirectoryPath).appendingPathComponent("build/Build/Products/Debug/TurtleGitMac.app")
         let tool=app.appendingPathComponent("Contents/Helpers/PuTTY/bin/puttygen"),keygen=app.appendingPathComponent("Contents/Helpers/OpenSSH/bin/ssh-keygen")
         setenv("TURTLEGIT_QA_PUTTY",tool.path,1)

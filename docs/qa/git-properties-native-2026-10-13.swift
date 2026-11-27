@@ -34,16 +34,18 @@ import TurtleGitCore
         try require(controls.contains { $0.title == "Executable (+x)" && !$0.allowsMixedState },"Uniform source checkbox gained a mixed state")
         let values=views(window.contentView!).compactMap { $0 as? NSTextField }
         try require(values.contains { $0.stringValue == "Properties QA" && !$0.isEditable && $0.isSelectable },"Read-only values cannot be selected/copied")
-        var changed=0;model.onChanged={ value in if value.root == root { changed += 1 } }
-        var logRoot:URL?,logPaths:[String]=[];model.onLog={ logRoot=$0.repository.root;logPaths=$0.paths }
-        model.showLog();try require(logRoot == root && logPaths == context.paths,"Log lost captured repository/selection")
+        var changed=0,foreignChange=false;model.onChanged={value in if value === repo {changed += 1}else{foreignChange=true}}
+        var logContext:GitPropertiesContext?;model.onLog={logContext=$0}
+        model.showLog()
+        let logWitness="inputRoot=\(root.absoluteString),capturedRoot=\(repo.root.absoluteString),deliveredRoot=\(String(describing:logContext?.repository.root.absoluteString)),paths=\(String(describing:logContext?.paths)),busy=\(model.busy),canInteract=\(model.canInteract),selected=\(model.selected),error=\(String(describing:model.error))"
+        try require(logContext?.repository === context.repository && logContext?.paths==context.paths && logContext?.access === context.access && logContext?.submodule==context.submodule,"Log lost exact captured repository/selection: "+logWitness)
         let isolated=RepositoryModel(startMonitoring:false,initializePreferences:false)
         isolated.settingsContextOverride=(repo,nil,true);isolated.root=URL(fileURLWithPath:"/unused/other")
-        let settings=try isolated.gitConfigurationContext();try require(settings.repository.root == root && settings.localAvailable,"Settings followed another workspace")
+        let settings=try isolated.gitConfigurationContext();try require(settings.repository === repo && settings.localAvailable,"Settings followed another workspace")
         model.set(\GitPropertyDraft.executable,.on);try require(model.draft.symlink == .off && model.canApply,"Executable draft gate")
         model.apply();model.apply()
         try await wait { !model.busy && GitPropertiesWindowModel.activeOperations == 0 }
-        try require(changed == 1 && model.current?.entries.allSatisfy({ $0.mode == "100755" }) == true && !model.changed,"Apply duplicated/lost mode change")
+        try require(changed == 1 && !foreignChange && model.current?.entries.allSatisfy({ $0.mode == "100755" }) == true && !model.changed,"Apply duplicated/lost mode change")
         try require(try Data(contentsOf:root.appendingPathComponent("file.txt")) == Data("working only\n".utf8),"Apply staged working bytes")
         model.set(\GitPropertyDraft.symlink,.on);try require(model.draft.executable == .off,"Mutual exclusion failed")
         owner.close();let actual=try await repo.gitProperties(paths:context.paths)

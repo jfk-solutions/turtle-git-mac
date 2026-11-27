@@ -1,5 +1,15 @@
 import AppKit
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func quietReferenceRenameOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;quietReferenceRenameOrder(mode,relativeTo:number)
+    }
+    @objc func quietReferenceRenameSheet(_ child:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        child.alphaValue=0;quietReferenceRenameSheet(child,completionHandler:completionHandler)
+    }
+}
 
 @main struct ReferenceRenameVerification {
     struct Failure: Error, CustomStringConvertible { let description: String }
@@ -15,6 +25,10 @@ import TurtleGitCore
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
     @MainActor static func verify() async throws {
         NSApplication.shared.setActivationPolicy(.prohibited)
+        let orderMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,quietOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietReferenceRenameOrder(_:relativeTo:)))!
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!,quietSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.quietReferenceRenameSheet(_:completionHandler:)))!
+        method_exchangeImplementations(orderMethod,quietOrder);method_exchangeImplementations(sheetMethod,quietSheet)
+        defer{method_exchangeImplementations(sheetMethod,quietSheet);method_exchangeImplementations(orderMethod,quietOrder)}
         let suite = "TurtleGit.ReferenceRename.QA." + UUID().uuidString, prefs = UserDefaults(suiteName: suite)!
         print("PREFERENCES: " + suite)
         defer { prefs.removePersistentDomain(forName: suite); prefs.synchronize() }
@@ -73,6 +87,17 @@ import TurtleGitCore
         failed.stringValue = "existing"; try command(failed, "insertNewline:")
         try await wait(window) { !browser.model.busy && browser.model.renameReference == nil }
         try require(browser.model.error != nil && browser.model.snapshot?.references.contains { $0.name == "refs/heads/other/renamed" } == true, "Git collision failure keeps original row")
+        let collision=browser.model.error!
+        try await wait(window) { window.attachedSheet?.sheetParent === window }
+        let collisionSheet=window.attachedSheet!
+        func nativeViews(_ view:NSView)->[NSView] {[view]+view.subviews.flatMap(nativeViews)}
+        guard let content=collisionSheet.contentView else{throw Failure(description:"Collision alert content absent")}
+        let labels=nativeViews(content).compactMap{$0 as? NSTextField}.map(\.stringValue)
+        let buttons=nativeViews(content).compactMap{$0 as? NSButton}.filter{$0.title=="OK" && $0.isEnabled}
+        try require(labels.contains("Browse references failed") && labels.contains(where:{$0.utf8.elementsEqual(collision.utf8)}) && buttons.count==1 && buttons[0].window === collisionSheet,
+            "Collision feedback lost exact error/owned native OK: labels=\(labels)")
+        buttons[0].performClick(nil)
+        try await wait(window) { browser.model.error==nil && window.attachedSheet==nil && collisionSheet.sheetParent==nil }
         for name in [GitReferenceName("refs/tags/release"), GitReferenceName("refs/remotes/origin/main")] {
             try await choose(name, folder: "refs")
             try require(!browser.model.canRename && browser.model.beginRename() == nil, "Non-local gate")

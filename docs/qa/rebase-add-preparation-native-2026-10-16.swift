@@ -2,13 +2,24 @@ import AppKit
 import ObjectiveC
 import TurtleGitCore
 
+private extension NSWindow {
+    @objc func rebaseAddHiddenOrder(_ place:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;setFrameOrigin(.init(x:-24000,y:-24000));rebaseAddHiddenOrder(place,relativeTo:number)
+    }
+    @objc func rebaseAddHiddenSheet(_ child:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        child.alphaValue=0;child.setFrameOrigin(.init(x:-24000,y:-24000));rebaseAddHiddenSheet(child,completionHandler:completionHandler)
+    }
+}
+
 @main struct RebaseAddPreparationVerification {
     struct Failure: LocalizedError, CustomStringConvertible { let description: String; var errorDescription: String? { description } }
     @MainActor static var owners: [RebaseWindowController] = []
     @MainActor static var currentPhase="initial"
     @MainActor static var cleanupFailures:[String]=[]
+    @MainActor static let traceOrigin=ProcessInfo.processInfo.systemUptime
     @MainActor static func trace(_ message:String) {
-        print("REBASE ADD: "+message);fflush(stdout)
+        let elapsed=String(format:"%.3f",ProcessInfo.processInfo.systemUptime-traceOrigin)
+        print("REBASE ADD: elapsed="+elapsed+" "+message);fflush(stdout)
     }
     @MainActor static func phase(_ name:String) {currentPhase=name;trace("PHASE "+name)}
     @MainActor static func diagnostic()->String {
@@ -55,6 +66,12 @@ import TurtleGitCore
         return result
     }
     @MainActor static func verify() async throws {
+        let order=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!
+        let hiddenOrder=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.rebaseAddHiddenOrder(_:relativeTo:)))!
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!
+        let hiddenSheet=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.rebaseAddHiddenSheet(_:completionHandler:)))!
+        method_exchangeImplementations(order,hiddenOrder);method_exchangeImplementations(sheetMethod,hiddenSheet)
+        defer {method_exchangeImplementations(sheetMethod,hiddenSheet);method_exchangeImplementations(order,hiddenOrder)}
         phase("initial repository and plan setup")
         let root = URL(fileURLWithPath: CommandLine.arguments[1]), repo = GitRepository(root: root, executable: URL(fileURLWithPath: CommandLine.arguments[2]))
         _ = try await repo.run(["init", "-b", "main"])
@@ -332,6 +349,7 @@ import TurtleGitCore
                 try require(before.hash==c.originalHead && stopped.noCommitSquash?.baseHead==c.originalHead && stopped.noCommitSquash?.entryID==ids[1] && stopped.noCommitSquash?.preservesLeaderAuthor==true && !FileManager.default.fileExists(atPath:c.root.appendingPathComponent("side.txt").path),"Skipped leader changed HEAD or lost reached author/group identity")
                 if mode=="conflict" {
                     try require(stopped.noCommitSquash?.phase == .conflicted && stopped.conflicts.contains("last.txt") && model.fileRecovery,"No-commit apply conflict did not reach checked-file recovery")
+                    try await c.acknowledgeConflictError(owner)
                     try Data("resolved combined file\n".utf8).write(to:c.root.appendingPathComponent("last.txt"))
                     model.setConflictChecked("last.txt",checked:true)
                     try require(model.checkedConflicts.contains("last.txt"),"Resolved path could not be checked")
@@ -477,11 +495,54 @@ import TurtleGitCore
         }
         func open(_ selected:[String]?=nil)async throws->RebaseWindowController {
             trace("OPEN "+root.lastPathComponent+" selected=\(selected?.count ?? 0)")
-            let owner=RebaseWindowController(repository:repository,access:nil,preferences:preferences);controllers.append(owner);owners.append(owner)
-            owner.window?.isReleasedWhenClosed=false;owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000));owner.window?.orderFront(nil)
-            owner.model.editorExecutable=editor;owner.model.load(cherryPick:selected)
+            trace("BEGIN constructor "+root.lastPathComponent)
+            let owner=RebaseWindowController(repository:repository,access:nil,preferences:preferences)
+            trace("END constructor "+root.lastPathComponent)
+            controllers.append(owner);owners.append(owner)
+            trace("BEGIN hidden window configuration "+root.lastPathComponent)
+            owner.window?.isReleasedWhenClosed=false;owner.window?.alphaValue=0;owner.window?.setFrameOrigin(.init(x:-24000,y:-24000))
+            trace("END hidden window configuration "+root.lastPathComponent)
+            trace("BEGIN orderFront "+root.lastPathComponent)
+            owner.window?.orderFront(nil)
+            trace("END orderFront "+root.lastPathComponent)
+            trace("BEGIN editor assignment "+root.lastPathComponent)
+            owner.model.editorExecutable=editor
+            trace("END editor assignment "+root.lastPathComponent)
+            trace("BEGIN model.load "+root.lastPathComponent)
+            owner.model.load(cherryPick:selected)
+            trace("END model.load "+root.lastPathComponent)
             try await wait {!owner.model.busy && (owner.model.plan != nil || owner.model.active)};try await drain()
             return owner
+        }
+        func acknowledgeConflictError(_ owner:RebaseWindowController)async throws {
+            guard controllers.contains(where:{$0 === owner}),let parent=owner.window,
+                  owner.model.revisionMenuLog.window === parent,!owner.model.retired,
+                  let expected=owner.model.error,!expected.isEmpty else {throw Failure(description:"Expected owned conflict error missing before acknowledgement: "+diagnostic())}
+            trace("BEGIN native conflict error acknowledgement "+root.lastPathComponent)
+            func parts(_ sheet:NSWindow)->([NSButton],[String]) {
+                guard let content=sheet.contentView else{return ([],[])}
+                let views=nativeViews(content)
+                return (views.compactMap{$0 as? NSButton}.filter{!$0.isHiddenOrHasHiddenAncestor && !$0.title.isEmpty},views.compactMap{$0 as? NSTextField}.map(\.stringValue))
+            }
+            try await wait {
+                guard !owner.model.busy,owner.model.error==expected,let sheet=parent.attachedSheet,sheet.sheetParent === parent else{return false}
+                let (buttons,labels)=parts(sheet)
+                return labels.contains(owner.model.operationTitle) && labels.contains(where:{$0.utf8.elementsEqual(expected.utf8)}) && buttons.filter{$0.title=="OK" && $0.isEnabled}.count==1 && buttons.contains{$0.title=="Open Working Tree"}
+            }
+            let sheet=parent.attachedSheet!,buttons=parts(sheet).0
+            guard let ok=buttons.first(where:{$0.title=="OK"}),let action=ok.action else {throw Failure(description:"Exact native conflict OK action missing")}
+            try require(sheet.alphaValue==0 && sheet.sheetParent === parent && ok.window === sheet && !owner.model.hasReplayQuestion && NSApp.modalWindow==nil,"Conflict acknowledgement lost hidden sheet/owner/button scope")
+            let stateBefore=try await repository.rebaseState(),headBefore=try await repository.rebaseCommit("HEAD").hash
+            let indexBefore=try Data(contentsOf:root.appendingPathComponent(".git/index")),fileBefore=try Data(contentsOf:root.appendingPathComponent("last.txt"))
+            let encoder=JSONEncoder();encoder.outputFormatting=[.sortedKeys]
+            let encodedState=try encoder.encode(stateBefore)
+            try require(parent.attachedSheet === sheet && sheet.sheetParent === parent && owner.model.error==expected && !owner.model.busy && ok.isEnabled,"Conflict error owner changed during immutable Git snapshot")
+            try require(NSApp.sendAction(action,to:ok.target,from:ok),"Actual conflict error OK did not dispatch")
+            try await wait {owner.model.error==nil && sheet.sheetParent==nil && parent.attachedSheet==nil}
+            let indexAfter=try Data(contentsOf:root.appendingPathComponent(".git/index")),fileAfter=try Data(contentsOf:root.appendingPathComponent("last.txt"))
+            let stateAfter=try await repository.rebaseState(),headAfter=try await repository.rebaseCommit("HEAD").hash
+            try require(headAfter==headBefore && indexAfter==indexBefore && fileAfter==fileBefore && (try encoder.encode(stateAfter))==encodedState,"Native error acknowledgement mutated HEAD/index/conflict bytes or durable no-commit session")
+            trace("END native conflict error acknowledgement "+root.lastPathComponent)
         }
         func hold(_ model:RebaseWindowModel,_ events:((LogEntry,[LogParentChoice])->Void)?=nil) {
             model.chooseMainline={ [self] commit,choices in events?(commit,choices);return await withCheckedContinuation{answers.append($0)}}
@@ -493,6 +554,7 @@ import TurtleGitCore
             trace("RETURN "+action+" "+root.lastPathComponent+" "+diagnostic())
         }
         func cleanup()async {
+            trace("BEGIN context cleanup "+root.lastPathComponent+" owners=\(controllers.count) "+diagnostic())
             var sheets:[(NSWindow,NSWindow)]=[]
             for owner in controllers {
                 owner.model.retire();owner.model.error=nil
@@ -503,6 +565,7 @@ import TurtleGitCore
                 owner.close();owner.model.chooseMainline={_,_ in nil};owner.model.confirmEmptyMessageReview={false}
             }
             while !answers.isEmpty {answer(nil)}
+            trace("END cleanup retire/close "+root.lastPathComponent)
             do {
                 try await drain()
                 try await wait {CommitWindowModel.activeReloads==0 && CommitWindowModel.activeFileOperations==0 && CommitWindowModel.activePreferenceOperations==0 && CommitWindowModel.activeCommitPreflights==0 && controllers.allSatisfy{$0.model.pendingBatchWorkers==0}}
@@ -517,7 +580,9 @@ import TurtleGitCore
                 // replay/child work still has not acknowledged retirement.
                 return
             }
+            trace("END cleanup worker/sheet drain "+root.lastPathComponent)
             do {
+                trace("BEGIN cleanup repository state/abort "+root.lastPathComponent)
                 if try await repository.rebaseState().active {
                     _=try await repository.abortRebase()
                     try require(!(try await repository.rebaseState()).active,"Disposable reached session survived cleanup Abort")
@@ -527,13 +592,16 @@ import TurtleGitCore
                 cleanupFailures.append(failure);trace("CLEANUP failed "+failure)
                 return
             }
+            trace("END cleanup repository state/abort "+root.lastPathComponent)
             preferences.removePersistentDomain(forName:suite)
+            trace("END cleanup private preferences "+root.lastPathComponent)
             // Every assertion above still sees the retired owners. Only after
             // their workers/sheets and disposable session have drained may the
             // next case stop retaining these closed SwiftUI roots.
             let released=Set(controllers.map(ObjectIdentifier.init))
             owners.removeAll{released.contains(ObjectIdentifier($0))}
             controllers.removeAll()
+            trace("END context cleanup "+root.lastPathComponent+" retainedDiagnosticOwners=\(owners.count)")
         }
     }
 }
