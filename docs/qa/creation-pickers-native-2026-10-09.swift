@@ -13,6 +13,34 @@ import TurtleGitCore
         for _ in 0..<3000 { windows.forEach{$0.contentView?.layoutSubtreeIfNeeded()}; if ready(){return}; try await Task.sleep(nanoseconds:10_000_000) }; throw Failure(description:"Timed out at line \(line); \(diagnostic())")
     }
     static func phase(_ message:String) { print("PHASE: "+message); fflush(stdout) }
+    @MainActor static func logState(_ child:LogWindowController)->String {
+        let model=child.model,window=child.window
+        let table=window?.contentView.flatMap{find(HistoryTableView.self,$0)}
+        let coordinator=table?.dataSource as? RevisionTable.Coordinator
+        return "busy=\(model.busy),error=\(String(describing:model.error)),modelHashes=\(model.entries.map(\.hash)),modelGraph=\(model.graph.count),selected=\(model.selected.sorted()),selecting=\(model.selecting),working=\(model.canShowWorkingTree)/\(model.showWorkingTree),owner=\(window != nil && model.window === window),nativeRows=\(table?.numberOfRows ?? -1),nativeHashes=\(coordinator?.renderedEntries.map(\.hash) ?? []),nativeGraph=\(coordinator?.graph.count ?? -1),nativeSelected=\(String(describing:table?.selectedRowIndexes)),multiple=\(String(describing:table?.allowsMultipleSelection)),coordinator=\(coordinator?.model === model),retired=\(String(describing:coordinator?.retired)),updating=\(String(describing:coordinator?.updating)),projection=\(coordinator?.renderedProjection == model.historyProjectionEpoch),content=\(coordinator?.contentEpoch == model.revisionTableContentEpoch),graph=\(coordinator?.graphEpoch == model.revisionGraphEpoch)"
+    }
+    @MainActor static func currentLog(_ child:LogWindowController,line:UInt = #line)async throws->HistoryTableView {
+        guard let window=child.window else {throw Failure(description:"Missing Log owner at line \(line)")}
+        // Model settlement precedes SwiftUI's adoption of its native rows,
+        // graph and selection. Admit the exact current projection once; do not
+        // reload, reselect or substitute a model-only table for this boundary.
+        try await wait([window],{
+            let model=child.model
+            guard !model.busy,model.window === window,
+                  let content=window.contentView,let table=find(HistoryTableView.self,content),table.window === window,
+                  let coordinator=table.dataSource as? RevisionTable.Coordinator,
+                  coordinator.model === model,coordinator.table === table,!coordinator.retired,!coordinator.updating,
+                  coordinator.renderedProjection == model.historyProjectionEpoch,
+                  coordinator.contentEpoch == model.revisionTableContentEpoch,coordinator.graphEpoch == model.revisionGraphEpoch,
+                  coordinator.renderedEntries.map(\.hash) == model.entries.map(\.hash),coordinator.graph == model.graph,
+                  table.numberOfRows == model.entries.count,
+                  table.allowsMultipleSelection == (!model.selecting || model.selectingMultiple) else{return false}
+            let selected=IndexSet(model.entries.enumerated().compactMap{model.selected.contains($0.element.hash) ? $0.offset:nil})
+            return table.selectedRowIndexes == selected
+        },line:line,diagnostic:{"Current native Log projection: "+logState(child)})
+        guard let table=find(HistoryTableView.self,window.contentView!) else{throw Failure(description:"Adopted Log table disappeared at line \(line)")}
+        return table
+    }
     @MainActor static func main() async { do { try await verify() } catch { print("FAIL: \(error)"); exit(1) } }
     @MainActor static func verifySharedReferenceFocus()async throws {
         phase("shared reference control attachment/enablement/retirement")
@@ -155,12 +183,14 @@ import TurtleGitCore
             try require(chooser.commitRevision==cancelCommit,"Creation Cancel replaced exact typed commit draft")
             try require(chooser.revision=="refs/heads/nested/topic" && chooser.versionPickerDraft==cancelDraft && chooser.options.tracking == .noTrack && chooser.options.overrideBranch && chooser.referenceFocusRequest==cancelFocus+1,"Cancel changed branch base/options or failed exactly one source refocus request")
             chooser.options.target = .commit; chooser.commitRevision=prior; chooser.browse(.commit)
-            guard let first=log() else { throw Failure(description:"Full Log missing") }; try await wait([first.window!]) { !first.model.busy && first.model.entries.count==2 }
-            guard let table=find(HistoryTableView.self,first.window!.contentView!) else { throw Failure(description:"Log table missing") }
-            try require(!table.allowsMultipleSelection && table.numberOfRows==2 && first.model.graph.count==2 && !first.model.canShowWorkingTree && !first.model.showWorkingTree && Set(first.model.entries.map(\.hash)) == [base,prior],"Full typed Log graph/selection differs")
+            guard let first=log() else { throw Failure(description:"Full Log missing") }; try await wait([first.window!],{ !first.model.busy && first.model.entries.count==2 },diagnostic:{logState(first)})
+            let table=try await currentLog(first)
+            try require(!table.allowsMultipleSelection && table.numberOfRows==2 && first.model.graph.count==2 && !first.model.canShowWorkingTree && !first.model.showWorkingTree && Set(first.model.entries.map(\.hash)) == [base,prior],"Full typed Log graph/selection differs: \(logState(first))")
             create(); try require(!created && !canClose(),"Log escaped parent mutation/close lock")
-            let entry=first.model.entries.first(where:{$0.hash==base})!; first.model.select([base]); first.model.accept(); try await wait([window]) { chooser.pickerTarget==nil && chooser.commitRevision==base }
-            chooser.commitRevision=prior; chooser.browse(.commit); guard let second=log() else { throw Failure(description:"Second Log missing") }; try await wait([second.window!]) { !second.model.busy }
+            let entry=first.model.entries.first(where:{$0.hash==base})!; first.model.select([base]); let selectedTable=try await currentLog(first)
+            try require(first.model.selected == [base] && selectedTable.selectedRowIndexes == IndexSet(integer:first.model.entries.firstIndex(where:{$0.hash==base})!),"Accepted creation Log lost exact native selected commit: \(logState(first))")
+            first.model.accept(); try await wait([window]) { chooser.pickerTarget==nil && chooser.commitRevision==base }
+            chooser.commitRevision=prior; chooser.browse(.commit); guard let second=log() else { throw Failure(description:"Second Log missing") }; _=try await currentLog(second)
             logCallbacks[0](entry); try require(log() === second && chooser.commitRevision==prior && chooser.pickerTarget == .commit,"Stale Log result escaped")
             second.model.close(); try require(log()==nil && chooser.pickerTarget==nil && chooser.commitRevision==prior,"Log cancellation changed draft")
             if let branch { branch.presentPicker={_,_ in false} } else { worktree!.presentPicker={_,_ in false} }
@@ -202,7 +232,7 @@ import TurtleGitCore
                 closing.presentPicker={parent,_ in parent.makeFirstResponder(nil);return true}; closing.makeCommitPicker={repo,access,choose,prefs,revision in LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,initialRevision:revision) }
                 closing.model.chooser.options.target=commitPicker ? .commit : .branch; closing.model.chooser.commitRevision=prior; closing.model.chooser.browse(commitPicker ? .commit : .branch)
                 if let child=closing.referencePicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.finish("refs/tags/release") }
-                else if let child=closing.commitPicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.accept() }
+                else if let child=closing.commitPicker { _=try await currentLog(child); closing.close(); child.model.accept() }
                 else { throw Failure(description:"Forced worktree child missing") }
                 closing.model.chooser.browse(commitPicker ? .commit : .branch)
                 try require(closing.referencePicker==nil && closing.commitPicker==nil && closing.model.chooser.pickerTarget==nil && closing.model.chooser.referenceFocusRequest==0,"Forced worktree owner leaked/reopened child")
@@ -213,7 +243,7 @@ import TurtleGitCore
             closing.presentPicker={parent,_ in parent.makeFirstResponder(nil);return true}; closing.makeCommitPicker={repo,access,choose,prefs,revision in LogWindowController(repository:repo,access:access,onChoose:choose,labelDefaults:prefs,savesColumnLayout:false,savesGeometry:false,initialRevision:revision) }
             closing.model.chooser.options.target=commitPicker ? .commit : .branch; closing.model.chooser.commitRevision=prior; closing.model.chooser.browse(commitPicker ? .commit : .branch)
             if let child=closing.referencePicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.finish("refs/tags/release") }
-            else if let child=closing.commitPicker { try await wait([child.window!]) { !child.model.busy }; closing.close(); child.model.accept() }
+            else if let child=closing.commitPicker { _=try await currentLog(child); closing.close(); child.model.accept() }
             else { throw Failure(description:"Forced child missing") }
             try require(closing.referencePicker==nil && closing.commitPicker==nil && closing.model.chooser.pickerTarget==nil,"Forced owner close leaked child")
         }
