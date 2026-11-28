@@ -3,6 +3,10 @@
 import csv
 import hashlib
 import io
+import http.client
+import socket
+import ssl
+import urllib.error
 import json
 from pathlib import Path
 import tempfile
@@ -115,6 +119,81 @@ class PinnedScintillaSourceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'size limit'):
                 self.sources.source(self.name)
         self.assertFalse(self.cached.exists())
+
+
+    def test_header_timeout_retries_then_caches_only_verified_original_bytes(self):
+        # Actual hosted failure occurred before a response header was returned.
+        with patch('pinned_scintilla_source.urllib.request.urlopen',
+                   side_effect=[TimeoutError('header timed out'), io.BytesIO(self.data)]) as network, \
+             patch('pinned_scintilla_source.time.sleep') as sleep:
+            self.assertEqual(self.sources.source(self.name), '// pinned Unicode source\n')
+        self.assertEqual(network.call_count, 2)
+        self.assertTrue(all(call.kwargs == {'timeout': 30} for call in network.call_args_list))
+        sleep.assert_called_once_with(1)
+        self.assertEqual(self.cached.read_bytes(), self.data)
+        self.assertEqual(list(self.sources.cache.glob('*.tmp')), [])
+
+    def test_body_incomplete_read_restarts_request_without_publishing_partial_bytes(self):
+        response = io.BytesIO(self.data)
+        with patch.object(response, 'read', side_effect=http.client.IncompleteRead(b'partial', 20)), \
+             patch('pinned_scintilla_source.urllib.request.urlopen',
+                   side_effect=[response, io.BytesIO(self.data)]) as network, \
+             patch('pinned_scintilla_source.time.sleep'):
+            self.assertEqual(self.sources.source(self.name), '// pinned Unicode source\n')
+        self.assertEqual(network.call_count, 2)
+        self.assertEqual(self.cached.read_bytes(), self.data)
+
+    def test_transient_http_and_wrapped_transport_retry_with_a_fixed_total_bound(self):
+        cases = [urllib.error.HTTPError('https://example.invalid', 503, 'unavailable', {}, None),
+                 urllib.error.URLError(TimeoutError('timed out')),
+                 urllib.error.URLError(socket.gaierror(socket.EAI_AGAIN, 'temporary DNS'))]
+        for error in cases:
+            with self.subTest(error=type(error).__name__), \
+                 patch('pinned_scintilla_source.urllib.request.urlopen', side_effect=error) as network, \
+                 patch('pinned_scintilla_source.time.sleep') as sleep:
+                with self.assertRaises(type(error)):
+                    self.sources.source(self.name)
+                self.assertEqual(network.call_count, 3)
+                self.assertEqual([call.args[0] for call in sleep.call_args_list], [1, 2])
+                self.assertFalse(self.cached.exists())
+                self.assertFalse(self.sources.cache.exists())
+
+    def test_permanent_http_certificate_and_dns_fail_without_retry(self):
+        cases = [urllib.error.HTTPError('https://example.invalid', 404, 'missing', {}, None),
+                 urllib.error.HTTPError('https://example.invalid', 403, 'forbidden', {}, None),
+                 urllib.error.URLError(ssl.SSLCertVerificationError('untrusted certificate')),
+                 urllib.error.URLError(socket.gaierror(socket.EAI_NONAME, 'unknown host')),
+                 urllib.error.URLError('unknown url type')]
+        for error in cases:
+            with self.subTest(error=repr(error)), \
+                 patch('pinned_scintilla_source.urllib.request.urlopen', side_effect=error) as network, \
+                 patch('pinned_scintilla_source.time.sleep') as sleep:
+                with self.assertRaises(type(error)):
+                    self.sources.source(self.name)
+                network.assert_called_once()
+                sleep.assert_not_called()
+                self.assertFalse(self.sources.cache.exists())
+
+    def test_valid_hash_with_invalid_utf8_fails_without_retry_or_publication(self):
+        data = b'\xff invalid Unicode source'
+        self.sources.blobs[self.path] = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+        with patch('pinned_scintilla_source.urllib.request.urlopen', return_value=io.BytesIO(data)) as network, \
+             patch('pinned_scintilla_source.time.sleep') as sleep:
+            with self.assertRaises(UnicodeDecodeError):
+                self.sources.source(self.name)
+        network.assert_called_once()
+        sleep.assert_not_called()
+        self.assertFalse(self.sources.cache.exists())
+
+    def test_transport_retry_does_not_retry_or_publish_a_later_bad_blob(self):
+        with patch('pinned_scintilla_source.urllib.request.urlopen',
+                   side_effect=[TimeoutError('header timeout'), io.BytesIO(b'wrong blob')]) as network, \
+             patch('pinned_scintilla_source.time.sleep') as sleep:
+            with self.assertRaisesRegex(ValueError, 'Git blob differs'):
+                self.sources.source(self.name)
+        self.assertEqual(network.call_count, 2)
+        sleep.assert_called_once_with(1)
+        self.assertFalse(self.sources.cache.exists())
 
 
 if __name__ == '__main__':

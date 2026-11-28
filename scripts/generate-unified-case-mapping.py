@@ -61,6 +61,7 @@ generated=header+table('lower',lower)+table('upper',upper)+'    // 0=space,1=wor
 target=root/'Sources/TurtleGitCore/UnifiedDiffCaseMapping.generated.swift'
 p=argparse.ArgumentParser(description=__doc__);p.add_argument('--check',action='store_true');p.add_argument('--write',action='store_true');args=p.parse_args()
 if args.check:
+ print('Pinned Scintilla case/word-class: verify generated Swift tables', flush=True)
  assert target.read_text()==generated,'Pinned mapping file needs regeneration'
  with tempfile.TemporaryDirectory(prefix='turtlegit-case-map-') as tmp:
   d=Path(tmp)
@@ -90,7 +91,9 @@ struct Probe {int dbcsCodePage=CpUtf8;CharacterCategoryMap charMap;CharClassify 
 }
 int main(){using namespace Scintilla::Internal;Probe probe;for(int cp=0;cp<=0x10ffff;cp++){if(cp>=0xd800&&cp<=0xdfff)continue;std::cout<<cp<<'\t'<<int(probe.WordCharacterClass(cp));for(auto mode:{CaseConversion::lower,CaseConversion::upper}){std::cout<<'\t';const char* p=CaseConvert(cp,mode);if(p)for(const unsigned char* q=reinterpret_cast<const unsigned char*>(p);*q;q++)std::cout<<"0123456789abcdef"[*q>>4]<<"0123456789abcdef"[*q&15];}std::cout<<'\n';}}
 ''')
+  print('Pinned Scintilla case/word-class: compile immutable C++ oracle', flush=True)
   exe=d/'reference';subprocess.run(['xcrun','clang++','-std=c++17','-O2',str(d/'main.cpp'),str(d/'CaseConvert.cxx'),str(d/'UniConversion.cxx'),str(d/'CharacterCategoryMap.cxx'),str(d/'CharClassify.cxx'),'-o',str(exe)],check=True,timeout=120)
+  print('Pinned Scintilla case/word-class: execute exhaustive scalar oracle', flush=True)
   cursor=0;actual=[{},{}]
   for line in subprocess.check_output([str(exe)],text=True,timeout=60).splitlines():
    cp,category,lo,up=line.split('\t');cp=int(cp)

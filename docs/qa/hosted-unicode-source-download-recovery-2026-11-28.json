@@ -1,0 +1,76 @@
+{
+  "kind": "hosted Unicode source transport recovery",
+  "date": "2026-11-28",
+  "failed_source_commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_failure": {
+    "run_id": 46069911765,
+    "job_id": 140746248418,
+    "step": 142,
+    "name": "Pinned Scintilla Unicode Find mappings",
+    "command": "python3 scripts/generate-unified-case-fold.py --check",
+    "started_utc": "2026-11-28T00:09:33Z",
+    "completed_utc": "2026-11-28T00:10:04Z",
+    "conclusion": "failure",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46069911765/job/140746248418",
+    "artifact_id": 15240610873,
+    "artifact_name": "ci-step-failures-editors-46069911765-1-middle",
+    "artifact_sha256": "d8d2677f055e73ba55a5af6a77ac603baae4843ac3604330030524107882ab67",
+    "report": "ci-step-failures/middle/9ed104b0-b05a-408c-bd2e-249a7a5c751c.txt",
+    "diagnosis": "The first pinned CaseConvert.cxx download timed out reading the HTTPS response header in urllib.request.urlopen(timeout=30). The script had not reached table verification, compilation or exhaustive scalar comparison.",
+    "exception": "TimeoutError: The read operation timed out",
+    "collection_incomplete": false,
+    "failed_steps_at_middle_checkpoint": 1,
+    "earlier_log_limit": "The downloadable live job log remained a stale prefix ending before step142; neither its absence of diagnostics nor the step duration was used as proof of cause."
+  },
+  "repair_scope": "Shared pinned Scintilla source transport for both native Unicode generators, bounded transient retry and precise source/phase diagnostics, preserving fail-closed byte verification and complete scalar oracles.",
+  "validation_status": "focused helper contracts and both exhaustive generators passed locally; corrected-source hosted success remains required",
+  "implementation": {
+    "files": [
+      "scripts/pinned_scintilla_source.py",
+      "scripts/generate-unified-case-fold.py",
+      "scripts/generate-unified-case-mapping.py",
+      "scripts/test-pinned-scintilla-source.py"
+    ],
+    "maximum_download_attempts": 3,
+    "per_request_timeout_seconds": 30,
+    "backoff_seconds": [1, 2],
+    "retry_policy": "Only transient network timeout, connection, incomplete-response, temporary DNS and selected transient HTTP failures; integrity, UTF-8, certificate, permanent DNS and permanent HTTP failures remain terminal.",
+    "preserved": "Exact pinned Git blob verification, authoritative checkout precedence, verified cache bytes and atomic publication, original compiler/oracle deadlines and every scalar comparison.",
+    "generated_mapping_changes": false,
+    "app_source_changes": false
+  },
+  "local_checkpoint": {
+    "grouped_execution_exit_code": 0,
+    "helper_contracts": {
+      "command": "python3 scripts/test-pinned-scintilla-source.py",
+      "tests": 15,
+      "result": "passed",
+      "log_sha256": "e8e8bc2daa41b1322fbabf4546d229db3540df469178375d63ef063829c1d6c3"
+    },
+    "fold_oracle": {
+      "command": "python3 scripts/generate-unified-case-fold.py --check",
+      "valid_unicode_scalars": 1112064,
+      "nonidentity_mappings": 1557,
+      "result": "passed",
+      "log_sha256": "37383a23d5fbd01298a5932a48815431390d1c69311b37c8ca4dce97d94bc382"
+    },
+    "case_and_word_class_oracle": {
+      "command": "python3 scripts/generate-unified-case-mapping.py --check",
+      "scope": "Lowercase, uppercase and word classes for every valid Unicode scalar against the pinned C++ implementation",
+      "result": "passed",
+      "log_sha256": "300f2f3febf15e25562d8b5eeea646f1a550022620ecd955b83faaa4c3ed3ccd"
+    },
+    "real_cold_downloads": "Verified pinned source files downloaded in the isolated worktree; the second generator reused verified CaseConvert cache bytes.",
+    "core_suite_runs": 0,
+    "native_gui_runs": 0,
+    "app_builds": 0,
+    "installed_app_changed": false
+  },
+  "limits": [
+    "This is a source-download failure, not evidence of incorrect native Unicode mappings.",
+    "The existing matching-source workflow continues so unrelated groups can finish and retain their results.",
+    "No app UI, generated mapping table, Git behavior or installed application is changed by this record.",
+    "A focused local script pass will not establish a complete corrected-source hosted CI pass."
+  ]
+}

@@ -53,6 +53,7 @@ enum UnifiedDiffCaseFold {
 parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--check',action='store_true');args=parser.parse_args()
 text=source('CaseConvert.cxx');table=mappings(text);target=root/'Sources/TurtleGitCore/UnifiedDiffCaseFold.swift';generated=swift(table)
 if args.check:
+    print('Pinned Scintilla case-fold: verify generated Swift table', flush=True)
     assert target.read_text()==generated,'Regenerate the pinned native case-fold table.'
     with tempfile.TemporaryDirectory(prefix='turtlegit-case-fold-') as temporary:
         folder=Path(temporary)
@@ -75,7 +76,9 @@ int main() {
 }
 ''')
         executable=folder/'converter'
+        print('Pinned Scintilla case-fold: compile immutable C++ oracle', flush=True)
         subprocess.run(['xcrun','clang++','-std=c++17','-O2',str(folder/'main.cpp'),str(folder/'CaseConvert.cxx'),str(folder/'UniConversion.cxx'),'-o',str(executable)],check=True,timeout=120)
+        print('Pinned Scintilla case-fold: execute exhaustive scalar oracle', flush=True)
         actual={}
         for line in subprocess.check_output([str(executable)],text=True,timeout=30).splitlines():
             key,value=line.split('\t');scalars=[ord(c) for c in bytes.fromhex(value).decode()]
