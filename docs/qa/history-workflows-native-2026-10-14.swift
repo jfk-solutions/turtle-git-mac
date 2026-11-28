@@ -1,14 +1,61 @@
 import AppKit
 import Darwin
+import ObjectiveC
 import TurtleGitCore
+
+private extension NSWindow {
+    @objc func historyWorkflowHiddenOrder(_ mode:NSWindow.OrderingMode,relativeTo number:Int) {
+        alphaValue=0;setFrameOrigin(NSPoint(x:-24000,y:-24000))
+        historyWorkflowHiddenOrder(mode,relativeTo:number)
+    }
+    @objc func historyWorkflowHiddenSheet(_ sheet:NSWindow,completionHandler:((NSApplication.ModalResponse)->Void)?) {
+        alphaValue=0;sheet.alphaValue=0;sheet.setFrameOrigin(NSPoint(x:-24000,y:-24000))
+        historyWorkflowHiddenSheet(sheet,completionHandler:completionHandler)
+    }
+}
 
 @main struct HistoryWorkflowsVerification {
     struct Failure:Error,CustomStringConvertible { let description:String }
     static func require(_ value:Bool,_ message:String) throws { if !value { throw Failure(description:message) } }
-    @MainActor static func wait(line:UInt = #line,_ ready:()->Bool) async throws { for _ in 0..<2000 { if ready() { return };try await Task.sleep(nanoseconds:10_000_000) };throw Failure(description:"History workflow timeout at line \(line)") }
+    @MainActor static func wait(line:UInt = #line,diagnostic:()->String={""},_ ready:()->Bool) async throws { for _ in 0..<2000 { if ready() { return };try await Task.sleep(nanoseconds:10_000_000) };throw Failure(description:"History workflow timeout at line \(line); \(diagnostic())") }
     @MainActor static func descendants(_ view:NSView)->[NSView] { [view]+view.subviews.flatMap(descendants) }
+    @MainActor static func logReuseState(_ owner:LogWindowController)->String {
+        let model=owner.model,window=owner.window
+        let table=window?.contentView.flatMap{descendants($0).compactMap{$0 as? HistoryTableView}.first}
+        let coordinator=table?.dataSource as? RevisionTable.Coordinator
+        return "controller=\(ObjectIdentifier(owner)),model=\(ObjectIdentifier(model)),window=\(String(describing:window.map{ObjectIdentifier($0)})),root=\(model.repository.root.path),end=\(String(describing:model.endRevision)),range=\(String(describing:model.revisionRange)),paths=\(model.historyPaths),whole=\(model.showWholeProject),preferences=\(ObjectIdentifier(model.colorPreferences)),visible=\(window?.isVisible == true),live=\(!model.isInvalidated),owner=\(window != nil && model.window === window),sheet=\(window?.attachedSheet != nil),sheetParent=\(window?.sheetParent != nil),modal=\(NSApp.modalWindow != nil),reuse=\(model.canReuseForPresentation),admitReload=\(model.canAdmitHistoryReload),busy=\(model.busy),history=\(model.loadingHistory),actions=\(model.loadingActions),note=\(model.noteWorkPending)/\(model.loadingNote)/\(model.savingNote),jump=\(model.jumping),find=\(model.findBlocked),ordering=\(model.orderingBlocked),reference=\(model.referencePickerBlocked),copy=\(model.copyingDetails),fileNavigation=\(model.fileNavigationReadPending),unified=\(model.unifiedViewerBusy),columnReset=\(model.resettingRevisionColumns)/\(model.resettingChangedFileColumns),defaults=\(model.configureHistoryDefaults),command=\(model.commandRequest != nil),selected=\(model.selected.sorted()),hashes=\(model.entries.map(\.hash)),nativeRows=\(table?.numberOfRows ?? -1),nativeHashes=\(coordinator?.renderedEntries.map(\.hash) ?? []),nativeSelection=\(String(describing:table?.selectedRowIndexes)),table=\(String(describing:table.map{ObjectIdentifier($0)})),dataSource=\(String(describing:table?.dataSource)),nativeModel=\(coordinator?.model === model),nativeRetired=\(String(describing:coordinator?.retired)),nativeUpdating=\(String(describing:coordinator?.updating)),projection=\(coordinator?.renderedProjection == model.historyProjectionEpoch),content=\(coordinator?.contentEpoch == model.revisionTableContentEpoch),graph=\(coordinator?.graphEpoch == model.revisionGraphEpoch),error=\(String(describing:model.error))"
+    }
+    @MainActor static func reusableLog(_ owner:LogWindowController,line:UInt = #line)async throws {
+        guard let window=owner.window else{throw Failure(description:"Missing reusable Log window at line \(line)")}
+        let model=owner.model
+        try await wait(line:line,diagnostic:{logReuseState(owner)}) {
+            // Native layout can request row metadata after history busy clears.
+            // Let that publication happen before testing the actual reuse fence.
+            window.contentView?.layoutSubtreeIfNeeded()
+            guard owner.model === model,owner.window === window,window.windowController === owner,model.window === window,
+                  !model.busy,!model.loadingHistory,window.attachedSheet == nil,window.sheetParent == nil,
+                  let content=window.contentView,
+                  let table=descendants(content).compactMap({$0 as? HistoryTableView}).first,table.window === window,
+                  let coordinator=table.dataSource as? RevisionTable.Coordinator,
+                  coordinator.model === model,coordinator.table === table,!coordinator.retired,!coordinator.updating,
+                  coordinator.renderedProjection == model.historyProjectionEpoch,
+                  coordinator.contentEpoch == model.revisionTableContentEpoch,coordinator.graphEpoch == model.revisionGraphEpoch,
+                  coordinator.renderedEntries.map(\.hash) == model.entries.map(\.hash),coordinator.graph == model.graph,
+                  table.numberOfRows == model.entries.count,
+                  table.allowsMultipleSelection == (!model.selecting || model.selectingMultiple) else{return false}
+            let selection=IndexSet(model.entries.enumerated().compactMap{model.selected.contains($0.element.hash) ? $0.offset:nil})
+            return table.selectedRowIndexes == selection && model.canReuseForPresentation
+        }
+    }
     @MainActor static func main() async { do { try await verify() } catch { fputs("History workflow failed: \(error)\n",stderr);exit(1) } }
     @MainActor static func verify() async throws {
+        // All windows here belong to this private receiver, including nested
+        // native viewers/progress and sheets. Preserve actual ordering and
+        // isVisible lifecycle assertions while keeping the desktop undisturbed.
+        let orderMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.order(_:relativeTo:)))!,hiddenOrderMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.historyWorkflowHiddenOrder(_:relativeTo:)))!
+        let sheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.beginSheet(_:completionHandler:)))!,hiddenSheetMethod=class_getInstanceMethod(NSWindow.self,#selector(NSWindow.historyWorkflowHiddenSheet(_:completionHandler:)))!
+        method_exchangeImplementations(orderMethod,hiddenOrderMethod);method_exchangeImplementations(sheetMethod,hiddenSheetMethod)
+        defer{method_exchangeImplementations(sheetMethod,hiddenSheetMethod);method_exchangeImplementations(orderMethod,hiddenOrderMethod)}
         let root=URL(fileURLWithPath:CommandLine.arguments[1]),git=URL(fileURLWithPath:CommandLine.arguments[2]),repo=GitRepository(root:root,executable:git)
         _ = try await repo.run(["init","-b","main"])
         for (key,value) in [("user.name","History QA"),("user.email","qa@example.invalid"),("commit.gpgsign","false"),("core.hooksPath","/dev/null")] { _ = try await repo.run(["config",key,value]) }
@@ -275,12 +322,16 @@ import TurtleGitCore
         // Exercise repository-bound handlers through the actual workspace factory.
         let workspace=RepositoryModel(startMonitoring:false,initializePreferences:false,repositoryFactory:{GitRepository(root:$0,executable:git)},snapshotWriter:{_ in false},comparisonMarks:WorkingComparisonMarkStore(storageURL:repository.root.appendingPathComponent("private-comparison-mark.json")))
         let clipboard=NSPasteboard(name:NSPasteboard.Name("TurtleGit.HistoryMenus."+UUID().uuidString))
-        var logs:[LogWindowController]=[],leases:[RepositoryAccessLease?]=[],svnWindows:[SVNWindowController]=[],svnRoots:[URL]=[]
+        var logs:[LogWindowController]=[],logPresentations:[LogWindowController]=[],leases:[RepositoryAccessLease?]=[],svnWindows:[SVNWindowController]=[],svnRoots:[URL]=[]
         var commits:[CommitWindowController]=[],cleans:[CleanWindowController]=[],aborts:[MergeAbortWindowController]=[],dialogLeases:[RepositoryAccessLease?]=[]
-        defer{logs.forEach{$0.close()};svnWindows.forEach{$0.close()};commits.forEach{$0.close()};cleans.forEach{$0.close()};aborts.forEach{$0.close()};workspace.closeRepository();workspace.stopMonitoringForTermination();clipboard.releaseGlobally()}
+        defer{workspace.logWindowPresentation=nil;logs.forEach{$0.close()};svnWindows.forEach{$0.close()};commits.forEach{$0.close()};cleans.forEach{$0.close()};aborts.forEach{$0.close()};workspace.closeRepository();workspace.stopMonitoringForTermination();clipboard.releaseGlobally()}
         workspace.logWindowFactory={repo,access in
-            let log=LogWindowController(repository:repo,access:access,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,historyRegexExecutable:regexExecutable);log.model.clipboard=clipboard;logs.append(log);leases.append(access);return log
+            let log=LogWindowController(repository:repo,access:access,labelDefaults:preferences,savesColumnLayout:false,savesGeometry:false,historyRegexExecutable:regexExecutable);log.window?.alphaValue=0;log.window?.setFrameOrigin(NSPoint(x:-24000,y:-24000));log.model.clipboard=clipboard;logs.append(log);leases.append(access);return log
         }
+        // Record the dispatched owner, preserving native visible-window
+        // semantics while private receivers remain transparent and offscreen.
+        workspace.logWindowPresentation={child in logPresentations.append(child);child.showWindow(nil);child.window?.makeKeyAndOrderFront(nil)}
+        func logOwnersState()->String {"created=\(logs.count),presented=\(logPresentations.count); "+logs.map(logReuseState).joined(separator:"; ")}
         workspace.svnWindowFactory={repo,access,operation in let child=SVNWindowController(repository:repo,access:access,operation:operation,preferences:preferences,clipboard:clipboard);svnWindows.append(child);return child}
         workspace.svnPresentation={child in svnRoots.append(child.model.repository.root);child.close()}
         workspace.commitWindowFactory={repo,access in let child=CommitWindowController(repository:repo,access:access,defaults:preferences);commits.append(child);dialogLeases.append(access);return child}
@@ -288,23 +339,31 @@ import TurtleGitCore
         workspace.mergeAbortWindowFactory={repo,access in let child=MergeAbortWindowController(repository:repo,access:access,preferences:preferences);aborts.append(child);dialogLeases.append(access);return child}
 
         workspace.open(repository.root);try await wait{!workspace.busy && workspace.root != nil};workspace.activate(.log)
-        try await wait{logs.count==1 && !logs[0].model.busy}
+        try await wait(diagnostic:logOwnersState){logs.count==1 && !logs[0].model.busy}
         let parent=logs[0],hash=entries[1].hash
-        parent.model.select([hash]);parent.model.showHistory(extended:true)
-        try await wait{logs.count==2 && !logs[1].model.busy && logs[1].model.selected==[hash]}
+        parent.model.select([hash]);try await reusableLog(parent);parent.model.showHistory(extended:true)
+        try await wait(diagnostic:logOwnersState){logs.count==2 && !logs[1].model.busy && logs[1].model.selected==[hash]}
         let child=logs[1]
+        try await reusableLog(child)
         try require(child !== parent && child.model.endRevision==hash && child.model.repository.root==parent.model.repository.root && leases[0] === leases[1] && parent.model.endRevision==nil,"Show log changed parent scope or lost repository/grant")
-        child.model.select([hash]);child.model.showHistory(extended:true);try await wait{!child.model.busy}
-        try require(logs.count==2,"Same scoped history did not reuse its child")
-        parent.model.select([entries[0].hash]);parent.model.svnDCommitFromHistory(extended:false)
+        let childModel=child.model,childWindow=child.window!
+        child.model.select([hash]);try await reusableLog(child);let childPresentations=logPresentations.count
+        child.model.showHistory(extended:true);try await reusableLog(child)
+        try require(logs.count==2 && logs[1] === child && child.model === childModel && child.window === childWindow && !child.model.isInvalidated && logPresentations.count==childPresentations+1 && logPresentations.last === child,"Same scoped history did not reuse its child: \(logOwnersState())")
+        parent.model.select([entries[0].hash]);try await reusableLog(parent);parent.model.svnDCommitFromHistory(extended:false)
         try require(svnRoots.count==1 && svnRoots[0]==parent.model.repository.root && svnWindows[0].model.operation == .dcommit,"History SVN command lost its captured repository")
         parent.model.select([entries[0].hash,entries[1].hash]);parent.model.historyPaths=["a"];parent.model.showWholeProject=false
         let selectedRange=parent.model.selectedHistoryRanges[0]
-        parent.model.showHistoryRange(selectedRange);try await wait{logs.count==3 && !logs[2].model.busy}
+        try await reusableLog(parent);parent.model.showHistoryRange(selectedRange);try await wait(diagnostic:logOwnersState){logs.count==3 && !logs[2].model.busy}
         let scoped=logs[2]
+        try await reusableLog(scoped)
         try require(scoped.model.revisionRange==selectedRange && scoped.model.historyPaths==["a"] && !scoped.model.showWholeProject && leases[0] === leases[2],"Range child lost source path/repository/grant")
-        parent.model.showHistoryRange(selectedRange);try await wait{!scoped.model.busy};try require(logs.count==3,"Same path/range child was not reused")
-        parent.model.historyPaths=[];parent.model.showWholeProject=true;parent.model.showHistoryRange(selectedRange);try await wait{logs.count==4 && !logs[3].model.busy}
+        let scopedModel=scoped.model,scopedWindow=scoped.window!
+        try require(scoped.model.canReuseForRange(selectedRange,paths:["a"]),"Settled range child does not own its captured path/range: \(logReuseState(scoped))")
+        try await reusableLog(parent);try await reusableLog(scoped);let rangePresentations=logPresentations.count
+        parent.model.showHistoryRange(selectedRange);try await reusableLog(scoped)
+        try require(logs.count==3 && logs[2] === scoped && scoped.model === scopedModel && scoped.window === scopedWindow && !scoped.model.isInvalidated && logPresentations.count==rangePresentations+1 && logPresentations.last === scoped,"Same path/range child was not reused: \(logOwnersState())")
+        parent.model.historyPaths=[];parent.model.showWholeProject=true;try await reusableLog(parent);parent.model.showHistoryRange(selectedRange);try await wait(diagnostic:logOwnersState){logs.count==4 && !logs[3].model.busy};try await reusableLog(logs[3])
         try require(logs[3] !== scoped && logs[3].model.historyPaths.isEmpty,"Whole-repository range reused a path-restricted child")
         var workspacePatches:[CommitChangeSetComparison]=[];workspace.commitChangeSetPresentation={workspacePatches.append($0)}
         parent.model.compareChangeSets();try await wait{!parent.model.busy};try require(workspacePatches.count==1 && workspacePatches[0].snapshot.root==repository.root,"Workspace did not present prepared change sets from the originating repository")

@@ -842,14 +842,31 @@ class MacOSLaneTests(unittest.TestCase):
             for ready in ['success','failure','skipped','cancelled','']:
                 for cancelled in [False,True]:
                     for present in ['true','false','']:
-                        for offset,step in enumerate(expected):
-                            expression=step['if'][4:-3]
-                            expression=expression.replace('!cancelled()',repr(not cancelled)).replace('steps.native_ready.outcome',repr(ready)).replace('steps.ci_failures_'+checkpoint+'.outputs.present',repr(present)).replace('&&',' and ')
-                            permitted=not cancelled and (offset==0 or present=='true')
-                            self.assertEqual(eval(expression,{'__builtins__':{}}),permitted)
+                        for lane in ci.LANES:
+                            for offset,step in enumerate(expected):
+                                expression=step['if'][4:-3]
+                                expression=expression.replace('!cancelled()',repr(not cancelled)).replace('steps.native_ready.outcome',repr(ready)).replace('steps.ci_failures_'+checkpoint+'.outputs.present',repr(present)).replace('matrix.lane',repr(lane)).replace('&&',' and ')
+                                permitted=not cancelled and (checkpoint!='references' or lane=='editors') and (offset==0 or present=='true')
+                                self.assertEqual(eval(expression,{'__builtins__':{}}),permitted)
             self.assertNotIn('build/ci-step-logs',expected[1]['with']['path'])
             self.assertEqual(expected[1]['with']['if-no-files-found'],'ignore')
         self.verify()
+
+    def testReferenceGroupDiagnosticsCannotLoseEditorsScopeOrOriginalConsumers(self):
+        expected=ci.failure_checkpoint_steps('references')
+        for name in [step['name'] for step in expected]:
+            for mutation in ['wrong-lane','drop-lane','unbounded-path','unrelated-owner']:
+                value=copy.deepcopy(self.workflow)
+                step=next(s for s in value['jobs']['validation']['steps'] if s.get('name')==name)
+                if mutation=='wrong-lane':step['if']=step['if'].replace("'editors'", "'distribution'")
+                if mutation=='drop-lane':step['if']=step['if'].replace(" && matrix.lane == 'editors'", '')
+                if mutation=='unbounded-path':
+                    if 'run' in step:step['run']+=' --logs build/qa'
+                    else:step['with']['path']='build/qa/**'
+                if mutation=='unrelated-owner':
+                    if 'id' in step:step['id']='ci_failures_middle'
+                    else:step['if']=step['if'].replace('ci_failures_references','ci_failures_middle')
+                with self.subTest(name=name,mutation=mutation),self.assertRaises(AssertionError):self.verify(value)
 
     def testFinalDiagnosticsKeepExactGeneratedGraphPayloadsWithoutPrivateTrees(self):
         expected=['build/qa/ci-step-failures/final/']+[

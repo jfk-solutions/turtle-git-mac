@@ -1181,6 +1181,18 @@ jobs:
       - name: Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'editors' }}
         run: python3 scripts/test-native-reference-groups.py
+      - name: Collect redacted CI failures references
+        id: ci_failures_references
+        if: ${{ !cancelled() && matrix.lane == 'editors' }}
+        run: python3 scripts/collect-ci-step-failures.py --checkpoint references --output build/qa/ci-step-failures/references
+      - name: Upload redacted CI failures references
+        if: ${{ !cancelled() && matrix.lane == 'editors' && steps.ci_failures_references.outputs.present == 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-references
+          path: build/qa/ci-step-failures/references/
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Native Pull forced cleanup
         if: ${{ !cancelled() && steps.native_ready.outcome == 'success' && matrix.lane == 'replay-transport' }}
         run: python3 scripts/test-pull-cleanup.py

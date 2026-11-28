@@ -1,0 +1,206 @@
+{
+  "schema": 1,
+  "date": "2026-11-28",
+  "source_base": "b47832bef7d4fd83291ebc964185982a34ff482a",
+  "upstream_pin": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "hosted_run": {
+    "id": 46102350018,
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018",
+    "successful_lanes": [
+      {
+        "id": 140847653344,
+        "run_id": 46102350018,
+        "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+        "name": "validation (core)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-28T03:21:10Z",
+        "completed_at": "2026-11-28T05:29:47Z",
+        "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653344",
+        "failed_steps": []
+      },
+      {
+        "id": 140847653349,
+        "run_id": 46102350018,
+        "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+        "name": "validation (history-references)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-28T03:21:11Z",
+        "completed_at": "2026-11-28T04:56:07Z",
+        "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653349",
+        "failed_steps": []
+      },
+      {
+        "id": 140847653325,
+        "run_id": 46102350018,
+        "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+        "name": "validation (settings-finder)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-28T05:29:51Z",
+        "completed_at": "2026-11-28T06:26:49Z",
+        "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653325",
+        "failed_steps": []
+      },
+      {
+        "id": 140847653350,
+        "run_id": 46102350018,
+        "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+        "name": "validation (commit-repository)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-28T03:21:15Z",
+        "completed_at": "2026-11-28T06:38:48Z",
+        "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653350",
+        "failed_steps": []
+      },
+      {
+        "id": 140847653330,
+        "run_id": 46102350018,
+        "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+        "name": "validation (replay-transport)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-28T03:21:12Z",
+        "completed_at": "2026-11-28T07:05:09Z",
+        "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653330",
+        "failed_steps": []
+      },
+      {
+        "id": 140847653352,
+        "run_id": 46102350018,
+        "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+        "name": "validation (images-documents)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-11-28T06:26:54Z",
+        "completed_at": "2026-11-28T07:12:32Z",
+        "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653352",
+        "failed_steps": []
+      }
+    ],
+    "editors": {
+      "id": 140847653328,
+      "run_id": 46102350018,
+      "head_sha": "b47832bef7d4fd83291ebc964185982a34ff482a",
+      "name": "validation (editors)",
+      "status": "completed",
+      "conclusion": "failure",
+      "started_at": "2026-11-28T04:56:11Z",
+      "completed_at": "2026-11-28T07:10:14Z",
+      "html_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018/job/140847653328",
+      "failed_steps": [
+        {
+          "name": "Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle",
+          "status": "completed",
+          "conclusion": "failure",
+          "number": 305,
+          "started_at": "2026-11-28T05:56:05Z",
+          "completed_at": "2026-11-28T06:44:00Z"
+        }
+      ]
+    },
+    "distribution": "Still running at this record; complete workflow acceptance is not claimed"
+  },
+  "hosted_failure": {
+    "case": "history-workflows",
+    "group": 6,
+    "groups_passed": 11,
+    "groups_failed": 1,
+    "diagnostic": "History workflow failed: Same scoped history did not reuse its child",
+    "diagnostic_utc": "2026-11-28T06:16:56.203872Z",
+    "engine": "/usr/bin/git",
+    "receiver_pid": 41247,
+    "cleanup_complete": true,
+    "fallback_helper_cleanup": false,
+    "timeout": false,
+    "returncode": 1,
+    "terminal_log_sha256": "910f2b19949bd2c7b824d783ea39dc86bdffc18dfb417e5024b84034ab085142",
+    "artifact_id": 15253291744,
+    "artifact_zip_sha256": "148ea054a21ddbbed0cbdfd0017a0d011d8dc81a4b0aa6a90e6cf99e725a4111",
+    "artifact_report": "ci-step-failures/final/e1bf7eea-f9d1-47d7-a7ad-f73e2717593d.txt",
+    "prior_picker_repair": "Actual Branch/Tag/Worktree creation picker case passed at 06:10:46.383922Z; owned receiver28250 reaped"
+  },
+  "diagnosis": {
+    "proven": "Fixture admitted repeat Show Log from only !busy. Production canReuseForPresentation also requires independent action metadata and other owned activities to have settled. Native revision publication can start action metadata after history busy clears.",
+    "limit": "Hosted failure did not record the exact failed reuse guard; no production defect or specific hosted blocker is claimed.",
+    "product_files_changed": false
+  },
+  "repair": {
+    "fixture": "Exact controller/model/window and native coordinator data-source identity, projection/content/graph epochs, full ordered rows and native selection, then actual reusable-owner/sheet guard before repeat dispatch. Original 2000x10ms wait budget retained.",
+    "oracles": "Original child counts, repository, path/range, selection, grants, parent independence and lifecycle assertions retained. Exact once presentation and controller/model/window identity added for ordinary and range reuse; whole-repository range remains distinct.",
+    "ownership": "Receiver-local reversible order/sheet hooks keep all test-owned windows transparent/offscreen; original show ordering and isVisible checks retained. Owned processes reaped and independently absent.",
+    "diagnostics": "Editors-only bounded/redacted references artifact immediately after the grouped producer; original lane commands, membership, budgets and checkpoints retained. Native named failure envelopes and exact reference-group failure recognized before bounded context selection; redaction and all caps unchanged.",
+    "file_sha256": {
+      "docs/qa/history-workflows-native-2026-10-14.swift": "d5f6958db321f5ba9c4e1754678db20d3748a03ca244af2ce9cfb9deec9ee2e1",
+      ".github/workflows/macos.yml": "4bf9df19e2306aea0b2279c41e4be558e44dbb641c5e6a4e1d6203e6541a1117",
+      "scripts/check-macos-ci-lanes.py": "78c4284815e25a8a56c38950228e56a9d16a71134f954db334b47c202fd5662a",
+      "scripts/test-macos-ci-lanes.py": "6cf49f0868fd89bfd981022e88a07f2f8517a61c5542881abd01ff65ca076a8f",
+      "scripts/collect-ci-step-failures.py": "34c26aa82498ecdfd78e1a844cdda600c077c02ad0f6cee527ee1d288ac929c9",
+      "scripts/test-ci-step-failures.py": "04292eca0e2232eb2466ec7e1c8ca4badeafbd8921b65854c640f7d4a5bddadc"
+    }
+  },
+  "validation": {
+    "native": {
+      "source_base": "b47832bef7d4fd83291ebc964185982a34ff482a",
+      "fixture_sha256": "d5f6958db321f5ba9c4e1754678db20d3748a03ca244af2ce9cfb9deec9ee2e1",
+      "product_config_source_files_equal": 1023,
+      "argv": [
+        "python3",
+        "-u",
+        "scripts/test-native-reference-batch.py",
+        "--only",
+        "history-workflows",
+        "--git",
+        "/usr/bin/git",
+        "--git",
+        "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac/build/git-runtime/Git/bin/git"
+      ],
+      "cwd": "/Users/jkuehner/.codex/worktrees/turtlegit-status-family-2026-11-23/tortoise-git-mac",
+      "returncode": 0,
+      "elapsed_seconds": 90.90695595741272,
+      "app_sha256": "d91ee3a370da0ad0cd86e4aea859b88574a6da690bb2a7c1dbcb458fec5b9867",
+      "app_unchanged": true,
+      "owned_pids": [
+        66064,
+        66185,
+        68926
+      ],
+      "owned_pids_present": [],
+      "log": "/Users/jkuehner/.codex/worktrees/turtlegit-ci-reference-family-2026-11-27/tortoise-git-mac/build/qa/ci-history-reuse-native-2026-11-28.log",
+      "log_sha256": "f5963f5c5c7c1e90bab0b1df89dc4db7c0121686d4467b76dda7ef30f3dd90d5"
+    },
+    "contracts": {
+      "source_base": "b47832bef7d4fd83291ebc964185982a34ff482a",
+      "checks": [
+        {
+          "script": "scripts/test-ci-step-failures.py",
+          "returncode": 0,
+          "elapsed_seconds": 12.235997915267944
+        },
+        {
+          "script": "scripts/test-macos-ci-lanes.py",
+          "returncode": 0,
+          "elapsed_seconds": 2.0877389907836914
+        },
+        {
+          "script": "scripts/check-macos-ci-lanes.py",
+          "returncode": 0,
+          "elapsed_seconds": 0.17096996307373047
+        }
+      ],
+      "log": "/Users/jkuehner/.codex/worktrees/turtlegit-ci-reference-family-2026-11-27/tortoise-git-mac/build/qa/ci-history-reuse-contracts-2026-11-28.log",
+      "log_sha256": "ce2b142711b97ddb59aa0f6208cfe211500bbd2de6a5e3a1adca0f1d6159b83e",
+      "elapsed_seconds": 14.499799013137817
+    },
+    "counts": {
+      "bounded_failure_collector_tests": 16,
+      "workflow_contract_tests": 58
+    },
+    "additional_app_build": false,
+    "full_core_rerun": false,
+    "source_config_files_equal_to_existing_debug": 1023,
+    "limits": "One focused history cohort on system and bundled Git plus related offline CI contracts. This does not prove a complete corrected-source hosted run, signed candidate61 execution, physical Finder/UI, VoiceOver or every upstream dialog."
+  }
+}

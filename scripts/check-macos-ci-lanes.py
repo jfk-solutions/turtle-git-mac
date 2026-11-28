@@ -73,22 +73,26 @@ CI_STEP_LOG_CONTRACT_FOLLOWING = 'Capture libgit2 runtime cache key'
 CI_FAILURE_CHECKPOINTS = (
     ('early','Repository titles and native file tooltips','SVN source forms and captured workflow actions'),
     ('middle','Native Blame retained-byte encoding recovery and cancellation','Native Blame toolbar customization and document ownership'),
+    ('references','Grouped native references, Worktrees, Revision Graph, pickers, settings, Commit, SVN and external Merge lifecycle','Native Pull forced cleanup'),
     ('final','Native Cherry Pick and Rebase recovery across Git versions',None),
 )
 def failure_checkpoint_steps(checkpoint):
-    require(checkpoint in {'early','middle','final'}, 'Unknown CI diagnostic checkpoint')
+    require(checkpoint in {'early','middle','references','final'}, 'Unknown CI diagnostic checkpoint')
     owner='ci_failures_'+checkpoint
     # Diagnostic controls intentionally do not require native_ready: they
     # report failures of that producer too. This exception is exact and never
     # applies to baseline application/native consumers.
-    guard="${{ !cancelled() }}"
+    # The large Editors group needs its own checkpoint before later consumers;
+    # retain the existing cross-lane checkpoints and do not scan private cases.
+    lane = " && matrix.lane == 'editors'" if checkpoint == 'references' else ""
+    guard="${{ !cancelled()"+lane+" }}"
     return (
         {'name':'Collect redacted CI failures '+checkpoint,
          'id':owner,
          'if':guard,
          'run':'python3 scripts/collect-ci-step-failures.py --checkpoint '+checkpoint+' --output build/qa/ci-step-failures/'+checkpoint},
         {'name':'Upload redacted CI failures '+checkpoint,
-         'if':"${{ !cancelled() && steps."+owner+".outputs.present == 'true' }}",
+         'if':"${{ !cancelled()"+lane+" && steps."+owner+".outputs.present == 'true' }}",
          'uses':'actions/upload-artifact@v4',
          'with':{'name':'ci-step-failures-${{ matrix.lane }}-${{ github.run_id }}-${{ github.run_attempt }}-'+checkpoint,
                  'path':('build/qa/ci-step-failures/middle/\n'

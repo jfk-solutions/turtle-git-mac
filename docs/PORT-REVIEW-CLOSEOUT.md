@@ -77,6 +77,34 @@ acceptance of the corrected source remains required.** The six successful lanes
 and three full native engine passes retain their exact `a4ff95ec` scope.
 No physical Finder, VoiceOver or signed UI result is inferred.
 
+### Corrected-source CI checkpoint
+
+[Run 46102350018](https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46102350018)
+checks source `b47832bef7d4fd83291ebc964185982a34ff482a`. GitHub records complete
+successful lanes at these actual November 28 UTC completion times: History
+04:56:07, Core 05:29:47, Settings/Finder 06:26:49, Commit/repository 06:38:48,
+Replay/transport 07:05:09 and Images/documents 07:12:32. Distribution is still
+running at this checkpoint.
+
+Editors completed with one failed case, `history-workflows`, in reference group
+6; the other eleven groups passed, including the repaired creation pickers.
+The [History reuse recovery record](qa/hosted-history-reuse-admission-recovery-2026-11-28.json)
+preserves the exact assertion, source evidence and verification limits. The
+fixture treated `!busy` as sufficient for child reuse, although the production
+contract also requires independent metadata and other owned work to settle.
+The hosted assertion did not record which specific guard prevented reuse.
+
+The correction waits for the exact native publication and reusable owner before
+repeat dispatch, preserves the original scope/grant/count/lifecycle oracles and
+20-second budget, and verifies the actual presented controller identity. Its
+focused cohort passed with system and bundled Git in 90.907 seconds using the
+unchanged cached Debug app. Sixteen failure-collector tests, 58 workflow tests
+and the exact workflow inventory checker passed. Related CI changes publish a
+bounded redacted report immediately after this group and retain native failure
+messages buried between passing output. Application/configuration source is
+unchanged. These local results do not replace a complete corrected-source CI
+pass or signed/physical acceptance.
+
 ## Signed local candidate 61
 
 The [candidate summary](qa/hosted-signed61-local-candidate-2026-11-28.json) binds

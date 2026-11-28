@@ -38,7 +38,15 @@ ASSIGNMENT = re.compile(r'''(?ix)
 URL_AUTH = re.compile(r'(?i)(\b[a-z][a-z0-9+.-]*://)[^\s/@:]+:[^\s/@]+@')
 PEM_BEGIN = re.compile(r'-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----')
 PEM_END = re.compile(r'-----END (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----')
-MARKER = re.compile(r'(?i)fatal error|errorraisedattoplevel|xctassert|traceback \(most recent call last\)|^(?:[^\r\n]*:\d+(?::\d+)?:\s*)?error:\s|assertion(?:error| failed| failure)|failed assertion|uncaught exception|precondition failed')
+# Native fixtures report named failures without XCTest/Swift fatal headers.
+# Recognize the emitted `... failed:` envelope and exact reference-group result,
+# not incidental words in passing cancellation/failure-recovery assertions.
+MARKER = re.compile(
+    r'(?i)fatal error|errorraisedattoplevel|xctassert|traceback \(most recent call last\)|'
+    r'^(?:[^\r\n]*:\d+(?::\d+)?:\s*)?error:\s|'
+    r'assertion(?:error| failed| failure)|failed assertion|uncaught exception|precondition failed|'
+    r'^[A-Za-z][A-Za-z0-9 /_.()\x27-]{0,119} failed:[ \t]*\S|'
+    r'^Failed reference group [1-9][0-9]*; engine=[^\r\n]+; exit=[^;\r\n]+; cases=\S')
 
 
 def clip(text, limit):

@@ -169,6 +169,44 @@ class CollectorTests(unittest.TestCase):
         self.assertLessEqual((self.output/(identity+'.txt')).stat().st_size,module.MAX_FILE_BYTES)
         self.assertGreater(result['steps'][0]['streams']['stderr']['diagnostic_markers'],0)
 
+    def test_native_named_failures_are_retained_between_large_passing_prefix_and_suffix(self):
+        secret='ghp_'+'N'*36
+        passing=('PASS: negative failure recovery passed; cancelled owner refused\n'*1800)
+        failure=('History workflow failed: Same scoped history did not reuse its child\n'
+                 'password="private fixture secret"\n'
+                 'Reference case failed: {"case":"history-workflows","returncode":1,"cleanup_complete":true}\n'
+                 'Authorization: Bearer '+secret+'\n'
+                 'Failed reference group 6; engine=/usr/bin/git; exit=1; cases=history-workflows\n')
+        identity=self.record(stdout=(passing+failure+passing).encode())
+        result=module.collect(self.logs,self.output,'references')
+        report=(self.output/(identity+'.txt')).read_text()
+        details=result['steps'][0]['streams']['stdout']
+        self.assertEqual(details['diagnostic_markers'],3)
+        self.assertTrue(details['scan_complete'])
+        self.assertGreater(details['input_bytes'],module.MAX_FILE_BYTES)
+        for message in ['Same scoped history did not reuse its child','Reference case failed:',
+                        '"case":"history-workflows"','"cleanup_complete":true','Failed reference group 6;']:
+            self.assertIn(message,report)
+        self.assertNotIn('private fixture secret',report);self.assertNotIn(secret,report)
+        self.assertIn('[REDACTED',report)
+        self.assertLessEqual((self.output/(identity+'.txt')).stat().st_size,module.MAX_FILE_BYTES)
+        self.assertLessEqual(sum(path.stat().st_size for path in self.output.iterdir()),module.MAX_TOTAL_BYTES)
+
+    def test_native_failure_envelopes_do_not_select_passing_or_quoted_negative_cases(self):
+        for message in ['History workflow failed: exact child mismatch',
+                        'Native editor Save failed: captured output changed',
+                        'Reference case failed: {"case":"history-workflows","returncode":1}',
+                        'Failed reference group 6; engine=/usr/bin/git; exit=1; cases=history-workflows']:
+            with self.subTest(failure=message):self.assertIsNotNone(module.MARKER.search(message))
+        passing=['PASS: failure recovery passed', 'Native Save failure recovery passed',
+                 'Expected failed operation cleanup passed',
+                 'Reference groups finished: 10 passed, 0 failed; results: private.json',
+                 'PASS: Reference case failed: negative dispatch refused',
+                 'print("History workflow failed: expected negative fixture")',
+                 '// History workflow failed: quoted source example']
+        for message in passing:
+            with self.subTest(passing=message):self.assertIsNone(module.MARKER.search(message))
+
     def test_late_fatal_context_survives_early_warning_source_snippets(self):
         snippets=('source.swift:1:1: warning: original compiler warning\n'
                   '1 | NSAlert(error:error)\n'
