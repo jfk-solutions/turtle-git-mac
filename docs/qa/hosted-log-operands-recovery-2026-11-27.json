@@ -97,5 +97,117 @@
   "app_core_runtime_builds": 0,
   "product_sources_changed": false,
   "installed60": "unchanged; no new app build/install",
-  "limits": "Focused8 comparison and2primary native process cases with bothGit; retained unaffected conflict/image groups. Fresh hosted check required; no new physical/visual/Finder claim."
+  "limits": "Focused8 comparison and2primary native process cases with bothGit; retained unaffected conflict/image groups. Fresh hosted check required; no new physical/visual/Finder claim.",
+  "hosted_followup": {
+    "source_commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+    "run_id": 46069911765,
+    "lane": "History and reference review",
+    "conclusion": "success",
+    "completed_utc": "2026-11-27T23:14:36Z",
+    "url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46069911765",
+    "scope": "History lane success from actual GitHub completed_at metadata; other workflow lanes remain separate. No physical UI/Finder/signed acceptance implied."
+  },
+  "complete_workflow_status": "Required: no complete hosted success is claimed for a4 or subsequent9a380900/5b5bfbc0 repairs.",
+  "integration_snapshot": {
+    "date": "2026-11-28",
+    "run_id": 46069911765,
+    "source_commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+    "provenance": "Actual GitHub job started_at/completed_at metadata, observed2026-11-28T01:30:11.365545+00:00; not watcher polling times.",
+    "jobs": [
+      {
+        "job_id": 140746248393,
+        "lane": "Core",
+        "conclusion": "success",
+        "started_utc": "2026-11-27T21:28:55Z",
+        "completed_utc": "2026-11-27T23:51:18Z"
+      },
+      {
+        "job_id": 140746248414,
+        "lane": "Commit/repository",
+        "conclusion": "success",
+        "started_utc": "2026-11-27T21:28:57Z",
+        "completed_utc": "2026-11-27T23:53:54Z"
+      },
+      {
+        "job_id": 140746248429,
+        "lane": "History",
+        "conclusion": "success",
+        "started_utc": "2026-11-27T21:28:56Z",
+        "completed_utc": "2026-11-27T23:14:36Z"
+      },
+      {
+        "job_id": 140746248432,
+        "lane": "Images",
+        "conclusion": "success",
+        "scope": "Includes reported steps169,170,426,435,436; other prior scoped receipts retain their own evidence.",
+        "started_utc": "2026-11-27T23:53:58Z",
+        "completed_utc": "2026-11-28T00:48:17Z"
+      },
+      {
+        "job_id": 140746248379,
+        "lane": "Settings/Finder",
+        "conclusion": "success",
+        "started_utc": "2026-11-27T23:51:21Z",
+        "completed_utc": "2026-11-28T00:59:36Z"
+      },
+      {
+        "job_id": 140746248409,
+        "lane": "Replay",
+        "conclusion": "success",
+        "started_utc": "2026-11-27T21:28:54Z",
+        "completed_utc": "2026-11-28T00:59:19Z"
+      },
+      {
+        "job_id": 140746248418,
+        "lane": "Editors",
+        "conclusion": "cancelled",
+        "started_utc": "2026-11-27T23:14:40Z",
+        "completed_utc": "2026-11-28T01:16:32Z",
+        "known_failures": [
+          "step 142 external Unicode/CaseConvert network download timeout",
+          "step 305 creation-picker graph/selection compound assertion"
+        ],
+        "later_interruption": "rebase-conflict-menus interrupted after approximately 141 seconds, below configured300second receiver budget",
+        "cancellation_initiator": "unknown",
+        "remaining_steps": "unverified"
+      },
+      {
+        "job_id": 140746248441,
+        "lane": "Distribution",
+        "conclusion": null,
+        "status": "in_progress",
+        "last_observed_step": 444,
+        "started_utc": "2026-11-28T00:48:21Z",
+        "completed_utc": null
+      }
+    ],
+    "corrected_source_acceptance": "Required: no complete hosted success is claimed for a4 or subsequent9a380900/5b5bfbc0 repairs.",
+    "local_repairs": [
+      {
+        "commit": "9a380900e96f80c4645187334e3cce41aff057e4",
+        "scope": "Shared Unicode source download bounded retry",
+        "validation": "15 helper tests and both full source oracles passed",
+        "evidence": "docs/qa/hosted-unicode-source-download-recovery-2026-11-28.json",
+        "app_source_or_mappings_changed": false
+      },
+      {
+        "commit": "5b5bfbc0dff196539b0c5ba103e18a78deb49003",
+        "scope": "Fixture-only current native Log publication admission; independent graph/hash/selection oracles retained",
+        "validation": "Creation pickers both Git passed 48.174 seconds; all owned PIDs independently absent",
+        "evidence": "docs/qa/hosted-editor-picker-and-cancellation-2026-11-28.json",
+        "app_source_or_mappings_changed": false
+      }
+    ],
+    "candidate61": "Immutable exacta4; neither subsequent repair is represented as candidate61 source.",
+    "observed_utc": "2026-11-28T01:30:11.365545+00:00",
+    "metadata_receipt": {
+      "path": "build/qa/ci-a4ff95ec-actual-job-times-2026-11-28.json",
+      "sha256": "e9165732e3b46678ba550bebee41a4eaea52989c9041b4a8b01436e454562ba0"
+    },
+    "svn_producer": {
+      "job_id": 140745835934,
+      "conclusion": "success",
+      "completed_utc": "2026-11-27T21:28:50Z"
+    }
+  }
 }

@@ -1,0 +1,103 @@
+{
+  "source_commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+  "source_input_sha256": "e86798d1768c50841c68c6ac2a4b6b2c3a4ba17660b93c3565c3850469506b62",
+  "candidate_main_sha256": "920576c23e04d1d48c37855917a9c07bb164a885b66860297561c99196c39a6a",
+  "build": "61",
+  "actual_xcodebuild_attempt_count": 1,
+  "actual_xcodebuild_exit_code": 0,
+  "original_build_wrapper_exit_code": 1,
+  "cleanup_resolution": {
+    "path": "build/qa/signed61-final-cleanup-resolution-2026-11-27.json",
+    "sha256": "adb6dc438adb81b0d8e9ea300892b33153747083bcdaa5b7fff7a642c20e557d"
+  },
+  "strict_static_passed": true,
+  "fresh_runtime_phases": [
+    "local-tools"
+  ],
+  "fresh_local_tools_passed": true,
+  "owned_probe_logged_pids": [
+    65326,
+    65429,
+    65604,
+    65645
+  ],
+  "owned_probe_pids_still_present": [],
+  "local_tools_helpers_and_groups_drained": true,
+  "forced_cleanup_needed": false,
+  "original_candidate_bundle_unchanged": true,
+  "no_new_image_execution": true,
+  "historical_image_build": "56",
+  "historical_ssh_build": "57",
+  "current61_physical_ssh_acceptance": false,
+  "all_core_source_equality_claimed": false,
+  "package_directory": "/Users/jkuehner/Desktop/git/jfk-solutions/tortoise-git-mac/build/local-testing/TurtleGit-for-Mac-0.1.0-build61-signed",
+  "archive": {
+    "name": "TurtleGit-for-Mac-0.1.0-build61-signed.zip",
+    "sha256": "f5bd68b94616342ea5fb3edd1072119b213c19e6b07241959fb4841fbc3696ef",
+    "bytes": 427194417
+  },
+  "source_archive": {
+    "name": "TurtleGit-for-Mac-source-a4ff95ec32ad8e7d1c618c81db7daee89c754be6.tar.gz",
+    "commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+    "sha256": "7a0d93828634aa442170be0269c06c5a12d8c8294cb72e7e1d2dcbad9e69bee7",
+    "bytes": 208063208,
+    "tracked_blobs": 14935,
+    "directories": 116,
+    "exact_names_blobs_modes_comment": true,
+    "tar_umask": "0002"
+  },
+  "copied_extracted_inventories_equal": true,
+  "copied_extracted_strict_seals_passed": true,
+  "sha256sums_sha256": "5e5dbbfd39e0ddc7cf8edd1f8e38c5861e396e56fdd52ac132ff8fb81c3a9239",
+  "receipt_sha256": {
+    "signed61-final-command-2026-11-27.json": "49d34ad512129ce098b046e1ccb39727ea2f7d727b621f754011dc50ab55bed9",
+    "signed61-static-2026-11-27.json": "79fbdd9e942c4dd25902f18d2d4dc9ff62622e9aedaf0f4f654bca1d889d1681",
+    "signed61-local-tools-phase-contract-2026-11-27.json": "eec0c24812f7716ab48b51df70e873f700c8b4dcefd14deffdaf965fc5f2707a",
+    "signed61-local-tools-consumer-2026-11-27.json": "7150e4cacd49f1ad424c3f8fe2919ca291dcdb2135e4ca58311fa8ca1ccb318a",
+    "signed61-package-2026-11-27.json": "560104a0c77c75e46c5c319c9abacc8d2cd3f3ec839a7c1ffb2aea5dcd47ed01"
+  },
+  "control_sha256": {
+    "signed61-static-2026-11-27.py": "138e2588dd6bff0e71b6e1d71ad8b1334526581b3e7d1069dae17876ffcbadb0",
+    "test-signed61-local-tools-consumer-2026-11-27.py": "46c4d130a4504cebdea37719905259502f6c9d0de1986d3cf4a571ec9f4b7674",
+    "package-signed61-local.py": "60db6740c0c6bc8a822204fa6812f77c0142c7cad0625d3d9f787adc30e9019d"
+  },
+  "installation_performed": false,
+  "user_app_opened_or_quit": false,
+  "public_upload_performed": false,
+  "notarization_performed": false,
+  "store_submission_performed": false,
+  "hosted_ci_scope": "Exacta4 hosted snapshot: six named lanes succeeded, Editors cancelled after two known failures, Distribution still in progress at observed step 444. Full corrected-source acceptance remains required.",
+  "kind": "TurtleGitSignedLocalCandidateDocumentationSummary",
+  "documentation_date": "2026-11-28",
+  "version": "0.1.0",
+  "team": "A49SCA5S8K",
+  "documentation_scope": "Read-only transcription of existing package/static/local-tools/cleanup receipts; no packaging, signing, probe, GUI or installation repeated.",
+  "full_matching_source_hosted_ci": "Not established: exacta4 Editors cancelled; subsequent9a380900/5b5bfbc0 local fixes require corrected-source hosted acceptance.",
+  "source_receipts": {
+    "signed61-consolidated-2026-11-27.json": {
+      "path": "build/qa/signed61-consolidated-2026-11-27.json",
+      "sha256": "2f8aa449b2741b62f86723f8a36b0fa71e5adcb1ab03409e2161c06206d89932"
+    },
+    "signed61-final-cleanup-resolution-2026-11-27.json": {
+      "path": "build/qa/signed61-final-cleanup-resolution-2026-11-27.json",
+      "sha256": "adb6dc438adb81b0d8e9ea300892b33153747083bcdaa5b7fff7a642c20e557d"
+    },
+    "signed61-static-2026-11-27.json": {
+      "path": "build/qa/signed61-static-2026-11-27.json",
+      "sha256": "79fbdd9e942c4dd25902f18d2d4dc9ff62622e9aedaf0f4f654bca1d889d1681"
+    },
+    "package_manifest": {
+      "path": "build/local-testing/TurtleGit-for-Mac-0.1.0-build61-signed/manifest.json",
+      "sha256": "3d9fd217d2d996355ed91205b1d3b5ba592f08799eed79e9488dc866dde3760b"
+    }
+  },
+  "retained_evidence_limits": {
+    "build56": "Historical image execution only; no fresh candidate61 image execution.",
+    "build57": "Historical SSH permission/component evidence only; no candidate61 physical SSH acceptance, no all-Core-source equality.",
+    "candidate61": "Fresh local-tools phase only; strict static role/architecture/seal checks and copied/extracted ZIP/source verification. No physical UI/Finder, installation, notarization, upload, Store submission or full-port claim."
+  },
+  "candidate_source_excludes_later_ci_repairs": [
+    "9a380900e96f80c4645187334e3cce41aff057e4",
+    "5b5bfbc0dff196539b0c5ba103e18a78deb49003"
+  ]
+}

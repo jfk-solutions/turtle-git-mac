@@ -1,0 +1,897 @@
+{
+  "kind": "BoundedPendingDialogInventoryReview",
+  "date": "2026-11-28",
+  "source_commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+  "upstream_commit": "7338078f8ddd924b8cddee35f512f2286072136d",
+  "scope": "All81 currently pending static control rows, not a full dialog/source/visual audit. Existing ledger statuses/mappings remain unchanged.",
+  "inventory_sha256": "2b13eda32c64acd6c08eaaa8b60c2a0145e89a7315164ba5b236f7c320ea0beb",
+  "counts": {
+    "pending_rows": 81,
+    "auxiliary_resources": 9,
+    "auxiliary_controls": 55,
+    "remaining_controls": 26,
+    "platform-adapted": 17,
+    "implemented-unmapped": 3,
+    "inactive-source": 6
+  },
+  "review_method": "Read-only exact-pin source/native/test-evidence review by ci_current_diagnosis; documented here without rerunning Core/native checks.",
+  "items": [
+    {
+      "resource": "contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc",
+      "dialog": "IDD_WAITDIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_WAITDIALOG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_PROGRESS",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_PROGRESS",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDFULLDUMPDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDOK",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_DETAILS_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_ASKSENDFULLDUMPDLG",
+      "control": "IDC_DETAILS",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_ASKSENDFULLDUMPDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDC_QUESTION",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SOLUTIONDLG",
+      "control": "IDOK",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SOLUTIONDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDASSERTREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDASSERTREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_HEADER_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDASSERTREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_TEXT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDASSERTREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_PROGRESS",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDASSERTREPORTDLG"
+    },
+    {
+      "resource": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc",
+      "dialog": "IDD_SENDASSERTREPORTDLG",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SENDASSERTREPORTDLG"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSMAIN",
+      "control": "IDC_CREATELIB",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSMAIN"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAY",
+      "control": "IDC_ONLYEXPLORER",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAY"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAY",
+      "control": "IDC_ONLYNONELEVATED",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAY"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAY",
+      "control": "IDC_FLOPPY",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAY"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAYHANDLERS"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_STATIC",
+      "occurrence": "3",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAYHANDLERS"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_HANDLERHINT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAYHANDLERS"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSOVERLAYHANDLERS",
+      "control": "IDC_REGEDT",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSOVERLAYHANDLERS"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SVNPROGRESS",
+      "control": "IDC_LOGBUTTON",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "dynamic-post-action"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SVNPROGRESS",
+      "control": "IDC_TITLE_ANIMATE",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "native-progress-animation"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SIMPLEPROMPT",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SIMPLEPROMPT"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDC_LABEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_URL"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDC_URLCOMBO",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_URL"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDOK",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_URL"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_URL",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_URL"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEK",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_STATGRAPH"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEKAVG",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_STATGRAPH"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEKMIN",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_STATGRAPH"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_STATGRAPH",
+      "control": "IDC_FILECHANGESEACHWEEKMAX",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_STATGRAPH"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_GITPROGRESS",
+      "control": "IDC_TITLE_ANIMATE",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "native-progress-animation"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SYNC",
+      "control": "IDC_ANIMATE_SYNC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "native-progress-animation"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_PATCH_VIEW",
+      "control": "IDC_PATCH",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_PATCH_VIEW"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSDIALOGS3",
+      "control": "IDC_KEEPFILELISTSENGLISH",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSDIALOGS3"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSDIALOGS3",
+      "control": "IDC_STATIC",
+      "occurrence": "9",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSDIALOGS3"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+      "control": "IDC_WORKAROUNDS",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_FIRSTSTARTWIZARD_GIT"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+      "control": "IDC_GITHACKS1",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_FIRSTSTARTWIZARD_GIT"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_GIT",
+      "control": "IDC_GITHACKS2",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_FIRSTSTARTWIZARD_GIT"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "control": "IDC_LINK",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_FIRSTSTARTWIZARD_LANGUAGE"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "control": "IDC_REFRESH",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_FIRSTSTARTWIZARD_LANGUAGE"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_FIRSTSTARTWIZARD_LANGUAGE",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_FIRSTSTARTWIZARD_LANGUAGE"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSWIN11CONTEXTMENU"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSWIN11CONTEXTMENU"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_MENULIST",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSWIN11CONTEXTMENU"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_SELECTALL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSWIN11CONTEXTMENU"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_RESTORE",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSWIN11CONTEXTMENU"
+    },
+    {
+      "resource": "src/Resources/TortoiseProcENG.rc",
+      "dialog": "IDD_SETTINGSWIN11CONTEXTMENU",
+      "control": "IDC_REGISTER",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_SETTINGSWIN11CONTEXTMENU"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDOK",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDCANCEL",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_FILEPATH",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": "2",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_DONE",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": "3",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STARTTIME",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_STATIC",
+      "occurrence": "4",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_ENDTIME",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_ROOTPATH",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    },
+    {
+      "resource": "test/Cache/Cache.rc",
+      "dialog": "IDD_CACHE_DIALOG",
+      "control": "IDC_WATCHTESTBUTTON",
+      "occurrence": "1",
+      "status": "pending-review",
+      "native_mapping": "",
+      "review_group": "IDD_CACHE_DIALOG"
+    }
+  ],
+  "limits": [
+    "No completion percentage or certified-complete dialogs.",
+    "Missing mapping evidence is not automatically missing implementation.",
+    "Apple local crash review/export is not DrDump/minidump/assert/solution-service equivalence.",
+    "No new feature implementation, source or resource change, native/GUI check or signed/physical/VoiceOver acceptance."
+  ],
+  "review_groups": {
+    "IDD_WAITDIALOG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Windows COM sample auxiliary surface",
+      "pinned_evidence": "contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc:137; Provider.cpp:151; WaitDialog.cpp:54-63",
+      "native_evidence": "Sources/TurtleGitMac/IssueProviderWindows.swift:60-88; Tests/TurtleGitCoreTests/NativeIssueProviderTests.swift; Tests/TurtleGitCoreTests/NativeIssueProviderSessionTests.swift; docs/qa/native-issue-provider-family-2026-10-20.json",
+      "limit": "Native async load/submit/progress/cancel/retirement exists; Windows COM binary loading is not claimed."
+    },
+    "IDD_SENDREPORTDLG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Unported Windows crash-service family with partial Apple adaptation",
+      "pinned_evidence": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc:44-99; CrashProcessor.cpp:494-617",
+      "native_evidence": "Sources/TurtleGitMac/SupportReportWindow.swift:48,63,199,213,278-299; Tests/TurtleGitCoreTests/SupportReportTests.swift; docs/qa/support-workflow-continuation-2026-10-31.json",
+      "limit": "Apple-generated report discovery/review, opt-in inclusion, exact local preview/Copy/Save and separate blank issue form exist. Windows memory minidump/assert collection, direct DrDump upload, server solution lookup and offered URL/executable handling remain unported."
+    },
+    "IDD_SENDFULLDUMPDLG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Unported Windows crash-service family with partial Apple adaptation",
+      "pinned_evidence": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc:44-99; CrashProcessor.cpp:494-617",
+      "native_evidence": "Sources/TurtleGitMac/SupportReportWindow.swift:48,63,199,213,278-299; Tests/TurtleGitCoreTests/SupportReportTests.swift; docs/qa/support-workflow-continuation-2026-10-31.json",
+      "limit": "Apple-generated report discovery/review, opt-in inclusion, exact local preview/Copy/Save and separate blank issue form exist. Windows memory minidump/assert collection, direct DrDump upload, server solution lookup and offered URL/executable handling remain unported."
+    },
+    "IDD_ASKSENDFULLDUMPDLG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Unported Windows crash-service family with partial Apple adaptation",
+      "pinned_evidence": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc:44-99; CrashProcessor.cpp:494-617",
+      "native_evidence": "Sources/TurtleGitMac/SupportReportWindow.swift:48,63,199,213,278-299; Tests/TurtleGitCoreTests/SupportReportTests.swift; docs/qa/support-workflow-continuation-2026-10-31.json",
+      "limit": "Apple-generated report discovery/review, opt-in inclusion, exact local preview/Copy/Save and separate blank issue form exist. Windows memory minidump/assert collection, direct DrDump upload, server solution lookup and offered URL/executable handling remain unported."
+    },
+    "IDD_SOLUTIONDLG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Unported Windows crash-service family with partial Apple adaptation",
+      "pinned_evidence": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc:44-99; CrashProcessor.cpp:494-617",
+      "native_evidence": "Sources/TurtleGitMac/SupportReportWindow.swift:48,63,199,213,278-299; Tests/TurtleGitCoreTests/SupportReportTests.swift; docs/qa/support-workflow-continuation-2026-10-31.json",
+      "limit": "Apple-generated report discovery/review, opt-in inclusion, exact local preview/Copy/Save and separate blank issue form exist. Windows memory minidump/assert collection, direct DrDump upload, server solution lookup and offered URL/executable handling remain unported."
+    },
+    "IDD_SENDASSERTREPORTDLG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Unported Windows crash-service family with partial Apple adaptation",
+      "pinned_evidence": "ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc:44-99; CrashProcessor.cpp:494-617",
+      "native_evidence": "Sources/TurtleGitMac/SupportReportWindow.swift:48,63,199,213,278-299; Tests/TurtleGitCoreTests/SupportReportTests.swift; docs/qa/support-workflow-continuation-2026-10-31.json",
+      "limit": "Apple-generated report discovery/review, opt-in inclusion, exact local preview/Copy/Save and separate blank issue form exist. Windows memory minidump/assert collection, direct DrDump upload, server solution lookup and offered URL/executable handling remain unported."
+    },
+    "IDD_SETTINGSMAIN": {
+      "group": "remaining-partial-family-controls",
+      "classification": "platform-adapted",
+      "description": "Windows Git library creation",
+      "pinned_evidence": "SetMainPage.cpp:213-217; src/Utils/Libraries.cpp:42",
+      "native_evidence": "Native repository/watch management; docs/FINDER-WATCHED-ROOTS-PARITY.md"
+    },
+    "IDD_SETTINGSOVERLAY": {
+      "group": "remaining-partial-family-controls",
+      "classification": "platform-adapted",
+      "description": "Windows Explorer/elevation/A:B policies",
+      "pinned_evidence": "IDC_ONLYEXPLORER/IDC_ONLYNONELEVATED/IDC_FLOPPY",
+      "native_evidence": "Sources/TurtleGitCore/FinderOverlaySettings.swift:175-188; Finder status-policy tests"
+    },
+    "IDD_SETTINGSOVERLAYHANDLERS": {
+      "group": "remaining-partial-family-controls",
+      "classification": "platform-adapted",
+      "description": "Explorer overlay-slot notices and Registry Editor",
+      "pinned_evidence": "SetOverlayHandlers.cpp:213,216-228",
+      "native_evidence": "Sources/TurtleGitMac/FinderOverlaySettings.swift:186-193"
+    },
+    "dynamic-post-action": {
+      "group": "remaining-partial-family-controls",
+      "classification": "implemented-unmapped",
+      "description": "Dynamic operation-specific post-action",
+      "pinned_evidence": "GitProgressDlg.cpp:139-143,275-302; static Show log caption is not a universal action contract",
+      "native_evidence": "Sources/TurtleGitMac/CommitWindow.swift:3309,4558,4616-4618; Sources/TurtleGitMac/AddProgressWindow.swift:195"
+    },
+    "native-progress-animation": {
+      "group": "remaining-partial-family-controls",
+      "classification": "platform-adapted",
+      "description": "Windows SysAnimate32 progress substitution",
+      "pinned_evidence": "src/Resources/TortoiseProcENG.rc animation control declarations",
+      "native_evidence": "Sources/TurtleGitMac/CommitWindow.swift:4610; Sources/TurtleGitMac/SynchronizationWindow.swift:353; Sources/TurtleGitMac/RevertProgressWindow.swift:285; docs/qa/native-progress-entry-recovery-2026-11-25.json"
+    },
+    "IDD_SIMPLEPROMPT": {
+      "group": "remaining-partial-family-controls",
+      "classification": "implemented-unmapped",
+      "description": "Native realm/username/secure-password wording/layout",
+      "pinned_evidence": "src/Resources/TortoiseProcENG.rc / IDD_SIMPLEPROMPT",
+      "native_evidence": "Sources/TurtleGitGitAskpass/SVNPromptWindow.swift:65-79; docs/qa/svn-authentication-native-2026-10-14.swift:49"
+    },
+    "IDD_URL": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Dormant Windows resource",
+      "pinned_evidence": "src/Resources/TortoiseProcENG.rc:523; pinned CURLDlg/IDD_URL references are declaration/implementation/resource/project, no active caller established",
+      "native_evidence": "docs/CLONE-PARITY.md",
+      "limit": "No absent active Git URL dialog established; ordinary Clone/remote URL workflows are separate."
+    },
+    "IDD_STATGRAPH": {
+      "group": "remaining-partial-family-controls",
+      "classification": "inactive-source",
+      "description": "Inactive file-change summary placeholders",
+      "pinned_evidence": "StatGraphDlg.cpp:1080 assigns label; ShowWindow at343 and numeric SetDlgItemText at1101/1103/1105 commented",
+      "native_evidence": "docs/qa/statistics-source-family-2026-11-25.json; active statistics remain separate"
+    },
+    "IDD_PATCH_VIEW": {
+      "group": "remaining-partial-family-controls",
+      "classification": "implemented-unmapped",
+      "description": "Actual native editable patch surface",
+      "pinned_evidence": "src/Resources/TortoiseProcENG.rc / IDD_PATCH_VIEW",
+      "native_evidence": "Sources/TurtleGitMac/PatchWindow.swift:32-39,457-470,1058-1059; docs/qa/patch-codec-family-native-2026-10-17.swift; docs/qa/unified-find-source-native-2026-10-17.swift"
+    },
+    "IDD_SETTINGSDIALOGS3": {
+      "group": "remaining-partial-family-controls",
+      "classification": "inactive-source",
+      "description": "Hidden English-file-list controls",
+      "pinned_evidence": "Pinned IDC_KEEPFILELISTSENGLISH has no C++ consumer outside resource/resource.h",
+      "native_evidence": "No absent active behavior established"
+    },
+    "IDD_FIRSTSTARTWIZARD_GIT": {
+      "group": "remaining-partial-family-controls",
+      "classification": "platform-adapted",
+      "description": "Windows Cygwin/Msys2 compatibility choices",
+      "pinned_evidence": "FirstStartWizardGit.cpp:118-129,212-214",
+      "native_evidence": "Sources/TurtleGitMac/FirstStartWizard.swift:395-407 executable/Browse/version checks"
+    },
+    "IDD_FIRSTSTARTWIZARD_LANGUAGE": {
+      "group": "remaining-partial-family-controls",
+      "classification": "platform-adapted",
+      "description": "Bundled localization instead of Windows language DLL download/rescan",
+      "pinned_evidence": "FirstStartWizardLanguage.cpp:81-85,116-118,137-156",
+      "native_evidence": "Sources/TurtleGitMac/FirstStartWizard.swift:382-386; manual app restart preserves shared repository/editor work"
+    },
+    "IDD_SETTINGSWIN11CONTEXTMENU": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Windows shell integration adaptation",
+      "pinned_evidence": "src/Resources/TortoiseProcENG.rc:2292; SetLookAndFeelPage.cpp:418,480,522-524",
+      "native_evidence": "Sources/TurtleGitMac/FinderContextMenuSettings.swift:68-78,131-138; Sources/TurtleGitMac/FinderOverlaySettings.swift:186-193; FinderContextMenuSettingsTests",
+      "limit": "Finder catalog/masks/placement and system extension management replace Windows package registration."
+    },
+    "IDD_CACHE_DIALOG": {
+      "group": "nine-auxiliary-resources",
+      "classification": "Windows developer test executable",
+      "pinned_evidence": "test/Cache/Cache.rc:29; CacheDlg.cpp:105,253,401",
+      "native_evidence": "FinderCacheServiceRuntimeTests; FinderExactCacheTests; FinderWatchRetirementTests",
+      "limit": "No equivalent developer test window ships; this is not a missing user Git workflow."
+    }
+  }
+}

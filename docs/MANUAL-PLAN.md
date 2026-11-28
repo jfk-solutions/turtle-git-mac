@@ -27,7 +27,9 @@ manual as though they describe TurtleGit behavior. Published pages should descri
 the shipped behavior; engineering parity documents track what still needs work.
 
 The [Edit Notes guide](GIT-NOTES.md) now documents that implemented workflow and
-its recovery behavior. Its macOS screenshots remain pending.
+its recovery behavior, with existing native light/dark screenshots in that guide.
+Those captures illustrate the recorded workflow; they do not certify every
+current layout, physical interaction or signed release.
 
 The [Revert from Log guide](REVERT-COMMIT.md) now covers the single-revision and
 merge-parent workflow. Displayed screenshots and remaining workflows are pending.

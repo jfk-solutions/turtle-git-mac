@@ -8,12 +8,12 @@ This generated table links explicit implementation/parity reviews and existing Q
 
 | Source dialog | Family audit | Static control mappings | Recorded parity/evidence |
 | --- | --- | --- | --- |
-| `contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc` / `IDD_WAITDIALOG` | pending-review | 0/1 mapped; 1 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md); 0 QA records |
-| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SENDREPORTDLG` | pending-review | 0/6 mapped; 6 pending | No recorded family document; 0 QA records |
-| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SENDFULLDUMPDLG` | pending-review | 0/6 mapped; 6 pending | No recorded family document; 0 QA records |
-| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_ASKSENDFULLDUMPDLG` | pending-review | 0/7 mapped; 7 pending | No recorded family document; 0 QA records |
-| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SOLUTIONDLG` | pending-review | 0/7 mapped; 7 pending | No recorded family document; 0 QA records |
-| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SENDASSERTREPORTDLG` | pending-review | 0/6 mapped; 6 pending | No recorded family document; 0 QA records |
+| `contrib/issue-tracker-plugins/ExampleAtlPlugin/ExampleAtlPlugin.rc` / `IDD_WAITDIALOG` | pending-review | 0/1 mapped; 1 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
+| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SENDREPORTDLG` | pending-review | 0/6 mapped; 6 pending | [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
+| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SENDFULLDUMPDLG` | pending-review | 0/6 mapped; 6 pending | [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
+| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_ASKSENDFULLDUMPDLG` | pending-review | 0/7 mapped; 7 pending | [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
+| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SOLUTIONDLG` | pending-review | 0/7 mapped; 7 pending | [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
+| `ext/CrashServer/CrashHandler/SendRpt/SendRpt.rc` / `IDD_SENDASSERTREPORTDLG` | pending-review | 0/6 mapped; 6 pending | [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
 | `src/Resources/TortoiseGitBlameENG.rc` / `IDD_ABOUTBOX` | partial-native-replacement | 6/6 mapped; 0 pending | [ABOUT-PARITY](ABOUT-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseGitBlameENG.rc` / `IDD_GOTODLG` | partial | 4/4 mapped; 0 pending | [BLAME-PARITY](BLAME-PARITY.md); 16 QA records |
 | `src/Resources/TortoiseLoglistCommon.rc2` / `IDD_FIND` | partial-native-replacement | 11/11 mapped; 0 pending | No recorded family document; 0 QA records |
@@ -46,7 +46,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SIMPLEPROMPT` | partial-native-replacement | 8/9 mapped; 1 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [SVN-AUTHENTICATION-PARITY](SVN-AUTHENTICATION-PARITY.md); 2 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_INPUTDLG` | partial-native-replacement | 5/5 mapped; 0 pending | [EDIT-NOTES-PARITY](EDIT-NOTES-PARITY.md), [INPUT-DIALOG-PARITY](INPUT-DIALOG-PARITY.md), [MESSAGE-EDITOR-COMMANDS-PARITY](MESSAGE-EDITOR-COMMANDS-PARITY.md), [MESSAGE-LINK-INTERACTION-PARITY](MESSAGE-LINK-INTERACTION-PARITY.md); 9 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSPROGSADV` | partial-native-replacement | 8/8 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_URL` | pending-review | 0/4 mapped; 4 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md); 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_URL` | pending-review | 0/4 mapped; 4 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_TOOLASSOC` | partial-native-replacement | 7/7 mapped; 0 pending | [DIFF-TOOLS-PARITY](DIFF-TOOLS-PARITY.md); 10 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_CHECKFORUPDATES` | partial-native-replacement | 13/13 mapped; 0 pending | [RELEASE-UPDATES-PARITY](RELEASE-UPDATES-PARITY.md); 5 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_REVERT` | partial-native-replacement | 6/6 mapped; 0 pending | [REVERT-PARITY](REVERT-PARITY.md), [STATUS-REPORT-ROWS-PARITY](STATUS-REPORT-ROWS-PARITY.md); 10 QA records |
@@ -128,7 +128,7 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_AUTHENTICATION` | partial-native-replacement | 11/11 mapped; 0 pending | [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_FIRSTSTARTWIZARD_LANGUAGE` | partial-native-replacement | 3/6 mapped; 3 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [FIRST-START-WIZARD-PARITY](FIRST-START-WIZARD-PARITY.md); 6 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_SELECTREMOTEREF` | partial-native-replacement | 6/6 mapped; 0 pending | [REMOTE-DIALOGS-PARITY](REMOTE-DIALOGS-PARITY.md), [REMOTE-REFERENCE-ENGINE-PARITY](REMOTE-REFERENCE-ENGINE-PARITY.md); 4 QA records |
-| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSWIN11CONTEXTMENU` | pending-review | 0/6 mapped; 6 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md); 0 QA records |
+| `src/Resources/TortoiseProcENG.rc` / `IDD_SETTINGSWIN11CONTEXTMENU` | pending-review | 0/6 mapped; 6 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_WORKTREE_CREATE` | partial | 23/23 mapped; 0 pending | [CREATION-OUTCOME-PARITY](CREATION-OUTCOME-PARITY.md), [WORKTREE-PARITY](WORKTREE-PARITY.md); 12 QA records |
 | `src/Resources/TortoiseProcENG.rc` / `IDD_WORKTREE_LIST` | partial | 5/5 mapped; 0 pending | [WORKTREE-PARITY](WORKTREE-PARITY.md); 12 QA records |
 | `src/SshAskPass/SshAskPass.rc` / `IDD_ASK_PASSWORD` | partial-native-replacement | 4/4 mapped; 0 pending | [GIT-AUTHENTICATION-PARITY](GIT-AUTHENTICATION-PARITY.md); 3 QA records |
@@ -137,4 +137,4 @@ This generated table links explicit implementation/parity reviews and existing Q
 | `src/TortoisePlink/Windows/TortoisePlink.rc` / `IDD_LOGIN` | partial-native-replacement | 4/4 mapped; 0 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [SSH-PASSPHRASE-PARITY](SSH-PASSPHRASE-PARITY.md); 4 QA records |
 | `src/TortoiseShell/resourceshell.rc` / `IDD_PROPPAGE` | partial-native-replacement | 31/31 mapped; 0 pending | [GIT-PROPERTIES-PARITY](GIT-PROPERTIES-PARITY.md); 2 QA records |
 | `src/TortoiseUDiff/TortoiseUDiff.rc` / `IDD_FINDBAR` | partial-native-replacement | 6/6 mapped; 0 pending | [UNIFIED-DIFF-VIEWER-PARITY](UNIFIED-DIFF-VIEWER-PARITY.md); 12 QA records |
-| `test/Cache/Cache.rc` / `IDD_CACHE_DIALOG` | pending-review | 0/12 mapped; 12 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md); 0 QA records |
+| `test/Cache/Cache.rc` / `IDD_CACHE_DIALOG` | pending-review | 0/12 mapped; 12 pending | [DIALOG-PLATFORM-REVIEW](DIALOG-PLATFORM-REVIEW.md), [PENDING-RESOURCE-REVIEW](PENDING-RESOURCE-REVIEW.md); 1 QA records |
