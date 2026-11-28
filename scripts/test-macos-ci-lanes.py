@@ -40,11 +40,11 @@ class MacOSLaneTests(unittest.TestCase):
                       if s.get('name')=='Upload redacted CI failures middle')
             step['with']['path']=step['with']['path'].replace(removed+'\n','')
             with self.subTest(removed=removed),self.assertRaises(AssertionError):self.verify(value)
-    def testNativeRunnerContractsKeepAllThreeExactCommandsAndCoreAdmission(self):
+    def testNativeRunnerContractsKeepAllFourExactCommandsAndCoreAdmission(self):
         steps=self.workflow['jobs']['validation']['steps']
         index=next(i for i,step in enumerate(steps) if step.get('name')==ci.NATIVE_RUNNER_CONTRACT_NAME)
         self.assertEqual(steps[index], {'name':ci.NATIVE_RUNNER_CONTRACT_NAME, 'if':"matrix.lane == 'core'",
-            'run':"python3 scripts/test-native-reference-groups-contracts.py\npython3 scripts/test-native-reference-batch-contracts.py\npython3 scripts/test-switch-reset-bisect-workflows-contracts.py\n"})
+            'run':"python3 scripts/test-native-reference-groups-contracts.py\npython3 scripts/test-native-reference-batch-contracts.py\npython3 scripts/test-switch-reset-bisect-workflows-contracts.py\npython3 scripts/test-cherry-pick-native-contracts.py\n"})
         self.assertEqual(steps[index-1]['name'],'Pinned native translation labels')
         self.assertEqual(steps[index+1]['name'],'Native receiver cache and process ownership contracts')
         original=next(record for record in self.inventory['steps'] if record['id']=='original-004')
@@ -56,7 +56,8 @@ class MacOSLaneTests(unittest.TestCase):
     def testNativeRunnerContractsRejectDroppedChangedReorderedOrWeakenedCoverage(self):
         commands=['python3 scripts/test-native-reference-groups-contracts.py',
                   'python3 scripts/test-native-reference-batch-contracts.py',
-                  'python3 scripts/test-switch-reset-bisect-workflows-contracts.py']
+                  'python3 scripts/test-switch-reset-bisect-workflows-contracts.py',
+                  'python3 scripts/test-cherry-pick-native-contracts.py']
         for command in commands:
             for mutation in ['drop-command','replace-command','duplicate-command']:
                 value=copy.deepcopy(self.workflow)

@@ -24,9 +24,9 @@ at **2026-11-27 23:14:36 UTC**; the
 [Log recovery record](qa/hosted-log-operands-recovery-2026-11-27.json) retains that
 separate hosted result alongside earlier focused evidence.
 
-Actual GitHub job metadata, observed on November 28 at 01:30:11 UTC, records
-these additional results (completion times below are GitHub `completed_at`,
-not watcher polling times; all times UTC):
+Actual GitHub job metadata records these results for the completed preceding-source
+run (completion times below are GitHub `completed_at`, not watcher polling times;
+all times UTC):
 
 | Lane / job | Result | Actual completion or status |
 | --- | --- | --- |
@@ -37,7 +37,7 @@ not watcher polling times; all times UTC):
 | Settings/Finder / `140746248379` | Success | November 28, 00:59:36 |
 | Replay / `140746248409` | Success | November 28, 00:59:19 |
 | Editors / `140746248418` | Cancelled | November 27, 23:14:40 to November 28, 01:16:32 |
-| Distribution / `140746248441` | Still running, observed at step 444 | November 28, 01:30:11 snapshot; no success inferred |
+| Distribution / `140746248441` | Failure in step 453 | November 28, 03:10:21 |
 
 The SVN runtime producer completed successfully on November 27 at 21:28:50 UTC.
 
@@ -47,7 +47,7 @@ interrupted after approximately 141 seconds, below its 300 second budget. Availa
 metadata does not identify the cancellation initiator; unexecuted or interrupted
 steps remain unverified. This must not be reported as a complete hosted pass.
 
-Two subsequent local repairs preserve the original behavioral oracles:
+Subsequent local repairs preserve the original behavioral oracles:
 
 - `9a380900e96f80c4645187334e3cce41aff057e4` adds bounded retry to the shared
   Unicode source download. Fifteen helper tests and both full source oracles
@@ -58,10 +58,24 @@ Two subsequent local repairs preserve the original behavioral oracles:
   in 48.174 seconds, and all owned PIDs were independently absent; see the
   [picker/cancellation record](qa/hosted-editor-picker-and-cancellation-2026-11-28.json).
 
-Neither repair changes application source or control mappings. **Complete hosted
+The [bundled Git recovery record](qa/hosted-bundled-git-submodule-recovery-2026-11-28.json)
+records the final Distribution outcome and a further test-invocation correction.
+The unsigned universal App Store candidate build/audit passed. Complete native
+receivers also passed with system Git, Git 2.37.1 and Git 2.39.5. The fourth,
+Store-bundled Git receiver failed at `submodule add`: the test resolved the
+logical runtime symlink before handing it to the production environment resolver.
+The correction retains that logical path, matching the application, and adds
+relocation/helper-path checks before the existing submodule semantic assertions.
+Its focused validation and signed-helper execution-context limits are retained
+in that record.
+
+The preceding run finished with overall conclusion **cancelled** (GitHub
+`updated_at` November 28, 03:10:26); its aggregate all-lanes gate failed as expected
+from the cancelled Editors lane and failed Distribution lane. These corrections
+change neither application source nor control mappings. **Complete hosted
 acceptance of the corrected source remains required.** The six successful lanes
-retain their exact `a4ff95ec` scope; Distribution's final result remains unverified in
-this snapshot. No physical Finder, VoiceOver or signed UI result is inferred.
+and three full native engine passes retain their exact `a4ff95ec` scope.
+No physical Finder, VoiceOver or signed UI result is inferred.
 
 ## Signed local candidate 61
 

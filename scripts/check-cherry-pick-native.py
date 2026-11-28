@@ -19,6 +19,13 @@ import tempfile
 import time
 from native_receiver import build_receiver,run_receiver
 
+def native_git_invocation(git):
+    # Finalized bundles keep a logical Git/bin/git symlink to relocated Mach-O
+    # code under Contents/MacOS. Production derives helper/template paths from
+    # the logical URL; resolving here would erase that runtime context.
+    return str(git.absolute())
+
+
 parser=argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--git',type=Path,action='append',help='Git to test; may be repeated (default: /usr/bin/git).')
 parser.add_argument('--compile-only',action='store_true',help='Compile/link the complete partitioned receiver without launching it or requiring the unused SwiftPM editor.')
@@ -114,7 +121,7 @@ for index,git in enumerate(gits):
         environment={key:value for key,value in os.environ.items() if not key.startswith('GIT_') and not key.startswith('TURTLEGIT_NATIVE_')}
         environment.update(DYLD_FRAMEWORK_PATH=str(products),HOME=str(directory/'home'),CFFIXED_USER_HOME=str(directory/'preferences'),
                            TMPDIR=str(directory/'temporary')+'/',XDG_CONFIG_HOME=str(directory/'xdg'),GIT_CONFIG_GLOBAL=str(config),
-                           GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',TURTLEGIT_TEST_GIT=str(git.resolve()))
+                           GIT_CONFIG_NOSYSTEM='1',GIT_CONFIG_COUNT='0',TURTLEGIT_TEST_GIT=native_git_invocation(git))
         flags={'TURTLEGIT_NATIVE_REBASE_MENUS_ONLY':args.only=='rebase-menus','TURTLEGIT_NATIVE_REPLAY_SELECTION_ONLY':args.only=='replay-selection','TURTLEGIT_NATIVE_REBASE_LIST_ONLY':args.only=='rebase-list','TURTLEGIT_NATIVE_REFERENCE_ONLY':args.references_only,'TURTLEGIT_NATIVE_MENUS_ONLY':args.menus_only,
                'TURTLEGIT_NATIVE_COMMIT_SELECTION_ONLY':args.commit_selection_only,'TURTLEGIT_NATIVE_LOG_PATHS_ONLY':args.log_paths_only,
                'TURTLEGIT_NATIVE_LOG_DEFERRED_REFRESH_ONLY':args.only=='log-deferred-refresh',

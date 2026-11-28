@@ -1095,6 +1095,19 @@ import TurtleGitCore
     for url in [root, origin] { try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true) }
     defer { try? FileManager.default.removeItem(at: base) }
     let repo = GitRepository(root: root, executable: executable), source = GitRepository(root: origin, executable: executable)
+    // Preserve the selected logical runtime URL, as the app does. Finalized
+    // App Store bundles relocate code while their Git/bin/git alias retains
+    // the sibling shell helpers and templates used by submodule operations.
+    precondition(repo.executable == executable && source.executable == executable, "Log submodule changed its selected engine")
+    let runtime = executable.deletingLastPathComponent().deletingLastPathComponent()
+    if runtime.lastPathComponent == "Git" {
+        let expected = runtime.appendingPathComponent("libexec/git-core")
+        precondition(GitRuntime.environment(executable: executable)["GIT_EXEC_PATH"] == expected.path, "Bundled Log submodule lost its logical helper environment")
+        let actual = try await repo.run(["--exec-path"]).text.trimmingCharacters(in: .newlines)
+        precondition(URL(fileURLWithPath: actual).resolvingSymlinksInPath() == expected.resolvingSymlinksInPath(), "Bundled Git did not receive its selected helper path")
+        precondition(FileManager.default.isExecutableFile(atPath: expected.appendingPathComponent("git-submodule").path), "Selected bundled Git has no submodule helper")
+        print("Log submodule selected runtime: \(executable.path); helper path: \(actual)")
+    }
     for repository in [repo, source] {
         _ = try await repository.run(["init", "--initial-branch=main"])
         _ = try await repository.run(["config", "user.name", "Native QA"]); _ = try await repository.run(["config", "user.email", "native@example.invalid"])

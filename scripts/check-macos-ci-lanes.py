@@ -54,13 +54,14 @@ APP_BUILD_EVIDENCE = {
 }
 # Reviewed expansion of original-004: the immutable pre-split inventory and
 # original command remain pinned. Only this exact native-runner contract step
-# gains the two related ownership/compilation contracts, still Core-only.
+# gains related ownership, compilation and runtime-invocation contracts, still Core-only.
 NATIVE_RUNNER_CONTRACT_ORIGINAL_NAME = 'Native reference group coverage contracts'
 NATIVE_RUNNER_CONTRACT_ORIGINAL_RUN = 'python3 scripts/test-native-reference-groups-contracts.py'
 NATIVE_RUNNER_CONTRACT_NAME = 'Native reference coverage and failure ownership contracts'
 NATIVE_RUNNER_CONTRACT_RUN = ('python3 scripts/test-native-reference-groups-contracts.py\n'
                               'python3 scripts/test-native-reference-batch-contracts.py\n'
-                              'python3 scripts/test-switch-reset-bisect-workflows-contracts.py\n')
+                              'python3 scripts/test-switch-reset-bisect-workflows-contracts.py\n'
+                              'python3 scripts/test-cherry-pick-native-contracts.py\n')
 CI_STEP_LOG_ENV = {'BASH_ENV': '${{ github.workspace }}/scripts/ci-step-log.sh'}
 CI_STEP_LOG_CONTRACT = {
     'name':'CI step log capture and bounded failure contracts',

@@ -1,0 +1,106 @@
+{
+  "kind": "finalized bundled Git test invocation recovery",
+  "date": "2026-11-28",
+  "failed_source_commit": "a4ff95ec32ad8e7d1c618c81db7daee89c754be6",
+  "run_id": 46069911765,
+  "run_status": "completed",
+  "run_conclusion": "cancelled",
+  "run_updated_at": "2026-11-28T03:10:26Z",
+  "job_id": 140746248441,
+  "job_conclusion": "failure",
+  "job_completed_at": "2026-11-28T03:10:21Z",
+  "step": 453,
+  "step_name": "Native Cherry Pick and Rebase recovery across Git versions",
+  "step_started_at": "2026-11-28T02:02:13Z",
+  "step_completed_at": "2026-11-28T03:10:13Z",
+  "job_url": "https://github.com/jfk-solutions/turtle-git-mac/actions/runs/46069911765/job/140746248441",
+  "artifact": {
+    "id": 15246020756,
+    "name": "ci-step-failures-distribution-46069911765-1-final",
+    "sha256": "6acf28623d95ddc95b3b3b1324b78f9884309a5f67f6a10071caa8574e4e0f41",
+    "report": "ci-step-failures/final/26e1ac18-d42b-4897-aced-0220a72842ed.txt",
+    "incomplete": false,
+    "failed_steps": 1
+  },
+  "terminal_log_sha256": "b2ec7cb76f8f81c527d2aadfcb45ef92114d7bed335660c46caa14d77041cf51",
+  "full_receiver_passes": [
+    {"git": "system", "receiver_pid": 25165, "reaped_at": "2026-11-28T02:30:17Z"},
+    {"git": "2.37.1", "receiver_pid": 82202, "reaped_at": "2026-11-28T02:48:21Z"},
+    {"git": "2.39.5", "receiver_pid": 28667, "reaped_at": "2026-11-28T03:06:52Z"}
+  ],
+  "failed_fourth_receiver": {
+    "git": "AppStore candidate logical Helpers/Git/bin/git",
+    "started_at": "2026-11-28T03:06:53Z",
+    "receiver_pid": 77937,
+    "reaped_at": "2026-11-28T03:10:12Z",
+    "failure": "git submodule add returned 1: git: 'submodule' is not a git command.",
+    "helper_cleanup_verified_at": "2026-11-28T03:10:12Z",
+    "scope": "Earlier Log/Bisect assertions passed; the complete fourth default receiver did not pass. No receiver timeout occurred."
+  },
+  "diagnosis": {
+    "driver": "scripts/check-cherry-pick-native.py",
+    "cause": "The driver resolves the selected logical Git symlink before exporting TURTLEGIT_TEST_GIT. Finalized bundles relocate the Mach-O into Contents/MacOS; resolving discards the Helpers/Git/bin runtime context needed by GitRuntime.environment to set GIT_EXEC_PATH.",
+    "production_contract": "Production GitRuntime.executable retains the logical Helpers/Git/bin/git URL. GitRuntime.environment derives its Git runtime root from that logical URL and supplies its libexec/git-core directory.",
+    "existing_finalized_candidate_inspection": "Candidate 61 logical Git is a symlink to Contents/MacOS/TurtleGitRuntime-Git-289d383c0680-git; logical Git/libexec/git-core/git-submodule exists.",
+    "repair_scope": "Retain the absolute logical engine path for invocation/environment; use physical resolution only for existence and process ownership identity. Add a relocation contract and preserve the complete submodule semantic assertions.",
+    "production_or_packaging_changes_required": false
+  },
+  "validation_status": "relocation contracts and focused native system/finalized unsigned runtime submodule assertions passed; complete corrected-source hosted acceptance remains required",
+  "local_checkpoint": {
+    "changed_files": [
+      "scripts/check-cherry-pick-native.py",
+      "docs/qa/cherry-pick-native-receiver-2026-10-06.swift",
+      "scripts/test-cherry-pick-native-contracts.py"
+    ],
+    "relocation_contracts": {
+      "cases": 3,
+      "initial_result": "Two passed; the double-symlink case exposed a macOS /var versus /private/var comparison in the new contract.",
+      "focused_repair": "Normalize only the physical identity side with resolve(); retain exact logical invocation comparisons.",
+      "affected_case_recheck": "passed; original other two passes retained",
+      "initial_log_sha256": "52f84da89261ba2a1e3446ea78f11b6d21362a99f35a918452bdbcfe3de9436f",
+      "recheck_log_sha256": "8fc491c33af10c373d8f98a2362fd7e66cdc6c96497aa5aa59d429264ca5ac92"
+    },
+    "system_git": "Complete focused LogSubmodule semantics passed in the first native cohort.",
+    "signed_candidate61_attempt": {
+      "result": "Git --exec-path returned code 5 with empty output before submodule setup.",
+      "scope": "Inconclusive execution-context failure from an unsigned native receiver, not signed acceptance or proof of an operating-system denial cause.",
+      "observed_difference": "The signed helper has app-sandbox and inherit entitlements; the unsigned finalized Debug helper does not.",
+      "candidate_mutated": false,
+      "initial_native_log_sha256": "3a7c04c2d1febd2144768177827fa5155ce1ab21c59e29b5c5bebbc67b116fab"
+    },
+    "finalized_unsigned_runtime": {
+      "result": "Affected bundled-only retry passed with the unchanged compiled receiver; system was not rerun.",
+      "layout": "Debug TurtleGitMac.app logical Contents/Helpers/Git/bin/git retains both runtime-directory and binary symlinks to relocated Contents/MacOS code, matching the relevant finalized unsigned CI layout.",
+      "git_version": "2.55.0",
+      "git_source_sha256": "457fdb04dc8728e007d4688695e6912e6f680727920f2a40bf11eacc17505357",
+      "git_binary_sha256": "f5b92584d47b2fdac9062fad6e7fd29d95b926a99363035f815732ad90c36c13",
+      "observed_exec_path": "Logical Contents/Helpers/Git/libexec/git-core remained selected, and its executable git-submodule helper exists.",
+      "semantic_scope": "All existing historical submodule hash/range, parent/child/preference/working/deleted behavior, literal gitlink, unavailable/uninitialized refusal, busy/bare/multi/stale/closed guards and exact index assertions passed.",
+      "log_sha256": "ba4c1ef8a2c2f753e884dc725d25583ec7613c546537d6ab08ca97ebd7168510"
+    },
+    "product_config_files_byte_identical": 1023,
+    "source_closure_receipt_sha256": "f24a315fc16abb04f09beeb230ebb7efa0677c15d8400c1794795c9b8a14b8e8",
+    "native_timeout_seconds": 240,
+    "owned_pids_independently_absent": [13450, 13997, 14720, 15545],
+    "app_builds": 0,
+    "core_suite_runs": 0,
+    "full_four_engine_native_reruns": 0,
+    "ci_admission": "The relocation contracts are appended to the existing Core-only native-runner contract step; all preceding commands, guard and ordering are preserved.",
+    "ci_workflow_contract_tests": {"command": "python3 scripts/test-macos-ci-lanes.py", "tests": 57, "result": "passed"},
+    "required_dialog_reconciliation": "completed; generated ledger unchanged",
+    "formatting_check": "git diff --check passed"
+  },
+  "retained_hosted_scope": {
+    "successful_validation_lanes": ["core", "commit-repository", "history-references", "replay-transport", "settings-finder", "images-documents"],
+    "editors": "cancelled; separate Unicode and picker records retain failures, local repairs and interrupted/unverified remainder",
+    "unsigned_universal_candidate_build_and_audit": "step444 success, 2026-11-28T01:14:06Z to 2026-11-28T01:59:07Z",
+    "older_git_runtime_builds": "step452 success, 2026-11-28T01:59:37Z to 2026-11-28T02:02:13Z",
+    "aggregate_job": "140844917808 failed the all-lanes requirement at 03:10:25Z; expected consequence of cancelled/failed validation, not another independent defect."
+  },
+  "limits": [
+    "No complete corrected-source hosted success is claimed.",
+    "The three complete default receiver passes are retained; the affected fourth receiver is not described as passing from its earlier successful assertions.",
+    "The current local repair will validate the affected relocation/submodule boundary, not repeat the full four-engine native suite.",
+    "No application is installed, opened, quit or submitted to the App Store by this record."
+  ]
+}
